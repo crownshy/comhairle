@@ -14,7 +14,7 @@ use crate::{
     },
     config::ComhairleConfig,
     error::ComhairleError,
-    models,
+    models::{self, SqlxResultExt},
 };
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
@@ -50,7 +50,8 @@ pub struct Conversation {
     pub description: TextContentId,
     #[partially(transparent)]
     pub video_url: Option<String>,
-    pub image_url: String,
+    #[partially(transparent)]
+    pub image: Option<Uuid>,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
@@ -81,19 +82,20 @@ pub struct Conversation {
     pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    pub metadata: serde_json::Value,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 29] = [
+const DEFAULT_COLUMNS: [ConversationIden; 30] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
     ConversationIden::Description,
     ConversationIden::VideoUrl,
-    ConversationIden::ImageUrl,
+    ConversationIden::Image,
     ConversationIden::Tags,
     ConversationIden::IsPublic,
     ConversationIden::IsLive,
@@ -117,6 +119,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 29] = [
     ConversationIden::CallToAction,
     ConversationIden::EnableSignupPrompts,
     ConversationIden::ShowThankYouPageAnnonInstructions,
+    ConversationIden::Metadata,
 ];
 
 impl PartialConversation {
@@ -134,8 +137,8 @@ impl PartialConversation {
         if let Some(value) = &self.video_url {
             values.push((ConversationIden::VideoUrl, value.into()))
         };
-        if let Some(value) = &self.image_url {
-            values.push((ConversationIden::ImageUrl, value.into()))
+        if let Some(value) = &self.image {
+            values.push((ConversationIden::Image, (*value).into()))
         };
         if let Some(value) = &self.tags {
             values.push((
@@ -197,6 +200,9 @@ impl PartialConversation {
                 ConversationIden::ShowThankYouPageAnnonInstructions,
                 (*value).into(),
             ))
+        };
+        if let Some(value) = &self.metadata {
+            values.push((ConversationIden::Metadata, value.clone().into()))
         };
 
         if let Some(value) = &self.supported_languages {
@@ -394,7 +400,7 @@ pub async fn delete(
         .fetch_one(db)
         .await
         .inspect_err(|e| println!("{e:#?}"))
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     if let Some(bot_service) = bot_service {
         if let Some(ref knowledge_base_id) = conversation.knowledge_base_id {
@@ -444,7 +450,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, Comhairle
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -469,7 +475,7 @@ pub async fn get_localised_by_id(
         .fetch_one(db)
         .await
         .inspect_err(|e| println!("{e:#?}"))
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -486,7 +492,7 @@ pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, Comhai
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -509,7 +515,7 @@ pub async fn get_localised_by_slug(
     let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -540,6 +546,37 @@ pub async fn update(
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await?;
+
+    Ok(conversation)
+}
+
+/// Merge the supplied object into the conversation's `metadata` jsonb column at
+/// the top level. Existing keys are overwritten by the patch, keys not present
+/// in the patch are left untouched. This is a shallow merge — nested objects
+/// are replaced, not merged recursively. `patch` must be a JSON object.
+pub async fn patch_metadata(
+    db: &PgPool,
+    id: &Uuid,
+    patch: &serde_json::Value,
+) -> Result<Conversation, ComhairleError> {
+    if !patch.is_object() {
+        return Err(ComhairleError::BadRequest(
+            "metadata patch must be a JSON object".into(),
+        ));
+    }
+
+    let conversation = sqlx::query_as::<_, Conversation>(
+        "UPDATE conversation
+            SET metadata = metadata || $1::jsonb,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *",
+    )
+    .bind(patch)
+    .bind(id)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -598,7 +635,8 @@ pub struct CreateConversation {
     pub short_description: String,
     pub description: String,
     pub video_url: Option<String>,
-    pub image_url: String,
+    #[cfg_attr(test, dummy(expr = "None"))]
+    pub image: Option<Uuid>,
     pub tags: Option<Vec<String>>,
     pub is_public: bool,
     pub is_live: bool,
@@ -613,30 +651,40 @@ pub struct CreateConversation {
 
 impl CreateConversation {
     pub fn columns(&self) -> Vec<ConversationIden> {
-        vec![
+        let mut columns = vec![
             ConversationIden::VideoUrl,
-            ConversationIden::ImageUrl,
             ConversationIden::Tags,
             ConversationIden::IsPublic,
             ConversationIden::IsLive,
             ConversationIden::IsInviteOnly,
             ConversationIden::PrimaryLocale,
             ConversationIden::SupportedLanguages,
-        ]
+        ];
+
+        if self.image.is_some() {
+            columns.push(ConversationIden::Image);
+        }
+
+        columns
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let tags = self.tags.to_owned().unwrap_or_default();
 
-        vec![
+        let mut values = vec![
             self.video_url.to_owned().into(),
-            self.image_url.to_owned().into(),
             tags.into(),
             self.is_public.into(),
             self.is_live.into(),
             self.is_invite_only.into(),
             self.primary_locale.to_owned().into(),
             self.supported_languages.to_owned().into(),
-        ]
+        ];
+
+        if let Some(image) = self.image {
+            values.push(image.into());
+        }
+
+        values
     }
 }
 

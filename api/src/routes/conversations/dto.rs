@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::{
     models::{
         conversation::{Conversation, LocalizedConversation},
+        media::{FromWithMedia, MediaResolver},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -40,7 +41,7 @@ pub struct ConversationDto {
     #[schemars(example = "example_uuid")]
     pub description: TextContentId,
     pub video_url: Option<String>,
-    pub image_url: String,
+    pub image: Option<Uuid>,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
@@ -67,6 +68,7 @@ pub struct ConversationDto {
     pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    pub metadata: serde_json::Value,
 }
 
 /// Data transfer object (public API representation) for a LocalizedConversation.
@@ -125,6 +127,7 @@ pub struct LocalizedConversationDto {
     pub call_to_action: Option<String>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    pub metadata: serde_json::Value,
 }
 
 impl From<Conversation> for ConversationDto {
@@ -135,7 +138,7 @@ impl From<Conversation> for ConversationDto {
             short_description: c.short_description,
             description: c.description,
             video_url: c.video_url,
-            image_url: c.image_url,
+            image: c.image,
             tags: c.tags,
             is_public: c.is_public,
             is_live: c.is_live,
@@ -155,19 +158,23 @@ impl From<Conversation> for ConversationDto {
             call_to_action: c.call_to_action,
             enable_signup_prompts: c.enable_signup_prompts,
             show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
+            metadata: c.metadata,
         }
     }
 }
 
-impl From<LocalizedConversation> for LocalizedConversationDto {
-    fn from(c: LocalizedConversation) -> Self {
+impl FromWithMedia<LocalizedConversation> for LocalizedConversationDto {
+    fn from_with_media(c: LocalizedConversation, media: &MediaResolver, fallback: &str) -> Self {
         Self {
             id: c.id,
             title: c.title,
             short_description: c.short_description,
             description: c.description,
             video_url: c.video_url,
-            image_url: c.image_url,
+            image_url: c
+                .image
+                .and_then(|image| media.url_for(image))
+                .unwrap_or_else(|| fallback.to_string()),
             tags: c.tags,
             is_public: c.is_public,
             is_live: c.is_live,
@@ -187,15 +194,26 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
             call_to_action: c.call_to_action,
             enable_signup_prompts: c.enable_signup_prompts,
             show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
+            metadata: c.metadata,
         }
     }
 }
 
-impl From<PaginatedResults<LocalizedConversation>> for PaginatedResults<LocalizedConversationDto> {
-    fn from(r: PaginatedResults<LocalizedConversation>) -> Self {
+impl FromWithMedia<PaginatedResults<LocalizedConversation>>
+    for PaginatedResults<LocalizedConversationDto>
+{
+    fn from_with_media(
+        results: PaginatedResults<LocalizedConversation>,
+        media: &MediaResolver,
+        fallback: &str,
+    ) -> Self {
         Self {
-            total: r.total,
-            records: r.records.into_iter().map(Into::into).collect(),
+            total: results.total,
+            records: results
+                .records
+                .into_iter()
+                .map(|r| LocalizedConversationDto::from_with_media(r, media, fallback))
+                .collect(),
         }
     }
 }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{delete_with, get_with, post_with},
+    routing::{delete_with, get_with, patch_with, post_with},
 };
 use axum::extract::{Json, Multipart, Path, Query, State};
 use hyper::StatusCode;
@@ -16,7 +16,10 @@ use crate::{
     bulk_storage_service::FileMetadata,
     error::ComhairleError,
     models::{
-        media::{self, CreateMedia, MediaContentType, MediaFilterOptions, MediaOrderOptions},
+        media::{
+            self, CreateMedia, MediaContentType, MediaEditableFields, MediaFilterOptions,
+            MediaOrderOptions,
+        },
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{auth::RequiredAdminUser, media::dto::MediaDto},
@@ -52,7 +55,7 @@ async fn upload(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     mut form_data: Multipart,
-) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+) -> Result<(StatusCode, Json<Vec<MediaDto>>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let bulk_storage_config = state
         .config
@@ -60,61 +63,86 @@ async fn upload(
         .as_ref()
         .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
-    let (filename, content_type_header, bytes) = match form_data.next_field().await? {
-        Some(field) => {
-            let content_type = field.content_type().map(|ct| ct.to_string());
-            let filename = field
-                .file_name()
-                .map(|f| f.to_string())
-                .unwrap_or_else(gen_id);
-            let bytes = field.bytes().await?.to_vec();
+    let mut files = vec![];
+    while let Some(mut field) = form_data.next_field().await? {
+        let content_type = field.content_type().map(|ct| ct.to_string());
+        let filename = field
+            .file_name()
+            .map(|f| f.to_string())
+            .unwrap_or_else(gen_id);
+        let bytes = field.bytes().await?.to_vec();
 
-            (filename, content_type, bytes)
-        }
-        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
-    };
-
-    if form_data.next_field().await?.is_some() {
-        return Err(ComhairleError::BadRequest(
-            "Only one file upload allowed".to_string(),
-        ));
+        files.push((filename, bytes, content_type));
     }
 
-    let content_type = content_type_header
-        .map(|ct| MediaContentType::try_from_mime(&ct))
-        .unwrap_or_else(|| {
-            let extension = std::path::Path::new(&filename)
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .unwrap_or("");
-            MediaContentType::try_from_extension(extension)
-        })?;
+    if files.is_empty() {
+        return Err(ComhairleError::BadRequest("No files to upload".to_string()));
+    }
 
-    let metadata = FileMetadata {
-        is_public: true,
-        content_type: content_type.to_string(),
-    };
-    let prefix = match content_type {
-        MediaContentType::Jpeg
-        | MediaContentType::Png
-        | MediaContentType::Gif
-        | MediaContentType::Webp => "images",
-        MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
-    };
-    let storage_key = format!("{prefix}/{filename}");
-    bulk_storage_service
-        .upload_file(&storage_key, bytes, metadata)
-        .await?;
+    let mut media = vec![];
 
-    let create_media = CreateMedia {
-        store_name: bulk_storage_config.store_name.to_string(),
-        storage_key,
-        filename,
-        content_type,
-    };
-    let media = media::create(&state.db, &create_media, &user.id).await?;
+    for (filename, bytes, content_type_header) in files {
+        let content_type = content_type_header
+            .map(|ct| MediaContentType::try_from_mime(&ct))
+            .unwrap_or_else(|| {
+                let extension = std::path::Path::new(&filename)
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("");
+                MediaContentType::try_from_extension(extension)
+            })?;
 
-    Ok((StatusCode::CREATED, Json(media.into())))
+        let metadata = FileMetadata {
+            is_public: true,
+            content_type: content_type.to_string(),
+        };
+        let prefix = match content_type {
+            MediaContentType::Jpeg
+            | MediaContentType::Png
+            | MediaContentType::Gif
+            | MediaContentType::Webp => "images",
+            MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
+            MediaContentType::Mp3 => "audio",
+        };
+        let storage_key = format!("{prefix}/{filename}");
+        bulk_storage_service
+            .upload_file(&storage_key, bytes, metadata)
+            .await?;
+
+        let mut name = filename.clone();
+
+        if let Some((prefix, _)) = name.rsplit_once('.') {
+            name = prefix.to_string();
+        }
+
+        // TODO: Change name to be able to be set when uploading instead of copied from filename
+        let create_media = CreateMedia {
+            store_name: bulk_storage_config.store_name.to_string(),
+            storage_key,
+            name,
+            filename,
+            content_type,
+        };
+        let media_record = media::create(&state.db, &create_media, &user.id).await?;
+
+        media.push(media_record);
+    }
+
+    let media: Vec<MediaDto> = media.into_iter().map(Into::into).collect();
+
+    Ok((StatusCode::CREATED, Json(media)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn update(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Path(media_id): Path<Uuid>,
+    Json(update_media): Json<MediaEditableFields>,
+) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+    let media = media::update(&state.db, &media_id, &update_media).await?;
+
+    Ok((StatusCode::OK, Json(media.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -180,7 +208,18 @@ curl -X POST \\
                             ",
                     )
                     .security_requirement("JWT")
-                    .response::<201, Json<MediaDto>>()
+                    .response::<201, Json<Vec<MediaDto>>>()
+            }),
+        )
+        .api_route(
+            "/{media_id}",
+            patch_with(update, |op| {
+                op.id("UpdateMedia")
+                    .tag("Media")
+                    .summary("Update a media record")
+                    .description("Update a media record by id")
+                    .security_requirement("JWT")
+                    .response::<200, Json<MediaDto>>()
             }),
         )
         .api_route(
@@ -224,6 +263,7 @@ mod tests {
             store_name: "comhairle-media-test".to_string(),
             storage_key: format!("images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
+            name: format!("{random_name}"),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -266,11 +306,15 @@ mod tests {
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
-        let media: MediaDto = serde_json::from_value(value)?;
+        let media: Vec<MediaDto> = serde_json::from_value(value)?;
 
-        assert_eq!(media.filename, filename.to_string(), "incorrect filename");
         assert_eq!(
-            media.content_type,
+            media[0].filename,
+            filename.to_string(),
+            "incorrect filename"
+        );
+        assert_eq!(
+            media[0].content_type,
             MediaContentType::Jpeg,
             "incorrect content_type"
         );
@@ -325,6 +369,42 @@ mod tests {
             results.records[0].id, created_media_1.id,
             "incorrect first id"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_update_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        session.signup(&app).await?;
+
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let created_media = create_random_image_record(&pool, &user.id).await?;
+
+        let new_name = gen_id();
+        let update = MediaEditableFields {
+            name: Some(new_name.clone()),
+            ..Default::default()
+        };
+        let body = serde_json::to_vec(&update)?;
+
+        let _ = session
+            .patch(&app, &format!("/media/{}", created_media.id), body.into())
+            .await?;
+
+        let (status, response, _) = session
+            .get(&app, &format!("/media/{}", created_media.id))
+            .await?;
+
+        let media: MediaDto = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(media.name, new_name, "incorrect filename");
 
         Ok(())
     }

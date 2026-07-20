@@ -18,7 +18,10 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
-use crate::models::user_progress::{self, ProgressStatus, UserProgressIden};
+use crate::models::{
+    SqlxResultExt,
+    user_progress::{self, ProgressStatus, UserProgressIden},
+};
 use crate::tools::{ToolConfig, ToolSetup};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum, PartialEq)]
@@ -259,7 +262,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, Comhairle
     let workflow_step = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("WorkflowStep".into()))?;
+        .resolve_db_err("Workflow Step")?;
 
     Ok(workflow_step)
 }
@@ -283,7 +286,7 @@ pub async fn get_localised_by_id(
     let workflow_step = sqlx::query_as_with::<_, LocalizedWorkflowStep, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("WorkflowStep".into()))?;
+        .resolve_db_err("Workflow Step")?;
 
     Ok(workflow_step)
 }
@@ -321,7 +324,7 @@ pub async fn delete(
     let deleted_step = sqlx::query_as_with::<_, WorkflowStep, _>(&delete_sql, delete_values)
         .fetch_one(&mut *transaction)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("workflow_step".into()))?;
+        .resolve_db_err("Workflow Step")?;
 
     reset_orders(&mut transaction, &deleted_step.workflow_id).await?;
 

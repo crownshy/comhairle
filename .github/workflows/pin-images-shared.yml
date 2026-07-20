@@ -24,6 +24,15 @@ on:
         required: false
         default: crownshy/helm_charts
         type: string
+      validation:
+        description: >-
+          How to guard against pinning backwards: "ancestry" requires the
+          current pin to be a git ancestor of pin_ref (for sha pins);
+          "semver" requires pin_ref to version-sort greater than the current
+          pin (for tag pins, and immune to history rewrites).
+        required: false
+        default: ancestry
+        type: string
       dry_run:
         description: When true, do not push the pin commit
         required: false
@@ -45,6 +54,7 @@ jobs:
       PIN_REF: ${{ inputs.pin_ref }}
       PIN_KEYS: ${{ inputs.pin_keys }}
       COMMIT_MESSAGE: ${{ inputs.commit_message }}
+      VALIDATION: ${{ inputs.validation }}
       DRY_RUN: ${{ inputs.dry_run }}
       FORCE_PIN: ${{ inputs.force_pin }}
       GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
@@ -75,7 +85,8 @@ jobs:
           current_sha="$(jq -r '.sha' <<<"${content_obj}")"
           current_text="$(jq -r '.content' <<<"${content_obj}" | tr -d '\n' | base64 -d)"
 
-          # Validate each current pin is an ancestor of the new pin before updating.
+          # Guard against pinning backwards: each current pin must be older than
+          # the new pin (git ancestry for sha pins, version order for tag pins).
           all_up_to_date=true
           for key in ${PIN_KEYS}; do
             current_pin="$(printf '%s\n' "${current_text}" | sed -nE "s/^${key}:\s*\"?([^\"[:space:]]+)\"?\s*\$/\1/p" | head -n1)"
@@ -84,15 +95,24 @@ jobs:
               all_up_to_date=false
             fi
 
-            if [[ "${FORCE_PIN}" != "true" ]]; then
+            if [[ "${FORCE_PIN}" != "true" && "${current_pin}" != "${PIN_REF}" ]]; then
               if [[ -z "${current_pin}" ]]; then
                 echo "Could not find pin for ${key} in ${GITOPS_FILE_PATH}" >&2
                 exit 1
               fi
 
-              if ! git merge-base --is-ancestor "${current_pin}" "${PIN_REF}"; then
-                echo "Refusing to pin ${key}: current pin ${current_pin} is not an ancestor of ${PIN_REF}" >&2
-                exit 1
+              if [[ "${VALIDATION}" == "semver" ]]; then
+                # Refuse unless pin_ref version-sorts strictly greater than the current pin.
+                greater="$(printf '%s\n%s\n' "${current_pin}" "${PIN_REF}" | sort -V | tail -n1)"
+                if [[ "${greater}" != "${PIN_REF}" ]]; then
+                  echo "Refusing to pin ${key}: new version ${PIN_REF} is not greater than current ${current_pin}" >&2
+                  exit 1
+                fi
+              else
+                if ! git merge-base --is-ancestor "${current_pin}" "${PIN_REF}"; then
+                  echo "Refusing to pin ${key}: current pin ${current_pin} is not an ancestor of ${PIN_REF}" >&2
+                  exit 1
+                fi
               fi
             fi
           done

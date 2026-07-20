@@ -19,6 +19,7 @@ use crate::{
     models::{
         self,
         conversation::{ConversationFilterOptions, ConversationOrderOptions},
+        media::{FromWithMedia, MediaResolver},
         pagination::{OrderParams, PageOptions, PaginatedResults},
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
@@ -37,7 +38,7 @@ pub async fn get_user_owned_conversations(
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
-    let conversations = models::conversation::list_owned(
+    let results = models::conversation::list_owned(
         &state.db,
         user.id,
         page_options,
@@ -45,9 +46,26 @@ pub async fn get_user_owned_conversations(
         filter_options,
         Some("en".to_string()),
     )
-    .await?
-    .into();
-    Ok((StatusCode::OK, Json(conversations)))
+    .await?;
+
+    let media = MediaResolver::load(
+        &state.db,
+        &results
+            .records
+            .iter()
+            .filter_map(|c| c.image)
+            .collect::<Vec<_>>(),
+    )
+    .await?;
+
+    let results_with_media: PaginatedResults<LocalizedConversationDto> =
+        FromWithMedia::from_with_media(
+            results,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
+
+    Ok((StatusCode::OK, Json(results_with_media)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -74,11 +92,24 @@ pub async fn get_conversations_user_participating_in(
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<Vec<LocalizedConversationDto>>), ComhairleError> {
     let conversations =
-        models::conversation::list_for_user_participation(&state.db, &user.id, &locale)
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect();
+        models::conversation::list_for_user_participation(&state.db, &user.id, &locale).await?;
+
+    let media = MediaResolver::load(
+        &state.db,
+        &conversations
+            .iter()
+            .filter_map(|c| c.image)
+            .collect::<Vec<_>>(),
+    )
+    .await?;
+
+    let conversations = conversations
+        .into_iter()
+        .map(|c| {
+            FromWithMedia::from_with_media(c, &media, &state.config.default_conversation_image_url)
+        })
+        .collect();
+
     Ok((StatusCode::OK, Json(conversations)))
 }
 

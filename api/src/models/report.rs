@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
+    models::SqlxResultExt,
     routes::{
         feedback::dto::FeedbackDto, report_impacts::dto::ReportImpactDto, reports::dto::ReportDto,
     },
@@ -164,7 +165,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Report, ComhairleError>
     let conversation = sqlx::query_as_with::<_, Report, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Report")?;
 
     Ok(conversation)
 }
@@ -274,7 +275,7 @@ pub async fn get_for_conversation(
     let report = sqlx::query_as_with::<_, Report, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Report".into()))?;
+        .resolve_db_err("Report")?;
 
     Ok(report)
 }

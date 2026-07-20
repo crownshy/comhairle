@@ -18,6 +18,7 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
         )?
         .set_default("redis_cache_ttl_secs", 300)?
         .set_default("domain", "http://localhost:5173")?
+        .set_default("default_conversation_image_url", "https://comhairle-media.s3.amazonaws.com/images/comhairle-conversation-placeholder.png")?
         .set_default("enable_rate_limiting", true)?
         .set_default("mailer.host", "")?
         .set_default("mailer.user", "")?
@@ -64,6 +65,7 @@ pub struct ComhairleConfig {
     pub redis_cache_ttl_secs: u64,
     pub jwt_secret: String,
     pub resource_bucket: String,
+    pub default_conversation_image_url: String,
     pub admin_users: Option<Vec<String>>,
     pub mailer: MailerConfig,
     pub domain: String,

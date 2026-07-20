@@ -23,6 +23,9 @@ use crate::{
             self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
             ProposalResponseOrderOptions, QuestionResponses,
         },
+        proposal_section::{
+            self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
+        },
         translations::TextContentId,
     },
     routes::{
@@ -35,7 +38,12 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
 pub struct PrioritizationToolConfig {
+    /// Questions asked once about the proposal as a whole.
     pub questions: Vec<Question>,
+    /// Questions asked about each section individually. The same set is used
+    /// for every section; participants answer them once per section.
+    #[serde(default)]
+    pub section_questions: Vec<Question>,
     pub randomize_order: bool,
 }
 
@@ -85,6 +93,7 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
     fn sanitize(&self) -> Self {
         Self {
             questions: self.questions.clone(),
+            section_questions: self.section_questions.clone(),
             randomize_order: self.randomize_order,
         }
     }
@@ -109,6 +118,8 @@ impl From<SetupQuestion> for Question {
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct PrioritizationToolSetup {
     pub questions: Vec<SetupQuestion>,
+    #[serde(default)]
+    pub section_questions: Vec<SetupQuestion>,
     pub randomize_order: bool,
 }
 
@@ -186,6 +197,28 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                 }),
             )
             .api_route(
+                "/prioritization/proposals/{proposal_id}/sections",
+                post_with(create_proposal_section, |op| {
+                    op.id("CreateProposalSection")
+                        .tag("Tools")
+                        .security_requirement("JWT")
+                        .summary("Create proposal section")
+                        .description("Append a section to a prioritization tool proposal")
+                        .response::<201, Json<ProposalSectionDto>>()
+                }),
+            )
+            .api_route(
+                "/prioritization/proposals/{proposal_id}/sections/{section_id}",
+                delete_with(delete_proposal_section, |op| {
+                    op.id("DeleteProposalSection")
+                        .tag("Tools")
+                        .security_requirement("JWT")
+                        .summary("Delete proposal section")
+                        .description("Delete a section from a prioritization tool proposal")
+                        .response::<200, Json<ProposalSectionDto>>()
+                }),
+            )
+            .api_route(
                 "/prioritization/proposals/{proposal_id}/responses",
                 post_with(create_proposal_response, |op| {
                     op.id("CreateProposalResponse")
@@ -225,8 +258,25 @@ fn prioritization_setup(
             .into_iter()
             .map(Into::into)
             .collect(),
+        section_questions: setup_config
+            .section_questions
+            .clone()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         randomize_order: setup_config.randomize_order,
     })
+}
+
+/// Raw (TextContentId) section reference returned alongside a freshly created proposal.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ProposalSectionDto {
+    #[schemars(example = "example_uuid")]
+    pub id: Uuid,
+    pub position: i32,
+    #[schemars(example = "example_uuid")]
+    pub body: TextContentId,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -238,8 +288,7 @@ pub struct ProposalDto {
     pub workflow_step_id: Uuid,
     #[schemars(example = "example_uuid")]
     pub title: TextContentId,
-    #[schemars(example = "example_uuid")]
-    pub body: TextContentId,
+    pub sections: Vec<ProposalSectionDto>,
 }
 
 /// Response variants for `ListProposals`. Admins may opt-in to the
@@ -248,8 +297,19 @@ pub struct ProposalDto {
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(untagged)]
 pub enum ProposalsListResponse {
-    WithTranslations(Vec<ProposalWithTranslations>),
+    WithTranslations(Vec<ProposalWithTranslationsDto>),
     Localized(Vec<LocalizedProposalDto>),
+}
+
+/// Locale-resolved section shown to participants.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalizedProposalSectionDto {
+    #[schemars(example = "example_uuid")]
+    pub id: Uuid,
+    pub position: i32,
+    #[schemars(example = "example_localized_text")]
+    pub body: String,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -261,8 +321,33 @@ pub struct LocalizedProposalDto {
     pub workflow_step_id: Uuid,
     #[schemars(example = "example_localized_text")]
     pub title: String,
+    pub sections: Vec<LocalizedProposalSectionDto>,
+}
+
+/// Section plus its full translation metadata, for the admin editor.
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SectionWithTranslationsDto {
+    #[schemars(example = "example_uuid")]
+    pub id: Uuid,
+    pub position: i32,
     #[schemars(example = "example_localized_text")]
     pub body: String,
+    pub body_translations: proposal_section::Translation,
+}
+
+/// Proposal plus its title/section translation metadata, for the admin editor.
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ProposalWithTranslationsDto {
+    #[schemars(example = "example_uuid")]
+    pub id: Uuid,
+    #[schemars(example = "example_uuid")]
+    pub workflow_step_id: Uuid,
+    #[schemars(example = "example_localized_text")]
+    pub title: String,
+    pub title_translations: proposal::Translation,
+    pub sections: Vec<SectionWithTranslationsDto>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -274,24 +359,70 @@ pub struct ProposalResponseDto {
     pub response: QuestionResponses,
 }
 
-impl From<Proposal> for ProposalDto {
-    fn from(p: Proposal) -> Self {
+impl From<ProposalSection> for ProposalSectionDto {
+    fn from(s: ProposalSection) -> Self {
         Self {
-            id: p.id,
-            workflow_step_id: p.workflow_step_id,
-            title: p.title,
-            body: p.body,
+            id: s.id,
+            position: s.position,
+            body: s.body,
         }
     }
 }
 
-impl From<LocalizedProposal> for LocalizedProposalDto {
-    fn from(p: LocalizedProposal) -> Self {
+impl ProposalDto {
+    fn from_parts(p: Proposal, sections: Vec<ProposalSection>) -> Self {
         Self {
             id: p.id,
             workflow_step_id: p.workflow_step_id,
             title: p.title,
-            body: p.body,
+            sections: sections.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<LocalizedProposalSection> for LocalizedProposalSectionDto {
+    fn from(s: LocalizedProposalSection) -> Self {
+        Self {
+            id: s.id,
+            position: s.position,
+            body: s.body,
+        }
+    }
+}
+
+impl LocalizedProposalDto {
+    fn from_parts(p: LocalizedProposal, sections: Vec<LocalizedProposalSection>) -> Self {
+        Self {
+            id: p.id,
+            workflow_step_id: p.workflow_step_id,
+            title: p.title,
+            sections: sections.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<ProposalSectionWithTranslations> for SectionWithTranslationsDto {
+    fn from(s: ProposalSectionWithTranslations) -> Self {
+        Self {
+            id: s.id,
+            position: s.position,
+            body: s.body,
+            body_translations: s.translations.body,
+        }
+    }
+}
+
+impl ProposalWithTranslationsDto {
+    fn from_parts(
+        p: ProposalWithTranslations,
+        sections: Vec<ProposalSectionWithTranslations>,
+    ) -> Self {
+        Self {
+            id: p.id,
+            workflow_step_id: p.workflow_step_id,
+            title: p.title,
+            title_translations: p.translations.title,
+            sections: sections.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -311,7 +442,9 @@ impl From<ProposalResponse> for ProposalResponseDto {
 struct CreateProposalRequest {
     workflow_step_id: Uuid,
     title: String,
-    body: String,
+    /// Ordered list of section bodies (rich text).
+    #[serde(default)]
+    sections: Vec<String>,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -323,11 +456,15 @@ async fn create_proposal(
 ) -> Result<(StatusCode, Json<ProposalDto>), ComhairleError> {
     let params = CreateProposal {
         title: payload.title,
-        body: payload.body,
+        sections: payload.sections,
     };
-    let proposal = proposal::create(&state.db, &payload.workflow_step_id, &params, &locale).await?;
+    let (proposal, sections) =
+        proposal::create(&state.db, &payload.workflow_step_id, &params, &locale).await?;
 
-    Ok((StatusCode::CREATED, Json(proposal.into())))
+    Ok((
+        StatusCode::CREATED,
+        Json(ProposalDto::from_parts(proposal, sections)),
+    ))
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
@@ -351,23 +488,26 @@ async fn list_proposals(
     if with_translations && is_user_admin(&state, &user).await {
         let proposals =
             proposal::list_with_translations(&state.db, &workflow_step_id, &locale).await?;
+        let mut out = Vec::with_capacity(proposals.len());
+        for proposal in proposals {
+            let sections =
+                proposal_section::list_with_translations(&state.db, &proposal.id, &locale).await?;
+            out.push(ProposalWithTranslationsDto::from_parts(proposal, sections));
+        }
         return Ok((
             StatusCode::OK,
-            Json(ProposalsListResponse::WithTranslations(proposals)),
+            Json(ProposalsListResponse::WithTranslations(out)),
         ));
     }
 
-    let proposals: Vec<LocalizedProposalDto> =
-        proposal::list_localized(&state.db, &workflow_step_id, &locale)
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect();
+    let proposals = proposal::list_localized(&state.db, &workflow_step_id, &locale).await?;
+    let mut out = Vec::with_capacity(proposals.len());
+    for proposal in proposals {
+        let sections = proposal_section::list_localized(&state.db, &proposal.id, &locale).await?;
+        out.push(LocalizedProposalDto::from_parts(proposal, sections));
+    }
 
-    Ok((
-        StatusCode::OK,
-        Json(ProposalsListResponse::Localized(proposals)),
-    ))
+    Ok((StatusCode::OK, Json(ProposalsListResponse::Localized(out))))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -376,8 +516,50 @@ async fn delete_proposal(
     RequiredAdminUser(_user): RequiredAdminUser,
     Path(proposal_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ProposalDto>), ComhairleError> {
+    // Fetch sections before delete so the response echoes what was removed
+    // (the DB cascade deletes them along with the proposal).
+    let sections = proposal_section::list(&state.db, &proposal_id).await?;
     let proposal = proposal::delete(&state.db, &proposal_id).await?;
-    Ok((StatusCode::OK, Json(proposal.into())))
+    Ok((
+        StatusCode::OK,
+        Json(ProposalDto::from_parts(proposal, sections)),
+    ))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct CreateSectionRequest {
+    /// Section body (rich text).
+    body: String,
+    /// Optional explicit position; appended to the end when omitted.
+    #[serde(default)]
+    position: Option<i32>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn create_proposal_section(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(proposal_id): Path<Uuid>,
+    Json(payload): Json<CreateSectionRequest>,
+) -> Result<(StatusCode, Json<ProposalSectionDto>), ComhairleError> {
+    let position = match payload.position {
+        Some(position) => position,
+        None => proposal_section::next_position(&state.db, &proposal_id).await?,
+    };
+    let section =
+        proposal_section::create(&state.db, &proposal_id, position, &payload.body, &locale).await?;
+    Ok((StatusCode::CREATED, Json(section.into())))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn delete_proposal_section(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Path((_proposal_id, section_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<ProposalSectionDto>), ComhairleError> {
+    let section = proposal_section::delete(&state.db, &section_id).await?;
+    Ok((StatusCode::OK, Json(section.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -464,7 +646,7 @@ mod tests {
                 json!({
                     "workflow_step_id": workflow_step.id,
                     "title": "A new proposal",
-                    "body": "Something to propose"
+                    "sections": ["Something to propose"]
                 })
                 .to_string()
                 .into(),
@@ -511,7 +693,7 @@ mod tests {
                 json!({
                     "workflow_step_id": workflow_step.id,
                     "title": "New proposal A",
-                    "body": "Something to propose"
+                    "sections": ["Something to propose"]
                 })
                 .to_string()
                 .into(),
@@ -524,7 +706,7 @@ mod tests {
                 json!({
                     "workflow_step_id": workflow_step.id,
                     "title": "New proposal B",
-                    "body": "Something to propose"
+                    "sections": ["Something to propose"]
                 })
                 .to_string()
                 .into(),
@@ -537,7 +719,7 @@ mod tests {
                 json!({
                     "workflow_step_id": workflow_step.id,
                     "title": "New proposal C",
-                    "body": "Something to propose"
+                    "sections": ["Something to propose"]
                 })
                 .to_string()
                 .into(),
@@ -575,12 +757,12 @@ mod tests {
             .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
             .await?;
 
-        let proposal = proposal::create(
+        let (proposal, _) = proposal::create(
             &pool,
             &workflow_step.id,
             &CreateProposal {
                 title: "A new proposal".to_string(),
-                body: "Test proposal".to_string(),
+                sections: vec!["Test proposal".to_string()],
             },
             "en",
         )
@@ -596,10 +778,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: (-1.0_f64).into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
             ],
         };
@@ -631,22 +815,22 @@ mod tests {
             .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
             .await?;
 
-        let proposal_a = proposal::create(
+        let (proposal_a, _) = proposal::create(
             &pool,
             &workflow_step.id,
             &CreateProposal {
                 title: "Proposal A".to_string(),
-                body: "Proposal A".to_string(),
+                sections: vec!["Proposal A".to_string()],
             },
             "en",
         )
         .await?;
-        let proposal_b = proposal::create(
+        let (proposal_b, _) = proposal::create(
             &pool,
             &workflow_step.id,
             &CreateProposal {
                 title: "Proposal B".to_string(),
-                body: "Proposal B".to_string(),
+                sections: vec!["Proposal B".to_string()],
             },
             "en",
         )
@@ -662,10 +846,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: (-1.0_f64).into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
             ],
         };
@@ -674,10 +860,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.2_f64.into(),
+                    section_id: None,
                 },
             ],
         };

@@ -20,9 +20,11 @@ use crate::models::{
 #[serde(rename_all = "camelCase")]
 pub struct MediaDto {
     pub id: Uuid,
+    pub url: String,
     pub store_name: String,
     pub storage_key: String,
     pub filename: String,
+    pub name: String,
     pub content_type: MediaContentType,
     pub owner_id: Uuid,
     pub created_at: DateTime<Utc>,
@@ -32,9 +34,11 @@ impl From<Media> for MediaDto {
     fn from(m: Media) -> Self {
         Self {
             id: m.id,
+            url: m.url(),
             store_name: m.store_name,
             storage_key: m.storage_key,
             filename: m.filename,
+            name: m.name,
             content_type: m.content_type,
             owner_id: m.owner_id,
             created_at: m.created_at,

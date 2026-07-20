@@ -160,6 +160,7 @@ jobs:
           DATABASE_URL: postgres://test_user:test_password@localhost:5432/test_db
           RESOURCE_BUCKET: comhairle_resources
           CARGO_HOME: ~/.cargo
+          DEFAULT_CONVERSATION_IMAGE_URL: "https://comhairle-media-test.storage.com/images/comhairle-conversation-placeholder.png"
           BOT_SERVICE__HOST: ${{ secrets.BOT_SERVICE__HOST }}
           BOT_SERVICE__API_KEY: ${{ secrets.BOT_SERVICE__API_KEY }}
           BOT_SERVICE__DEFAULT_KNOWLEDGE_BASE_ID: ${{ secrets.BOT_SERVICE__DEFAULT_KNOWLEDGE_BASE_ID }}

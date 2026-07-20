@@ -35,6 +35,10 @@
 
 	let proposals = $state<LocalizedProposal[]>([]);
 	let answers = $state<Record<string, Record<string, number | string>>>({}); // proposalId → questionId → value
+	/** proposalId → sectionId → questionId → value */
+	let sectionAnswers = $state<Record<string, Record<string, Record<string, number | string>>>>(
+		{}
+	);
 	let submittedIds = $state<Set<string>>(new Set());
 	/** Proposals whose review-stage answers diverged from the originally submitted values. Saved on Continue. */
 	let dirtyIds = $state<Set<string>>(new Set());
@@ -50,6 +54,39 @@
 	const requiredQuestions = $derived<Question[]>(
 		toolConfig.questions.filter((q) => q.type.kind !== 'text')
 	);
+	const requiredSectionQuestions = $derived<Question[]>(
+		toolConfig.sectionQuestions.filter((q) => q.type.kind !== 'text')
+	);
+
+	function isAnswered(value: number | string | undefined | null): boolean {
+		return typeof value === 'number' && value !== null;
+	}
+
+	function isSubmittable(value: number | string | undefined): value is number | string {
+		if (typeof value === 'number') return true;
+		if (typeof value === 'string') return value.trim().length > 0;
+		return false;
+	}
+
+	/** Flatten a proposal's proposal-level and per-section answers into the wire shape. */
+	function buildResponses(proposal: LocalizedProposal): QuestionResponse[] {
+		const pa = answers[proposal.id] ?? {};
+		const proposalResponses: QuestionResponse[] = toolConfig.questions
+			.filter((q) => isSubmittable(pa[q.id]))
+			.map((q) => ({ questionId: q.id, value: pa[q.id] as number | string }));
+		const sa = sectionAnswers[proposal.id] ?? {};
+		const sectionResponses: QuestionResponse[] = proposal.sections.flatMap((section) => {
+			const secVals = sa[section.id] ?? {};
+			return toolConfig.sectionQuestions
+				.filter((q) => isSubmittable(secVals[q.id]))
+				.map((q) => ({
+					questionId: q.id,
+					sectionId: section.id,
+					value: secVals[q.id] as number | string
+				}));
+		});
+		return [...proposalResponses, ...sectionResponses];
+	}
 
 	function shuffle<T>(arr: T[]): T[] {
 		const out = [...arr];
@@ -73,17 +110,30 @@
 			);
 			const submitted = new Set<string>();
 			const restoredAnswers: Record<string, Record<string, number | string>> = {};
+			const restoredSectionAnswers: Record<
+				string,
+				Record<string, Record<string, number | string>>
+			> = {};
 			ordered.forEach((proposal, i) => {
 				const mine = responseLists[i].find((r) => r.userId === participantId);
 				if (mine) {
 					submitted.add(proposal.id);
-					restoredAnswers[proposal.id] = Object.fromEntries(
-						mine.responses.map((r) => [r.questionId, r.value])
-					);
+					const proposalAnswers: Record<string, number | string> = {};
+					const secAnswers: Record<string, Record<string, number | string>> = {};
+					for (const r of mine.responses) {
+						if (r.sectionId) {
+							(secAnswers[r.sectionId] ??= {})[r.questionId] = r.value;
+						} else {
+							proposalAnswers[r.questionId] = r.value;
+						}
+					}
+					restoredAnswers[proposal.id] = proposalAnswers;
+					restoredSectionAnswers[proposal.id] = secAnswers;
 				}
 			});
 			submittedIds = submitted;
 			answers = restoredAnswers;
+			sectionAnswers = restoredSectionAnswers;
 
 			/** Jump to the first un-submitted proposal so returning users don't have to navigate past completed ones manually. */
 			const firstUnsubmitted = ordered.findIndex((p) => !submitted.has(p.id));
@@ -105,14 +155,17 @@
 	let current = $derived(proposals[currentIndex] ?? null);
 	let currentSubmitted = $derived(current ? submittedIds.has(current.id) : false);
 	let currentAnswers = $derived(current ? (answers[current.id] ?? {}) : {});
+	let currentSectionAnswers = $derived(current ? (sectionAnswers[current.id] ?? {}) : {});
 
-	let isComplete = $derived(
-		current
-			? requiredQuestions.every(
-					(q) => typeof currentAnswers[q.id] === 'number' && currentAnswers[q.id] !== null
-				)
-			: false
-	);
+	let isComplete = $derived.by(() => {
+		if (!current) return false;
+		const proposalOk = requiredQuestions.every((q) => isAnswered(currentAnswers[q.id]));
+		const sectionsOk = current.sections.every((section) => {
+			const sa = currentSectionAnswers[section.id] ?? {};
+			return requiredSectionQuestions.every((q) => isAnswered(sa[q.id]));
+		});
+		return proposalOk && sectionsOk;
+	});
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
 
@@ -121,12 +174,37 @@
 		answers = { ...answers, [proposalId]: next };
 	}
 
-	/** Same as setAnswer but also marks the proposal dirty so we know to upsert on Continue. */
-	function setReviewAnswer(proposalId: string, questionId: string, value: number | string) {
-		setAnswer(proposalId, questionId, value);
+	function setSectionAnswer(
+		proposalId: string,
+		sectionId: string,
+		questionId: string,
+		value: number | string
+	) {
+		const sections = { ...(sectionAnswers[proposalId] ?? {}) };
+		sections[sectionId] = { ...(sections[sectionId] ?? {}), [questionId]: value };
+		sectionAnswers = { ...sectionAnswers, [proposalId]: sections };
+	}
+
+	function markDirty(proposalId: string) {
 		if (!dirtyIds.has(proposalId)) {
 			dirtyIds = new Set([...dirtyIds, proposalId]);
 		}
+	}
+
+	/** Same as setAnswer but also marks the proposal dirty so we know to upsert on Continue. */
+	function setReviewAnswer(proposalId: string, questionId: string, value: number | string) {
+		setAnswer(proposalId, questionId, value);
+		markDirty(proposalId);
+	}
+
+	function setSectionReviewAnswer(
+		proposalId: string,
+		sectionId: string,
+		questionId: string,
+		value: number | string
+	) {
+		setSectionAnswer(proposalId, sectionId, questionId, value);
+		markDirty(proposalId);
 	}
 
 	async function saveReviewEditsAndContinue() {
@@ -139,15 +217,9 @@
 		savingReview = true;
 		try {
 			for (const proposalId of dirtyIds) {
-				const proposalAnswers = answers[proposalId] ?? {};
-				const responses: QuestionResponse[] = toolConfig.questions
-					.map((q) => ({ questionId: q.id, value: proposalAnswers[q.id] }))
-					.filter((r): r is QuestionResponse => {
-						if (typeof r.value === 'number') return true;
-						if (typeof r.value === 'string') return r.value.trim().length > 0;
-						return false;
-					});
-				await api.submitResponse(proposalId, responses);
+				const proposal = proposals.find((p) => p.id === proposalId);
+				if (!proposal) continue;
+				await api.submitResponse(proposalId, buildResponses(proposal));
 			}
 			dirtyIds = new Set();
 			onDone();
@@ -163,16 +235,9 @@
 		submitting = true;
 		submitError = null;
 		try {
-			/** Include all answered questions. Required (likert/continuous) are blocked
-			 * by isComplete; text is optional, so we just skip blanks. */
-			const responses: QuestionResponse[] = toolConfig.questions
-				.map((q) => ({ questionId: q.id, value: currentAnswers[q.id] }))
-				.filter((r): r is QuestionResponse => {
-					if (typeof r.value === 'number') return true;
-					if (typeof r.value === 'string') return r.value.trim().length > 0;
-					return false;
-				});
-			await api.submitResponse(current.id, responses);
+			/** Include all answered questions (proposal-level + per-section). Required
+			 * (likert/continuous) are blocked by isComplete; text is optional, so blanks are skipped. */
+			await api.submitResponse(current.id, buildResponses(current));
 			submittedIds = new Set([...submittedIds, current.id]);
 		} catch (e) {
 			submitError = e instanceof Error ? e.message : 'Failed to submit response.';
@@ -218,7 +283,7 @@
 	<Card.Root>
 		<Card.Content class="space-y-3 py-8 text-center">
 			<p class="text-destructive">{loadState.message}</p>
-			<Button variant="outline" onclick={() => void bootstrap()}>Try again</Button>
+			<Button variant="outline" onclick={() => void loadProposalsAndProgress()}>Try again</Button>
 		</Card.Content>
 	</Card.Root>
 {:else if proposals.length === 0}
@@ -241,6 +306,7 @@
 		<Accordion.Root type="multiple" class="space-y-3">
 			{#each proposals as proposal (proposal.id)}
 				{@const proposalAnswers = answers[proposal.id] ?? {}}
+				{@const proposalSectionAnswers = sectionAnswers[proposal.id] ?? {}}
 				{@const firstRequired = requiredQuestions[0]}
 				{@const summary = firstRequired
 					? formatAnswer(firstRequired, proposalAnswers[firstRequired.id])
@@ -263,14 +329,50 @@
 								</div>
 							</div>
 						</Accordion.Trigger>
-						<Accordion.Content class="bg-primary/10 space-y-6 px-4 py-4">
-							{#each toolConfig.questions as question (question.id)}
-								<QuestionField
-									{question}
-									value={proposalAnswers[question.id] ?? null}
-									onChange={(v) => setReviewAnswer(proposal.id, question.id, v)}
-								/>
+						<Accordion.Content class="bg-primary/10 space-y-8 px-4 py-4">
+							{#each proposal.sections as section (section.id)}
+								{#if toolConfig.sectionQuestions.length > 0}
+									<div class="grid gap-6 lg:grid-cols-2">
+										<div class="text-muted-foreground">
+											{#if section.body}
+												<ContentRenderer content={section.body} />
+											{/if}
+										</div>
+										<div class="space-y-6">
+											{#each toolConfig.sectionQuestions as question (question.id)}
+												<QuestionField
+													{question}
+													value={(proposalSectionAnswers[section.id] ??
+														{})[question.id] ?? null}
+													onChange={(v) =>
+														setSectionReviewAnswer(
+															proposal.id,
+															section.id,
+															question.id,
+															v
+														)}
+												/>
+											{/each}
+										</div>
+									</div>
+								{/if}
 							{/each}
+							{#if toolConfig.questions.length > 0}
+								<div
+									class="space-y-6 {toolConfig.sectionQuestions.length > 0
+										? 'border-t pt-6'
+										: ''}"
+								>
+									{#each toolConfig.questions as question (question.id)}
+										<QuestionField
+											{question}
+											value={proposalAnswers[question.id] ?? null}
+											onChange={(v) =>
+												setReviewAnswer(proposal.id, question.id, v)}
+										/>
+									{/each}
+								</div>
+							{/if}
 						</Accordion.Content>
 					</Accordion.Item>
 				</Card.Root>
@@ -329,22 +431,47 @@
 						</div>
 					{/if}
 				</div>
-				{#if current.body}
-					<div class="text-muted-foreground pt-2">
-						<ContentRenderer content={current.body} />
+			</Card.Header>
+			<Card.Content class="space-y-8">
+				{#each current.sections as section (section.id)}
+					<div class="grid gap-6 lg:grid-cols-2">
+						<div class="text-muted-foreground">
+							{#if section.body}
+								<ContentRenderer content={section.body} />
+							{/if}
+						</div>
+						{#if toolConfig.sectionQuestions.length > 0}
+							<div class="space-y-6">
+								{#each toolConfig.sectionQuestions as question (question.id)}
+									<QuestionField
+										{question}
+										value={(currentSectionAnswers[section.id] ?? {})[
+											question.id
+										] ?? null}
+										disabled={currentSubmitted}
+										onChange={(v) =>
+											setSectionAnswer(current.id, section.id, question.id, v)}
+									/>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/each}
+
+				{#if toolConfig.questions.length > 0}
+					<div class="space-y-6 border-t pt-6">
+						{#each toolConfig.questions as question (question.id)}
+							<QuestionField
+								{question}
+								value={currentAnswers[question.id] ?? null}
+								disabled={currentSubmitted}
+								onChange={(v) => setAnswer(current.id, question.id, v)}
+							/>
+						{/each}
 					</div>
 				{/if}
-			</Card.Header>
-			<Card.Content class="space-y-6">
-				{#each toolConfig.questions as question (question.id)}
-					<QuestionField
-						{question}
-						value={currentAnswers[question.id] ?? null}
-						disabled={currentSubmitted}
-						onChange={(v) => setAnswer(current.id, question.id, v)}
-					/>
-				{/each}
-				{#if toolConfig.questions.length === 0}
+
+				{#if toolConfig.questions.length === 0 && toolConfig.sectionQuestions.length === 0}
 					<p class="text-muted-foreground text-sm">
 						No questions configured for this step yet.
 					</p>

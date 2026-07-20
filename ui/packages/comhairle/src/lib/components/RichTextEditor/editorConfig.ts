@@ -1,6 +1,7 @@
 import { StarterKit } from '@tiptap/starter-kit';
 import { Link } from '@tiptap/extension-link';
 import { Image } from '@tiptap/extension-image';
+import { Audio } from '@tiptap/extension-audio';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Markdown } from '@tiptap/markdown';
 import { Color } from '@tiptap/extension-color';
@@ -52,6 +53,7 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 			HTMLAttributes: EDITOR_HTML_ATTRIBUTES.image
 		}),
 		Iframe,
+		Audio,
 		SourceDocument,
 		TextAlign.configure({
 			types: ['heading', 'paragraph']

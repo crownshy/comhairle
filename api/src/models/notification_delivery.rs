@@ -2,7 +2,8 @@ use super::notification::{Notification, NotificationIden};
 use super::pagination::{Order, PageOptions, PaginatedResults};
 use crate::routes::notifications::dto::{NotificationDeliveryDto, NotificationDto};
 use crate::{
-    error::ComhairleError, models::notification::DEFAULT_COLUMNS as NOTIFICATION_DEFAULT_COLUMNS,
+    error::ComhairleError,
+    models::{SqlxResultExt, notification::DEFAULT_COLUMNS as NOTIFICATION_DEFAULT_COLUMNS},
 };
 use chrono::{DateTime, Utc};
 use partially::Partial;
@@ -277,7 +278,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, C
     let delivery = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("NotificationDelivery".into()))?;
+        .resolve_db_err("Notification Delivery")?;
 
     Ok(delivery)
 }
@@ -356,7 +357,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, Comh
     let delivery = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("NotificationDelivery".into()))?;
+        .resolve_db_err("Notification Delivery")?;
 
     Ok(delivery)
 }

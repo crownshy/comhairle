@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::{PgPool, prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -12,7 +14,10 @@ use fake::Dummy;
 
 use crate::{
     error::ComhairleError,
-    models::pagination::{Order, PageOptions, PaginatedResults},
+    models::{
+        SqlxResultExt,
+        pagination::{Order, PageOptions, PaginatedResults},
+    },
 };
 
 /// A media record, which references an upload in the bulk_storage_service.
@@ -25,11 +30,22 @@ pub struct Media {
     /// Identifier in bulk_storage_service
     pub storage_key: String,
     pub filename: String,
+    /// User defined identifier
+    pub name: String,
     /// MIME type of the media uploaded
     pub content_type: MediaContentType,
     pub owner_id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl Media {
+    pub fn url(&self) -> String {
+        format!(
+            "https://{}.s3.amazonaws.com/{}",
+            self.store_name, self.storage_key
+        )
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, sqlx::Type, Clone, JsonSchema)]
@@ -57,6 +73,9 @@ pub enum MediaContentType {
     #[sqlx(rename = "video/webm")]
     #[serde(rename = "video/webm")]
     Webm,
+    #[sqlx(rename = "audio/mpeg")]
+    #[serde(rename = "audio/mpeg")]
+    Mp3,
 }
 
 impl From<MediaContentType> for sea_query::Value {
@@ -75,6 +94,7 @@ impl std::fmt::Display for MediaContentType {
             MediaContentType::Mp4 => "video/mp4",
             MediaContentType::Mpeg => "video/mpeg",
             MediaContentType::Webm => "video/webm",
+            MediaContentType::Mp3 => "audio/mpeg",
         };
         write!(f, "{}", value)
     }
@@ -90,6 +110,7 @@ impl MediaContentType {
             "video/mp4" => Ok(Self::Mp4),
             "video/mpeg" => Ok(Self::Mpeg),
             "video/webm" => Ok(Self::Webm),
+            "audio/mpeg" => Ok(Self::Mp3),
             ct => Err(ComhairleError::UnsupportedContentType(ct.to_string())),
         }
     }
@@ -105,27 +126,92 @@ impl MediaContentType {
             "mp4" => Ok(Self::Mp4),
             "mpeg" | "mpg" => Ok(Self::Mpeg),
             "webm" => Ok(Self::Webm),
+            "mp3" => Ok(Self::Mp3),
             ext => Err(ComhairleError::UnsupportedContentType(ext.to_string())),
         }
     }
 }
 
-const DEFAULT_COLUMNS: [MediaIden; 8] = [
+const DEFAULT_COLUMNS: [MediaIden; 9] = [
     MediaIden::Id,
     MediaIden::StoreName,
     MediaIden::StorageKey,
     MediaIden::Filename,
+    MediaIden::Name,
     MediaIden::ContentType,
     MediaIden::OwnerId,
     MediaIden::CreatedAt,
     MediaIden::UpdatedAt,
 ];
 
+/// A batch-loaded lookup table mapping media IDs to their resolved URLs.
+///
+/// `MediaResolver` exists to avoid N+1 queries when converting DB models
+/// (which reference media by [`Uuid`]) into DTOs (which need the resolved
+/// URL string). Load it once with [`MediaResolver::load`] for a batch of
+/// IDs, then query it synchronously via [`MediaResolver::url_for`] while
+/// assembling DTOs.
+#[derive(Debug)]
+pub struct MediaResolver(HashMap<Uuid, String>);
+
+impl MediaResolver {
+    /// Fetches media rows for the given `ids` and builds a resolver from them.
+    ///
+    /// Only rows matching `ids` are loaded, so this is safe to call with a
+    /// list of IDs collected from an arbitrary batch of records. IDs with no
+    /// matching row are simply absent from the resulting map.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ComhairleError`] if the underlying query fails.
+    pub async fn load(db: &PgPool, ids: &[Uuid]) -> Result<Self, ComhairleError> {
+        let (sql, values) = Query::select()
+            .from(MediaIden::Table)
+            .columns(DEFAULT_COLUMNS)
+            .and_where(Expr::col(MediaIden::Id).is_in(ids.to_owned()))
+            .build_sqlx(PostgresQueryBuilder);
+
+        let media = query_as_with::<_, Media, _>(&sql, values)
+            .fetch_all(db)
+            .await?;
+
+        Ok(Self(
+            media.into_iter().map(|row| (row.id, row.url())).collect(),
+        ))
+    }
+
+    /// Returns the resolved URL for a given media `id`, if it was loaded.
+    ///
+    /// Returns `None` if `id` was not present in the batch passed to
+    /// [`MediaResolver::load`]
+    pub fn url_for(&self, id: Uuid) -> Option<String> {
+        self.0.get(&id).map(|url| url.to_owned())
+    }
+}
+
+/// Converts a value into `Self` using a [`MediaResolver`] to resolve any
+/// media references (e.g. `Uuid` fields) into their corresponding URLs.
+///
+/// This mirrors [`From`], but for conversions that need previously-resolved
+/// media data rather than performing async DB lookups inline. Callers are
+/// expected to batch-load a [`MediaResolver`] for all relevant IDs up front
+/// (e.g. via [`MediaResolver::load`]) before calling `from_with_media`.
+pub trait FromWithMedia<T> {
+    /// Performs the conversion from `model` to `Self`, resolving media
+    /// references via `media`.
+    ///
+    /// If a media reference is absent (e.g. an optional field with no
+    /// associated media) or its ID could not be resolved by `media`,
+    /// `fallback` is used in its place instead.
+    fn from_with_media(model: T, media: &MediaResolver, fallback: &str) -> Self;
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateMedia {
     pub store_name: String,
     pub storage_key: String,
     pub filename: String,
+    pub name: String,
     pub content_type: MediaContentType,
 }
 
@@ -135,6 +221,7 @@ impl CreateMedia {
             MediaIden::StoreName,
             MediaIden::StorageKey,
             MediaIden::Filename,
+            MediaIden::Name,
             MediaIden::ContentType,
         ]
     }
@@ -144,6 +231,7 @@ impl CreateMedia {
             (*self.store_name).into(),
             (*self.storage_key).into(),
             (*self.filename).into(),
+            (*self.name).into(),
             self.content_type.clone().into(),
         ]
     }
@@ -208,12 +296,26 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> 
     let media = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Media".to_string()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Media")?;
 
     Ok(media)
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
+pub struct MediaEditableFields {
+    pub name: Option<String>,
+}
+
+impl MediaEditableFields {
+    fn to_values(&self) -> Vec<(MediaIden, sea_query::SimpleExpr)> {
+        let mut values = Vec::new();
+
+        if let Some(value) = &self.name {
+            values.push((MediaIden::Name, value.into()));
+        }
+
+        values
+    }
 }
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
@@ -295,6 +397,42 @@ pub async fn list(
     Ok(media)
 }
 
+/// Update a media record by its ID.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - Unique identifier of the media record to delete
+/// * `update_media` - MediaEditableFields of the fields that you want to change
+///
+/// # Returns
+///
+/// Returns a `Result` containing the updated `Media` record, or `ComhairleError`
+/// if the query fails.
+#[instrument(err(Debug))]
+pub async fn update(
+    db: &PgPool,
+    id: &Uuid,
+    update_media: &MediaEditableFields,
+) -> Result<Media, ComhairleError> {
+    let values = update_media.to_values();
+
+    if values.is_empty() {
+        return Err(ComhairleError::NoValidUpdates);
+    }
+
+    let (sql, values) = Query::update()
+        .table(MediaIden::Table)
+        .values(values.into_iter())
+        .and_where(Expr::col(MediaIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let media = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(media)
+}
+
 /// Deletes a media record by its ID.
 ///
 /// # Arguments
@@ -314,7 +452,10 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let media = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let media = sqlx::query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Media")?;
 
     Ok(media)
 }
@@ -344,6 +485,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
+            name: "test-image".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -377,6 +519,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
+            name: "test-image".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -410,30 +553,35 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
+            name: "image-b".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
+            name: "image-a".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
+            name: "image-d".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_4 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-c.jpg".to_string(),
             filename: "image-c.jpg".to_string(),
+            name: "image-c".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_5 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-e.jpg".to_string(),
             filename: "image-e.jpg".to_string(),
+            name: "image-e".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -477,18 +625,21 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
+            name: "image-b".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
+            name: "image-a".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
+            name: "image-d".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -518,6 +669,40 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_update_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        session.signup(&app).await?;
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let params = CreateMedia {
+            store_name: "test_media".to_string(),
+            storage_key: "asd123/test-image.jpg".to_string(),
+            filename: "test-image.jpg".to_string(),
+            name: "test-image".to_string(),
+            content_type: MediaContentType::Jpeg,
+        };
+
+        let created_media = create(&pool, &params, &user.id).await?;
+
+        let update_media = MediaEditableFields {
+            name: Some("new-name".to_string()),
+            ..Default::default()
+        };
+
+        let _ = update(&pool, &created_media.id, &update_media).await?;
+
+        let media = get_by_id(&pool, &created_media.id).await?;
+
+        assert_eq!(media.name, "new-name".to_string(), "incorrect filename");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session.signup(&app).await?;
@@ -531,6 +716,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
+            name: "test-image".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 

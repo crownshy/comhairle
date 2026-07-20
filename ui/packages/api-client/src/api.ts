@@ -344,6 +344,93 @@ export const CreateOrUpdateTextTranslationRequest = z
 export type CreateOrUpdateTextTranslationRequest = z.infer<
   typeof CreateOrUpdateTextTranslationRequest
 >;
+export const GroupVoteCounts = z
+  .object({
+    agrees: z.number().int().gte(0),
+    disagrees: z.number().int().gte(0),
+    group_id: z.number().int().gte(0),
+    passes: z.number().int().gte(0),
+  })
+  .passthrough();
+export type GroupVoteCounts = z.infer<typeof GroupVoteCounts>;
+export const VoteCounts = z
+  .object({
+    agrees: z.number().int().gte(0),
+    disagrees: z.number().int().gte(0),
+    passes: z.number().int().gte(0),
+  })
+  .passthrough();
+export type VoteCounts = z.infer<typeof VoteCounts>;
+export const CommentReportData = z
+  .object({
+    divisiveness: z.union([z.number(), z.null()]).optional(),
+    group_informed_consensus: z.union([z.number(), z.null()]).optional(),
+    group_votes: z.array(GroupVoteCounts),
+    is_seed: z.boolean(),
+    overall_votes: VoteCounts,
+    text: z.string(),
+    tid: z.number().int().gte(0),
+  })
+  .passthrough();
+export type CommentReportData = z.infer<typeof CommentReportData>;
+export const RepresentativeComment = z
+  .object({ text: z.string(), tid: z.number().int().gte(0) })
+  .passthrough();
+export type RepresentativeComment = z.infer<typeof RepresentativeComment>;
+export const GroupReportData = z
+  .object({
+    group_id: z.number().int().gte(0),
+    members: z.array(z.number().int().gte(0)),
+    representative_comments: z.array(RepresentativeComment),
+    total_members: z.number().int().gte(0),
+  })
+  .passthrough();
+export type GroupReportData = z.infer<typeof GroupReportData>;
+export const PcaPosition = z
+  .object({ x: z.number(), y: z.number() })
+  .passthrough();
+export type PcaPosition = z.infer<typeof PcaPosition>;
+export const ParticipantReportData = z
+  .object({
+    group_id: z.union([z.number(), z.null()]).optional(),
+    pca_position: z.union([PcaPosition, z.null()]).optional(),
+    pid: z.number().int().gte(0),
+  })
+  .passthrough();
+export type ParticipantReportData = z.infer<typeof ParticipantReportData>;
+export const WikiPollReport = z
+  .object({
+    comments: z.array(CommentReportData),
+    groups: z.array(GroupReportData),
+    participants: z.array(ParticipantReportData),
+  })
+  .passthrough();
+export type WikiPollReport = z.infer<typeof WikiPollReport>;
+export const UpdatePolisConfigRequest = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    is_active: z.union([z.boolean(), z.null()]).optional(),
+    strict_moderation: z.union([z.boolean(), z.null()]).optional(),
+    topic: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type UpdatePolisConfigRequest = z.infer<typeof UpdatePolisConfigRequest>;
+export const WikiPoll = z
+  .object({
+    is_active: z.union([z.boolean(), z.null()]).optional(),
+    poll_id: z.string(),
+  })
+  .passthrough();
+export type WikiPoll = z.infer<typeof WikiPoll>;
+export const PostSeedRequest = z
+  .object({ statement_text: z.string(), workflow_step_id: z.string().uuid() })
+  .passthrough();
+export type PostSeedRequest = z.infer<typeof PostSeedRequest>;
+export const PostSeedResponse = z
+  .object({ polis_statement_id: z.string() })
+  .passthrough();
+export type PostSeedResponse = z.infer<typeof PostSeedResponse>;
 export const ModerationStatus = z.enum(["accepted", "rejected", "pending"]);
 export type ModerationStatus = z.infer<typeof ModerationStatus>;
 export const PolisStatementAux = z
@@ -426,6 +513,28 @@ export const ModerateStatementAuxRequest = z
 export type ModerateStatementAuxRequest = z.infer<
   typeof ModerateStatementAuxRequest
 >;
+export const ModerateStatementAuxBatchRequest = z
+  .object({
+    decision: ModerationDecisionRequest,
+    ids: z.array(z.string().uuid()),
+  })
+  .passthrough();
+export type ModerateStatementAuxBatchRequest = z.infer<
+  typeof ModerateStatementAuxBatchRequest
+>;
+export const ModerateBatchFailure = z
+  .object({ error: z.string(), id: z.string().uuid() })
+  .passthrough();
+export type ModerateBatchFailure = z.infer<typeof ModerateBatchFailure>;
+export const ModerateStatementAuxBatchResponse = z
+  .object({
+    failed: z.array(ModerateBatchFailure),
+    succeeded: z.array(PolisStatementAux),
+  })
+  .passthrough();
+export type ModerateStatementAuxBatchResponse = z.infer<
+  typeof ModerateStatementAuxBatchResponse
+>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -472,6 +581,24 @@ export const ConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ConversationRequest = z.infer<typeof ConversationRequest>;
+export const Translation2 = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type Translation2 = z.infer<typeof Translation2>;
+export const SectionWithTranslationsDto = z
+  .object({
+    body: z.string(),
+    bodyTranslations: Translation2,
+    id: z.string().uuid(),
+    position: z.number().int(),
+  })
+  .passthrough();
+export type SectionWithTranslationsDto = z.infer<
+  typeof SectionWithTranslationsDto
+>;
 export const Translation = z
   .object({
     textContent: TextContentDto,
@@ -479,53 +606,74 @@ export const Translation = z
   })
   .passthrough();
 export type Translation = z.infer<typeof Translation>;
-export const ProposalTranslations = z
-  .object({ body: Translation, title: Translation })
-  .passthrough();
-export type ProposalTranslations = z.infer<typeof ProposalTranslations>;
-export const ProposalWithTranslations = z
+export const ProposalWithTranslationsDto = z
   .object({
-    body: z.string(),
-    createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
+    sections: z.array(SectionWithTranslationsDto),
     title: z.string(),
-    translations: ProposalTranslations,
-    updatedAt: z.string().datetime({ offset: true }),
+    titleTranslations: Translation,
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
-export type ProposalWithTranslations = z.infer<typeof ProposalWithTranslations>;
-export const LocalizedProposalDto = z
+export type ProposalWithTranslationsDto = z.infer<
+  typeof ProposalWithTranslationsDto
+>;
+export const LocalizedProposalSectionDto = z
   .object({
     body: z.string(),
     id: z.string().uuid(),
+    position: z.number().int(),
+  })
+  .passthrough();
+export type LocalizedProposalSectionDto = z.infer<
+  typeof LocalizedProposalSectionDto
+>;
+export const LocalizedProposalDto = z
+  .object({
+    id: z.string().uuid(),
+    sections: z.array(LocalizedProposalSectionDto),
     title: z.string(),
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
 export type LocalizedProposalDto = z.infer<typeof LocalizedProposalDto>;
 export const ProposalsListResponse = z.union([
-  z.array(ProposalWithTranslations),
+  z.array(ProposalWithTranslationsDto),
   z.array(LocalizedProposalDto),
 ]);
 export type ProposalsListResponse = z.infer<typeof ProposalsListResponse>;
 export const CreateProposalRequest = z
   .object({
-    body: z.string(),
+    sections: z.array(z.string()).optional().default([]),
     title: z.string(),
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
 export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
-export const ProposalDto = z
+export const ProposalSectionDto = z
   .object({
     body: z.string().uuid(),
     id: z.string().uuid(),
+    position: z.number().int(),
+  })
+  .passthrough();
+export type ProposalSectionDto = z.infer<typeof ProposalSectionDto>;
+export const ProposalDto = z
+  .object({
+    id: z.string().uuid(),
+    sections: z.array(ProposalSectionDto),
     title: z.string().uuid(),
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
 export type ProposalDto = z.infer<typeof ProposalDto>;
+export const CreateSectionRequest = z
+  .object({
+    body: z.string(),
+    position: z.union([z.number(), z.null()]).optional().default(null),
+  })
+  .passthrough();
+export type CreateSectionRequest = z.infer<typeof CreateSectionRequest>;
 export const ResponseValue = z.union([z.number(), z.string()]);
 export type ResponseValue = z.infer<typeof ResponseValue>;
 export const Response = z
@@ -647,7 +795,7 @@ export const CreateConversation = z
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(),
-    image_url: z.string(),
+    image: z.union([z.string(), z.null()]).optional(),
     is_invite_only: z.boolean(),
     is_live: z.boolean(),
     is_public: z.boolean(),
@@ -670,7 +818,7 @@ export const ConversationDto = z
     enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    imageUrl: z.string(),
+    image: z.union([z.string(), z.null()]).optional(),
     isComplete: z.boolean(),
     isInviteOnly: z.boolean(),
     isLive: z.boolean(),
@@ -691,23 +839,23 @@ export const ConversationDto = z
   })
   .passthrough();
 export type ConversationDto = z.infer<typeof ConversationDto>;
-export const Translation2 = z
+export const Translation3 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation2 = z.infer<typeof Translation2>;
+export type Translation3 = z.infer<typeof Translation3>;
 export const ConversationTranslations = z
   .object({
-    callToAction: z.union([Translation2, z.null()]).optional(),
-    description: Translation2,
-    faqs: z.union([Translation2, z.null()]).optional(),
-    privacyPolicy: z.union([Translation2, z.null()]).optional(),
-    shortDescription: Translation2,
-    shortPrivacyPolicy: z.union([Translation2, z.null()]).optional(),
-    thankYouMessage: z.union([Translation2, z.null()]).optional(),
-    title: Translation2,
+    callToAction: z.union([Translation3, z.null()]).optional(),
+    description: Translation3,
+    faqs: z.union([Translation3, z.null()]).optional(),
+    privacyPolicy: z.union([Translation3, z.null()]).optional(),
+    shortDescription: Translation3,
+    shortPrivacyPolicy: z.union([Translation3, z.null()]).optional(),
+    thankYouMessage: z.union([Translation3, z.null()]).optional(),
+    title: Translation3,
   })
   .passthrough();
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
@@ -722,7 +870,7 @@ export const ConversationWithTranslations = z
     enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    imageUrl: z.string(),
+    image: z.union([z.string(), z.null()]).optional(),
     isComplete: z.boolean(),
     isInviteOnly: z.boolean(),
     isLive: z.boolean(),
@@ -762,7 +910,7 @@ export const PartialConversation = z
     enable_qa_chat_bot: z.union([z.boolean(), z.null()]),
     enable_signup_prompts: z.union([z.boolean(), z.null()]),
     faqs: z.union([z.string(), z.null()]),
-    image_url: z.union([z.string(), z.null()]),
+    image: z.union([z.string(), z.null()]),
     is_complete: z.union([z.boolean(), z.null()]),
     is_invite_only: z.union([z.boolean(), z.null()]),
     is_live: z.union([z.boolean(), z.null()]),
@@ -919,10 +1067,21 @@ export const ToolConfig = z.union([
     .object({
       admin_password: z.string(),
       admin_user: z.string(),
+      description: z.union([z.string(), z.null()]).optional().default(null),
+      is_active: z.union([z.boolean(), z.null()]).optional().default(null),
+      label_seeds_as_conversation_starter: z
+        .boolean()
+        .optional()
+        .default(false),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
       show_remaining_statements: z.boolean().optional().default(true),
+      strict_moderation: z
+        .union([z.boolean(), z.null()])
+        .optional()
+        .default(null),
+      topic: z.union([z.string(), z.null()]).optional().default(null),
       type: z.literal("polis"),
     })
     .passthrough(),
@@ -1039,15 +1198,15 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
-export const Translation3 = z
+export const Translation4 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation3 = z.infer<typeof Translation3>;
+export type Translation4 = z.infer<typeof Translation4>;
 export const WorkflowStepTranslations = z
-  .object({ description: Translation3, name: Translation3 })
+  .object({ description: Translation4, name: Translation4 })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
 export const WorkflowStepWithTranslations = z
@@ -1604,15 +1763,15 @@ export const EventDto = z
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
-export const Translation4 = z
+export const Translation5 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation4 = z.infer<typeof Translation4>;
+export type Translation5 = z.infer<typeof Translation5>;
 export const EventTranslations = z
-  .object({ description: Translation4, name: Translation4 })
+  .object({ description: Translation5, name: Translation5 })
   .passthrough();
 export type EventTranslations = z.infer<typeof EventTranslations>;
 export const EventWithTranslations = z
@@ -1908,6 +2067,7 @@ export const MediaContentType = z.enum([
   "video/mp4",
   "video/mpeg",
   "video/webm",
+  "audio/mpeg",
 ]);
 export type MediaContentType = z.infer<typeof MediaContentType>;
 export const content_type = z.union([MediaContentType, z.null()]).optional();
@@ -1918,9 +2078,11 @@ export const MediaDto = z
     createdAt: z.string().datetime({ offset: true }),
     filename: z.string(),
     id: z.string().uuid(),
+    name: z.string(),
     ownerId: z.string().uuid(),
     storageKey: z.string(),
     storeName: z.string(),
+    url: z.string(),
   })
   .passthrough();
 export type MediaDto = z.infer<typeof MediaDto>;
@@ -1930,6 +2092,11 @@ export const PaginatedResults_for_MediaDto = z
 export type PaginatedResults_for_MediaDto = z.infer<
   typeof PaginatedResults_for_MediaDto
 >;
+export const MediaEditableFields = z
+  .object({ name: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type MediaEditableFields = z.infer<typeof MediaEditableFields>;
 export const Job = z
   .object({
     completion_message: z.union([z.string(), z.null()]).optional(),
@@ -2068,6 +2235,35 @@ export const PreviewEmailTemplateConfigResponse = z
 export type PreviewEmailTemplateConfigResponse = z.infer<
   typeof PreviewEmailTemplateConfigResponse
 >;
+export const ResourcePermission = z
+  .object({
+    grant_reason: z.string(),
+    granted_at: z.string().datetime({ offset: true }),
+    granted_by: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+    resource_id: z.string().uuid(),
+    resource_type: z.string(),
+    role_name: z.string(),
+    user_id: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type ResourcePermission = z.infer<typeof ResourcePermission>;
+export const PaginatedResults_for_ResourcePermission = z
+  .object({ records: z.array(ResourcePermission), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_ResourcePermission = z.infer<
+  typeof PaginatedResults_for_ResourcePermission
+>;
+export const GrantPermissionBody = z
+  .object({
+    grant_reason: z.string(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+    role_name: z.string(),
+    user_id: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type GrantPermissionBody = z.infer<typeof GrantPermissionBody>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2113,6 +2309,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateTextContent,
   UpdateTextTranslation,
   CreateOrUpdateTextTranslationRequest,
+  GroupVoteCounts,
+  VoteCounts,
+  CommentReportData,
+  RepresentativeComment,
+  GroupReportData,
+  PcaPosition,
+  ParticipantReportData,
+  WikiPollReport,
+  UpdatePolisConfigRequest,
+  WikiPoll,
+  PostSeedRequest,
+  PostSeedResponse,
   ModerationStatus,
   PolisStatementAux,
   CreatePolisStatementAux,
@@ -2123,18 +2331,25 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ThemeRequest,
   ModerationDecisionRequest,
   ModerateStatementAuxRequest,
+  ModerateStatementAuxBatchRequest,
+  ModerateBatchFailure,
+  ModerateStatementAuxBatchResponse,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
   ComhairleAgentSession,
   ConversationRequest,
+  Translation2,
+  SectionWithTranslationsDto,
   Translation,
-  ProposalTranslations,
-  ProposalWithTranslations,
+  ProposalWithTranslationsDto,
+  LocalizedProposalSectionDto,
   LocalizedProposalDto,
   ProposalsListResponse,
   CreateProposalRequest,
+  ProposalSectionDto,
   ProposalDto,
+  CreateSectionRequest,
   ResponseValue,
   Response,
   QuestionResponses,
@@ -2154,7 +2369,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateFollowUpQuestions,
   CreateConversation,
   ConversationDto,
-  Translation2,
+  Translation3,
   ConversationTranslations,
   ConversationWithTranslations,
   ConversationResponse,
@@ -2183,7 +2398,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicCategory,
   DemographicReport,
   UserParticipation,
-  Translation3,
+  Translation4,
   WorkflowStepTranslations,
   WorkflowStepWithTranslations,
   ProgressStatus,
@@ -2247,7 +2462,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_LocalizedEventDto,
   CreateEvent,
   EventDto,
-  Translation4,
+  Translation5,
   EventTranslations,
   EventWithTranslations,
   EventResponse,
@@ -2289,6 +2504,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   content_type,
   MediaDto,
   PaginatedResults_for_MediaDto,
+  MediaEditableFields,
   Job,
   PaginatedResults_for_Job,
   CreateJob,
@@ -2306,6 +2522,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailTypeSchema,
   PreviewEmailTemplateConfigRequest,
   PreviewEmailTemplateConfigResponse,
+  ResourcePermission,
+  PaginatedResults_for_ResourcePermission,
+  GrantPermissionBody,
 };
 
 const endpoints = makeApi([
@@ -3876,7 +4095,7 @@ curl -X POST \
         schema: z.array(z.any()),
       },
     ],
-    response: MediaDto,
+    response: z.array(MediaDto),
   },
   {
     method: "get",
@@ -3892,6 +4111,21 @@ curl -X POST \
     alias: "DeleteMedia",
     description: `Delete media record by id`,
     requestFormat: "json",
+    response: MediaDto,
+  },
+  {
+    method: "patch",
+    path: "/media/:media_id",
+    alias: "UpdateMedia",
+    description: `Update a media record by id`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: MediaEditableFields,
+      },
+    ],
     response: MediaDto,
   },
   {
@@ -4041,6 +4275,147 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions",
+    alias: "ListPermissions",
+    description: `Returns role assignments using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. Use the &#x60;offset&#x60; and &#x60;limit&#x60; query params to page through results.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: PaginatedResults_for_ResourcePermission,
+  },
+  {
+    method: "get",
+    path: "/permissions/:resource_type/:resource_id",
+    alias: "ListResourcePermissions",
+    description: `Returns role assignments for a specific resource using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. The caller must hold the Owner role on the resource.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: PaginatedResults_for_ResourcePermission,
+  },
+  {
+    method: "post",
+    path: "/permissions/:resource_type/:resource_id",
+    alias: "GrantPermission",
+    description: `Grants a role to a user or organisation on a resource. The caller must hold the Owner role on the resource.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `Represents a request body for granting a permission to a user or organization.`,
+        type: "Body",
+        schema: GrantPermissionBody,
+      },
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+    ],
+    response: ResourcePermission,
+  },
+  {
+    method: "delete",
+    path: "/permissions/:resource_type/:resource_id",
+    alias: "RevokePermission",
+    description: `Revokes a role from a user or organisation on a resource. The actor (user_id or organization_id) and role_name are provided as query parameters. The caller must hold the Owner role on the resource.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "get",
     path: "/regions",
     alias: "ListRegions",
     description: `Paginated list of regions with optional ordering`,
@@ -4157,6 +4532,21 @@ Use a raw HTTP request and process the response body incrementally.
     response: z.void(),
   },
   {
+    method: "put",
+    path: "/tools/polis/config",
+    alias: "PolisUpdateConfig",
+    description: `Proxies topic, description, strict_moderation and is_active to the Polis conversation via the server-side admin session. Only provided fields are written.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdatePolisConfigRequest,
+      },
+    ],
+    response: WikiPoll,
+  },
+  {
     method: "get",
     path: "/tools/polis/report_data",
     alias: "PolisGetReportData",
@@ -4169,7 +4559,22 @@ Use a raw HTTP request and process the response body incrementally.
         schema: z.string().uuid(),
       },
     ],
-    response: z.void(),
+    response: WikiPollReport,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/seed",
+    alias: "PolisPostSeed",
+    description: `Posts a moderator-authored seed statement (is_seed) to the active Polis poll via the server-side admin session. Re-sync to surface it in the local statement_aux table.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PostSeedRequest,
+      },
+    ],
+    response: z.object({ polis_statement_id: z.string() }).passthrough(),
   },
   {
     method: "get",
@@ -4265,6 +4670,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisStatementAux,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/moderate_batch",
+    alias: "PolisModerateStatementAuxBatch",
+    description: `Forwards an accept/reject decision for many polis_statement_aux rows to Polis using a single admin login, then bulk-updates the rows that succeeded. All ids must belong to the same workflow step. Returns the updated rows plus any per-row failures.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: ModerateStatementAuxBatchRequest,
+      },
+    ],
+    response: ModerateStatementAuxBatchResponse,
   },
   {
     method: "post",
@@ -4370,6 +4790,29 @@ Create a response for prioritization tool proposal
       },
     ],
     response: ProposalResponseDto,
+  },
+  {
+    method: "post",
+    path: "/tools/prioritization/proposals/:proposal_id/sections",
+    alias: "CreateProposalSection",
+    description: `Append a section to a prioritization tool proposal`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateSectionRequest,
+      },
+    ],
+    response: ProposalSectionDto,
+  },
+  {
+    method: "delete",
+    path: "/tools/prioritization/proposals/:proposal_id/sections/:section_id",
+    alias: "DeleteProposalSection",
+    description: `Delete a section from a prioritization tool proposal`,
+    requestFormat: "json",
+    response: ProposalSectionDto,
   },
   {
     method: "get",

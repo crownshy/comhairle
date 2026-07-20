@@ -63,6 +63,7 @@ jobs:
       gitops_file_path: comhairle/prod_values.yaml
       pin_ref: ${{ github.ref_name }}
       pin_keys: docker_tag docker_tag_api docker_tag_frontend
+      validation: semver
       commit_message: Pin prod frontend/api images to ${{ github.ref_name }}
       dry_run: ${{ github.event.inputs.dry_run == 'true' }}
       force_pin: ${{ github.event.inputs.force_pin == 'true' }}

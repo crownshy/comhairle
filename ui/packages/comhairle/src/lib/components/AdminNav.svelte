@@ -6,25 +6,29 @@
 	import {
 		Info,
 		LayoutDashboard,
-		Plus,
 		Settings,
 		Home,
 		Mail,
+		Images,
 		PanelLeftClose,
 		PanelLeftOpen
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
+	import NewConversationButton from './NewConversationButton.svelte';
 	import { userInitials } from '$lib/utils';
 	import ComhairleLogo from './ComhairleLogo.svelte';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import SidebarResizeHandle from './SidebarResizeHandle.svelte';
-	import { sidebarWidth, EXPAND_WIDTH } from './sidebarWidth.svelte.js';
+	import { useSidebarWidth } from './sidebarWidthContext.svelte.js';
+	import { EXPAND_WIDTH } from './sidebarWidth.js';
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
 
 	const sidebar = useSidebar();
+	const sidebarWidth = useSidebarWidth();
 
 	function expandSidebar() {
-		if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.set(EXPAND_WIDTH);
+		if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.setWidth(EXPAND_WIDTH);
 		sidebar.setOpen(true);
 		sidebarWidth.persist();
 	}
@@ -50,6 +54,7 @@
 			variant="ghost"
 			size="icon"
 			class="text-sidebar-foreground/70 hover:text-sidebar size-7 group-data-[collapsible=icon]:hidden"
+			title={`Open / close (Ctrl+${SIDEBAR_KEYBOARD_SHORTCUT} or Cmd+${SIDEBAR_KEYBOARD_SHORTCUT})`}
 			onclick={() => sidebar.toggle()}
 		>
 			<PanelLeftClose class="size-4" />
@@ -59,6 +64,7 @@
 			variant="ghost"
 			size="icon"
 			class="text-sidebar-foreground/70 hover:text-sidebar mx-auto hidden size-7 group-data-[collapsible=icon]:flex"
+			title={`Open / close (Ctrl+${SIDEBAR_KEYBOARD_SHORTCUT} or Cmd+${SIDEBAR_KEYBOARD_SHORTCUT})`}
 			onclick={expandSidebar}
 		>
 			<PanelLeftOpen class="size-4" />
@@ -112,6 +118,16 @@
 								<a {...btnProps} href="/admin/email-template-configs">
 									<Mail class="size-4" />
 									Emails
+								</a>
+							{/snippet}
+						</SideBar.MenuButton>
+					</SideBar.MenuItem>
+					<SideBar.MenuItem>
+						<SideBar.MenuButton>
+							{#snippet child({ props: btnProps })}
+								<a {...btnProps} href="/admin/media-library">
+									<Images class="size-4" />
+									Media library
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>
@@ -218,14 +234,10 @@
 	</SideBar.Content>
 
 	<div class="shrink-0 px-7 group-data-[collapsible=icon]:px-2">
-		<Button
-			href="/admin/conversations/new"
+		<NewConversationButton
 			class="w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0"
-			variant="default"
-		>
-			<Plus class="size-4" />
-			<span class="group-data-[collapsible=icon]:hidden">New conversation</span>
-		</Button>
+			labelClass="group-data-[collapsible=icon]:hidden"
+		/>
 	</div>
 
 	<SideBar.Footer>

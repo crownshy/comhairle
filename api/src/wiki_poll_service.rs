@@ -88,6 +88,13 @@ pub trait WikiPollService: Send + Sync {
         poll_id: &str,
         auth_cookies: &str,
     ) -> Result<WikiPoll, WikiPollServiceError>;
+
+    async fn update_poll_config(
+        &self,
+        poll_id: &str,
+        auth_cookies: &str,
+        config: &WikiPollConfigUpdate,
+    ) -> Result<WikiPoll, WikiPollServiceError>;
 }
 
 impl ModerationStatus {
@@ -130,10 +137,20 @@ pub struct WikiPollXid {
     pub xid: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, JsonSchema)]
 pub struct WikiPoll {
     pub poll_id: String,
     pub is_active: Option<bool>,
+}
+
+/// Abstract, poll-provider-agnostic conversation-config update. Only the
+/// `Some` fields are written through to the underlying poll.
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct WikiPollConfigUpdate {
+    pub is_active: Option<bool>,
+    pub topic: Option<String>,
+    pub description: Option<String>,
+    pub strict_moderation: Option<bool>,
 }
 
 #[cfg(test)]
@@ -174,6 +191,15 @@ impl MockWikiPollService {
                 })
             })
         });
+        wiki_poll_service
+            .expect_update_poll_config()
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    Ok(WikiPoll {
+                        ..Default::default()
+                    })
+                })
+            });
 
         wiki_poll_service
     }

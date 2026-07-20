@@ -1,12 +1,7 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
 	import type { ActiveStates } from './types';
-	import {
-		validateUrl,
-		validateIframeUrl,
-		DEFAULT_ALLOWED_DOMAINS
-	} from '$lib/utils/urlValidation';
-	import UrlInputPopover from '$lib/components/UrlInputPopover/UrlInputPopover.svelte';
+	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
 	import DocumentPickerPopover from './DocumentPickerPopover.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
@@ -23,48 +18,64 @@
 		Video,
 		FileText,
 		ChevronDown,
-		Code2,
 		MoreHorizontal,
-		X
+		Music,
+		type Icon
 	} from 'lucide-svelte';
+	import type { ComponentType } from 'svelte';
 
 	type Props = {
 		editor: Editor | undefined;
 		activeStates: ActiveStates;
-		showLinkPopover: boolean;
-		showImagePopover: boolean;
-		showVideoPopover: boolean;
-		showDocumentPopover: boolean;
 		documents: ComhairleDocument[];
 		menuExpanded: boolean;
 		compact?: boolean;
 		onToggleMenu: () => void;
-		onLinkPopoverChange: (open: boolean) => void;
-		onImagePopoverChange: (open: boolean) => void;
-		onVideoPopoverChange: (open: boolean) => void;
-		onDocumentPopoverChange: (open: boolean) => void;
 	};
 
 	let {
 		editor,
 		activeStates,
-		showLinkPopover = $bindable(),
-		showImagePopover = $bindable(),
-		showVideoPopover = $bindable(),
-		showDocumentPopover = $bindable(),
 		documents,
 		menuExpanded,
 		compact = false,
-		onToggleMenu,
-		onLinkPopoverChange,
-		onImagePopoverChange,
-		onVideoPopoverChange,
-		onDocumentPopoverChange
+		onToggleMenu
 	}: Props = $props();
+
+	// TODO: Upgrade lucide icons library to be able to use svelte 5 syntax as ComponentType is deprecated
+	type ButtonProps = {
+		title: string;
+		active: boolean;
+		onclick?: (event: MouseEvent) => void;
+		classes?: string;
+	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: ComponentType<Icon> });
 </script>
 
+{#snippet divider()}
+	<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+{/snippet}
+
+{#snippet button({ title, active, onclick, classes, text, Icon }: ButtonProps)}
+	<button
+		type="button"
+		{onclick}
+		{title}
+		aria-label={title}
+		class={`btn ${classes}`}
+		class:!bg-primary={active}
+		class:!text-primary-foreground={active}
+		class:!font-semibold={active}
+	>
+		{#if text}
+			{text}
+		{/if}
+		{#if Icon}
+			<Icon size={16} />
+		{/if}
+	</button>
+{/snippet}
 <div
-	class="border-border bg-muted relative flex min-h-12 items-center gap-1 overflow-x-auto rounded-t-[12px] border border-b-0 px-3 xl:p-2"
+	class="border-border bg-muted relative flex min-h-12 items-center gap-1 overflow-x-auto rounded-t-xl border border-b-0 px-3 xl:p-2"
 >
 	<!-- Always visible on mobile: Heading + BISU -->
 	<div class="flex flex-1 items-center gap-1 xl:flex-none">
@@ -103,62 +114,42 @@
 			</div>
 		</div>
 
-		<div class="bg-border mx-1 h-5 w-px shrink-0"></div>
+		{@render divider()}
 
 		<!-- BISU (always visible) -->
 		<div class="flex items-center gap-0.5">
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleBold().run()}
-				title="Bold"
-				aria-label="Bold"
-				class="btn font-bold"
-				class:!bg-primary={activeStates.bold}
-				class:!text-primary-foreground={activeStates.bold}
-				class:!font-semibold={activeStates.bold}
-			>
-				B
-			</button>
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleItalic().run()}
-				title="Italic"
-				aria-label="Italic"
-				class="btn italic"
-				class:!bg-primary={activeStates.italic}
-				class:!text-primary-foreground={activeStates.italic}
-				class:!font-semibold={activeStates.italic}
-			>
-				I
-			</button>
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleStrike().run()}
-				title="Strikethrough"
-				aria-label="Strikethrough"
-				class="btn line-through"
-				class:!bg-primary={activeStates.strike}
-				class:!text-primary-foreground={activeStates.strike}
-				class:!font-semibold={activeStates.strike}
-			>
-				S
-			</button>
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleUnderline().run()}
-				title="Underline"
-				aria-label="Underline"
-				class="btn underline"
-				class:!bg-primary={activeStates.underline}
-				class:!text-primary-foreground={activeStates.underline}
-				class:!font-semibold={activeStates.underline}
-			>
-				U
-			</button>
+			{@render button({
+				title: 'Bold',
+				active: activeStates.bold,
+				onclick: () => editor?.chain().focus().toggleBold().run(),
+				text: 'B',
+				classes: 'font-bold'
+			})}
+			{@render button({
+				title: 'Italic',
+				active: activeStates.italic,
+				onclick: () => editor?.chain().focus().toggleItalic().run(),
+				text: 'I',
+				classes: 'italic'
+			})}
+			{@render button({
+				title: 'Strikethrough',
+				active: activeStates.strike,
+				onclick: () => editor?.chain().focus().toggleStrike().run(),
+				text: 'S',
+				classes: 'line-through'
+			})}
+			{@render button({
+				title: 'Underline',
+				active: activeStates.underline,
+				onclick: () => editor?.chain().focus().toggleUnderline().run(),
+				text: 'U',
+				classes: 'underline'
+			})}
 		</div>
 
 		<!-- Mobile/Compact "more" toggle -->
-		{#if !compact}
+		{#if compact}
 			<button
 				type="button"
 				class="text-muted-foreground hover:bg-accent hover:text-accent-foreground ml-auto flex shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-1.5 xl:hidden"
@@ -177,195 +168,140 @@
 			class:flex={menuExpanded}
 			class:hidden={!menuExpanded}
 		>
-			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+			{@render divider()}
 
 			<!-- Lists -->
 			<div class="flex items-center gap-0.5">
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().toggleBulletList().run()}
-					title="Bullet List"
-					aria-label="Bullet List"
-					class="btn"
-					class:!bg-primary={activeStates.bulletList}
-					class:!text-primary-foreground={activeStates.bulletList}
-					class:!font-semibold={activeStates.bulletList}
-				>
-					<List size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().toggleOrderedList().run()}
-					title="Numbered List"
-					aria-label="Numbered List"
-					class="btn"
-					class:!bg-primary={activeStates.orderedList}
-					class:!text-primary-foreground={activeStates.orderedList}
-					class:!font-semibold={activeStates.orderedList}
-				>
-					<ListOrdered size={16} />
-				</button>
+				{@render button({
+					title: 'Bullet List',
+					active: activeStates.bulletList,
+					onclick: () => editor?.chain().focus().toggleBulletList().run(),
+					Icon: List
+				})}
+				{@render button({
+					title: 'Numbered List',
+					active: activeStates.orderedList,
+					onclick: () => editor?.chain().focus().toggleOrderedList().run(),
+					Icon: ListOrdered
+				})}
 			</div>
 
-			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+			{@render divider()}
 
 			<!-- Text Alignment -->
 			<div class="flex items-center gap-0.5">
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().setTextAlign('left').run()}
-					title="Align Left"
-					aria-label="Align Left"
-					class="btn"
-					class:!bg-primary={activeStates.textAlign === 'left'}
-					class:!text-primary-foreground={activeStates.textAlign === 'left'}
-					class:!font-semibold={activeStates.textAlign === 'left'}
-				>
-					<AlignLeft size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().setTextAlign('center').run()}
-					title="Align Center"
-					aria-label="Align Center"
-					class="btn"
-					class:!bg-primary={activeStates.textAlign === 'center'}
-					class:!text-primary-foreground={activeStates.textAlign === 'center'}
-					class:!font-semibold={activeStates.textAlign === 'center'}
-				>
-					<AlignCenter size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().setTextAlign('right').run()}
-					title="Align Right"
-					aria-label="Align Right"
-					class="btn"
-					class:!bg-primary={activeStates.textAlign === 'right'}
-					class:!text-primary-foreground={activeStates.textAlign === 'right'}
-					class:!font-semibold={activeStates.textAlign === 'right'}
-				>
-					<AlignRight size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().setTextAlign('justify').run()}
-					title="Justify"
-					aria-label="Justify"
-					class="btn"
-					class:!bg-primary={activeStates.textAlign === 'justify'}
-					class:!text-primary-foreground={activeStates.textAlign === 'justify'}
-					class:!font-semibold={activeStates.textAlign === 'justify'}
-				>
-					<AlignJustify size={16} />
-				</button>
+				{@render button({
+					title: 'Align Left',
+					active: activeStates.textAlign === 'left',
+					onclick: () => editor?.chain().focus().setTextAlign('left').run(),
+					Icon: AlignLeft
+				})}
+				{@render button({
+					title: 'Align Center',
+					active: activeStates.textAlign === 'center',
+					onclick: () => editor?.chain().focus().setTextAlign('center').run(),
+					Icon: AlignCenter
+				})}
+				{@render button({
+					title: 'Align Right',
+					active: activeStates.textAlign === 'right',
+					onclick: () => editor?.chain().focus().setTextAlign('right').run(),
+					Icon: AlignRight
+				})}
+				{@render button({
+					title: 'Justify',
+					active: activeStates.textAlign === 'justify',
+					onclick: () => editor?.chain().focus().setTextAlign('justify').run(),
+					Icon: AlignJustify
+				})}
 			</div>
 
-			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+			{@render divider()}
 
-			<!-- Blockquote -->
-			<div class="flex items-center gap-0.5">
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().toggleBlockquote().run()}
-					title="Blockquote"
-					aria-label="Blockquote"
-					class="btn"
-					class:!bg-primary={activeStates.blockquote}
-					class:!text-primary-foreground={activeStates.blockquote}
-					class:!font-semibold={activeStates.blockquote}
-				>
-					<Quote size={16} />
-				</button>
-			</div>
+			<!-- Blockquote & Link -->
+			{@render button({
+				title: 'Blockquote',
+				active: activeStates.blockquote,
+				onclick: () => editor?.chain().focus().toggleBlockquote().run(),
+				Icon: Quote
+			})}
+			<UrlInputPopover
+				type="link"
+				onSubmit={(url) => {
+					editor?.chain().focus().setLink({ href: url }).run();
+				}}
+			>
+				{@render button({
+					title: 'Add Link',
+					active: activeStates.link,
+					onclick: (event) => {
+						if (activeStates.link) {
+							event.stopPropagation();
+							editor?.chain().focus().unsetLink().run();
+						}
+					},
+					Icon: LinkIcon
+				})}
+			</UrlInputPopover>
 
-			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+			{@render divider()}
 
-			<!-- Link, Image & Video -->
-			<div class="flex items-center gap-0.5">
-				<UrlInputPopover
-					bind:open={showLinkPopover}
-					label="Insert Link"
-					placeholder="https://example.com"
-					onSubmit={(url) => {
-						editor?.chain().focus().setLink({ href: url }).run();
-					}}
-					onOpenChange={onLinkPopoverChange}
-					validateFn={(url) => {
-						if (!validateUrl(url)) {
-							return 'Please enter a valid HTTPS URL';
-						}
-						return null;
-					}}
-				>
-					<button
-						type="button"
-						title="Add Link"
-						aria-label="Add Link"
-						class="btn"
-						class:!bg-primary={activeStates.link}
-						class:!text-primary-foreground={activeStates.link}
-						class:!font-semibold={activeStates.link}
-					>
-						<LinkIcon size={16} />
-					</button>
-				</UrlInputPopover>
-				<UrlInputPopover
-					bind:open={showImagePopover}
-					label="Insert Image"
-					placeholder="https://example.com/image.jpg"
-					onSubmit={(url) => {
-						editor?.chain().focus().setImage({ src: url }).run();
-					}}
-					onOpenChange={onImagePopoverChange}
-					validateFn={(url) => {
-						if (!validateUrl(url)) {
-							return 'Please enter a valid HTTPS image URL';
-						}
-						return null;
-					}}
-				>
-					<button type="button" title="Add Image" aria-label="Add Image" class="btn">
-						<ImageIcon size={16} />
-					</button>
-				</UrlInputPopover>
-				<UrlInputPopover
-					bind:open={showVideoPopover}
-					label="Insert Video"
-					placeholder="https://youtube.com/embed/..."
-					onSubmit={(url) => {
-						editor?.chain().focus().setIframe({ src: url }).run();
-					}}
-					onOpenChange={onVideoPopoverChange}
-					validateFn={(url) => {
-						if (!validateIframeUrl(url, DEFAULT_ALLOWED_DOMAINS)) {
-							return 'Please enter a valid video URL';
-						}
-						return null;
-					}}
-				>
-					<button type="button" title="Add Video" aria-label="Add Video" class="btn">
-						<Video size={16} />
-					</button>
-				</UrlInputPopover>
-				<DocumentPickerPopover
-					bind:open={showDocumentPopover}
-					{documents}
-					onSelect={(docId) => {
-						editor?.chain().focus().setSourceDocument({ documentId: docId }).run();
-					}}
-					onOpenChange={onDocumentPopoverChange}
-				>
-					<button
-						type="button"
-						title="Insert Source Document"
-						aria-label="Insert Source Document"
-						class="btn"
-					>
-						<FileText size={16} />
-					</button>
-				</DocumentPickerPopover>
-			</div>
+			<!-- Image, Video & Audio -->
+			<UrlInputPopover
+				type="image"
+				allowLocalSelection
+				onSubmit={(url) => {
+					editor?.chain().focus().setImage({ src: url }).run();
+				}}
+			>
+				{@render button({
+					title: 'Add Image',
+					active: false,
+					Icon: ImageIcon
+				})}
+			</UrlInputPopover>
+			<UrlInputPopover
+				type="video"
+				allowLocalSelection
+				onSubmit={(url) => {
+					editor?.chain().focus().setIframe({ src: url }).run();
+				}}
+			>
+				{@render button({
+					title: 'Add Video',
+					active: false,
+					Icon: Video
+				})}
+			</UrlInputPopover>
+			<UrlInputPopover
+				type="audio"
+				allowLocalSelection
+				onSubmit={(url) => {
+					editor
+						?.chain()
+						.focus()
+						.setAudio({ src: url, autoplay: false, controls: true })
+						.run();
+				}}
+			>
+				{@render button({
+					title: 'Add Audio',
+					active: false,
+					Icon: Music
+				})}
+			</UrlInputPopover>
+			<DocumentPickerPopover
+				{documents}
+				onSelect={(docId) => {
+					editor?.chain().focus().setSourceDocument({ documentId: docId }).run();
+				}}
+			>
+				{@render button({
+					title: 'Insert Source Document',
+					active: false,
+					Icon: FileText
+				})}
+			</DocumentPickerPopover>
 		</div>
 	{/if}
 </div>

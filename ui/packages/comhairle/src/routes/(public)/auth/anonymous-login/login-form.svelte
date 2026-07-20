@@ -36,7 +36,13 @@
 					});
 					await goto(backTo ?? '/', { invalidateAll: true });
 				} catch (e) {
-					$errMessage = e.response.data.err;
+					if (e.response.status === 429) {
+						$errMessage =
+							'Too many requests. You have been temporarily blocked from logging in.';
+					} else {
+						$errMessage =
+							e.response?.data?.err || 'Something went wrong attempting to log in';
+					}
 				}
 			});
 		}
