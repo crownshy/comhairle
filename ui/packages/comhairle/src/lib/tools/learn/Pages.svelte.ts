@@ -11,14 +11,14 @@ export interface ExtendedLocalizedPage extends LocalizedPage {
 }
 
 type From = 'source' | 'target';
-type OnChange = (options?: { invalidate?: boolean }) => Promise<void>;
+type SaveHandler = (options?: { invalidate?: boolean }) => Promise<void>;
 type OnRestore = () => void;
 type Order = { id: string; [SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean }[]; // Matching DraggableList "items" prop
 
 class Pages {
 	items = $state<IPages>({});
 	currentId = $state<number>(0);
-	#onChange: OnChange = () => Promise.resolve();
+	#saveHandler: SaveHandler = () => Promise.resolve();
 	#onRestore: () => void = () => {};
 	order = $state<Order>([]);
 	areDirty = $state<boolean>(false);
@@ -27,8 +27,8 @@ class Pages {
 		return Object.keys(this.items).length;
 	}
 
-	onChange(fn: OnChange) {
-		this.#onChange = function () {
+	saveHandler(fn: SaveHandler) {
+		this.#saveHandler = function () {
 			this.areDirty = true;
 			return fn();
 		};
@@ -50,7 +50,7 @@ class Pages {
 		};
 		this.items[newId] = { [primaryLocale]: newPage };
 		this.order.push({ id: newId });
-		return this.#onChange();
+		return this.#saveHandler();
 	}
 
 	load(source: ExtendedLocalizedPage[][]) {
@@ -77,7 +77,7 @@ class Pages {
 		if (order.some((o) => o[SHADOW_ITEM_MARKER_PROPERTY_NAME])) {
 			return;
 		}
-		return this.#onChange();
+		return this.#saveHandler();
 	}
 
 	dirty() {
@@ -96,7 +96,7 @@ class Pages {
 				const index = this.order.findIndex((p) => Number(p.id) === this.currentId);
 				this.order.splice(index, 1);
 				this.currentId = Number(Math.max(index - 1, 0));
-				return this.#onChange();
+				return this.#saveHandler();
 			},
 
 			upsertContent: (
@@ -125,7 +125,7 @@ class Pages {
 						break;
 				}
 				this.items[this.currentId] = page;
-				return this.#onChange({ invalidate: false });
+				return this.#saveHandler({ invalidate: false });
 			},
 
 			modifyValidation: async (lang: Language, validation: boolean) => {
@@ -133,7 +133,7 @@ class Pages {
 				if (!page || !page[lang]) return;
 				page[lang].requires_validation = validation;
 				this.items[this.currentId] = page;
-				return this.#onChange({ invalidate: false });
+				return this.#saveHandler({ invalidate: false });
 			}
 		};
 	}

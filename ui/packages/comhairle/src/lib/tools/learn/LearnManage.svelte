@@ -79,7 +79,7 @@
 		pages.restore();
 	}
 
-	pages.onChange((options) =>
+	pages.saveHandler((options) =>
 		save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true })
 	);
 
