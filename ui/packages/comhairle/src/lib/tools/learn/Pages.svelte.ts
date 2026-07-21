@@ -89,7 +89,10 @@ class Pages {
 		// moment the request is in flight, so the indicator reflects "you have unsaved changes".
 		clearTimeout(this.#savedResetTimer);
 		this.saveState = 'saving';
-		this.#debouncedSave(invalidate);
+		// A later #saveNow() cancels this debounce, which rejects the pending promise with "Cancelled".
+		// That's expected (the edit is already in the in-memory model, so #saveNow persists it), so
+		// swallow it here rather than leak an unhandled rejection.
+		this.#debouncedSave(invalidate).catch(() => {});
 	}
 
 	/**
