@@ -3,7 +3,7 @@ import type { PolisStatementAux } from '@crownshy/api-client/api';
 import type { PageLoad } from './$types';
 
 /**
- * Moderation only exists for Polis steps. Non-polis steps are bounced to Configure. The
+ * Moderation only exists for Polis steps. Non-polis steps are bounced to Setup. The
  * statement_aux fetch lives here (not the step's shared load) so it runs only when this tab
  * is actually open. `polis:statement-aux` is the invalidation key the moderation actions
  * re-run after sync/moderate/seed.
@@ -14,7 +14,7 @@ export const load: PageLoad = async (event) => {
 	if (toolConfig?.type !== 'polis') {
 		redirect(
 			307,
-			`/admin/conversations/${event.params.conversation_id}/design/step/${event.params.step_id}/configure`
+			`/admin/conversations/${event.params.conversation_id}/design/step/${event.params.step_id}/setup`
 		);
 	}
 
