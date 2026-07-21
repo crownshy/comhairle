@@ -1,0 +1,231 @@
+import { invalidateAll } from '$app/navigation';
+import { useDebounce } from 'runed';
+import type { Translation, Translation2 } from '@crownshy/api-client/api';
+import { getLanguageName } from '$lib/config/languages';
+import {
+	type TranslationSource,
+	type TranslationStatus,
+	type TranslationEntry,
+	type SaveState,
+	getTextInLocale,
+	deriveStatus,
+	saveTranslation,
+	aiTranslate as aiTranslateApi,
+	markOtherTranslationsAsDraft
+} from './translationUtils';
+
+/** How long after the last keystroke we wait before persisting, so typing doesn't hit the API per key. */
+const SAVE_DEBOUNCE_MS = 1_000;
+
+type TextContentSourceOptions = {
+	/** Getter (not a value) so the source tracks the live prop across `invalidateAll()`. */
+	getTranslation: () => Translation | Translation2 | undefined;
+	getPrimaryLocale: () => string;
+	getSupportedLanguages: () => string[];
+	/** Plain field value used for the primary locale before any translation row exists (e.g. `step.name`). */
+	getPrimaryFallback?: () => string;
+	/**
+	 * Transitional hook fired on every primary-locale edit, used only by the legacy `value` /
+	 * `onValueChange` bridge in `TranslatableField` to keep a consumer's `superForm` store (or local
+	 * mirror) in sync until that consumer owns a source directly. Remove once every consumer is
+	 * migrated (see ADR-0005).
+	 * @deprecated
+	 */
+	onSourceEdit?: (content: string) => void;
+};
+
+/**
+ * A {@link TranslationSource} backed by a `TextContent` entity (the common case: step name /
+ * description, conversation config fields, event fields, prioritization proposals).
+ *
+ * `contents` is derived from the `translation` prop, with a thin **optimistic overlay** of just-typed
+ * edits layered on top so it reflects a keystroke immediately; the overlay entry is cleared once the
+ * save + `invalidateAll()` has brought the server truth back (unless the user has typed again since).
+ * That overlay is what keeps `RichTextEditor` from resetting the cursor mid-edit (see ADR-0005).
+ *
+ * Must be called during component initialisation (it uses `$state`/`$derived`), like `runed`'s
+ * utilities. Construct it at the consumer and pass the result to `TranslatableField source={...}`.
+ */
+export function createTextContentSource(options: TextContentSourceOptions): TranslationSource {
+	const {
+		getTranslation,
+		getPrimaryLocale,
+		getSupportedLanguages,
+		getPrimaryFallback,
+		onSourceEdit
+	} = options;
+
+	const textContentId = () => getTranslation()?.textContent?.id;
+	const otherLanguages = () => getSupportedLanguages().filter((l) => l !== getPrimaryLocale());
+
+	// locale -> content typed but not yet reconciled from the server.
+	let overlay = $state<Record<string, string>>({});
+
+	// --- save-state machine (shared across the two debounced channels + the immediate actions) ---
+	let saveState = $state<SaveState>('idle');
+	let inFlightCount = $state(0);
+	let savedResetTimer: ReturnType<typeof setTimeout> | undefined;
+	const activeSaves = new Set<Promise<unknown>>();
+
+	function runSave(fn: () => Promise<void>): Promise<void> {
+		clearTimeout(savedResetTimer);
+		saveState = 'saving';
+		inFlightCount++;
+		const promise = (async () => {
+			let ok = true;
+			try {
+				await fn();
+			} catch (e) {
+				ok = false;
+				console.error('Translation save failed:', e);
+				throw e;
+			} finally {
+				inFlightCount--;
+				// Only the last save to settle drives the terminal state, so overlapping saves don't
+				// flip the indicator to "saved" while another is still in flight.
+				if (inFlightCount === 0) {
+					saveState = ok ? 'saved' : 'error';
+					if (ok) {
+						savedResetTimer = setTimeout(() => {
+							if (saveState === 'saved') saveState = 'idle';
+						}, 2_000);
+					}
+				}
+			}
+		})();
+		activeSaves.add(promise);
+		promise.catch(() => {}).finally(() => activeSaves.delete(promise));
+		return promise;
+	}
+
+	const contents = $derived.by((): Record<string, string> => {
+		const translation = getTranslation();
+		const primaryLocale = getPrimaryLocale();
+		const server: Record<string, string> = {
+			[primaryLocale]: getTextInLocale(
+				translation,
+				primaryLocale,
+				getPrimaryFallback?.() ?? ''
+			)
+		};
+		for (const locale of otherLanguages()) {
+			server[locale] = getTextInLocale(translation, locale, '');
+		}
+		// Optimistic edits win until the server catches up (their overlay entry is then cleared).
+		return { ...server, ...overlay };
+	});
+
+	const statuses = $derived.by((): Record<string, TranslationStatus> => {
+		const translation = getTranslation();
+		const primaryLocale = getPrimaryLocale();
+		const result: Record<string, TranslationStatus> = { [primaryLocale]: 'primary' };
+		for (const locale of otherLanguages()) {
+			const row = translation?.textTranslations?.find((t) => t.locale === locale);
+			result[locale] = deriveStatus(false, row?.requiresValidation);
+		}
+		return result;
+	});
+
+	/**
+	 * Persist one locale, then reconcile: clear its overlay entry only if the user hasn't typed
+	 * something newer in the meantime (otherwise a pending save still owns it).
+	 */
+	async function persist(
+		locale: string,
+		content: string,
+		opts: { requiresValidation: boolean; markOthersDraft?: boolean }
+	) {
+		const id = textContentId();
+		if (!id) return;
+		await saveTranslation(id, locale, content, { requiresValidation: opts.requiresValidation });
+		if (opts.markOthersDraft) {
+			const primaryLocale = getPrimaryLocale();
+			const approved: TranslationEntry[] = otherLanguages()
+				.filter((l) => statuses[l] === 'approved' && contents[l])
+				.map((l) => ({
+					language: l,
+					languageName: getLanguageName(l),
+					status: 'approved',
+					content: contents[l]
+				}));
+			if (approved.length > 0)
+				await markOtherTranslationsAsDraft(id, primaryLocale, approved);
+		}
+		await invalidateAll();
+		if (overlay[locale] === content) {
+			const next = { ...overlay };
+			delete next[locale];
+			overlay = next;
+		}
+	}
+
+	const debouncedSaveSource = useDebounce((content: string) => {
+		const primaryLocale = getPrimaryLocale();
+		return runSave(() =>
+			persist(primaryLocale, content, { requiresValidation: false, markOthersDraft: true })
+		);
+	}, SAVE_DEBOUNCE_MS);
+
+	const debouncedSaveTarget = useDebounce((locale: string, content: string) => {
+		return runSave(() => persist(locale, content, { requiresValidation: true }));
+	}, SAVE_DEBOUNCE_MS);
+
+	return {
+		get contents() {
+			return contents;
+		},
+		get statuses() {
+			return statuses;
+		},
+		get saveState() {
+			return saveState;
+		},
+
+		saveSource(content: string) {
+			onSourceEdit?.(content);
+			overlay = { ...overlay, [getPrimaryLocale()]: content };
+			debouncedSaveSource(content);
+		},
+
+		saveTarget(locale: string, content: string) {
+			overlay = { ...overlay, [locale]: content };
+			debouncedSaveTarget(locale, content);
+		},
+
+		async aiTranslate(locale: string, sourceContent: string) {
+			const id = textContentId();
+			if (!id) throw new Error('Cannot AI-translate without a text content id');
+			let result: { content: string; requiresValidation: boolean } | undefined;
+			await runSave(async () => {
+				// aiTranslateApi persists the generated translation against this text content id.
+				result = await aiTranslateApi(id, locale, sourceContent, getPrimaryLocale());
+				overlay = { ...overlay, [locale]: result.content };
+				await invalidateAll();
+				if (overlay[locale] === result.content) {
+					const next = { ...overlay };
+					delete next[locale];
+					overlay = next;
+				}
+			});
+			return result!;
+		},
+
+		approve(locale: string) {
+			return runSave(async () => {
+				await persist(locale, contents[locale] ?? '', { requiresValidation: false });
+			});
+		},
+
+		markAsDraft(locale: string) {
+			return runSave(async () => {
+				await persist(locale, contents[locale] ?? '', { requiresValidation: true });
+			});
+		},
+
+		async flush() {
+			await debouncedSaveSource.runScheduledNow();
+			await debouncedSaveTarget.runScheduledNow();
+			await Promise.allSettled([...activeSaves]);
+		}
+	};
+}

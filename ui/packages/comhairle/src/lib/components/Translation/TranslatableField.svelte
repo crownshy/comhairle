@@ -6,27 +6,15 @@
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import LanguageStatusBadge from './LanguageStatusBadge.svelte';
 	import TranslationEditor from './TranslationEditor.svelte';
-	import type { Translation, Translation2 } from '@crownshy/api-client/api';
 	import { Languages, X, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
-	import { invalidateAll } from '$app/navigation';
-	import { useDebounce } from 'runed';
-	import {
-		type TranslationStatus,
-		type TranslationEntry,
-		type SaveState,
-		deriveStatus,
-		saveTranslation,
-		aiTranslate,
-		markOtherTranslationsAsDraft
-	} from './translationUtils';
-	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import type { TranslationSource, TranslationEntry } from './translationUtils';
+	import { createTextContentSource } from './translationSource.svelte';
+	import type { Translation, Translation2, ComhairleDocument } from '@crownshy/api-client/api';
 
-	type TranslationData = Translation | Translation2;
-
-	interface Props {
-		value: string | null;
-		onValueChange: (value: string) => void;
+	type Props = {
+		/** The single persistence + read contract this field renders. See ADR-0005. */
+		source?: TranslationSource;
 		primaryLocale: string;
 		supportedLanguages: string[];
 		editorType?: 'plain' | 'rich';
@@ -36,38 +24,30 @@
 		maxHeight?: string;
 		dialogMinHeight?: string;
 		dialogTitle?: string;
-		inputProps?: Record<string, any>;
+		inputProps?: Record<string, unknown>;
 		/**
-		 * Optional guard run against the primary-locale value before autosaving. Return `false`
-		 * to skip the save (e.g. the value fails validation, such as a required field left blank).
-		 * Omit it and every change autosaves, which is correct for optional fields.
+		 * Optional guard run against the primary-locale value before saving. Return `false` to skip
+		 * the save (e.g. a required field cleared to blank). Omit it and every change saves, which is
+		 * correct for optional fields.
 		 */
 		canSave?: (value: string) => boolean;
-		/**
-		 * Externally-owned save status, shown in place of the field's own indicator. Pass this in
-		 * callback mode (no `translation`) where the parent owns persistence, so the "Saving/Saved"
-		 * state reflects the real request rather than the field's local guess. Omit it in textContent
-		 * mode; the field drives its own indicator there.
-		 */
-		saveStatus?: SaveState;
-		translation?: TranslationData;
-		initialContents?: Record<string, string>;
-		initialStatuses?: Record<string, TranslationStatus>;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
-		onSaveSource?: (content: string) => void | Promise<void>;
-		onSaveTarget?: (lang: string, content: string) => void | Promise<void>;
-		onAiTranslate?: (
-			targetLang: string,
-			sourceContent: string
-		) => Promise<{ content: string; requiresValidation: boolean }>;
-		onApprove?: (lang: string) => void | Promise<void>;
-		onMarkAsDraft?: (lang: string) => void | Promise<void>;
-	}
+		/**
+		 * Legacy textContent inputs, kept only until every consumer passes a `source` directly (see
+		 * ADR-0005). When `source` is omitted these build one internally; `onValueChange` bridges edits
+		 * back to a consumer's `superForm` store / local mirror.
+		 * @deprecated pass `source` instead.
+		 */
+		value?: string | null;
+		/** @deprecated pass `source` instead. */
+		onValueChange?: (value: string) => void;
+		/** @deprecated pass `source` instead. */
+		translation?: Translation | Translation2;
+	};
 
 	let {
-		value,
-		onValueChange,
+		source,
 		primaryLocale,
 		supportedLanguages,
 		editorType = 'plain',
@@ -79,204 +59,53 @@
 		dialogTitle = 'Content Translation',
 		inputProps = {},
 		canSave,
-		saveStatus: externalSaveStatus,
-		translation,
-		initialContents,
-		initialStatuses,
 		availableDocuments = [],
 		conversationId,
-		onSaveSource,
-		onSaveTarget,
-		onAiTranslate: onAiTranslateProp,
-		onApprove: onApproveProp,
-		onMarkAsDraft: onMarkAsDraftProp
+		value: legacyValue,
+		onValueChange: legacyOnValueChange,
+		translation: legacyTranslation
 	}: Props = $props();
+
+	// Transitional: when a consumer hasn't migrated to `source` yet, synthesise one from its legacy
+	// `value` / `onValueChange` / `translation` props. Delete this (and the legacy props) once every
+	// consumer passes `source`.
+	const legacySource = createTextContentSource({
+		getTranslation: () => legacyTranslation,
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLanguages,
+		getPrimaryFallback: () => legacyValue ?? '',
+		onSourceEdit: (content) => legacyOnValueChange?.(content)
+	});
+	let activeSource = $derived(source ?? legacySource);
 
 	let dialogOpen = $state(false);
 	let clickedLang = $state<string | undefined>(undefined);
-	let internalSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
-	let savedTimer: ReturnType<typeof setTimeout> | undefined;
 
-	// An externally-supplied status wins; otherwise the field shows the one it drives itself (textContent mode).
-	let displaySaveStatus = $derived(externalSaveStatus ?? internalSaveStatus);
-
-	function setSaveStatus(status: 'idle' | 'saving' | 'saved') {
-		clearTimeout(savedTimer);
-		internalSaveStatus = status;
-		if (status === 'saved') {
-			savedTimer = setTimeout(() => (internalSaveStatus = 'idle'), 2000);
-		}
-	}
-
-	// Inline autosave for textContent mode only. In callback mode the parent owns persistence and
-	// receives edits through `onValueChange`, so this never runs there (see handleRichChange below).
-	const debouncedSaveInline = useDebounce(async (content: string) => {
-		// Never persist a value the parent has rejected (e.g. a required field cleared to blank).
-		// The debounce fires with the latest content, so a value typed then cleared is dropped here.
-		if (canSave && !canSave(content)) {
-			setSaveStatus('idle');
-			return;
-		}
-		if (!textContentId) return;
-		const id = textContentId;
-		setSaveStatus('saving');
-		try {
-			await saveTranslation(id, primaryLocale, content, {
-				requiresValidation: false
-			});
-			const approved = badges.filter((t) => t.status === 'approved' && t.content);
-			if (approved.length > 0) {
-				await markOtherTranslationsAsDraft(id, primaryLocale, approved);
-			}
-			setSaveStatus('saved');
-
-			await invalidateAll();
-		} catch (e) {
-			console.error('Failed to save primary content:', e);
-			setSaveStatus('idle');
-		}
-	}, 1000);
-	let editorFlush: (() => Promise<void>) | null = null;
-
-	let isTextContentMode = $derived(!!translation?.textContent?.id);
-	let textContentId = $derived(translation?.textContent?.id);
+	let value = $derived(activeSource.contents[primaryLocale] ?? '');
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
+	let hasTranslations = $derived(otherLanguages.length > 0);
+	let saveState = $derived(activeSource.saveState);
 
-	let badges = $derived.by((): TranslationEntry[] => {
-		if (otherLanguages.length === 0) return [];
-
-		if (isTextContentMode && translation?.textTranslations) {
-			return otherLanguages.map((locale) => {
-				const existing = translation!.textTranslations.find((t) => t.locale === locale);
-				return {
-					language: locale,
-					languageName: getLanguageName(locale),
-					status: deriveStatus(false, existing?.requiresValidation),
-					content: existing?.content ?? ''
-				};
-			});
-		}
-
-		return otherLanguages.map((locale) => ({
+	let badges = $derived.by((): TranslationEntry[] =>
+		otherLanguages.map((locale) => ({
 			language: locale,
 			languageName: getLanguageName(locale),
-			status: initialStatuses?.[locale] ?? ('draft' as TranslationStatus),
-			content: initialContents?.[locale] ?? ''
-		}));
-	});
+			status: activeSource.statuses[locale] ?? 'draft',
+			content: activeSource.contents[locale] ?? ''
+		}))
+	);
 
-	let hasTranslations = $derived(badges.length > 0);
+	function saveSource(content: string) {
+		if (!canSave || canSave(content)) activeSource.saveSource(content);
+	}
 
 	function handlePlainInput(e: Event) {
-		const newValue = (e.currentTarget as HTMLInputElement | HTMLTextAreaElement).value;
-		onValueChange(newValue);
-		if (isTextContentMode) saveInlinePrimary(newValue);
+		saveSource((e.currentTarget as HTMLInputElement | HTMLTextAreaElement).value);
 	}
 
 	function handleRichChange(content: string) {
 		if (content === value) return;
-		onValueChange(content);
-		if (isTextContentMode) saveInlinePrimary(content);
-	}
-
-	function saveInlinePrimary(content: string) {
-		// Still reset the debounce timer on every keystroke, but don't show "Saving" for a value
-		// that the guard below will drop; the debounced callback repeats the check before saving.
-		if (!canSave || canSave(content)) setSaveStatus('saving');
-		debouncedSaveInline(content);
-	}
-
-	let editorContents = $derived.by((): Record<string, string> => {
-		if (!value) return {} as Record<string, string>;
-
-		if (initialContents) {
-			return { ...initialContents, [primaryLocale]: value };
-		}
-		const c: Record<string, string> = {};
-		c[primaryLocale] = value;
-		if (translation?.textTranslations) {
-			for (const t of translation.textTranslations) {
-				if (t.locale !== primaryLocale) c[t.locale] = t.content;
-			}
-		}
-		for (const locale of otherLanguages) {
-			if (!(locale in c)) c[locale] = '';
-		}
-		return c;
-	});
-
-	let editorStatuses = $derived.by((): Record<string, TranslationStatus> => {
-		if (initialStatuses) {
-			return { ...initialStatuses, [primaryLocale]: 'primary' };
-		}
-		const s: Record<string, TranslationStatus> = {};
-		s[primaryLocale] = 'primary';
-		if (translation?.textTranslations) {
-			for (const t of translation.textTranslations) {
-				if (t.locale !== primaryLocale) {
-					s[t.locale] = deriveStatus(false, t.requiresValidation);
-				}
-			}
-		}
-		for (const locale of otherLanguages) {
-			if (!(locale in s)) s[locale] = 'draft';
-		}
-		return s;
-	});
-
-	function handleEditorSaveSource(content: string) {
-		onValueChange(content);
-		if (isTextContentMode && textContentId) {
-			const id = textContentId;
-			return saveTranslation(id, primaryLocale, content, { requiresValidation: false }).then(
-				async () => {
-					const entries = otherLanguages
-						.map((l) => ({
-							language: l,
-							languageName: getLanguageName(l),
-							status: 'draft' as TranslationStatus,
-							content: editorContents[l] ?? ''
-						}))
-						.filter((e) => e.content);
-					if (entries.length > 0)
-						await markOtherTranslationsAsDraft(id, primaryLocale, entries);
-				}
-			);
-		}
-		return onSaveSource?.(content);
-	}
-
-	function handleEditorSaveTarget(lang: string, content: string) {
-		if (isTextContentMode && textContentId) {
-			return saveTranslation(textContentId, lang, content, { requiresValidation: true });
-		}
-		return onSaveTarget?.(lang, content);
-	}
-
-	async function handleEditorAiTranslate(targetLang: string, sourceContent: string) {
-		if (isTextContentMode && textContentId) {
-			return aiTranslate(textContentId, targetLang, sourceContent, primaryLocale);
-		}
-		if (onAiTranslateProp) return onAiTranslateProp(targetLang, sourceContent);
-		throw new Error('No AI translate handler configured');
-	}
-
-	async function handleEditorApprove(lang: string) {
-		if (isTextContentMode && textContentId) {
-			return saveTranslation(textContentId, lang, editorContents[lang] ?? '', {
-				requiresValidation: false
-			});
-		}
-		return onApproveProp?.(lang);
-	}
-
-	async function handleEditorMarkAsDraft(lang: string) {
-		if (isTextContentMode && textContentId) {
-			return saveTranslation(textContentId, lang, editorContents[lang] ?? '', {
-				requiresValidation: true
-			});
-		}
-		return onMarkAsDraftProp?.(lang);
+		saveSource(content);
 	}
 
 	function openDialog(lang?: string) {
@@ -286,12 +115,9 @@
 
 	async function closeDialog() {
 		if (!dialogOpen) return;
-		if (editorFlush) {
-			await editorFlush();
-		}
+		// Commit any pending debounced edit before the dialog goes away.
+		await activeSource.flush();
 		dialogOpen = false;
-		editorFlush = null;
-		if (isTextContentMode) await invalidateAll();
 	}
 </script>
 
@@ -351,19 +177,19 @@
 		</div>
 	{/if}
 
-	{#if hasTranslations || displaySaveStatus !== 'idle'}
+	{#if hasTranslations || saveState !== 'idle'}
 		<div class="flex flex-wrap items-center gap-2">
-			{#if displaySaveStatus === 'saving'}
+			{#if saveState === 'saving'}
 				<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
 					<LoaderCircle class="h-3 w-3 animate-spin" />
 					Saving
 				</span>
-			{:else if displaySaveStatus === 'saved'}
+			{:else if saveState === 'saved'}
 				<span class="inline-flex items-center gap-1 text-xs text-green-600">
 					<Check class="h-3 w-3" />
 					Saved
 				</span>
-			{:else if displaySaveStatus === 'error'}
+			{:else if saveState === 'error'}
 				<span class="text-destructive inline-flex items-center gap-1 text-xs">
 					<TriangleAlert class="h-3 w-3" />
 					Not saved
@@ -409,8 +235,7 @@
 			<div class="max-h-[calc(90vh-120px)] overflow-y-auto pt-4">
 				{#if dialogOpen}
 					<TranslationEditor
-						initialContents={editorContents}
-						initialStatuses={editorStatuses}
+						source={activeSource}
 						{primaryLocale}
 						{supportedLanguages}
 						{editorType}
@@ -418,14 +243,6 @@
 						initialTargetLang={clickedLang}
 						{availableDocuments}
 						{conversationId}
-						onSaveSource={handleEditorSaveSource}
-						onSaveTarget={handleEditorSaveTarget}
-						onAiTranslate={handleEditorAiTranslate}
-						onApprove={handleEditorApprove}
-						onMarkAsDraft={handleEditorMarkAsDraft}
-						onRegisterFlush={(flush) => {
-							editorFlush = flush;
-						}}
 					/>
 				{/if}
 			</div>

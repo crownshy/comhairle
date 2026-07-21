@@ -5,77 +5,42 @@
 	import { Sparkles, Check, MoreHorizontal } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { getLanguageName } from '$lib/config/languages';
-	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { notifications } from '$lib/notifications.svelte';
-	import { useDebounce } from 'runed';
-	import { type TranslationStatus, statusToBadgeVariant } from './translationUtils';
+	import { type TranslationSource, statusToBadgeVariant } from './translationUtils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
-	interface Props {
-		initialContents: Record<string, string>;
-		initialStatuses: Record<string, TranslationStatus>;
+	type Props = {
+		/** The same source the inline field renders; the dialog is just another view over it. */
+		source: TranslationSource;
 		primaryLocale: string;
 		supportedLanguages: string[];
 		editorType?: 'plain' | 'rich';
 		minHeight?: string;
 		maxHeight?: string;
 		initialTargetLang?: string;
-		isLoading?: boolean;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
-		onSaveSource?: (content: string) => void | Promise<void>;
-		onSaveTarget?: (lang: string, content: string) => void | Promise<void>;
-		onAiTranslate?: (
-			targetLang: string,
-			sourceContent: string
-		) => Promise<{ content: string; requiresValidation: boolean }>;
-		onApprove?: (lang: string) => void | Promise<void>;
-		onMarkAsDraft?: (lang: string) => void | Promise<void>;
-		onRegisterFlush?: (flush: () => Promise<void>) => void;
-	}
+	};
 
 	let {
-		initialContents,
-		initialStatuses,
+		source,
 		primaryLocale,
 		supportedLanguages,
 		editorType = 'plain',
 		minHeight = '200px',
 		maxHeight,
 		initialTargetLang,
-		isLoading = false,
 		availableDocuments = [],
-		conversationId,
-		onSaveSource,
-		onSaveTarget,
-		onAiTranslate,
-		onApprove,
-		onMarkAsDraft,
-		onRegisterFlush
+		conversationId
 	}: Props = $props();
 
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
 	let allLanguages = $derived([primaryLocale, ...otherLanguages]);
 
-	let contents = $state<Record<string, string>>({ ...initialContents });
-	let statuses = $state<Record<string, TranslationStatus>>({ ...initialStatuses });
+	// The only genuinely local state here is which tab is open and whether an AI request is in flight;
+	// all content and status is read straight from the source.
 	let activeTab = $state<string | null>(null);
 	let isTranslating = $state(false);
-
-	const debouncedSaveSource = useDebounce(async (content: string) => {
-		await onSaveSource?.(content);
-	}, 500);
-
-	const debouncedSaveTarget = useDebounce(async (lang: string, content: string) => {
-		await onSaveTarget?.(lang, content);
-	}, 500);
-
-	$effect(() => {
-		onRegisterFlush?.(async () => {
-			await debouncedSaveSource.runScheduledNow();
-			await debouncedSaveTarget.runScheduledNow();
-		});
-	});
 
 	$effect(() => {
 		if (allLanguages.length > 0 && (!activeTab || !allLanguages.includes(activeTab))) {
@@ -89,41 +54,23 @@
 
 	let isViewingPrimary = $derived(activeTab === primaryLocale);
 	let currentTargetLang = $derived(!isViewingPrimary && activeTab ? activeTab : null);
-	let sourceContent = $derived(contents[primaryLocale] ?? '');
+	let sourceContent = $derived(source.contents[primaryLocale] ?? '');
 	let currentTargetContent = $derived(
-		currentTargetLang ? (contents[currentTargetLang] ?? '') : ''
+		currentTargetLang ? (source.contents[currentTargetLang] ?? '') : ''
 	);
 	let currentTargetStatus = $derived(
-		currentTargetLang ? (statuses[currentTargetLang] ?? 'draft') : 'draft'
+		currentTargetLang ? (source.statuses[currentTargetLang] ?? 'draft') : 'draft'
 	);
 
 	function handleSourceChange(content: string) {
-		if (content === contents[primaryLocale]) return;
-		contents[primaryLocale] = content;
-		contents = { ...contents };
-
-		for (const lang of otherLanguages) {
-			if (lang in statuses && statuses[lang] !== 'primary') {
-				statuses[lang] = 'draft';
-			}
-		}
-		statuses = { ...statuses };
-
-		debouncedSaveSource(content);
+		if (content === source.contents[primaryLocale]) return;
+		source.saveSource(content);
 	}
 
 	function handleTargetChange(content: string) {
 		if (!currentTargetLang) return;
-		if (content === contents[currentTargetLang]) return;
-		contents[currentTargetLang] = content;
-		contents = { ...contents };
-
-		if (statuses[currentTargetLang] === 'approved') {
-			statuses[currentTargetLang] = 'draft';
-			statuses = { ...statuses };
-		}
-
-		debouncedSaveTarget(currentTargetLang, content);
+		if (content === source.contents[currentTargetLang]) return;
+		source.saveTarget(currentTargetLang, content);
 	}
 
 	function handleSourceInput(e: Event) {
@@ -134,15 +81,17 @@
 		handleTargetChange((e.currentTarget as HTMLTextAreaElement).value);
 	}
 
+	async function selectTab(lang: string) {
+		// Commit pending edits before leaving the current tab so nothing is lost on switch.
+		await source.flush();
+		activeTab = lang;
+	}
+
 	async function handleAiTranslate() {
-		if (isTranslating || !currentTargetLang || !sourceContent || !onAiTranslate) return;
+		if (isTranslating || !currentTargetLang || !sourceContent) return;
 		isTranslating = true;
 		try {
-			const result = await onAiTranslate(currentTargetLang, sourceContent);
-			contents[currentTargetLang] = result.content;
-			contents = { ...contents };
-			statuses[currentTargetLang] = result.requiresValidation ? 'draft' : 'approved';
-			statuses = { ...statuses };
+			await source.aiTranslate(currentTargetLang, sourceContent);
 			notifications.send({ message: 'Translation completed', priority: 'INFO' });
 		} catch (e) {
 			console.error('AI translation failed:', e);
@@ -153,68 +102,35 @@
 	}
 
 	async function handleApproveClick(lang: string) {
-		const previousStatus = statuses[lang];
-		statuses[lang] = 'approved';
-		statuses = { ...statuses };
 		try {
-			await onApprove?.(lang);
-		} catch (e) {
-			statuses[lang] = previousStatus;
-			statuses = { ...statuses };
+			await source.approve(lang);
+		} catch {
 			notifications.send({ message: 'Failed to approve', priority: 'ERROR' });
 		}
 	}
 
 	async function handleMarkAsDraftClick(lang: string) {
-		const previousStatus = statuses[lang];
-		statuses[lang] = 'draft';
-		statuses = { ...statuses };
 		try {
-			await onMarkAsDraft?.(lang);
-		} catch (e) {
-			statuses[lang] = previousStatus;
-			statuses = { ...statuses };
+			await source.markAsDraft(lang);
+		} catch {
 			notifications.send({ message: 'Failed to update status', priority: 'ERROR' });
 		}
 	}
 </script>
 
-{#if isLoading}
-	<!-- Loading skeleton -->
-	<div class="flex flex-col gap-4">
-		<div class="flex gap-2 border-b pb-2">
-			<Skeleton class="h-10 w-28" />
-			<Skeleton class="h-10 w-28" />
-			<Skeleton class="h-10 w-28" />
-		</div>
-		<div class="flex flex-col gap-6 pt-4 lg:flex-row">
-			<div class="flex flex-1 flex-col gap-2">
-				<Skeleton class="h-6 w-32" />
-				<Skeleton class="w-full rounded-lg" style="min-height: {minHeight};" />
-			</div>
-			<div class="flex flex-1 flex-col gap-2">
-				<Skeleton class="h-6 w-32" />
-				<Skeleton class="w-full rounded-lg" style="min-height: {minHeight};" />
-			</div>
-		</div>
-	</div>
-{:else if otherLanguages.length > 0 && activeTab}
+{#if otherLanguages.length > 0 && activeTab}
 	<!-- Language tabs -->
 	<div class="border-base-border flex items-center overflow-x-auto border-b">
 		{#each allLanguages as lang (lang)}
 			{@const isPrimary = lang === primaryLocale}
-			{@const status = isPrimary ? 'primary' : (statuses[lang] ?? 'draft')}
+			{@const status = isPrimary ? 'primary' : (source.statuses[lang] ?? 'draft')}
 			{@const isActive = lang === activeTab}
 			<button
 				type="button"
 				class="shrink-0 cursor-pointer border-b-[3px] py-1.5 transition-colors {isActive
 					? 'border-primary'
 					: 'border-transparent'}"
-				onclick={async () => {
-					await debouncedSaveSource.runScheduledNow();
-					await debouncedSaveTarget.runScheduledNow();
-					activeTab = lang;
-				}}
+				onclick={() => selectTab(lang)}
 			>
 				<div class="flex items-center gap-2 rounded-lg px-3 py-2">
 					<span class="text-base-foreground text-lg font-semibold"

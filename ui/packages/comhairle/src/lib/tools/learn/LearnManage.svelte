@@ -8,17 +8,14 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
-	import {
-		aiTranslateContent,
-		type TranslationStatus
-	} from '$lib/components/Translation/translationUtils';
+	import { createLearnSource } from './createLearnSource.svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { onMount } from 'svelte';
 	import { GripVertical, Info, Trash2, TriangleAlert } from 'lucide-svelte';
 	import { dragHandle } from 'svelte-dnd-action';
-	import Pages, { type ExtendedLocalizedPage, type Language } from './Pages.svelte';
+	import Pages, { type ExtendedLocalizedPage } from './Pages.svelte';
 	import type {
 		InstancedToolConfig,
 		WorkflowStepWithTranslationsAndTool
@@ -47,6 +44,14 @@
 	);
 
 	const pages = new Pages();
+
+	// Learn's page model plugs into the shared TranslatableField via this adapter (ADR-0005): the
+	// field renders the current page as if it were any other translatable field.
+	const translationSource = createLearnSource({
+		pages,
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLanguages
+	});
 
 	type SaveToServerOptions = { invalidate?: boolean };
 	async function save(
@@ -107,31 +112,6 @@
 				isInitialLoad = false;
 			}
 		}
-	});
-
-	let sourceContent = $derived(pages.items[pages.currentId]?.[primaryLocale]?.content ?? '');
-	let targetLanguages = $derived(
-		supportedLanguages.filter((lang: Language) => lang !== primaryLocale)
-	);
-
-	interface PageData {
-		initialContents: Record<Language, string>;
-		statuses: Record<Language, TranslationStatus>;
-	}
-	let pageData = $derived.by((): PageData => {
-		const pageData: PageData = {
-			initialContents: {
-				[primaryLocale]: pages.items[pages.currentId]?.[primaryLocale]?.content ?? ''
-			},
-			statuses: {}
-		};
-		for (const lang of targetLanguages) {
-			const translation = pages.items[pages.currentId]?.[lang];
-			pageData.initialContents[lang] = translation?.content ?? '';
-			pageData.statuses[lang] =
-				translation?.requires_validation === false ? 'approved' : 'draft';
-		}
-		return pageData;
 	});
 
 	// --- Document list for inline source document picker ---
@@ -229,34 +209,15 @@
 		</div>
 	{:else}
 		<TranslatableField
-			value={sourceContent}
-			onValueChange={(content) =>
-				pages.current.upsertContent('source', primaryLocale, content)}
-			saveStatus={pages.saveState}
+			source={translationSource}
 			{primaryLocale}
 			{supportedLanguages}
 			editorType="rich"
 			minHeight="300px"
 			dialogMinHeight="250px"
 			dialogTitle="Translate: Page {pages.currentId + 1}"
-			initialContents={pageData.initialContents}
-			initialStatuses={pageData.statuses}
 			{availableDocuments}
 			{conversationId}
-			onSaveSource={(content) =>
-				pages.current.upsertContent('source', primaryLocale, content)}
-			onSaveTarget={(lang, content) => pages.current.upsertContent('target', lang, content)}
-			onAiTranslate={async (targetLang, sContent) => {
-				const translatedContent = await aiTranslateContent(
-					sContent,
-					targetLang,
-					primaryLocale
-				);
-				await pages.current.upsertContent('target', targetLang, translatedContent);
-				return { content: translatedContent, requiresValidation: true };
-			}}
-			onApprove={(lang) => pages.current.approve(lang, true)}
-			onMarkAsDraft={(lang) => pages.current.approve(lang, false)}
 		/>
 	{/if}
 	{#if pages.count > 1}

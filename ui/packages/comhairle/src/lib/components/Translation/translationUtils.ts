@@ -20,6 +20,42 @@ export interface TranslationEntry {
 	content: string;
 }
 
+/**
+ * The single contract every translatable field is driven by (see ADR-0005). A source owns both
+ * reading a field's per-locale content/status and persisting edits, so `TranslatableField` and
+ * `TranslationEditor` can be dumb views that never know whether they're backed by a `TextContent`
+ * entity or by learn's inline page model.
+ *
+ * Reads are reactive getters. `contents` always reflects the latest keystroke immediately (the
+ * implementation holds an optimistic copy), which is what stops `RichTextEditor` from fighting the
+ * cursor. `saveSource`/`saveTarget` are debounced (driven by typing); `aiTranslate`/`approve`/
+ * `markAsDraft` are immediate (discrete actions). `flush()` commits any pending debounced save and
+ * awaits the in-flight one, so callers can safely leave a page/field.
+ */
+export interface TranslationSource {
+	/** Per-locale content, including the primary locale, latest edit reflected immediately. */
+	readonly contents: Record<string, string>;
+	/** Per-locale status: the primary locale is `'primary'`, others are `'draft'` / `'approved'`. */
+	readonly statuses: Record<string, TranslationStatus>;
+	/** Lifecycle of the background save, for a truthful "Saving / Saved" indicator. */
+	readonly saveState: SaveState;
+	/** Persist the primary-locale content (debounced). */
+	saveSource(content: string): void;
+	/** Persist a target-locale translation (debounced). */
+	saveTarget(locale: string, content: string): void;
+	/** Machine-translate `sourceContent` into `locale`, persist it, and return the result. */
+	aiTranslate(
+		locale: string,
+		sourceContent: string
+	): Promise<{ content: string; requiresValidation: boolean }>;
+	/** Mark a target locale approved (no longer requires validation). */
+	approve(locale: string): Promise<void>;
+	/** Mark a target locale back to draft (requires validation). */
+	markAsDraft(locale: string): Promise<void>;
+	/** Run any pending debounced save now and await the in-flight one. */
+	flush(): Promise<void>;
+}
+
 export function getTextInLocale(
 	translation: Translation | Translation2 | undefined,
 	locale: string,
