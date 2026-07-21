@@ -96,7 +96,8 @@ class Pages {
 				delete this.items[this.currentId];
 				const index = this.order.findIndex((p) => Number(p.id) === this.currentId);
 				this.order.splice(index, 1);
-				this.currentId = Number(Math.max(index - 1, 0));
+				const newIndex = Math.max(index - 1, 0);
+				this.currentId = Number(this.order[newIndex].id);
 				return this.#saveHandler();
 			},
 
