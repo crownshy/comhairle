@@ -125,7 +125,6 @@ class Pages {
 						break;
 				}
 				this.items[this.currentId] = page;
-				console.debug('requires_validation:', page);
 				return this.#saveHandler({ invalidate: false });
 			},
 
