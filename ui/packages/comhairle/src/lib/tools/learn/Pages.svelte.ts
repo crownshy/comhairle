@@ -13,7 +13,7 @@ export interface ExtendedLocalizedPage extends LocalizedPage {
 type From = 'source' | 'target';
 type SaveHandler = (options?: { invalidate?: boolean }) => Promise<void>;
 type OnRestore = () => void;
-type Order = { id: string; [SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean }[]; // Matching DraggableList "items" prop
+type Order = { id: string; [SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean }[]; // Matching DraggableList "items" props
 
 class Pages {
 	items = $state<IPages>({});
