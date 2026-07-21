@@ -50,6 +50,7 @@ class Pages {
 		};
 		this.items[newId] = { [primaryLocale]: newPage };
 		this.order.push({ id: newId });
+		this.currentId = Number(newId);
 		return this.#saveHandler();
 	}
 
