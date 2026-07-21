@@ -23,4 +23,7 @@ pub enum WebsocketError {
 
     #[error("Database error: {0}")]
     DatabaseError(String),
+
+    #[error("Audio Recording error: {0}")]
+    AudioRecordingError(String),
 }

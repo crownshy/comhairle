@@ -43,8 +43,24 @@
 		partNumber: number;
 	};
 
+	type PresignLiveAudioRecordingPartRequest = {
+		conversationId: string;
+		eventId: string;
+		liveRecordingId: string;
+		partNumber: number;
+	};
+
 	type AckLiveAudioRecordingPartResponse = {
 		liveAudioRecording: LiveAudioRecordingDto;
+	};
+
+	type AckLiveAudioRecordingPartRequest = {
+		conversationId: string;
+		eventId: string;
+		liveRecordingId: string;
+		partNumber: number;
+		etag: string;
+		sizeBytes: number;
 	};
 
 	type ProcessRecordingResponse = {
@@ -52,8 +68,16 @@
 		jobId: string;
 	};
 
+	type LiveRecordingAcquireRequest = {
+		eventId: string;
+		liveRecordingId: string;
+	};
+
 	const CHUNK_INTERVAL_MS = 10_000;
 	const MIN_PART_BYTES = 5 * 1024 * 1024;
+	const MIN_RECORDING_BYTES = 5 * 1024 * 1024;
+	const TARGET_AUDIO_BITS_PER_SECOND = 768_000;
+	const DEFAULT_AUDIO_BITS_PER_SECOND = 128_000;
 
 	let recordingName = $state('');
 	let phase = $state<'idle' | 'starting' | 'recording' | 'stopping'>('idle');
@@ -65,8 +89,12 @@
 	const isStarting = $derived(phase === 'starting');
 	const isRecording = $derived(phase === 'recording');
 	const isStopping = $derived(phase === 'stopping');
-	const hasActiveLiveRecording = $derived(activeLiveRecordingId !== null);
+	const hasActiveLiveRecording = $derived(
+		activeLiveRecordingId !== null &&
+			liveRecordings.some((liveRecording) => liveRecording.id === activeLiveRecordingId)
+	);
 	const isParticipantMode = $derived(mode === 'participant');
+	const currentLiveRecording = $derived(liveRecordings.at(0) ?? null);
 	const canStartNewRecording = $derived(
 		!hasActiveLiveRecording && (!isParticipantMode || liveRecordings.length === 0)
 	);
@@ -77,6 +105,9 @@
 	let nextPartNumber = 1;
 	let pendingBlobs: Blob[] = [];
 	let pendingBytes = 0;
+	let observedAudioBitsPerSecond = $state(0);
+	let lastChunkTimestampMs: number | null = null;
+	const hasObservedBitrate = $derived(observedAudioBitsPerSecond > 0);
 
 	function liveApiBasePath(): string {
 		return `/api/conversation/${conversation_id}/events/${event_id}/audio_recordings/live`;
@@ -111,7 +142,7 @@
 
 		if (result.err !== null) {
 			notifications.send({
-				message: 'Failed to load in-progress live recordings',
+				message: 'Failed to load live recordings',
 				priority: 'ERROR'
 			});
 			return;
@@ -127,6 +158,127 @@
 		);
 	}
 
+	function totalUploadedBytes(liveRecording: LiveAudioRecordingDto): number {
+		return liveRecording.uploadedParts.reduce((sum, part) => sum + part.sizeBytes, 0);
+	}
+
+	function isRecordingLargeEnough(liveRecording: LiveAudioRecordingDto): boolean {
+		return totalUploadedBytes(liveRecording) >= MIN_RECORDING_BYTES;
+	}
+
+	function formatMb(bytes: number): string {
+		return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+	}
+
+	function effectiveAudioBitsPerSecond(): number {
+		return observedAudioBitsPerSecond > 0
+			? observedAudioBitsPerSecond
+			: DEFAULT_AUDIO_BITS_PER_SECOND;
+	}
+
+	function resetObservedBitrate(): void {
+		observedAudioBitsPerSecond = 0;
+		lastChunkTimestampMs = null;
+	}
+
+	function trackObservedBitrate(chunkSizeBytes: number): void {
+		if (chunkSizeBytes <= 0) return;
+
+		const nowMs = Date.now();
+		const intervalMs = lastChunkTimestampMs
+			? Math.max(250, nowMs - lastChunkTimestampMs)
+			: CHUNK_INTERVAL_MS;
+		lastChunkTimestampMs = nowMs;
+
+		const instantaneousBitsPerSecond = (chunkSizeBytes * 8 * 1000) / intervalMs;
+		observedAudioBitsPerSecond =
+			observedAudioBitsPerSecond <= 0
+				? instantaneousBitsPerSecond
+				: observedAudioBitsPerSecond * 0.7 + instantaneousBitsPerSecond * 0.3;
+	}
+
+	function minRequiredSecondsForSave(): number {
+		return Math.ceil((MIN_RECORDING_BYTES * 8) / effectiveAudioBitsPerSecond());
+	}
+
+	function secondsForUploadedBytes(bytes: number): number {
+		return Math.floor((bytes * 8) / effectiveAudioBitsPerSecond());
+	}
+
+	function formatDuration(totalSeconds: number): string {
+		const minutes = Math.floor(totalSeconds / 60);
+		const seconds = totalSeconds % 60;
+		if (minutes === 0) return `${seconds}s`;
+		if (seconds === 0) return `${minutes}m`;
+		return `${minutes}m ${seconds}s`;
+	}
+
+	function createCompatibleRecorder(stream: MediaStream, mimeType: string): MediaRecorder {
+		try {
+			return new MediaRecorder(stream, {
+				mimeType,
+				audioBitsPerSecond: TARGET_AUDIO_BITS_PER_SECOND
+			});
+		} catch {
+			return new MediaRecorder(stream, { mimeType });
+		}
+	}
+
+	function shortRecordingWarningMessage(): string {
+		if (!hasObservedBitrate) {
+			return `Recording is too short to save. Minimum required is ${formatMb(MIN_RECORDING_BYTES)}.`;
+		}
+
+		return `Recording is too short to save. Minimum required is ${formatMb(MIN_RECORDING_BYTES)} (about ${formatDuration(minRequiredSecondsForSave())} at current rate).`;
+	}
+
+	function isLiveRecordingMissingError(err: unknown): boolean {
+		if (!(err instanceof Error)) return false;
+		const message = err.message.toLowerCase();
+		return (
+			message.includes('live audio recording not found') ||
+			message.includes('recording not found')
+		);
+	}
+
+	async function acquireRecordingLock(liveRecordingId: string): Promise<void> {
+		await recordingWebSocket.requestCustom<null>(
+			'audio_recording:acquire',
+			{
+				eventId: event_id,
+				liveRecordingId
+			} satisfies LiveRecordingAcquireRequest,
+			{ responseEvent: 'audio_recording:acquire_result', timeoutMs: 20_000 }
+		);
+	}
+
+	async function releaseRecordingLock(): Promise<void> {
+		if (!activeLiveRecordingId || phase === 'idle') return;
+
+		await recordingWebSocket.requestCustom<null>(
+			'audio_recording:release',
+			{},
+			{ responseEvent: 'audio_recording:release_result', timeoutMs: 20_000 }
+		);
+	}
+
+	async function releaseRecordingLockBestEffort(): Promise<void> {
+		const releaseResult = await tryCatchAsync(() => releaseRecordingLock());
+		if (releaseResult.err !== null) {
+			console.warn('Failed to release live recording lock:', releaseResult.err);
+		}
+	}
+
+	async function recoverFromMissingLiveRecording(): Promise<void> {
+		pendingBlobs = [];
+		pendingBytes = 0;
+		activeLiveRecordingId = null;
+		phase = 'idle';
+		recordingWebSocket.disconnect();
+		releaseMediaDevices();
+		await loadLiveRecordings();
+	}
+
 	async function putPartToSignedUrl(blob: Blob, url: string): Promise<string> {
 		const response = await fetch(url, { method: 'PUT', body: blob });
 		if (!response.ok) throw new Error(`Part upload failed (${response.status})`);
@@ -135,49 +287,72 @@
 	}
 
 	function enqueueChunk(liveRecordingId: string, blob: Blob | null, forceFlush: boolean): void {
-		uploadChain = uploadChain.then(async () => {
-			if (blob && blob.size > 0) {
-				pendingBlobs.push(blob);
-				pendingBytes += blob.size;
-			}
+		uploadChain = uploadChain
+			.then(async () => {
+				if (blob && blob.size > 0) {
+					pendingBlobs.push(blob);
+					pendingBytes += blob.size;
+				}
 
-			if (pendingBytes === 0) return;
-			if (!forceFlush && pendingBytes < MIN_PART_BYTES) return;
+				if (pendingBytes === 0) return;
+				if (!forceFlush && pendingBytes < MIN_RECORDING_BYTES) return;
 
-			const payload = new Blob(pendingBlobs, { type: 'audio/webm' });
-			const partNumber = nextPartNumber;
-			pendingBlobs = [];
-			pendingBytes = 0;
+				const payload = new Blob(pendingBlobs, { type: 'audio/webm' });
+				const partNumber = nextPartNumber;
+				pendingBlobs = [];
+				pendingBytes = 0;
 
-			const presignResult = await tryCatchAsync(() =>
-				callLiveApi<PresignLiveAudioRecordingPartResponse>(
-					'POST',
-					`/${liveRecordingId}/presign`,
-					{
-						partNumber
-					}
-				)
-			);
-			if (presignResult.err !== null) throw presignResult.err;
+				const presignResponse =
+					await recordingWebSocket.requestCustom<PresignLiveAudioRecordingPartResponse>(
+						'audio_recording:presign_part',
+						{
+							conversationId: conversation_id,
+							eventId: event_id,
+							liveRecordingId,
+							partNumber
+						} satisfies PresignLiveAudioRecordingPartRequest,
+						{ responseEvent: 'audio_recording:presign_part_result', timeoutMs: 20_000 }
+					);
 
-			const etag = await putPartToSignedUrl(payload, presignResult.ok.uploadUrl);
+				const etag = await putPartToSignedUrl(payload, presignResponse.uploadUrl);
 
-			const ackResult = await tryCatchAsync(() =>
-				callLiveApi<AckLiveAudioRecordingPartResponse>('POST', `/${liveRecordingId}/ack`, {
-					partNumber,
-					etag,
-					sizeBytes: payload.size
-				})
-			);
-			if (ackResult.err !== null) throw ackResult.err;
+				const ackResponse =
+					await recordingWebSocket.requestCustom<AckLiveAudioRecordingPartResponse>(
+						'audio_recording:ack_part',
+						{
+							conversationId: conversation_id,
+							eventId: event_id,
+							liveRecordingId,
+							partNumber,
+							etag,
+							sizeBytes: payload.size
+						} satisfies AckLiveAudioRecordingPartRequest,
+						{ responseEvent: 'audio_recording:ack_part_result', timeoutMs: 20_000 }
+					);
 
-			nextPartNumber = ackResult.ok.liveAudioRecording.nextPartNumber;
-			liveRecordings = liveRecordings.map((liveRecording) =>
-				liveRecording.id === ackResult.ok.liveAudioRecording.id
-					? ackResult.ok.liveAudioRecording
-					: liveRecording
-			);
-		});
+				nextPartNumber = ackResponse.liveAudioRecording.nextPartNumber;
+				liveRecordings = liveRecordings.map((liveRecording) =>
+					liveRecording.id === ackResponse.liveAudioRecording.id
+						? ackResponse.liveAudioRecording
+						: liveRecording
+				);
+			})
+			.catch(async (err: unknown) => {
+				if (isLiveRecordingMissingError(err)) {
+					await recoverFromMissingLiveRecording();
+					notifications.send({
+						message: 'Live recording no longer exists. State has been refreshed.',
+						priority: 'WARNING'
+					});
+					return;
+				}
+
+				notifications.send({
+					message:
+						err instanceof Error ? err.message : 'Failed to upload recording chunk',
+					priority: 'ERROR'
+				});
+			});
 	}
 
 	let audioVolume = $state(0);
@@ -249,7 +424,7 @@
 	async function startRecording(): Promise<void> {
 		if (!canStartNewRecording) {
 			notifications.send({
-				message: 'Resume or finalise your in-progress recording first',
+				message: 'Resume or finalise your recording first',
 				priority: 'WARNING'
 			});
 			return;
@@ -301,6 +476,30 @@
 		pendingBlobs = [];
 		pendingBytes = 0;
 		uploadChain = Promise.resolve();
+		resetObservedBitrate();
+
+		recordingWebSocket.connect();
+		const acquireResult = await tryCatchAsync(() => acquireRecordingLock(liveRecordingId));
+		if (acquireResult.err !== null) {
+			notifications.send({
+				message:
+					acquireResult.err instanceof Error
+						? acquireResult.err.message
+						: 'Failed to start recording session',
+				priority: 'ERROR'
+			});
+			recordingWebSocket.disconnect();
+			const cleanupResult = await tryCatchAsync(() =>
+				callLiveApi('DELETE', `/${liveRecordingId}`)
+			);
+			if (cleanupResult.err === null) void invalidateAll();
+			liveRecordings = liveRecordings.filter(
+				(liveRecording) => liveRecording.id !== liveRecordingId
+			);
+			activeLiveRecordingId = null;
+			phase = 'idle';
+			return;
+		}
 
 		const micResult = await tryCatchAsync(() =>
 			navigator.mediaDevices.getUserMedia({ audio: true })
@@ -313,10 +512,15 @@
 						: 'Microphone access denied',
 				priority: 'ERROR'
 			});
+			await releaseRecordingLockBestEffort();
 			const cleanupResult = await tryCatchAsync(() =>
 				callLiveApi('DELETE', `/${liveRecordingId}`)
 			);
 			if (cleanupResult.err === null) void invalidateAll();
+			recordingWebSocket.disconnect();
+			liveRecordings = liveRecordings.filter(
+				(liveRecording) => liveRecording.id !== liveRecordingId
+			);
 			activeLiveRecordingId = null;
 			phase = 'idle';
 			return;
@@ -328,14 +532,18 @@
 		const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
 			? 'audio/webm;codecs=opus'
 			: 'audio/webm';
-		const recorder = new MediaRecorder(mediaStream, { mimeType });
+		const recorder = createCompatibleRecorder(mediaStream, mimeType);
 		mediaRecorder = recorder;
+		// Do not use MediaRecorder-reported bitrate for estimates: container/codec compression
+		// and browser encoder behavior can make actual output bitrate differ significantly.
 		recorder.ondataavailable = (event: BlobEvent) => {
-			if (event.data.size > 0) enqueueChunk(liveRecordingId, event.data, false);
+			if (event.data.size > 0) {
+				trackObservedBitrate(event.data.size);
+				enqueueChunk(liveRecordingId, event.data, false);
+			}
 		};
 
 		recorder.start(CHUNK_INTERVAL_MS);
-		recordingWebSocket.connect();
 		recordingName = '';
 		phase = 'recording';
 	}
@@ -364,11 +572,30 @@
 		pendingBlobs = [];
 		pendingBytes = 0;
 		uploadChain = Promise.resolve();
+		resetObservedBitrate();
+
+		recordingWebSocket.connect();
+		const acquireResult = await tryCatchAsync(() => acquireRecordingLock(liveRecording.id));
+		if (acquireResult.err !== null) {
+			activeLiveRecordingId = null;
+			phase = 'idle';
+			notifications.send({
+				message:
+					acquireResult.err instanceof Error
+						? acquireResult.err.message
+						: 'Failed to resume recording session',
+				priority: 'ERROR'
+			});
+			recordingWebSocket.disconnect();
+			return;
+		}
 
 		const microphoneResult = await tryCatchAsync(() =>
 			navigator.mediaDevices.getUserMedia({ audio: true })
 		);
 		if (microphoneResult.err !== null) {
+			await releaseRecordingLockBestEffort();
+			recordingWebSocket.disconnect();
 			activeLiveRecordingId = null;
 			phase = 'idle';
 			notifications.send({
@@ -387,14 +614,18 @@
 		const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
 			? 'audio/webm;codecs=opus'
 			: 'audio/webm';
-		const recorder = new MediaRecorder(mediaStream, { mimeType });
+		const recorder = createCompatibleRecorder(mediaStream, mimeType);
 		mediaRecorder = recorder;
+		// Do not use MediaRecorder-reported bitrate for estimates: container/codec compression
+		// and browser encoder behavior can make actual output bitrate differ significantly.
 		recorder.ondataavailable = (event: BlobEvent) => {
-			if (event.data.size > 0) enqueueChunk(liveRecording.id, event.data, false);
+			if (event.data.size > 0) {
+				trackObservedBitrate(event.data.size);
+				enqueueChunk(liveRecording.id, event.data, false);
+			}
 		};
 
 		recorder.start(CHUNK_INTERVAL_MS);
-		recordingWebSocket.connect();
 		phase = 'recording';
 	}
 
@@ -407,6 +638,13 @@
 			return;
 		}
 
+		const confirmed = window.confirm(
+			'Delete this recording? Uploaded parts will be permanently removed.'
+		);
+		if (!confirmed) return;
+
+		await releaseRecordingLockBestEffort();
+		recordingWebSocket.disconnect();
 		const result = await tryCatchAsync(() => callLiveApi('DELETE', `/${liveRecordingId}`));
 		if (result.err !== null) {
 			notifications.send({
@@ -431,6 +669,9 @@
 
 		phase = 'stopping';
 		const pauseResult = await tryCatchAsync(() => drainAndStop(liveRecordingId));
+		if (pauseResult.err === null) {
+			await releaseRecordingLockBestEffort();
+		}
 		recordingWebSocket.disconnect();
 
 		if (pauseResult.err !== null) {
@@ -457,6 +698,9 @@
 
 		phase = 'stopping';
 		const stopResult = await tryCatchAsync(() => drainAndStop(liveRecordingId));
+		if (stopResult.err === null) {
+			await releaseRecordingLockBestEffort();
+		}
 		recordingWebSocket.disconnect();
 
 		if (stopResult.err !== null) {
@@ -470,6 +714,19 @@
 			releaseMediaDevices();
 			activeLiveRecordingId = null;
 			phase = 'idle';
+			return;
+		}
+
+		const latestLiveRecording = liveRecordings.find(
+			(recording) => recording.id === liveRecordingId
+		);
+		if (!latestLiveRecording || !isRecordingLargeEnough(latestLiveRecording)) {
+			activeLiveRecordingId = null;
+			phase = 'idle';
+			notifications.send({
+				message: shortRecordingWarningMessage(),
+				priority: 'WARNING'
+			});
 			return;
 		}
 
@@ -511,6 +768,15 @@
 			return;
 		}
 
+		const liveRecording = liveRecordings.find((recording) => recording.id === liveRecordingId);
+		if (!liveRecording || !isRecordingLargeEnough(liveRecording)) {
+			notifications.send({
+				message: shortRecordingWarningMessage(),
+				priority: 'WARNING'
+			});
+			return;
+		}
+
 		finalisingLiveRecordingId = liveRecordingId;
 		const completeResult = await tryCatchAsync(() =>
 			callLiveApi<ProcessRecordingResponse>('POST', `/${liveRecordingId}/complete`)
@@ -541,6 +807,9 @@
 
 	onDestroy(() => {
 		unsubscribeRecordingWebSocketClose();
+		if (activeLiveRecordingId) {
+			void releaseRecordingLockBestEffort();
+		}
 		recordingWebSocket.disconnect();
 		releaseMediaDevices();
 		if (activeLiveRecordingId) {
@@ -554,122 +823,140 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	{#if liveRecordings.length > 0}
+	{#if currentLiveRecording}
+		{@const liveRecording = currentLiveRecording}
+		{@const isActiveRow = activeLiveRecordingId === liveRecording.id}
+		{@const uploadedBytes = totalUploadedBytes(liveRecording)}
+		{@const uploadedDurationSeconds = secondsForUploadedBytes(uploadedBytes)}
+		{@const minRequiredSeconds = minRequiredSecondsForSave()}
 		<div class="border-border rounded-lg border p-3">
-			<div class="mb-2 text-sm font-semibold">In-progress live recordings</div>
-			<div class="flex flex-col gap-2">
-				{#each liveRecordings as liveRecording (liveRecording.id)}
-					{@const isActiveRow = activeLiveRecordingId === liveRecording.id}
-					<div
-						class="bg-muted/40 flex items-center justify-between gap-3 rounded-md p-2"
-						class:opacity-50={hasActiveLiveRecording && !isActiveRow}
-					>
-						<div class="min-w-0">
-							<div class="truncate text-sm font-medium">
-								{liveRecordingName(liveRecording)}
-							</div>
-							<div class="text-muted-foreground text-sm">
-								Next part: {liveRecording.nextPartNumber}, uploaded: {liveRecording
-									.uploadedParts.length}
-							</div>
-						</div>
-						<div class="flex items-center gap-2">
-							{#if isActiveRow}
-								{#if isStarting}
-									<div
-										class="text-muted-foreground flex items-center gap-2 text-sm"
-									>
-										<Loader2 class="h-4 w-4 animate-spin" />
-										Starting…
-									</div>
-								{:else if isRecording}
-									<div
-										class="bg-destructive/10 flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-75"
-										style="transform: scale({1 + audioVolume * 0.35})"
-										aria-hidden="true"
-									>
-										<Mic class="text-destructive h-4 w-4" />
-									</div>
-									<Button variant="outline" size="sm" onclick={pauseRecording}>
-										<Pause class="mr-2 h-4 w-4" />
-										Pause
-									</Button>
-									<Button variant="destructive" size="sm" onclick={stopRecording}>
-										<Square class="mr-2 h-4 w-4" />
-										Stop &amp; save
-									</Button>
-								{:else if isStopping}
-									<div
-										class="text-muted-foreground flex items-center gap-2 text-sm"
-									>
-										<Loader2 class="h-4 w-4 animate-spin" />
-										Saving…
-									</div>
-								{/if}
-							{:else}
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={hasActiveLiveRecording ||
-										finalisingLiveRecordingId !== null}
-									onclick={() => resumeLiveRecording(liveRecording.id)}
-								>
-									<Play class="mr-2 h-4 w-4" />
-									Resume
-								</Button>
-								{#if isParticipantMode}
-									<Button
-										variant="destructive"
-										size="sm"
-										disabled={hasActiveLiveRecording ||
-											finalisingLiveRecordingId !== null}
-										onclick={() => finaliseExistingRecording(liveRecording.id)}
-									>
-										<Square class="mr-2 h-4 w-4" />
-										{finalisingLiveRecordingId === liveRecording.id
-											? 'Saving…'
-											: 'Stop & save'}
-									</Button>
-								{:else}
-									<Button
-										variant="ghost"
-										size="sm"
-										disabled={hasActiveLiveRecording ||
-											finalisingLiveRecordingId !== null}
-										onclick={() => discardLiveRecording(liveRecording.id)}
-									>
-										<Trash2 class="h-4 w-4" />
-									</Button>
-								{/if}
-							{/if}
-						</div>
+			<div class="mb-2 text-sm font-semibold">Live recording</div>
+			<div
+				class="bg-muted/40 flex items-center justify-between gap-3 rounded-md p-2"
+				class:opacity-50={hasActiveLiveRecording && !isActiveRow}
+			>
+				<div class="min-w-0">
+					<div class="truncate text-sm font-medium">
+						{liveRecordingName(liveRecording)}
 					</div>
-				{/each}
+					<div class="text-muted-foreground text-sm">
+						Next part: {liveRecording.nextPartNumber}, uploaded: {liveRecording
+							.uploadedParts.length}, total: {formatMb(uploadedBytes)}
+					</div>
+					{#if !isRecordingLargeEnough(liveRecording)}
+						<div class="text-xs text-amber-700">
+							Minimum required before save: {formatMb(MIN_RECORDING_BYTES)}
+						</div>
+						{#if hasObservedBitrate}
+							<div class="text-xs text-amber-700">
+								Estimated minimum duration: {formatDuration(minRequiredSeconds)}
+							</div>
+						{/if}
+					{/if}
+				</div>
+				<div class="flex items-center gap-2">
+					{#if isActiveRow}
+						{#if isStarting}
+							<div class="text-muted-foreground flex items-center gap-2 text-sm">
+								<Loader2 class="h-4 w-4 animate-spin" />
+								Starting…
+							</div>
+						{:else if isRecording}
+							<div
+								class="bg-destructive/10 flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-75"
+								style="transform: scale({1 + audioVolume * 0.35})"
+								aria-hidden="true"
+							>
+								<Mic class="text-destructive h-4 w-4" />
+							</div>
+							<Button variant="outline" size="sm" onclick={pauseRecording}>
+								<Pause class="mr-2 h-4 w-4" />
+								Pause
+							</Button>
+							<Button variant="destructive" size="sm" onclick={stopRecording}>
+								<Square class="mr-2 h-4 w-4" />
+								Stop
+							</Button>
+						{:else if isStopping}
+							<div class="text-muted-foreground flex items-center gap-2 text-sm">
+								<Loader2 class="h-4 w-4 animate-spin" />
+								Saving…
+							</div>
+						{/if}
+					{:else}
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={hasActiveLiveRecording || finalisingLiveRecordingId !== null}
+							onclick={() => resumeLiveRecording(liveRecording.id)}
+						>
+							<Play class="mr-2 h-4 w-4" />
+							Resume
+						</Button>
+						{#if isParticipantMode}
+							<Button
+								variant="destructive"
+								size="sm"
+								disabled={hasActiveLiveRecording ||
+									finalisingLiveRecordingId !== null}
+								onclick={() => finaliseExistingRecording(liveRecording.id)}
+							>
+								<Square class="mr-2 h-4 w-4" />
+								{finalisingLiveRecordingId === liveRecording.id
+									? 'Saving…'
+									: 'Stop'}
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={hasActiveLiveRecording ||
+									finalisingLiveRecordingId !== null}
+								onclick={() => discardLiveRecording(liveRecording.id)}
+							>
+								<Trash2 class="h-4 w-4" />
+								<span class="sr-only">Delete recording</span>
+							</Button>
+						{:else}
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={hasActiveLiveRecording ||
+									finalisingLiveRecordingId !== null}
+								onclick={() => discardLiveRecording(liveRecording.id)}
+							>
+								<Trash2 class="h-4 w-4" />
+							</Button>
+						{/if}
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}
 
 	{#if isParticipantMode && liveRecordings.length > 0 && !hasActiveLiveRecording}
 		<p class="text-muted-foreground text-sm">
-			Resume or finalise your in-progress recording before starting a new one.
+			Resume or finalise your recording before starting a new one.
 		</p>
 	{/if}
 
-	<div class="flex items-center gap-4" class:opacity-50={hasActiveLiveRecording}>
-		<div class="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-			<Mic class="h-5 w-5" />
+	{#if liveRecordings.length === 0}
+		<div class="flex items-center gap-4" class:opacity-50={hasActiveLiveRecording}>
+			<div class="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
+				<Mic class="h-5 w-5" />
+			</div>
+			<Input
+				class="max-w-xs"
+				placeholder="Recording name"
+				disabled={hasActiveLiveRecording || !canStartNewRecording}
+				bind:value={recordingName}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') startRecording();
+				}}
+			/>
+			<Button
+				onclick={startRecording}
+				disabled={!canStartNewRecording || !recordingName.trim()}>Start recording</Button
+			>
 		</div>
-		<Input
-			class="max-w-xs"
-			placeholder="Recording name"
-			disabled={hasActiveLiveRecording || !canStartNewRecording}
-			bind:value={recordingName}
-			onkeydown={(e) => {
-				if (e.key === 'Enter') startRecording();
-			}}
-		/>
-		<Button onclick={startRecording} disabled={!canStartNewRecording || !recordingName.trim()}
-			>Start recording</Button
-		>
-	</div>
+	{/if}
 </div>

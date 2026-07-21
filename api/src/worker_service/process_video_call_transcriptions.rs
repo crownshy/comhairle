@@ -54,7 +54,7 @@ pub async fn transcribe_recording(
     } else {
         AudioRecordingStatus::TranscriptionFailed
     };
-    let _ = audio_recording::update_status(&db, &recording_id, status).await;
+    let _ = audio_recording::update_status(&db, recording_id, status).await;
     outcome
 }
 
@@ -86,7 +86,7 @@ async fn transcribe_recording_inner(
         "Starting transcription sensemaking pipeline"
     );
 
-    let recording = crate::models::audio_recording::get_by_id(&state.db, &req.recording_id)
+    let recording = crate::models::audio_recording::get_by_id(&state.db, req.recording_id)
         .await
         .map_err(|e| WorkerServiceError::DbError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)
@@ -132,7 +132,7 @@ pub async fn generate_sensemaking_report(
     if outcome.is_err() {
         let _ = audio_recording::update_status(
             &db,
-            &recording_id,
+            recording_id,
             AudioRecordingStatus::CategorizationFailed,
         )
         .await;

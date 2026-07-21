@@ -4,6 +4,8 @@ CREATE TABLE live_audio_recording (
     multipart_upload_id TEXT NOT NULL,
     next_part_number INTEGER NOT NULL DEFAULT 1,
     uploaded_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
-    locked_by_user_id uuid REFERENCES comhairle_user(id) ON DELETE SET NULL,
+    owner_id uuid NOT NULL REFERENCES comhairle_user(id) ON DELETE CASCADE,
+    locked BOOLEAN NOT NULL,
+
     CONSTRAINT live_audio_recording_next_part_positive CHECK (next_part_number > 0)
 );
