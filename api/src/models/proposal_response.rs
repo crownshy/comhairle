@@ -70,6 +70,11 @@ impl<'r> Decode<'r, Postgres> for QuestionResponses {
 pub struct Response {
     pub question_id: Uuid,
     pub value: ResponseValue,
+    /// When set, this answer is for a section question about the given section.
+    /// Absent (proposal-level) answers apply to the proposal as a whole. Kept
+    /// optional so responses stored before per-section questions still decode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section_id: Option<Uuid>,
 }
 
 /// A response value — either a numeric rating (likert / continuous) or
@@ -196,12 +201,12 @@ mod tests {
             .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
             .await?;
 
-        let proposal = proposal::create(
+        let (proposal, _) = proposal::create(
             &pool,
             &workflow_step.id,
             &CreateProposal {
                 title: "A new proposal".to_string(),
-                body: "Test proposal".to_string(),
+                sections: vec!["Test proposal".to_string()],
             },
             "en",
         )
@@ -222,10 +227,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: (-1.0_f64).into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
             ],
         };
@@ -249,22 +256,22 @@ mod tests {
             .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
             .await?;
 
-        let proposal_a = proposal::create(
+        let (proposal_a, _) = proposal::create(
             &pool,
             &workflow_step.id,
             &CreateProposal {
                 title: "Proposal A".to_string(),
-                body: "Proposal A".to_string(),
+                sections: vec!["Proposal A".to_string()],
             },
             "en",
         )
         .await?;
-        let proposal_b = proposal::create(
+        let (proposal_b, _) = proposal::create(
             &pool,
             &workflow_step.id,
             &CreateProposal {
                 title: "Proposal B".to_string(),
-                body: "Proposal B".to_string(),
+                sections: vec!["Proposal B".to_string()],
             },
             "en",
         )
@@ -281,10 +288,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: (-1.0_f64).into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
             ],
         };
@@ -293,10 +302,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.2_f64.into(),
+                    section_id: None,
                 },
             ],
         };
@@ -309,10 +320,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: (-1.0_f64).into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
             ],
         };
@@ -321,10 +334,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.2_f64.into(),
+                    section_id: None,
                 },
             ],
         };
@@ -337,10 +352,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: (-1.0_f64).into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
             ],
         };
@@ -349,10 +366,12 @@ mod tests {
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: 0.5_f64.into(),
+                    section_id: None,
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
                     value: 0.2_f64.into(),
+                    section_id: None,
                 },
             ],
         };

@@ -171,7 +171,7 @@
 	--muted: #f3f4f6;
 	--muted-foreground: #6b7280;
 	--subtle-foreground: #9ca3af;
-	--accent: #f3f4f6;
+	--accent: #ebf1ff;
 	--accent-foreground: #111827;
 	--destructive: #dc2626;
 	--destructive-foreground: #fef2f2;
@@ -230,7 +230,7 @@
 	--chat-neutral: #6b7280;
 	--nav-text: hsla(79, 100%, 96%, 1);
 	--nav-background: hsla(79, 100%, 96%, 1);
-	--admin-background: hsla(60, 67%, 98%, 1);
+	--admin-background: #f9fafb;
 	--mutted: hsla(100, 29%, 10%, 1);
 	--sidebar-radius: 10px;
 }
@@ -294,6 +294,8 @@
 	--chat-text: var(--foreground);
 	--chat-text-muted: var(--chat-neutral);
 	--chat-bubble: var(--card);
+
+	--admin-background: #111827;
 }
 
 [data-theme='waves']
@@ -486,12 +488,30 @@
 
 @theme {
 	--breakpoint-navbar: 900px;
+
+	/* Shared left inset for every admin page section (title row, tabs, sub-strips,
+	   page content). One knob to align + retune them all: `pl-gutter`, `md:pl-gutter`, etc.
+	   Tailwind v4 exposes this on every spacing utility from the `--spacing-*` namespace. */
+	--spacing-gutter: 2.75rem; /* 44px */
+
+	/* Breathing room above admin page content (below the fixed tab header). `pt-page-top`. */
+	--spacing-page-top: 2rem; /* 32px */
+
 	--radius: 0.5rem;
 	--radius-xs: calc(0.5rem - 6px);
 	--radius-sm: calc(0.5rem - 4px);
 	--radius-md: calc(0.5rem - 2px);
 	--radius-lg: 0.5rem;
 	--radius-xl: calc(0.5rem + 4px);
+}
+
+/* The gutter is a real CSS variable, so every `*-gutter` utility (tabs, sub-strips,
+   page content, banner) tracks it live. Shrink it on phones (< sm) so content isn't
+   over-inset on narrow screens; sections stay aligned because they all read this one var. */
+@media (width < 40rem) {
+	:root {
+		--spacing-gutter: 1.25rem; /* 20px on phones (44px from sm up) */
+	}
 }
 
 @theme inline {

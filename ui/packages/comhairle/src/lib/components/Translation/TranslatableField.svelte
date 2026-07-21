@@ -36,6 +36,12 @@
 		dialogMinHeight?: string;
 		dialogTitle?: string;
 		inputProps?: Record<string, any>;
+		/**
+		 * Optional guard run against the primary-locale value before autosaving. Return `false`
+		 * to skip the save (e.g. the value fails validation, such as a required field left blank).
+		 * Omit it and every change autosaves, which is correct for optional fields.
+		 */
+		canSave?: (value: string) => boolean;
 		translation?: TranslationData;
 		initialContents?: Record<string, string>;
 		initialStatuses?: Record<string, TranslationStatus>;
@@ -64,6 +70,7 @@
 		dialogMinHeight = '200px',
 		dialogTitle = 'Content Translation',
 		inputProps = {},
+		canSave,
 		translation,
 		initialContents,
 		initialStatuses,
@@ -90,6 +97,12 @@
 	}
 
 	const debouncedSaveInline = useDebounce(async (content: string) => {
+		// Never persist a value the parent has rejected (e.g. a required field cleared to blank).
+		// The debounce fires with the latest content, so a value typed then cleared is dropped here.
+		if (canSave && !canSave(content)) {
+			setSaveStatus('idle');
+			return;
+		}
 		if (isTextContentMode && textContentId) {
 			const id = textContentId;
 			setSaveStatus('saving');
@@ -156,7 +169,9 @@
 	}
 
 	function saveInlinePrimary(content: string) {
-		if (isTextContentMode) setSaveStatus('saving');
+		// Still reset the debounce timer on every keystroke, but don't show "Saving" for a value
+		// that the guard below will drop; the debounced callback repeats the check before saving.
+		if (isTextContentMode && (!canSave || canSave(content))) setSaveStatus('saving');
 		debouncedSaveInline(content);
 	}
 
@@ -349,7 +364,7 @@
 {#if hasTranslations}
 	<Dialog.Root open={dialogOpen}>
 		<Dialog.Content
-			class="max-h-[90vh] min-w-[70vw] rounded-xl p-12"
+			class="max-h-[90vh] min-w-[70vw] grid-rows-[auto_1fr] rounded-xl p-12 pt-5"
 			showCloseButton={false}
 			onInteractOutside={(e) => {
 				e.preventDefault();
@@ -362,7 +377,7 @@
 		>
 			<Dialog.Header class="flex flex-row items-center justify-between pr-0">
 				<Dialog.Title
-					class="text-foreground justify-start text-3xl leading-8 font-semibold"
+					class="text-muted-foreground justify-start text-xl leading-8 font-semibold"
 				>
 					{dialogTitle}
 				</Dialog.Title>
@@ -375,7 +390,7 @@
 					<span class="sr-only">Close</span>
 				</button>
 			</Dialog.Header>
-			<div class="max-h-[calc(90vh-120px)] overflow-y-auto pt-4">
+			<div class="max-h-[calc(90vh-120px)] overflow-y-auto">
 				{#if dialogOpen}
 					<TranslationEditor
 						initialContents={editorContents}

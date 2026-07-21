@@ -40,7 +40,10 @@
 	onfinalize={finalize}
 >
 	{#each items as item, i (item.id)}
-		<li animate:flip={{ duration: flipDurationMs }}>
+		<!-- svelte-dnd-action makes each item focusable (tabindex) and focuses the one
+		     being dragged for keyboard a11y; suppress the browser focus outline so a
+		     drag doesn't flash a ring around the item. -->
+		<li animate:flip={{ duration: flipDurationMs }} class="outline-none">
 			{@render children(item, i)}
 		</li>
 	{/each}

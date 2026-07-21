@@ -1,11 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getContext } from 'svelte';
-	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
-	import {
-		CONVERSATION_TAB_EXTRAS_CTX,
-		type ConversationTabExtras
-	} from '$lib/conversationTabExtras';
 	import * as Form from '$lib/components/ui/form/';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
@@ -75,9 +69,10 @@
 	const timeZone = getLocalTimeZone();
 	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
 	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
-	const availableTimeZones = Array.from(
-		new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])
-	).map((tz) => ({ value: tz, label: tz }));
+	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
+		value: tz,
+		label: tz
+	}));
 
 	const eventForm = superForm(
 		{
@@ -319,35 +314,11 @@
 	async function emailInvitesSubmitted() {
 		await invalidateAll();
 	}
-
-	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
-
-	$effect(() => {
-		if (!tabExtras) return;
-		tabExtras.secondary = eventSubtabStripSnippet;
-		return () => {
-			tabExtras.secondary = null;
-		};
-	});
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
-
-{#snippet eventSubtabStripSnippet()}
-	<SubTabStrip
-		items={[
-			{ label: 'Details', value: 'details' },
-			{ label: 'Event Structure', value: 'structure' },
-			{ label: 'Facilitators', value: 'facilitators' },
-			{ label: 'Location', value: 'location' },
-			{ label: 'Invites', value: 'invites' },
-			{ label: 'Recordings', value: 'recordings' }
-		]}
-		defaultValue="details"
-	/>
-{/snippet}
 
 <div class="mb-6 flex flex-row items-center gap-4">
 	<h1 class="text-3xl font-bold">Event: {event?.name}</h1>
@@ -518,7 +489,7 @@
 				<Form.Field form={eventForm} name="end_time" class="contents">
 					<Form.FieldErrors class="text-destructive text-sm" />
 				</Form.Field>
-				{#if $form.default_time_zone !== 'UTC'}
+				{#if $form.default_time_zone !== 'Europe/London'}
 					<div class="text-muted-foreground flex gap-2">
 						<span>{$form.default_time_zone}</span>
 						<span>-</span>

@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
-	import {
-		sidebarWidth,
-		MIN_WIDTH,
-		COLLAPSE_THRESHOLD,
-		EXPAND_WIDTH
-	} from '$lib/components/sidebarWidth.svelte.js';
+	import { useSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
+	import { MIN_WIDTH, COLLAPSE_THRESHOLD, EXPAND_WIDTH } from '$lib/components/sidebarWidth.js';
 
 	const sidebar = useSidebar();
+	const sidebarWidth = useSidebarWidth();
 	const COLLAPSED_PX = 48;
 
 	let startX = 0;
@@ -35,7 +32,7 @@
 			if (sidebar.state === 'expanded') sidebar.setOpen(false);
 		} else {
 			if (sidebar.state === 'collapsed') sidebar.setOpen(true);
-			sidebarWidth.set(Math.max(MIN_WIDTH, next));
+			sidebarWidth.setWidth(Math.max(MIN_WIDTH, next));
 		}
 	}
 
@@ -44,7 +41,7 @@
 		sidebarWidth.resizing = false;
 		if (moved < 4) {
 			if (sidebar.state === 'collapsed') {
-				if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.set(EXPAND_WIDTH);
+				if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.setWidth(EXPAND_WIDTH);
 				sidebar.setOpen(true);
 				sidebarWidth.persist();
 			} else {

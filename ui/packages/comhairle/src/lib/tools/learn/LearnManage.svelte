@@ -1,27 +1,11 @@
 <script lang="ts">
-	import type {
-		LocalizedPage,
-		WorkflowStepWithTranslations,
-		ConversationWithTranslations,
-		ComhairleDocument
+	import {
+		type ConversationWithTranslations,
+		type ComhairleDocument
 	} from '@crownshy/api-client/api';
-
-	interface ExtendedLocalizedPage extends LocalizedPage {
-		lang: string;
-		requires_validation: boolean;
-	}
-
-	type Props = {
-		conversationId: string;
-		conversation: ConversationWithTranslations;
-		workflowStep: WorkflowStepWithTranslations;
-		isLive: boolean;
-	};
-
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
-	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import {
@@ -29,113 +13,57 @@
 		type TranslationStatus
 	} from '$lib/components/Translation/translationUtils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import DraggableList from '$lib/components/DraggableList.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { onMount } from 'svelte';
+	import { GripVertical, Info, Trash2, TriangleAlert } from 'lucide-svelte';
+	import { dragHandle } from 'svelte-dnd-action';
+	import Pages, { type ExtendedLocalizedPage, type Language } from './Pages.svelte';
+	import type {
+		InstancedToolConfig,
+		WorkflowStepWithTranslationsAndTool
+	} from '$lib/tools/types';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { useDebounce } from 'runed';
+
+	interface Props {
+		conversationId: string;
+		conversation: ConversationWithTranslations;
+		workflowStep: WorkflowStepWithTranslationsAndTool<'learn'>;
+		isLive: boolean;
+	}
 
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
 
 	let isInitialLoad = $state(true);
-
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
-	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalizedPage[][] };
+	let canSwitchPage = $state<boolean>(true);
+	const debouncedCanSwitch = useDebounce(() => (canSwitchPage = true), 1_000);
 
-	let sourceConfig = $derived(
+	// FIX: Remove this after the types have been fixed on the backend
+	type LearnToolConfig = Exclude<InstancedToolConfig<'learn'>, 'pages'> & {
+		pages: ExtendedLocalizedPage[][];
+	};
+	let sourceConfig: LearnToolConfig = $derived(
 		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
 	);
 
-	let pages = $state<ExtendedLocalizedPage[][]>([]);
-	let hasLocalChanges = $state(false);
+	const pages = new Pages();
 
-	let lastPropsConfig = $state<string>('');
-	$effect(() => {
-		const propsConfig = JSON.stringify({
-			pages: sourceConfig?.pages
-		});
-		if (propsConfig !== lastPropsConfig && !hasLocalChanges) {
-			pages = structuredClone(sourceConfig?.pages ?? []);
-			lastPropsConfig = propsConfig;
-			if (isInitialLoad && pages.length > 0) {
-				isInitialLoad = false;
-			}
-		}
-	});
+	type SaveToServerOptions = { invalidate?: boolean };
+	async function save(
+		pagesToSave: ExtendedLocalizedPage[][],
+		{ invalidate = true }: SaveToServerOptions = {}
+	) {
+		const configToSave: Props['workflowStep']['toolConfig'] = {
+			type: 'learn',
+			pages: pagesToSave
+		};
 
-	function getToolConfigForSave(): LearnToolConfig {
-		return { type: 'learn', pages };
-	}
-
-	function markLocalChanges() {
-		hasLocalChanges = true;
-	}
-
-	function clearLocalChanges() {
-		hasLocalChanges = false;
-		lastPropsConfig = JSON.stringify({
-			pages: sourceConfig?.pages
-		});
-	}
-
-	let currentPageIndex = $state(0);
-
-	function getTranslation(lang: string): ExtendedLocalizedPage | undefined {
-		return pages[currentPageIndex]?.find((p) => p.lang === lang);
-	}
-
-	let sourceContent = $derived.by(() => {
-		const source = getTranslation(primaryLocale);
-		return source?.content ?? '';
-	});
-
-	let targetLanguages = $derived(
-		supportedLanguages.filter((lang: string) => lang !== primaryLocale)
-	);
-
-	let pageContents = $derived.by((): Record<string, string> => {
-		const c: Record<string, string> = {};
-		c[primaryLocale] = sourceContent;
-		for (const lang of targetLanguages) {
-			const t = getTranslation(lang);
-			c[lang] = t?.content ?? '';
-		}
-		return c;
-	});
-
-	let pageStatuses = $derived.by((): Record<string, TranslationStatus> => {
-		const s: Record<string, TranslationStatus> = {};
-		s[primaryLocale] = 'primary';
-		for (const lang of targetLanguages) {
-			const t = getTranslation(lang);
-			s[lang] = t && t.requires_validation === false ? 'approved' : 'draft';
-		}
-		return s;
-	});
-
-	function deletePage() {
-		markLocalChanges();
-		pages = pages.filter((_: ExtendedLocalizedPage[], i: number) => i !== currentPageIndex);
-		currentPageIndex = Math.max(currentPageIndex - 1, 0);
-		saveToServer();
-	}
-
-	function addPage() {
-		markLocalChanges();
-		const newPage: ExtendedLocalizedPage[] = [
-			{
-				lang: primaryLocale,
-				content: `# Page ${pages.length + 1}`,
-				type: 'markdown',
-				requires_validation: false
-			}
-		];
-		pages.push(newPage);
-		currentPageIndex = pages.length - 1;
-		saveToServer();
-	}
-
-	async function saveToServer({ invalidate = true }: { invalidate?: boolean } = {}) {
-		try {
-			const configToSave = getToolConfigForSave();
-			await apiClient.UpdateConversationWorkflowStep(
+		const response = await tryCatchAsync(() =>
+			apiClient.UpdateConversationWorkflowStep(
 				isLive ? { tool_config: configToSave } : { preview_tool_config: configToSave },
 				{
 					params: {
@@ -144,93 +72,69 @@
 						workflow_step_id: workflowStep.id
 					}
 				}
-			);
-			if (invalidate) await invalidateAll();
-			clearLocalChanges();
-		} catch (e) {
+			)
+		);
+
+		if (response.err !== null) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
 		}
+
+		if (invalidate) await invalidateAll();
+		pages.restore();
 	}
 
-	function handleSaveSource(content: string) {
-		markLocalChanges();
-		const source = getTranslation(primaryLocale);
-		if (source) {
-			source.content = content;
-			source.type = 'markdown';
-		} else if (pages[currentPageIndex]) {
-			pages[currentPageIndex].push({
-				lang: primaryLocale,
-				type: 'markdown',
-				content,
-				requires_validation: false
-			});
+	pages.saveHandler((options) =>
+		save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true })
+	);
+
+	pages.onRestore(() => {
+		lastPropsConfig = JSON.stringify({
+			pages: sourceConfig?.pages
+		});
+	});
+
+	onMount(() => {
+		pages.load(sourceConfig?.pages ?? []);
+	});
+
+	let lastPropsConfig = $state<string>('');
+	$effect(() => {
+		const propsConfig = JSON.stringify({
+			pages: sourceConfig.pages
+		});
+		if (propsConfig !== lastPropsConfig && !pages.areDirty) {
+			pages.load(sourceConfig.pages);
+			lastPropsConfig = propsConfig;
+			if (isInitialLoad && pages.count > 0) {
+				isInitialLoad = false;
+			}
 		}
-		for (const t of pages[currentPageIndex] ?? []) {
-			if (t.lang !== primaryLocale) t.requires_validation = true;
+	});
+
+	let sourceContent = $derived(pages.items[pages.currentId]?.[primaryLocale]?.content ?? '');
+	let targetLanguages = $derived(
+		supportedLanguages.filter((lang: Language) => lang !== primaryLocale)
+	);
+
+	interface PageData {
+		initialContents: Record<Language, string>;
+		statuses: Record<Language, TranslationStatus>;
+	}
+	let pageData = $derived.by((): PageData => {
+		const pageData: PageData = {
+			initialContents: {
+				[primaryLocale]: pages.items[pages.currentId]?.[primaryLocale]?.content ?? ''
+			},
+			statuses: {}
+		};
+		for (const lang of targetLanguages) {
+			const translation = pages.items[pages.currentId]?.[lang];
+			pageData.initialContents[lang] = translation?.content ?? '';
+			pageData.statuses[lang] =
+				translation?.requires_validation === false ? 'approved' : 'draft';
 		}
-		pages = [...pages];
-		saveToServer({ invalidate: false });
-	}
-
-	function handleSaveTarget(lang: string, content: string) {
-		markLocalChanges();
-		const target = getTranslation(lang);
-		if (target) {
-			target.content = content;
-			target.type = 'markdown';
-			target.requires_validation = true;
-		} else if (pages[currentPageIndex]) {
-			pages[currentPageIndex].push({
-				lang,
-				type: 'markdown',
-				content,
-				requires_validation: true
-			});
-		}
-		pages = [...pages];
-		saveToServer({ invalidate: false });
-	}
-
-	async function handleAiTranslate(
-		targetLang: string,
-		sContent: string
-	): Promise<{ content: string; requiresValidation: boolean }> {
-		const translatedContent = await aiTranslateContent(sContent, targetLang, primaryLocale);
-		let t = getTranslation(targetLang);
-		if (t) {
-			t.content = translatedContent;
-			t.requires_validation = true;
-		} else {
-			pages[currentPageIndex].push({
-				lang: targetLang,
-				type: 'markdown',
-				content: translatedContent,
-				requires_validation: true
-			});
-		}
-		pages = [...pages];
-		await saveToServer({ invalidate: false });
-		return { content: translatedContent, requiresValidation: true };
-	}
-
-	async function handleApprove(lang: string) {
-		const t = getTranslation(lang);
-		if (!t) return;
-		markLocalChanges();
-		t.requires_validation = false;
-		pages = [...pages];
-		await saveToServer({ invalidate: false });
-	}
-
-	async function handleMarkAsDraft(lang: string) {
-		const t = getTranslation(lang);
-		if (!t) return;
-		markLocalChanges();
-		t.requires_validation = true;
-		pages = [...pages];
-		await saveToServer({ invalidate: false });
-	}
+		return pageData;
+	});
 
 	// --- Document list for inline source document picker ---
 	let availableDocuments = $state<ComhairleDocument[]>([]);
@@ -254,32 +158,57 @@
 	<div class="flex items-center justify-between gap-4">
 		<div class="flex items-center gap-2">
 			{#if isInitialLoad}
-				<Skeleton class="h-10 w-[180px]" />
+				<Skeleton class="h-10 w-45" />
 				<Skeleton class="h-10 w-24" />
 				<Skeleton class="h-10 w-28" />
 			{:else}
-				<Select.Root
-					type="single"
-					value={currentPageIndex.toString()}
-					onValueChange={(value: string) => (currentPageIndex = parseInt(value))}
+				<DraggableList
+					items={pages.order}
+					onReorder={(order) => pages.reorder(order)}
+					class="bg-muted flex flex-row flex-wrap items-center gap-2 rounded-md p-2"
 				>
-					<Select.Trigger class="w-[180px] bg-white"
-						>Page {currentPageIndex + 1}</Select.Trigger
+					{#snippet children(item, i)}
+						{@const itemId = Number(item.id)}
+						<Button
+							size="sm"
+							variant={itemId === pages.currentId ? 'default' : 'secondary'}
+							onclick={() => {
+								if (!canSwitchPage) {
+									return;
+								}
+								pages.currentId = itemId;
+							}}
+							class="rounded-md border border-transparent px-4 py-4"
+						>
+							<div use:dragHandle>
+								<GripVertical
+									class="cursor-grab {itemId === pages.currentId
+										? 'text-primary-foreground'
+										: ''}"
+									size={16}
+								/>
+							</div>
+							Page {i + 1}
+						</Button>
+					{/snippet}
+				</DraggableList>
+				<Button variant="ghost" size="sm" onclick={() => pages.new(primaryLocale)}
+					>+ Add Page</Button
+				>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						{#snippet child({ props })}
+							{#if pages.count >= 5}
+								<TriangleAlert size={22} class="text-amber-400" {...props} />
+							{:else}
+								<Info size={22} {...props} />
+							{/if}
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content
+						>Most conversations work best with 5 pages or fewer</Tooltip.Content
 					>
-					<Select.Content>
-						{#each pages as _, i}
-							<Select.Item value={i.toString()}>Page {i + 1}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-
-				<Button class="rounded-md" onclick={addPage}>+ Add Page</Button>
-				<Button
-					variant="destructive"
-					class="rounded-md"
-					onclick={deletePage}
-					disabled={pages.length <= 1}>- Delete Page</Button
-				>
+				</Tooltip.Root>
 			{/if}
 		</div>
 	</div>
@@ -308,22 +237,46 @@
 	{:else}
 		<TranslatableField
 			value={sourceContent}
-			onValueChange={handleSaveSource}
+			onValueChange={(content) => {
+				canSwitchPage = false;
+				debouncedCanSwitch();
+				pages.current.upsertContent('source', primaryLocale, content);
+			}}
 			{primaryLocale}
 			{supportedLanguages}
 			editorType="rich"
 			minHeight="300px"
 			dialogMinHeight="250px"
-			dialogTitle="Translate: Page {currentPageIndex + 1}"
-			initialContents={pageContents}
-			initialStatuses={pageStatuses}
+			dialogTitle="Translate"
+			initialContents={pageData.initialContents}
+			initialStatuses={pageData.statuses}
 			{availableDocuments}
 			{conversationId}
-			onSaveSource={handleSaveSource}
-			onSaveTarget={handleSaveTarget}
-			onAiTranslate={handleAiTranslate}
-			onApprove={handleApprove}
-			onMarkAsDraft={handleMarkAsDraft}
+			onSaveSource={(content) =>
+				pages.current.upsertContent('source', primaryLocale, content)}
+			onSaveTarget={(lang, content) => pages.current.upsertContent('target', lang, content)}
+			onAiTranslate={async (targetLang, sContent) => {
+				const translatedContent = await aiTranslateContent(
+					sContent,
+					targetLang,
+					primaryLocale
+				);
+				await pages.current.upsertContent('target', targetLang, translatedContent);
+				return { content: translatedContent, requiresValidation: true };
+			}}
+			onApprove={(lang) => pages.current.approve(lang, true)}
+			onMarkAsDraft={(lang) => pages.current.approve(lang, false)}
 		/>
+	{/if}
+	{#if pages.count > 1}
+		<Button
+			variant="destructiveOutline"
+			onclick={() => {
+				if (!canSwitchPage) {
+					return;
+				}
+				pages.current.delete();
+			}}><Trash2 /> Delete Page</Button
+		>
 	{/if}
 </div>

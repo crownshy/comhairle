@@ -1,6 +1,14 @@
 import type { LocalizedConversationDto } from './api/api';
+import type { CreationKey } from './tool_meta';
 
-export const defaultStepCreationParams: { [key: string]: { name: string; description: string } } = {
+/**
+ * Per-tool overrides for a newly created step's name/description. Only tools that need
+ * a bespoke default appear here; the rest fall back in {@link createWorkflowStep}.
+ * Keyed by {@link CreationKey} so typos and stale keys are caught at compile time.
+ */
+export const defaultStepCreationParams: Partial<
+	Record<CreationKey, { name: string; description: string }>
+> = {
 	'Elicitation Bot': {
 		name: 'What do you think?',
 		description:

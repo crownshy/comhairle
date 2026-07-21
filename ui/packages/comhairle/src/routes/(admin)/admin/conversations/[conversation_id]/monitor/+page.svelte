@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import DailyStatsChart from '$lib/components/DailyStatsChart.svelte';
 	import StatsBar from '$lib/components/StatsBar.svelte';
 	import StatProgressIndicator from '$lib/components/StatProgressIndicator.svelte';
@@ -41,12 +42,10 @@
 	<title>Monitor Conversation - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="mb-4 text-3xl font-bold">Monitor</h1>
-
-<p class="mb-10">
-	See how your conversation is working, monitor recruitment and user progress and check out your
-	reach
-</p>
+<PageHeader
+	title="Monitor"
+	description="See how your conversation is working, monitor recruitment and user progress and check out your reach"
+/>
 
 <h2 class="my-10 text-2xl">Overview</h2>
 <StatsBar {stats} />

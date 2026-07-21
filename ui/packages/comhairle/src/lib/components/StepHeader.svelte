@@ -101,9 +101,7 @@
 			<div
 				class={`prose-sm prose-p:text-sm   prose-li:text-sm text-muted-foreground mx-auto max-w-3xl text-center ${boldDescription ? '' : 'prose-p:text-muted-foreground prose-li:text-muted-foreground'}`}
 			>
-				{#key description}
-					<ContentRenderer content={description} {availableDocuments} {conversationId} />
-				{/key}
+				<ContentRenderer content={description} {availableDocuments} {conversationId} />
 			</div>
 		{/if}
 	</div>
