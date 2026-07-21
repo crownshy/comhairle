@@ -24,6 +24,18 @@ type TextContentSourceOptions = {
 	getSupportedLanguages: () => string[];
 	/** Plain field value used for the primary locale before any translation row exists (e.g. `step.name`). */
 	getPrimaryFallback?: () => string;
+	/**
+	 * For fields whose `TextContent` is created lazily (e.g. configure's nullable rich fields): called
+	 * on the first primary-locale save when no text content id exists yet. It must create the content,
+	 * link it to its parent, and refresh so `getTranslation()` returns the new id afterwards.
+	 */
+	ensureTextContentId?: (content: string) => Promise<void>;
+	/**
+	 * Fired synchronously on every primary-locale edit. Used by `superForm`-bound consumers to mirror
+	 * the value into their `$form` store so inline (`Form.FieldErrors`) validation keeps working; the
+	 * source still owns the content (see ADR-0005).
+	 */
+	onEdit?: (content: string) => void;
 };
 
 /**
@@ -39,7 +51,14 @@ type TextContentSourceOptions = {
  * utilities. Construct it at the consumer and pass the result to `TranslatableField source={...}`.
  */
 export function createTextContentSource(options: TextContentSourceOptions): TranslationSource {
-	const { getTranslation, getPrimaryLocale, getSupportedLanguages, getPrimaryFallback } = options;
+	const {
+		getTranslation,
+		getPrimaryLocale,
+		getSupportedLanguages,
+		getPrimaryFallback,
+		ensureTextContentId,
+		onEdit
+	} = options;
 
 	const textContentId = () => getTranslation()?.textContent?.id;
 	const otherLanguages = () => getSupportedLanguages().filter((l) => l !== getPrimaryLocale());
@@ -112,6 +131,15 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 		return result;
 	});
 
+	/** Clear a locale's optimistic entry once the server has it, unless the user typed something newer. */
+	function reconcileOverlay(locale: string, savedContent: string) {
+		if (overlay[locale] === savedContent) {
+			const next = { ...overlay };
+			delete next[locale];
+			overlay = next;
+		}
+	}
+
 	/**
 	 * Persist one locale, then reconcile: clear its overlay entry only if the user hasn't typed
 	 * something newer in the meantime (otherwise a pending save still owns it).
@@ -119,10 +147,18 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 	async function persist(
 		locale: string,
 		content: string,
-		opts: { requiresValidation: boolean; markOthersDraft?: boolean }
+		opts: { requiresValidation: boolean; markOthersDraft?: boolean; canCreate?: boolean }
 	) {
 		const id = textContentId();
-		if (!id) return;
+		if (!id) {
+			// First edit of a not-yet-created field: let the consumer create + link the TextContent.
+			// It refreshes, so subsequent saves take the normal path above.
+			if (opts.canCreate && ensureTextContentId) {
+				await ensureTextContentId(content);
+				reconcileOverlay(locale, content);
+			}
+			return;
+		}
 		await saveTranslation(id, locale, content, { requiresValidation: opts.requiresValidation });
 		if (opts.markOthersDraft) {
 			const primaryLocale = getPrimaryLocale();
@@ -138,17 +174,17 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 				await markOtherTranslationsAsDraft(id, primaryLocale, approved);
 		}
 		await invalidateAll();
-		if (overlay[locale] === content) {
-			const next = { ...overlay };
-			delete next[locale];
-			overlay = next;
-		}
+		reconcileOverlay(locale, content);
 	}
 
 	const debouncedSaveSource = useDebounce((content: string) => {
 		const primaryLocale = getPrimaryLocale();
 		return runSave(() =>
-			persist(primaryLocale, content, { requiresValidation: false, markOthersDraft: true })
+			persist(primaryLocale, content, {
+				requiresValidation: false,
+				markOthersDraft: true,
+				canCreate: true
+			})
 		);
 	}, SAVE_DEBOUNCE_MS);
 
@@ -168,6 +204,7 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 		},
 
 		saveSource(content: string) {
+			onEdit?.(content);
 			overlay = { ...overlay, [getPrimaryLocale()]: content };
 			debouncedSaveSource(content);
 		},
@@ -186,11 +223,7 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 				result = await aiTranslateApi(id, locale, sourceContent, getPrimaryLocale());
 				overlay = { ...overlay, [locale]: result.content };
 				await invalidateAll();
-				if (overlay[locale] === result.content) {
-					const next = { ...overlay };
-					delete next[locale];
-					overlay = next;
-				}
+				reconcileOverlay(locale, result.content);
 			});
 			return result!;
 		},
