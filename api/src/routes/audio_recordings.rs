@@ -368,7 +368,7 @@ async fn list_live_recordings(
 async fn create_live_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(request): Json<CreateLiveAudioRecordingRequest>,
 ) -> Result<(StatusCode, Json<CreateLiveAudioRecordingResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
@@ -405,6 +405,7 @@ async fn create_live_recording(
         &live_audio_recording::CreateLiveAudioRecording {
             audio_recording_id: recording.id,
             multipart_upload_id: multipart_upload_id.0,
+            locked_by_user_id: Some(user.id),
         },
     )
     .await?;
@@ -450,13 +451,13 @@ async fn get_live_recording(
 async fn presign_live_recording_part(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(request): Json<PresignLiveAudioRecordingPartRequest>,
 ) -> Result<(StatusCode, Json<PresignLiveAudioRecordingPartResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let live_recording =
-        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+        live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
 
     if request.part_number != live_recording.next_part_number {
         return Err(ComhairleError::CorruptedData(format!(
@@ -468,10 +469,11 @@ async fn presign_live_recording_part(
     let recording =
         audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
     let extension = recording.file_extension.extension();
-    let _recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+    let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
     let upload_url = bulk_storage_service
         .get_multipart_file_write_url(
+            &recording_path,
             &StorageUploadID(live_recording.multipart_upload_id),
             MultipartUploadPartNumber(request.part_number),
         )
@@ -496,12 +498,10 @@ async fn presign_live_recording_part(
 async fn ack_live_recording_part(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(request): Json<AckLiveAudioRecordingPartRequest>,
 ) -> Result<(StatusCode, Json<AckLiveAudioRecordingPartResponse>), ComhairleError> {
-    // Verify the recording belongs to this event before mutating.
-    let _ =
-        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+    let _ = live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
 
     let updated = live_audio_recording::append_uploaded_part(
         &state.db,
@@ -534,18 +534,18 @@ async fn ack_live_recording_part(
 async fn complete_live_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ProcessRecordingResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let worker_service = state.required_worker_service()?;
 
     let live_recording =
-        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+        live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
 
     let recording =
         audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
     let extension = recording.file_extension.extension();
-    let _recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+    let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
     let parts: Vec<(MultipartUploadPartNumber, StorageEntityTag)> = live_recording
         .uploaded_parts
@@ -559,7 +559,11 @@ async fn complete_live_recording(
         .collect();
 
     bulk_storage_service
-        .complete_multipart_upload(&StorageUploadID(live_recording.multipart_upload_id), &parts)
+        .complete_multipart_upload(
+            &recording_path,
+            &StorageUploadID(live_recording.multipart_upload_id),
+            &parts,
+        )
         .await?;
 
     live_audio_recording::delete(&state.db, &live_recording_id).await?;
@@ -612,18 +616,23 @@ async fn complete_live_recording(
 async fn delete_live_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let live_recording =
-        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+        live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
 
     let recording =
         audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
+    let extension = recording.file_extension.extension();
+    let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
     if let Err(err) = bulk_storage_service
-        .abort_multipart_upload(&StorageUploadID(live_recording.multipart_upload_id.clone()))
+        .abort_multipart_upload(
+            &recording_path,
+            &StorageUploadID(live_recording.multipart_upload_id.clone()),
+        )
         .await
     {
         tracing::warn!(?err, %live_recording_id, "failed to abort multipart upload");
@@ -634,6 +643,35 @@ async fn delete_live_recording(
     if recording.status == audio_recording::AudioRecordingStatus::AwaitingUpload {
         let _ = audio_recording::delete(&state.db, &recording.id, &event_id).await?;
     }
+
+    Ok((
+        StatusCode::OK,
+        Json(LiveAudioRecordingStateResponse {
+            live_audio_recording: live_recording.into(),
+        }),
+    ))
+}
+
+/// Deactivate a live recording by releasing its lock for the current user.
+///
+/// # Errors
+/// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
+/// * `ComhairleError::LiveAudioRecordingLocked` if another user currently holds the lock.
+/// * `ComhairleError::DatabaseError` on database errors.
+#[instrument(err(Debug), skip(state))]
+async fn deactivate_live_recording(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
+    let _ =
+        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+
+    // Acquire-if-free first so we never clear another user's lock.
+    let _ = live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
+    live_audio_recording::unlock_for_user(&state.db, &live_recording_id, &user.id).await?;
+
+    let live_recording = live_audio_recording::get_by_id(&state.db, &live_recording_id).await?;
 
     Ok((
         StatusCode::OK,
@@ -747,6 +785,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("DeleteLiveAudioRecording")
                     .tag("Audio Recordings")
                     .summary("Abort and delete a live audio recording")
+                    .security_requirement("JWT")
+                    .response::<200, Json<LiveAudioRecordingStateResponse>>()
+            }),
+        )
+        .api_route(
+            "/live/{live_recording_id}/deactivate",
+            post_with(deactivate_live_recording, |op| {
+                op.id("DeactivateLiveAudioRecording")
+                    .tag("Audio Recordings")
+                    .summary("Release lock on a live audio recording")
                     .security_requirement("JWT")
                     .response::<200, Json<LiveAudioRecordingStateResponse>>()
             }),

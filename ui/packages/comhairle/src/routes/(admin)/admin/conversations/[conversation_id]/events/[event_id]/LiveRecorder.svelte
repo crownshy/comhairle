@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { Mic, Square, Loader2 } from 'lucide-svelte';
+	import { Mic, Square, Loader2, Pause, Play, Trash2 } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { WSConnection } from '$lib/api/websockets.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import type { AudioRecordingDto } from '@crownshy/api-client/api';
 
 	// ── Props ─────────────────────────────────────────────────────────────────
@@ -58,6 +59,10 @@
 		liveAudioRecording: LiveAudioRecordingDto;
 	};
 
+	type LiveAudioRecordingStateResponse = {
+		liveAudioRecording: LiveAudioRecordingDto;
+	};
+
 	type ProcessRecordingResponse = {
 		message: string;
 		jobId: string;
@@ -79,11 +84,12 @@
 	let recordingName = $state('');
 	let phase = $state<'idle' | 'starting' | 'recording' | 'stopping'>('idle');
 	let activeLiveRecordingId = $state<string | null>(null);
+	let liveRecordings = $state<LiveAudioRecordingDto[]>([]);
 
-	const isIdle = $derived(phase === 'idle');
 	const isStarting = $derived(phase === 'starting');
 	const isRecording = $derived(phase === 'recording');
 	const isStopping = $derived(phase === 'stopping');
+	const hasActiveLiveRecording = $derived(activeLiveRecordingId !== null);
 
 	// ── MediaRecorder internals (not reactive — mutated directly) ─────────────
 
@@ -117,13 +123,38 @@
 		if (!response.ok) {
 			let message = `${method} ${path} failed (${response.status})`;
 			const parseResult = await tryCatchAsync(() => response.json());
-			if (parseResult.err === null && typeof parseResult.ok?.message === 'string') {
-				message = parseResult.ok.message;
+			if (parseResult.err === null) {
+				if (typeof parseResult.ok?.message === 'string') {
+					message = parseResult.ok.message;
+				} else if (typeof parseResult.ok?.err === 'string') {
+					message = parseResult.ok.err;
+				}
 			}
 			throw new Error(message);
 		}
 
 		return response.json() as Promise<T>;
+	}
+
+	async function loadLiveRecordings(): Promise<void> {
+		const result = await tryCatchAsync(() => callLiveApi<LiveAudioRecordingDto[]>('GET', ''));
+
+		if (result.err !== null) {
+			notifications.send({
+				message: 'Failed to load in-progress live recordings',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		liveRecordings = result.ok;
+	}
+
+	function liveRecordingName(liveRecording: LiveAudioRecordingDto): string {
+		return (
+			recordings.find((recording) => recording.id === liveRecording.audioRecordingId)?.name ??
+			'Untitled live recording'
+		);
 	}
 
 	// ── Chunk upload logic ────────────────────────────────────────────────────
@@ -184,6 +215,11 @@
 			if (ackResult.err !== null) throw ackResult.err;
 
 			nextPartNumber = ackResult.ok.liveAudioRecording.nextPartNumber;
+			liveRecordings = liveRecordings.map((liveRecording) =>
+				liveRecording.id === ackResult.ok.liveAudioRecording.id
+					? ackResult.ok.liveAudioRecording
+					: liveRecording
+			);
 		});
 	}
 
@@ -198,6 +234,16 @@
 	let audioContext: AudioContext | null = null;
 	let audioAnalyser: AnalyserNode | null = null;
 	let volumeAnimationFrameId: number | null = null;
+	const recordingWebSocket = new WSConnection();
+	const unsubscribeRecordingWebSocketClose = recordingWebSocket.onClose(() => {
+		if (phase !== 'recording') return;
+
+		void pauseRecording();
+		notifications.send({
+			message: 'Live recording paused because websocket disconnected',
+			priority: 'WARNING'
+		});
+	});
 
 	/**
 	 * Connects the active media stream to an AnalyserNode and starts a
@@ -310,6 +356,7 @@
 		const created = createResult.ok;
 		const liveRecordingId = created.liveAudioRecording.id;
 		activeLiveRecordingId = liveRecordingId;
+		liveRecordings = [...liveRecordings, created.liveAudioRecording];
 
 		nextPartNumber = created.liveAudioRecording.nextPartNumber;
 		pendingBlobs = [];
@@ -350,8 +397,138 @@
 		};
 
 		recorder.start(CHUNK_INTERVAL_MS);
+		recordingWebSocket.connect();
 		recordingName = '';
 		phase = 'recording';
+	}
+
+	async function resumeLiveRecording(liveRecordingId: string): Promise<void> {
+		if (phase !== 'idle') {
+			notifications.send({
+				message: 'Pause or stop the current recording before resuming another one',
+				priority: 'WARNING'
+			});
+			return;
+		}
+
+		const liveRecording = liveRecordings.find((recording) => recording.id === liveRecordingId);
+		if (!liveRecording) {
+			notifications.send({
+				message: 'Could not find that live recording',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		phase = 'starting';
+		activeLiveRecordingId = liveRecording.id;
+		nextPartNumber = liveRecording.nextPartNumber;
+		pendingBlobs = [];
+		pendingBytes = 0;
+		uploadChain = Promise.resolve();
+
+		const microphoneResult = await tryCatchAsync(() =>
+			navigator.mediaDevices.getUserMedia({ audio: true })
+		);
+
+		if (microphoneResult.err !== null) {
+			activeLiveRecordingId = null;
+			phase = 'idle';
+			notifications.send({
+				message:
+					microphoneResult.err instanceof Error
+						? microphoneResult.err.message
+						: 'Microphone access denied',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		mediaStream = microphoneResult.ok;
+		startVolumeAnalysis(mediaStream);
+
+		const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+			? 'audio/webm;codecs=opus'
+			: 'audio/webm';
+
+		const recorder = new MediaRecorder(mediaStream, { mimeType });
+		mediaRecorder = recorder;
+
+		recorder.ondataavailable = (event: BlobEvent) => {
+			if (event.data.size > 0) {
+				enqueueChunk(liveRecording.id, event.data, false);
+			}
+		};
+
+		recorder.start(CHUNK_INTERVAL_MS);
+		recordingWebSocket.connect();
+		phase = 'recording';
+	}
+
+	async function discardLiveRecording(liveRecordingId: string): Promise<void> {
+		if (activeLiveRecordingId === liveRecordingId) {
+			notifications.send({
+				message: 'Stop or pause this recording before discarding it',
+				priority: 'WARNING'
+			});
+			return;
+		}
+
+		const result = await tryCatchAsync(() => callLiveApi('DELETE', `/${liveRecordingId}`));
+		if (result.err !== null) {
+			notifications.send({
+				message:
+					result.err instanceof Error
+						? result.err.message
+						: 'Failed to discard live recording',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		liveRecordings = liveRecordings.filter(
+			(liveRecording) => liveRecording.id !== liveRecordingId
+		);
+	}
+
+	async function pauseRecording(): Promise<void> {
+		const liveRecordingId = activeLiveRecordingId;
+		if (!mediaRecorder || phase !== 'recording' || !liveRecordingId) return;
+
+		phase = 'stopping';
+
+		const pauseResult = await tryCatchAsync(() => drainAndStop(liveRecordingId));
+
+		recordingWebSocket.disconnect();
+
+		if (pauseResult.err !== null) {
+			const error = pauseResult.err;
+			notifications.send({
+				message: error instanceof Error ? error.message : 'Failed to pause recording',
+				priority: 'ERROR'
+			});
+			releaseMediaDevices();
+			activeLiveRecordingId = null;
+			phase = 'idle';
+			return;
+		}
+
+		const deactivateResult = await tryCatchAsync(() =>
+			callLiveApi<LiveAudioRecordingStateResponse>('POST', `/${liveRecordingId}/deactivate`)
+		);
+
+		if (deactivateResult.err !== null) {
+			notifications.send({
+				message:
+					deactivateResult.err instanceof Error
+						? deactivateResult.err.message
+						: 'Failed to release live recording lock',
+				priority: 'WARNING'
+			});
+		}
+
+		activeLiveRecordingId = null;
+		phase = 'idle';
 	}
 
 	async function stopRecording(): Promise<void> {
@@ -361,6 +538,8 @@
 		phase = 'stopping';
 
 		const stopResult = await tryCatchAsync(() => drainAndStop(liveRecordingId));
+
+		recordingWebSocket.disconnect();
 
 		if (stopResult.err !== null) {
 			const error = stopResult.err;
@@ -380,6 +559,9 @@
 
 		activeLiveRecordingId = null;
 		phase = 'idle';
+		liveRecordings = liveRecordings.filter(
+			(liveRecording) => liveRecording.id !== liveRecordingId
+		);
 
 		if (completeResult.err !== null) {
 			const error = completeResult.err;
@@ -401,6 +583,8 @@
 	// ── Cleanup on component destroy ──────────────────────────────────────────
 
 	onDestroy(() => {
+		unsubscribeRecordingWebSocketClose();
+		recordingWebSocket.disconnect();
 		releaseMediaDevices();
 
 		if (activeLiveRecordingId) {
@@ -408,10 +592,92 @@
 			void tryCatchAsync(() => callLiveApi('DELETE', `/${activeLiveRecordingId}`));
 		}
 	});
+
+	onMount(() => {
+		void loadLiveRecordings();
+	});
 </script>
 
-<div class="flex items-center gap-4">
-	{#if isIdle}
+<div class="flex flex-col gap-4">
+	{#if liveRecordings.length > 0}
+		<div class="border-border rounded-lg border p-3">
+			<div class="mb-2 text-sm font-semibold">In-progress live recordings</div>
+			<div class="flex flex-col gap-2">
+				{#each liveRecordings as liveRecording (liveRecording.id)}
+					{@const isActiveRow = activeLiveRecordingId === liveRecording.id}
+					<div
+						class="bg-muted/40 flex items-center justify-between gap-3 rounded-md p-2"
+						class:opacity-50={hasActiveLiveRecording && !isActiveRow}
+					>
+						<div class="min-w-0">
+							<div class="truncate text-sm font-medium">
+								{liveRecordingName(liveRecording)}
+							</div>
+							<div class="text-muted-foreground text-sm">
+								Next part: {liveRecording.nextPartNumber}, uploaded: {liveRecording
+									.uploadedParts.length}
+							</div>
+						</div>
+						<div class="flex items-center gap-2">
+							{#if isActiveRow}
+								{#if isStarting}
+									<div
+										class="text-muted-foreground flex items-center gap-2 text-sm"
+									>
+										<Loader2 class="h-4 w-4 animate-spin" />
+										Starting…
+									</div>
+								{:else if isRecording}
+									<div
+										class="bg-destructive/10 flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-75"
+										style="transform: scale({1 + audioVolume * 0.35})"
+										aria-hidden="true"
+									>
+										<Mic class="text-destructive h-4 w-4" />
+									</div>
+									<Button variant="outline" size="sm" onclick={pauseRecording}>
+										<Pause class="mr-2 h-4 w-4" />
+										Pause
+									</Button>
+									<Button variant="destructive" size="sm" onclick={stopRecording}>
+										<Square class="mr-2 h-4 w-4" />
+										Stop &amp; save
+									</Button>
+								{:else if isStopping}
+									<div
+										class="text-muted-foreground flex items-center gap-2 text-sm"
+									>
+										<Loader2 class="h-4 w-4 animate-spin" />
+										Saving…
+									</div>
+								{/if}
+							{:else}
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={hasActiveLiveRecording}
+									onclick={() => resumeLiveRecording(liveRecording.id)}
+								>
+									<Play class="mr-2 h-4 w-4" />
+									Resume
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									disabled={hasActiveLiveRecording}
+									onclick={() => discardLiveRecording(liveRecording.id)}
+								>
+									<Trash2 class="h-4 w-4" />
+								</Button>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	<div class="flex items-center gap-4" class:opacity-50={hasActiveLiveRecording}>
 		<!--
 			Mic icon acts as the visual anchor for the live recording action.
 			The icon itself is not interactive; the labelled Start button is the trigger.
@@ -422,44 +688,14 @@
 		<Input
 			class="max-w-xs"
 			placeholder="Recording name"
+			disabled={hasActiveLiveRecording}
 			bind:value={recordingName}
 			onkeydown={(e) => {
 				if (e.key === 'Enter') startRecording();
 			}}
 		/>
-		<Button onclick={startRecording} disabled={!recordingName.trim()}>Start recording</Button>
-	{:else if isStarting}
-		<div class="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-			<Loader2 class="h-5 w-5 animate-spin" />
-		</div>
-		<span class="text-muted-foreground text-sm">Starting…</span>
-	{:else if isRecording}
-		<!--
-			Non-interactive mic icon signals the microphone is active.
-			The circle scales subtly with input volume via Web Audio RMS analysis.
-		-->
-		<div
-			class="bg-destructive/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform duration-75"
-			style="transform: scale({1 + audioVolume * 0.4})"
-			aria-hidden="true"
+		<Button onclick={startRecording} disabled={hasActiveLiveRecording || !recordingName.trim()}
+			>Start recording</Button
 		>
-			<Mic class="text-destructive h-5 w-5" />
-		</div>
-		<div class="flex items-center gap-2">
-			<span
-				class="bg-destructive inline-block h-2.5 w-2.5 animate-pulse rounded-full"
-				aria-hidden="true"
-			></span>
-			<span class="text-sm font-medium">Recording</span>
-		</div>
-		<Button variant="destructive" onclick={stopRecording}>
-			<Square class="mr-2 h-4 w-4" />
-			Stop &amp; save
-		</Button>
-	{:else if isStopping}
-		<div class="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-			<Loader2 class="h-5 w-5 animate-spin" />
-		</div>
-		<span class="text-muted-foreground text-sm">Saving recording…</span>
-	{/if}
+	</div>
 </div>

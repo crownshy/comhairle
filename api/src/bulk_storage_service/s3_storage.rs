@@ -5,8 +5,6 @@ use aws_sdk_s3::config::{RequestChecksumCalculation, ResponseChecksumValidation}
 use aws_sdk_s3::presigning::PresigningConfig;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::types::ObjectCannedAcl;
-use std::collections::HashMap;
-use std::sync::Mutex;
 use std::time::Duration;
 
 use crate::bulk_storage_service::{
@@ -28,8 +26,6 @@ pub struct S3StorageService {
     pub s3_client: Client,
     /// The name of the S3 bucket to use for storage
     pub bucket: String,
-    /// Ongoing multipart uploads tracked by their upload ID.
-    pub multipart_uploads: Mutex<HashMap<StorageUploadID, String>>,
 }
 
 impl S3StorageService {
@@ -52,29 +48,7 @@ impl S3StorageService {
         Self {
             s3_client: client,
             bucket,
-            multipart_uploads: Mutex::new(HashMap::new()),
         }
-    }
-
-    /// Retrieves the path associated with a given multipart upload ID.
-    ///
-    /// # Arguments
-    ///
-    /// * `upload_id` - The multipart upload ID for which to retrieve the path.
-    ///
-    /// # Returns
-    ///
-    /// An `Option<String>` containing the path if found, or `None` if the upload ID does not exist in the tracking map.
-    pub fn get_multipart_upload_path(
-        &self,
-        upload_id: &StorageUploadID,
-    ) -> Result<Option<String>, String> {
-        Ok(self
-            .multipart_uploads
-            .lock()
-            .map_err(|_| "Could not acquire multipart uploads lock")?
-            .get(upload_id)
-            .cloned())
     }
 }
 
@@ -251,35 +225,16 @@ impl BulkStorageService for S3StorageService {
             })?
             .to_string();
 
-        self.multipart_uploads
-            .lock()
-            .map_err(|e| {
-                BulkStorageError::FailedToCreateMultipartUpload(format!(
-                    "Could not acquire lock: {}",
-                    e
-                ))
-            })?
-            .insert(StorageUploadID(upload_id.clone()), path.to_string());
-
         Ok(StorageUploadID(upload_id))
     }
 
     async fn get_multipart_file_write_url(
         &self,
+        path: &str,
         upload_id: &StorageUploadID,
         part_number: MultipartUploadPartNumber,
     ) -> Result<String, BulkStorageError> {
         let expires_in: Duration = Duration::from_secs(PUT_EXPIRES);
-
-        let path = self
-            .get_multipart_upload_path(upload_id)
-            .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e))?
-            .ok_or_else(|| {
-                BulkStorageError::FailedToGetUploadPresign(format!(
-                    "Upload ID not found: {}",
-                    upload_id.0
-                ))
-            })?;
 
         let presigned = self
             .s3_client
@@ -297,6 +252,7 @@ impl BulkStorageService for S3StorageService {
 
     async fn complete_multipart_upload(
         &self,
+        path: &str,
         upload_id: &StorageUploadID,
         parts: &[(MultipartUploadPartNumber, StorageEntityTag)],
     ) -> Result<(), BulkStorageError> {
@@ -314,16 +270,6 @@ impl BulkStorageService for S3StorageService {
             .set_parts(Some(completed_parts))
             .build();
 
-        let path = self
-            .get_multipart_upload_path(upload_id)
-            .map_err(|err| BulkStorageError::FailedToCompleteMultipartUpload(err))?
-            .ok_or_else(|| {
-                BulkStorageError::FailedToCompleteMultipartUpload(format!(
-                    "Upload ID not found: {}",
-                    upload_id.0
-                ))
-            })?;
-
         self.s3_client
             .complete_multipart_upload()
             .bucket(&self.bucket)
@@ -339,18 +285,9 @@ impl BulkStorageService for S3StorageService {
 
     async fn abort_multipart_upload(
         &self,
+        path: &str,
         upload_id: &StorageUploadID,
     ) -> Result<(), BulkStorageError> {
-        let path = self
-            .get_multipart_upload_path(upload_id)
-            .map_err(|err| BulkStorageError::FailedToAbortMultipartUpload(err))?
-            .ok_or_else(|| {
-                BulkStorageError::FailedToAbortMultipartUpload(format!(
-                    "Upload ID not found: {}",
-                    upload_id.0
-                ))
-            })?;
-
         self.s3_client
             .abort_multipart_upload()
             .bucket(&self.bucket)

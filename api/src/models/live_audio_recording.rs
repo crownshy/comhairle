@@ -24,6 +24,7 @@ pub struct LiveAudioRecording {
     pub multipart_upload_id: String,
     pub next_part_number: i32,
     pub uploaded_parts: Vec<UploadedPart>,
+    pub locked_by_user_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -31,6 +32,7 @@ pub struct LiveAudioRecording {
 pub struct CreateLiveAudioRecording {
     pub audio_recording_id: Uuid,
     pub multipart_upload_id: String,
+    pub locked_by_user_id: Option<Uuid>,
 }
 
 #[derive(Debug, FromRow, Clone)]
@@ -41,14 +43,16 @@ struct RawLiveAudioRecording {
     pub multipart_upload_id: String,
     pub next_part_number: i32,
     pub uploaded_parts: serde_json::Value,
+    pub locked_by_user_id: Option<Uuid>,
 }
 
-const DEFAULT_COLUMNS: [RawLiveAudioRecordingIden; 5] = [
+const DEFAULT_COLUMNS: [RawLiveAudioRecordingIden; 6] = [
     RawLiveAudioRecordingIden::Id,
     RawLiveAudioRecordingIden::AudioRecordingId,
     RawLiveAudioRecordingIden::MultipartUploadId,
     RawLiveAudioRecordingIden::NextPartNumber,
     RawLiveAudioRecordingIden::UploadedParts,
+    RawLiveAudioRecordingIden::LockedByUserId,
 ];
 
 impl TryFrom<RawLiveAudioRecording> for LiveAudioRecording {
@@ -66,6 +70,7 @@ impl TryFrom<RawLiveAudioRecording> for LiveAudioRecording {
                     raw.id
                 ))
             })?,
+            locked_by_user_id: raw.locked_by_user_id,
         })
     }
 }
@@ -85,12 +90,14 @@ pub async fn create(
             RawLiveAudioRecordingIden::MultipartUploadId,
             RawLiveAudioRecordingIden::NextPartNumber,
             RawLiveAudioRecordingIden::UploadedParts,
+            RawLiveAudioRecordingIden::LockedByUserId,
         ])
         .values([
             payload.audio_recording_id.into(),
             payload.multipart_upload_id.clone().into(),
             1.into(),
             json!([]).into(),
+            payload.locked_by_user_id.into(),
         ])
         .unwrap()
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -221,4 +228,60 @@ pub async fn get_by_id(
         .ok_or_else(not_found)?;
 
     row.try_into()
+}
+
+pub async fn lock_for_user(
+    db: &PgPool,
+    live_audio_recording_id: &Uuid,
+    user_id: &Uuid,
+) -> Result<LiveAudioRecording, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(RawLiveAudioRecordingIden::Table)
+        .values([(RawLiveAudioRecordingIden::LockedByUserId, (*user_id).into())])
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(*live_audio_recording_id))
+        .and_where(
+            Expr::col(RawLiveAudioRecordingIden::LockedByUserId)
+                .is_null()
+                .or(Expr::col(RawLiveAudioRecordingIden::LockedByUserId).eq(*user_id)),
+        )
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    if let Some(row) = sqlx::query_as_with::<_, RawLiveAudioRecording, _>(&sql, values)
+        .fetch_optional(db)
+        .await?
+    {
+        return row.try_into();
+    }
+
+    let current = get_by_id(db, live_audio_recording_id).await?;
+    if let Some(locked_by_user_id) = current.locked_by_user_id
+        && locked_by_user_id != *user_id
+    {
+        return Err(ComhairleError::LiveAudioRecordingLocked {
+            live_audio_recording_id: *live_audio_recording_id,
+            locked_by_user_id,
+        });
+    }
+
+    Err(not_found())
+}
+
+pub async fn unlock_for_user(
+    db: &PgPool,
+    live_audio_recording_id: &Uuid,
+    user_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(RawLiveAudioRecordingIden::Table)
+        .values([(
+            RawLiveAudioRecordingIden::LockedByUserId,
+            Option::<Uuid>::None.into(),
+        )])
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(*live_audio_recording_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::LockedByUserId).eq(*user_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&sql, values).execute(db).await?;
+    Ok(())
 }

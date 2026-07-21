@@ -107,6 +107,7 @@ pub struct LiveAudioRecordingDto {
     pub multipart_upload_id: String,
     pub next_part_number: i32,
     pub uploaded_parts: Vec<UploadedPart>,
+    pub locked_by_user_id: Option<Uuid>,
 }
 
 impl From<LiveAudioRecording> for LiveAudioRecordingDto {
@@ -117,6 +118,7 @@ impl From<LiveAudioRecording> for LiveAudioRecordingDto {
             multipart_upload_id: live_audio_recording.multipart_upload_id,
             next_part_number: live_audio_recording.next_part_number,
             uploaded_parts: live_audio_recording.uploaded_parts,
+            locked_by_user_id: live_audio_recording.locked_by_user_id,
         }
     }
 }

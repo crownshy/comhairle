@@ -17,7 +17,7 @@ pub struct UploadResult {
 }
 
 /// A wrapper around a storage service upload ID.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 pub struct StorageUploadID(pub String);
 
 /// A wrapper type around a storage service entity tag.
@@ -176,6 +176,7 @@ pub trait BulkStorageService: Send + Sync {
     ///
     /// # Arguments
     ///
+    /// * `path` - The target path where the multipart object is being uploaded.
     /// * `upload_id` - The ID of the multipart upload.
     /// * `part_number` - The part number (1-based index) of the part
     ///
@@ -184,6 +185,7 @@ pub trait BulkStorageService: Send + Sync {
     /// A presigned URL that can be used to upload the specified part.
     async fn get_multipart_file_write_url(
         &self,
+        _path: &str,
         _upload_id: &StorageUploadID,
         _part_number: MultipartUploadPartNumber,
     ) -> Result<String, BulkStorageError>;
@@ -194,10 +196,12 @@ pub trait BulkStorageService: Send + Sync {
     ///
     /// # Arguments
     ///
+    /// * `path` - The target path where the multipart object is stored.
     /// * `upload_id` - The ID of the multipart upload.
     /// * `parts` - A vector of `MultipartUploadPart` containing the part numbers and their corresponding tags.
     async fn complete_multipart_upload(
         &self,
+        _path: &str,
         _upload_id: &StorageUploadID,
         _parts: &[(MultipartUploadPartNumber, StorageEntityTag)],
     ) -> Result<(), BulkStorageError>;
@@ -206,9 +210,11 @@ pub trait BulkStorageService: Send + Sync {
     ///
     /// # Arguments
     ///
+    /// * `path` - The target path where the multipart object is being uploaded.
     /// * `upload_id` - The ID of the multipart upload to abort.
     async fn abort_multipart_upload(
         &self,
+        _path: &str,
         _upload_id: &StorageUploadID,
     ) -> Result<(), BulkStorageError>;
 }
@@ -252,7 +258,7 @@ impl MockBulkStorageService {
 
         storage
             .expect_get_multipart_file_write_url()
-            .returning(|_, _| {
+            .returning(|_, _, _| {
                 Box::pin(async move {
                     Ok("https://storage.com/signed_multipart_upload_path".to_owned())
                 })
@@ -260,11 +266,11 @@ impl MockBulkStorageService {
 
         storage
             .expect_complete_multipart_upload()
-            .returning(|_, _| Box::pin(async move { Ok(()) }));
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
 
         storage
             .expect_abort_multipart_upload()
-            .returning(|_| Box::pin(async move { Ok(()) }));
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
 
         storage
     }

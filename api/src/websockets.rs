@@ -133,6 +133,28 @@ pub trait WebSocketMessageHandler: Send + Sync {
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
     ) -> Result<(), crate::websockets::error::WebsocketError>;
+
+    /// Hook called when a websocket connection has been established.
+    ///
+    /// Default implementation is a no-op.
+    async fn on_connected(
+        &self,
+        _connection: &WebSocketConnection,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<(), crate::websockets::error::WebsocketError> {
+        Ok(())
+    }
+
+    /// Hook called right before a websocket connection is removed.
+    ///
+    /// Default implementation is a no-op.
+    async fn on_disconnected(
+        &self,
+        _connection: &WebSocketConnection,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<(), crate::websockets::error::WebsocketError> {
+        Ok(())
+    }
 }
 
 static NEXT_CONNECTION_ID: AtomicUsize = AtomicUsize::new(1);
@@ -279,6 +301,8 @@ pub trait WebSocketService: Send + Sync {
     fn unregister_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>>;
 
     fn get_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>>;
+
+    fn list_handlers(&self) -> Vec<(String, Arc<dyn WebSocketMessageHandler>)>;
 }
 
 #[cfg(test)]
@@ -309,6 +333,7 @@ impl MockWebSocketService {
         websockets.expect_register_handler().returning(|_| ());
         websockets.expect_unregister_handler().returning(|_| None);
         websockets.expect_get_handler().returning(|_| None);
+        websockets.expect_list_handlers().returning(Vec::new);
         websockets
     }
 }
@@ -722,6 +747,13 @@ impl WebSocketService for ComhairleWebSocketService {
     fn get_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>> {
         self.handlers.get(domain).map(|entry| entry.value().clone())
     }
+
+    fn list_handlers(&self) -> Vec<(String, Arc<dyn WebSocketMessageHandler>)> {
+        self.handlers
+            .iter()
+            .map(|entry| (entry.key().clone(), entry.value().clone()))
+            .collect()
+    }
 }
 
 #[instrument(skip(state, ws))]
@@ -752,6 +784,9 @@ async fn handle_websocket(
 
     // Add connection to global state
     state.websockets.add_connection(connection.clone());
+
+    // Notify handlers that a websocket connection has been established.
+    notify_handlers_connected(&connection, &state).await;
 
     let (mut ws_sender, mut ws_receiver) = socket.split();
 
@@ -819,9 +854,41 @@ async fn handle_websocket(
         }
     }
 
+    // Notify handlers right before removing the connection from global state.
+    notify_handlers_disconnected(&connection, &state).await;
+
     // Remove connection from global state
     state.websockets.remove_connection(&connection_id);
     info!("WebSocket connection closed: {:?}", connection_id);
+}
+
+async fn notify_handlers_connected(connection: &WebSocketConnection, state: &Arc<ComhairleState>) {
+    for (domain, handler) in state.websockets.list_handlers() {
+        if let Err(err) = handler.on_connected(connection, state).await {
+            warn!(
+                connection_id = ?connection.id,
+                domain = %domain,
+                ?err,
+                "websocket on_connected hook failed"
+            );
+        }
+    }
+}
+
+async fn notify_handlers_disconnected(
+    connection: &WebSocketConnection,
+    state: &Arc<ComhairleState>,
+) {
+    for (domain, handler) in state.websockets.list_handlers() {
+        if let Err(err) = handler.on_disconnected(connection, state).await {
+            warn!(
+                connection_id = ?connection.id,
+                domain = %domain,
+                ?err,
+                "websocket on_disconnected hook failed"
+            );
+        }
+    }
 }
 
 async fn handle_websocket_message(

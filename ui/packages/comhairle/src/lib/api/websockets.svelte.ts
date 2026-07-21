@@ -24,6 +24,7 @@ type MessageHandler = (message: WebSocketMessage) => void;
 type TypedMessageHandler<T extends WebSocketMessage['type']> = (
 	payload: Extract<WebSocketMessage, { type: T }>['payload']
 ) => void;
+type CloseHandler = (event: CloseEvent) => void;
 
 export class WSConnection {
 	socket: WebSocket | null = null;
@@ -34,10 +35,12 @@ export class WSConnection {
 
 	private messageHandlers: Set<MessageHandler> = new Set();
 	private typedHandlers: Map<string, Set<TypedMessageHandler<any>>> = new Map();
+	private closeHandlers: Set<CloseHandler> = new Set();
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private maxReconnectAttempts = 5;
 	private reconnectDelay = 1000;
 	private pingInterval: ReturnType<typeof setInterval> | null = null;
+	private intentionalDisconnect = false;
 
 	connect() {
 		if (!browser) {
@@ -50,6 +53,7 @@ export class WSConnection {
 		}
 
 		this.connectionStatus = 'connecting';
+		this.intentionalDisconnect = false;
 
 		// In development, bypass Vite proxy and connect directly to backend
 		// Cookies are sent automatically with WebSocket connections
@@ -104,12 +108,18 @@ export class WSConnection {
 		this.socket.onclose = (event) => {
 			console.log('WebSocket connection closed:', event.code, event.reason);
 			this.connectionStatus = 'disconnected';
+			this.closeHandlers.forEach((handler) => handler(event));
 			this.stopPingInterval();
+			if (this.intentionalDisconnect) {
+				this.intentionalDisconnect = false;
+				return;
+			}
 			this.attemptReconnect();
 		};
 	}
 
 	disconnect() {
+		this.intentionalDisconnect = true;
 		if (this.reconnectTimeout) {
 			clearTimeout(this.reconnectTimeout);
 			this.reconnectTimeout = null;
@@ -180,6 +190,12 @@ export class WSConnection {
 				}
 			}
 		};
+	}
+
+	// Subscribe to socket close events
+	onClose(handler: CloseHandler): () => void {
+		this.closeHandlers.add(handler);
+		return () => this.closeHandlers.delete(handler);
 	}
 
 	// Convenience methods for common message types
