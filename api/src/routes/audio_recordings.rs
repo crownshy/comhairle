@@ -28,8 +28,10 @@ use crate::bulk_storage_service::{
 use crate::error::ComhairleError;
 use crate::models::audio_recording::{self, CreateAudioRecording};
 use crate::models::event;
+use crate::models::event_attendance;
 use crate::models::job::{self, CreateJob};
 use crate::models::live_audio_recording;
+use crate::models::users::User;
 use crate::routes::audio_recordings::dto::{
     AckLiveAudioRecordingPartRequest, AckLiveAudioRecordingPartResponse, AudioRecordingDto,
     CreateLiveAudioRecordingRequest, CreateLiveAudioRecordingResponse, CreateRecordingRequest,
@@ -38,8 +40,26 @@ use crate::routes::audio_recordings::dto::{
     PresignLiveAudioRecordingPartResponse, ProcessRecordingResponse, RecordingDetailResponse,
     RecordingDownloadUrls, SubmitReportResponse,
 };
-use crate::routes::auth::{RequiredAdminUser, verify_webhook_signature};
+use crate::routes::auth::{
+    RequiredAdminUser, RequiredUser, is_user_admin, verify_webhook_signature,
+};
 use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
+
+async fn ensure_live_recording_access(
+    state: &Arc<ComhairleState>,
+    event_id: &Uuid,
+    user: &User,
+) -> Result<bool, ComhairleError> {
+    if is_user_admin(user, &state.config) {
+        return Ok(true);
+    }
+
+    match event_attendance::get_by_event_and_user(&state.db, event_id, &user.id).await {
+        Ok(_) => Ok(false),
+        Err(ComhairleError::ResourceNotFound(_)) => Err(ComhairleError::UserNotAuthorized),
+        Err(err) => Err(err),
+    }
+}
 
 /// Create an audio recording and return a presigned URL for uploading its audio.
 ///
@@ -93,8 +113,9 @@ async fn create_recording(
 async fn list_recordings(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<Vec<AudioRecordingDto>>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
     let recordings = audio_recording::list_by_event(&state.db, &event_id).await?;
     Ok((
         StatusCode::OK,
@@ -116,8 +137,9 @@ async fn list_recordings(
 async fn get_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<RecordingDetailResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let recording =
@@ -345,9 +367,14 @@ async fn submit_report(
 async fn list_live_recordings(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<Vec<LiveAudioRecordingDto>>), ComhairleError> {
-    let recordings = live_audio_recording::list_by_event(&state.db, &event_id).await?;
+    let is_admin = ensure_live_recording_access(&state, &event_id, &user).await?;
+    let recordings = if is_admin {
+        live_audio_recording::list_by_event(&state.db, &event_id).await?
+    } else {
+        live_audio_recording::list_by_event_and_owner(&state.db, &event_id, &user.id).await?
+    };
     Ok((
         StatusCode::OK,
         Json(
@@ -368,9 +395,10 @@ async fn list_live_recordings(
 async fn create_live_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(request): Json<CreateLiveAudioRecordingRequest>,
 ) -> Result<(StatusCode, Json<CreateLiveAudioRecordingResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let recording_id = Uuid::new_v4();
@@ -428,8 +456,9 @@ async fn create_live_recording(
 async fn get_live_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
     let recording =
         live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
     Ok((
@@ -451,9 +480,10 @@ async fn get_live_recording(
 async fn presign_live_recording_part(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(request): Json<PresignLiveAudioRecordingPartRequest>,
 ) -> Result<(StatusCode, Json<PresignLiveAudioRecordingPartResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let live_recording =
@@ -498,9 +528,10 @@ async fn presign_live_recording_part(
 async fn ack_live_recording_part(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(request): Json<AckLiveAudioRecordingPartRequest>,
 ) -> Result<(StatusCode, Json<AckLiveAudioRecordingPartResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
     let _ = live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
 
     let updated = live_audio_recording::append_uploaded_part(
@@ -534,8 +565,9 @@ async fn ack_live_recording_part(
 async fn complete_live_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<ProcessRecordingResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let worker_service = state.required_worker_service()?;
 
@@ -616,8 +648,9 @@ async fn complete_live_recording(
 async fn delete_live_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let live_recording =
@@ -652,7 +685,7 @@ async fn delete_live_recording(
     ))
 }
 
-/// Deactivate a live recording by releasing its lock for the current user.
+/// Deactivate a live recording session.
 ///
 /// # Errors
 /// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
@@ -662,14 +695,12 @@ async fn delete_live_recording(
 async fn deactivate_live_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
-    let _ =
-        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
 
-    // Acquire-if-free first so we never clear another user's lock.
+    // Ensure only the owner can deactivate; owner id stays attached so reload can resume/finalise.
     let _ = live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
-    live_audio_recording::unlock_for_user(&state.db, &live_recording_id, &user.id).await?;
 
     let live_recording = live_audio_recording::get_by_id(&state.db, &live_recording_id).await?;
 
@@ -1182,7 +1213,7 @@ mod tests {
         let webhook_secret = config
             .categorization_service
             .as_ref()
-            .expect("test config has a categorization service")
+            .expect("test config does not have a categorization service")
             .webhook_secret
             .clone();
 

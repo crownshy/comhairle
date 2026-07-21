@@ -134,6 +134,32 @@ pub async fn list_by_event(
     rows.into_iter().map(TryInto::try_into).collect()
 }
 
+pub async fn list_by_event_and_owner(
+    db: &PgPool,
+    event_id: &Uuid,
+    owner_user_id: &Uuid,
+) -> Result<Vec<LiveAudioRecording>, ComhairleError> {
+    let subquery = Query::select()
+        .column(Alias::new("id"))
+        .from(Alias::new("audio_recording"))
+        .and_where(Expr::col(Alias::new("event_id")).eq(*event_id))
+        .to_owned();
+
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(RawLiveAudioRecordingIden::Table)
+        .and_where(Expr::col(RawLiveAudioRecordingIden::AudioRecordingId).in_subquery(subquery))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::LockedByUserId).eq(*owner_user_id))
+        .order_by(RawLiveAudioRecordingIden::Id, sea_query::Order::Asc)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let rows = sqlx::query_as_with::<_, RawLiveAudioRecording, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    rows.into_iter().map(TryInto::try_into).collect()
+}
+
 pub async fn get_by_id_and_event(
     db: &PgPool,
     live_audio_recording_id: &Uuid,

@@ -1,18 +1,19 @@
 <script lang="ts">
-	import { FileAudio, Trash2, Plus, Download, RefreshCw } from 'lucide-svelte';
+	import { FileAudio, Trash2, Plus, Download, RefreshCw, Mic } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Progress } from '$lib/components/ui/progress';
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type {
 		AudioRecordingDto,
 		AudioRecordingStatus,
-		RecordingDownloadUrls
+		RecordingDownloadUrls,
+		LiveAudioRecordingDto
 	} from '@crownshy/api-client/api';
-	import LiveRecorder from './LiveRecorder.svelte';
 
 	type Props = {
 		conversation_id: string;
@@ -65,6 +66,11 @@
 	let downloads = $state<Record<string, RecordingDownloadUrls>>({});
 	let loadingDownloads = $state<Set<string>>(new Set());
 	let deletingIds = $state<Set<string>>(new Set());
+	let liveRecordings = $state<LiveAudioRecordingDto[]>([]);
+
+	const liveRecordingAudioIds = $derived(
+		new Set(liveRecordings.map((recording) => recording.audioRecordingId))
+	);
 
 	const isInFlight = (s: AudioRecordingStatus) => s === 'transcribing' || s === 'categorizing';
 	const hasInFlight = $derived(recordings.some((r) => isInFlight(r.status)));
@@ -258,6 +264,41 @@
 
 	async function refreshStatus() {
 		await invalidateAll();
+		await loadLiveRecordings();
+	}
+
+	async function loadLiveRecordings() {
+		try {
+			liveRecordings = await apiClient.ListLiveAudioRecordings({
+				params: { conversation_id, event_id }
+			});
+		} catch (e) {
+			console.error(e);
+			liveRecordings = [];
+		}
+	}
+
+	function hasLiveRecording(audioRecordingId: string): boolean {
+		return liveRecordingAudioIds.has(audioRecordingId);
+	}
+
+	async function copyParticipantRecordingLink() {
+		try {
+			if (!window?.navigator?.clipboard) {
+				throw new Error('Clipboard unavailable');
+			}
+			const link = `${window.location.origin}/conversations/${conversation_id}/events/${event_id}/record`;
+			await window.navigator.clipboard.writeText(link);
+			notifications.send({
+				message: 'Participant recording link copied',
+				priority: 'INFO'
+			});
+		} catch {
+			notifications.send({
+				message: 'Could not copy participant recording link',
+				priority: 'ERROR'
+			});
+		}
 	}
 
 	async function loadDownloads(recordingId: string) {
@@ -338,6 +379,10 @@
 		}, 10000);
 		return () => clearInterval(interval);
 	});
+
+	onMount(() => {
+		void loadLiveRecordings();
+	});
 </script>
 
 {#snippet dropZone(row: UploadRow)}
@@ -409,32 +454,53 @@
 {/snippet}
 
 <div class="flex flex-col gap-8 py-6">
-	{#if recordings.length > 0}
-		<section class="flex flex-col gap-3">
-			<div class="flex items-center justify-between">
-				<h2 class="text-2xl font-bold">Recordings</h2>
+	<section class="flex flex-col gap-3">
+		<div class="flex items-center justify-between">
+			<h2 class="text-2xl font-bold">Recordings</h2>
+			<div class="flex items-center gap-2">
+				<Button variant="outline" size="sm" onclick={copyParticipantRecordingLink}>
+					Copy participant recording link
+				</Button>
 				<Button variant="outline" size="sm" onclick={refreshStatus}>
 					<RefreshCw class="mr-2 h-4 w-4" />
 					Refresh
 				</Button>
 			</div>
+		</div>
 
-			<div class="border-border overflow-hidden rounded-lg border">
-				<table class="w-full text-sm">
-					<thead class="bg-muted/50">
-						<tr>
-							<th class="px-4 py-2 text-left font-medium">Name</th>
-							<th class="px-4 py-2 text-left font-medium">Status</th>
-							<th class="px-4 py-2 text-right font-medium">Files</th>
-							<th class="w-12 px-4 py-2"></th>
+		<div class="border-border overflow-hidden rounded-lg border">
+			<table class="w-full text-sm">
+				<thead class="bg-muted/50">
+					<tr>
+						<th class="px-4 py-2 text-left font-medium">Name</th>
+						<th class="px-4 py-2 text-left font-medium">Status</th>
+						<th class="px-4 py-2 text-right font-medium">Files</th>
+						<th class="w-12 px-4 py-2"></th>
+					</tr>
+				</thead>
+				<tbody>
+					{#if recordings.length === 0}
+						<tr class="border-t">
+							<td colspan="4" class="text-muted-foreground px-4 py-6 text-center">
+								No recordings yet.
+							</td>
 						</tr>
-					</thead>
-					<tbody>
+					{:else}
 						{#each recordings as recording (recording.id)}
 							{@const urls = downloads[recording.id]}
 							{@const isDeleting = deletingIds.has(recording.id)}
 							<tr class="border-t" class:opacity-50={isDeleting}>
-								<td class="px-4 py-3 font-medium">{recording.name}</td>
+								<td class="px-4 py-3 font-medium">
+									<div class="flex items-center gap-2">
+										{#if hasLiveRecording(recording.id)}
+											<Mic
+												class="text-destructive h-4 w-4"
+												aria-label="Live recording in progress"
+											/>
+										{/if}
+										<span>{recording.name}</span>
+									</div>
+								</td>
 								<td class="px-4 py-3">
 									<div class="flex items-center gap-2">
 										<Badge variant={statusVariant(recording.status)}>
@@ -504,27 +570,16 @@
 								</td>
 							</tr>
 						{/each}
-					</tbody>
-				</table>
-			</div>
-
-			{#if hasInFlight}
-				<p class="text-muted-foreground text-xs">
-					Processing audio… status will refresh automatically every 10 seconds.
-				</p>
-			{/if}
-		</section>
-	{/if}
-
-	<section class="flex flex-col gap-3">
-		<div class="flex flex-col gap-1">
-			<h2 class="text-2xl font-bold">Live recording</h2>
-			<p class="text-muted-foreground text-sm">
-				Record audio directly in the browser. Chunks are uploaded as you record and
-				processing begins as soon as you stop.
-			</p>
+					{/if}
+				</tbody>
+			</table>
 		</div>
-		<LiveRecorder {conversation_id} {event_id} {recordings} onComplete={invalidateAll} />
+
+		{#if hasInFlight}
+			<p class="text-muted-foreground text-xs">
+				Processing audio… status will refresh automatically every 10 seconds.
+			</p>
+		{/if}
 	</section>
 
 	<section class="flex flex-col gap-4">
