@@ -12,6 +12,7 @@
 		AudioRecordingStatus,
 		RecordingDownloadUrls
 	} from '@crownshy/api-client/api';
+	import LiveRecorder from './LiveRecorder.svelte';
 
 	type Props = {
 		conversation_id: string;
@@ -514,6 +515,17 @@
 			{/if}
 		</section>
 	{/if}
+
+	<section class="flex flex-col gap-3">
+		<div class="flex flex-col gap-1">
+			<h2 class="text-2xl font-bold">Live recording</h2>
+			<p class="text-muted-foreground text-sm">
+				Record audio directly in the browser. Chunks are uploaded as you record and
+				processing begins as soon as you stop.
+			</p>
+		</div>
+		<LiveRecorder {conversation_id} {event_id} {recordings} onComplete={invalidateAll} />
+	</section>
 
 	<section class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
