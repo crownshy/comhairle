@@ -35,7 +35,7 @@
 
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
 
-	let isInitialLoad = $state(false);
+	let isInitialLoad = $state(true);
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
@@ -105,7 +105,7 @@
 		if (propsConfig !== lastPropsConfig && !pages.areDirty) {
 			pages.load(sourceConfig.pages);
 			lastPropsConfig = propsConfig;
-			if (isInitialLoad && Object.keys(pages).length > 0) {
+			if (isInitialLoad && pages.count > 0) {
 				isInitialLoad = false;
 			}
 		}
