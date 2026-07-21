@@ -42,6 +42,9 @@
 	let activeTab = $state<string | null>(null);
 	let isTranslating = $state(false);
 
+	// Not a $derived: activeTab is user-controlled and must persist across dependency changes.
+	// We only reseed when it's unset or has fallen out of the language list; a writable $derived
+	// would reset the open tab whenever allLanguages/initialTargetLang changed.
 	$effect(() => {
 		if (allLanguages.length > 0 && (!activeTab || !allLanguages.includes(activeTab))) {
 			if (initialTargetLang && otherLanguages.includes(initialTargetLang)) {
