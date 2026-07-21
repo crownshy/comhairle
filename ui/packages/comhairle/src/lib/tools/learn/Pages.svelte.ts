@@ -1,6 +1,7 @@
 import type { LocalizedPage } from '@crownshy/api-client/api';
 import { SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 import { useDebounce } from 'runed';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 type Id = string;
 export type Language = string;
@@ -65,15 +66,15 @@ class Pages {
 		this.saveState = 'saving';
 		clearTimeout(this.#savedResetTimer);
 		this.#inFlight = (async () => {
-			try {
-				await this.#rawSave({ invalidate });
-				this.saveState = 'saved';
-				this.#savedResetTimer = setTimeout(() => {
-					if (this.saveState === 'saved') this.saveState = 'idle';
-				}, 2_000);
-			} catch {
+			const res = await tryCatchAsync(() => this.#rawSave({ invalidate }));
+			if (res.err !== null) {
 				this.saveState = 'error';
+				return;
 			}
+			this.saveState = 'saved';
+			this.#savedResetTimer = setTimeout(() => {
+				if (this.saveState === 'saved') this.saveState = 'idle';
+			}, 2_000);
 		})();
 		try {
 			await this.#inFlight;
@@ -119,6 +120,9 @@ class Pages {
 	/** Move to another page, committing pending edits first. Replaces the old fixed-timer switch lockout. */
 	async switchTo(id: number) {
 		await this.flush();
+		// A failed flush leaves saveState 'error' and the page still dirty; stay put so the user sees
+		// the error and can retry, rather than being silently moved off unsaved content.
+		if (this.saveState === 'error') return;
 		this.currentId = id;
 	}
 
