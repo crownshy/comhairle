@@ -21,6 +21,7 @@
 		WorkflowStepWithTranslationsAndTool
 	} from '$lib/tools/types';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 
 	interface Props {
 		conversationId: string;
@@ -52,6 +53,10 @@
 		getPrimaryLocale: () => primaryLocale,
 		getSupportedLanguages: () => supportedLanguages
 	});
+
+	// Warn on refresh / navigate-away while a page edit hasn't finished saving. `areDirty` stays true
+	// until a save succeeds (and after a failed save), so this covers the mid-save refresh case.
+	guardUnsavedChanges(() => pages.areDirty);
 
 	type SaveToServerOptions = { invalidate?: boolean };
 	async function save(
