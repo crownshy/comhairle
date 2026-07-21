@@ -18,18 +18,21 @@ export const load: LayoutLoad = async (event) => {
 			: step.previewToolConfig
 		: null;
 
-	const subtabItems =
-		toolConfig?.type === 'polis'
-			? [
-					{ label: 'Setup', value: 'setup' },
-					{ label: 'Configure', value: 'configure' },
-					{ label: 'Moderation', value: 'moderation' },
-					{ label: 'Insights', value: 'insights' }
-				]
-			: [
-					{ label: 'Setup', value: 'setup' },
-					{ label: 'Configure', value: 'configure' }
-				];
+	const subtabItems = [
+		{ label: 'Setup', value: 'setup' },
+		{ label: 'Configure', value: 'configure' }
+	];
+
+	// TODO: temporary until other tools include insights
+	if (toolConfig?.type === 'polis') {
+		subtabItems.push(
+			{ label: 'Moderation', value: 'moderation' },
+			{ label: 'Insights', value: 'insights' }
+		);
+	}
+	if (toolConfig?.type === 'thinkingspace') {
+		subtabItems.push({ label: 'Insights', value: 'insights' });
+	}
 
 	// `step` and `toolConfig` are shared by every sub-tab page (Configure/Setup/Moderation/
 	// Insights), so they resolve once here and each page reads them from merged layout data.
