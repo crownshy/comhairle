@@ -247,7 +247,7 @@
 			editorType="rich"
 			minHeight="300px"
 			dialogMinHeight="250px"
-			dialogTitle="Translate: Page {pages.currentId + 1}"
+			dialogTitle="Translate"
 			initialContents={pageData.initialContents}
 			initialStatuses={pageData.statuses}
 			{availableDocuments}
