@@ -42,7 +42,6 @@
 		 * Omit it and every change autosaves, which is correct for optional fields.
 		 */
 		canSave?: (value: string) => boolean;
-		// FIX: Should translation be optional? Without it, it doesn't show "saving"
 		translation?: TranslationData;
 		initialContents?: Record<string, string>;
 		initialStatuses?: Record<string, TranslationStatus>;
