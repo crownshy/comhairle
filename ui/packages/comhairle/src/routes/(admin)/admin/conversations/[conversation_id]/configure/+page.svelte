@@ -18,6 +18,8 @@
 	import ExampleDialog from './ExampleDialog.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
+	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
+	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
 	import type {
@@ -322,6 +324,19 @@
 	const callToActionSource = fieldSource('callToAction', (content) =>
 		handleInitOptionalTranslationField(content, 'callToAction', 'plain')
 	);
+
+	// Warn on refresh / navigate-away while any field is still autosaving.
+	const fieldSources = [
+		titleSource,
+		shortDescriptionSource,
+		descriptionSource,
+		privacyPolicySource,
+		shortPrivacyPolicySource,
+		faqsSource,
+		thankYouMessageSource,
+		callToActionSource
+	];
+	guardUnsavedChanges(() => fieldSources.some(hasUnsavedChanges));
 
 	// Access toggles autosave on change (the page has no Save button — see ADR-0004).
 	// `$form.<field>` is updated optimistically by `bind:checked`; on failure we revert it.

@@ -6,6 +6,8 @@
 	import * as Select from '$lib/components/ui/select';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
+	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
+	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';
@@ -113,6 +115,9 @@
 		getPrimaryFallback: () => $form.description ?? '',
 		onEdit: (content) => ($form.description = content)
 	});
+
+	// Warn on refresh / navigate-away while a field is still autosaving.
+	guardUnsavedChanges(() => [nameSource, descriptionSource].some(hasUnsavedChanges));
 
 	function convertTimeToSelectedZone(date: string, time: string, timeZone: string) {
 		const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
