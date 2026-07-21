@@ -2,6 +2,7 @@ import type { LocalizedPage } from '@crownshy/api-client/api';
 import { SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 import { useDebounce } from 'runed';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import type { SaveState } from '$lib/components/Translation/translationUtils';
 
 type Id = string;
 export type Language = string;
@@ -16,9 +17,6 @@ type From = 'source' | 'target';
 type RawSave = (options?: { invalidate?: boolean }) => Promise<void>;
 type OnRestore = () => void;
 type Order = { id: string; [SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean }[]; // Matching DraggableList "items" props
-
-/** Lifecycle of the background save, so the UI can show a truthful indicator instead of guessing. */
-export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 /**
  * How long after the last content edit we wait before persisting. Collapses a burst of keystrokes

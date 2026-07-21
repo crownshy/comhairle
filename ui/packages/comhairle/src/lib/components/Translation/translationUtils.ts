@@ -10,6 +10,9 @@ import type { Translation, Translation2 } from '@crownshy/api-client/api';
 
 export type TranslationStatus = 'primary' | 'draft' | 'approved';
 
+/** Lifecycle of a background save, so the UI can show a truthful indicator instead of guessing. */
+export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
 export interface TranslationEntry {
 	language: string;
 	languageName: string;

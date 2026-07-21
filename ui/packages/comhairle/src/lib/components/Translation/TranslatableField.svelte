@@ -14,6 +14,7 @@
 	import {
 		type TranslationStatus,
 		type TranslationEntry,
+		type SaveState,
 		deriveStatus,
 		saveTranslation,
 		aiTranslate,
@@ -48,7 +49,7 @@
 		 * state reflects the real request rather than the field's local guess. Omit it in textContent
 		 * mode; the field drives its own indicator there.
 		 */
-		saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+		saveStatus?: SaveState;
 		translation?: TranslationData;
 		initialContents?: Record<string, string>;
 		initialStatuses?: Record<string, TranslationStatus>;
