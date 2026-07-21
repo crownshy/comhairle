@@ -7,7 +7,7 @@
 	import LanguageStatusBadge from './LanguageStatusBadge.svelte';
 	import TranslationEditor from './TranslationEditor.svelte';
 	import type { Translation, Translation2 } from '@crownshy/api-client/api';
-	import { Languages, X, Check, LoaderCircle } from 'lucide-svelte';
+	import { Languages, X, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import { invalidateAll } from '$app/navigation';
 	import { useDebounce } from 'runed';
@@ -42,6 +42,13 @@
 		 * Omit it and every change autosaves, which is correct for optional fields.
 		 */
 		canSave?: (value: string) => boolean;
+		/**
+		 * Externally-owned save status, shown in place of the field's own indicator. Pass this in
+		 * callback mode (no `translation`) where the parent owns persistence, so the "Saving/Saved"
+		 * state reflects the real request rather than the field's local guess. Omit it in textContent
+		 * mode; the field drives its own indicator there.
+		 */
+		saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
 		translation?: TranslationData;
 		initialContents?: Record<string, string>;
 		initialStatuses?: Record<string, TranslationStatus>;
@@ -71,6 +78,7 @@
 		dialogTitle = 'Content Translation',
 		inputProps = {},
 		canSave,
+		saveStatus: externalSaveStatus,
 		translation,
 		initialContents,
 		initialStatuses,
@@ -85,17 +93,22 @@
 
 	let dialogOpen = $state(false);
 	let clickedLang = $state<string | undefined>(undefined);
-	let saveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+	let internalSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 	let savedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	// An externally-supplied status wins; otherwise the field shows the one it drives itself (textContent mode).
+	let displaySaveStatus = $derived(externalSaveStatus ?? internalSaveStatus);
 
 	function setSaveStatus(status: 'idle' | 'saving' | 'saved') {
 		clearTimeout(savedTimer);
-		saveStatus = status;
+		internalSaveStatus = status;
 		if (status === 'saved') {
-			savedTimer = setTimeout(() => (saveStatus = 'idle'), 2000);
+			savedTimer = setTimeout(() => (internalSaveStatus = 'idle'), 2000);
 		}
 	}
 
+	// Inline autosave for textContent mode only. In callback mode the parent owns persistence and
+	// receives edits through `onValueChange`, so this never runs there (see handleRichChange below).
 	const debouncedSaveInline = useDebounce(async (content: string) => {
 		// Never persist a value the parent has rejected (e.g. a required field cleared to blank).
 		// The debounce fires with the latest content, so a value typed then cleared is dropped here.
@@ -103,26 +116,23 @@
 			setSaveStatus('idle');
 			return;
 		}
-		if (isTextContentMode && textContentId) {
-			const id = textContentId;
-			setSaveStatus('saving');
-			try {
-				await saveTranslation(id, primaryLocale, content, {
-					requiresValidation: false
-				});
-				const approved = badges.filter((t) => t.status === 'approved' && t.content);
-				if (approved.length > 0) {
-					await markOtherTranslationsAsDraft(id, primaryLocale, approved);
-				}
-				setSaveStatus('saved');
-
-				await invalidateAll();
-			} catch (e) {
-				console.error('Failed to save primary content:', e);
-				setSaveStatus('idle');
+		if (!textContentId) return;
+		const id = textContentId;
+		setSaveStatus('saving');
+		try {
+			await saveTranslation(id, primaryLocale, content, {
+				requiresValidation: false
+			});
+			const approved = badges.filter((t) => t.status === 'approved' && t.content);
+			if (approved.length > 0) {
+				await markOtherTranslationsAsDraft(id, primaryLocale, approved);
 			}
-		} else if (onSaveSource) {
-			onSaveSource(content);
+			setSaveStatus('saved');
+
+			await invalidateAll();
+		} catch (e) {
+			console.error('Failed to save primary content:', e);
+			setSaveStatus('idle');
 		}
 	}, 1000);
 	let editorFlush: (() => Promise<void>) | null = null;
@@ -159,19 +169,19 @@
 	function handlePlainInput(e: Event) {
 		const newValue = (e.currentTarget as HTMLInputElement | HTMLTextAreaElement).value;
 		onValueChange(newValue);
-		saveInlinePrimary(newValue);
+		if (isTextContentMode) saveInlinePrimary(newValue);
 	}
 
 	function handleRichChange(content: string) {
 		if (content === value) return;
 		onValueChange(content);
-		saveInlinePrimary(content);
+		if (isTextContentMode) saveInlinePrimary(content);
 	}
 
 	function saveInlinePrimary(content: string) {
 		// Still reset the debounce timer on every keystroke, but don't show "Saving" for a value
 		// that the guard below will drop; the debounced callback repeats the check before saving.
-		if (isTextContentMode && (!canSave || canSave(content))) setSaveStatus('saving');
+		if (!canSave || canSave(content)) setSaveStatus('saving');
 		debouncedSaveInline(content);
 	}
 
@@ -340,17 +350,22 @@
 		</div>
 	{/if}
 
-	{#if hasTranslations || saveStatus !== 'idle'}
+	{#if hasTranslations || displaySaveStatus !== 'idle'}
 		<div class="flex flex-wrap items-center gap-2">
-			{#if saveStatus === 'saving'}
+			{#if displaySaveStatus === 'saving'}
 				<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
 					<LoaderCircle class="h-3 w-3 animate-spin" />
 					Saving
 				</span>
-			{:else if saveStatus === 'saved'}
+			{:else if displaySaveStatus === 'saved'}
 				<span class="inline-flex items-center gap-1 text-xs text-green-600">
 					<Check class="h-3 w-3" />
 					Saved
+				</span>
+			{:else if displaySaveStatus === 'error'}
+				<span class="text-destructive inline-flex items-center gap-1 text-xs">
+					<TriangleAlert class="h-3 w-3" />
+					Not saved
 				</span>
 			{/if}
 			{#each badges as badge (badge.language)}

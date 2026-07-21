@@ -24,7 +24,6 @@
 		WorkflowStepWithTranslationsAndTool
 	} from '$lib/tools/types';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { useDebounce } from 'runed';
 
 	interface Props {
 		conversationId: string;
@@ -38,9 +37,6 @@
 	let isInitialLoad = $state(false);
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
-
-	let canSwitchPage = $state<boolean>(true);
-	const debouncedCanSwitch = useDebounce(() => (canSwitchPage = true), 1_000);
 
 	// FIX: Remove this after the types have been fixed on the backend
 	type LearnToolConfig = Exclude<InstancedToolConfig<'learn'>, 'pages'> & {
@@ -77,6 +73,8 @@
 
 		if (response.err !== null) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
+			// Rethrow so Pages can flip saveState to 'error' and leave the page marked dirty.
+			throw response.err;
 		}
 
 		if (invalidate) await invalidateAll();
@@ -172,12 +170,7 @@
 						<Button
 							size="sm"
 							variant={itemId === pages.currentId ? 'default' : 'secondary'}
-							onclick={() => {
-								if (!canSwitchPage) {
-									return;
-								}
-								pages.currentId = itemId;
-							}}
+							onclick={() => pages.switchTo(itemId)}
 							class="rounded-md border border-transparent px-4 py-4"
 						>
 							<div use:dragHandle>
@@ -237,11 +230,9 @@
 	{:else}
 		<TranslatableField
 			value={sourceContent}
-			onValueChange={(content) => {
-				canSwitchPage = false;
-				debouncedCanSwitch();
-				pages.current.upsertContent('source', primaryLocale, content);
-			}}
+			onValueChange={(content) =>
+				pages.current.upsertContent('source', primaryLocale, content)}
+			saveStatus={pages.saveState}
 			{primaryLocale}
 			{supportedLanguages}
 			editorType="rich"
@@ -269,14 +260,8 @@
 		/>
 	{/if}
 	{#if pages.count > 1}
-		<Button
-			variant="destructiveOutline"
-			onclick={() => {
-				if (!canSwitchPage) {
-					return;
-				}
-				pages.current.delete();
-			}}><Trash2 /> Delete Page</Button
+		<Button variant="destructiveOutline" onclick={() => pages.current.delete()}
+			><Trash2 /> Delete Page</Button
 		>
 	{/if}
 </div>
