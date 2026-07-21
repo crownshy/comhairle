@@ -24,7 +24,8 @@ pub struct LiveAudioRecording {
     pub multipart_upload_id: String,
     pub next_part_number: i32,
     pub uploaded_parts: Vec<UploadedPart>,
-    pub locked_by_user_id: Option<Uuid>,
+    pub owner_id: Option<Uuid>,
+    pub locked: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -32,7 +33,7 @@ pub struct LiveAudioRecording {
 pub struct CreateLiveAudioRecording {
     pub audio_recording_id: Uuid,
     pub multipart_upload_id: String,
-    pub locked_by_user_id: Option<Uuid>,
+    pub owner_id: Option<Uuid>,
 }
 
 #[derive(Debug, FromRow, Clone)]
@@ -43,16 +44,18 @@ struct RawLiveAudioRecording {
     pub multipart_upload_id: String,
     pub next_part_number: i32,
     pub uploaded_parts: serde_json::Value,
-    pub locked_by_user_id: Option<Uuid>,
+    pub owner_id: Option<Uuid>,
+    pub locked: bool,
 }
 
-const DEFAULT_COLUMNS: [RawLiveAudioRecordingIden; 6] = [
+const DEFAULT_COLUMNS: [RawLiveAudioRecordingIden; 7] = [
     RawLiveAudioRecordingIden::Id,
     RawLiveAudioRecordingIden::AudioRecordingId,
     RawLiveAudioRecordingIden::MultipartUploadId,
     RawLiveAudioRecordingIden::NextPartNumber,
     RawLiveAudioRecordingIden::UploadedParts,
-    RawLiveAudioRecordingIden::LockedByUserId,
+    RawLiveAudioRecordingIden::OwnerId,
+    RawLiveAudioRecordingIden::Locked,
 ];
 
 impl TryFrom<RawLiveAudioRecording> for LiveAudioRecording {
@@ -70,7 +73,8 @@ impl TryFrom<RawLiveAudioRecording> for LiveAudioRecording {
                     raw.id
                 ))
             })?,
-            locked_by_user_id: raw.locked_by_user_id,
+            owner_id: raw.owner_id,
+            locked: raw.locked,
         })
     }
 }
@@ -90,14 +94,16 @@ pub async fn create(
             RawLiveAudioRecordingIden::MultipartUploadId,
             RawLiveAudioRecordingIden::NextPartNumber,
             RawLiveAudioRecordingIden::UploadedParts,
-            RawLiveAudioRecordingIden::LockedByUserId,
+            RawLiveAudioRecordingIden::OwnerId,
+            RawLiveAudioRecordingIden::Locked,
         ])
         .values([
             payload.audio_recording_id.into(),
             payload.multipart_upload_id.clone().into(),
             1.into(),
             json!([]).into(),
-            payload.locked_by_user_id.into(),
+            payload.owner_id.into(),
+            true.into(),
         ])
         .unwrap()
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -112,12 +118,12 @@ pub async fn create(
 
 pub async fn list_by_event(
     db: &PgPool,
-    event_id: &Uuid,
+    event_id: Uuid,
 ) -> Result<Vec<LiveAudioRecording>, ComhairleError> {
     let subquery = Query::select()
         .column(Alias::new("id"))
         .from(Alias::new("audio_recording"))
-        .and_where(Expr::col(Alias::new("event_id")).eq(*event_id))
+        .and_where(Expr::col(Alias::new("event_id")).eq(event_id))
         .to_owned();
 
     let (sql, values) = Query::select()
@@ -136,20 +142,20 @@ pub async fn list_by_event(
 
 pub async fn list_by_event_and_owner(
     db: &PgPool,
-    event_id: &Uuid,
-    owner_user_id: &Uuid,
+    event_id: Uuid,
+    owner_user_id: Uuid,
 ) -> Result<Vec<LiveAudioRecording>, ComhairleError> {
     let subquery = Query::select()
         .column(Alias::new("id"))
         .from(Alias::new("audio_recording"))
-        .and_where(Expr::col(Alias::new("event_id")).eq(*event_id))
+        .and_where(Expr::col(Alias::new("event_id")).eq(event_id))
         .to_owned();
 
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(RawLiveAudioRecordingIden::Table)
         .and_where(Expr::col(RawLiveAudioRecordingIden::AudioRecordingId).in_subquery(subquery))
-        .and_where(Expr::col(RawLiveAudioRecordingIden::LockedByUserId).eq(*owner_user_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::OwnerId).eq(owner_user_id))
         .order_by(RawLiveAudioRecordingIden::Id, sea_query::Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
@@ -162,19 +168,19 @@ pub async fn list_by_event_and_owner(
 
 pub async fn get_by_id_and_event(
     db: &PgPool,
-    live_audio_recording_id: &Uuid,
-    event_id: &Uuid,
+    live_audio_recording_id: Uuid,
+    event_id: Uuid,
 ) -> Result<LiveAudioRecording, ComhairleError> {
     let subquery = Query::select()
         .column(Alias::new("id"))
         .from(Alias::new("audio_recording"))
-        .and_where(Expr::col(Alias::new("event_id")).eq(*event_id))
+        .and_where(Expr::col(Alias::new("event_id")).eq(event_id))
         .to_owned();
 
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(RawLiveAudioRecordingIden::Table)
-        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(*live_audio_recording_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(live_audio_recording_id))
         .and_where(Expr::col(RawLiveAudioRecordingIden::AudioRecordingId).in_subquery(subquery))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -188,7 +194,7 @@ pub async fn get_by_id_and_event(
 
 pub async fn append_uploaded_part(
     db: &PgPool,
-    live_audio_recording_id: &Uuid,
+    live_audio_recording_id: Uuid,
     uploaded_part: UploadedPart,
     expected_part_number: i32,
 ) -> Result<LiveAudioRecording, ComhairleError> {
@@ -216,7 +222,7 @@ pub async fn append_uploaded_part(
                 (expected_part_number + 1).into(),
             ),
         ])
-        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(*live_audio_recording_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(live_audio_recording_id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -228,10 +234,10 @@ pub async fn append_uploaded_part(
     row.try_into()
 }
 
-pub async fn delete(db: &PgPool, live_audio_recording_id: &Uuid) -> Result<(), ComhairleError> {
+pub async fn delete(db: &PgPool, live_audio_recording_id: Uuid) -> Result<(), ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RawLiveAudioRecordingIden::Table)
-        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(*live_audio_recording_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(live_audio_recording_id))
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_with(&sql, values).execute(db).await?;
@@ -240,12 +246,12 @@ pub async fn delete(db: &PgPool, live_audio_recording_id: &Uuid) -> Result<(), C
 
 pub async fn get_by_id(
     db: &PgPool,
-    live_audio_recording_id: &Uuid,
+    live_audio_recording_id: Uuid,
 ) -> Result<LiveAudioRecording, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(RawLiveAudioRecordingIden::Table)
-        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(*live_audio_recording_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(live_audio_recording_id))
         .build_sqlx(PostgresQueryBuilder);
 
     let row = sqlx::query_as_with::<_, RawLiveAudioRecording, _>(&sql, values)
@@ -258,18 +264,15 @@ pub async fn get_by_id(
 
 pub async fn lock_for_user(
     db: &PgPool,
-    live_audio_recording_id: &Uuid,
-    user_id: &Uuid,
+    live_audio_recording_id: Uuid,
+    user_id: Uuid,
 ) -> Result<LiveAudioRecording, ComhairleError> {
     let (sql, values) = Query::update()
         .table(RawLiveAudioRecordingIden::Table)
-        .values([(RawLiveAudioRecordingIden::LockedByUserId, (*user_id).into())])
-        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(*live_audio_recording_id))
-        .and_where(
-            Expr::col(RawLiveAudioRecordingIden::LockedByUserId)
-                .is_null()
-                .or(Expr::col(RawLiveAudioRecordingIden::LockedByUserId).eq(*user_id)),
-        )
+        .value(RawLiveAudioRecordingIden::Locked, true)
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(live_audio_recording_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::OwnerId).eq(user_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Locked).eq(false))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -281,13 +284,8 @@ pub async fn lock_for_user(
     }
 
     let current = get_by_id(db, live_audio_recording_id).await?;
-    if let Some(locked_by_user_id) = current.locked_by_user_id
-        && locked_by_user_id != *user_id
-    {
-        return Err(ComhairleError::LiveAudioRecordingLocked {
-            live_audio_recording_id: *live_audio_recording_id,
-            locked_by_user_id,
-        });
+    if current.owner_id == Some(user_id) {
+        return Err(ComhairleError::LiveAudioRecordingLocked);
     }
 
     Err(not_found())
@@ -295,17 +293,15 @@ pub async fn lock_for_user(
 
 pub async fn unlock_for_user(
     db: &PgPool,
-    live_audio_recording_id: &Uuid,
-    user_id: &Uuid,
+    live_audio_recording_id: Uuid,
+    user_id: Uuid,
 ) -> Result<(), ComhairleError> {
     let (sql, values) = Query::update()
         .table(RawLiveAudioRecordingIden::Table)
-        .values([(
-            RawLiveAudioRecordingIden::LockedByUserId,
-            Option::<Uuid>::None.into(),
-        )])
-        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(*live_audio_recording_id))
-        .and_where(Expr::col(RawLiveAudioRecordingIden::LockedByUserId).eq(*user_id))
+        .value(RawLiveAudioRecordingIden::Locked, false)
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Id).eq(live_audio_recording_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::OwnerId).eq(user_id))
+        .and_where(Expr::col(RawLiveAudioRecordingIden::Locked).eq(true))
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_with(&sql, values).execute(db).await?;

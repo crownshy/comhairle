@@ -33,12 +33,10 @@ use crate::models::job::{self, CreateJob};
 use crate::models::live_audio_recording;
 use crate::models::users::User;
 use crate::routes::audio_recordings::dto::{
-    AckLiveAudioRecordingPartRequest, AckLiveAudioRecordingPartResponse, AudioRecordingDto,
-    CreateLiveAudioRecordingRequest, CreateLiveAudioRecordingResponse, CreateRecordingRequest,
-    CreateRecordingResponse, DeleteRecordingResponse, LiveAudioRecordingDto,
-    LiveAudioRecordingStateResponse, PresignLiveAudioRecordingPartRequest,
-    PresignLiveAudioRecordingPartResponse, ProcessRecordingResponse, RecordingDetailResponse,
-    RecordingDownloadUrls, SubmitReportResponse,
+    AudioRecordingDto, CreateLiveAudioRecordingRequest, CreateLiveAudioRecordingResponse,
+    CreateRecordingRequest, CreateRecordingResponse, DeleteRecordingResponse,
+    LiveAudioRecordingDto, LiveAudioRecordingStateResponse, ProcessRecordingResponse,
+    RecordingDetailResponse, RecordingDownloadUrls, SubmitReportResponse,
 };
 use crate::routes::auth::{
     RequiredAdminUser, RequiredUser, is_user_admin, verify_webhook_signature,
@@ -47,14 +45,14 @@ use crate::worker_service::process_video_call_transcriptions::TranscribeRecordin
 
 async fn ensure_live_recording_access(
     state: &Arc<ComhairleState>,
-    event_id: &Uuid,
+    event_id: Uuid,
     user: &User,
 ) -> Result<bool, ComhairleError> {
-    if is_user_admin(user, &state.config) {
+    if is_user_admin(&state, user).await {
         return Ok(true);
     }
 
-    match event_attendance::get_by_event_and_user(&state.db, event_id, &user.id).await {
+    match event_attendance::get_by_event_and_user(&state.db, &event_id, &user.id).await {
         Ok(_) => Ok(false),
         Err(ComhairleError::ResourceNotFound(_)) => Err(ComhairleError::UserNotAuthorized),
         Err(err) => Err(err),
@@ -115,8 +113,8 @@ async fn list_recordings(
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<Vec<AudioRecordingDto>>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
-    let recordings = audio_recording::list_by_event(&state.db, &event_id).await?;
+    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
+    let recordings = audio_recording::list_by_event(&state.db, event_id).await?;
     Ok((
         StatusCode::OK,
         Json(
@@ -139,11 +137,10 @@ async fn get_recording(
     Path((_conversation_id, event_id, recording_id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<RecordingDetailResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
+    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    let recording =
-        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+    let recording = audio_recording::get_by_id_and_event(&state.db, recording_id, event_id).await?;
     let extension = recording.file_extension.extension();
     let prefix = &recording.s3_key_prefix;
 
@@ -183,7 +180,7 @@ async fn process_recording(
 
     // Ensure the recording exists and belongs to this event before enqueuing work.
     let _recording =
-        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+        audio_recording::get_by_id_and_event(&state.db, recording_id, event_id).await?;
 
     let job = job::create(
         &state.db,
@@ -207,7 +204,7 @@ async fn process_recording(
     // reflects that the file has been received and work is underway.
     audio_recording::update_status(
         &state.db,
-        &recording_id,
+        recording_id,
         audio_recording::AudioRecordingStatus::Transcribing,
     )
     .await?;
@@ -240,8 +237,7 @@ async fn delete_recording(
 ) -> Result<(StatusCode, Json<DeleteRecordingResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    let recording =
-        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+    let recording = audio_recording::get_by_id_and_event(&state.db, recording_id, event_id).await?;
 
     // Best-effort: log and swallow storage errors so a hung S3 doesn't block
     // the user from getting rid of a stuck row.
@@ -261,7 +257,7 @@ async fn delete_recording(
         }
     }
 
-    let deleted = audio_recording::delete(&state.db, &recording_id, &event_id).await?;
+    let deleted = audio_recording::delete(&state.db, recording_id, event_id).await?;
 
     Ok((
         StatusCode::OK,
@@ -329,8 +325,7 @@ async fn submit_report(
             "No event {event_id} found for conversation {conversation_id}"
         )));
     }
-    let recording =
-        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+    let recording = audio_recording::get_by_id_and_event(&state.db, recording_id, event_id).await?;
 
     let path = format!("{}/report.json", recording.s3_key_prefix);
     let bytes = serde_json::to_vec(&payload)?;
@@ -345,7 +340,7 @@ async fn submit_report(
 
     audio_recording::update_status(
         &state.db,
-        &recording.id,
+        recording.id,
         audio_recording::AudioRecordingStatus::Complete,
     )
     .await?;
@@ -369,11 +364,11 @@ async fn list_live_recordings(
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<Vec<LiveAudioRecordingDto>>), ComhairleError> {
-    let is_admin = ensure_live_recording_access(&state, &event_id, &user).await?;
+    let is_admin = ensure_live_recording_access(&state, event_id, &user).await?;
     let recordings = if is_admin {
-        live_audio_recording::list_by_event(&state.db, &event_id).await?
+        live_audio_recording::list_by_event(&state.db, event_id).await?
     } else {
-        live_audio_recording::list_by_event_and_owner(&state.db, &event_id, &user.id).await?
+        live_audio_recording::list_by_event_and_owner(&state.db, event_id, user.id).await?
     };
     Ok((
         StatusCode::OK,
@@ -398,7 +393,7 @@ async fn create_live_recording(
     RequiredUser(user): RequiredUser,
     Json(request): Json<CreateLiveAudioRecordingRequest>,
 ) -> Result<(StatusCode, Json<CreateLiveAudioRecordingResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
+    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let recording_id = Uuid::new_v4();
@@ -433,7 +428,7 @@ async fn create_live_recording(
         &live_audio_recording::CreateLiveAudioRecording {
             audio_recording_id: recording.id,
             multipart_upload_id: multipart_upload_id.0,
-            locked_by_user_id: Some(user.id),
+            owner_id: Some(user.id),
         },
     )
     .await?;
@@ -458,98 +453,13 @@ async fn get_live_recording(
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
+    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
     let recording =
-        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+        live_audio_recording::get_by_id_and_event(&state.db, live_recording_id, event_id).await?;
     Ok((
         StatusCode::OK,
         Json(LiveAudioRecordingStateResponse {
             live_audio_recording: recording.into(),
-        }),
-    ))
-}
-
-/// Presign a URL for uploading the next part of a live audio recording.
-///
-/// # Errors
-/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
-/// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
-/// * `ComhairleError::CorruptedData` if the requested part number does not match the expected next part.
-/// * `ComhairleError::DatabaseError` on database errors.
-#[instrument(err(Debug), skip(state))]
-async fn presign_live_recording_part(
-    State(state): State<Arc<ComhairleState>>,
-    Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredUser(user): RequiredUser,
-    Json(request): Json<PresignLiveAudioRecordingPartRequest>,
-) -> Result<(StatusCode, Json<PresignLiveAudioRecordingPartResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
-    let bulk_storage_service = state.required_bulk_storage_service()?;
-
-    let live_recording =
-        live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
-
-    if request.part_number != live_recording.next_part_number {
-        return Err(ComhairleError::CorruptedData(format!(
-            "Expected part_number {}, got {}",
-            live_recording.next_part_number, request.part_number
-        )));
-    }
-
-    let recording =
-        audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
-    let extension = recording.file_extension.extension();
-    let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
-
-    let upload_url = bulk_storage_service
-        .get_multipart_file_write_url(
-            &recording_path,
-            &StorageUploadID(live_recording.multipart_upload_id),
-            MultipartUploadPartNumber(request.part_number),
-        )
-        .await?;
-
-    Ok((
-        StatusCode::OK,
-        Json(PresignLiveAudioRecordingPartResponse {
-            upload_url,
-            part_number: request.part_number,
-        }),
-    ))
-}
-
-/// Acknowledge that a part has been successfully uploaded to bulk storage.
-///
-/// # Errors
-/// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
-/// * `ComhairleError::CorruptedData` if the acknowledged part number does not match the expected next part.
-/// * `ComhairleError::DatabaseError` on database errors.
-#[instrument(err(Debug), skip(state))]
-async fn ack_live_recording_part(
-    State(state): State<Arc<ComhairleState>>,
-    Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredUser(user): RequiredUser,
-    Json(request): Json<AckLiveAudioRecordingPartRequest>,
-) -> Result<(StatusCode, Json<AckLiveAudioRecordingPartResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
-    let _ = live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
-
-    let updated = live_audio_recording::append_uploaded_part(
-        &state.db,
-        &live_recording_id,
-        live_audio_recording::UploadedPart {
-            part_number: request.part_number,
-            etag: request.etag,
-            size_bytes: request.size_bytes,
-        },
-        request.part_number,
-    )
-    .await?;
-
-    Ok((
-        StatusCode::OK,
-        Json(AckLiveAudioRecordingPartResponse {
-            live_audio_recording: updated.into(),
         }),
     ))
 }
@@ -567,20 +477,22 @@ async fn complete_live_recording(
     Path((conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<ProcessRecordingResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
+    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let worker_service = state.required_worker_service()?;
 
     let live_recording =
-        live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
+        live_audio_recording::lock_for_user(&state.db, live_recording_id, user.id).await?;
 
     let recording =
-        audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
+        audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
     let extension = recording.file_extension.extension();
     let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
-    let parts: Vec<(MultipartUploadPartNumber, StorageEntityTag)> = live_recording
-        .uploaded_parts
+    let mut sorted_uploaded_parts = live_recording.uploaded_parts.clone();
+    sorted_uploaded_parts.sort_by_key(|part| part.part_number);
+
+    let parts: Vec<(MultipartUploadPartNumber, StorageEntityTag)> = sorted_uploaded_parts
         .iter()
         .map(|p| {
             (
@@ -598,7 +510,7 @@ async fn complete_live_recording(
         )
         .await?;
 
-    live_audio_recording::delete(&state.db, &live_recording_id).await?;
+    live_audio_recording::delete(&state.db, live_recording_id).await?;
 
     let job = job::create(
         &state.db,
@@ -620,7 +532,7 @@ async fn complete_live_recording(
 
     audio_recording::update_status(
         &state.db,
-        &recording.id,
+        recording.id,
         audio_recording::AudioRecordingStatus::Transcribing,
     )
     .await?;
@@ -650,14 +562,14 @@ async fn delete_live_recording(
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
+    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let live_recording =
-        live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
+        live_audio_recording::lock_for_user(&state.db, live_recording_id, user.id).await?;
 
     let recording =
-        audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
+        audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
     let extension = recording.file_extension.extension();
     let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
@@ -671,10 +583,10 @@ async fn delete_live_recording(
         tracing::warn!(?err, %live_recording_id, "failed to abort multipart upload");
     }
 
-    live_audio_recording::delete(&state.db, &live_recording_id).await?;
+    live_audio_recording::delete(&state.db, live_recording_id).await?;
 
     if recording.status == audio_recording::AudioRecordingStatus::AwaitingUpload {
-        let _ = audio_recording::delete(&state.db, &recording.id, &event_id).await?;
+        let _ = audio_recording::delete(&state.db, recording.id, event_id).await?;
     }
 
     Ok((
@@ -689,7 +601,7 @@ async fn delete_live_recording(
 ///
 /// # Errors
 /// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
-/// * `ComhairleError::LiveAudioRecordingLocked` if another user currently holds the lock.
+/// * `ComhairleError::LiveAudioRecordingLocked` if another session currently holds the lock.
 /// * `ComhairleError::DatabaseError` on database errors.
 #[instrument(err(Debug), skip(state))]
 async fn deactivate_live_recording(
@@ -697,12 +609,12 @@ async fn deactivate_live_recording(
     Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, &event_id, &user).await?;
+    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
 
     // Ensure only the owner can deactivate; owner id stays attached so reload can resume/finalise.
-    let _ = live_audio_recording::lock_for_user(&state.db, &live_recording_id, &user.id).await?;
+    let _ = live_audio_recording::lock_for_user(&state.db, live_recording_id, user.id).await?;
 
-    let live_recording = live_audio_recording::get_by_id(&state.db, &live_recording_id).await?;
+    let live_recording = live_audio_recording::get_by_id(&state.db, live_recording_id).await?;
 
     Ok((
         StatusCode::OK,
@@ -828,26 +740,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Release lock on a live audio recording")
                     .security_requirement("JWT")
                     .response::<200, Json<LiveAudioRecordingStateResponse>>()
-            }),
-        )
-        .api_route(
-            "/live/{live_recording_id}/presign",
-            post_with(presign_live_recording_part, |op| {
-                op.id("PresignLiveAudioRecordingPart")
-                    .tag("Audio Recordings")
-                    .summary("Presign a URL for the next upload part")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PresignLiveAudioRecordingPartResponse>>()
-            }),
-        )
-        .api_route(
-            "/live/{live_recording_id}/ack",
-            post_with(ack_live_recording_part, |op| {
-                op.id("AckLiveAudioRecordingPart")
-                    .tag("Audio Recordings")
-                    .summary("Acknowledge a successfully uploaded part")
-                    .security_requirement("JWT")
-                    .response::<200, Json<AckLiveAudioRecordingPartResponse>>()
             }),
         )
         .api_route(
@@ -1177,7 +1069,7 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         // The DB row is gone even though the storage cleanup failed.
         assert!(
-            audio_recording::get_by_id(&pool, &recording.id)
+            audio_recording::get_by_id(&pool, recording.id)
                 .await
                 .is_err()
         );
@@ -1273,7 +1165,7 @@ mod tests {
         assert_eq!(status, StatusCode::CREATED);
 
         // The recording is now complete.
-        let refreshed = audio_recording::get_by_id(&pool, &recording.id).await?;
+        let refreshed = audio_recording::get_by_id(&pool, recording.id).await?;
         assert_eq!(
             refreshed.status,
             audio_recording::AudioRecordingStatus::Complete

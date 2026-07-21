@@ -26,6 +26,20 @@ type TypedMessageHandler<T extends WebSocketMessage['type']> = (
 ) => void;
 type CloseHandler = (event: CloseEvent) => void;
 
+type PendingCustomRequest = {
+	resolve: (value: any) => void;
+	reject: (reason?: unknown) => void;
+	timeoutId: ReturnType<typeof setTimeout>;
+	expectedEvent: string;
+};
+
+type CustomResultEnvelope<T> = {
+	requestId: string;
+	success: boolean;
+	data: T | null;
+	error: string | null;
+};
+
 export class WSConnection {
 	socket: WebSocket | null = null;
 	connectionStatus = $state<'disconnected' | 'connecting' | 'connected' | 'error'>(
@@ -41,6 +55,7 @@ export class WSConnection {
 	private reconnectDelay = 1000;
 	private pingInterval: ReturnType<typeof setInterval> | null = null;
 	private intentionalDisconnect = false;
+	private pendingCustomRequests: Map<string, PendingCustomRequest> = new Map();
 
 	connect() {
 		if (!browser) {
@@ -91,6 +106,10 @@ export class WSConnection {
 					handlers.forEach((handler) => handler(message.payload));
 				}
 
+				if (message.type === 'custom') {
+					this.handleCustomResultMessage(message.payload.event, message.payload.data);
+				}
+
 				// Handle pong responses for ping
 				if (message.type === 'pong') {
 					console.log('Received pong');
@@ -109,6 +128,7 @@ export class WSConnection {
 			console.log('WebSocket connection closed:', event.code, event.reason);
 			this.connectionStatus = 'disconnected';
 			this.closeHandlers.forEach((handler) => handler(event));
+			this.rejectPendingCustomRequests('WebSocket connection closed');
 			this.stopPingInterval();
 			if (this.intentionalDisconnect) {
 				this.intentionalDisconnect = false;
@@ -129,7 +149,52 @@ export class WSConnection {
 			this.socket.close();
 			this.socket = null;
 		}
+		this.rejectPendingCustomRequests('WebSocket disconnected');
 		this.connectionStatus = 'disconnected';
+	}
+
+	private handleCustomResultMessage(event: string, data: any) {
+		if (!event.endsWith('_result')) return;
+		if (!data || typeof data !== 'object') return;
+
+		const requestId = data.requestId;
+		if (typeof requestId !== 'string' || requestId.length === 0) return;
+
+		const pending = this.pendingCustomRequests.get(requestId);
+		if (!pending) return;
+		if (pending.expectedEvent !== event) return;
+
+		this.pendingCustomRequests.delete(requestId);
+		clearTimeout(pending.timeoutId);
+
+		const envelope = data as CustomResultEnvelope<any>;
+		if (!envelope.success) {
+			pending.reject(new Error(envelope.error ?? `Request failed for ${event}`));
+			return;
+		}
+
+		pending.resolve(envelope.data);
+	}
+
+	private rejectPendingCustomRequests(reason: string) {
+		for (const [, pending] of this.pendingCustomRequests) {
+			clearTimeout(pending.timeoutId);
+			pending.reject(new Error(reason));
+		}
+		this.pendingCustomRequests.clear();
+	}
+
+	private async waitUntilConnected(timeoutMs: number): Promise<void> {
+		if (this.socket?.readyState === WebSocket.OPEN) return;
+		this.connect();
+
+		const startedAt = Date.now();
+		while (Date.now() - startedAt < timeoutMs) {
+			if (this.socket?.readyState === WebSocket.OPEN) return;
+			await new Promise<void>((resolve) => setTimeout(resolve, 25));
+		}
+
+		throw new Error('WebSocket connection timed out');
 	}
 
 	private attemptReconnect() {
@@ -203,6 +268,40 @@ export class WSConnection {
 		this.send({
 			type: 'custom',
 			payload: { event, data }
+		});
+	}
+
+	async requestCustom<TResponse>(
+		event: string,
+		data: Record<string, unknown>,
+		options?: { timeoutMs?: number; responseEvent?: string }
+	): Promise<TResponse> {
+		const timeoutMs = options?.timeoutMs ?? 15_000;
+		const responseEvent = options?.responseEvent ?? `${event}_result`;
+		const requestId =
+			browser && typeof crypto.randomUUID === 'function'
+				? crypto.randomUUID()
+				: `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+		await this.waitUntilConnected(timeoutMs);
+
+		return new Promise<TResponse>((resolve, reject) => {
+			const timeoutId = setTimeout(() => {
+				this.pendingCustomRequests.delete(requestId);
+				reject(new Error(`Timed out waiting for ${responseEvent}`));
+			}, timeoutMs);
+
+			this.pendingCustomRequests.set(requestId, {
+				resolve,
+				reject,
+				timeoutId,
+				expectedEvent: responseEvent
+			});
+
+			this.sendCustom(event, {
+				requestId,
+				...data
+			});
 		});
 	}
 }

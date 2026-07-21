@@ -107,7 +107,8 @@ pub struct LiveAudioRecordingDto {
     pub multipart_upload_id: String,
     pub next_part_number: i32,
     pub uploaded_parts: Vec<UploadedPart>,
-    pub locked_by_user_id: Option<Uuid>,
+    pub owner_id: Option<Uuid>,
+    pub locked: bool,
 }
 
 impl From<LiveAudioRecording> for LiveAudioRecordingDto {
@@ -118,7 +119,8 @@ impl From<LiveAudioRecording> for LiveAudioRecordingDto {
             multipart_upload_id: live_audio_recording.multipart_upload_id,
             next_part_number: live_audio_recording.next_part_number,
             uploaded_parts: live_audio_recording.uploaded_parts,
-            locked_by_user_id: live_audio_recording.locked_by_user_id,
+            owner_id: live_audio_recording.owner_id,
+            locked: live_audio_recording.locked,
         }
     }
 }
@@ -137,25 +139,11 @@ pub struct CreateLiveAudioRecordingResponse {
     pub live_audio_recording: LiveAudioRecordingDto,
 }
 
-#[derive(Deserialize, JsonSchema, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct PresignLiveAudioRecordingPartRequest {
-    pub part_number: i32,
-}
-
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PresignLiveAudioRecordingPartResponse {
     pub upload_url: String,
     pub part_number: i32,
-}
-
-#[derive(Deserialize, JsonSchema, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct AckLiveAudioRecordingPartRequest {
-    pub part_number: i32,
-    pub etag: String,
-    pub size_bytes: i64,
 }
 
 #[derive(Serialize, JsonSchema, Debug)]

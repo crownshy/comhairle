@@ -22,9 +22,9 @@
 			<Mic class="text-destructive h-5 w-5" />
 		</div>
 		<div>
-			<h1 class="text-3xl font-bold">New recording</h1>
+			<h1 class="text-3xl font-bold">New live recording</h1>
 			<p class="text-muted-foreground text-sm">
-				Create a recording for {event.name}. Enter a name and tap the microphone to begin.
+				Create a recording for {event.name}.
 			</p>
 		</div>
 	</div>
