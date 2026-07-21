@@ -24,14 +24,6 @@ type TextContentSourceOptions = {
 	getSupportedLanguages: () => string[];
 	/** Plain field value used for the primary locale before any translation row exists (e.g. `step.name`). */
 	getPrimaryFallback?: () => string;
-	/**
-	 * Transitional hook fired on every primary-locale edit, used only by the legacy `value` /
-	 * `onValueChange` bridge in `TranslatableField` to keep a consumer's `superForm` store (or local
-	 * mirror) in sync until that consumer owns a source directly. Remove once every consumer is
-	 * migrated (see ADR-0005).
-	 * @deprecated
-	 */
-	onSourceEdit?: (content: string) => void;
 };
 
 /**
@@ -47,13 +39,7 @@ type TextContentSourceOptions = {
  * utilities. Construct it at the consumer and pass the result to `TranslatableField source={...}`.
  */
 export function createTextContentSource(options: TextContentSourceOptions): TranslationSource {
-	const {
-		getTranslation,
-		getPrimaryLocale,
-		getSupportedLanguages,
-		getPrimaryFallback,
-		onSourceEdit
-	} = options;
+	const { getTranslation, getPrimaryLocale, getSupportedLanguages, getPrimaryFallback } = options;
 
 	const textContentId = () => getTranslation()?.textContent?.id;
 	const otherLanguages = () => getSupportedLanguages().filter((l) => l !== getPrimaryLocale());
@@ -182,7 +168,6 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 		},
 
 		saveSource(content: string) {
-			onSourceEdit?.(content);
 			overlay = { ...overlay, [getPrimaryLocale()]: content };
 			debouncedSaveSource(content);
 		},

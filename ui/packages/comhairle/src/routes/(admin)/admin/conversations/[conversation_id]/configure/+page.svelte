@@ -16,7 +16,7 @@
 	import { CONFIGURE_TABS } from './tabs';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
 	import ExampleDialog from './ExampleDialog.svelte';
-	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import TranslatableField from '$lib/components/Translation/TranslatableFieldLegacy.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
 	import type {

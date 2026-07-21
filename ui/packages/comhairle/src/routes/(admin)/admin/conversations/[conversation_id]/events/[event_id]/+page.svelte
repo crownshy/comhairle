@@ -4,7 +4,7 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Select from '$lib/components/ui/select';
-	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import TranslatableField from '$lib/components/Translation/TranslatableFieldLegacy.svelte';
 	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';

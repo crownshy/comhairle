@@ -9,12 +9,11 @@
 	import { Languages, X, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import type { TranslationSource, TranslationEntry } from './translationUtils';
-	import { createTextContentSource } from './translationSource.svelte';
-	import type { Translation, Translation2, ComhairleDocument } from '@crownshy/api-client/api';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	type Props = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
-		source?: TranslationSource;
+		source: TranslationSource;
 		primaryLocale: string;
 		supportedLanguages: string[];
 		editorType?: 'plain' | 'rich';
@@ -33,17 +32,6 @@
 		canSave?: (value: string) => boolean;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
-		/**
-		 * Legacy textContent inputs, kept only until every consumer passes a `source` directly (see
-		 * ADR-0005). When `source` is omitted these build one internally; `onValueChange` bridges edits
-		 * back to a consumer's `superForm` store / local mirror.
-		 * @deprecated pass `source` instead.
-		 */
-		value?: string | null;
-		/** @deprecated pass `source` instead. */
-		onValueChange?: (value: string) => void;
-		/** @deprecated pass `source` instead. */
-		translation?: Translation | Translation2;
 	};
 
 	let {
@@ -60,43 +48,28 @@
 		inputProps = {},
 		canSave,
 		availableDocuments = [],
-		conversationId,
-		value: legacyValue,
-		onValueChange: legacyOnValueChange,
-		translation: legacyTranslation
+		conversationId
 	}: Props = $props();
-
-	// Transitional: when a consumer hasn't migrated to `source` yet, synthesise one from its legacy
-	// `value` / `onValueChange` / `translation` props. Delete this (and the legacy props) once every
-	// consumer passes `source`.
-	const legacySource = createTextContentSource({
-		getTranslation: () => legacyTranslation,
-		getPrimaryLocale: () => primaryLocale,
-		getSupportedLanguages: () => supportedLanguages,
-		getPrimaryFallback: () => legacyValue ?? '',
-		onSourceEdit: (content) => legacyOnValueChange?.(content)
-	});
-	let activeSource = $derived(source ?? legacySource);
 
 	let dialogOpen = $state(false);
 	let clickedLang = $state<string | undefined>(undefined);
 
-	let value = $derived(activeSource.contents[primaryLocale] ?? '');
+	let value = $derived(source.contents[primaryLocale] ?? '');
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
 	let hasTranslations = $derived(otherLanguages.length > 0);
-	let saveState = $derived(activeSource.saveState);
+	let saveState = $derived(source.saveState);
 
 	let badges = $derived.by((): TranslationEntry[] =>
 		otherLanguages.map((locale) => ({
 			language: locale,
 			languageName: getLanguageName(locale),
-			status: activeSource.statuses[locale] ?? 'draft',
-			content: activeSource.contents[locale] ?? ''
+			status: source.statuses[locale] ?? 'draft',
+			content: source.contents[locale] ?? ''
 		}))
 	);
 
 	function saveSource(content: string) {
-		if (!canSave || canSave(content)) activeSource.saveSource(content);
+		if (!canSave || canSave(content)) source.saveSource(content);
 	}
 
 	function handlePlainInput(e: Event) {
@@ -116,7 +89,7 @@
 	async function closeDialog() {
 		if (!dialogOpen) return;
 		// Commit any pending debounced edit before the dialog goes away.
-		await activeSource.flush();
+		await source.flush();
 		dialogOpen = false;
 	}
 </script>
@@ -235,7 +208,7 @@
 			<div class="max-h-[calc(90vh-120px)] overflow-y-auto pt-4">
 				{#if dialogOpen}
 					<TranslationEditor
-						source={activeSource}
+						{source}
 						{primaryLocale}
 						{supportedLanguages}
 						{editorType}

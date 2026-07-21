@@ -4,7 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
-	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import TranslatableField from '$lib/components/Translation/TranslatableFieldLegacy.svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
 	import type { PrioritizationStore } from '../store.svelte';
@@ -186,9 +186,9 @@
 				{/each}
 
 				<Button variant="outline" size="sm" onclick={addSection} disabled={addingSection}>
-					{#if addingSection}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{:else}<Plus
-							class="mr-2 h-4 w-4"
-						/>{/if}
+					{#if addingSection}<LoaderCircle
+							class="mr-2 h-4 w-4 animate-spin"
+						/>{:else}<Plus class="mr-2 h-4 w-4" />{/if}
 					Add section
 				</Button>
 			</div>
