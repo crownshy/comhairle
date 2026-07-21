@@ -18,15 +18,15 @@ pub struct UploadResult {
 
 /// A wrapper around a storage service upload ID.
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct StorageUploadID(String);
+pub struct StorageUploadID(pub String);
 
 /// A wrapper type around a storage service entity tag.
 #[derive(Debug)]
-pub struct StorageEntityTag(String);
+pub struct StorageEntityTag(pub String);
 
 /// A wrapper type around a storage service part number for a multipart upload.
 #[derive(Debug, Copy, Clone)]
-pub struct MultipartUploadPartNumber(i32);
+pub struct MultipartUploadPartNumber(pub i32);
 
 /// Metadata for a file upload operation.
 #[derive(Debug, Clone)]

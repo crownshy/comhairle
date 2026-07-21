@@ -22,14 +22,21 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::ComhairleState;
-use crate::bulk_storage_service::FileMetadata;
+use crate::bulk_storage_service::{
+    FileMetadata, MultipartUploadPartNumber, StorageEntityTag, StorageUploadID,
+};
 use crate::error::ComhairleError;
 use crate::models::audio_recording::{self, CreateAudioRecording};
 use crate::models::event;
 use crate::models::job::{self, CreateJob};
+use crate::models::live_audio_recording;
 use crate::routes::audio_recordings::dto::{
-    AudioRecordingDto, CreateRecordingRequest, CreateRecordingResponse, DeleteRecordingResponse,
-    ProcessRecordingResponse, RecordingDetailResponse, RecordingDownloadUrls, SubmitReportResponse,
+    AckLiveAudioRecordingPartRequest, AckLiveAudioRecordingPartResponse, AudioRecordingDto,
+    CreateLiveAudioRecordingRequest, CreateLiveAudioRecordingResponse, CreateRecordingRequest,
+    CreateRecordingResponse, DeleteRecordingResponse, LiveAudioRecordingDto,
+    LiveAudioRecordingStateResponse, PresignLiveAudioRecordingPartRequest,
+    PresignLiveAudioRecordingPartResponse, ProcessRecordingResponse, RecordingDetailResponse,
+    RecordingDownloadUrls, SubmitReportResponse,
 };
 use crate::routes::auth::{RequiredAdminUser, verify_webhook_signature};
 use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
@@ -330,6 +337,312 @@ async fn submit_report(
     ))
 }
 
+/// List all live audio recordings for an event.
+///
+/// # Errors
+/// * `ComhairleError::DatabaseError` on database errors.
+#[instrument(err(Debug), skip(state))]
+async fn list_live_recordings(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<Vec<LiveAudioRecordingDto>>), ComhairleError> {
+    let recordings = live_audio_recording::list_by_event(&state.db, &event_id).await?;
+    Ok((
+        StatusCode::OK,
+        Json(
+            recordings
+                .into_iter()
+                .map(LiveAudioRecordingDto::from)
+                .collect(),
+        ),
+    ))
+}
+
+/// Create a live audio recording, initiating a multipart upload in bulk storage.
+///
+/// # Errors
+/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `ComhairleError::DatabaseError` on database errors.
+#[instrument(err(Debug), skip(state))]
+async fn create_live_recording(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(request): Json<CreateLiveAudioRecordingRequest>,
+) -> Result<(StatusCode, Json<CreateLiveAudioRecordingResponse>), ComhairleError> {
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+
+    let recording_id = Uuid::new_v4();
+    let extension = request.file_extension.extension();
+    let s3_key_prefix = format!("events/{event_id}/recordings/{recording_id}");
+    let recording_path = format!("{s3_key_prefix}/recording.{extension}");
+
+    let recording = audio_recording::create(
+        &state.db,
+        &CreateAudioRecording {
+            id: recording_id,
+            event_id,
+            name: request.name,
+            s3_key_prefix,
+            file_extension: request.file_extension,
+        },
+    )
+    .await?;
+
+    let multipart_upload_id = bulk_storage_service
+        .create_multipart_upload(
+            &recording_path,
+            FileMetadata {
+                content_type: "application/octet-stream".to_string(),
+                is_public: false,
+            },
+        )
+        .await?;
+
+    let live_recording = live_audio_recording::create(
+        &state.db,
+        &live_audio_recording::CreateLiveAudioRecording {
+            audio_recording_id: recording.id,
+            multipart_upload_id: multipart_upload_id.0,
+        },
+    )
+    .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(CreateLiveAudioRecordingResponse {
+            recording: recording.into(),
+            live_audio_recording: live_recording.into(),
+        }),
+    ))
+}
+
+/// Get the state of a live audio recording.
+///
+/// # Errors
+/// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
+/// * `ComhairleError::DatabaseError` on database errors.
+#[instrument(err(Debug), skip(state))]
+async fn get_live_recording(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
+    let recording =
+        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+    Ok((
+        StatusCode::OK,
+        Json(LiveAudioRecordingStateResponse {
+            live_audio_recording: recording.into(),
+        }),
+    ))
+}
+
+/// Presign a URL for uploading the next part of a live audio recording.
+///
+/// # Errors
+/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
+/// * `ComhairleError::CorruptedData` if the requested part number does not match the expected next part.
+/// * `ComhairleError::DatabaseError` on database errors.
+#[instrument(err(Debug), skip(state))]
+async fn presign_live_recording_part(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(request): Json<PresignLiveAudioRecordingPartRequest>,
+) -> Result<(StatusCode, Json<PresignLiveAudioRecordingPartResponse>), ComhairleError> {
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+
+    let live_recording =
+        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+
+    if request.part_number != live_recording.next_part_number {
+        return Err(ComhairleError::CorruptedData(format!(
+            "Expected part_number {}, got {}",
+            live_recording.next_part_number, request.part_number
+        )));
+    }
+
+    let recording =
+        audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
+    let extension = recording.file_extension.extension();
+    let _recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+
+    let upload_url = bulk_storage_service
+        .get_multipart_file_write_url(
+            &StorageUploadID(live_recording.multipart_upload_id),
+            MultipartUploadPartNumber(request.part_number),
+        )
+        .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(PresignLiveAudioRecordingPartResponse {
+            upload_url,
+            part_number: request.part_number,
+        }),
+    ))
+}
+
+/// Acknowledge that a part has been successfully uploaded to bulk storage.
+///
+/// # Errors
+/// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
+/// * `ComhairleError::CorruptedData` if the acknowledged part number does not match the expected next part.
+/// * `ComhairleError::DatabaseError` on database errors.
+#[instrument(err(Debug), skip(state))]
+async fn ack_live_recording_part(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(request): Json<AckLiveAudioRecordingPartRequest>,
+) -> Result<(StatusCode, Json<AckLiveAudioRecordingPartResponse>), ComhairleError> {
+    // Verify the recording belongs to this event before mutating.
+    let _ =
+        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+
+    let updated = live_audio_recording::append_uploaded_part(
+        &state.db,
+        &live_recording_id,
+        live_audio_recording::UploadedPart {
+            part_number: request.part_number,
+            etag: request.etag,
+            size_bytes: request.size_bytes,
+        },
+        request.part_number,
+    )
+    .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(AckLiveAudioRecordingPartResponse {
+            live_audio_recording: updated.into(),
+        }),
+    ))
+}
+
+/// Complete a live audio recording's multipart upload and enqueue processing.
+///
+/// # Errors
+/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `ComhairleError::NoWorkerServiceConfigured` if no worker service is configured.
+/// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
+/// * `ComhairleError::DatabaseError` on database errors.
+#[instrument(err(Debug), skip(state))]
+async fn complete_live_recording(
+    State(state): State<Arc<ComhairleState>>,
+    Path((conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<ProcessRecordingResponse>), ComhairleError> {
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+    let worker_service = state.required_worker_service()?;
+
+    let live_recording =
+        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+
+    let recording =
+        audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
+    let extension = recording.file_extension.extension();
+    let _recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+
+    let parts: Vec<(MultipartUploadPartNumber, StorageEntityTag)> = live_recording
+        .uploaded_parts
+        .iter()
+        .map(|p| {
+            (
+                MultipartUploadPartNumber(p.part_number),
+                StorageEntityTag(p.etag.clone()),
+            )
+        })
+        .collect();
+
+    bulk_storage_service
+        .complete_multipart_upload(&StorageUploadID(live_recording.multipart_upload_id), &parts)
+        .await?;
+
+    live_audio_recording::delete(&state.db, &live_recording_id).await?;
+
+    let job = job::create(
+        &state.db,
+        CreateJob {
+            progress: Some(0.0),
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    worker_service
+        .push_transcription_job(TranscribeRecording {
+            event_id,
+            conversation_id,
+            recording_id: recording.id,
+            job_id: job.id,
+        })
+        .await?;
+
+    audio_recording::update_status(
+        &state.db,
+        &recording.id,
+        audio_recording::AudioRecordingStatus::Transcribing,
+    )
+    .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(ProcessRecordingResponse {
+            message: "Live audio recording processing moved to a background job".to_string(),
+            job_id: job.id,
+        }),
+    ))
+}
+
+/// Abort a live audio recording's multipart upload and clean up.
+///
+/// Aborts the in-progress multipart upload in bulk storage (best-effort), deletes the
+/// `live_audio_recording` row, and — if the parent `audio_recording` is still in the
+/// `AwaitingUpload` state — deletes that row too so no orphaned record is left behind.
+///
+/// # Errors
+/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `ComhairleError::ResourceNotFound` if the live audio recording does not exist for this event.
+/// * `ComhairleError::DatabaseError` on database errors.
+#[instrument(err(Debug), skip(state))]
+async fn delete_live_recording(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id, live_recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+
+    let live_recording =
+        live_audio_recording::get_by_id_and_event(&state.db, &live_recording_id, &event_id).await?;
+
+    let recording =
+        audio_recording::get_by_id(&state.db, &live_recording.audio_recording_id).await?;
+
+    if let Err(err) = bulk_storage_service
+        .abort_multipart_upload(&StorageUploadID(live_recording.multipart_upload_id.clone()))
+        .await
+    {
+        tracing::warn!(?err, %live_recording_id, "failed to abort multipart upload");
+    }
+
+    live_audio_recording::delete(&state.db, &live_recording_id).await?;
+
+    if recording.status == audio_recording::AudioRecordingStatus::AwaitingUpload {
+        let _ = audio_recording::delete(&state.db, &recording.id, &event_id).await?;
+    }
+
+    Ok((
+        StatusCode::OK,
+        Json(LiveAudioRecordingStateResponse {
+            live_audio_recording: live_recording.into(),
+        }),
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -395,6 +708,77 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Categorization report webhook")
                     .description("Webhook for the categorization service to submit a recording's report. Authenticated by HMAC signature headers.")
                     .response::<201, Json<SubmitReportResponse>>()
+            }),
+        )
+        .api_route(
+            "/live",
+            get_with(list_live_recordings, |op| {
+                op.id("ListLiveAudioRecordings")
+                    .tag("Audio Recordings")
+                    .summary("List live audio recordings for an event")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<LiveAudioRecordingDto>>>()
+            }),
+        )
+        .api_route(
+            "/live",
+            post_with(create_live_recording, |op| {
+                op.id("CreateLiveAudioRecording")
+                    .tag("Audio Recordings")
+                    .summary("Create a live audio recording")
+                    .description("Create a live audio recording for an event, initiating a multipart upload in bulk storage.")
+                    .security_requirement("JWT")
+                    .response::<201, Json<CreateLiveAudioRecordingResponse>>()
+            }),
+        )
+        .api_route(
+            "/live/{live_recording_id}",
+            get_with(get_live_recording, |op| {
+                op.id("GetLiveAudioRecording")
+                    .tag("Audio Recordings")
+                    .summary("Get a live audio recording's state")
+                    .security_requirement("JWT")
+                    .response::<200, Json<LiveAudioRecordingStateResponse>>()
+            }),
+        )
+        .api_route(
+            "/live/{live_recording_id}",
+            delete_with(delete_live_recording, |op| {
+                op.id("DeleteLiveAudioRecording")
+                    .tag("Audio Recordings")
+                    .summary("Abort and delete a live audio recording")
+                    .security_requirement("JWT")
+                    .response::<200, Json<LiveAudioRecordingStateResponse>>()
+            }),
+        )
+        .api_route(
+            "/live/{live_recording_id}/presign",
+            post_with(presign_live_recording_part, |op| {
+                op.id("PresignLiveAudioRecordingPart")
+                    .tag("Audio Recordings")
+                    .summary("Presign a URL for the next upload part")
+                    .security_requirement("JWT")
+                    .response::<200, Json<PresignLiveAudioRecordingPartResponse>>()
+            }),
+        )
+        .api_route(
+            "/live/{live_recording_id}/ack",
+            post_with(ack_live_recording_part, |op| {
+                op.id("AckLiveAudioRecordingPart")
+                    .tag("Audio Recordings")
+                    .summary("Acknowledge a successfully uploaded part")
+                    .security_requirement("JWT")
+                    .response::<200, Json<AckLiveAudioRecordingPartResponse>>()
+            }),
+        )
+        .api_route(
+            "/live/{live_recording_id}/complete",
+            post_with(complete_live_recording, |op| {
+                op.id("CompleteLiveAudioRecording")
+                    .tag("Audio Recordings")
+                    .summary("Complete the multipart upload and enqueue processing")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ProcessRecordingResponse>>()
             }),
         )
         .with_state(state)

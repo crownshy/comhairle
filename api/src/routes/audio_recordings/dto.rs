@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::audio_recording::{AudioFormat, AudioRecording, AudioRecordingStatus};
+use crate::models::live_audio_recording::{LiveAudioRecording, UploadedPart};
 
 /// Data transfer object for an audio recording.
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -96,4 +97,73 @@ pub struct DeleteRecordingResponse {
 pub struct SubmitReportResponse {
     pub url: String,
     pub success: bool,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveAudioRecordingDto {
+    pub id: Uuid,
+    pub audio_recording_id: Uuid,
+    pub multipart_upload_id: String,
+    pub next_part_number: i32,
+    pub uploaded_parts: Vec<UploadedPart>,
+}
+
+impl From<LiveAudioRecording> for LiveAudioRecordingDto {
+    fn from(live_audio_recording: LiveAudioRecording) -> Self {
+        Self {
+            id: live_audio_recording.id,
+            audio_recording_id: live_audio_recording.audio_recording_id,
+            multipart_upload_id: live_audio_recording.multipart_upload_id,
+            next_part_number: live_audio_recording.next_part_number,
+            uploaded_parts: live_audio_recording.uploaded_parts,
+        }
+    }
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateLiveAudioRecordingRequest {
+    pub name: String,
+    pub file_extension: AudioFormat,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateLiveAudioRecordingResponse {
+    pub recording: AudioRecordingDto,
+    pub live_audio_recording: LiveAudioRecordingDto,
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PresignLiveAudioRecordingPartRequest {
+    pub part_number: i32,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PresignLiveAudioRecordingPartResponse {
+    pub upload_url: String,
+    pub part_number: i32,
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AckLiveAudioRecordingPartRequest {
+    pub part_number: i32,
+    pub etag: String,
+    pub size_bytes: i64,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AckLiveAudioRecordingPartResponse {
+    pub live_audio_recording: LiveAudioRecordingDto,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveAudioRecordingStateResponse {
+    pub live_audio_recording: LiveAudioRecordingDto,
 }

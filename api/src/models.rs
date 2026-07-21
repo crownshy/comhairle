@@ -14,6 +14,7 @@ pub mod feedback;
 pub mod invite_response;
 pub mod invites;
 pub mod job;
+pub mod live_audio_recording;
 pub mod media;
 pub mod notification;
 pub mod notification_delivery;
