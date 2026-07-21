@@ -364,7 +364,7 @@
 {#if hasTranslations}
 	<Dialog.Root open={dialogOpen}>
 		<Dialog.Content
-			class="max-h-[90vh] min-w-[70vw] rounded-xl p-12"
+			class="max-h-[90vh] min-w-[70vw] grid-rows-[auto_1fr] rounded-xl p-12 pt-5"
 			showCloseButton={false}
 			onInteractOutside={(e) => {
 				e.preventDefault();
@@ -377,7 +377,7 @@
 		>
 			<Dialog.Header class="flex flex-row items-center justify-between pr-0">
 				<Dialog.Title
-					class="text-foreground justify-start text-3xl leading-8 font-semibold"
+					class="text-muted-foreground justify-start text-xl leading-8 font-semibold"
 				>
 					{dialogTitle}
 				</Dialog.Title>
@@ -390,7 +390,7 @@
 					<span class="sr-only">Close</span>
 				</button>
 			</Dialog.Header>
-			<div class="max-h-[calc(90vh-120px)] overflow-y-auto pt-4">
+			<div class="max-h-[calc(90vh-120px)] overflow-y-auto">
 				{#if dialogOpen}
 					<TranslationEditor
 						initialContents={editorContents}
