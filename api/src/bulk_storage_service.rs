@@ -16,6 +16,18 @@ pub struct UploadResult {
     pub url: String,
 }
 
+/// A wrapper around a storage service upload ID.
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct StorageUploadID(String);
+
+/// A wrapper type around a storage service entity tag.
+#[derive(Debug)]
+pub struct StorageEntityTag(String);
+
+/// A wrapper type around a storage service part number for a multipart upload.
+#[derive(Debug, Copy, Clone)]
+pub struct MultipartUploadPartNumber(i32);
+
 /// Metadata for a file upload operation.
 #[derive(Debug, Clone)]
 pub struct FileMetadata {
@@ -141,6 +153,64 @@ pub trait BulkStorageService: Send + Sync {
         store: &str,
         prefix: Option<&str>,
     ) -> Result<Vec<String>, BulkStorageError>;
+
+    /// Initiates a multipart upload for a large file and returns the storage service's upload ID.
+    ///
+    /// This allows clients to upload large files in multiple parts without going through the server.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The target path where the file will be stored.
+    /// * `metadata` - Metadata for the file being uploaded.
+    ///
+    /// # Returns
+    ///
+    /// The upload ID that can be used to upload parts and complete the multipart upload.
+    async fn create_multipart_upload(
+        &self,
+        _path: &str,
+        _metadata: FileMetadata,
+    ) -> Result<StorageUploadID, BulkStorageError>;
+
+    /// Generates a presigned URL to upload a specific part of a multipart upload.
+    ///
+    /// # Arguments
+    ///
+    /// * `upload_id` - The ID of the multipart upload.
+    /// * `part_number` - The part number (1-based index) of the part
+    ///
+    /// # Returns
+    ///
+    /// A presigned URL that can be used to upload the specified part.
+    async fn get_multipart_file_write_url(
+        &self,
+        _upload_id: &StorageUploadID,
+        _part_number: MultipartUploadPartNumber,
+    ) -> Result<String, BulkStorageError>;
+
+    /// Completes a multipart upload by providing the list of uploaded parts.
+    ///
+    /// This finalizes the upload and makes the file available at the specified path.
+    ///
+    /// # Arguments
+    ///
+    /// * `upload_id` - The ID of the multipart upload.
+    /// * `parts` - A vector of `MultipartUploadPart` containing the part numbers and their corresponding tags.
+    async fn complete_multipart_upload(
+        &self,
+        _upload_id: &StorageUploadID,
+        _parts: &[(MultipartUploadPartNumber, StorageEntityTag)],
+    ) -> Result<(), BulkStorageError>;
+
+    /// Aborts a multipart upload, discarding any uploaded parts.
+    ///
+    /// # Arguments
+    ///
+    /// * `upload_id` - The ID of the multipart upload to abort.
+    async fn abort_multipart_upload(
+        &self,
+        _upload_id: &StorageUploadID,
+    ) -> Result<(), BulkStorageError>;
 }
 
 #[cfg(test)]
@@ -175,6 +245,26 @@ impl MockBulkStorageService {
         storage
             .expect_list_keys()
             .returning(|_, _| Box::pin(async move { Ok(vec!["recording.wav".to_string()]) }));
+
+        storage.expect_create_multipart_upload().returning(|_, _| {
+            Box::pin(async move { Ok(StorageUploadID("mock-upload-id".to_string())) })
+        });
+
+        storage
+            .expect_get_multipart_file_write_url()
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok("https://storage.com/signed_multipart_upload_path".to_owned())
+                })
+            });
+
+        storage
+            .expect_complete_multipart_upload()
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
+
+        storage
+            .expect_abort_multipart_upload()
+            .returning(|_| Box::pin(async move { Ok(()) }));
 
         storage
     }

@@ -1,15 +1,18 @@
 use async_trait::async_trait;
 use aws_config::SdkConfig;
-use aws_sdk_s3::{
-    Client,
-    config::{RequestChecksumCalculation, ResponseChecksumValidation},
-    presigning::PresigningConfig,
-    primitives::ByteStream,
-    types::ObjectCannedAcl,
-};
+use aws_sdk_s3::Client;
+use aws_sdk_s3::config::{RequestChecksumCalculation, ResponseChecksumValidation};
+use aws_sdk_s3::presigning::PresigningConfig;
+use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::types::ObjectCannedAcl;
+use std::collections::HashMap;
+use std::sync::Mutex;
 use std::time::Duration;
 
-use crate::bulk_storage_service::{BulkStorageService, FileMetadata, error::BulkStorageError};
+use crate::bulk_storage_service::{
+    BulkStorageService, FileMetadata, MultipartUploadPartNumber, StorageEntityTag, StorageUploadID,
+    error::BulkStorageError,
+};
 /// Presigned URL expiration time for PUT operations (in seconds)
 const PUT_EXPIRES: u64 = 600;
 /// Presigned URL expiration time for GET operations (in seconds)
@@ -25,6 +28,8 @@ pub struct S3StorageService {
     pub s3_client: Client,
     /// The name of the S3 bucket to use for storage
     pub bucket: String,
+    /// Ongoing multipart uploads tracked by their upload ID.
+    pub multipart_uploads: Mutex<HashMap<StorageUploadID, String>>,
 }
 
 impl S3StorageService {
@@ -47,7 +52,29 @@ impl S3StorageService {
         Self {
             s3_client: client,
             bucket,
+            multipart_uploads: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Retrieves the path associated with a given multipart upload ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `upload_id` - The multipart upload ID for which to retrieve the path.
+    ///
+    /// # Returns
+    ///
+    /// An `Option<String>` containing the path if found, or `None` if the upload ID does not exist in the tracking map.
+    pub fn get_multipart_upload_path(
+        &self,
+        upload_id: &StorageUploadID,
+    ) -> Result<Option<String>, String> {
+        Ok(self
+            .multipart_uploads
+            .lock()
+            .map_err(|_| "Could not acquire multipart uploads lock")?
+            .get(upload_id)
+            .cloned())
     }
 }
 
@@ -194,5 +221,145 @@ impl BulkStorageService for S3StorageService {
             .collect();
 
         Ok(entries)
+    }
+
+    async fn create_multipart_upload(
+        &self,
+        path: &str,
+        metadata: FileMetadata,
+    ) -> Result<StorageUploadID, BulkStorageError> {
+        let mut put_object = self
+            .s3_client
+            .create_multipart_upload()
+            .bucket(&self.bucket)
+            .key(path)
+            .content_type(&metadata.content_type);
+
+        if metadata.is_public {
+            put_object = put_object.acl(ObjectCannedAcl::PublicRead);
+        }
+
+        let result = put_object
+            .send()
+            .await
+            .map_err(|e| BulkStorageError::FailedToCreateMultipartUpload(e.to_string()))?;
+
+        let upload_id = result
+            .upload_id()
+            .ok_or_else(|| {
+                BulkStorageError::FailedToCreateMultipartUpload("Missing upload ID".to_string())
+            })?
+            .to_string();
+
+        self.multipart_uploads
+            .lock()
+            .map_err(|e| {
+                BulkStorageError::FailedToCreateMultipartUpload(format!(
+                    "Could not acquire lock: {}",
+                    e
+                ))
+            })?
+            .insert(StorageUploadID(upload_id.clone()), path.to_string());
+
+        Ok(StorageUploadID(upload_id))
+    }
+
+    async fn get_multipart_file_write_url(
+        &self,
+        upload_id: &StorageUploadID,
+        part_number: MultipartUploadPartNumber,
+    ) -> Result<String, BulkStorageError> {
+        let expires_in: Duration = Duration::from_secs(PUT_EXPIRES);
+
+        let path = self
+            .get_multipart_upload_path(upload_id)
+            .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e))?
+            .ok_or_else(|| {
+                BulkStorageError::FailedToGetUploadPresign(format!(
+                    "Upload ID not found: {}",
+                    upload_id.0
+                ))
+            })?;
+
+        let presigned = self
+            .s3_client
+            .upload_part()
+            .bucket(&self.bucket)
+            .upload_id(&upload_id.0)
+            .key(path)
+            .part_number(part_number.0)
+            .presigned(PresigningConfig::expires_in(expires_in).unwrap())
+            .await
+            .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e.to_string()))?;
+
+        Ok(presigned.uri().to_string())
+    }
+
+    async fn complete_multipart_upload(
+        &self,
+        upload_id: &StorageUploadID,
+        parts: &[(MultipartUploadPartNumber, StorageEntityTag)],
+    ) -> Result<(), BulkStorageError> {
+        let completed_parts = parts
+            .iter()
+            .map(|(part_number, etag)| {
+                aws_sdk_s3::types::CompletedPart::builder()
+                    .set_part_number(Some(part_number.0))
+                    .set_e_tag(Some(etag.0.clone()))
+                    .build()
+            })
+            .collect::<Vec<_>>();
+
+        let completed_upload = aws_sdk_s3::types::CompletedMultipartUpload::builder()
+            .set_parts(Some(completed_parts))
+            .build();
+
+        let path = self
+            .get_multipart_upload_path(upload_id)
+            .map_err(|err| BulkStorageError::FailedToCompleteMultipartUpload(err))?
+            .ok_or_else(|| {
+                BulkStorageError::FailedToCompleteMultipartUpload(format!(
+                    "Upload ID not found: {}",
+                    upload_id.0
+                ))
+            })?;
+
+        self.s3_client
+            .complete_multipart_upload()
+            .bucket(&self.bucket)
+            .upload_id(&upload_id.0)
+            .key(path)
+            .multipart_upload(completed_upload)
+            .send()
+            .await
+            .map_err(|e| BulkStorageError::FailedToCompleteMultipartUpload(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn abort_multipart_upload(
+        &self,
+        upload_id: &StorageUploadID,
+    ) -> Result<(), BulkStorageError> {
+        let path = self
+            .get_multipart_upload_path(upload_id)
+            .map_err(|err| BulkStorageError::FailedToAbortMultipartUpload(err))?
+            .ok_or_else(|| {
+                BulkStorageError::FailedToAbortMultipartUpload(format!(
+                    "Upload ID not found: {}",
+                    upload_id.0
+                ))
+            })?;
+
+        self.s3_client
+            .abort_multipart_upload()
+            .bucket(&self.bucket)
+            .upload_id(&upload_id.0)
+            .key(path)
+            .send()
+            .await
+            .map_err(|e| BulkStorageError::FailedToAbortMultipartUpload(e.to_string()))?;
+
+        Ok(())
     }
 }
