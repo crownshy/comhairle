@@ -25,7 +25,7 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { useDebounce } from 'runed';
-	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 
 	type Props = {
@@ -49,20 +49,22 @@
 	let primaryLocale = $derived(conversation?.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation?.supportedLanguages ?? ['en']);
 
-	let sourceName = $derived.by(() => {
-		return getTextInLocale(step?.translations?.name, primaryLocale, step?.name ?? '');
+	const nameSource = createTextContentSource({
+		getTranslation: () => step?.translations?.name,
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLanguages,
+		getPrimaryFallback: () => step?.name ?? ''
+	});
+	const descriptionSource = createTextContentSource({
+		getTranslation: () => step?.translations?.description,
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLanguages,
+		getPrimaryFallback: () => step?.description ?? ''
 	});
 
-	let sourceDescription = $derived.by(() => {
-		return getTextInLocale(
-			step?.translations?.description,
-			primaryLocale,
-			step?.description ?? ''
-		);
-	});
-
-	let name = $state(step?.name ?? '');
-	let description = $state('');
+	// Header / delete-dialog / preview read the live primary content straight from the sources.
+	let displayName = $derived(nameSource.contents[primaryLocale] ?? '');
+	let displayDescription = $derived(descriptionSource.contents[primaryLocale] ?? '');
 	let availableDocuments = $state<ComhairleDocument[]>([]);
 
 	$effect(() => {
@@ -90,18 +92,6 @@
 		if (protocol === dataProtocol) return;
 		handleSwitchChange(boolFromProtocol(protocol), 'requestUserSharePermission');
 	}
-
-	$effect(() => {
-		name = getTextInLocale(step?.translations?.name, primaryLocale, step?.name ?? '');
-	});
-
-	$effect(() => {
-		description = getTextInLocale(
-			step?.translations?.description,
-			primaryLocale,
-			step?.description ?? ''
-		);
-	});
 
 	const debouncedUpdateRequired = useDebounce(async (checked: boolean, field: string) => {
 		try {
@@ -162,13 +152,7 @@
 		<p class="text-muted-foreground mb-2 text-sm">
 			The name of the step that will be shown to participants.
 		</p>
-		<TranslatableField
-			value={name}
-			onValueChange={(v) => (name = v)}
-			translation={step.translations?.name}
-			{primaryLocale}
-			{supportedLanguages}
-		/>
+		<TranslatableField source={nameSource} {primaryLocale} {supportedLanguages} />
 	</div>
 
 	<!-- Description field -->
@@ -181,9 +165,7 @@
 		</div>
 		<div class="pt-4">
 			<TranslatableField
-				value={description}
-				onValueChange={(v) => (description = v)}
-				translation={step.translations?.description}
+				source={descriptionSource}
 				{primaryLocale}
 				{supportedLanguages}
 				{availableDocuments}
@@ -279,7 +261,7 @@
 	<AlertDialog.Root bind:open={deleteOpen}>
 		<AlertDialog.Content>
 			<AlertDialog.Header>
-				<AlertDialog.Title>Delete “{name || sourceName || 'this step'}”?</AlertDialog.Title>
+				<AlertDialog.Title>Delete “{displayName || 'this step'}”?</AlertDialog.Title>
 				<AlertDialog.Description>
 					This permanently removes the step and its configuration along with any
 					associated data (e.g. user participation data), and renumbers the remaining
@@ -332,7 +314,7 @@
 		<div class="mb-10 flex flex-row items-start justify-between">
 			<div class="flex flex-col gap-2">
 				<div class="flex flex-row items-end gap-2">
-					<h2 class="text-2xl">{name || sourceName || 'Unnamed Step'}</h2>
+					<h2 class="text-2xl">{displayName || 'Unnamed Step'}</h2>
 					{#if step?.required}
 						<p class="text-red-900">(Required)</p>
 					{:else}
@@ -340,7 +322,7 @@
 					{/if}
 				</div>
 				<ContentRenderer
-					content={description || sourceDescription}
+					content={displayDescription}
 					class="text-muted-foreground text-sm"
 					{availableDocuments}
 					conversationId={conversation_id}

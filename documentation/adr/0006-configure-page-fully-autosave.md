@@ -1,4 +1,4 @@
-# ADR-0004: The Configure page is fully autosave (no explicit Save button)
+# ADR-0006: The Configure page is fully autosave (no explicit Save button)
 
 **Status:** accepted
 **Date:** 2026-07-17
