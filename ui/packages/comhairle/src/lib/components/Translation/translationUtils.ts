@@ -56,6 +56,14 @@ export interface TranslationSource {
 	flush(): Promise<void>;
 }
 
+/**
+ * True while a source still has an edit in flight (or a failed save), i.e. there are unsaved changes.
+ * Handy for an unsaved-changes guard: `guardUnsavedChanges(() => sources.some(hasUnsavedChanges))`.
+ */
+export function hasUnsavedChanges(source: TranslationSource): boolean {
+	return source.saveState === 'saving' || source.saveState === 'error';
+}
+
 export function getTextInLocale(
 	translation: Translation | Translation2 | undefined,
 	locale: string,

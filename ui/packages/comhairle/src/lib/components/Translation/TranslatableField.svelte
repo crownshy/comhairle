@@ -214,18 +214,16 @@
 				</button>
 			</Dialog.Header>
 			<div class="max-h-[calc(90vh-120px)] overflow-y-auto">
-				{#if dialogOpen}
-					<TranslationEditor
-						{source}
-						{primaryLocale}
-						{supportedLanguages}
-						{editorType}
-						minHeight={dialogMinHeight}
-						initialTargetLang={clickedLang}
-						{availableDocuments}
-						{conversationId}
-					/>
-				{/if}
+				<TranslationEditor
+					{source}
+					{primaryLocale}
+					{supportedLanguages}
+					{editorType}
+					minHeight={dialogMinHeight}
+					initialTargetLang={clickedLang}
+					{availableDocuments}
+					{conversationId}
+				/>
 			</div>
 		</Dialog.Content>
 	</Dialog.Root>
