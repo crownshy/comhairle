@@ -255,7 +255,7 @@ export const PALETTE_TOOLS: PaletteItem[] = [
 	TOOL_META.learn,
 	TOOL_META.polis,
 	TOOL_META.heyform,
-	VIDEO_CONFERENCE,
+	// VIDEO_CONFERENCE, // commenting this out until we decide the behaviour we want
 	TOOL_META.thinkingspace,
 	TOOL_META.prioritization,
 	TOOL_META.elicitationbot,
