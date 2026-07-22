@@ -68,8 +68,10 @@
 	}: Props = $props();
 
 	let submitting = $state(false);
-	// Per-round edit drafts (by id). Edits to any round autosave on blur.
-	let dirtyById = $state<Record<string, string>>({});
+	// Local edited text per round (by id). Seeded lazily on first keystroke and
+	// kept as the display source of truth after saving, because the parent's
+	// `rounds` prop is never refreshed with the saved text (see valueFor).
+	let editsById = $state<Record<string, string>>({});
 	let savingById = $state<Record<string, boolean>>({});
 
 	// Live sharing consent for this participant's thinking-space record. Hydrated
@@ -110,19 +112,21 @@
 
 	// Only the newest round is editable. Prior rounds are frozen
 	function editLatest(id: string, value: string) {
-		dirtyById = { ...dirtyById, [id]: value };
+		editsById = { ...editsById, [id]: value };
 	}
 
 	async function persistEdit(id: string) {
-		const draft = dirtyById[id];
+		const draft = editsById[id];
 		if (draft === undefined) return;
 		const trimmed = draft.trim();
 		if (!trimmed) return;
 		savingById = { ...savingById, [id]: true };
 		try {
 			await saveRound({ workflowStepId, roundId: id, submittedText: trimmed });
-			const { [id]: _, ...rest } = dirtyById;
-			dirtyById = rest;
+			// Keep the saved text as the local source of truth. The parent's
+			// `rounds` prop is never refreshed after a save, so dropping this
+			// entry would revert the textarea to the stale pre-edit draft on blur.
+			editsById = { ...editsById, [id]: trimmed };
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -136,7 +140,7 @@
 	}
 
 	function valueFor(round: SummaryRound): string {
-		return dirtyById[round.id] ?? round.submittedText;
+		return editsById[round.id] ?? round.submittedText;
 	}
 
 	async function submit() {
@@ -161,10 +165,8 @@
 		if (!value || submitting) return;
 		submitting = true;
 		try {
-			if (dirtyById[latest.id] !== undefined) {
+			if (editsById[latest.id] !== undefined) {
 				await saveRound({ workflowStepId, roundId: latest.id, submittedText: value });
-				const { [latest.id]: _, ...rest } = dirtyById;
-				dirtyById = rest;
 			}
 			onDone?.();
 		} catch (e) {
@@ -337,7 +339,7 @@
 						{frozenLabel(i)}
 					</p>
 					<p class="text-foreground/80 text-sm leading-relaxed whitespace-pre-wrap">
-						{round.submittedText}
+						{valueFor(round)}
 					</p>
 				</div>
 			{/if}
