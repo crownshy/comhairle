@@ -5058,6 +5058,11 @@ Use a raw HTTP request and process the response body incrementally.
         schema: is_complete,
       },
       {
+        name: "is_shared_with_organizer",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
         name: "workflow_step_id",
         type: "Query",
         schema: z.string().uuid(),

@@ -14,7 +14,7 @@
 	let { userInsights }: Props = $props();
 
 	const ROW_ANIMATION_DURATION_MS = 1000;
-	let rowLimit = $state(3);
+	let rowLimit = $state(4);
 	let selectedUserInsights = $state<ThinkingSpaceUserInsights | null>(null);
 	let openDialog = $derived(selectedUserInsights !== null);
 	let visibleInsightsRows = $derived(userInsights.slice(0, rowLimit));

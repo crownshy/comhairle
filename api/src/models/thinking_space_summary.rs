@@ -9,7 +9,10 @@ use sqlx::{PgPool, prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::{
+    error::ComhairleError,
+    models::{SqlxResultExt, user_progress::UserProgressIden},
+};
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "thinking_space_summary")]
@@ -156,6 +159,7 @@ pub struct ThinkingSpaceSummaryFilterOptions {
     #[schemars(skip)]
     pub user_id: Option<Uuid>,
     pub is_ai_generated: Option<bool>,
+    pub is_shared_with_organizer: Option<bool>,
 }
 
 impl ThinkingSpaceSummaryFilterOptions {
@@ -181,6 +185,40 @@ impl ThinkingSpaceSummaryFilterOptions {
                     .eq(*value),
                 )
                 .to_owned();
+        }
+        if let Some(value) = self.is_shared_with_organizer {
+            let permission_check = Expr::exists(
+                Query::select()
+                    .expr(Expr::val(1))
+                    .from(UserProgressIden::Table)
+                    .and_where(
+                        Expr::col((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                            .equals((
+                                ThinkingSpaceSummaryIden::Table,
+                                ThinkingSpaceSummaryIden::WorkflowStepId,
+                            )),
+                    )
+                    .and_where(
+                        Expr::col((UserProgressIden::Table, UserProgressIden::UserId)).equals((
+                            ThinkingSpaceSummaryIden::Table,
+                            ThinkingSpaceSummaryIden::UserId,
+                        )),
+                    )
+                    .and_where(
+                        Expr::col((
+                            UserProgressIden::Table,
+                            UserProgressIden::PermissionToShareWithOrganizers,
+                        ))
+                        .eq(true),
+                    )
+                    .to_owned(),
+            );
+
+            query = if value {
+                query.and_where(permission_check).to_owned()
+            } else {
+                query.and_where(permission_check.not()).to_owned()
+            };
         }
 
         query
@@ -381,6 +419,7 @@ mod tests {
         let filter_options = ThinkingSpaceSummaryFilterOptions {
             user_id: Some(user_a_id),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
         let summaries = list(&pool, &workflow_step_id, filter_options).await?;
 

@@ -793,6 +793,7 @@ async fn get_thinking_space_insights(
         &state.db,
         &workflow_step_id,
         ThinkingSpaceSummaryFilterOptions {
+            is_shared_with_organizer: Some(true),
             ..Default::default()
         },
     )
