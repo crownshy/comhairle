@@ -3,9 +3,18 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Sparkles, RotateCcw, Check, CornerDownRight, PlusCircle } from 'lucide-svelte';
+	import {
+		Sparkles,
+		RotateCcw,
+		Check,
+		CornerDownRight,
+		PlusCircle,
+		LoaderCircle,
+		TriangleAlert
+	} from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { saveRound } from './summary';
 	import ConsentModal from './ConsentModal.svelte';
 	import ConsentToggle from './ConsentToggle.svelte';
@@ -72,7 +81,27 @@
 	// kept as the display source of truth after saving, because the parent's
 	// `rounds` prop is never refreshed with the saved text (see valueFor).
 	let editsById = $state<Record<string, string>>({});
-	let savingById = $state<Record<string, boolean>>({});
+	// Quiet autosave indicator per round: 'saving' → 'saved' (auto-clears after
+	// 2s) or 'error' (sticks). Absent means idle. Mirrors the configure-page
+	// pattern (see TranslatableField / translationSource).
+	type SaveState = 'saving' | 'saved' | 'error';
+	let saveStateById = $state<Record<string, SaveState>>({});
+	const savedResetTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+	function setSaveState(id: string, state: SaveState | undefined) {
+		clearTimeout(savedResetTimers[id]);
+		if (state === undefined) {
+			const { [id]: _, ...rest } = saveStateById;
+			saveStateById = rest;
+			return;
+		}
+		saveStateById = { ...saveStateById, [id]: state };
+		if (state === 'saved') {
+			savedResetTimers[id] = setTimeout(() => {
+				if (saveStateById[id] === 'saved') setSaveState(id, undefined);
+			}, 2_000);
+		}
+	}
 
 	// Live sharing consent for this participant's thinking-space record. Hydrated
 	// from the backend user_progress row; toggle/modal flips PATCH it back.
@@ -107,12 +136,17 @@
 				fading = false;
 			}, 300);
 		}, 3500);
-		return () => clearInterval(interval);
+		return () => {
+			clearInterval(interval);
+			for (const timer of Object.values(savedResetTimers)) clearTimeout(timer);
+		};
 	});
 
 	// Only the newest round is editable. Prior rounds are frozen
 	function editLatest(id: string, value: string) {
 		editsById = { ...editsById, [id]: value };
+		// Clear any lingering "Saved"/"Not saved" the moment they type again.
+		if (saveStateById[id]) setSaveState(id, undefined);
 	}
 
 	async function persistEdit(id: string) {
@@ -120,23 +154,26 @@
 		if (draft === undefined) return;
 		const trimmed = draft.trim();
 		if (!trimmed) return;
-		savingById = { ...savingById, [id]: true };
-		try {
-			await saveRound({ workflowStepId, roundId: id, submittedText: trimmed });
-			// Keep the saved text as the local source of truth. The parent's
-			// `rounds` prop is never refreshed after a save, so dropping this
-			// entry would revert the textarea to the stale pre-edit draft on blur.
-			editsById = { ...editsById, [id]: trimmed };
-		} catch (e) {
-			console.error(e);
+		setSaveState(id, 'saving');
+		const res = await tryCatchAsync(() =>
+			saveRound({ workflowStepId, roundId: id, submittedText: trimmed })
+		);
+		if (res.err !== null) {
+			console.error(res.err);
+			// Signal the failure two ways: a persistent inline "Not saved" on the
+			// field, plus a toast the participant can't miss (their edit is at risk).
+			setSaveState(id, 'error');
 			notifications.send({
 				message: 'Could not save your edit. Please try again.',
 				priority: 'ERROR'
 			});
-		} finally {
-			const { [id]: _, ...rest } = savingById;
-			savingById = rest;
+			return;
 		}
+		// Keep the saved text as the local source of truth. The parent's
+		// `rounds` prop is never refreshed after a save, so dropping this
+		// entry would revert the textarea to the stale pre-edit draft on blur.
+		editsById = { ...editsById, [id]: trimmed };
+		setSaveState(id, 'saved');
 	}
 
 	function valueFor(round: SummaryRound): string {
@@ -164,20 +201,22 @@
 		const value = valueFor(latest).trim();
 		if (!value || submitting) return;
 		submitting = true;
-		try {
-			if (editsById[latest.id] !== undefined) {
-				await saveRound({ workflowStepId, roundId: latest.id, submittedText: value });
+		if (editsById[latest.id] !== undefined) {
+			const res = await tryCatchAsync(() =>
+				saveRound({ workflowStepId, roundId: latest.id, submittedText: value })
+			);
+			if (res.err !== null) {
+				console.error(res.err);
+				notifications.send({
+					message: 'Could not save your summary. Please try again.',
+					priority: 'ERROR'
+				});
+				submitting = false;
+				return;
 			}
-			onDone?.();
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				message: 'Could not save your summary. Please try again.',
-				priority: 'ERROR'
-			});
-		} finally {
-			submitting = false;
 		}
+		submitting = false;
+		onDone?.();
 	}
 
 	async function patchConsent(value: boolean): Promise<boolean> {
@@ -315,8 +354,23 @@
 						>
 							{latestLabel(rounds.length)}
 						</p>
-						{#if savingById[round.id]}
-							<span class="text-muted-foreground text-xs">Saving…</span>
+						{#if saveStateById[round.id] === 'saving'}
+							<span
+								class="text-muted-foreground inline-flex items-center gap-1 text-xs"
+							>
+								<LoaderCircle class="size-3 animate-spin" />
+								Saving
+							</span>
+						{:else if saveStateById[round.id] === 'saved'}
+							<span class="inline-flex items-center gap-1 text-xs text-green-600">
+								<Check class="size-3" />
+								Saved
+							</span>
+						{:else if saveStateById[round.id] === 'error'}
+							<span class="text-destructive inline-flex items-center gap-1 text-xs">
+								<TriangleAlert class="size-3" />
+								Not saved
+							</span>
 						{/if}
 					</div>
 					<p class="text-foreground text-sm leading-relaxed">
@@ -324,12 +378,18 @@
 						reflect your views? Is there anything important that feels missing? Feel
 						free to edit or add, and when you're happy with it click Confirm & Save.
 					</p>
+					<!-- Lock the previous round while the next one generates: once
+					generation starts this round is about to freeze, so editing it
+					would be lost. -->
 					<Textarea
 						value={valueFor(round)}
 						oninput={(e) => editLatest(round.id, e.currentTarget.value)}
 						onblur={() => persistEdit(round.id)}
+						readonly={pendingNextRound}
 						rows={10}
-						class="bg-background text-base leading-relaxed"
+						class="bg-background text-base leading-relaxed {pendingNextRound
+							? 'cursor-not-allowed opacity-70'
+							: ''}"
 						placeholder="Your latest thinking…"
 					/>
 				</div>
