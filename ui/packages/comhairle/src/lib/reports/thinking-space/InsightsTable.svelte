@@ -1,16 +1,21 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { ThinkingSpaceUserInsights } from '@crownshy/api-client/api';
 	import { CornerDownRight } from '@lucide/svelte';
+	import { ChevronDown } from 'lucide-svelte';
 
 	type Props = {
 		userInsights: ThinkingSpaceUserInsights[];
 	};
 	let { userInsights }: Props = $props();
 
+	const ROW_ANIMATION_DURATION_MS = 1000;
+	let rowLimit = $state(4);
 	let selectedUserInsights = $state<ThinkingSpaceUserInsights | null>(null);
 	let openDialog = $derived(selectedUserInsights !== null);
+	let visibleInsightsRows = $derived(userInsights.slice(0, rowLimit));
 </script>
 
 <Table.Root class="w-full table-fixed">
@@ -22,34 +27,47 @@
 		</Table.Row>
 	</Table.Header>
 	<Table.Body>
-		{#each userInsights as insight (insight.userId)}
+		{#each visibleInsightsRows as insight (insight.userId)}
 			<Table.Row
 				class="hover:cursor-pointer"
-				onclick={() =>
-					(selectedUserInsights =
-						userInsights.find((i) => i.userId === insight.userId) ?? null)}
+				onclick={() => (selectedUserInsights = insight)}
 			>
-				<Table.Cell class="text-muted-foreground border-l-6 px-5 py-9"
-					>{insight.userId.substring(0, 8).concat('...')}</Table.Cell
-				>
+				<Table.Cell class="text-muted-foreground border-l-6 px-5 py-9">
+					<div transition:slide={{ duration: ROW_ANIMATION_DURATION_MS }}>
+						{insight.userId.substring(0, 8).concat('...')}
+					</div>
+				</Table.Cell>
 				<Table.Cell class="text-foreground h-auto px-5 text-wrap!">
-					{#if insight.summary.summary.length > 120}
-						{insight.summary.summary.substring(0, 120).concat('...')}
-					{:else}
-						{insight.summary.summary}
-					{/if}
+					<div transition:slide={{ duration: ROW_ANIMATION_DURATION_MS }}>
+						{#if insight.summary.summary.length > 120}
+							{insight.summary.summary.substring(0, 120).concat('...')}
+						{:else}
+							{insight.summary.summary}
+						{/if}
+					</div>
 				</Table.Cell>
 				<Table.Cell class="text-muted-foreground h-auto px-5 text-wrap!">
-					{#if insight.answers[0].root.question.length > 120}
-						{insight.answers[0].root.question.substring(0, 120).concat('...')}
-					{:else}
-						{insight.answers[0].root.question}
-					{/if}
+					<div transition:slide={{ duration: ROW_ANIMATION_DURATION_MS }}>
+						{#if insight.answers[0].root.question.length > 120}
+							{insight.answers[0].root.question.substring(0, 120).concat('...')}
+						{:else}
+							{insight.answers[0].root.question}
+						{/if}
+					</div>
 				</Table.Cell>
 			</Table.Row>
 		{/each}
 	</Table.Body>
 </Table.Root>
+
+{#if rowLimit <= userInsights.length}
+	<button
+		class="bg-border flex w-full items-center justify-center gap-2 py-3 text-center"
+		type="button"
+		onclick={() => (rowLimit = userInsights.length)}
+		>See all {userInsights.length} deep thoughts <ChevronDown /></button
+	>
+{/if}
 
 <Dialog.Root bind:open={openDialog}>
 	<Dialog.Content class="flex h-[70vh] w-full max-w-6xl flex-col gap-8 sm:w-full sm:max-w-6xl">
