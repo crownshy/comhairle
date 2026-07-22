@@ -4,7 +4,7 @@ import type { RequestEvent } from './$types';
 import Media from '$lib/interfaces/Media';
 import type { MediaDto } from '@crownshy/api-client/api';
 import { message, superValidate } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
+import { zod } from 'sveltekit-superforms/adapters';
 import MediaSchema from '$lib/components/Media/schema';
 
 export async function load({ fetch, depends }: LoadEvent) {
@@ -19,13 +19,15 @@ export async function load({ fetch, depends }: LoadEvent) {
 		// FIX: Return JSON error
 		return fail(500, { error: 'Failed to parse the response from the server' });
 	}
+
 	return {
 		media: data.ok.records as MediaDto[]
 	};
 }
+
 export const actions = {
 	upload: async ({ request }: RequestEvent) => {
-		const form = await superValidate(request, zod4(MediaSchema));
+		const form = await superValidate(request, zod(MediaSchema));
 		console.log(form);
 
 		if (!form.valid) {

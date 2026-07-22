@@ -7,7 +7,6 @@
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import * as Form from '$lib/components/ui/form';
@@ -46,19 +45,12 @@
 				});
 				return;
 			}
-			// const result = await tryCatchAsync(() => response.ok.json());
-			// if (result.err !== null) {
-			// 	// NOTE: Data might be uploaded but wouldn't count as uploaded if the response can't be parsed, probably need to fix at some point
-			// 	return;
-			// }
-
-			// oncomplete?.(result.ok as MediaDto[]);
 			return;
 		}
 		uploadForm?.submit();
 	}
 
-	const mediaForm = superForm(
+	const form = superForm(
 		data?.form ?? {
 			media: [],
 			name: '',
@@ -68,42 +60,41 @@
 			validators: zodClient(MediaSchema),
 			taintedMessage: false,
 			validationMethod: 'oninput'
-			// onSubmit
 		}
 	);
 
-	let { form, enhance, validateForm, errors } = $derived(mediaForm);
+	let { form: formData, enhance, validateForm, errors } = $derived(form);
 
 	$effect(() => {
-		console.log('form:', $form);
+		console.log('form:', $formData);
 		console.log('errors:', $errors);
 	});
 
-	const file = fileProxy(mediaForm, 'media');
+	const file = fileProxy(form, 'media');
 </script>
 
-<form
-	bind:this={uploadForm}
-	method="POST"
-	action="/admin/media-library?/upload"
-	enctype="multipart/form-data"
-	use:enhance
->
-	<Dialog.Root>
-		<Dialog.Trigger>
-			<Button {...props}>
-				{#if uploading}
-					<Spinner />
-				{:else}
-					<Upload class="h-4 w-4" />
-				{/if}
-				{m.upload()}
-			</Button>
-		</Dialog.Trigger>
-		<Dialog.Portal>
-			<Dialog.Content class="min-h-[50vh] min-w-[50vw]">
+<Dialog.Root>
+	<Dialog.Trigger>
+		<Button {...props}>
+			{#if uploading}
+				<Spinner />
+			{:else}
+				<Upload class="h-4 w-4" />
+			{/if}
+			{m.upload()}
+		</Button>
+	</Dialog.Trigger>
+	<Dialog.Portal>
+		<Dialog.Content class="min-h-[50vh] min-w-[50vw]">
+			<form
+				bind:this={uploadForm}
+				method="POST"
+				action="/admin/media-library?/upload"
+				enctype="multipart/form-data"
+				use:enhance
+			>
 				<div class="flex flex-col gap-1 p-4">
-					<Form.Field form={mediaForm} name="media">
+					<Form.Field {form} name="media">
 						<Form.Control>
 							{#snippet children({ props })}
 								<Form.Label
@@ -117,7 +108,7 @@
 							{/snippet}
 						</Form.Control>
 					</Form.Field>
-					<Form.Field form={mediaForm} name="name">
+					<Form.Field {form} name="name">
 						<Form.Control>
 							{#snippet children({ props })}
 								<Form.Label
@@ -125,13 +116,13 @@
 									>Filename</Form.Label
 								>
 								<div>
-									<Input {...props} type="text" bind:value={$form.name} />
+									<Input {...props} type="text" bind:value={$formData.name} />
 									<Form.FieldErrors />
 								</div>
 							{/snippet}
 						</Form.Control>
 					</Form.Field>
-					<Form.Field form={mediaForm} name="alt">
+					<Form.Field {form} name="alt">
 						<Form.Control>
 							{#snippet children({ props })}
 								<Form.Label
@@ -139,7 +130,7 @@
 									>Alt</Form.Label
 								>
 								<div>
-									<Input {...props} type="text" bind:value={$form.alt} />
+									<Input {...props} type="text" bind:value={$formData.alt} />
 									<Form.FieldErrors />
 								</div>
 							{/snippet}
@@ -147,7 +138,7 @@
 					</Form.Field>
 					<Form.Button class="mt-7 self-end">Upload</Form.Button>
 				</div>
-			</Dialog.Content>
-		</Dialog.Portal>
-	</Dialog.Root>
-</form>
+			</form>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
