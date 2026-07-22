@@ -68,6 +68,13 @@
 	let isStreaming = $derived(session?.isStreaming ?? false);
 
 	/**
+	 * True from first paint until the session history has finished loading.
+	 * Keyed off `initialized` (not `initializing`) so the skeleton is showing
+	 * before the init effect has even fired — no flash of the empty input.
+	 */
+	let loadingHistory = $derived(!!session && !session.initialized && !chatError);
+
+	/**
 	 * Group session messages into Q/A pairs for inline display.
 	 * A pair = a user message followed (optionally) by the next assistant message.
 	 */
@@ -194,71 +201,54 @@
 					</div>
 				{/if}
 
-				<!-- Loading skeleton: first-time history load -->
-				{#if initializing && pageQAs.length === 0}
+				<!-- Loading skeleton: shown on its own until the session is ready, then the input replaces it -->
+				{#if loadingHistory}
 					<LearnTutorSkeleton />
-				{/if}
-
-				<!-- Inline prompt -->
-				{#if !initializing && !(chatError && pageQAs.length === 0)}
+				{:else if !(chatError && pageQAs.length === 0)}
+					<!-- Inline prompt -->
 					<div class="mb-6">
-						<div
-							class="border-b transition-colors {focused
-								? 'border-primary'
-								: 'border-border'} pb-1.5"
-						>
-							{#if showPlaceholder}
-								{@const errBlocked = !!chatError && pageQAs.length === 0}
-								{@const blocked = loading || initializing || errBlocked}
-								<button
-									type="button"
-									class="text-muted-foreground flex w-full items-center bg-transparent p-0 text-left text-base disabled:cursor-not-allowed disabled:opacity-50"
-									onclick={activate}
-									disabled={blocked}
-								>
-									{loading
-										? 'Loading page...'
-										: initializing
-											? 'Loading tutor session...'
-											: errBlocked
-												? 'Tutor unavailable'
-												: 'Type a question here'}
-									<span
-										class="bg-primary ml-0.5 inline-block h-5 w-0.5 align-middle"
-									></span>
-								</button>
-							{:else}
-								<div class="flex items-center gap-2">
-									<input
-										bind:this={inputRef}
-										bind:value={inputVal}
-										onfocus={() => (focused = true)}
-										onblur={() => {
-											if (!inputVal) setTimeout(() => (focused = false), 150);
-										}}
-										onkeydown={(e) => {
-											if (e.key === 'Enter') {
-												e.preventDefault();
-												handleAsk();
-											}
-										}}
-										placeholder="Type your question..."
+						{#if showPlaceholder}
+							<button
+								type="button"
+								class="border-input bg-background text-muted-foreground hover:border-ring hover:text-foreground flex h-9 w-full cursor-text items-center rounded-lg border px-3 py-1 text-left text-base shadow-xs transition-colors disabled:cursor-not-allowed"
+								onclick={activate}
+								disabled={initializing}
+							>
+								Type a question here
+							</button>
+						{:else}
+							<div
+								class="border-ring ring-ring/50 bg-background flex h-9 items-center gap-2 rounded-lg border px-3 py-1 shadow-xs ring-[3px] transition-[color,box-shadow]"
+							>
+								<input
+									bind:this={inputRef}
+									bind:value={inputVal}
+									onfocus={() => (focused = true)}
+									onblur={() => {
+										if (!inputVal) setTimeout(() => (focused = false), 50);
+									}}
+									onkeydown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											handleAsk();
+										}
+									}}
+									placeholder="Type your question..."
+									disabled={inputDisabled}
+									class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none disabled:cursor-not-allowed"
+								/>
+								{#if inputVal.trim()}
+									<button
+										type="button"
+										class="text-primary shrink-0 bg-transparent p-0 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
 										disabled={inputDisabled}
-										class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none disabled:cursor-not-allowed"
-									/>
-									{#if inputVal.trim()}
-										<button
-											type="button"
-											class="text-primary shrink-0 bg-transparent p-0 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-											disabled={inputDisabled}
-											onclick={handleAsk}
-										>
-											{isStreaming ? '...' : 'Ask ↵'}
-										</button>
-									{/if}
-								</div>
-							{/if}
-						</div>
+										onclick={handleAsk}
+									>
+										{isStreaming ? '...' : 'Ask ↵'}
+									</button>
+								{/if}
+							</div>
+						{/if}
 					</div>
 				{/if}
 
@@ -269,10 +259,10 @@
 							{@const isNewest = i === 0}
 							{@const open = isExpanded(qa, isNewest)}
 							{@const ts = formatTimestamp(qa.timestamp)}
-							<div class="border-border/60 rounded-xl border">
+							<div class="bg-card border-border/60 rounded-xl border">
 								<button
 									type="button"
-									class="hover:bg-muted/30 flex w-full items-start gap-3 rounded-xl bg-transparent p-4 text-left transition-colors"
+									class="hover:bg-card/50 flex w-full items-start gap-3 rounded-xl p-4 text-left transition-colors"
 									aria-expanded={open}
 									onclick={() => toggleQa(qa, isNewest)}
 								>
@@ -305,7 +295,7 @@
 								</button>
 
 								{#if open}
-									<div class="border-border/60 border-t px-4 pt-3 pb-4">
+									<div class="border-border/60 rounded-xl px-4 pt-3 pb-4">
 										<div class="text-foreground/90 text-[15px] leading-relaxed">
 											{#if qa.error && !qa.answer}
 												<div
@@ -433,18 +423,3 @@
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>
-
-<style>
-	.caret-blink {
-		animation: caret-blink 1s step-end infinite;
-	}
-	@keyframes caret-blink {
-		0%,
-		100% {
-			opacity: 1;
-		}
-		50% {
-			opacity: 0;
-		}
-	}
-</style>
