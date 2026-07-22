@@ -10,7 +10,7 @@
 	let { documents, conversation }: Props = $props();
 </script>
 
-<h2 class="mb-3 font-bold">Uploading...</h2>
+<h2 class="mb-3 font-bold">Processing...</h2>
 <ul class="flex flex-col gap-3">
 	{#if conversation.knowledgeBaseId}
 		{#each documents as document (document.id)}

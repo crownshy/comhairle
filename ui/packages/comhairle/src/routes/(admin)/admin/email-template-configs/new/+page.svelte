@@ -82,7 +82,8 @@
 			console.error(e);
 			notifications.send({
 				priority: 'ERROR',
-				message: 'Something went wrong creating your custom email'
+				message:
+					"Something went wrong creating your custom email. Please ensure you haven't already created a custom email for this type."
 			});
 		}
 	}

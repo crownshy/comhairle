@@ -1,12 +1,13 @@
 use crate::models::conversation;
 use crate::models::email_template_config::{
     self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
-    SCHEMA_EVENT_REGISTRATION_INVITE,
+    SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
-use crate::models::event::{self, LocalizedEvent, ResolveTimeZone};
-use crate::models::organization::Organization;
+use crate::models::event::{self, ResolveTimeZone};
+use crate::models::otp;
 use crate::models::permissions::ResourcePermission;
-use crate::models::users::User;
+use crate::models::users::{self, User};
+use crate::routes::auth::{OtpClaims, generate_jwt};
 use crate::{ComhairleState, error::ComhairleError};
 
 use async_trait::async_trait;
@@ -94,12 +95,14 @@ pub trait ComhairleMailer: Send + Sync {
         locale: &str,
     ) -> Result<(), ComhairleError>;
 
-    fn send_event_reminder(
+    async fn send_event_reminder(
         &self,
-        email: String,
-        event: &LocalizedEvent,
-        organization: &Option<Organization>,
-        link_href: String,
+        state: &Arc<ComhairleState>,
+        email: &str,
+        event_id: Uuid,
+        recipient_id: Uuid,
+        sender_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError>;
 
     fn send_conversation_broadcast_email(
@@ -158,7 +161,7 @@ impl MockComhairleMailer {
             .returning(|_, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_event_reminder()
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_conversation_broadcast_email()
             .returning(|_, _, _| Ok(()));
@@ -317,7 +320,7 @@ impl ComhairleMailer for Mailer {
         let slots_map = email_config
             .as_ref()
             .map(|ec| ec.slots.mailer_context_map())
-            .unwrap_or(SCHEMA_CONVERSATION_INVITE.slots.mailer_context_map());
+            .unwrap_or_else(|| SCHEMA_CONVERSATION_INVITE.slots.mailer_context_map());
 
         let rendered_map = self.resolve_slots_map(&conversation_context, &slots_map)?;
 
@@ -444,7 +447,7 @@ impl ComhairleMailer for Mailer {
         let slots_map = email_config
             .as_ref()
             .map(|ec| ec.slots.mailer_context_map())
-            .unwrap_or(SCHEMA_EVENT_REGISTRATION_INVITE.slots.mailer_context_map());
+            .unwrap_or_else(|| SCHEMA_EVENT_REGISTRATION_INVITE.slots.mailer_context_map());
 
         let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
 
@@ -458,7 +461,7 @@ impl ComhairleMailer for Mailer {
         self.send_email(
             email,
             &subject,
-            "event_registration_invite.html",
+            SCHEMA_EVENT_REGISTRATION_INVITE.template,
             context,
             None,
         )
@@ -507,11 +510,11 @@ impl ComhairleMailer for Mailer {
         let slots_map = email_config
             .as_ref()
             .map(|ec| ec.slots.mailer_context_map())
-            .unwrap_or(
+            .unwrap_or_else(|| {
                 SCHEMA_EVENT_REGISTRATION_CONFIRMATION
                     .slots
-                    .mailer_context_map(),
-            );
+                    .mailer_context_map()
+            });
 
         let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
 
@@ -525,19 +528,56 @@ impl ComhairleMailer for Mailer {
         self.send_email(
             email,
             &subject,
-            "event_confirmation.html",
+            SCHEMA_EVENT_REGISTRATION_CONFIRMATION.template,
             context,
             Some(calendar_invite),
         )
     }
 
-    fn send_event_reminder(
+    async fn send_event_reminder(
         &self,
-        email: String,
-        event: &LocalizedEvent,
-        _organization: &Option<Organization>,
-        link_href: String,
+        state: &Arc<ComhairleState>,
+        email: &str,
+        event_id: Uuid,
+        recipient_id: Uuid,
+        sender_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError> {
+        let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
+        let recipient = users::get_user_by_id(&recipient_id, &state.db).await?;
+
+        let event_path = format!(
+            "/conversations/{}/events/{}/live",
+            event.conversation_id, event.id
+        );
+
+        let otp = otp::create(
+            &state.db,
+            &recipient.id,
+            Some(event_path),
+            Some(event.start_time),
+        )
+        .await?;
+
+        let claims = OtpClaims {
+            email: email.to_string(),
+            otp: otp.code.clone(),
+        };
+        // Ensure JWT doesn't expire before event begins
+        let event_jwt_duration = event.start_time - Utc::now();
+        let otp_token = generate_jwt()
+            .user(&recipient)
+            .secret(&state.config.jwt_secret)
+            .custom_claims(claims)
+            .duration(event_jwt_duration)
+            .call();
+
+        let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
+        let otp_link = format!(
+            "{}/auth/login-otp/{}?backTo={}",
+            state.config.domain, otp_token, encoded_redirect_url
+        );
+
         let calendar_invite = create_calendar_invite_attachment(
             &event.name,
             &event.description,
@@ -545,17 +585,44 @@ impl ComhairleMailer for Mailer {
             event.end_time,
         )?;
 
+        let event_context = context! {
+            event_name => event.name,
+            event_time => event.format_date_with_time_zone(event.start_time, None),
+            event_link => otp_link,
+        };
+
+        let email_config = email_template_config::get_by_type_user(
+            &state.db,
+            sender_id,
+            &SCHEMA_EVENT_REMINDER.email_type,
+        )
+        .await?;
+
+        let subject = email_config
+            .as_ref()
+            .and_then(|ec| ec.subject.as_deref())
+            .unwrap_or(SCHEMA_EVENT_REMINDER.default_subject);
+        let subject = self.template_engine.render_str(subject, &event_context)?;
+
+        let slots_map = email_config
+            .as_ref()
+            .map(|ec| ec.slots.mailer_context_map())
+            .unwrap_or_else(|| SCHEMA_EVENT_REMINDER.slots.mailer_context_map());
+
+        let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
+
+        let context = context! {
+            event_name => event.name,
+            event_time => event.format_date_with_time_zone(event.start_time, None),
+            event_link => otp_link,
+            ..rendered_map
+        };
+
         self.send_email(
-            &email,
-            "Upcoming event reminder",
-            "event_reminder.html",
-            context! {
-                event_name => event.name,
-                event_time => event.format_date_with_time_zone(event.start_time, None),
-                organization_name => "Bloom", // TODO:
-                // organization_email => None,
-                event_link => link_href,
-            },
+            email,
+            &subject,
+            SCHEMA_EVENT_REMINDER.template,
+            context,
             Some(calendar_invite),
         )
     }

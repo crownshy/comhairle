@@ -5,6 +5,9 @@
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Select from '$lib/components/ui/select';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
+	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
+	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';
@@ -69,9 +72,10 @@
 	const timeZone = getLocalTimeZone();
 	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
 	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
-	const availableTimeZones = Array.from(
-		new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])
-	).map((tz) => ({ value: tz, label: tz }));
+	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
+		value: tz,
+		label: tz
+	}));
 
 	const eventForm = superForm(
 		{
@@ -94,6 +98,26 @@
 	);
 
 	let { form, enhance, validateForm, submitting, tainted } = $derived(eventForm);
+
+	// Each field is driven by a TranslationSource (ADR-0005); `onEdit` mirrors the primary value into
+	// `$form` so superForm's inline validation keeps working while the source owns the content.
+	const nameSource = createTextContentSource({
+		getTranslation: () => event.translations?.name,
+		getPrimaryLocale: () => primaryLanguage,
+		getSupportedLanguages: () => supportedLanguages,
+		getPrimaryFallback: () => $form.name ?? '',
+		onEdit: (content) => ($form.name = content)
+	});
+	const descriptionSource = createTextContentSource({
+		getTranslation: () => event.translations?.description,
+		getPrimaryLocale: () => primaryLanguage,
+		getSupportedLanguages: () => supportedLanguages,
+		getPrimaryFallback: () => $form.description ?? '',
+		onEdit: (content) => ($form.description = content)
+	});
+
+	// Warn on refresh / navigate-away while a field is still autosaving.
+	guardUnsavedChanges(() => [nameSource, descriptionSource].some(hasUnsavedChanges));
 
 	function convertTimeToSelectedZone(date: string, time: string, timeZone: string) {
 		const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -339,9 +363,7 @@
 						>
 						<div class="flex-1">
 							<TranslatableField
-								value={$form.name}
-								onValueChange={(v) => ($form.name = v)}
-								translation={event.translations?.name}
+								source={nameSource}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputProps={props}
@@ -364,9 +386,7 @@
 						>
 						<div class="flex-1">
 							<TranslatableField
-								value={$form.description}
-								onValueChange={(v) => ($form.description = v)}
-								translation={event.translations?.description}
+								source={descriptionSource}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputType="textarea"
@@ -488,7 +508,7 @@
 				<Form.Field form={eventForm} name="end_time" class="contents">
 					<Form.FieldErrors class="text-destructive text-sm" />
 				</Form.Field>
-				{#if $form.default_time_zone !== 'UTC'}
+				{#if $form.default_time_zone !== 'Europe/London'}
 					<div class="text-muted-foreground flex gap-2">
 						<span>{$form.default_time_zone}</span>
 						<span>-</span>

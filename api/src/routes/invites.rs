@@ -86,12 +86,12 @@ async fn reject_invite(
 async fn create_conversation_invite(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(admin_user): RequiredAdminUser,
     Json(create_invite): Json<CreateInviteDTO>,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    if conversation.owner_id != user.id {
+    if conversation.owner_id != admin_user.id {
         return Err(ComhairleError::UserIsNotConversationOwner);
     }
 
@@ -99,8 +99,13 @@ async fn create_conversation_invite(
     // exists
 
     // Create the invite
-    let invite =
-        models::invites::create(&state.db, create_invite, &conversation_id, Some(user.id)).await?;
+    let invite = models::invites::create(
+        &state.db,
+        create_invite,
+        &conversation_id,
+        Some(admin_user.id),
+    )
+    .await?;
 
     // Send out an email notification if we can
     match &invite.invite_type {
@@ -111,22 +116,30 @@ async fn create_conversation_invite(
                     &state,
                     email,
                     conversation.id,
-                    user.id,
+                    admin_user.id,
                     invite.id,
                     &conversation.primary_locale,
                 )
                 .await?;
         }
-        InviteType::User(user_id) => {
-            let user = models::users::get_user_by_id(user_id, &state.db).await?;
-            if let Some(email) = &user.email {
-                state.mailer.send_email(
-                    email,
-                    "You have been invited to the conversation",
-                    "conversation_invite.html",
-                    context! {user=>user, conversation_title=>conversation.title},
-                    None,
-                )?;
+        InviteType::User(recipient_id) => {
+            // TODO: variant doesn't appear to be in use. If required in future
+            // consider how to adjust template variables and default slots for
+            // injecting user data, or split into separate email templates with
+            // separate schemas
+            let recipient = models::users::get_user_by_id(recipient_id, &state.db).await?;
+            if let Some(email) = &recipient.email {
+                state
+                    .mailer
+                    .send_conversation_invite_email(
+                        &state,
+                        email,
+                        conversation.id,
+                        admin_user.id,
+                        invite.id,
+                        &conversation.primary_locale,
+                    )
+                    .await?;
             }
         }
         models::invites::InviteType::Open | models::invites::InviteType::SingleUse => {}
@@ -322,7 +335,12 @@ async fn auto_register_event_attendance(
     let cookie = create_session_cookie(&user, &state);
 
     event
-        .schedule_event_reminders(&state.db, &state.config, &user)
+        .schedule_event_reminders(
+            &state.db,
+            &user,
+            conversation.owner_id,
+            &conversation.primary_locale,
+        )
         .await?;
 
     let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;

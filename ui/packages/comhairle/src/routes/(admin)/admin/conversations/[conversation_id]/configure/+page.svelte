@@ -16,6 +16,9 @@
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
 	import ExampleDialog from './ExampleDialog.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
+	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
+	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
 	import type {
@@ -283,6 +286,63 @@
 		return (value: string) => conversationConfigSchema.shape[field].safeParse(value).success;
 	}
 
+	// Each translatable field is driven by a TranslationSource (ADR-0005). `onEdit` mirrors the primary
+	// value into `$form` so superForm's inline validation (Form.FieldErrors) keeps working; the nullable
+	// rich fields add `ensureTextContentId` so their TextContent is created + linked on first edit.
+	function fieldSource(
+		field:
+			| 'title'
+			| 'shortDescription'
+			| 'description'
+			| 'privacyPolicy'
+			| 'shortPrivacyPolicy'
+			| 'faqs'
+			| 'thankYouMessage'
+			| 'callToAction',
+		ensureTextContentId?: (content: string) => Promise<void>
+	) {
+		return createTextContentSource({
+			getTranslation: () => conversation.translations?.[field] ?? undefined,
+			getPrimaryLocale: () => primaryLanguage,
+			getSupportedLanguages: () => supportedLanguages,
+			getPrimaryFallback: () => $form[field] ?? '',
+			onEdit: (content) => ($form[field] = content),
+			ensureTextContentId
+		});
+	}
+
+	const titleSource = fieldSource('title');
+	const shortDescriptionSource = fieldSource('shortDescription');
+	const descriptionSource = fieldSource('description');
+	const privacyPolicySource = fieldSource('privacyPolicy', (content) =>
+		handleInitOptionalTranslationField(content, 'privacyPolicy', 'rich', true)
+	);
+	const shortPrivacyPolicySource = fieldSource('shortPrivacyPolicy', (content) =>
+		handleInitOptionalTranslationField(content, 'shortPrivacyPolicy', 'rich', true)
+	);
+	const faqsSource = fieldSource('faqs', (content) =>
+		handleInitOptionalTranslationField(content, 'faqs')
+	);
+	const thankYouMessageSource = fieldSource('thankYouMessage', (content) =>
+		handleInitOptionalTranslationField(content, 'thankYouMessage')
+	);
+	const callToActionSource = fieldSource('callToAction', (content) =>
+		handleInitOptionalTranslationField(content, 'callToAction', 'plain')
+	);
+
+	// Warn on refresh / navigate-away while any field is still autosaving.
+	const fieldSources = [
+		titleSource,
+		shortDescriptionSource,
+		descriptionSource,
+		privacyPolicySource,
+		shortPrivacyPolicySource,
+		faqsSource,
+		thankYouMessageSource,
+		callToActionSource
+	];
+	guardUnsavedChanges(() => fieldSources.some(hasUnsavedChanges));
+
 	// Access toggles autosave on change (the page has no Save button — see ADR-0004).
 	// `$form.<field>` is updated optimistically by `bind:checked`; on failure we revert it.
 	// TODO: replace the per-toggle toast with a quiet inline "Saving → Saved" indicator per
@@ -436,10 +496,8 @@
 						)}
 						<div class="flex-1" id="conversation-title-field">
 							<TranslatableField
-								value={$form.title}
-								onValueChange={(v) => ($form.title = v)}
+								source={titleSource}
 								canSave={requiredFieldValidator('title')}
-								translation={conversation.translations?.title}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputProps={props}
@@ -465,10 +523,8 @@
 						)}
 						<div class="flex-1">
 							<TranslatableField
-								value={$form.shortDescription}
-								onValueChange={(v) => ($form.shortDescription = v)}
+								source={shortDescriptionSource}
 								canSave={requiredFieldValidator('shortDescription')}
-								translation={conversation.translations?.shortDescription}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputType="textarea"
@@ -496,10 +552,8 @@
 						)}
 						<div class="flex-1">
 							<TranslatableField
-								value={$form.description}
-								onValueChange={(v) => ($form.description = v)}
+								source={descriptionSource}
 								canSave={requiredFieldValidator('description')}
-								translation={conversation.translations?.description}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputType="textarea"
@@ -605,19 +659,9 @@
 									(openContentField = o ? 'privacyPolicy' : null)}
 							>
 								<TranslatableField
-									value={$form.privacyPolicy || null}
-									onValueChange={(v) => ($form.privacyPolicy = v)}
-									translation={conversation.translations?.privacyPolicy ??
-										undefined}
+									source={privacyPolicySource}
 									editorType="rich"
 									placeholder="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
-									onSaveSource={(content: string) =>
-										handleInitOptionalTranslationField(
-											content,
-											'privacyPolicy',
-											'rich',
-											true
-										)}
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
 									inputProps={props}
@@ -651,19 +695,9 @@
 									(openContentField = o ? 'shortPrivacyPolicy' : null)}
 							>
 								<TranslatableField
-									value={$form.shortPrivacyPolicy || null}
-									onValueChange={(v) => ($form.shortPrivacyPolicy = v)}
-									translation={conversation.translations?.shortPrivacyPolicy ??
-										undefined}
+									source={shortPrivacyPolicySource}
 									editorType="rich"
 									placeholder="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
-									onSaveSource={(content: string) =>
-										handleInitOptionalTranslationField(
-											content,
-											'shortPrivacyPolicy',
-											'rich',
-											true
-										)}
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
 									inputProps={props}
@@ -696,13 +730,9 @@
 								onOpenChange={(o) => (openContentField = o ? 'faqs' : null)}
 							>
 								<TranslatableField
-									value={$form.faqs || null}
-									onValueChange={(v) => ($form.faqs = v)}
-									translation={conversation.translations?.faqs ?? undefined}
+									source={faqsSource}
 									editorType="rich"
 									placeholder="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
-									onSaveSource={(content: string) =>
-										handleInitOptionalTranslationField(content, 'faqs')}
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
 									inputProps={props}
@@ -736,17 +766,9 @@
 									(openContentField = o ? 'thankYouMessage' : null)}
 							>
 								<TranslatableField
-									value={$form.thankYouMessage || null}
-									onValueChange={(v) => ($form.thankYouMessage = v)}
-									translation={conversation.translations?.thankYouMessage ??
-										undefined}
+									source={thankYouMessageSource}
 									editorType="rich"
 									placeholder="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
-									onSaveSource={(content: string) =>
-										handleInitOptionalTranslationField(
-											content,
-											'thankYouMessage'
-										)}
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
 									inputProps={props}
@@ -773,15 +795,7 @@
 						)}
 						<div class="flex-1">
 							<TranslatableField
-								value={$form.callToAction || null}
-								onValueChange={(v) => ($form.callToAction = v)}
-								translation={conversation.translations?.callToAction ?? undefined}
-								onSaveSource={(content: string) =>
-									handleInitOptionalTranslationField(
-										content,
-										'callToAction',
-										'plain'
-									)}
+								source={callToActionSource}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputProps={props}

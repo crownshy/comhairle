@@ -43,12 +43,12 @@
 			});
 
 			notifications.send({
-				message: 'Document parsing restarted',
+				message: 'Document processing restarted',
 				priority: 'INFO'
 			});
 		} catch (e) {
 			notifications.send({
-				message: 'Failed to begin parsing file',
+				message: 'Failed to begin processing file',
 				priority: 'ERROR'
 			});
 			console.error(e);
@@ -88,6 +88,6 @@
 		</div>
 	</div>
 	{#if document.parse_status !== 'DONE'}
-		<span class="text-red-600">Parsing stopped or failed</span>
+		<span class="text-red-600">Processing stopped or failed</span>
 	{/if}
 </FileContainer>

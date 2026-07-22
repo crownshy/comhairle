@@ -2146,6 +2146,7 @@ export const EmailType = z.enum([
   "conversation_invite",
   "event_registration_invite",
   "event_registration_confirmation",
+  "event_reminder",
 ]);
 export type EmailType = z.infer<typeof EmailType>;
 export const email_type = z.union([EmailType, z.null()]).optional();
@@ -2176,6 +2177,15 @@ export const EmailTemplateSlots = z.union([
       heading: z.string(),
       intro: z.string(),
       type: z.literal("event_registration_confirmation"),
+    })
+    .passthrough(),
+  z
+    .object({
+      body: z.string(),
+      footer: z.string(),
+      heading: z.string(),
+      intro: z.string(),
+      type: z.literal("event_reminder"),
     })
     .passthrough(),
 ]);
@@ -3990,7 +4000,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "ListEmailTemplateSchemas",
     description: `List all template schemas for each email template type`,
     requestFormat: "json",
-    response: z.array(EmailTypeSchema).min(3).max(3),
+    response: z.array(EmailTypeSchema).min(4).max(4),
   },
   {
     method: "get",

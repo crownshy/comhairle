@@ -11,7 +11,8 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { toolMeta, toolInfoUrl } from '$lib/tool_meta';
-	import { workflow_templates } from '$lib/workflow_templates.js';
+	import type { ConversationTemplate } from '$lib/conversation_templates';
+	import TemplatePickerDialog from '$lib/components/TemplatePickerDialog.svelte';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import { moveItem } from '$lib/utils/reorder';
@@ -56,29 +57,41 @@
 	}
 
 	// --- Templates (re-seed the whole workflow) ---
-	// Keys map to the step arrays in workflow_templates. The workflow doesn't persist
-	// which template it came from, so the chip label is session-local (resets on reload).
-	const TEMPLATES = [
-		{ key: 'empty', label: 'Blank' },
-		{ key: 'learn_polis', label: 'Learn + Wiki Poll' },
-		{ key: 'learn_survey', label: 'Learn + Survey' },
-		{ key: 'learn_survey_polis', label: 'Learn + Survey + Wiki Poll' }
-	];
-	let currentTemplateLabel = $state('Blank');
-	let pendingTemplate = $state<{ key: string; label: string } | null>(null);
+	// The workflow doesn't persist which template it came from, and steps drift once
+	// the admin edits them, so the trigger reads "Choose from templates" rather than
+	// naming a current template it can't actually know.
+	type TemplateChoice = { kind: 'blank' } | { kind: 'template'; template: ConversationTemplate };
+
+	let templatePickerOpen = $state(false);
+	let pendingChoice = $state<TemplateChoice | null>(null);
 	let templateDialogOpen = $state(false);
 	let applyingTemplate = $state(false);
 
-	function chooseTemplate(t: { key: string; label: string }) {
-		pendingTemplate = t;
-		templateDialogOpen = true;
+	let pendingLabel = $derived(
+		pendingChoice?.kind === 'template' ? pendingChoice.template.name : 'Blank'
+	);
+
+	/**
+	 * Stage a choice. An empty workflow has nothing to destroy, so it skips straight
+	 * past the replace-warning instead of asking about steps that don't exist.
+	 */
+	function chooseTemplate(choice: TemplateChoice) {
+		pendingChoice = choice;
+		templatePickerOpen = false;
+		if (reorderedSteps.length === 0) {
+			applyTemplate();
+		} else {
+			templateDialogOpen = true;
+		}
 	}
 
 	async function applyTemplate() {
-		const t = pendingTemplate;
-		if (!t) return;
+		const choice = pendingChoice;
+		if (!choice) return;
 		applyingTemplate = true;
-		const steps = workflow_templates[t.key as keyof typeof workflow_templates] ?? [];
+		// Templates may also declare creationEvents, but those belong to conversation
+		// creation; re-templating an existing conversation only touches its steps.
+		const steps = choice.kind === 'blank' ? [] : choice.template.creationSteps;
 		try {
 			// Replace the workflow: delete every existing step, then create the template's.
 			for (const s of reorderedSteps) {
@@ -110,7 +123,6 @@
 				);
 			}
 			await invalidate('conversation:workflow');
-			currentTemplateLabel = t.label;
 			notifications.send({ priority: 'INFO', message: 'Template applied' });
 		} catch (e) {
 			console.error(e);
@@ -118,7 +130,7 @@
 			await invalidate('conversation:workflow');
 		} finally {
 			applyingTemplate = false;
-			pendingTemplate = null;
+			pendingChoice = null;
 			templateDialogOpen = false;
 		}
 	}
@@ -260,15 +272,16 @@
 					<DropdownMenu.Trigger
 						class="bg-card border-primary text-primary flex h-8 shrink-0 items-center gap-2 self-end rounded-full border px-3 py-4 text-sm font-medium shadow-sm sm:self-auto"
 					>
-						Template: {currentTemplateLabel}
+						Choose from templates
 						<ChevronDown class="size-3" />
 					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="end">
-						{#each TEMPLATES as t (t.key)}
-							<DropdownMenu.Item onSelect={() => chooseTemplate(t)}>
-								{t.label}
-							</DropdownMenu.Item>
-						{/each}
+					<DropdownMenu.Content align="end" class="w-56">
+						<DropdownMenu.Item onSelect={() => chooseTemplate({ kind: 'blank' })}>
+							Start from blank
+						</DropdownMenu.Item>
+						<DropdownMenu.Item onSelect={() => (templatePickerOpen = true)}>
+							Choose from templates
+						</DropdownMenu.Item>
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
 			</div>
@@ -436,10 +449,18 @@
 	</div>
 </div>
 
+<TemplatePickerDialog
+	bind:open={templatePickerOpen}
+	submitting={applyingTemplate}
+	description="Select a workflow template from the options below. Applying it replaces the steps this conversation has now."
+	confirmLabel="Apply template"
+	onConfirm={(template) => chooseTemplate({ kind: 'template', template })}
+/>
+
 <AlertDialog.Root bind:open={templateDialogOpen}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Apply the “{pendingTemplate?.label}” template?</AlertDialog.Title>
+			<AlertDialog.Title>Apply the “{pendingLabel}” template?</AlertDialog.Title>
 			<AlertDialog.Description>
 				This replaces the entire workflow. Every current step, its configuration and any
 				collected data will be permanently deleted and cannot be recovered.

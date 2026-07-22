@@ -105,6 +105,7 @@
 		"@tiptap/markdown": "^3.11.0",
 		"@tiptap/pm": "^3.11.0",
 		"@tiptap/starter-kit": "^3.11.0",
+		"@tiptap/static-renderer": "^3.28.0",
 		"@zodios/core": "^10.9.6",
 		"carta-md": "^4.9.0",
 		"carta-plugin-video": "^2.1.0",
