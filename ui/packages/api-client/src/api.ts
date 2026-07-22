@@ -5446,6 +5446,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 ] as const satisfies ZodiosEndpointDefinitions);
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
+export type ApiClient = typeof api;
 
 export function createApiClient(
   baseUrl: string,

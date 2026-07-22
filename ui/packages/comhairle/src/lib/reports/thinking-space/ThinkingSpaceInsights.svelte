@@ -18,7 +18,8 @@
 			0
 		);
 
-		return sumFollowups;
+		// parseFloat so that .00 decimals are stripped
+		return parseFloat((sumFollowups / numParticipants).toFixed(2));
 	});
 </script>
 
@@ -39,7 +40,7 @@
 	<ContentCard>
 		<div class="mb-10">
 			<h2 class="text-lg font-bold">Thinking space results</h2>
-			<p class="text-sm">
+			<p class="text-muted-foreground text-sm">
 				Click on a row to see the full summary and responses associated with it
 			</p>
 		</div>

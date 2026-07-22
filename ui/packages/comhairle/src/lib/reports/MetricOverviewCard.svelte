@@ -11,5 +11,5 @@
 <article class="flex w-fit min-w-48 flex-col gap-1 rounded-md border p-4">
 	<p class="text-sm">{superText}</p>
 	<p class="text-4xl font-bold">{metric}</p>
-	<p class="text-sm">{subText}</p>
+	<p class="text-xs">{subText}</p>
 </article>

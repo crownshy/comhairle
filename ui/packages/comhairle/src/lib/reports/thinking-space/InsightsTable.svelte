@@ -32,7 +32,7 @@
 	<Table.Body>
 		{#each visibleInsightsRows as insight (insight.userId)}
 			<Table.Row
-				class="hover:cursor-pointer"
+				class="hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-accent hover:cursor-pointer"
 				onclick={() => (selectedUserInsights = insight)}
 			>
 				<Table.Cell class="text-muted-foreground border-l-6 px-5 py-9">
@@ -49,7 +49,7 @@
 						{/if}
 					</div>
 				</Table.Cell>
-				<Table.Cell class="text-muted-foreground h-auto px-5 text-wrap!">
+				<Table.Cell class="text-primary h-auto px-5 text-wrap!">
 					<div transition:slide={{ duration: ROW_ANIMATION_DURATION_MS }}>
 						{#if insight.answers[0].root.question.length > 120}
 							{insight.answers[0].root.question.substring(0, 120).concat('...')}
@@ -73,7 +73,7 @@
 {/if}
 
 <Dialog.Root bind:open={openDialog}>
-	<Dialog.Content class="flex h-[70vh] w-full max-w-6xl flex-col gap-8 sm:w-full sm:max-w-6xl">
+	<Dialog.Content class="flex h-[80vh] w-full max-w-6xl flex-col gap-8 sm:w-full sm:max-w-6xl">
 		<Dialog.Header>
 			<Dialog.Title class="text-2xl">Participant</Dialog.Title>
 			<span>{selectedUserInsights?.userId}</span>
@@ -93,10 +93,7 @@
 								Edited by participant
 							{/if}
 						</span>
-						<Switch
-							bind:checked={showAiSourceSummary}
-							onCheckedChange={(v) => (showAiSourceSummary = v)}
-						/>
+						<Switch bind:checked={showAiSourceSummary} />
 						Show original AI
 					</span>
 				{/if}
@@ -143,7 +140,6 @@
 												class="bg-muted inline-flex h-1.25 w-1.25 items-center justify-center rounded-full p-2.5 text-xs"
 												>{index + 1}</span
 											>{followUp.question}
-											<p class="text-primary"></p>
 										</div>
 										<p class="bg-muted flex items-center gap-4 px-4 py-3">
 											<CornerDownRight /><span>{followUp.answer}</span>

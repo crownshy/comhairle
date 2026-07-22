@@ -76,6 +76,7 @@ const endpoints = makeApi([
 ] as const satisfies ZodiosEndpointDefinitions);
 
 export const {{options.apiClientName}}: ZodiosInstance<typeof endpoints> = new Zodios({{#if options.baseUrl}}"{{options.baseUrl}}", {{/if}}endpoints);
+export type ApiClient = typeof {{{options.apiClientName}}};
 
 export function createApiClient(baseUrl: string, options?: ZodiosOptions): ZodiosInstance<typeof endpoints> {
     return new Zodios(baseUrl, endpoints, options);
