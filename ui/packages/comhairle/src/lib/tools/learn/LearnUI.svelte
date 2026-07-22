@@ -12,7 +12,7 @@
 	} from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
 	import { navigating } from '$app/state';
-	import LearnTutor from './LearnTutor.svelte';
+	import LearningAssistant from './LearningAssistant.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
@@ -128,7 +128,7 @@
 
 	{#if tutorAvailable && conversation}
 		<div class="mx-auto w-full max-w-[65ch]">
-			<LearnTutor
+			<LearningAssistant
 				conversationId={conversation.id}
 				pageTitle={pageHeading}
 				loading={showSkeleton.current}

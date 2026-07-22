@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Skeleton placeholder for the LearnTutor input + "You asked" area.
+	 * Skeleton placeholder for the LearningAssistant input + "You asked" area.
 	 * Render while the chat session history (getSession) is loading. It mirrors
 	 * the real layout (input box then answer card) so nothing shifts on reveal.
 	 */
