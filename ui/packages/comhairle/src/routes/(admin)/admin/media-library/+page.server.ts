@@ -3,6 +3,9 @@ import { fail, type LoadEvent } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import Media from '$lib/interfaces/Media';
 import type { MediaDto } from '@crownshy/api-client/api';
+import { message, superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
+import MediaSchema from '$lib/components/Media/schema';
 
 export async function load({ fetch, depends }: LoadEvent) {
 	depends('media-library:media');
@@ -21,19 +24,15 @@ export async function load({ fetch, depends }: LoadEvent) {
 	};
 }
 export const actions = {
-	upload: async ({ request, fetch }: RequestEvent) => {
-		const data = await request.formData();
-		const files = data.getAll('media');
-		if (files === null) {
-			return fail(422, { error: "Couldn't find files" });
+	upload: async ({ request }: RequestEvent) => {
+		const form = await superValidate(request, zod4(MediaSchema));
+		console.log(form);
+
+		if (!form.valid) {
+			return message(form, 'Please try again');
 		}
 
-		const media = new Media();
-		const response = await media.upload('/api/media', files as File[], { fetchRef: fetch });
-
-		if (response.err !== null) {
-			return fail(422, { error: response.err.message });
-		}
+		return message(form, 'uploaded');
 	},
 	delete: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
