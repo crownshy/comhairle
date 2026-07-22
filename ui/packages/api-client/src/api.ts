@@ -117,6 +117,7 @@ export const LocalizedConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
@@ -677,7 +678,11 @@ export type CreateSectionRequest = z.infer<typeof CreateSectionRequest>;
 export const ResponseValue = z.union([z.number(), z.string()]);
 export type ResponseValue = z.infer<typeof ResponseValue>;
 export const Response = z
-  .object({ question_id: z.string().uuid(), value: ResponseValue })
+  .object({
+    question_id: z.string().uuid(),
+    section_id: z.union([z.string(), z.null()]).optional(),
+    value: ResponseValue,
+  })
   .passthrough();
 export type Response = z.infer<typeof Response>;
 export const QuestionResponses = z.array(Response);
@@ -748,6 +753,7 @@ export type GenerateThinkingSpaceSummary = z.infer<
 >;
 export const ThinkingSpaceSummaryDto = z
   .object({
+    aiGeneratedSummary: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     isAiGenerated: z.boolean(),
     summary: z.string(),
@@ -790,6 +796,29 @@ export const UpdateFollowUpQuestions = z
   .object({ follow_up_questions: z.array(z.string()) })
   .passthrough();
 export type UpdateFollowUpQuestions = z.infer<typeof UpdateFollowUpQuestions>;
+export const AnswersByRoot = z
+  .object({
+    followUps: z.array(ThinkingSpaceAnswerDto),
+    root: ThinkingSpaceAnswerDto,
+  })
+  .passthrough();
+export type AnswersByRoot = z.infer<typeof AnswersByRoot>;
+export const ThinkingSpaceUserInsights = z
+  .object({
+    answers: z.array(AnswersByRoot),
+    summary: ThinkingSpaceSummaryDto,
+    userId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThinkingSpaceUserInsights = z.infer<
+  typeof ThinkingSpaceUserInsights
+>;
+export const ThinkingSpaceInsightsResponse = z
+  .object({ users: z.array(ThinkingSpaceUserInsights) })
+  .passthrough();
+export type ThinkingSpaceInsightsResponse = z.infer<
+  typeof ThinkingSpaceInsightsResponse
+>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -824,6 +853,7 @@ export const ConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
@@ -876,6 +906,7 @@ export const ConversationWithTranslations = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
     primaryLocale: z.string(),
@@ -916,6 +947,7 @@ export const PartialConversation = z
     is_live: z.union([z.boolean(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     knowledge_base_id: z.union([z.string(), z.null()]),
+    metadata: z.unknown(),
     primary_locale: z.union([z.string(), z.null()]),
     privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
@@ -1114,6 +1146,7 @@ export const ToolConfig = z.union([
     .object({
       questions: z.array(Question),
       randomize_order: z.boolean(),
+      section_questions: z.array(Question).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -1320,6 +1353,7 @@ export const ToolSetup = z.union([
     .object({
       questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
+      section_questions: z.array(SetupQuestion).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -2377,6 +2411,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ThinkingSpaceFollowUpQuestionDto,
   CreateFollowUpQuestions,
   UpdateFollowUpQuestions,
+  AnswersByRoot,
+  ThinkingSpaceUserInsights,
+  ThinkingSpaceInsightsResponse,
   CreateConversation,
   ConversationDto,
   Translation3,
@@ -3533,6 +3570,21 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "LaunchConversation",
     description: `Makes the conversation live for participants`,
     requestFormat: "json",
+    response: ConversationDto,
+  },
+  {
+    method: "patch",
+    path: "/conversation/:conversation_id/metadata",
+    alias: "PatchConversationMetadata",
+    description: `Accepts a JSON object and merges it into the conversation&#x27;s &#x60;metadata&#x60; jsonb column at the top level. Keys in the body overwrite existing keys; keys not present are left untouched. Nested objects are replaced, not deep-merged.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
     response: ConversationDto,
   },
   {
@@ -4980,6 +5032,21 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "get",
+    path: "/tools/thinking_space/insights",
+    alias: "GetThinkingSpaceInsights",
+    description: `Get thinking space insights data`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: ThinkingSpaceInsightsResponse,
+  },
+  {
+    method: "get",
     path: "/tools/thinking_space/summaries",
     alias: "ListThinkingSpaceSummaries",
     description: `List thinking space summaries`,
@@ -4987,6 +5054,11 @@ Use a raw HTTP request and process the response body incrementally.
     parameters: [
       {
         name: "is_ai_generated",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_shared_with_organizer",
         type: "Query",
         schema: is_complete,
       },
@@ -5374,6 +5446,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 ] as const satisfies ZodiosEndpointDefinitions);
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
+export type ApiClient = typeof api;
 
 export function createApiClient(
   baseUrl: string,
