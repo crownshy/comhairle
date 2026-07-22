@@ -8,22 +8,21 @@
 	import TranslationEditor from './TranslationEditor.svelte';
 	import { Languages, X, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
+	import type { ComponentProps } from 'svelte';
 	import type { TranslationSource, TranslationEntry } from './translationUtils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
-	type Props = {
+	type BaseProps = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
 		source: TranslationSource;
 		primaryLocale: string;
 		supportedLanguages: string[];
 		editorType?: 'plain' | 'rich';
-		inputType?: 'input' | 'textarea';
 		placeholder?: string;
 		minHeight?: string;
 		maxHeight?: string;
 		dialogMinHeight?: string;
 		dialogTitle?: string;
-		inputProps?: Record<string, unknown>;
 		/**
 		 * Optional guard run against the primary-locale value before saving. Return `false` to skip
 		 * the save (e.g. a required field cleared to blank). Omit it and every change saves, which is
@@ -33,6 +32,15 @@
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
 	};
+
+	// `inputProps` is typed against whichever underlying element `inputType` selects, so callers
+	// get element-correct autocomplete/checking at the call site. TS can't carry that correlation
+	// through the `$props()` destructure (see the cast at the spread below).
+	type Props = BaseProps &
+		(
+			| { inputType?: 'input'; inputProps?: ComponentProps<typeof Input> }
+			| { inputType?: 'textarea'; inputProps?: ComponentProps<typeof Textarea> }
+		);
 
 	let {
 		source,
@@ -126,7 +134,7 @@
 					{value}
 					oninput={handlePlainInput}
 					{placeholder}
-					{...inputProps}
+					{...inputProps as ComponentProps<typeof Textarea>}
 				/>
 			{:else}
 				<Input
@@ -134,7 +142,7 @@
 					{value}
 					oninput={handlePlainInput}
 					{placeholder}
-					{...inputProps}
+					{...inputProps as ComponentProps<typeof Input>}
 				/>
 			{/if}
 			{#if hasTranslations}

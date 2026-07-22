@@ -1,15 +1,18 @@
 import { beforeNavigate } from '$app/navigation';
+import { onMount } from 'svelte';
 
 /**
  * Warn before leaving the page while there are unsaved changes, e.g. a refresh mid-save on the learn
  * step. Covers a full-page refresh / tab close / external navigation (via the browser's native
  * prompt) and in-app SvelteKit navigation.
  *
- * Call during component initialisation (it uses `$effect` and `beforeNavigate`) and pass a getter
+ * Call during component initialisation (it uses `onMount` and `beforeNavigate`) and pass a getter
  * for the "dirty" condition, e.g. `guardUnsavedChanges(() => pages.areDirty)`.
  */
 export function guardUnsavedChanges(hasUnsavedChanges: () => boolean) {
-	$effect(() => {
+	// onMount (not $effect): the listener is wired up once and never depends on reactive state. The
+	// dirty check runs at event time via the getter, so there is nothing to re-run on state change.
+	onMount(() => {
 		function handleBeforeUnload(event: BeforeUnloadEvent) {
 			if (!hasUnsavedChanges()) return;
 			// Triggering the native "you have unsaved changes" prompt: modern browsers key off
