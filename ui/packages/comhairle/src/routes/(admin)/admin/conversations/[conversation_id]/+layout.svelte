@@ -10,7 +10,6 @@
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
 	import ConfigureTabStrip from './configure/ConfigureTabStrip.svelte';
-	import { CONFIGURE_TABS } from './configure/tabs';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
 	import EventStrip from '$lib/components/EventStrip.svelte';
@@ -50,7 +49,7 @@
 	);
 
 	// Configure's sub-tabs are a static list (its `?tab=` sections share one form + load), so we
-	// server-render the strip here from CONFIGURE_TABS, the same way the workflow step strip is
+	// server-render the strip here from `configureTabs`, the same way the workflow step strip is
 	// rendered from data, rather than the page injecting it via a client `$effect`.
 	let isConfigureSection = $derived(
 		page.url.pathname.replace(/\/+$/, '') ===
@@ -288,7 +287,7 @@
 			onAddStep={() => (addStepDialog.open = true)}
 		/>
 	{:else if isConfigureSection}
-		<ConfigureTabStrip tabs={CONFIGURE_TABS} />
+		<ConfigureTabStrip tabs={data.configureTabs} />
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
 	{:else if isEventsSection}

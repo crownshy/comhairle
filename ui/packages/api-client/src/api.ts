@@ -2304,10 +2304,20 @@ export const GrantPermissionBody = z
     grant_reason: z.string(),
     organization_id: z.union([z.string(), z.null()]).optional(),
     role_name: z.string(),
+    user_email: z.union([z.string(), z.null()]).optional(),
     user_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type GrantPermissionBody = z.infer<typeof GrantPermissionBody>;
+export const UserWithPermissionDto = z
+  .object({
+    email: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    roleName: z.string(),
+    username: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type UserWithPermissionDto = z.infer<typeof UserWithPermissionDto>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2572,6 +2582,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResourcePermission,
   PaginatedResults_for_ResourcePermission,
   GrantPermissionBody,
+  UserWithPermissionDto,
 };
 
 const endpoints = makeApi([
@@ -4478,6 +4489,51 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions/:resource_type/:resource_id/users",
+    alias: "ListUsersWithPermission",
+    description: `List users with a give permission (role + resource_type) for a given resource`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(UserWithPermissionDto),
+  },
+  {
+    method: "get",
     path: "/regions",
     alias: "ListRegions",
     description: `Paginated list of regions with optional ordering`,
@@ -5313,6 +5369,76 @@ This struct contains optional fields that can be updated on a TextTranslation re
         name: "offset",
         type: "Query",
         schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_LocalizedConversationDto,
+  },
+  {
+    method: "get",
+    path: "/user/permitted_conversations",
+    alias: "GetPermittedConversations",
+    description: `Gets a list of the conversations a user is permitted access to`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "created_after",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "created_before",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "is_complete",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_invite_only",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_live",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_public",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "keyword",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: z.string(),
       },
     ],
     response: PaginatedResults_for_LocalizedConversationDto,

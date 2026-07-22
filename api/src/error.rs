@@ -369,7 +369,6 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::Conflict(_)
             | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
             ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,
-            ComhairleError::CannotRevokeLastAdmin => StatusCode::FORBIDDEN,
             ComhairleError::ResourceNotFound(_)
             | ComhairleError::NoUserFound
             | ComhairleError::NoUserFoundForEmail(_)
@@ -379,14 +378,14 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::InvalidApiKey
             | ComhairleError::RequiresAuthUser
             | ComhairleError::InviteDoesNotMatchUser
-            | ComhairleError::UserIsNotConversationOwner
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates | ComhairleError::EventHasPast => {
                 StatusCode::UNPROCESSABLE_ENTITY
             }
-            ComhairleError::UserNotAuthorized | ComhairleError::AuthWebhookSignatureError(_) => {
-                StatusCode::FORBIDDEN
-            }
+            ComhairleError::UserIsNotConversationOwner
+            | ComhairleError::UserNotAuthorized
+            | ComhairleError::CannotRevokeLastAdmin
+            | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
             | ComhairleError::UnsupportedContentType(_)

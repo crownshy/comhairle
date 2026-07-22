@@ -64,7 +64,7 @@ async fn upload(
         .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
     let mut files = vec![];
-    while let Some(mut field) = form_data.next_field().await? {
+    while let Some(field) = form_data.next_field().await? {
         let content_type = field.content_type().map(|ct| ct.to_string());
         let filename = field
             .file_name()

@@ -57,7 +57,7 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
-use crate::models::permissions::{ResourceRole, has_resource_permission};
+use crate::models::permissions::{ConversationPath, ResourceRole, has_resource_permission};
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
     create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
@@ -310,7 +310,7 @@ async fn signup(
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(&user.id),
+                    actor_id: UserOrOrganizationId::User(user.id),
                     permission_triplet: SystemAdminRole::make_system_triplet(),
                     grant_reason: "Admin signup",
                     granted_by: &user.id,
@@ -696,11 +696,6 @@ pub fn decode_jwt<T: Serialize + DeserializeOwned>(
     result
 }
 
-#[derive(Deserialize)]
-struct ConversationPath {
-    conversation_id: Uuid,
-}
-
 /// An extractor to ensure that a required user has a role.
 /// If the user does not have the role then this will fail and
 /// return a Not Authorized response
@@ -900,13 +895,14 @@ where
             ComhairleError::ResourceNotFound("Path must contain a resource id".to_string())
         })?;
 
-        if has_resource_permission(
-            &state,
-            Role::make_triplet(&id.resource_id()),
-            &user.id,
-            user.organization_id.as_ref(),
-        )
-        .await?
+        if id.owner_id() == Some(user.id)
+            || has_resource_permission(
+                state,
+                Role::make_triplet(&id.resource_id()),
+                &user.id,
+                user.organization_id.as_ref(),
+            )
+            .await?
         {
             Ok(RequiredUserPermission {
                 user,
@@ -1482,6 +1478,8 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1530,6 +1528,8 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1582,6 +1582,8 @@ mod tests {
             avatar_url: None,
             email_verified: user.email_verified,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1902,6 +1904,8 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -1964,6 +1968,8 @@ mod tests {
             auth_type: UserAuthType::EmailPassword,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -2011,6 +2017,8 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = EmailLinkClaims { email: None };
         let token = generate_jwt()

@@ -2,14 +2,22 @@ use std::fmt;
 
 use crate::{
     error::ComhairleError,
+    models::{
+        pagination::{Order, PageOptions, PaginatedResults},
+        permissions::{NamedRole, ResourcePermissionIden, SYSTEM_RESOURCE_TYPE, SystemAdminRole},
+    },
     routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
     tools::id::gen_id,
 };
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr};
+use sea_query::{
+    Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def, extension::postgres::PgExpr,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
+use tracing::instrument;
 use uuid::Uuid;
 
 /// Defines the type of authentication has been used to create
@@ -134,9 +142,11 @@ pub struct User {
     pub email: Option<String>,
     pub email_verified: bool,
     pub organization_id: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [UserIden; 8] = [
+const DEFAULT_COLUMNS: [UserIden; 10] = [
     UserIden::Id,
     UserIden::Username,
     UserIden::Password,
@@ -145,6 +155,8 @@ const DEFAULT_COLUMNS: [UserIden; 8] = [
     UserIden::Email,
     UserIden::EmailVerified,
     UserIden::OrganizationId,
+    UserIden::CreatedAt,
+    UserIden::UpdatedAt,
 ];
 
 /// Create a user from a signup request
@@ -553,6 +565,93 @@ pub async fn upgrade_account(
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+pub struct UserFilterOptions {
+    is_admin: Option<bool>,
+}
+
+impl UserFilterOptions {
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(is_admin) = self.is_admin {
+            let admin_subquery = Query::select()
+                .expr(Expr::val(1))
+                .from(ResourcePermissionIden::Table)
+                .and_where(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::UserId,
+                    ))
+                    .equals((UserIden::Table, UserIden::Id)),
+                )
+                .and_where(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::ResourceType,
+                    ))
+                    .eq(SYSTEM_RESOURCE_TYPE),
+                )
+                .and_where(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::RoleName,
+                    ))
+                    .eq(SystemAdminRole::name()),
+                )
+                .to_owned();
+
+            query = if is_admin {
+                query.and_where(Expr::exists(admin_subquery)).to_owned()
+            } else {
+                query
+                    .and_where(Expr::exists(admin_subquery).not())
+                    .to_owned()
+            }
+        }
+
+        query
+    }
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+pub struct UserOrderOptions {
+    username: Option<Order>,
+    created_at: Option<Order>,
+}
+
+impl UserOrderOptions {
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(order) = &self.username {
+            query = query
+                .order_by((UserIden::Table, UserIden::Username), order.into())
+                .to_owned();
+        }
+        if let Some(order) = &self.created_at {
+            query = query
+                .order_by((UserIden::Table, UserIden::CreatedAt), order.into())
+                .to_owned();
+        }
+
+        query
+    }
+}
+
+#[instrument(err(Debug))]
+pub async fn list(
+    db: &PgPool,
+    page_options: PageOptions,
+    filter_options: UserFilterOptions,
+    order_options: UserOrderOptions,
+) -> Result<PaginatedResults<User>, ComhairleError> {
+    let query = Query::select().from(UserIden::Table).to_owned();
+
+    let query = filter_options.apply(query);
+    let query = order_options.apply(query);
+
+    let users = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(users)
 }
 
 #[cfg(test)]

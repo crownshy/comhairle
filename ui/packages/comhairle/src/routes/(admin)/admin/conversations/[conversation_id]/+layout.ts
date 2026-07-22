@@ -4,11 +4,14 @@ import type {
 	ConversationWithTranslations,
 	LocalizedEventDto,
 	MediaDto,
+	UserDto,
+	UserWithPermissionDto,
 	WorkflowDto,
 	WorkflowStats,
 	WorkflowStepWithTranslations
 } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
+import type { ConfigureTab } from './configure/tabs';
 
 /**
  * Invalidation keys for this load. Each re-runs this fetch; the names let callers
@@ -33,13 +36,14 @@ export const load: LayoutLoad = async ({
 	stats: WorkflowStats;
 	events: LocalizedEventDto[];
 	media: MediaDto | null;
+	user: UserDto;
 }> => {
 	depends('conversation:meta');
 	depends('conversation:workflow');
 	depends('conversation:events');
 
 	const conversation_id = params.conversation_id;
-	const { api } = await parent();
+	const { user, api } = await parent();
 
 	try {
 		const conversation = (await api.GetConversation({
@@ -60,6 +64,24 @@ export const load: LayoutLoad = async ({
 			media = await api.GetMedia({ params: { media_id: conversation.image } });
 		}
 
+		const configureTabs: { id: string; label: string }[] = [
+			{ id: 'details', label: 'Details' },
+			{ id: 'content', label: 'Content' },
+			{ id: 'access', label: 'Access' }
+		];
+
+		let usersWithPermission: UserWithPermissionDto[] = [];
+		if (user.id === conversation.ownerId) {
+			configureTabs.push({ id: 'team', label: 'Team' });
+			usersWithPermission = await api.ListUsersWithPermission({
+				params: {
+					resource_type: 'conversation',
+					resource_id: conversation.id
+				},
+				queries: { role_name: 'content_editor' }
+			});
+		}
+
 		if (workflows.length > 0) {
 			stats = await api.GetConversationWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
@@ -69,7 +91,17 @@ export const load: LayoutLoad = async ({
 				queries: { withTranslations: true }
 			});
 		}
-		return { conversation, workflows, stats, workflowSteps, events, media };
+
+		return {
+			conversation,
+			workflows,
+			stats,
+			workflowSteps,
+			events,
+			media,
+			usersWithPermission,
+			configureTabs
+		};
 	} catch (e) {
 		console.error(e);
 		notifications.addFlash({
