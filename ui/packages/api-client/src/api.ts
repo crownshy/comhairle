@@ -753,6 +753,7 @@ export type GenerateThinkingSpaceSummary = z.infer<
 >;
 export const ThinkingSpaceSummaryDto = z
   .object({
+    aiGeneratedSummary: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     isAiGenerated: z.boolean(),
     summary: z.string(),

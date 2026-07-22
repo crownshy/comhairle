@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
+use sea_query::{
+    CaseStatement, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, query_as_with};
@@ -16,17 +18,19 @@ pub struct ThinkingSpaceSummary {
     pub workflow_step_id: Uuid,
     pub user_id: Uuid,
     pub summary: String,
+    pub ai_generated_summary: Option<String>,
     pub is_ai_generated: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ThinkingSpaceSummaryIden; 7] = [
+const DEFAULT_COLUMNS: [ThinkingSpaceSummaryIden; 8] = [
     ThinkingSpaceSummaryIden::Id,
     ThinkingSpaceSummaryIden::WorkflowStepId,
     ThinkingSpaceSummaryIden::UserId,
     ThinkingSpaceSummaryIden::Summary,
     ThinkingSpaceSummaryIden::IsAiGenerated,
+    ThinkingSpaceSummaryIden::AiGeneratedSummary,
     ThinkingSpaceSummaryIden::CreatedAt,
     ThinkingSpaceSummaryIden::UpdatedAt,
 ];
@@ -95,10 +99,26 @@ pub async fn update(
     id: Uuid,
     update_summary: &UpdateSummary,
 ) -> Result<ThinkingSpaceSummary, ComhairleError> {
-    let values = vec![(
-        ThinkingSpaceSummaryIden::Summary,
-        update_summary.summary.clone().into(),
-    )];
+    // If is_ai_generated is currently true, snapshot the old `summary` into
+    // ai_generated_summary; otherwise leave ai_generated_summary as-is.
+    let ai_generated_summary_exp = CaseStatement::new()
+        .case(
+            Expr::col(ThinkingSpaceSummaryIden::IsAiGenerated).eq(true),
+            Expr::col(ThinkingSpaceSummaryIden::Summary),
+        )
+        .finally(Expr::col(ThinkingSpaceSummaryIden::AiGeneratedSummary));
+
+    let values = vec![
+        (
+            ThinkingSpaceSummaryIden::Summary,
+            update_summary.summary.clone().into(),
+        ),
+        (
+            ThinkingSpaceSummaryIden::AiGeneratedSummary,
+            ai_generated_summary_exp.into(),
+        ),
+        (ThinkingSpaceSummaryIden::IsAiGenerated, false.into()),
+    ];
 
     let (sql, values) = Query::update()
         .table(ThinkingSpaceSummaryIden::Table)

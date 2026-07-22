@@ -343,6 +343,7 @@ pub struct ThinkingSpaceSummaryDto {
     pub user_id: Uuid,
     pub summary: String,
     pub is_ai_generated: bool,
+    pub ai_generated_summary: Option<String>,
 }
 
 impl From<ThinkingSpaceSummary> for ThinkingSpaceSummaryDto {
@@ -353,6 +354,7 @@ impl From<ThinkingSpaceSummary> for ThinkingSpaceSummaryDto {
             user_id: s.user_id,
             summary: s.summary,
             is_ai_generated: s.is_ai_generated,
+            ai_generated_summary: s.ai_generated_summary,
         }
     }
 }

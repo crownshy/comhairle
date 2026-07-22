@@ -3,8 +3,10 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { ThinkingSpaceUserInsights } from '@crownshy/api-client/api';
-	import { CornerDownRight } from '@lucide/svelte';
+	import { CornerDownRight, Sparkles } from '@lucide/svelte';
 	import { ChevronDown } from 'lucide-svelte';
+	import Switch from '$lib/components/ui/switch/switch.svelte';
+	import { cn } from '$lib/utils';
 
 	type Props = {
 		userInsights: ThinkingSpaceUserInsights[];
@@ -12,10 +14,11 @@
 	let { userInsights }: Props = $props();
 
 	const ROW_ANIMATION_DURATION_MS = 1000;
-	let rowLimit = $state(4);
+	let rowLimit = $state(3);
 	let selectedUserInsights = $state<ThinkingSpaceUserInsights | null>(null);
 	let openDialog = $derived(selectedUserInsights !== null);
 	let visibleInsightsRows = $derived(userInsights.slice(0, rowLimit));
+	let showAiSourceSummary = $state(false);
 </script>
 
 <Table.Root class="w-full table-fixed">
@@ -60,7 +63,7 @@
 	</Table.Body>
 </Table.Root>
 
-{#if rowLimit <= userInsights.length}
+{#if rowLimit < userInsights.length}
 	<button
 		class="bg-border flex w-full items-center justify-center gap-2 py-3 text-center"
 		type="button"
@@ -78,9 +81,41 @@
 				>Thinking space summary, follow-up questions and responses</Dialog.Description
 			>
 		</Dialog.Header>
-		<div class="">
-			<h3 class="mb-4 font-bold">Summary</h3>
-			<p class="bg-muted p-4">{selectedUserInsights?.summary.summary}</p>
+		<div>
+			<div class="mb-4 flex items-center justify-between">
+				<h3 class="font-bold">Summary</h3>
+				{#if selectedUserInsights?.summary.aiGeneratedSummary}
+					<span class="flex items-center gap-4">
+						<span class="text-muted-foreground">
+							{#if showAiSourceSummary}
+								Viewing original AI summary
+							{:else}
+								Edited by participant
+							{/if}
+						</span>
+						<Switch
+							bind:checked={showAiSourceSummary}
+							onCheckedChange={(v) => (showAiSourceSummary = v)}
+						/>
+						Show original AI
+					</span>
+				{/if}
+			</div>
+			<div class={cn('bg-muted p-4', showAiSourceSummary && 'bg-accent')}>
+				{#if showAiSourceSummary}
+					<span class="text-primary mb-2.5 flex items-center gap-2 text-xs">
+						<Sparkles class="text-primary size-4 shrink-0" />
+						Original AI Summary
+					</span>
+					<p>
+						{selectedUserInsights?.summary.aiGeneratedSummary}
+					</p>
+				{:else}
+					<p>
+						{selectedUserInsights?.summary.summary}
+					</p>
+				{/if}
+			</div>
 		</div>
 		<div class="overflow-y-auto">
 			<div class="flex flex-col gap-8">
