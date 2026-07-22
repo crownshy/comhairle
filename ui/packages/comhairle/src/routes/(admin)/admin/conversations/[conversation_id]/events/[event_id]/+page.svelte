@@ -34,7 +34,7 @@
 	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
@@ -156,7 +156,7 @@
 				}
 			});
 
-			await invalidateAll();
+			await invalidate(`/api/conversations/${conversation.id}/events/${event.id}`);
 			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
@@ -252,7 +252,7 @@
 					}
 				}
 			);
-			await invalidateAll();
+			await invalidate(`/api/conversations/${conversation.id}/events/${event.id}`);
 			agendaDirty = false;
 			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
 		} catch (e) {
@@ -280,7 +280,7 @@
 				message: 'Facilitator added'
 			});
 
-			await invalidateAll();
+			await invalidate(`/api/conversations/${conversation.id}/events/${event.id}`);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -306,7 +306,7 @@
 				message: 'Facilitator removed'
 			});
 
-			await invalidateAll();
+			await invalidate(`/api/conversations/${conversation.id}/events/${event.id}`);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -317,7 +317,7 @@
 	}
 
 	async function emailInvitesSubmitted() {
-		await invalidateAll();
+		await invalidate(`/api/conversations/${conversation.id}/events/${event.id}`);
 	}
 
 	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);

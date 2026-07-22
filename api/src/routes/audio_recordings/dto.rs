@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::audio_recording::{AudioFormat, AudioRecording, AudioRecordingStatus};
-use crate::models::live_audio_recording::{LiveAudioRecording, UploadedPart};
+use crate::models::live_audio_recording::{LiveAudioRecordingState, UploadedPart};
 
 /// Data transfer object for an audio recording.
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -51,6 +51,15 @@ pub struct CreateRecordingRequest {
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRecordingResponse {
+    pub recording: AudioRecordingDto,
+    pub upload_url: String,
+}
+
+/// Response for issuing a new presigned upload URL for an existing recording.
+#[cfg_attr(test, derive(Deserialize))]
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RecordingUploadUrlResponse {
     pub recording: AudioRecordingDto,
     pub upload_url: String,
 }
@@ -111,8 +120,8 @@ pub struct LiveAudioRecordingDto {
     pub locked: bool,
 }
 
-impl From<LiveAudioRecording> for LiveAudioRecordingDto {
-    fn from(live_audio_recording: LiveAudioRecording) -> Self {
+impl From<LiveAudioRecordingState> for LiveAudioRecordingDto {
+    fn from(live_audio_recording: LiveAudioRecordingState) -> Self {
         Self {
             id: live_audio_recording.id,
             audio_recording_id: live_audio_recording.audio_recording_id,
@@ -126,6 +135,7 @@ impl From<LiveAudioRecording> for LiveAudioRecordingDto {
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateLiveAudioRecordingRequest {
     pub name: String,
@@ -133,6 +143,7 @@ pub struct CreateLiveAudioRecordingRequest {
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateLiveAudioRecordingResponse {
     pub recording: AudioRecordingDto,
@@ -140,6 +151,7 @@ pub struct CreateLiveAudioRecordingResponse {
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct PresignLiveAudioRecordingPartResponse {
     pub upload_url: String,
@@ -147,12 +159,14 @@ pub struct PresignLiveAudioRecordingPartResponse {
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct AckLiveAudioRecordingPartResponse {
     pub live_audio_recording: LiveAudioRecordingDto,
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct LiveAudioRecordingStateResponse {
     pub live_audio_recording: LiveAudioRecordingDto,

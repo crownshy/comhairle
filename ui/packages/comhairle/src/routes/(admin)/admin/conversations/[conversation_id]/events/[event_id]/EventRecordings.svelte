@@ -4,8 +4,9 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Progress } from '$lib/components/ui/progress';
+	import EditablePrintableQrPageDialog from '$lib/components/qr/EditablePrintableQrPageDialog.svelte';
 	import { notifications } from '$lib/notifications.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type {
@@ -67,6 +68,7 @@
 	let loadingDownloads = $state<Set<string>>(new Set());
 	let deletingIds = $state<Set<string>>(new Set());
 	let liveRecordings = $state<LiveAudioRecordingDto[]>([]);
+	let liveRecordingsModalOpen = $state(false);
 
 	const liveRecordingAudioIds = $derived(
 		new Set(liveRecordings.map((recording) => recording.audioRecordingId))
@@ -220,7 +222,7 @@
 			// Keep failed rows so the user can fix and retry; drop successful ones.
 			rows = rows.filter((r) => r.state !== 'done');
 			if (rows.length === 0) rows = [makeRow()];
-			await invalidateAll();
+			await invalidate(`/api/conversations/${conversation_id}/events/${event_id}/recordings`);
 		}
 	}
 
@@ -236,7 +238,7 @@
 				params: { conversation_id, event_id, recording_id: recording.id }
 			});
 			notifications.send({ message: `Deleted "${recording.name}"`, priority: 'INFO' });
-			await invalidateAll();
+			await invalidate(`/api/conversations/${conversation_id}/events/${event_id}/recordings`);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -255,7 +257,7 @@
 				params: { conversation_id, event_id, recording_id: recordingId }
 			});
 			notifications.send({ message: 'Processing restarted', priority: 'INFO' });
-			await invalidateAll();
+			await invalidate(`/api/conversations/${conversation_id}/events/${event_id}/recordings`);
 		} catch (e) {
 			console.error(e);
 			notifications.send({ message: 'Failed to restart processing', priority: 'ERROR' });
@@ -263,7 +265,7 @@
 	}
 
 	async function refreshStatus() {
-		await invalidateAll();
+		await invalidate(`/api/conversations/${conversation_id}/events/${event_id}/recordings`);
 		await loadLiveRecordings();
 	}
 
@@ -282,23 +284,17 @@
 		return liveRecordingAudioIds.has(audioRecordingId);
 	}
 
-	async function copyParticipantRecordingLink() {
-		try {
-			if (!window?.navigator?.clipboard) {
-				throw new Error('Clipboard unavailable');
-			}
-			const link = `${window.location.origin}/conversations/${conversation_id}/events/${event_id}/record`;
-			await window.navigator.clipboard.writeText(link);
-			notifications.send({
-				message: 'Participant recording link copied',
-				priority: 'INFO'
-			});
-		} catch {
-			notifications.send({
-				message: 'Could not copy participant recording link',
-				priority: 'ERROR'
-			});
-		}
+	function formatDateTime(value: string): string {
+		return new Date(value).toLocaleString();
+	}
+
+	function liveRecordingPath(): string {
+		return `/conversations/${conversation_id}/events/${event_id}/record`;
+	}
+
+	function liveRecordingLink(): string {
+		if (typeof window === 'undefined') return liveRecordingPath();
+		return `${window.location.origin}${liveRecordingPath()}`;
 	}
 
 	async function loadDownloads(recordingId: string) {
@@ -375,7 +371,7 @@
 	$effect(() => {
 		if (!hasInFlight) return;
 		const interval = setInterval(() => {
-			invalidateAll();
+			invalidate(`/api/conversations/${conversation_id}/events/${event_id}/recordings`);
 		}, 10000);
 		return () => clearInterval(interval);
 	});
@@ -458,8 +454,12 @@
 		<div class="flex items-center justify-between">
 			<h2 class="text-2xl font-bold">Recordings</h2>
 			<div class="flex items-center gap-2">
-				<Button variant="outline" size="sm" onclick={copyParticipantRecordingLink}>
-					Copy participant recording link
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => (liveRecordingsModalOpen = true)}
+				>
+					Live recordings
 				</Button>
 				<Button variant="outline" size="sm" onclick={refreshStatus}>
 					<RefreshCw class="mr-2 h-4 w-4" />
@@ -473,6 +473,7 @@
 				<thead class="bg-muted/50">
 					<tr>
 						<th class="px-4 py-2 text-left font-medium">Name</th>
+						<th class="px-4 py-2 text-left font-medium">Created</th>
 						<th class="px-4 py-2 text-left font-medium">Status</th>
 						<th class="px-4 py-2 text-right font-medium">Files</th>
 						<th class="w-12 px-4 py-2"></th>
@@ -481,7 +482,7 @@
 				<tbody>
 					{#if recordings.length === 0}
 						<tr class="border-t">
-							<td colspan="4" class="text-muted-foreground px-4 py-6 text-center">
+							<td colspan="5" class="text-muted-foreground px-4 py-6 text-center">
 								No recordings yet.
 							</td>
 						</tr>
@@ -500,6 +501,9 @@
 										{/if}
 										<span>{recording.name}</span>
 									</div>
+								</td>
+								<td class="text-muted-foreground px-4 py-3 text-xs">
+									{formatDateTime(recording.createdAt)}
 								</td>
 								<td class="px-4 py-3">
 									<div class="flex items-center gap-2">
@@ -581,6 +585,13 @@
 			</p>
 		{/if}
 	</section>
+
+	<EditablePrintableQrPageDialog
+		bind:open={liveRecordingsModalOpen}
+		url={liveRecordingLink()}
+		title="Live recordings QR page"
+		description="Edit the handout text, then print or share the QR code for participants."
+	/>
 
 	<section class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
