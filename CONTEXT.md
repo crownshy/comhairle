@@ -1,0 +1,114 @@
+# Comhairle
+
+Comhairle is a platform for consultation and deliberation at scale. Admins (policy makers) create Conversations that route participants (citizens, stakeholders) through a sequence of engagement tools.
+
+## Language
+
+**Conversation**:
+A single consultation/deliberation instance that participants take part in and admins configure. Created in a draft state (`is_live: false`) and later launched.
+_Avoid_: Topic (used loosely in the UI/design), consultation
+
+**Workflow**:
+The ordered sequence of Steps a Conversation routes participants through. Every Conversation has exactly one active Workflow.
+
+**Step**:
+A single stage in a Workflow, backed by one engagement tool (learn/onboarding, survey, Pol.is poll, prioritisation, etc.).
+
+**Design board**:
+The primary editing surface of a Conversation's Workflow, on the `…/design` route. A horizontal, left-to-right sequence of Step cards with a persistent left **Tool palette**. Historically labelled "Manage"; the tab is now labelled **Design**.
+_Avoid_: Manage (old label), canvas.
+
+**Tool palette**:
+The persistent left rail on the Design board listing the addable engagement tools. Hovering a tool reveals an **Add** action that eagerly appends a Step; hovering a tool's name shows a tooltip (title, one-line description, "Learn more" → Tools Guide in a new tab). Replaces the old modal (`ToolSelectionModal`). Each tool has an internal key (used to build `tool_setup`) distinct from its **display name** shown to admins (e.g. key `Polis` → "Wiki Poll (Pol.is)", `Learn` → "Rich content page", `Prioritization` → "Prioritisation tool", `Thinking Space` → "Thinking space").
+_Avoid_: Tool selection modal (being removed).
+
+**Estimated time**:
+A per-Step duration in minutes shown as a card pill when the board's "Estimated time" toggle is on. Distinct from the typical-duration ranges described narratively in the Tools Guide.
+_Status_: Not backed yet — displayed from a hardcoded per-tool default for now; a real editable `estimated_minutes` (nullable) column is deferred pending the same team decision as [[data-protocol]] (flagged on the PR).
+
+**Tools Guide**:
+The admin reference pages at `/admin/info/tools/<key>`, one long-form editorial page per tool (sections: What you need to know, How it works, Mostly used in, Data collection and analysis, A typical participant experience, How to set this up, The open source tool we use). Opened in a new tab from a tool's "Learn more" link.
+
+**Workflow template**:
+A named, pre-defined set of Steps used to seed a new Conversation's Workflow at creation time. Applied once at creation; the resulting Workflow is then freely editable. A template has *display* content (name, description, badges, preview, step list shown on its card) that is distinct from its *creation* steps (the real `tool_setup` configs instantiated on "Get started"). Display content may reference steps whose backing tool does not yet exist (e.g. "Online video conference"); such steps are shown but not instantiated. Template content is provisional pending product decisions.
+_Avoid_: Preset
+_Note_: Templates are no longer create-time-only. The design board's "Template" dropdown re-applies a template to an existing Workflow: it **destructively replaces** the whole Workflow (deletes every Step + its data, then creates the template's Steps) behind an "are you sure" confirmation. This reverses ADR-0002's create-time-only stance (see the amendment there). The Workflow still does not persist which template was applied, so the chip label is session-local (resets to "Blank" on reload).
+
+**Start from blank**:
+Creating a Conversation immediately (with an auto-generated title and an empty Workflow), then editing it on the configure tab. Create-then-edit, not fill-then-create.
+_Avoid_: Empty workflow (that's the underlying template key)
+
+**Data protocol**:
+A per-Step declaration of who may see the data participants produce in that Step. Canonical four-level ladder, least-to-most open: **Confidential** (no one) → **Restricted** (organiser only) → **Collaborative** (organiser + other participants) → **Open** (everyone).
+_Avoid_: Private/Limited (stale Learn-guide wording for Confidential/Restricted), "data sharing", "data policy".
+_Status_: Only Confidential and Restricted are backed today — they map onto the existing `request_user_share_permission` boolean (`false`→Confidential, `true`→Restricted). Collaborative and Open appear in the UI for design fidelity but are disabled pending a team decision on introducing a real `data_protocol` enum column (flagged as an open question on the PR).
+
+### Polis admin (Discuss step)
+
+The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Moderation · Insights`** (civic_os's "Participants" tab is dropped — see Insights/Report and the Participants note).
+
+**Moderation**:
+The Polis statement-review subtab — sync statements from Polis, add/seed statements, CSV import, and accept/reject each with status filter chips (`all · seeded · accepted · pending · rejected`). Backed by the `polis_statement_aux` table. Supersedes the design's "Statements" label and the two dead entries in today's step editor (the `Statements` "coming soon" placeholder and the never-rendered `Moderate` subtab).
+_Avoid_: Statements (design label), Moderate (old dead tab).
+
+**Insights**:
+A **per-Step report** — the read-only analytics surface for a single Step, shown as a subtab in that Step's editor. For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, HeyForm, …; not Learn) gets its own Insights subtab.
+_Avoid_: Report (that's the conversation-level tab — a different, global concept).
+
+**Report**:
+The **conversation-level, global** reporting tab in the top nav (`Configure · Workflow · Knowledge base · Events · Recruit · Monitor · Notify · Report`). Aggregates across the whole Conversation. Distinct from a Step's **Insights** subtab.
+_Avoid_: Insights (that's per-Step).
+
+**Participants** (Polis admin):
+_Out of scope / deferred._ civic_os has a Participants tab (demographics + recruitment goals, tied to its "questions attached" model), but comhairle has no equivalent concept and no top-level Participants tab. Not built as part of the Polis admin; revisited later as a separate effort (possibly HeyForm-adjacent) once its home is decided.
+_Avoid_: reusing civic_os's demographics Participants inside a Polis subtab.
+
+**Setup**:
+The Polis-step subtab replacing the old admin **iframe**: native controls for the Polis conversation config plus comhairle display flags. Two write paths — (1) **Polis-proxied** config (`is_active` = "conversation is open", `topic`, `description`, `strict_moderation` = "no comments without approval") goes through the `PolisUpdateConfig` route (widened `UpdatePollRequest` + server-side admin `login()` + `update_poll()`); (2) **comhairle `tool_config`** display flags (`required_votes`, `show_remaining_statements`, `label_seeds_as_conversation_starter`) via `UpdateConversationWorkflowStep`. No client-side Polis auth. The Polis-proxied fields are **also mirrored into `tool_config`** (they are fields on `PolisToolConfig`) so the form can pre-fill — Polis has no read path (see ADR-0003 amendment). Saving a config field writes Polis first, then the mirror. Seed authoring lives in the **Moderation** subtab, not Setup.
+_Note_: `is_active` (Polis "open/closed") is **plumbed but not surfaced** in the Setup UI — participant access in comhairle is governed by conversation launch + the Workflow, not a per-Polis toggle, so exposing it would be redundant. The field stays on `PolisToolConfig`/`PolisUpdateConfig` (defaulted active) for future use.
+_Status_: The design's "Participants can see the **visualization**" checkbox is **deferred** — the custom participant embed (`PolisEmbed.svelte`) renders no opinion-map, so the flag would control nothing. Building a participant PCA/opinion-map component (data via `get_math_pca`/`report_data`) is a separate follow-up, bundled with retiring the `PolisReport.svelte` iframe.
+
+**Preview poll / Live poll**:
+A Polis Step is backed by **two** separate Pol.is conversations: a **preview** poll (used while the Conversation is a draft — admin-only, for previewing and staging seeds) and a **live** poll (created at **launch**, where participants actually vote). The step editor targets the right one via `conversation.isLive` (`tool_config` = live, `preview_tool_config` = preview). Real participant voting is **post-launch only**.
+_Status_: `launch` creates a fresh live poll and migrates only seed **text** (`post_seed_comment`) — it does **not** carry over aux metadata (`moderation_status`, `themes`), so pre-launch moderation/theming does not survive launch. It also does not yet filter rejected seeds (`// TODO: filter seed statements`). Both are follow-up backend fixes, not part of the tab UI work.
+
+**Seed statement**:
+A statement authored by the moderator (not a participant) to spark discussion, `is_seed: true`. Posted server-side to the active Polis poll (preview while draft, live after launch) via a new backend seed route wrapping `post_seed_comment`, then surfaced locally after sync. Distinct from `moderation_status`.
+_Avoid_: Seeded status (it's a boolean flag, not a moderation status).
+
+**Polis statement aux**:
+Comhairle's `polis_statement_aux` sidecar table, one row per Polis statement, holding admin-only metadata Polis doesn't store: `moderation_status`, human-authored `themes`, `is_seed`, `moderation_reason`, `visible_statement_when_submitted`. Populated by sync.
+
+**Moderation status**:
+The three-value review state of a statement: `accepted · pending · rejected` (enum `ModerationStatus`). Not the same as `is_seed`.
+
+**Theme**:
+A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. (Future: T3C may write machine themes into the same store.)
+
+**Controversy**:
+A per-Theme classification `low | moderate | high`, from the average per-statement group-agree spread across that theme's statements. Buckets: `<15` low, `15–30` moderate, `>30` high (tunable in `report.ts`; civic_os marks the exact cuts "to confirm").
+
+**Area of Consensus**:
+A statement where every group agrees ≥ 80% (consensus `+`) or every group < 20% (consensus `−`). Thresholds `CONSENSUS_AGREE`/`CONSENSUS_DISAGREE`.
+
+**Area of Difference**:
+A statement where the agree% gap between the most- and least-agreeing groups exceeds 30 points. One diverging pair is enough.
+
+**Low data quality**:
+A statement where any group has < 10 total votes on it (`min per-group votes < 10`), making its group %s untrustworthy. Hidden by default across the Insights tables but still counted; revealable.
+
+### Reporting
+
+**Report component**:
+The primitive of the reporting system: a self-contained, configurable widget fed by (usually) one tool's insight data, e.g. an "Areas of Agreement" list, an engagement stat card, a Prioritisation ranking, a beeswarm chart. The unit that gets built once per tool and reused. **Report views are compositions of report components** filtered by audience + timing; the components are the thing you design, the views are arrangements.
+_Avoid_: widget, block, card (too generic).
+_Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components (`components/polis-report/**` + `tools/polis/report.ts`). An older parallel set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
+
+**Report view**:
+A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:
+1. **Insights** — admin, live, per-tool/Step. A "summary of raw data": current responses + realtime insights; helps spot missing voices. (Already exists for Polis.)
+2. **In-progress feedback** — participant, live, per-tool/Step; appears **as a Step in the participant journey**. The only view that shows **individual** data (the participant's own response) alongside the aggregate from others.
+3. **Presentation mode** — public room screen, live, per-tool; a looping, simplified, low-interaction "highlights" display for a live audience. Either cycles all tools or shows one picked tool.
+4. **End of engagement report** — participant + public, final (frozen snapshot), conversation-level cross-tool; **human-authored**: auto-generated insights that an editor curates in a rich-text (TipTap) document, pulling component blocks in.
+_Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate concern, not one of the four).
+_Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.

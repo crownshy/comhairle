@@ -4,7 +4,7 @@ import type { PolisReportData } from '$lib/tools/polis/reportTypes';
 import type { PageLoad } from './$types';
 
 /**
- * Insights only exists for Polis steps; non-polis steps are bounced to Configure. Both the
+ * Insights only exists for Polis steps; non-polis steps are bounced to Setup. Both the
  * statement_aux and report/vote-export fetches live here so they run only when this tab is
  * open. `polis:statement-aux` and `polis:report` are the invalidation keys the insights
  * actions re-run after sync.
@@ -15,7 +15,7 @@ export const load: PageLoad = async (event) => {
 	if (toolConfig?.type !== 'polis') {
 		redirect(
 			307,
-			`/admin/conversations/${event.params.conversation_id}/design/step/${event.params.step_id}/configure`
+			`/admin/conversations/${event.params.conversation_id}/design/step/${event.params.step_id}/setup`
 		);
 	}
 

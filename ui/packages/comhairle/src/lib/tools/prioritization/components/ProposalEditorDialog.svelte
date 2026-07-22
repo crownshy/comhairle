@@ -5,10 +5,12 @@
 	import { Label } from '$lib/components/ui/label';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
+	import ProposalSectionField from './ProposalSectionField.svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
 	import type { PrioritizationStore } from '../store.svelte';
-	import type { Proposal, TextContentWithTranslations } from '../types';
+	import type { Proposal } from '../types';
 
 	type Props = {
 		open: boolean;
@@ -79,27 +81,19 @@
 		}
 	}
 
-	/** EDIT-mode helpers. TranslatableField wants a `Translation`-shaped object plus a `value` and `onValueChange` for the primary-locale inline editor. We mirror the latest text back into local state so the inputs feel responsive while the field handles persistence. */
-	let titleValue = $state('');
-	let sectionValues = $state<Record<string, string>>({});
-	let addingSection = $state(false);
+	// EDIT-mode title source. Sections each own their source via ProposalSectionField (ADR-0005); the
+	// old `titleValue` / `sectionValues` mirrors are gone (the source's optimistic overlay gives the
+	// responsiveness they were chasing).
+	const titleSource = createTextContentSource({
+		getTranslation: () => liveProposal?.titleTranslations,
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLocales
+	});
 
-	function primaryContent(env: TextContentWithTranslations | undefined): string {
-		if (!env) return '';
-		const primary = env.textTranslations.find(
-			(t) => t.locale === env.textContent.primaryLocale
-		);
-		return primary?.content ?? '';
-	}
+	let addingSection = $state(false);
 
 	$effect(() => {
 		if (open && liveProposal) {
-			titleValue = primaryContent(liveProposal.titleTranslations);
-			const next: Record<string, string> = {};
-			for (const section of liveProposal.sections) {
-				next[section.id] = primaryContent(section.bodyTranslations);
-			}
-			sectionValues = next;
 			errorMessage = null;
 		}
 	});
@@ -146,14 +140,12 @@
 				<div class="space-y-2">
 					<Label>Title</Label>
 					<TranslatableField
-						value={titleValue}
-						onValueChange={(v) => (titleValue = v)}
+						source={titleSource}
 						{primaryLocale}
 						supportedLanguages={supportedLocales}
 						editorType="plain"
 						placeholder="Proposal title"
 						dialogTitle="Translate title"
-						translation={liveProposal.titleTranslations}
 					/>
 				</div>
 
@@ -171,24 +163,14 @@
 								<Trash2 class="mr-2 h-3.5 w-3.5" /> Remove
 							</Button>
 						</div>
-						<TranslatableField
-							value={sectionValues[section.id] ?? ''}
-							onValueChange={(v) => (sectionValues[section.id] = v)}
-							{primaryLocale}
-							supportedLanguages={supportedLocales}
-							editorType="rich"
-							placeholder="Describe this section"
-							minHeight="160px"
-							dialogTitle="Translate section"
-							translation={section.bodyTranslations}
-						/>
+						<ProposalSectionField {section} {primaryLocale} {supportedLocales} />
 					</div>
 				{/each}
 
 				<Button variant="outline" size="sm" onclick={addSection} disabled={addingSection}>
-					{#if addingSection}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{:else}<Plus
-							class="mr-2 h-4 w-4"
-						/>{/if}
+					{#if addingSection}<LoaderCircle
+							class="mr-2 h-4 w-4 animate-spin"
+						/>{:else}<Plus class="mr-2 h-4 w-4" />{/if}
 					Add section
 				</Button>
 			</div>

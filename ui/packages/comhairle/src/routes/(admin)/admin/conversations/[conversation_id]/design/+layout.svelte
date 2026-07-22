@@ -45,13 +45,14 @@
 			newStepHighlight.flag(created.id);
 			addStepDialog.open = false;
 
-			// Drop the operator straight into the new step's Configure tab, rather than leaving them
-			// on the board to hunt for it.
+			// Return to the design board (works from either entry point: the board's own Add step
+			// button or the workflow strip's while inside a step editor). The design page reacts to
+			// `newStepHighlight` by scrolling the new card into view and briefly highlighting it, so
+			// the operator sees exactly which step was just created instead of landing in its editor.
 			await goto(
-				resolve(
-					'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]/configure',
-					{ conversation_id: conversation.id, step_id: created.id }
-				)
+				resolve('/(admin)/admin/conversations/[conversation_id]/design', {
+					conversation_id: conversation.id
+				})
 			);
 		} catch (e) {
 			console.error(e);
