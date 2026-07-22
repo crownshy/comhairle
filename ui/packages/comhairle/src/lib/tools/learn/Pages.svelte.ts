@@ -15,7 +15,7 @@ export interface ExtendedLocalizedPage extends LocalizedPage {
 
 type From = 'source' | 'target';
 type RawSave = (options?: { invalidate?: boolean }) => Promise<void>;
-type OnRestore = () => void;
+type OnMarkSaved = () => void;
 type Order = { id: string; [SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean }[]; // Matching DraggableList "items" props
 
 /**
@@ -38,7 +38,7 @@ class Pages {
 	saveState = $state<SaveState>('idle');
 
 	#rawSave: RawSave = () => Promise.resolve();
-	#onRestore: OnRestore = () => {};
+	#onMarkSaved: OnMarkSaved = () => {};
 	#inFlight: Promise<void> | null = null;
 	#savedResetTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -56,8 +56,8 @@ class Pages {
 		this.#rawSave = fn;
 	}
 
-	onRestore(fn: OnRestore) {
-		this.#onRestore = fn;
+	onMarkSaved(fn: OnMarkSaved) {
+		this.#onMarkSaved = fn;
 	}
 
 	async #runSave(invalidate: boolean) {
@@ -171,9 +171,10 @@ class Pages {
 		this.areDirty = true;
 	}
 
-	restore() {
+	/** Mark the page clean: the in-memory model now matches what's persisted. */
+	markSaved() {
 		this.areDirty = false;
-		this.#onRestore();
+		this.#onMarkSaved();
 	}
 
 	get current() {
