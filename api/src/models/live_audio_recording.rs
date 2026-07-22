@@ -262,7 +262,7 @@ pub async fn get_by_id(
     row.try_into()
 }
 
-pub async fn lock_for_user(
+pub async fn lock_live_recording(
     db: &PgPool,
     live_audio_recording_id: Uuid,
     user_id: Uuid,
@@ -291,7 +291,7 @@ pub async fn lock_for_user(
     Err(not_found())
 }
 
-pub async fn unlock_for_user(
+pub async fn unlock_live_recording(
     db: &PgPool,
     live_audio_recording_id: Uuid,
     user_id: Uuid,

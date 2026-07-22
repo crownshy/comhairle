@@ -482,68 +482,82 @@ async fn complete_live_recording(
     let worker_service = state.required_worker_service()?;
 
     let live_recording =
-        live_audio_recording::lock_for_user(&state.db, live_recording_id, user.id).await?;
+        live_audio_recording::lock_live_recording(&state.db, live_recording_id, user.id).await?;
 
-    let recording =
-        audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
-    let extension = recording.file_extension.extension();
-    let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+    let result = async {
+        let recording =
+            audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
+        let extension = recording.file_extension.extension();
+        let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
-    let mut sorted_uploaded_parts = live_recording.uploaded_parts.clone();
-    sorted_uploaded_parts.sort_by_key(|part| part.part_number);
+        let mut sorted_uploaded_parts = live_recording.uploaded_parts.clone();
+        sorted_uploaded_parts.sort_by_key(|part| part.part_number);
 
-    let parts: Vec<(MultipartUploadPartNumber, StorageEntityTag)> = sorted_uploaded_parts
-        .iter()
-        .map(|p| {
-            (
-                MultipartUploadPartNumber(p.part_number),
-                StorageEntityTag(p.etag.clone()),
+        let parts: Vec<(MultipartUploadPartNumber, StorageEntityTag)> = sorted_uploaded_parts
+            .iter()
+            .map(|p| {
+                (
+                    MultipartUploadPartNumber(p.part_number),
+                    StorageEntityTag(p.etag.clone()),
+                )
+            })
+            .collect();
+
+        bulk_storage_service
+            .complete_multipart_upload(
+                &recording_path,
+                &StorageUploadID(live_recording.multipart_upload_id),
+                &parts,
             )
-        })
-        .collect();
+            .await?;
 
-    bulk_storage_service
-        .complete_multipart_upload(
-            &recording_path,
-            &StorageUploadID(live_recording.multipart_upload_id),
-            &parts,
+        live_audio_recording::delete(&state.db, live_recording_id).await?;
+
+        let job = job::create(
+            &state.db,
+            CreateJob {
+                progress: Some(0.0),
+                ..Default::default()
+            },
         )
         .await?;
 
-    live_audio_recording::delete(&state.db, live_recording_id).await?;
+        worker_service
+            .push_transcription_job(TranscribeRecording {
+                event_id,
+                conversation_id,
+                recording_id: recording.id,
+                job_id: job.id,
+            })
+            .await?;
 
-    let job = job::create(
-        &state.db,
-        CreateJob {
-            progress: Some(0.0),
-            ..Default::default()
-        },
-    )
-    .await?;
-
-    worker_service
-        .push_transcription_job(TranscribeRecording {
-            event_id,
-            conversation_id,
-            recording_id: recording.id,
-            job_id: job.id,
-        })
+        audio_recording::update_status(
+            &state.db,
+            recording.id,
+            audio_recording::AudioRecordingStatus::Transcribing,
+        )
         .await?;
 
-    audio_recording::update_status(
-        &state.db,
-        recording.id,
-        audio_recording::AudioRecordingStatus::Transcribing,
-    )
-    .await?;
+        Ok((
+            StatusCode::OK,
+            Json(ProcessRecordingResponse {
+                message: "Live audio recording processing moved to a background job".to_string(),
+                job_id: job.id,
+            }),
+        ))
+    }
+    .await;
 
-    Ok((
-        StatusCode::OK,
-        Json(ProcessRecordingResponse {
-            message: "Live audio recording processing moved to a background job".to_string(),
-            job_id: job.id,
-        }),
-    ))
+    match result {
+        Ok(response) => Ok(response),
+        Err(err) => {
+            // Best-effort unlock so failed completion attempts do not leave stale locks behind.
+            let _ =
+                live_audio_recording::unlock_live_recording(&state.db, live_recording_id, user.id)
+                    .await;
+            Err(err)
+        }
+    }
 }
 
 /// Abort a live audio recording's multipart upload and clean up.
@@ -566,35 +580,49 @@ async fn delete_live_recording(
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let live_recording =
-        live_audio_recording::lock_for_user(&state.db, live_recording_id, user.id).await?;
+        live_audio_recording::lock_live_recording(&state.db, live_recording_id, user.id).await?;
 
-    let recording =
-        audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
-    let extension = recording.file_extension.extension();
-    let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+    let result = async {
+        let recording =
+            audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
+        let extension = recording.file_extension.extension();
+        let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
-    if let Err(err) = bulk_storage_service
-        .abort_multipart_upload(
-            &recording_path,
-            &StorageUploadID(live_recording.multipart_upload_id.clone()),
-        )
-        .await
-    {
-        tracing::warn!(?err, %live_recording_id, "failed to abort multipart upload");
+        if let Err(err) = bulk_storage_service
+            .abort_multipart_upload(
+                &recording_path,
+                &StorageUploadID(live_recording.multipart_upload_id.clone()),
+            )
+            .await
+        {
+            tracing::warn!(?err, %live_recording_id, "failed to abort multipart upload");
+        }
+
+        live_audio_recording::delete(&state.db, live_recording_id).await?;
+
+        if recording.status == audio_recording::AudioRecordingStatus::AwaitingUpload {
+            let _ = audio_recording::delete(&state.db, recording.id, event_id).await?;
+        }
+
+        Ok((
+            StatusCode::OK,
+            Json(LiveAudioRecordingStateResponse {
+                live_audio_recording: live_recording.into(),
+            }),
+        ))
     }
+    .await;
 
-    live_audio_recording::delete(&state.db, live_recording_id).await?;
-
-    if recording.status == audio_recording::AudioRecordingStatus::AwaitingUpload {
-        let _ = audio_recording::delete(&state.db, recording.id, event_id).await?;
+    match result {
+        Ok(response) => Ok(response),
+        Err(err) => {
+            // Best-effort unlock so failed abort/delete attempts do not leave stale locks behind.
+            let _ =
+                live_audio_recording::unlock_live_recording(&state.db, live_recording_id, user.id)
+                    .await;
+            Err(err)
+        }
     }
-
-    Ok((
-        StatusCode::OK,
-        Json(LiveAudioRecordingStateResponse {
-            live_audio_recording: live_recording.into(),
-        }),
-    ))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -725,7 +753,8 @@ mod tests {
     use serde_json::json;
     use std::sync::Arc;
 
-    use crate::models::audio_recording::AudioFormat;
+    use crate::bulk_storage_service::error::BulkStorageError;
+    use crate::models::{audio_recording::AudioFormat, live_audio_recording};
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
     use crate::setup_server;
@@ -1132,6 +1161,170 @@ mod tests {
         assert_eq!(
             refreshed.status,
             audio_recording::AudioRecordingStatus::Complete
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_complete_live_recording_failure_unlocks_live_recording(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
+        storage_service
+            .expect_create_multipart_upload()
+            .times(1)
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok(crate::bulk_storage_service::StorageUploadID(
+                        "upload-id".to_string(),
+                    ))
+                })
+            });
+        storage_service
+            .expect_complete_multipart_upload()
+            .times(1)
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    Err(BulkStorageError::FailedToCompleteMultipartUpload(
+                        "simulated completion failure".to_string(),
+                    ))
+                })
+            });
+
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(
+            test_state()
+                .db(pool.clone())
+                .config(config)
+                .bulk_storage_service(Arc::new(storage_service))
+                .call()?,
+        );
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+        let (conversation, event) = create_random_event(&mut session, &app).await?;
+
+        let (create_status, create_response, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/live",
+                    conversation.id, event.id
+                ),
+                json!(CreateLiveAudioRecordingRequest {
+                    name: "Main Room".to_string(),
+                    file_extension: AudioFormat::Webm,
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        assert_eq!(create_status, StatusCode::CREATED);
+        let created: CreateLiveAudioRecordingResponse = serde_json::from_value(create_response)?;
+
+        let (complete_status, _, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/live/{}/complete",
+                    conversation.id, event.id, created.live_audio_recording.id
+                ),
+                "{}".to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(complete_status, StatusCode::INTERNAL_SERVER_ERROR);
+
+        let refreshed =
+            live_audio_recording::get_by_id(&pool, created.live_audio_recording.id).await?;
+        assert!(
+            !refreshed.locked,
+            "live recording should be unlocked after complete failure"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_delete_live_recording_abort_failure_does_not_leave_locked_row(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
+        storage_service
+            .expect_create_multipart_upload()
+            .times(1)
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok(crate::bulk_storage_service::StorageUploadID(
+                        "upload-id".to_string(),
+                    ))
+                })
+            });
+        storage_service
+            .expect_abort_multipart_upload()
+            .times(1)
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Err(BulkStorageError::FailedToAbortMultipartUpload(
+                        "simulated abort failure".to_string(),
+                    ))
+                })
+            });
+
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(
+            test_state()
+                .db(pool.clone())
+                .config(config)
+                .bulk_storage_service(Arc::new(storage_service))
+                .call()?,
+        );
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+        let (conversation, event) = create_random_event(&mut session, &app).await?;
+
+        let (create_status, create_response, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/live",
+                    conversation.id, event.id
+                ),
+                json!(CreateLiveAudioRecordingRequest {
+                    name: "Main Room".to_string(),
+                    file_extension: AudioFormat::Webm,
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        assert_eq!(create_status, StatusCode::CREATED);
+        let created: CreateLiveAudioRecordingResponse = serde_json::from_value(create_response)?;
+
+        let (delete_status, _, _) = session
+            .delete(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/live/{}",
+                    conversation.id, event.id, created.live_audio_recording.id
+                ),
+            )
+            .await?;
+
+        assert_eq!(delete_status, StatusCode::OK);
+
+        let lookup = live_audio_recording::get_by_id(&pool, created.live_audio_recording.id).await;
+        assert!(
+            lookup.is_err(),
+            "live recording should be removed even when multipart abort fails"
         );
 
         Ok(())

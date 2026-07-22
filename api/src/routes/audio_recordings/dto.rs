@@ -126,6 +126,7 @@ impl From<LiveAudioRecording> for LiveAudioRecordingDto {
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateLiveAudioRecordingRequest {
     pub name: String,
@@ -133,6 +134,7 @@ pub struct CreateLiveAudioRecordingRequest {
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateLiveAudioRecordingResponse {
     pub recording: AudioRecordingDto,
@@ -140,6 +142,7 @@ pub struct CreateLiveAudioRecordingResponse {
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct PresignLiveAudioRecordingPartResponse {
     pub upload_url: String,
@@ -147,12 +150,14 @@ pub struct PresignLiveAudioRecordingPartResponse {
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct AckLiveAudioRecordingPartResponse {
     pub live_audio_recording: LiveAudioRecordingDto,
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct LiveAudioRecordingStateResponse {
     pub live_audio_recording: LiveAudioRecordingDto,
