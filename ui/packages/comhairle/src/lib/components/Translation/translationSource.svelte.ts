@@ -73,6 +73,14 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 	let savedResetTimer: ReturnType<typeof setTimeout> | undefined;
 	const activeSaves = new Set<Promise<unknown>>();
 
+	// Flip to "saving" the instant an edit is queued (not just when the debounced request fires), so the
+	// indicator reflects "unsaved changes" during the debounce window and an unsaved-changes guard can
+	// see it. Mirrors what the learn Pages controller does.
+	function markSaving() {
+		clearTimeout(savedResetTimer);
+		saveState = 'saving';
+	}
+
 	function runSave(fn: () => Promise<void>): Promise<void> {
 		clearTimeout(savedResetTimer);
 		saveState = 'saving';
@@ -203,11 +211,13 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 		saveSource(content: string) {
 			onEdit?.(content);
 			overlay = { ...overlay, [getPrimaryLocale()]: content };
+			markSaving();
 			debouncedSaveSource(content);
 		},
 
 		saveTarget(locale: string, content: string) {
 			overlay = { ...overlay, [locale]: content };
+			markSaving();
 			debouncedSaveTarget(locale, content);
 		},
 

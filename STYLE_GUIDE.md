@@ -316,6 +316,24 @@ migrate them.
     If you genuinely can't express it as a `$derived` (rare), that's the signal to stop
     and rethink the data flow, not to reach for `$effect`.
 
+- **Reach for `onMount` when the setup runs once and doesn't track reactive state.** Both
+  are Svelte 5 (`onMount` / `onDestroy` are still first-class), so this is a readability
+  call, not a legacy one. `onMount` says "wire this up once, on mount, and tear it down on
+  unmount"; `$effect` says "this re-runs whenever its dependencies change". Use that to
+  signal intent:
+    - **One-time, non-reactive setup → `onMount`.** Attaching a `window`/`document` event
+      listener, kicking off a one-shot subscription, an imperative third-party init. Return
+      a cleanup function for the teardown. A reader doesn't have to hunt for what makes it
+      re-run, because nothing does.
+    - **Setup that must re-run when reactive state changes → `$effect`.** The effect body
+      reads runes state and needs to re-subscribe / re-measure / re-sync when it changes.
+      Here the re-run is the point.
+    - Rule of thumb: if the body reads no reactive state (or only reads it lazily inside a
+      callback that fires later, like an event handler), it isn't tracking anything, so
+      `onMount` states the intent more honestly than an `$effect` that never re-runs. See
+      `unsavedChangesGuard.svelte.ts` for the pattern (listener wired once; the dirty check
+      runs at event time via a getter).
+
 ### SvelteKit
 
 - Use `depends()` in `load` functions to declare explicit cache keys for invalidation.
