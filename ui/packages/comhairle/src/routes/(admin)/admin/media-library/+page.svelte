@@ -77,7 +77,7 @@
 		<h1 class="text-4xl font-bold">Media library</h1>
 		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
-				<MediaUpload />
+				<MediaUpload {data} />
 				<Button variant="outline" onclick={() => (bulkEdit = true)}>
 					<SquarePen class="h-4 w-4" />{m.edit()}
 				</Button>
