@@ -2,6 +2,7 @@ import { invalidateAll } from '$app/navigation';
 import { useDebounce } from 'runed';
 import type { Translation, Translation2 } from '@crownshy/api-client/api';
 import { getLanguageName } from '$lib/config/languages';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 import {
 	type TranslationSource,
 	type TranslationStatus,
@@ -77,26 +78,22 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 		saveState = 'saving';
 		inFlightCount++;
 		const promise = (async () => {
-			let ok = true;
-			try {
-				await fn();
-			} catch (e) {
-				ok = false;
-				console.error('Translation save failed:', e);
-				throw e;
-			} finally {
-				inFlightCount--;
-				// Only the last save to settle drives the terminal state, so overlapping saves don't
-				// flip the indicator to "saved" while another is still in flight.
-				if (inFlightCount === 0) {
-					saveState = ok ? 'saved' : 'error';
-					if (ok) {
-						savedResetTimer = setTimeout(() => {
-							if (saveState === 'saved') saveState = 'idle';
-						}, 2_000);
-					}
+			const result = await tryCatchAsync(fn);
+			const ok = result.err === null;
+			if (!ok) console.error('Translation save failed:', result.err);
+			inFlightCount--;
+			// Only the last save to settle drives the terminal state, so overlapping saves don't
+			// flip the indicator to "saved" while another is still in flight.
+			if (inFlightCount === 0) {
+				saveState = ok ? 'saved' : 'error';
+				if (ok) {
+					savedResetTimer = setTimeout(() => {
+						if (saveState === 'saved') saveState = 'idle';
+					}, 2_000);
 				}
 			}
+			// Re-throw so callers (e.g. aiTranslate) still see the failure.
+			if (!ok) throw result.err;
 		})();
 		activeSaves.add(promise);
 		promise.catch(() => {}).finally(() => activeSaves.delete(promise));
