@@ -272,6 +272,7 @@ mod tests {
             model_test_helpers::{
                 get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
             },
+            user_progress::{self, ProgressStatus, UpdateUserProgress},
             users,
         },
         routes::workflow_steps::dto::WorkflowStepDto,
@@ -430,6 +431,79 @@ mod tests {
         assert!(
             !summaries.iter().any(|s| s.id == summary_e.id),
             "user_b summary is included"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_filter_by_is_shared_with_organizer(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (user_a_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
+        let user_b = users::create_annon_user(&pool).await?;
+
+        // user_a: permission granted -> should be included when filtering true
+        let summary_shared = create(
+            &pool,
+            user_a_id,
+            workflow_step_id,
+            &CreateSummary {
+                summary: "Summary_shared".to_string(),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        // user_b: permission explicitly denied -> should be excluded when filtering true
+        let summary_not_shared = create(
+            &pool,
+            user_b.id,
+            workflow_step_id,
+            &CreateSummary {
+                summary: "Summary_not_shared".to_string(),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        // Create user_progress records, defaulting to permissions = true, and
+        // update to permission = false for user_b.
+        user_progress::create(&pool, &user_a_id, &workflow_step_id, ProgressStatus::Done).await?;
+        user_progress::create(&pool, &user_b.id, &workflow_step_id, ProgressStatus::Done).await?;
+        let not_shared_params = UpdateUserProgress {
+            permission_to_share_with_organizers: Some(false),
+            ..Default::default()
+        };
+        user_progress::update(&pool, &user_b.id, &workflow_step_id, &not_shared_params).await?;
+
+        let filter_options = ThinkingSpaceSummaryFilterOptions {
+            is_shared_with_organizer: Some(true),
+            ..Default::default()
+        };
+        let summaries = list(&pool, &workflow_step_id, filter_options).await?;
+
+        assert!(
+            summaries.iter().any(|s| s.id == summary_shared.id),
+            "summary with granted permission is missing"
+        );
+        assert!(
+            !summaries.iter().any(|s| s.id == summary_not_shared.id),
+            "summary with denied permission is included"
+        );
+
+        // Inverse filter should return the opposite set
+        let filter_options = ThinkingSpaceSummaryFilterOptions {
+            is_shared_with_organizer: Some(false),
+            ..Default::default()
+        };
+        let summaries = list(&pool, &workflow_step_id, filter_options).await?;
+
+        assert!(
+            summaries.iter().any(|s| s.id == summary_not_shared.id),
+            "summary with denied permission is missing from false filter"
+        );
+        assert!(
+            !summaries.iter().any(|s| s.id == summary_shared.id),
+            "summary with granted permission is included in false filter"
         );
 
         Ok(())
