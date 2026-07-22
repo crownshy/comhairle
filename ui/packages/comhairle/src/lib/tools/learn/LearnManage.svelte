@@ -83,19 +83,20 @@
 
 		if (response.err !== null) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
-			// Rethrow so Pages can flip saveState to 'error' and leave the page marked dirty.
+			// Bail before markSaved() so the page stays dirty and the user's edits survive for a retry;
+			// Pages catches this and flips saveState to 'error'.
 			throw response.err;
 		}
 
 		if (invalidate) await invalidateAll();
-		pages.restore();
+		pages.markSaved();
 	}
 
 	pages.saveHandler((options) =>
 		save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true })
 	);
 
-	pages.onRestore(() => {
+	pages.onMarkSaved(() => {
 		lastPropsConfig = JSON.stringify({
 			pages: sourceConfig?.pages
 		});
