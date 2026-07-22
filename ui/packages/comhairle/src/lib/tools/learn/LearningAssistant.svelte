@@ -5,7 +5,7 @@
 	import type { ChatReference, ReferenceChunk } from '$lib/api/chatClient.svelte';
 	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import LearnTutorSkeleton from './LearnTutorSkeleton.svelte';
+	import LearningAssistantSkeleton from './LearningAssistantSkeleton.svelte';
 
 	type QA = {
 		id: string;
@@ -203,7 +203,7 @@
 
 				<!-- Loading skeleton: shown on its own until the session is ready, then the input replaces it -->
 				{#if loadingHistory}
-					<LearnTutorSkeleton />
+					<LearningAssistantSkeleton />
 				{:else if !(chatError && pageQAs.length === 0)}
 					<!-- Inline prompt -->
 					<div class="mb-6">

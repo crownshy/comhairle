@@ -1,7 +1,7 @@
 import { ChatClient, type ChatReference } from './chatClient.svelte';
 
 /**
- * Unified chat message shape shared across all chat surfaces (ChatBot, LearnTutor, etc.).
+ * Unified chat message shape shared across all chat surfaces (ChatBot, LearningAssistant, etc.).
  */
 export type ChatMessage = {
 	id: string;
@@ -16,7 +16,7 @@ export type ChatMessage = {
 /**
  * Reactive chat session. One instance per conversation id, cached in a module-level map.
  * Owns a single ChatClient and the canonical message list so multiple UI components
- * (ChatBot, LearnTutor, etc.) stay in sync without duplicating state or API calls.
+ * (ChatBot, LearningAssistant, etc.) stay in sync without duplicating state or API calls.
  */
 export class ChatSession {
 	messages = $state<ChatMessage[]>([]);

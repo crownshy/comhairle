@@ -20,7 +20,7 @@
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
-	import LearnTutorSkeleton from '$lib/tools/learn/LearnTutorSkeleton.svelte';
+	import LearningAssistantSkeleton from '$lib/tools/learn/LearningAssistantSkeleton.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	const url = $derived(page.url);
@@ -298,7 +298,7 @@
 							<LearnArticleSkeleton />
 							{#if conversation?.chatBotId && conversation.enableQaChatBot}
 								<div class="mx-auto mt-6 w-full max-w-[65ch]">
-									<LearnTutorSkeleton />
+									<LearningAssistantSkeleton />
 								</div>
 							{/if}
 						{/if}
