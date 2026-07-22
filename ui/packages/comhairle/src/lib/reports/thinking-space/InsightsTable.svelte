@@ -24,6 +24,7 @@
 	<Table.Body>
 		{#each userInsights as insight (insight.userId)}
 			<Table.Row
+				class="hover:cursor-pointer"
 				onclick={() =>
 					(selectedUserInsights =
 						userInsights.find((i) => i.userId === insight.userId) ?? null)}
@@ -53,35 +54,48 @@
 <Dialog.Root bind:open={openDialog}>
 	<Dialog.Content class="flex h-[70vh] w-full max-w-6xl flex-col gap-8 sm:w-full sm:max-w-6xl">
 		<Dialog.Header>
-			<Dialog.Title class="text-2xl">Participant #{selectedUserInsights?.userId}</Dialog.Title
-			>
+			<Dialog.Title class="text-2xl">Participant</Dialog.Title>
+			<span>{selectedUserInsights?.userId}</span>
 			<Dialog.Description class="text-muted-foreground text-sm"
 				>Thinking space summary, follow-up questions and responses</Dialog.Description
 			>
 		</Dialog.Header>
 		<div class="">
 			<h3 class="mb-4 font-bold">Summary</h3>
-			<p>{selectedUserInsights?.summary.summary}</p>
+			<p class="bg-muted p-4">{selectedUserInsights?.summary.summary}</p>
 		</div>
 		<div class="overflow-y-auto">
-			<h3 class="mb-4 font-bold">Root questions (and responses)</h3>
 			<div class="flex flex-col gap-8">
-				{#each selectedUserInsights?.answers as answer (answer.root.id)}
+				{#each selectedUserInsights?.answers as answer, index (answer.root.id)}
 					<div class="my-4 flex flex-col gap-4">
-						<p class="text-primary">{answer.root.question}</p>
-						<p class="flex items-center gap-4">
-							<CornerDownRight /><span>{answer.root.answer}</span>
-						</p>
-						<div class="mt-8 flex flex-col gap-4">
-							<h4 class="flex items-center gap-4 font-bold">
-								<CornerDownRight /> Follow-up questions (and responses)
+						<div class="grid grid-cols-[auto_1fr] items-center gap-4">
+							<h3 class="text-muted-foreground">Question {index + 1}</h3>
+							<div class="bg-muted h-0.5"></div>
+						</div>
+						<div class="rounded-md border">
+							<p class="text-primary px-4 py-3">{answer.root.question}</p>
+							<p class="bg-muted flex items-center gap-4 px-4 py-3">
+								<CornerDownRight /><span>{answer.root.answer}</span>
+							</p>
+						</div>
+						<div class="mx-5 mt-8 flex flex-col gap-4 border-l-2 px-4">
+							<h4 class="flex items-center gap-4 text-xs font-semibold uppercase">
+								Follow-ups
 							</h4>
-							<div class="flex flex-col gap-4 pl-8">
-								{#each answer.followUps as followUp (followUp.id)}
-									<p class="text-primary">{followUp.question}</p>
-									<p class="flex items-center gap-4">
-										<CornerDownRight /><span>{followUp.answer}</span>
-									</p>
+							<div class="flex flex-col gap-2">
+								{#each answer.followUps as followUp, index (followUp.id)}
+									<div class="rounded-md border">
+										<div class="text-primary flex items-start gap-3 px-4 py-3">
+											<span
+												class="bg-muted inline-flex h-1.25 w-1.25 items-center justify-center rounded-full p-2.5 text-xs"
+												>{index + 1}</span
+											>{followUp.question}
+											<p class="text-primary"></p>
+										</div>
+										<p class="bg-muted flex items-center gap-4 px-4 py-3">
+											<CornerDownRight /><span>{followUp.answer}</span>
+										</p>
+									</div>
 								{/each}
 							</div>
 						</div>
