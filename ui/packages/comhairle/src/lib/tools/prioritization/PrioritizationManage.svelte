@@ -10,6 +10,7 @@
 	import { createStore } from './store.svelte';
 	import { resolveToolConfig } from './prioritizationApi';
 	import ProposalEditorDialog from './components/ProposalEditorDialog.svelte';
+	import ProposalListSkeleton from './components/ProposalListSkeleton.svelte';
 	import QuestionEditorDialog from './components/QuestionEditorDialog.svelte';
 	import type {
 		ConversationInput,
@@ -435,9 +436,7 @@
 		</div>
 
 		{#if store.state === 'loading'}
-			<div class="text-muted-foreground flex items-center gap-2 text-sm">
-				<LoaderCircle class="h-4 w-4 animate-spin" /> Loading proposals…
-			</div>
+			<ProposalListSkeleton />
 		{:else if store.state === 'error'}
 			<p class="text-destructive text-sm">Could not load proposals: {store.error}</p>
 		{:else if store.proposals.length === 0}
@@ -500,7 +499,9 @@
 		editorOpen = o;
 		if (!o) {
 			selectedProposal = null;
-			void store.refresh();
+			// Silent reconcile: the dialog already flushed + reloaded on close, so a full refresh
+			// would only flip the list to its loading state, tearing it down and jumping scroll to top.
+			void store.reload();
 		}
 	}}
 />
@@ -598,7 +599,9 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel disabled={deletingSectionQuestionInFlight}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel disabled={deletingSectionQuestionInFlight}
+				>Cancel</AlertDialog.Cancel
+			>
 			<AlertDialog.Action
 				disabled={deletingSectionQuestionInFlight}
 				onclick={runDeleteSectionQuestion}
