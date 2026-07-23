@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, State},
 };
 use hyper::StatusCode;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -23,15 +24,20 @@ use crate::{
 
 pub mod dto;
 
+#[instrument(err(Debug), skip(state))]
 async fn get_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
+    LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<FullReportDto>), ComhairleError> {
-    let report = models::report::get_for_conversation(&state.db, &conversation_id).await?;
+    let report =
+        models::report::get_localized_for_conversation(&state.db, conversation_id, &locale).await?;
     let report = FullReportDto::from_report(&state.db, report).await?;
+
     Ok((StatusCode::OK, Json(report)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn update_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
@@ -43,13 +49,15 @@ async fn update_report(
     Ok((StatusCode::OK, Json(updated_report)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn create_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<FullReportDto>), ComhairleError> {
+    models::report::create_for_conversation(&state.db, conversation_id, &locale).await?;
     let report =
-        models::report::create_for_conversation(&state.db, conversation_id, &locale).await?;
+        models::report::get_localized_for_conversation(&state.db, conversation_id, &locale).await?;
     let report = FullReportDto::from_report(&state.db, report).await?;
     Ok((StatusCode::CREATED, Json(report)))
 }

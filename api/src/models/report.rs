@@ -14,19 +14,20 @@ use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 use crate::models::translations::{TextContentId, TextFormat, new_translation};
-use crate::{
-    error::ComhairleError,
-    models::SqlxResultExt,
-    routes::{
-        feedback::dto::FeedbackDto, report_impacts::dto::ReportImpactDto, reports::dto::ReportDto,
-    },
-    tools::{
-        ReportConfig, ToolConfig, elicitation_bot::ElicitationBotReport, heyform::HeyFormReport,
-        learn::LearnReport, polis::PolisReport, prioritization::PrioritizationReport,
-        stories::StoriesReport, thinking_space::ThinkingSpaceReport,
-    },
-};
+use crate::routes::feedback::dto::FeedbackDto;
+use crate::routes::report_impacts::dto::ReportImpactDto;
+use crate::routes::reports::dto::LocalizedReportDto;
+use crate::tools::elicitation_bot::ElicitationBotReport;
+use crate::tools::heyform::HeyFormReport;
+use crate::tools::learn::LearnReport;
+use crate::tools::polis::PolisReport;
+use crate::tools::prioritization::PrioritizationReport;
+use crate::tools::stories::StoriesReport;
+use crate::tools::thinking_space::ThinkingSpaceReport;
+use crate::tools::{ReportConfig, ToolConfig};
 
 use super::{
     feedback::{self},
@@ -38,14 +39,17 @@ use super::{
 #[serde(rename_all = "camelCase")]
 pub struct FullReportDto {
     #[serde(flatten)]
-    pub report: ReportDto,
+    pub report: LocalizedReportDto,
     pub facilitator_feedback: Vec<FeedbackDto>,
     pub participant_feedback: Vec<FeedbackDto>,
     pub impacts: Vec<ReportImpactDto>,
 }
 
 impl FullReportDto {
-    pub async fn from_report(db: &PgPool, report: Report) -> Result<FullReportDto, ComhairleError> {
+    pub async fn from_report(
+        db: &PgPool,
+        report: LocalizedReport,
+    ) -> Result<FullReportDto, ComhairleError> {
         let feedback = feedback::list_for_conversation(db, &report.conversation_id)
             .await?
             .into_iter()
@@ -156,11 +160,11 @@ impl PartialReport {
 }
 
 #[instrument(err(Debug))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Report, ComhairleError> {
+pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<Report, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ReportIden::Table)
-        .and_where(Expr::col(ReportIden::Id).eq(id.to_owned()))
+        .and_where(Expr::col(ReportIden::Id).eq(id))
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, Report, _>(&sql, values)
@@ -278,15 +282,38 @@ pub async fn create_for_conversation(
 #[instrument(err(Debug))]
 pub async fn get_for_conversation(
     db: &PgPool,
-    conversation_id: &Uuid,
+    conversation_id: Uuid,
 ) -> Result<Report, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ReportIden::Table)
-        .and_where(Expr::col(ReportIden::ConversationId).eq(conversation_id.to_owned()))
+        .and_where(Expr::col(ReportIden::ConversationId).eq(conversation_id))
         .build_sqlx(PostgresQueryBuilder);
 
     let report = sqlx::query_as_with::<_, Report, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Report")?;
+
+    Ok(report)
+}
+
+#[instrument(err(Debug))]
+pub async fn get_localized_for_conversation(
+    db: &PgPool,
+    conversation_id: Uuid,
+    locale: &str,
+) -> Result<LocalizedReport, ComhairleError> {
+    let query = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (ReportIden::Table, col)))
+        .from(ReportIden::Table)
+        .and_where(Expr::col((ReportIden::Table, ReportIden::ConversationId)).eq(conversation_id))
+        .to_owned();
+
+    let (sql, values) =
+        LocalizedReport::query_to_localisation(query, locale).build_sqlx(PostgresQueryBuilder);
+
+    let report = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
         .resolve_db_err("Report")?;

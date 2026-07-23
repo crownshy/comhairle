@@ -1602,7 +1602,7 @@ export const FullReportDto = z
     isPublic: z.boolean(),
     participantFeedback: z.array(FeedbackDto),
     sectionConfigs: ReportSectionConfigs,
-    summary: z.string().uuid(),
+    summary: z.string(),
   })
   .passthrough();
 export type FullReportDto = z.infer<typeof FullReportDto>;
