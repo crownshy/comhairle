@@ -24,7 +24,7 @@ export interface ConversationSection {
 
 export const conversationSections: ConversationSection[] = [
 	{ name: 'Configure', path: 'configure', icon: TerminalSquare },
-	{ name: 'Workflow', path: 'design', icon: Pencil },
+	{ name: 'Process design', path: 'design', icon: Pencil },
 	{ name: 'Knowledge base', path: 'knowledge-base', icon: Database },
 	{ name: 'Events', path: 'events', icon: Database },
 	{ name: 'Recruit', path: 'invites', icon: UsersRound, requiresLive: true },
