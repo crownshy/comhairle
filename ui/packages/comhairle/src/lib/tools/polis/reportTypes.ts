@@ -66,6 +66,20 @@ export interface GroupVotePercent {
 }
 
 /**
+ * Vote breakdown for the report's stacked VoteBar, taken over a group's total
+ * MEMBERSHIP (not just voters) so the not-voted remainder is shown. Distinct
+ * from GroupVotePercent, which is of-voters and carries no notVoted. The four
+ * shares sum to ~100. Computed in report.ts (`computeMemberVoteBars`).
+ */
+export interface MemberVotePercent {
+	label: string;
+	agreed: number;
+	disagreed: number;
+	passed: number;
+	notVoted: number;
+}
+
+/**
  * Roll-up for one theme as shown in the Themes card on the Insights page.
  *
  * `controversy` is defined in CONTEXT.md and computed in `themeControversy()`

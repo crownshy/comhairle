@@ -1,5 +1,6 @@
 import type {
 	GroupVotePercent,
+	MemberVotePercent,
 	PolisReportData,
 	ReportComment,
 	ReportGroup,
@@ -50,6 +51,57 @@ export function computeGroupVotePercents(
 			passed: excludePasses ? 0 : percentOf(gv.passes)
 		};
 	});
+}
+
+/**
+ * Vote bars for the area-of-consensus design: OVERALL plus one per opinion
+ * group, with shares taken over MEMBERSHIP (not just voters) so the not-voted
+ * remainder shows. Iterates `groups`, so every group gets a bar (all-not-voted
+ * if it cast nothing on this statement) and N is variable, not a fixed pair.
+ */
+export function computeMemberVoteBars(
+	comment: ReportComment,
+	groups: ReportGroup[]
+): { overall: MemberVotePercent; groups: MemberVotePercent[] } {
+	const bar = (
+		label: string,
+		denominator: number,
+		agrees: number,
+		disagrees: number,
+		passes: number
+	): MemberVotePercent => {
+		const share = (n: number) => (denominator > 0 ? (n / denominator) * 100 : 0);
+		const notVoted = Math.max(0, denominator - (agrees + disagrees + passes));
+		return {
+			label,
+			agreed: share(agrees),
+			disagreed: share(disagrees),
+			passed: share(passes),
+			notVoted: share(notVoted)
+		};
+	};
+
+	const totalParticipants = groups.reduce((sum, g) => sum + g.total_members, 0);
+	const overall = bar(
+		'OVERALL',
+		totalParticipants,
+		comment.overall_votes.agrees,
+		comment.overall_votes.disagrees,
+		comment.overall_votes.passes
+	);
+
+	const groupBars = groups.map((g) => {
+		const gv = comment.group_votes.find((v) => v.group_id === g.group_id);
+		return bar(
+			`GROUP ${groupLabel(g.group_id)}`,
+			g.total_members,
+			gv?.agrees ?? 0,
+			gv?.disagrees ?? 0,
+			gv?.passes ?? 0
+		);
+	});
+
+	return { overall, groups: groupBars };
 }
 
 /** Top-line stats across the conversation. */
