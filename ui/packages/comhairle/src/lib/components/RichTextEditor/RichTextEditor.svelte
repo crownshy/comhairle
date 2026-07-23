@@ -56,6 +56,7 @@
 		bulletList: false,
 		orderedList: false,
 		blockquote: false,
+		table: false,
 		heading: 'p' as 'p' | '1' | '2' | '3',
 		textAlign: 'left' as 'left' | 'center' | 'right' | 'justify'
 	});
@@ -156,6 +157,7 @@
 			bulletList: editor.isActive('bulletList'),
 			orderedList: editor.isActive('orderedList'),
 			blockquote: editor.isActive('blockquote'),
+			table: editor.isActive('table'),
 			heading: editor.isActive('heading', { level: 1 })
 				? '1'
 				: editor.isActive('heading', { level: 2 })

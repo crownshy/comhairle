@@ -3,6 +3,7 @@
 	import type { ActiveStates } from './types';
 	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
 	import DocumentPickerPopover from './DocumentPickerPopover.svelte';
+	import TableControlsPopover from './TableControlsPopover.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	import {
@@ -17,6 +18,7 @@
 		Image as ImageIcon,
 		Video,
 		FileText,
+		Table as TableIcon,
 		ChevronDown,
 		MoreHorizontal,
 		Music,
@@ -302,6 +304,17 @@
 					Icon: FileText
 				})}
 			</DocumentPickerPopover>
+
+			{@render divider()}
+
+			<!-- Table -->
+			<TableControlsPopover {editor} inTable={activeStates.table}>
+				{@render button({
+					title: activeStates.table ? 'Table options' : 'Insert Table',
+					active: activeStates.table,
+					Icon: TableIcon
+				})}
+			</TableControlsPopover>
 		</div>
 	{/if}
 </div>
