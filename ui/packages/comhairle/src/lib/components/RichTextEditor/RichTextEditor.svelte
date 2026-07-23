@@ -3,6 +3,7 @@
 	import { useResizeObserver } from 'runed';
 	import { Editor } from '@tiptap/core';
 	import EditorToolbar from './EditorToolbar.svelte';
+	import TableBubbleMenu from './TableBubbleMenu.svelte';
 	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
@@ -221,6 +222,7 @@
 			compact={isCompact}
 			onToggleMenu={() => (menuExpanded = !menuExpanded)}
 		/>
+		<TableBubbleMenu {editor} />
 	{/if}
 
 	<div

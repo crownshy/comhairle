@@ -61,9 +61,12 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 		}),
 		// Tables. `resizable` only takes effect in the live editor (it needs a DOM
 		// NodeView); the SSR/email renderers just walk the schema, so this is a no-op
-		// there. One registration wires editor + both renderers via getBaseExtensions.
+		// there. `renderWrapper` makes the non-editor render paths wrap the table in the
+		// same `.tableWrapper` div the editor's NodeView uses, so a stored table looks
+		// identical (full-width, same overflow behaviour) in the editor and the renderer.
+		// One registration wires editor + both renderers via getBaseExtensions.
 		TableKit.configure({
-			table: { resizable: true }
+			table: { resizable: true, renderWrapper: true }
 		}),
 		StarterKit.configure({
 			heading: {

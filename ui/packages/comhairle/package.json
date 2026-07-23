@@ -96,6 +96,7 @@
 		"@thisux/sveltednd": "^0.0.20",
 		"@tiptap/core": "^3.11.0",
 		"@tiptap/extension-audio": "^3.27.1",
+		"@tiptap/extension-bubble-menu": "^3.28.0",
 		"@tiptap/extension-color": "^3.11.0",
 		"@tiptap/extension-image": "^3.11.0",
 		"@tiptap/extension-link": "^3.11.0",

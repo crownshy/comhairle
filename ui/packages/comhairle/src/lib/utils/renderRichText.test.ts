@@ -161,5 +161,8 @@ describe('renderRichTextToHtml', () => {
 		// header cells are <th>, body cells are <td> (not swapped)
 		expect(html).toMatch(/<th[^>]*><p>Success<\/p><\/th>/);
 		expect(html).toMatch(/<td[^>]*><p>Vision<\/p><\/td>/);
+		// renderWrapper wraps the table so the renderer matches the editor's
+		// full-width, horizontally-scrollable layout
+		expect(html).toContain('class="tableWrapper"');
 	});
 });

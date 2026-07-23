@@ -140,7 +140,11 @@
 	margin: 0;
 }
 
-/* Editor: TableKit wraps the table in `.tableWrapper`; scroll wide tables there. */
+/* Both the editor (via the NodeView) and the renderer (via the table node's
+   `renderWrapper` option) wrap the table in `.tableWrapper`, so wide/resized
+   tables scroll horizontally the same way in both, and a table fills the width
+   identically. Keeping the table itself `display: table` (not block) is what
+   makes `width: 100%` fill the container rather than shrink to content. */
 .tiptap .tableWrapper {
 	overflow-x: auto;
 	margin: 1rem 0;
@@ -148,16 +152,6 @@
 
 .tiptap .tableWrapper table {
 	margin: 0;
-}
-
-/* Renderer (read-only) has no `.tableWrapper` and can inherit fixed column widths
-   that exceed a phone viewport, so let the table itself scroll horizontally.
-   `:not(.ProseMirror)` targets the renderer, since the live editor root carries
-   the `ProseMirror` class. */
-.tiptap:not(.ProseMirror) table {
-	display: block;
-	overflow-x: auto;
-	max-width: 100%;
 }
 
 /* Column-resize + cell-selection mechanics (editor only). */
