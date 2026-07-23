@@ -117,6 +117,7 @@ export const LocalizedConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
@@ -655,7 +656,11 @@ export type CreateSectionRequest = z.infer<typeof CreateSectionRequest>;
 export const ResponseValue = z.union([z.number(), z.string()]);
 export type ResponseValue = z.infer<typeof ResponseValue>;
 export const Response = z
-  .object({ question_id: z.string().uuid(), value: ResponseValue })
+  .object({
+    question_id: z.string().uuid(),
+    section_id: z.union([z.string(), z.null()]).optional(),
+    value: ResponseValue,
+  })
   .passthrough();
 export type Response = z.infer<typeof Response>;
 export const QuestionResponses = z.array(Response);
@@ -802,6 +807,7 @@ export const ConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
@@ -854,6 +860,7 @@ export const ConversationWithTranslations = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
     primaryLocale: z.string(),
@@ -894,6 +901,7 @@ export const PartialConversation = z
     is_live: z.union([z.boolean(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     knowledge_base_id: z.union([z.string(), z.null()]),
+    metadata: z.unknown(),
     primary_locale: z.union([z.string(), z.null()]),
     privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
@@ -1092,6 +1100,7 @@ export const ToolConfig = z.union([
     .object({
       questions: z.array(Question),
       randomize_order: z.boolean(),
+      section_questions: z.array(Question).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -1298,6 +1307,7 @@ export const ToolSetup = z.union([
     .object({
       questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
+      section_questions: z.array(SetupQuestion).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -1910,6 +1920,47 @@ export const SubmitReportResponse = z
   .object({ success: z.boolean(), url: z.string() })
   .passthrough();
 export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
+export const UploadedPart = z
+  .object({
+    etag: z.string(),
+    partNumber: z.number().int(),
+    sizeBytes: z.number().int(),
+  })
+  .passthrough();
+export type UploadedPart = z.infer<typeof UploadedPart>;
+export const LiveAudioRecordingDto = z
+  .object({
+    audioRecordingId: z.string().uuid(),
+    id: z.string().uuid(),
+    locked: z.boolean(),
+    multipartUploadId: z.string(),
+    nextPartNumber: z.number().int(),
+    ownerId: z.union([z.string(), z.null()]).optional(),
+    uploadedParts: z.array(UploadedPart),
+  })
+  .passthrough();
+export type LiveAudioRecordingDto = z.infer<typeof LiveAudioRecordingDto>;
+export const CreateLiveAudioRecordingRequest = z
+  .object({ fileExtension: AudioFormat, name: z.string() })
+  .passthrough();
+export type CreateLiveAudioRecordingRequest = z.infer<
+  typeof CreateLiveAudioRecordingRequest
+>;
+export const CreateLiveAudioRecordingResponse = z
+  .object({
+    liveAudioRecording: LiveAudioRecordingDto,
+    recording: AudioRecordingDto,
+  })
+  .passthrough();
+export type CreateLiveAudioRecordingResponse = z.infer<
+  typeof CreateLiveAudioRecordingResponse
+>;
+export const LiveAudioRecordingStateResponse = z
+  .object({ liveAudioRecording: LiveAudioRecordingDto })
+  .passthrough();
+export type LiveAudioRecordingStateResponse = z.infer<
+  typeof LiveAudioRecordingStateResponse
+>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -2459,6 +2510,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DeleteRecordingResponse,
   ProcessRecordingResponse,
   SubmitReportResponse,
+  UploadedPart,
+  LiveAudioRecordingDto,
+  CreateLiveAudioRecordingRequest,
+  CreateLiveAudioRecordingResponse,
+  LiveAudioRecordingStateResponse,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -3236,6 +3292,49 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live",
+    alias: "ListLiveAudioRecordings",
+    requestFormat: "json",
+    response: z.array(LiveAudioRecordingDto),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live",
+    alias: "CreateLiveAudioRecording",
+    description: `Create a live audio recording for an event, initiating a multipart upload in bulk storage.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateLiveAudioRecordingRequest,
+      },
+    ],
+    response: CreateLiveAudioRecordingResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live/:live_recording_id",
+    alias: "GetLiveAudioRecording",
+    requestFormat: "json",
+    response: LiveAudioRecordingStateResponse,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live/:live_recording_id",
+    alias: "DeleteLiveAudioRecording",
+    requestFormat: "json",
+    response: LiveAudioRecordingStateResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live/:live_recording_id/complete",
+    alias: "CompleteLiveAudioRecording",
+    requestFormat: "json",
+    response: ProcessRecordingResponse,
+  },
+  {
+    method: "get",
     path: "/conversation/:conversation_id/events/:event_id/auth",
     alias: "GetEventJWT",
     description: `Get a auth JWT for an event`,
@@ -3498,6 +3597,21 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "LaunchConversation",
     description: `Makes the conversation live for participants`,
     requestFormat: "json",
+    response: ConversationDto,
+  },
+  {
+    method: "patch",
+    path: "/conversation/:conversation_id/metadata",
+    alias: "PatchConversationMetadata",
+    description: `Accepts a JSON object and merges it into the conversation&#x27;s &#x60;metadata&#x60; jsonb column at the top level. Keys in the body overwrite existing keys; keys not present are left untouched. Nested objects are replaced, not deep-merged.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
     response: ConversationDto,
   },
   {
