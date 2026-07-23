@@ -5,7 +5,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import FileUpload from '$lib/components/FileUpload.svelte';
+	import FileUpload, { type FileFormProps } from '$lib/components/FileUpload.svelte';
 	import MediaSchema from './schema';
 	import { enhance } from '$app/forms';
 	import { Input } from '$lib/components/EasyForm';
@@ -27,15 +27,16 @@
 		</Button>
 	</Dialog.Trigger>
 	<Dialog.Portal>
-		<Dialog.Content class="min-h-[50vh] min-w-138 px-8 py-8">
+		<Dialog.Content class=" min-h-[50vh] min-w-138  rounded-2xl p-8">
 			<form
 				bind:this={uploadForm}
 				method="POST"
 				action="/admin/media-library?/upload"
 				enctype="multipart/form-data"
+				class="flex flex-col"
 				use:enhance
 			>
-				<FileUpload {...MediaSchema.media} maxSizeMB={50} />
+				<FileUpload {...MediaSchema.media as FileFormProps} maxSizeMB={50} />
 				<Input {...MediaSchema.name} label="Filename" type="text" />
 				<Input {...MediaSchema.alt} label="Alt" type="text" />
 				<Button class="mt-7 self-end" type="submit">Upload</Button>

@@ -73,6 +73,10 @@ class Media {
 		}
 		return filesArray;
 	}
+
+	static getExtension(filename: string): string | undefined {
+		return filename.match(/\..*$/)?.[0].toLowerCase();
+	}
 }
 
 export default Media;

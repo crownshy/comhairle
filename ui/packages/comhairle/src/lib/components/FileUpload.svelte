@@ -1,26 +1,27 @@
 <script lang="ts">
 	import { FileText } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import type { ValidationAttributes } from './EasyForm/types.svelte';
+	import type { FileAttr } from './EasyForm/types.svelte';
+	import Media from '$lib/interfaces/Media';
 
-	interface BaseProps extends Omit<ValidationAttributes, 'name'> {
+	interface BaseProps extends FileAttr {
 		maxSizeMB?: number;
 		multiple?: boolean;
 	}
 
-	interface FormProps extends BaseProps {
+	export interface FileFormProps extends BaseProps {
 		onfile?: undefined;
-		name: ValidationAttributes['name'];
+		name: FileAttr['name'];
 		required?: boolean;
 	}
 
-	interface CallbackProps extends BaseProps {
+	export interface FileCallbackProps extends BaseProps {
 		onfile: (file: File) => Promise<void>;
 		name?: undefined;
 		boolean?: undefined;
 	}
 
-	type Props = FormProps | CallbackProps;
+	type Props = FileFormProps | FileCallbackProps;
 
 	const { name, onfile, required, accept, maxSizeMB, multiple = false }: Props = $props();
 
@@ -74,7 +75,7 @@
 
 		if (files && files.length > 0) {
 			for (const file of files) {
-				const extension = file.name.match(/\..*/)?.[0];
+				const extension = Media.getExtension(file.name);
 				if (!extension) {
 					status = 'error';
 					fileInput?.setCustomValidity("Couldn't recognise file type");

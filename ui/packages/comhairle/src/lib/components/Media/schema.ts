@@ -1,19 +1,25 @@
-import type { Schema } from '$lib/components/EasyForm';
+import type { FileAttr, InputAttr } from '../EasyForm/types.svelte';
 
-const MediaSchema: Schema = {
-	media: {
-		name: 'media',
-		required: true
-	},
-	name: {
-		name: 'name',
-		required: true
-	},
-	alt: {
-		name: 'alt',
-		required: true,
-		min: 5
-	}
+const media: FileAttr = {
+	name: 'media',
+	required: true,
+	accept: '.png,.jpg'
+};
+
+const name: InputAttr = {
+	name: 'name',
+	required: true
+};
+
+const alt: InputAttr = {
+	name: 'alt',
+	required: true
+};
+
+export const MediaSchema = {
+	media,
+	name,
+	alt
 } as const;
 
 export default MediaSchema;
