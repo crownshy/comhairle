@@ -263,7 +263,7 @@ mod tests {
             store_name: "comhairle-media-test".to_string(),
             storage_key: format!("images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
-            name: format!("{random_name}"),
+            name: random_name,
             content_type: MediaContentType::Jpeg,
         };
 

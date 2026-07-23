@@ -17,12 +17,12 @@ use crate::models::translations::TextContentId;
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportDto {
-    id: Uuid,
-    is_public: bool,
-    conversation_id: Uuid,
-    summary: TextContentId,
-    section_configs: ReportSectionConfigs,
-    created_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub is_public: bool,
+    pub conversation_id: Uuid,
+    pub summary: TextContentId,
+    pub section_configs: ReportSectionConfigs,
+    pub created_at: DateTime<Utc>,
 }
 
 impl From<Report> for ReportDto {
@@ -49,12 +49,12 @@ impl From<Report> for ReportDto {
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalizedReportDto {
-    id: Uuid,
-    is_public: bool,
-    conversation_id: Uuid,
-    summary: String,
-    section_configs: ReportSectionConfigs,
-    created_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub is_public: bool,
+    pub conversation_id: Uuid,
+    pub summary: String,
+    pub section_configs: ReportSectionConfigs,
+    pub created_at: DateTime<Utc>,
 }
 
 impl From<LocalizedReport> for LocalizedReportDto {

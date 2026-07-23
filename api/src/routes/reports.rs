@@ -6,35 +6,70 @@ use aide::axum::{
 };
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
 };
 use hyper::StatusCode;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        report::{FullReportDto, PartialReport},
-    },
-    routes::{reports::dto::ReportDto, translations::LocaleExtractor},
-};
+use crate::models;
+use crate::models::report::{FullReportDto, PartialReport, ReportWithTranslations};
+use crate::routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
+use crate::routes::reports::dto::{LocalizedReportDto, ReportDto};
+use crate::routes::translations::LocaleExtractor;
+use crate::{ComhairleState, error::ComhairleError};
 
 pub mod dto;
+
+#[derive(Deserialize, Debug, JsonSchema)]
+struct GetReportQuery {
+    #[serde(rename = "withTranslations", default)]
+    with_translations: bool,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(untagged)]
+pub enum ReportView {
+    WithTranslations(ReportWithTranslations),
+    Localized(LocalizedReportDto),
+}
 
 #[instrument(err(Debug), skip(state))]
 async fn get_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
+    Query(query): Query<GetReportQuery>,
+    OptionalUser(user): OptionalUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<FullReportDto>), ComhairleError> {
-    let report =
-        models::report::get_localized_for_conversation(&state.db, conversation_id, &locale).await?;
-    let report = FullReportDto::from_report(&state.db, report).await?;
+    let should_return_with_translations = if let Some(user) = user {
+        query.with_translations && is_user_admin(&state, &user).await
+    } else {
+        false
+    };
 
-    Ok((StatusCode::OK, Json(report)))
+    if should_return_with_translations {
+        let raw_report = models::report::get_for_conversation(&state.db, conversation_id).await?;
+        let report_with_translations =
+            ReportWithTranslations::from_original(&state.db, raw_report, &locale).await?;
+        let full_report = FullReportDto::from_report(
+            &state.db,
+            ReportView::WithTranslations(report_with_translations),
+        )
+        .await?;
+
+        Ok((StatusCode::OK, Json(full_report)))
+    } else {
+        let report =
+            models::report::get_localized_for_conversation(&state.db, conversation_id, &locale)
+                .await?;
+        let full_report =
+            FullReportDto::from_report(&state.db, ReportView::Localized(report.into())).await?;
+
+        Ok((StatusCode::OK, Json(full_report)))
+    }
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -53,13 +88,21 @@ async fn update_report(
 async fn create_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<FullReportDto>), ComhairleError> {
     models::report::create_for_conversation(&state.db, conversation_id, &locale).await?;
-    let report =
-        models::report::get_localized_for_conversation(&state.db, conversation_id, &locale).await?;
-    let report = FullReportDto::from_report(&state.db, report).await?;
-    Ok((StatusCode::CREATED, Json(report)))
+    let raw_report = models::report::get_for_conversation(&state.db, conversation_id).await?;
+
+    let report_with_translations =
+        ReportWithTranslations::from_original(&state.db, raw_report, &locale).await?;
+    let full_report = FullReportDto::from_report(
+        &state.db,
+        ReportView::WithTranslations(report_with_translations),
+    )
+    .await?;
+
+    Ok((StatusCode::CREATED, Json(full_report)))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {

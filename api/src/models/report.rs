@@ -14,12 +14,10 @@ use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::routes::feedback::dto::FeedbackDto;
 use crate::routes::report_impacts::dto::ReportImpactDto;
-use crate::routes::reports::dto::LocalizedReportDto;
 use crate::tools::elicitation_bot::ElicitationBotReport;
 use crate::tools::heyform::HeyFormReport;
 use crate::tools::learn::LearnReport;
@@ -28,6 +26,7 @@ use crate::tools::prioritization::PrioritizationReport;
 use crate::tools::stories::StoriesReport;
 use crate::tools::thinking_space::ThinkingSpaceReport;
 use crate::tools::{ReportConfig, ToolConfig};
+use crate::{error::ComhairleError, routes::reports::ReportView};
 
 use super::{
     feedback::{self},
@@ -39,7 +38,7 @@ use super::{
 #[serde(rename_all = "camelCase")]
 pub struct FullReportDto {
     #[serde(flatten)]
-    pub report: LocalizedReportDto,
+    pub report: ReportView,
     pub facilitator_feedback: Vec<FeedbackDto>,
     pub participant_feedback: Vec<FeedbackDto>,
     pub impacts: Vec<ReportImpactDto>,
@@ -48,20 +47,24 @@ pub struct FullReportDto {
 impl FullReportDto {
     pub async fn from_report(
         db: &PgPool,
-        report: LocalizedReport,
+        report: ReportView,
     ) -> Result<FullReportDto, ComhairleError> {
-        let feedback = feedback::list_for_conversation(db, &report.conversation_id)
+        let (report_id, conversation_id) = match &report {
+            ReportView::WithTranslations(report) => (report.id, report.conversation_id),
+            ReportView::Localized(report) => (report.id, report.conversation_id),
+        };
+        let feedback = feedback::list_for_conversation(db, &conversation_id)
             .await?
             .into_iter()
             .map(Into::into)
             .collect();
-        let impacts = report_impact::get_for_report(db, &report.id)
+        let impacts = report_impact::get_for_report(db, &report_id)
             .await?
             .into_iter()
             .map(Into::into)
             .collect();
         Ok(FullReportDto {
-            report: report.into(),
+            report,
             impacts,
             facilitator_feedback: feedback,
             participant_feedback: vec![],
@@ -361,6 +364,35 @@ mod tests {
 
         assert_eq!(
             summary_translation.content, "Summary to be filled out by facilitator",
+            "incorrect summary translation text"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_localized_report(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(value)?;
+        session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                2,
+            )
+            .await?;
+
+        create_for_conversation(&pool, conversation_id, "en").await?;
+
+        let report = get_localized_for_conversation(&pool, conversation_id, "en").await?;
+
+        assert_eq!(
+            report.summary, "Summary to be filled out by facilitator",
             "incorrect summary translation text"
         );
 

@@ -7,7 +7,8 @@ export const load: PageLoad = async ({ parent }) => {
 
 	try {
 		report = await api.GetReportForConversation({
-			params: { conversation_id: conversation.id }
+			params: { conversation_id: conversation.id },
+			queries: { withTranslations: true }
 		});
 	} catch (e) {
 		report = await api.GenerateReportForConversation(undefined, {
