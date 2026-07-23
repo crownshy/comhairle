@@ -1,5 +1,4 @@
 import { apiClient } from '@crownshy/api-client/client';
-import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 import type {
 	CreateLiveAudioRecordingResponse,
@@ -37,25 +36,5 @@ export class LiveRecorderApi {
 				}
 			}
 		);
-	}
-
-	async deleteLiveRecording(liveRecordingId: string): Promise<unknown> {
-		return await apiClient.DeleteLiveAudioRecording(undefined, {
-			params: {
-				conversation_id: this.options.getConversationId(),
-				event_id: this.options.getEventId(),
-				live_recording_id: liveRecordingId
-			}
-		});
-	}
-
-	async completeLiveRecording(liveRecordingId: string): Promise<ProcessRecordingResponse> {
-		return await apiClient.CompleteLiveAudioRecording(undefined, {
-			params: {
-				conversation_id: this.options.getConversationId(),
-				event_id: this.options.getEventId(),
-				live_recording_id: liveRecordingId
-			}
-		});
 	}
 }

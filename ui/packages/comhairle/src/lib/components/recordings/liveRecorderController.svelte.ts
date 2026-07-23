@@ -38,7 +38,6 @@ export class LiveRecorderController {
 	private engine: LiveRecorderEngine;
 
 	constructor(context: ControllerContext) {
-		this.updateContext(context);
 		this.api = new LiveRecorderApi({
 			getConversationId: () => this.conversationId,
 			getEventId: () => this.eventId
@@ -52,6 +51,7 @@ export class LiveRecorderController {
 			onMissingRecording: () => this.recoverFromMissingLiveRecording(),
 			onRecordingUpdated: (liveRecording) => this.updateLiveRecording(liveRecording)
 		});
+		this.updateContext(context);
 	}
 
 	updateContext(context: ControllerContext): void {
@@ -258,15 +258,18 @@ export class LiveRecorderController {
 		}
 		if (!window.confirm('Delete this recording? Uploaded parts will be permanently removed.'))
 			return;
-		await this.engine.releaseRecordingLockBestEffort();
-		this.engine.disconnect();
-		const result = await tryCatchAsync(() => this.api.deleteLiveRecording(liveRecordingId));
+		this.engine.connect();
+		const result = await tryCatchAsync(() => this.engine.deleteLiveRecording(liveRecordingId));
 		if (result.err !== null) {
 			notifications.send({
 				message: getErrorMessage(result.err, 'Failed to discard live recording'),
 				priority: 'ERROR'
 			});
 			return;
+		}
+		if (this.activeLiveRecordingId === liveRecordingId) {
+			this.engine.disconnect();
+			this.activeLiveRecordingId = null;
 		}
 		this.liveRecordings = this.liveRecordings.filter(
 			(recording) => recording.id !== liveRecordingId
@@ -327,7 +330,7 @@ export class LiveRecorderController {
 		}
 
 		const completeResult = await tryCatchAsync(() =>
-			this.api.completeLiveRecording(liveRecordingId)
+			this.engine.completeLiveRecording(liveRecordingId)
 		);
 		this.activeLiveRecordingId = null;
 		this.phase = 'idle';
@@ -369,11 +372,38 @@ export class LiveRecorderController {
 		}
 
 		this.finalisingLiveRecordingId = liveRecordingId;
+		this.engine.connect();
+		const disconnectResult = await tryCatchAsync(() =>
+			this.engine.disconnectSessionForRecording(liveRecordingId)
+		);
+		if (disconnectResult.err !== null) {
+			notifications.send({
+				message: getErrorMessage(
+					disconnectResult.err,
+					'Failed to disconnect existing recording sessions before finalising'
+				),
+				priority: 'WARNING'
+			});
+		}
+
+		const acquireResult = await tryCatchAsync(() =>
+			this.engine.acquireRecordingLock(liveRecordingId)
+		);
+		if (acquireResult.err !== null) {
+			this.finalisingLiveRecordingId = null;
+			notifications.send({
+				message: getErrorMessage(acquireResult.err, 'Failed to acquire recording lock'),
+				priority: 'ERROR'
+			});
+			return;
+		}
+
 		const completeResult = await tryCatchAsync(() =>
-			this.api.completeLiveRecording(liveRecordingId)
+			this.engine.completeLiveRecording(liveRecordingId)
 		);
 		this.finalisingLiveRecordingId = null;
 		if (completeResult.err !== null) {
+			await this.engine.releaseRecordingLockBestEffort();
 			notifications.send({
 				message: getErrorMessage(completeResult.err, 'Failed to finalise recording'),
 				priority: 'ERROR'
@@ -394,7 +424,7 @@ export class LiveRecorderController {
 	destroy(): void {
 		this.engine.destroy();
 		if (this.activeLiveRecordingId) {
-			void tryCatchAsync(() => this.api.deleteLiveRecording(this.activeLiveRecordingId!));
+			void tryCatchAsync(() => this.engine.deleteLiveRecording(this.activeLiveRecordingId!));
 		}
 	}
 
@@ -419,7 +449,7 @@ export class LiveRecorderController {
 		notifications.send({ message: getErrorMessage(err, fallback), priority: 'ERROR' });
 		await this.engine.releaseRecordingLockBestEffort();
 		const cleanupResult = await tryCatchAsync(() =>
-			this.api.deleteLiveRecording(liveRecordingId)
+			this.engine.deleteLiveRecording(liveRecordingId)
 		);
 		if (cleanupResult.err === null) void invalidateAll();
 		this.engine.disconnect();

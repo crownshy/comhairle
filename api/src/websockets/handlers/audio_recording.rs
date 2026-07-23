@@ -6,20 +6,22 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::debug;
 use uuid::Uuid;
 
 use crate::ComhairleState;
-use crate::bulk_storage_service::{MultipartUploadPartNumber, StorageUploadID};
+use crate::bulk_storage_service::{MultipartUploadPartNumber, StorageEntityTag, StorageUploadID};
 use crate::error::ComhairleError;
+use crate::models::job::{self, CreateJob};
 use crate::models::{audio_recording, event_attendance, live_audio_recording, users};
 use crate::routes::audio_recordings::dto::{
-    AckLiveAudioRecordingPartResponse, LiveAudioRecordingDto, PresignLiveAudioRecordingPartResponse,
+    AckLiveAudioRecordingPartResponse, LiveAudioRecordingDto, LiveAudioRecordingStateResponse,
+    PresignLiveAudioRecordingPartResponse, ProcessRecordingResponse,
 };
 use crate::routes::auth::is_user_admin;
 use crate::websockets::error::WebsocketError;
 use crate::websockets::messages::WebSocketMessage;
 use crate::websockets::{WebSocketConnection, WebSocketMessageHandler};
+use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +61,23 @@ struct WsDisconnectSessionsRequest {
     live_recording_id: Uuid,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WsCompleteRequest {
+    request_id: String,
+    conversation_id: Uuid,
+    event_id: Uuid,
+    live_recording_id: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WsDeleteRequest {
+    request_id: String,
+    event_id: Uuid,
+    live_recording_id: Uuid,
+}
+
 #[derive(Debug, Serialize)]
 #[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
@@ -87,12 +106,117 @@ struct LiveConnectionInfo {
 /// This currently provides connect and disconnect debug hooks only.
 pub struct AudioRecordingMessageHandler {
     live_recording_id_map: Arc<Mutex<HashMap<ConnectionId, LiveConnectionInfo>>>,
+    live_recording_lock_map: Arc<Mutex<HashMap<Uuid, ConnectionId>>>,
 }
 
 impl AudioRecordingMessageHandler {
     pub fn new() -> Self {
         Self {
             live_recording_id_map: Arc::new(Mutex::new(HashMap::new())),
+            live_recording_lock_map: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    fn acquire_connection_lock(
+        &self,
+        connection_id: &ConnectionId,
+        connection_info: LiveConnectionInfo,
+    ) -> Result<(), ComhairleError> {
+        let mut live_recording_id_map = self.live_recording_id_map.lock().or_else(|err| {
+            Err(ComhairleError::CorruptedData(format!(
+                "live_recording_id_map is poisoned: {}",
+                err
+            )))
+        })?;
+
+        if live_recording_id_map.get(connection_id).is_some() {
+            return Err(ComhairleError::Conflict(
+                "Connection already has an active recording session".to_string(),
+            ));
+        }
+
+        let mut live_recording_lock_map = self.live_recording_lock_map.lock().or_else(|err| {
+            Err(ComhairleError::CorruptedData(format!(
+                "live_recording_lock_map is poisoned: {}",
+                err
+            )))
+        })?;
+
+        if let Some(owner_connection_id) =
+            live_recording_lock_map.get(&connection_info.live_recording_id)
+            && owner_connection_id != connection_id
+        {
+            return Err(ComhairleError::LiveAudioRecordingLocked);
+        }
+
+        live_recording_lock_map.insert(connection_info.live_recording_id, connection_id.clone());
+        live_recording_id_map.insert(connection_id.clone(), connection_info);
+        Ok(())
+    }
+
+    fn release_connection_lock(
+        &self,
+        connection_id: &ConnectionId,
+    ) -> Result<Option<LiveConnectionInfo>, ComhairleError> {
+        let removed = {
+            let mut live_recording_id_map = self.live_recording_id_map.lock().or_else(|err| {
+                Err(ComhairleError::CorruptedData(format!(
+                    "live_recording_id_map is poisoned: {}",
+                    err
+                )))
+            })?;
+            live_recording_id_map.remove(connection_id)
+        };
+
+        if let Some(info) = removed {
+            let mut live_recording_lock_map =
+                self.live_recording_lock_map.lock().or_else(|err| {
+                    Err(ComhairleError::CorruptedData(format!(
+                        "live_recording_lock_map is poisoned: {}",
+                        err
+                    )))
+                })?;
+            if live_recording_lock_map
+                .get(&info.live_recording_id)
+                .is_some_and(|owner| owner == connection_id)
+            {
+                live_recording_lock_map.remove(&info.live_recording_id);
+            }
+            return Ok(Some(info));
+        }
+
+        Ok(None)
+    }
+
+    fn get_live_connection_info(
+        &self,
+        connection_id: &ConnectionId,
+    ) -> Result<LiveConnectionInfo, ComhairleError> {
+        self.live_recording_id_map
+            .lock()
+            .or_else(|err| {
+                Err(ComhairleError::CorruptedData(format!(
+                    "live_recording_id_map is poisoned: {}",
+                    err
+                )))
+            })?
+            .get(connection_id)
+            .copied()
+            .ok_or_else(|| {
+                ComhairleError::ResourceNotFound(
+                    "No live recording associated with this connection".to_string(),
+                )
+            })
+    }
+
+    async fn is_admin_user(
+        state: &Arc<ComhairleState>,
+        user_id: Uuid,
+    ) -> Result<bool, ComhairleError> {
+        match users::get_user_by_id(&user_id, &state.db).await {
+            Ok(user) => Ok(is_user_admin(state, &user).await),
+            Err(ComhairleError::ResourceNotFound(_)) => Ok(false),
+            Err(err) => Err(err),
         }
     }
 
@@ -161,41 +285,15 @@ impl AudioRecordingMessageHandler {
             Self::ensure_audio_recording_access(state, request.event_id, connection.user.id)
                 .await?;
 
-            {
-                let live_recording_id_map = self.live_recording_id_map.lock().or_else(|err| {
-                    Err(ComhairleError::CorruptedData(format!(
-                        "live_recording_id_map is poisoned: {}",
-                        err
-                    )))
-                })?;
-                if live_recording_id_map.get(&connection.id).is_some() {
-                    return Err(ComhairleError::Conflict(
-                        "Connection already has an active recording session".to_string(),
-                    ));
-                }
-            }
+            let _ = live_audio_recording::get(&state.db, request.live_recording_id).await?;
 
-            // Acquire the lock for this recording session.
-            let _ = live_audio_recording::lock_live_recording(
-                &state.db,
-                request.live_recording_id,
-                connection.user.id,
-            )
-            .await?;
-
-            let mut live_recording_id_map = self.live_recording_id_map.lock().or_else(|err| {
-                Err(ComhairleError::CorruptedData(format!(
-                    "live_recording_id_map is poisoned: {}",
-                    err
-                )))
-            })?;
-            live_recording_id_map.insert(
-                connection.id.clone(),
+            self.acquire_connection_lock(
+                &connection.id,
                 LiveConnectionInfo {
                     event_id: request.event_id,
                     live_recording_id: request.live_recording_id,
                 },
-            );
+            )?;
             Ok(())
         }
         .await;
@@ -246,25 +344,9 @@ impl AudioRecordingMessageHandler {
             }
 
             let bulk_storage_service = state.required_bulk_storage_service()?;
-
-            let live_recording_id = match self
-                .live_recording_id_map
-                .lock()
-                .or_else(|err| {
-                    Err(ComhairleError::CorruptedData(format!(
-                        "live_recording_id_map is poisoned: {}",
-                        err
-                    )))
-                })?
-                .get(&connection.id)
-            {
-                Some(info) => info.live_recording_id,
-                None => {
-                    return Err(ComhairleError::ResourceNotFound(
-                        "No live recording associated with this connection".to_string(),
-                    ));
-                }
-            };
+            let live_recording_id = self
+                .get_live_connection_info(&connection.id)?
+                .live_recording_id;
 
             let live_recording = live_audio_recording::get(&state.db, live_recording_id).await?;
 
@@ -327,32 +409,8 @@ impl AudioRecordingMessageHandler {
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
     ) -> Result<(), WebsocketError> {
-        let result = async {
-            if self
-                .live_recording_id_map
-                .lock()
-                .unwrap()
-                .get(&connection.id)
-                .is_none()
-            {
-                return Err(ComhairleError::ResourceNotFound(
-                    "No live recording associated with this connection".to_string(),
-                ));
-            }
-
-            let live_connection_info = match self
-                .live_recording_id_map
-                .lock()
-                .unwrap()
-                .get(&connection.id)
-            {
-                Some(info) => *info,
-                None => {
-                    return Err(ComhairleError::ResourceNotFound(
-                        "No live recording associated with this connection".to_string(),
-                    ));
-                }
-            };
+        let result: Result<AckLiveAudioRecordingPartResponse, ComhairleError> = async {
+            let live_connection_info = self.get_live_connection_info(&connection.id)?;
 
             let updated = live_audio_recording::append_uploaded_part(
                 &state.db,
@@ -404,23 +462,8 @@ impl AudioRecordingMessageHandler {
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
     ) -> Result<(), WebsocketError> {
-        let result = async {
-            let live_connection_info = {
-                let live_recording_id_map = self.live_recording_id_map.lock().or_else(|err| {
-                    Err(ComhairleError::CorruptedData(format!(
-                        "live_recording_id_map is poisoned: {}",
-                        err
-                    )))
-                })?;
-                match live_recording_id_map.get(&connection.id) {
-                    Some(info) => *info,
-                    None => {
-                        return Err(ComhairleError::ResourceNotFound(
-                            "No live recording associated with this connection".to_string(),
-                        ));
-                    }
-                }
-            };
+        let result: Result<(), ComhairleError> = async {
+            let live_connection_info = self.get_live_connection_info(&connection.id)?;
 
             Self::ensure_audio_recording_access(
                 state,
@@ -429,20 +472,7 @@ impl AudioRecordingMessageHandler {
             )
             .await?;
 
-            live_audio_recording::unlock_live_recording(
-                &state.db,
-                live_connection_info.live_recording_id,
-                connection.user.id,
-            )
-            .await?;
-
-            let mut live_recording_id_map = self.live_recording_id_map.lock().or_else(|err| {
-                Err(ComhairleError::CorruptedData(format!(
-                    "live_recording_id_map is poisoned: {}",
-                    err
-                )))
-            })?;
-            live_recording_id_map.remove(&connection.id);
+            let _ = self.release_connection_lock(&connection.id)?;
 
             Ok(())
         }
@@ -522,24 +552,9 @@ impl AudioRecordingMessageHandler {
                     .await?;
 
                 // Remove the session from the live_recording_id_map.
-                let mut live_recording_id_map =
-                    self.live_recording_id_map.lock().or_else(|err| {
-                        Err(ComhairleError::CorruptedData(format!(
-                            "live_recording_id_map is poisoned: {}",
-                            err
-                        )))
-                    })?;
-                live_recording_id_map.remove(&conn_id);
+                let _ = self.release_connection_lock(&conn_id)?;
                 disconnected_sessions = 1;
             }
-
-            // Clear any stale owner-scoped DB lock even when no active websocket session exists.
-            let _ = live_audio_recording::unlock_live_recording(
-                &state.db,
-                request.live_recording_id,
-                connection.user.id,
-            )
-            .await;
 
             Ok(WsDisconnectSessionResponse {
                 disconnected_sessions,
@@ -565,6 +580,239 @@ impl AudioRecordingMessageHandler {
                 Self::send_error_result(
                     connection,
                     "audio_recording:disconnect_sessions_result",
+                    Some(request.request_id),
+                    err.to_string(),
+                )
+                .await
+            }
+        }
+    }
+
+    async fn handle_complete(
+        &self,
+        request: WsCompleteRequest,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), WebsocketError> {
+        let result: Result<ProcessRecordingResponse, ComhairleError> = async {
+            let live_connection_info = self.get_live_connection_info(&connection.id)?;
+            if live_connection_info.event_id != request.event_id
+                || live_connection_info.live_recording_id != request.live_recording_id
+            {
+                return Err(ComhairleError::UserNotAuthorized);
+            }
+
+            Self::ensure_audio_recording_access(state, request.event_id, connection.user.id)
+                .await?;
+
+            let bulk_storage_service = state.required_bulk_storage_service()?;
+            let worker_service = state.required_worker_service()?;
+
+            let live_recording =
+                live_audio_recording::get(&state.db, request.live_recording_id).await?;
+            let recording =
+                audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
+            let extension = recording.file_extension.extension();
+            let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+
+            let mut sorted_uploaded_parts = live_recording.uploaded_parts.clone();
+            sorted_uploaded_parts.sort_by_key(|part| part.part_number);
+            let parts: Vec<(MultipartUploadPartNumber, StorageEntityTag)> = sorted_uploaded_parts
+                .iter()
+                .map(|p| {
+                    (
+                        MultipartUploadPartNumber(p.part_number),
+                        StorageEntityTag(p.etag.clone()),
+                    )
+                })
+                .collect();
+
+            bulk_storage_service
+                .complete_multipart_upload(
+                    &recording_path,
+                    &StorageUploadID(live_recording.multipart_upload_id),
+                    &parts,
+                )
+                .await?;
+
+            live_audio_recording::delete(&state.db, request.live_recording_id).await?;
+
+            let job = job::create(
+                &state.db,
+                CreateJob {
+                    progress: Some(0.0),
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+            worker_service
+                .push_transcription_job(TranscribeRecording {
+                    event_id: request.event_id,
+                    conversation_id: request.conversation_id,
+                    recording_id: recording.id,
+                    job_id: job.id,
+                })
+                .await?;
+
+            audio_recording::update_status(
+                &state.db,
+                recording.id,
+                audio_recording::AudioRecordingStatus::Transcribing,
+            )
+            .await?;
+
+            let _ = self.release_connection_lock(&connection.id)?;
+
+            Ok(ProcessRecordingResponse {
+                message: "Live audio recording processing moved to a background job".to_string(),
+                job_id: job.id,
+            })
+        }
+        .await;
+
+        match result {
+            Ok(response) => {
+                Self::send_custom_result(
+                    connection,
+                    "audio_recording:complete_result",
+                    WsResultPayload {
+                        request_id: request.request_id,
+                        success: true,
+                        data: Some(response),
+                        error: None,
+                    },
+                )
+                .await
+            }
+            Err(err) => {
+                Self::send_error_result(
+                    connection,
+                    "audio_recording:complete_result",
+                    Some(request.request_id),
+                    err.to_string(),
+                )
+                .await
+            }
+        }
+    }
+
+    async fn handle_delete(
+        &self,
+        request: WsDeleteRequest,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), WebsocketError> {
+        let result: Result<LiveAudioRecordingStateResponse, ComhairleError> = async {
+            Self::ensure_audio_recording_access(state, request.event_id, connection.user.id)
+                .await?;
+            let is_admin = Self::is_admin_user(state, connection.user.id).await?;
+
+            let current_owner_connection = {
+                let live_recording_lock_map = self.live_recording_lock_map.lock().or_else(|err| {
+                    Err(ComhairleError::CorruptedData(format!(
+                        "live_recording_lock_map is poisoned: {}",
+                        err
+                    )))
+                })?;
+                live_recording_lock_map
+                    .get(&request.live_recording_id)
+                    .cloned()
+            };
+
+            if let Some(owner_connection_id) = current_owner_connection
+                && owner_connection_id != connection.id
+            {
+                if !is_admin {
+                    return Err(ComhairleError::LiveAudioRecordingLocked);
+                }
+
+                let disconnect_message = WebSocketMessage::Custom {
+                    event: "audio_recording:disconnect".to_string(),
+                    data: json!({
+                        "eventId": request.event_id,
+                        "liveRecordingId": request.live_recording_id,
+                        "reason": "admin_deleted"
+                    }),
+                };
+                let _ = state
+                    .websockets
+                    .send_to_connections(&[owner_connection_id.clone()], &disconnect_message)
+                    .await;
+                let _ = self.release_connection_lock(&owner_connection_id)?;
+            }
+
+            let bulk_storage_service = state.required_bulk_storage_service()?;
+            let live_recording = live_audio_recording::get(&state.db, request.live_recording_id).await?;
+            let recording = audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
+            let extension = recording.file_extension.extension();
+            let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+
+            if let Err(err) = bulk_storage_service
+                .abort_multipart_upload(
+                    &recording_path,
+                    &StorageUploadID(live_recording.multipart_upload_id.clone()),
+                )
+                .await
+            {
+                tracing::warn!(?err, live_recording_id = %request.live_recording_id, "failed to abort multipart upload");
+            }
+
+            live_audio_recording::delete(&state.db, request.live_recording_id).await?;
+
+            if recording.status == audio_recording::AudioRecordingStatus::AwaitingUpload {
+                let _ = audio_recording::delete(&state.db, recording.id, request.event_id).await?;
+            }
+
+            {
+                let owner_connection_ids = {
+                    let live_recording_id_map = self.live_recording_id_map.lock().or_else(|err| {
+                        Err(ComhairleError::CorruptedData(format!(
+                            "live_recording_id_map is poisoned: {}",
+                            err
+                        )))
+                    })?;
+                    live_recording_id_map
+                        .iter()
+                        .filter_map(|(conn_id, info)| {
+                            if info.live_recording_id == request.live_recording_id {
+                                Some(conn_id.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                };
+
+                for owner_connection_id in owner_connection_ids {
+                    let _ = self.release_connection_lock(&owner_connection_id)?;
+                }
+            }
+
+            Ok(LiveAudioRecordingStateResponse {
+                live_audio_recording: live_recording.into(),
+            })
+        }
+        .await;
+
+        match result {
+            Ok(response) => {
+                Self::send_custom_result(
+                    connection,
+                    "audio_recording:delete_result",
+                    WsResultPayload {
+                        request_id: request.request_id,
+                        success: true,
+                        data: Some(response),
+                        error: None,
+                    },
+                )
+                .await
+            }
+            Err(err) => {
+                Self::send_error_result(
+                    connection,
+                    "audio_recording:delete_result",
                     Some(request.request_id),
                     err.to_string(),
                 )
@@ -704,6 +952,48 @@ impl WebSocketMessageHandler for AudioRecordingMessageHandler {
                 self.handle_disconnect_session(request, connection, state)
                     .await?;
             }
+            "audio_recording:complete" => {
+                let request = match serde_json::from_value::<WsCompleteRequest>(data.clone()) {
+                    Ok(request) => request,
+                    Err(err) => {
+                        let request_id = data
+                            .get("requestId")
+                            .and_then(|value| value.as_str())
+                            .map(ToString::to_string);
+                        Self::send_error_result(
+                            connection,
+                            "audio_recording:complete_result",
+                            request_id,
+                            format!("Invalid complete request payload: {err}"),
+                        )
+                        .await?;
+                        return Ok(());
+                    }
+                };
+
+                self.handle_complete(request, connection, state).await?;
+            }
+            "audio_recording:delete" => {
+                let request = match serde_json::from_value::<WsDeleteRequest>(data.clone()) {
+                    Ok(request) => request,
+                    Err(err) => {
+                        let request_id = data
+                            .get("requestId")
+                            .and_then(|value| value.as_str())
+                            .map(ToString::to_string);
+                        Self::send_error_result(
+                            connection,
+                            "audio_recording:delete_result",
+                            request_id,
+                            format!("Invalid delete request payload: {err}"),
+                        )
+                        .await?;
+                        return Ok(());
+                    }
+                };
+
+                self.handle_delete(request, connection, state).await?;
+            }
             _ => {}
         }
 
@@ -728,31 +1018,9 @@ impl WebSocketMessageHandler for AudioRecordingMessageHandler {
         connection: &WebSocketConnection,
         _state: &Arc<ComhairleState>,
     ) -> Result<(), WebsocketError> {
-        let live_connection_info = {
-            let mut live_recording_id_map = self
-                .live_recording_id_map
-                .lock()
-                .or_else(|err| {
-                    Err(ComhairleError::CorruptedData(format!(
-                        "live_recording_id_map is poisoned: {}",
-                        err
-                    )))
-                })
-                .map_err(|e| WebsocketError::AudioRecordingError(e.to_string()))?;
-            live_recording_id_map.remove(&connection.id)
-        };
-
-        if let Some(live_connection_info) = live_connection_info {
-            // We can safely ignore the result of unlock_for_user here, since
-            // we expect the user to have already released the lock before
-            // disconnecting in most cases.
-            let _ = live_audio_recording::unlock_live_recording(
-                &_state.db,
-                live_connection_info.live_recording_id,
-                connection.user.id,
-            )
-            .await;
-        }
+        let _ = self
+            .release_connection_lock(&connection.id)
+            .map_err(|e| WebsocketError::AudioRecordingError(e.to_string()))?;
 
         tracing::info!(
             connection_id = ?connection.id,
@@ -906,12 +1174,6 @@ mod tests {
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let context = build_test_context(pool.clone()).await?;
-        live_audio_recording::lock_live_recording(
-            &pool,
-            context.live_recording_id,
-            context.user.id,
-        )
-        .await?;
 
         let handler = AudioRecordingMessageHandler::new();
         let (connection, mut receiver) =
@@ -945,9 +1207,6 @@ mod tests {
             0
         );
 
-        let live_recording = live_audio_recording::get(&pool, context.live_recording_id).await?;
-        assert!(!live_recording.locked);
-
         Ok(())
     }
 
@@ -956,12 +1215,6 @@ mod tests {
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let context = build_test_context(pool.clone()).await?;
-        live_audio_recording::lock_live_recording(
-            &pool,
-            context.live_recording_id,
-            context.user.id,
-        )
-        .await?;
 
         let handler = AudioRecordingMessageHandler::new();
         let (old_connection, mut old_receiver) =
@@ -978,6 +1231,11 @@ mod tests {
                 live_recording_id: context.live_recording_id,
             },
         );
+        handler
+            .live_recording_lock_map
+            .lock()
+            .unwrap()
+            .insert(context.live_recording_id, old_connection.id.clone());
 
         handler
             .handle_disconnect_session(
@@ -1027,9 +1285,12 @@ mod tests {
                 .is_none()
         );
         assert!(
-            !live_audio_recording::get(&pool, context.live_recording_id)
-                .await?
-                .locked
+            handler
+                .live_recording_lock_map
+                .lock()
+                .unwrap()
+                .get(&context.live_recording_id)
+                .is_none()
         );
 
         handler
@@ -1063,9 +1324,12 @@ mod tests {
             context.live_recording_id
         );
         assert!(
-            live_audio_recording::get(&pool, context.live_recording_id)
-                .await?
-                .locked
+            handler
+                .live_recording_lock_map
+                .lock()
+                .unwrap()
+                .get(&context.live_recording_id)
+                .is_some_and(|owner| owner == &new_connection.id)
         );
 
         Ok(())

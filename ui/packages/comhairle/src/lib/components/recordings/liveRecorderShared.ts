@@ -74,6 +74,21 @@ export type LiveRecordingDisconnectSessionsResponse = {
 	disconnectedSessions: number;
 };
 
+export type LiveRecordingCompleteRequest = {
+	conversationId: string;
+	eventId: string;
+	liveRecordingId: string;
+};
+
+export type LiveRecordingDeleteRequest = {
+	eventId: string;
+	liveRecordingId: string;
+};
+
+export type LiveAudioRecordingStateResponse = {
+	liveAudioRecording: LiveAudioRecordingDto;
+};
+
 export const CHUNK_INTERVAL_MS = 10_000;
 export const MIN_RECORDING_BYTES = 5 * 1024 * 1024;
 export const TARGET_AUDIO_BITS_PER_SECOND = 768_000;

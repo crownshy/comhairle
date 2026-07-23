@@ -3320,20 +3320,6 @@ curl -X POST \
     response: LiveAudioRecordingStateResponse,
   },
   {
-    method: "delete",
-    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live/:live_recording_id",
-    alias: "DeleteLiveAudioRecording",
-    requestFormat: "json",
-    response: LiveAudioRecordingStateResponse,
-  },
-  {
-    method: "post",
-    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live/:live_recording_id/complete",
-    alias: "CompleteLiveAudioRecording",
-    requestFormat: "json",
-    response: ProcessRecordingResponse,
-  },
-  {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/auth",
     alias: "GetEventJWT",

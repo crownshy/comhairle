@@ -13,10 +13,14 @@ import {
 	isLiveRecordingMissingError,
 	type AckLiveAudioRecordingPartRequest,
 	type AckLiveAudioRecordingPartResponse,
+	type LiveAudioRecordingStateResponse,
+	type LiveRecordingCompleteRequest,
+	type LiveRecordingDeleteRequest,
 	type LiveAudioRecordingDto,
 	type LiveRecordingDisconnectSessionsRequest as LiveRecordingDisconnectSessionRequest,
 	type LiveRecorderPhase,
 	type LiveRecordingAcquireRequest,
+	type ProcessRecordingResponse,
 	type PresignLiveAudioRecordingPartRequest,
 	type PresignLiveAudioRecordingPartResponse
 } from './liveRecorderShared';
@@ -139,6 +143,29 @@ export class LiveRecorderEngine {
 		if (releaseResult.err !== null) {
 			console.warn('Failed to release live recording lock:', releaseResult.err);
 		}
+	}
+
+	async completeLiveRecording(liveRecordingId: string): Promise<ProcessRecordingResponse> {
+		return await this.recordingWebSocket.requestCustom<ProcessRecordingResponse>(
+			'audio_recording:complete',
+			{
+				conversationId: this.options.getConversationId(),
+				eventId: this.options.getEventId(),
+				liveRecordingId
+			} satisfies LiveRecordingCompleteRequest,
+			{ responseEvent: 'audio_recording:complete_result', timeoutMs: 30_000 }
+		);
+	}
+
+	async deleteLiveRecording(liveRecordingId: string): Promise<LiveAudioRecordingStateResponse> {
+		return await this.recordingWebSocket.requestCustom<LiveAudioRecordingStateResponse>(
+			'audio_recording:delete',
+			{
+				eventId: this.options.getEventId(),
+				liveRecordingId
+			} satisfies LiveRecordingDeleteRequest,
+			{ responseEvent: 'audio_recording:delete_result', timeoutMs: 30_000 }
+		);
 	}
 
 	async prepareMicrophone(): Promise<MediaStream | null> {
