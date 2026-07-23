@@ -113,7 +113,15 @@
 			onTransaction: () => {
 				if (editor && !isInitializing) {
 					updateActiveStates();
-
+				}
+			},
+			// Emit changes from onUpdate, not onTransaction: tiptap fires `transaction` on every
+			// transaction (including our programmatic setContent with emitUpdate:false in the value-sync
+			// effect below), but `update` respects emitUpdate:false. Emitting from onTransaction echoed
+			// server content back as a fake user edit, spawning spurious debounced saves that raced with
+			// approve and could blank the field.
+			onUpdate: () => {
+				if (editor && !isInitializing) {
 					const newValue = JSON.stringify(editor.getJSON());
 					previousValue = newValue;
 					onChange?.(newValue);
