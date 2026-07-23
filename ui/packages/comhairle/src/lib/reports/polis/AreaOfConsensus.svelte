@@ -1,8 +1,9 @@
 <!--
 	@component The "Area of consensus" section: the statement explorer from the
-	new design. A legend, author-type filter chips (seed / participant / all), and
-	a numbered list of statements each shown as a StatementVoteBlock (OVERALL + N
-	group bars), collapsed to a preview with a "See all N" expand.
+	new design. A legend, author-type filter chips (seed / participant / all), a
+	column header (ID / STATEMENT / VOTES), and a numbered list of statements each
+	shown as a StatementVoteBlock (OVERALL + N group bars), collapsed to a preview
+	with a "See all N" expand in a muted footer bar.
 
 	Dumb: takes the comments + groups and an optional CSV handler. Filtering and
 	collapse are local view state, not data fetching.
@@ -44,21 +45,22 @@
 		{ value: 'all', label: 'All' }
 	];
 
-	// Legend swatches map to the same tokens VoteBar renders with.
+	// Legend swatches map to the same tokens VoteBar renders with. `border` flags the
+	// not-voted swatch so its (near-white) fill stays visible on the card.
 	const legend = [
-		{ label: '% Agreed', color: 'var(--vote-agreed)', border: false },
-		{ label: '% Disagreed', color: 'var(--vote-disagreed)', border: false },
-		{ label: '% Passed', color: 'var(--vote-passed)', border: false },
-		{ label: '% Not voted', color: 'var(--vote-not-voted)', border: true }
+		{ label: '%Agreed', color: 'var(--vote-agreed)', border: false },
+		{ label: '%Disagreed', color: 'var(--vote-disagreed)', border: false },
+		{ label: '%Passed', color: 'var(--vote-passed)', border: false },
+		{ label: '%not voted', color: 'var(--vote-not-voted)', border: true }
 	];
 </script>
 
-<Card.Root class="rounded-[20px] p-0 shadow-sm">
-	<header class="flex items-start justify-between gap-4 px-8 pt-8">
-		<div>
-			<h2 class="text-foreground text-lg font-semibold">Area of consensus</h2>
-			<p class="text-foreground/70 mt-2 text-base font-medium">
-				Where participants agree, disagree, or split by opinion group.
+<Card.Root class="gap-0 rounded-md p-0 shadow-none">
+	<header class="flex items-start justify-between gap-4 px-4 pt-3.5">
+		<div class="flex flex-col gap-0.5">
+			<h2 class="text-foreground text-lg font-bold">Area of consensus</h2>
+			<p class="text-muted-foreground text-sm font-medium">
+				Click a theme to see all of the statements associated with it.
 			</p>
 		</div>
 		{#if onDownloadCsv}
@@ -70,13 +72,14 @@
 	</header>
 
 	<!-- Legend -->
-	<div
-		class="text-foreground flex flex-wrap items-center gap-x-4 gap-y-2 px-8 pt-4 text-xs font-medium"
-	>
-		{#each legend as l (l.label)}
+	<div class="text-foreground flex flex-wrap items-center gap-2 px-4 pt-4 text-xs font-medium">
+		{#each legend as l, i (l.label)}
+			{#if i > 0}
+				<span class="text-muted-foreground" aria-hidden="true">·</span>
+			{/if}
 			<span class="flex items-center gap-1.5">
 				<span
-					class="size-3 rounded-full"
+					class="size-3 rounded-sm"
 					class:border={l.border}
 					class:border-border={l.border}
 					style="background: {l.color};"
@@ -87,12 +90,12 @@
 	</div>
 
 	<!-- Author-type filter -->
-	<div class="flex flex-wrap gap-2 px-8 pt-4">
+	<div class="flex flex-wrap gap-2 px-4 pt-4">
 		{#each chips as c (c.value)}
 			<button
 				type="button"
 				onclick={() => (filter = c.value)}
-				class="rounded-full px-3 py-0.5 text-sm font-medium transition-colors {filter ===
+				class="rounded-full px-2 py-0.5 text-sm font-normal transition-colors {filter ===
 				c.value
 					? 'bg-primary text-primary-foreground'
 					: 'bg-accent text-accent-foreground hover:bg-accent/70'}"
@@ -103,16 +106,24 @@
 	</div>
 
 	<!-- Statement list -->
-	<div class="flex flex-col px-8 pt-4 pb-2">
-		{#if filtered.length === 0}
-			<p class="text-muted-foreground py-6 text-base italic">
-				No statements match the current filter.
-			</p>
-		{:else}
+	{#if filtered.length === 0}
+		<p class="text-muted-foreground px-4 py-6 text-base italic">
+			No statements match the current filter.
+		</p>
+	{:else}
+		<!-- Column header -->
+		<div
+			class="text-subtle-foreground flex items-center gap-5 px-4 pt-4 pb-2 text-xs font-medium tracking-wide"
+		>
+			<span class="w-6 shrink-0 text-right">ID</span>
+			<span>STATEMENT / VOTES</span>
+		</div>
+
+		<div class="flex flex-col px-4">
 			{#each visible as c, i (c.tid)}
-				<div class="border-border flex items-start gap-5 border-b py-2">
+				<div class="border-border flex items-center gap-5 border-b py-2">
 					<span
-						class="text-muted-foreground w-6 shrink-0 pt-5 text-right text-xs font-medium tabular-nums"
+						class="text-muted-foreground w-6 shrink-0 text-right text-xs font-medium tabular-nums"
 					>
 						{i + 1}
 					</span>
@@ -121,19 +132,21 @@
 					</div>
 				</div>
 			{/each}
+		</div>
 
-			{#if filtered.length > COLLAPSED_ROWS}
-				<button
-					type="button"
-					onclick={() => (expanded = !expanded)}
-					class="text-foreground/70 hover:text-foreground flex w-full items-center justify-center gap-2 py-4 text-base transition-colors"
-				>
-					{expanded ? 'Show fewer' : `See all ${filtered.length} statements`}
-					<ChevronDown
-						class={`text-primary size-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
-					/>
-				</button>
-			{/if}
+		{#if filtered.length > COLLAPSED_ROWS}
+			<button
+				type="button"
+				onclick={() => (expanded = !expanded)}
+				class="bg-muted text-accent-foreground hover:bg-muted/70 flex w-full items-center justify-center gap-2 rounded-b-md py-3 text-base transition-colors"
+			>
+				{expanded ? 'Show fewer' : `See all ${filtered.length} statements`}
+				<ChevronDown
+					class={`text-primary size-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+				/>
+			</button>
+		{:else}
+			<div class="pb-2"></div>
 		{/if}
-	</div>
+	{/if}
 </Card.Root>

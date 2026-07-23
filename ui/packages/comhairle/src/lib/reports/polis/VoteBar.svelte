@@ -1,12 +1,16 @@
 <!--
-	@component A single horizontal stacked vote bar: agreed / disagreed / passed /
-	not-voted segments across the full width, with an optional row label.
+	@component A single horizontal vote bar: agreed / disagreed / passed segments
+	packed left-to-right inside an outlined track, with an optional row label.
+
+	Not-voted is NOT a drawn segment: it is the empty tail of the track (the three
+	segments only fill their combined share, and the border outlines the whole bar
+	so the remainder still reads as part of it). This matches the design, where the
+	not-voted remainder is empty outlined space with no label.
 
 	Dumb leaf: it takes four already-computed percentages (0-100, summing to ~100
-	over the group's members, so the not-voted remainder shows) and renders them.
-	All colour comes from the shared `--vote-*` theme tokens, so it themes with the
-	rest of the report. The caller decides what the four numbers mean (overall vs a
-	single opinion group) and how they were computed.
+	over the group's members). All fill colour comes from the shared `--vote-*`
+	theme tokens. The caller decides what the four numbers mean (overall vs a single
+	opinion group) and how they were computed.
 -->
 <script lang="ts">
 	type Props = {
@@ -20,13 +24,12 @@
 
 	let { label, agreed, disagreed, passed, notVoted }: Props = $props();
 
-	// Segments in consensus-first order. `border` flags the not-voted segment so it
-	// stays visible on a card background (it is near-white by token).
+	// Consensus-first order. Not-voted is intentionally absent: it is the empty tail
+	// of the outlined track, not a drawn segment.
 	const segments = $derived([
-		{ key: 'agreed', pct: agreed, color: 'var(--vote-agreed)', border: false },
-		{ key: 'disagreed', pct: disagreed, color: 'var(--vote-disagreed)', border: false },
-		{ key: 'passed', pct: passed, color: 'var(--vote-passed)', border: false },
-		{ key: 'notVoted', pct: notVoted, color: 'var(--vote-not-voted)', border: true }
+		{ key: 'agreed', pct: agreed, color: 'var(--vote-agreed)' },
+		{ key: 'disagreed', pct: disagreed, color: 'var(--vote-disagreed)' },
+		{ key: 'passed', pct: passed, color: 'var(--vote-passed)' }
 	]);
 
 	// Only label a segment when it is wide enough to fit the text.
@@ -48,8 +51,6 @@
 			{#if s.pct > 0}
 				<div
 					class="flex items-center justify-end overflow-hidden"
-					class:border-border={s.border}
-					class:border-l={s.border}
 					style="width: {s.pct}%; background: {s.color};"
 				>
 					{#if s.pct >= LABEL_MIN_PCT}

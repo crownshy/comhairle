@@ -22,7 +22,7 @@
 
 <div class="bg-card flex flex-col gap-3 rounded-md p-4">
 	<p class="text-foreground text-xl font-medium">{comment.text}</p>
-	<div class="flex max-w-2xl flex-col gap-2">
+	<div class="flex max-w-xl flex-col gap-2">
 		<VoteBar {...bars.overall} />
 		{#each bars.groups as g (g.label)}
 			<VoteBar {...g} />

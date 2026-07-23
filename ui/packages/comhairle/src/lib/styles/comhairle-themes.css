@@ -87,6 +87,8 @@
 	--seed-highlight: #6b9b3a;
 	--seed-highlight-bg: #6b9b3a1a;
 
+	/* Default vote palette (inherited by the waves theme). Per-theme overrides live in
+	   the theme blocks below. Not-voted is the empty (card-coloured) tail of the bar. */
 	--vote-agreed: #2a9d90;
 	--vote-disagreed: #e76e50;
 	--vote-passed: #9ca3af;
@@ -233,6 +235,14 @@
 	--admin-background: #f9fafb;
 	--mutted: hsla(100, 29%, 10%, 1);
 	--sidebar-radius: 10px;
+
+	/* Vote palette from the Polis report design (Figma): emerald-500 / red-500 /
+	   neutral-200. Not-voted is the empty (card-coloured) tail of the bar. */
+	--vote-agreed: #10b981;
+	--vote-disagreed: #ef4444;
+	--vote-passed: #e5e7eb;
+	--vote-not-voted: #ffffff;
+	--vote-not-voted-border: #e5e7eb;
 }
 
 [data-theme='scot-gov'].dark {
@@ -296,6 +306,13 @@
 	--chat-bubble: var(--card);
 
 	--admin-background: #111827;
+
+	/* Same Figma vote palette as scot-gov light; the bars carry fixed fills. */
+	--vote-agreed: #10b981;
+	--vote-disagreed: #ef4444;
+	--vote-passed: #e5e7eb;
+	--vote-not-voted: #ffffff;
+	--vote-not-voted-border: #e5e7eb;
 }
 
 [data-theme='waves']
