@@ -137,7 +137,7 @@
 				{inputMessage}
 			</div>
 		{/if}
-		{#if status === 'error' || fileInput?.validity.valid === false}
+		{#if status === 'error' && fileInput?.validity.valid === false}
 			<div class="text-destructive text-center text-sm">
 				{fileInput?.validationMessage}
 			</div>
