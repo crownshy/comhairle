@@ -85,6 +85,13 @@ The three-value review state of a statement: `accepted · pending · rejected` (
 **Theme**:
 A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. (Future: T3C may write machine themes into the same store.)
 
+**Opinion group**:
+A cluster of participants who voted similarly, discovered by Polis's math (PCA + k-means), labelled A/B/C… Backed by `GroupReportData` (`group_id`, `members`, `total_members`, `representative_comments`). A single Polis poll yields a **variable** number of opinion groups (typically 1–5, not a fixed two), so all report components render N groups, not a hardcoded A/B pair. **Not** a demographic segment, recruitment cohort, or any admin-defined set — it is derived purely from vote patterns.
+_Avoid_: Group (bare — collides with invitee groupings), cluster, faction.
+
+**Representative comment**:
+A statement that most distinguishes an Opinion group from the others (Polis's "representative comments", per `GroupReportData.representative_comments`). Used in the report's Groups section to characterise what each group believes. Distinct from an [[#area-of-consensus]] statement, which is one *every* group agrees on.
+
 **Controversy**:
 A per-Theme classification `low | moderate | high`, from the average per-statement group-agree spread across that theme's statements. Buckets: `<15` low, `15–30` moderate, `>30` high (tunable in `report.ts`; civic_os marks the exact cuts "to confirm").
 

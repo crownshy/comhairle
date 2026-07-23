@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PolisInsights from '$lib/tools/polis/PolisInsights.svelte';
+	import PolisInsights from '$lib/reports/polis/PolisInsights.svelte';
 	import ThinkingSpaceInsights from '$lib/reports/thinking-space/ThinkingSpaceInsights.svelte';
 
 	let { data } = $props();
