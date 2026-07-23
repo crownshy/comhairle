@@ -117,6 +117,7 @@
 	margin: 1rem 0;
 	table-layout: fixed;
 	overflow: hidden;
+	font-size: inherit;
 }
 
 .tiptap th,
@@ -127,6 +128,8 @@
 	text-align: left;
 	position: relative; /* anchors the column-resize handle + selection overlay */
 	min-width: 3rem;
+	/* Match the line-height of normal paragraphs (prose sets its own on cells). */
+	line-height: 1.6;
 }
 
 .tiptap th {
