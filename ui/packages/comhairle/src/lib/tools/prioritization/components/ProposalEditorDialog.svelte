@@ -176,7 +176,7 @@
 		else onOpenChange(true);
 	}}
 >
-	<Dialog.Content class="max-h-[90vh] min-w-[70vw] overflow-y-auto">
+	<Dialog.Content class="h-[90vh] min-w-[80vw] overflow-y-auto">
 		<Dialog.Header>
 			<Dialog.Title>
 				{isEditing ? 'Edit proposal' : 'New proposal'}

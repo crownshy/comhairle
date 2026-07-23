@@ -187,7 +187,7 @@
 {#if hasTranslations}
 	<Dialog.Root open={dialogOpen}>
 		<Dialog.Content
-			class="max-h-[90vh] min-w-[70vw] grid-rows-[auto_1fr] rounded-xl p-12 pt-5"
+			class="h-[90vh] min-w-[80vw] grid-rows-[auto_1fr] rounded-xl p-12 pt-5"
 			showCloseButton={false}
 			onInteractOutside={(e) => {
 				e.preventDefault();
