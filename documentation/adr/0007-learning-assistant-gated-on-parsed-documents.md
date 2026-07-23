@@ -1,4 +1,4 @@
-# ADR-0009: The Learning Assistant is gated on parsed knowledge base documents
+# ADR-0007: The Learning Assistant is gated on parsed knowledge base documents
 
 **Status:** accepted
 **Date:** 2026-07-23

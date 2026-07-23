@@ -7,7 +7,6 @@
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
 	import { Switch } from '$lib/components/ui/switch';
-	import { Label } from '$lib/components/ui/label';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
@@ -62,51 +61,67 @@
 </script>
 
 <svelte:head>
-	<title>Knowledge Base - Comhairle Admin</title>
+	<title>Learning Assistant - Comhairle Admin</title>
 </svelte:head>
 
 <PageHeader
-	title="Knowledge Base"
+	title="Learning Assistant"
 	description="Enable the Learning Assistant and manage the documents it answers from"
 />
 
-<section class="mb-8 flex flex-col gap-2">
-	<div class="flex items-center justify-between gap-4">
-		<div class="flex flex-col gap-1">
-			<Label for="enable-learning-assistant" class="font-medium"
-				>Show Learning Assistant</Label
-			>
-			<p class="text-muted-foreground text-base">
-				Display a Q&amp;A Learning Assistant that answers participants' questions from the
-				documents below.
-			</p>
+<div class="flex flex-col">
+	<!-- Enable toggle. Mirrors the Configure page's two-column row (label left, control right,
+		divider border) so this page reads like the rest of the admin form pages. -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<div class="lg:w-50 lg:shrink-0 lg:pt-1">
+			<label for="enable-learning-assistant" class="text-sm font-semibold">
+				Show Learning Assistant
+			</label>
 		</div>
-		<Switch id="enable-learning-assistant" checked={enabled} onCheckedChange={saveEnabled} />
+		<div class="flex-1 space-y-2">
+			<div class="flex items-start gap-3">
+				<Switch
+					id="enable-learning-assistant"
+					class="mt-0.5"
+					checked={enabled}
+					onCheckedChange={saveEnabled}
+				/>
+				<p class="text-muted-foreground text-base">
+					Display a Q&amp;A Learning Assistant that answers participants' questions from
+					the documents below.
+				</p>
+			</div>
+			{#if enabled && !hasParsedDocs}
+				<p class="text-muted-foreground text-base">
+					The Learning Assistant won't appear to participants until at least one document
+					has been uploaded and parsed.
+				</p>
+			{/if}
+		</div>
 	</div>
-	{#if enabled && !hasParsedDocs}
-		<p class="text-muted-foreground text-base">
-			The Learning Assistant won't appear to participants until at least one document has been
-			uploaded and parsed.
-		</p>
-	{/if}
-</section>
 
-<p class="text-base">
-	The knowledge base is a set of documents that you can use to provide users information about the
-	topic at hand. They are used for a variety of tasks including influencing the helper bot and the
-	elicitation bot steps.
-</p>
-
-<section class="mb-4">
-	<FileUpload conversation_id={conversation.id} />
-</section>
-{#if parsingDocuments?.length}
-	<section class="mb-8">
-		<ParsingFileList documents={parsingDocuments} {conversation} />
-	</section>
-{/if}
-{#if parsedDocuments?.length}
-	<section class="mb-8">
-		<ParsedFileList documents={parsedDocuments} {conversation} />
-	</section>
-{/if}
+	<!-- Documents (the knowledge base itself). -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<div class="lg:w-50 lg:shrink-0 lg:pt-1">
+			<p class="text-sm font-semibold">Documents</p>
+		</div>
+		<div class="flex-1 space-y-4">
+			<p class="text-muted-foreground text-base">
+				The knowledge base is a set of documents you can use to provide participants
+				information about the topic at hand. They also inform the helper bot and elicitation
+				bot steps.
+			</p>
+			<FileUpload conversation_id={conversation.id} />
+			{#if parsingDocuments?.length}
+				<ParsingFileList documents={parsingDocuments} {conversation} />
+			{/if}
+			{#if parsedDocuments?.length}
+				<ParsedFileList documents={parsedDocuments} {conversation} />
+			{/if}
+		</div>
+	</div>
+</div>
