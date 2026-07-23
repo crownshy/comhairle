@@ -102,7 +102,8 @@
 <div
 	role="button"
 	tabindex="0"
-	class="border-input dark:bg-input/30 flex w-full cursor-pointer flex-col items-center gap-4 rounded-xl border bg-gray-50 p-8 py-5 transition-colors"
+	class="border-input dark:bg-input/30 flex w-full cursor-pointer flex-col items-center gap-4 rounded-xl border bg-gray-50 p-8 py-5 transition-colors {status ===
+		'error' && 'border-destructive!'}"
 	class:bg-gray-100={status === 'dragging'}
 	class:border-primary={status === 'dragging'}
 	ondrop={(event) => {
@@ -147,21 +148,16 @@
 		{status === 'uploading' ? 'Uploading...' : `Select ${plural}`}
 	</Button>
 	<input
-		{name}
-		{required}
 		bind:this={fileInput}
 		type="file"
+		{name}
+		{required}
 		{accept}
 		{multiple}
 		class="hidden"
+		oninvalid={() => (status = 'error')}
 		onchange={(event) => {
 			handleFiles((event.target as HTMLInputElement).files);
 		}}
 	/>
 </div>
-
-<style>
-	div[role='button']:has(input:invalid) {
-		border-color: oklch(from var(--color-destructive) l c h / 0.8);
-	}
-</style>
