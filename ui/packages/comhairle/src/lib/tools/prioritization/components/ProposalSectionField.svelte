@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import type { TranslationSource } from '$lib/components/Translation/translationUtils';
@@ -35,8 +35,10 @@
 		refresh
 	});
 
-	registerSource?.(section.id, source);
-	onDestroy(() => unregisterSource?.(section.id));
+	onMount(() => {
+		registerSource?.(section.id, source);
+		return () => unregisterSource?.(section.id);
+	});
 </script>
 
 <TranslatableField
