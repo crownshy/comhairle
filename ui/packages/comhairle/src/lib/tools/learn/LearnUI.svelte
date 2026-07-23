@@ -14,7 +14,6 @@
 	import { navigating } from '$app/state';
 	import LearningAssistant from './LearningAssistant.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
-	import { apiClient } from '@crownshy/api-client/client';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 
 	let {
@@ -23,6 +22,8 @@
 		onNextAction,
 		onPrevAction,
 		conversation,
+		availableDocuments = [],
+		hasKnowledgeBaseDocs = false,
 		isSubmitting = false
 	}: {
 		pages: Array<Page>;
@@ -30,29 +31,20 @@
 		onNextAction?: (fn: () => void) => void;
 		onPrevAction?: (fn: (() => void) | undefined) => void;
 		conversation?: LocalizedConversationDto;
+		availableDocuments?: ComhairleDocument[];
+		hasKnowledgeBaseDocs?: boolean;
 		isSubmitting?: boolean;
 	} = $props();
 
+	// The assistant only answers from parsed knowledge base documents, so it is hidden entirely
+	// when the knowledge base is empty. hasKnowledgeBaseDocs is the single source of truth,
+	// hoisted to the workflow +layout.ts and shared with the support sidebar.
 	let tutorAvailable = $derived(
-		!!conversation?.id && !!conversation?.chatBotId && !!conversation?.enableQaChatBot
+		!!conversation?.id &&
+			!!conversation?.chatBotId &&
+			!!conversation?.enableQaChatBot &&
+			hasKnowledgeBaseDocs
 	);
-
-	let availableDocuments = $state<ComhairleDocument[]>([]);
-
-	$effect(() => {
-		if (!conversation?.id) {
-			availableDocuments = [];
-			return;
-		}
-		apiClient
-			.ListDocuments({ params: { conversation_id: conversation.id } })
-			.then((docs) => {
-				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
-			})
-			.catch(() => {
-				availableDocuments = [];
-			});
-	});
 
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
