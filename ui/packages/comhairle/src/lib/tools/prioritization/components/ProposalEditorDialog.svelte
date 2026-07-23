@@ -4,7 +4,11 @@
 	import { Label } from '$lib/components/ui/label';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
-	import type { TranslationSource } from '$lib/components/Translation/translationUtils';
+	import {
+		hasUnsavedChanges,
+		type TranslationSource
+	} from '$lib/components/Translation/translationUtils';
+	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import ProposalSectionField from './ProposalSectionField.svelte';
 	import { isTiptapJson, extractTextFromTiptap } from '$lib/utils/tiptapUtils';
 	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
@@ -98,6 +102,11 @@
 		refresh: () => store.reload()
 	});
 	registerSource('__title__', titleSource);
+
+	// Warn on refresh / tab-close / in-app navigation while any title or section save is still pending,
+	// so a mid-debounce edit isn't silently lost. The dialog is a persistent instance, so this registers
+	// once; the getter reads the live source set at event time.
+	guardUnsavedChanges(() => [...sources.values()].some(hasUnsavedChanges));
 
 	let addingSection = $state(false);
 
