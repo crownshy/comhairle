@@ -435,7 +435,9 @@
 			/>
 		</div>
 
-		{#if store.state === 'loading'}
+		{#if store.state === 'idle' || store.state === 'loading'}
+			<!-- Skeleton on first paint too (idle = before the initial fetch fires), so the empty
+				 state never flashes before we know whether there are proposals. -->
 			<ProposalListSkeleton />
 		{:else if store.state === 'error'}
 			<p class="text-destructive text-sm">Could not load proposals: {store.error}</p>
