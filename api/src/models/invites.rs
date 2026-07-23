@@ -419,6 +419,7 @@ mod tests {
             organization_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            signup_ip: None,
         };
 
         let invite = Invite {
