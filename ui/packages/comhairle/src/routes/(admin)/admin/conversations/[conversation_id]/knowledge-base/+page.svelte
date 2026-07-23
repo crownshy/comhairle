@@ -116,7 +116,12 @@
 </p>
 
 <section class="mt-4 flex w-full flex-col gap-4 border-t pt-6">
-	<FileUpload accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt" maxSizeMB={MAX_SIZE} onfile={uploadFile} />
+	<FileUpload
+		accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt"
+		maxSizeMB={MAX_SIZE}
+		onfile={uploadFile}
+		multiple
+	/>
 	<div>
 		<div class="text-muted-foreground my-2 text-sm">or upload from URL</div>
 		<div class="flex gap-2">
