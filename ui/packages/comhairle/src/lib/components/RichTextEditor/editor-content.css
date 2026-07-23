@@ -143,6 +143,44 @@
 	margin: 0;
 }
 
+/* Cell background colours. A cell stores a palette KEY as `data-cell-color`; each
+   key resolves to a mix of a base hue with the current `--color-background`, so it
+   renders as a soft tint in light mode and a muted dark tint in dark mode - readable
+   in both, no theme-specific values stored. Attribute selectors out-specify the
+   plain `.tiptap th` background above. Keep keys in sync with tableColors.ts. */
+.tiptap th[data-cell-color='gray'],
+.tiptap td[data-cell-color='gray'] {
+	background: color-mix(in srgb, #6b7280 16%, var(--color-background));
+}
+.tiptap th[data-cell-color='red'],
+.tiptap td[data-cell-color='red'] {
+	background: color-mix(in srgb, #ef4444 16%, var(--color-background));
+}
+.tiptap th[data-cell-color='orange'],
+.tiptap td[data-cell-color='orange'] {
+	background: color-mix(in srgb, #f97316 16%, var(--color-background));
+}
+.tiptap th[data-cell-color='yellow'],
+.tiptap td[data-cell-color='yellow'] {
+	background: color-mix(in srgb, #eab308 16%, var(--color-background));
+}
+.tiptap th[data-cell-color='green'],
+.tiptap td[data-cell-color='green'] {
+	background: color-mix(in srgb, #22c55e 16%, var(--color-background));
+}
+.tiptap th[data-cell-color='blue'],
+.tiptap td[data-cell-color='blue'] {
+	background: color-mix(in srgb, #3b82f6 16%, var(--color-background));
+}
+.tiptap th[data-cell-color='purple'],
+.tiptap td[data-cell-color='purple'] {
+	background: color-mix(in srgb, #a855f7 16%, var(--color-background));
+}
+.tiptap th[data-cell-color='pink'],
+.tiptap td[data-cell-color='pink'] {
+	background: color-mix(in srgb, #ec4899 16%, var(--color-background));
+}
+
 /* Both the editor (via the NodeView) and the renderer (via the table node's
    `renderWrapper` option) wrap the table in `.tableWrapper`, so wide/resized
    tables scroll horizontally the same way in both, and a table fills the width
