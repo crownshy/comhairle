@@ -165,4 +165,36 @@ describe('renderRichTextToHtml', () => {
 		// full-width, horizontally-scrollable layout
 		expect(html).toContain('class="tableWrapper"');
 	});
+
+	it('renders a cell colour key as data-cell-color (SSR path)', () => {
+		const content = JSON.stringify({
+			type: 'doc',
+			content: [
+				{
+					type: 'table',
+					content: [
+						{
+							type: 'tableRow',
+							content: [
+								{
+									type: 'tableCell',
+									attrs: { cellColor: 'blue' },
+									content: [
+										{
+											type: 'paragraph',
+											content: [{ type: 'text', text: 'x' }]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		});
+
+		const html = renderRichTextToHtml(content);
+
+		expect(html).toContain('data-cell-color="blue"');
+	});
 });
