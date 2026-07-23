@@ -7,6 +7,8 @@
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
 	import { Switch } from '$lib/components/ui/switch';
+	import * as Alert from '$lib/components/ui/alert';
+	import { TriangleAlert } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
@@ -94,10 +96,13 @@
 				</p>
 			</div>
 			{#if enabled && !hasParsedDocs}
-				<p class="text-muted-foreground text-base">
-					The Learning Assistant won't appear to participants until at least one document
-					has been uploaded and parsed.
-				</p>
+				<Alert.Root>
+					<TriangleAlert />
+					<Alert.Description>
+						Upload and parse at least one document below, otherwise the Learning
+						Assistant won't appear to participants.
+					</Alert.Description>
+				</Alert.Root>
 			{/if}
 		</div>
 	</div>
