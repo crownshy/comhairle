@@ -144,9 +144,13 @@ pub struct User {
     pub organization_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// Client IP captured at account creation. Internal/audit only — never
+    /// serialized to API responses (see `skip_serializing`).
+    #[serde(skip_serializing)]
+    pub signup_ip: Option<String>,
 }
 
-const DEFAULT_COLUMNS: [UserIden; 10] = [
+const DEFAULT_COLUMNS: [UserIden; 11] = [
     UserIden::Id,
     UserIden::Username,
     UserIden::Password,
@@ -157,6 +161,7 @@ const DEFAULT_COLUMNS: [UserIden; 10] = [
     UserIden::OrganizationId,
     UserIden::CreatedAt,
     UserIden::UpdatedAt,
+    UserIden::SignupIp,
 ];
 
 /// Create a user from a signup request
@@ -309,6 +314,21 @@ async fn insert_otp_user(
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
+}
+
+/// Record the client IP address for a freshly created user.
+///
+/// Stored purely for internal/audit purposes; the value is never serialized
+/// back out over the API (the `signup_ip` field is `skip_serializing`).
+pub async fn set_signup_ip(user_id: &Uuid, ip: &str, db: &PgPool) -> Result<(), ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(UserIden::Table)
+        .value(UserIden::SignupIp, ip)
+        .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&sql, values).execute(db).await?;
+    Ok(())
 }
 
 /// Return a user by ID
@@ -688,6 +708,40 @@ mod tests {
             user.email,
             Some("test_otp@test.com".to_string()),
             "incorrect email"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_record_and_hide_signup_ip(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = create_user(
+            &SignupRequest {
+                username: "ip_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "ip_user@test.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        assert!(user.signup_ip.is_none(), "signup_ip unset before recording");
+
+        set_signup_ip(&user.id, "203.0.113.7", &pool).await?;
+
+        let stored = get_user_by_id(&user.id, &pool).await?;
+        assert_eq!(
+            stored.signup_ip.as_deref(),
+            Some("203.0.113.7"),
+            "signup_ip should be persisted"
+        );
+
+        // The IP must never leak through API serialization.
+        let json = serde_json::to_value(&stored)?;
+        assert!(
+            json.get("signup_ip").is_none(),
+            "signup_ip must not be serialized"
         );
 
         Ok(())
