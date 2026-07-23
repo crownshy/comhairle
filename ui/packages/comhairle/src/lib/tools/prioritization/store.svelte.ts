@@ -32,6 +32,18 @@ export function createStore(opts: {
 		}
 	}
 
+	/** Silent refresh used to reconcile `proposals` after inline saves. Unlike {@link refresh} it
+	 * never flips to `'loading'` (which would flash the whole list away on every keystroke-save) and
+	 * keeps the current list on a transient failure. This is what the translation sources call as
+	 * their `refresh` hook. */
+	async function reload() {
+		try {
+			proposals = await api.listProposals(opts.workflowStepId);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to load proposals';
+		}
+	}
+
 	async function create(input: { title: string; sections: string[] }) {
 		const created = await api.createProposal(opts.workflowStepId, input);
 		proposals = [...proposals, created];
@@ -94,6 +106,7 @@ export function createStore(opts: {
 			return error;
 		},
 		refresh,
+		reload,
 		create,
 		remove,
 		addSection,
