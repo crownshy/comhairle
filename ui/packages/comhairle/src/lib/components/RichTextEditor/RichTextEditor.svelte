@@ -3,6 +3,7 @@
 	import { useResizeObserver } from 'runed';
 	import { Editor } from '@tiptap/core';
 	import EditorToolbar from './EditorToolbar.svelte';
+	import TableInsertControls from './TableInsertControls.svelte';
 	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
@@ -56,6 +57,7 @@
 		bulletList: false,
 		orderedList: false,
 		blockquote: false,
+		table: false,
 		heading: 'p' as 'p' | '1' | '2' | '3',
 		textAlign: 'left' as 'left' | 'center' | 'right' | 'justify'
 	});
@@ -156,6 +158,7 @@
 			bulletList: editor.isActive('bulletList'),
 			orderedList: editor.isActive('orderedList'),
 			blockquote: editor.isActive('blockquote'),
+			table: editor.isActive('table'),
 			heading: editor.isActive('heading', { level: 1 })
 				? '1'
 				: editor.isActive('heading', { level: 2 })
@@ -219,6 +222,7 @@
 			compact={isCompact}
 			onToggleMenu={() => (menuExpanded = !menuExpanded)}
 		/>
+		<TableInsertControls {editor} />
 	{/if}
 
 	<div

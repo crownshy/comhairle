@@ -106,6 +106,81 @@
 	text-align: justify;
 }
 
+/* Tables
+   Registered via TableKit in editorConfig, so these styles land in both the live
+   editor and the read-only renderer (both carry the `.tiptap` + `prose` classes).
+   The rules below intentionally out-specify Tailwind Typography's `:where()`-based
+   table defaults (which have zero element specificity), so `prose` doesn't win. */
+.tiptap table {
+	border-collapse: collapse;
+	width: 100%;
+	margin: 1rem 0;
+	table-layout: fixed;
+	overflow: hidden;
+	font-size: inherit;
+}
+
+.tiptap th,
+.tiptap td {
+	border: 1px solid var(--color-border);
+	padding: 0.5rem 0.75rem;
+	vertical-align: top;
+	text-align: left;
+	position: relative; /* anchors the column-resize handle + selection overlay */
+	min-width: 3rem;
+	/* Match the line-height of normal paragraphs (prose sets its own on cells). */
+	line-height: 1.6;
+}
+
+.tiptap th {
+	background: var(--color-muted);
+	font-weight: 600;
+}
+
+/* Paragraphs inside cells shouldn't carry the block paragraph margin. */
+.tiptap th > p,
+.tiptap td > p {
+	margin: 0;
+}
+
+/* Both the editor (via the NodeView) and the renderer (via the table node's
+   `renderWrapper` option) wrap the table in `.tableWrapper`, so wide/resized
+   tables scroll horizontally the same way in both, and a table fills the width
+   identically. Keeping the table itself `display: table` (not block) is what
+   makes `width: 100%` fill the container rather than shrink to content. */
+.tiptap .tableWrapper {
+	overflow-x: auto;
+	margin: 1rem 0;
+}
+
+.tiptap .tableWrapper table {
+	margin: 0;
+}
+
+/* Column-resize + cell-selection mechanics (editor only). */
+.tiptap .selectedCell::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+	pointer-events: none;
+	z-index: 2;
+}
+
+.tiptap .column-resize-handle {
+	position: absolute;
+	right: -1px;
+	top: 0;
+	bottom: -1px;
+	width: 3px;
+	background: var(--color-primary);
+	pointer-events: none;
+}
+
+.tiptap.resize-cursor {
+	cursor: col-resize;
+}
+
 /* Iframe/Video embed styles */
 .iframe-wrapper {
 	position: relative;

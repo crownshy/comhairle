@@ -3,6 +3,7 @@ import { Link } from '@tiptap/extension-link';
 import { Image } from '@tiptap/extension-image';
 import { Audio } from '@tiptap/extension-audio';
 import { TextAlign } from '@tiptap/extension-text-align';
+import { TableKit } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { Color } from '@tiptap/extension-color';
 import { Iframe } from '$lib/components/RichTextEditor/extensions/iframe';
@@ -57,6 +58,15 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 		SourceDocument,
 		TextAlign.configure({
 			types: ['heading', 'paragraph']
+		}),
+		// Tables. `resizable` only takes effect in the live editor (it needs a DOM
+		// NodeView); the SSR/email renderers just walk the schema, so this is a no-op
+		// there. `renderWrapper` makes the non-editor render paths wrap the table in the
+		// same `.tableWrapper` div the editor's NodeView uses, so a stored table looks
+		// identical (full-width, same overflow behaviour) in the editor and the renderer.
+		// One registration wires editor + both renderers via getBaseExtensions.
+		TableKit.configure({
+			table: { resizable: true, renderWrapper: true }
 		}),
 		StarterKit.configure({
 			heading: {
