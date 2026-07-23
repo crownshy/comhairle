@@ -54,7 +54,7 @@ impl ToolConfigSanitize for LearnToolConfig {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(PartialEq, Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct LearnReport;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]

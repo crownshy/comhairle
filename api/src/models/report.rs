@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
@@ -13,6 +14,7 @@ use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::{
     error::ComhairleError,
     models::SqlxResultExt,
@@ -63,7 +65,7 @@ impl FullReportDto {
     }
 }
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "report")]
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Report {
@@ -71,7 +73,8 @@ pub struct Report {
     pub id: Uuid,
     pub is_public: bool,
     pub conversation_id: Uuid,
-    pub summary: String,
+    #[partially(omit)]
+    pub summary: TextContentId,
     pub section_configs: ReportSectionConfigs,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -89,10 +92,10 @@ const DEFAULT_COLUMNS: [ReportIden; 7] = [
     ReportIden::UpdatedAt,
 ];
 
-#[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[derive(PartialEq, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 pub struct ReportSectionConfigs(pub Vec<ReportSectionConfig>);
 
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+#[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]
 #[serde(rename_all = "lowercase", tag = "type")]
 pub struct ReportSectionConfig {
     workflow_step_id: Uuid,
@@ -142,9 +145,6 @@ impl PartialReport {
         if let Some(value) = self.is_public {
             values.push((ReportIden::IsPublic, value.into()));
         }
-        if let Some(value) = &self.summary {
-            values.push((ReportIden::Summary, value.into()));
-        }
         if let Some(value) = &self.section_configs {
             values.push((
                 ReportIden::SectionConfigs,
@@ -155,6 +155,7 @@ impl PartialReport {
     }
 }
 
+#[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Report, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -170,6 +171,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Report, ComhairleError>
     Ok(conversation)
 }
 
+#[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
     conversation_id: Uuid,
@@ -193,6 +195,7 @@ pub async fn update(
 pub async fn create_for_conversation(
     db: &PgPool,
     conversation_id: Uuid,
+    locale: &str,
 ) -> Result<Report, ComhairleError> {
     let workflows = workflow::list(db, conversation_id, None).await?;
     let workflow_steps = workflow_step::list(db, &workflows[0].id).await?;
@@ -231,23 +234,33 @@ pub async fn create_for_conversation(
 
     let section_configs = ReportSectionConfigs(section_configs?);
 
-    let values: Vec<sea_query::SimpleExpr> = vec![
+    let mut values: Vec<sea_query::SimpleExpr> = vec![
         false.into(),
         conversation_id.into(),
-        "Summary to be filled out by facilitator".into(),
         serde_json::to_value(&section_configs).unwrap().into(),
     ];
 
+    let mut columns = vec![
+        ReportIden::IsPublic,
+        ReportIden::ConversationId,
+        ReportIden::SectionConfigs,
+    ];
+
+    let summary = new_translation(
+        db,
+        locale,
+        "Summary to be filled out by facilitator",
+        TextFormat::Rich,
+    )
+    .await?;
+
+    columns.push(ReportIden::Summary);
+    values.push(summary.id.into());
+
     let (sql, values) = Query::insert()
         .into_table(ReportIden::Table)
-        .columns(vec![
-            ReportIden::IsPublic,
-            ReportIden::ConversationId,
-            ReportIden::Summary,
-            ReportIden::SectionConfigs,
-        ])
-        .values(values)
-        .unwrap()
+        .columns(columns)
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -262,6 +275,7 @@ pub async fn create_for_conversation(
     Ok(report)
 }
 
+#[instrument(err(Debug))]
 pub async fn get_for_conversation(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -278,4 +292,51 @@ pub async fn get_for_conversation(
         .resolve_db_err("Report")?;
 
     Ok(report)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::error::Error;
+
+    use sqlx::PgPool;
+
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+    use crate::models::translations::get_text_translation_by_content_and_locale;
+    use crate::routes::workflows::dto::WorkflowDto;
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_report_for_conversation_with_translation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(value)?;
+        session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                2,
+            )
+            .await?;
+
+        let report = create_for_conversation(&pool, conversation_id, "en").await?;
+
+        let summary_translation =
+            get_text_translation_by_content_and_locale(&pool, &report.summary, "en").await?;
+
+        assert_eq!(
+            summary_translation.content, "Summary to be filled out by facilitator",
+            "incorrect summary translation text"
+        );
+
+        Ok(())
+    }
 }

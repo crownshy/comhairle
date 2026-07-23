@@ -18,7 +18,7 @@ use crate::{
         self,
         report::{FullReportDto, PartialReport},
     },
-    routes::reports::dto::ReportDto,
+    routes::{reports::dto::ReportDto, translations::LocaleExtractor},
 };
 
 pub mod dto;
@@ -46,8 +46,10 @@ async fn update_report(
 async fn create_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
+    LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<FullReportDto>), ComhairleError> {
-    let report = models::report::create_for_conversation(&state.db, conversation_id).await?;
+    let report =
+        models::report::create_for_conversation(&state.db, conversation_id, &locale).await?;
     let report = FullReportDto::from_report(&state.db, report).await?;
     Ok((StatusCode::CREATED, Json(report)))
 }

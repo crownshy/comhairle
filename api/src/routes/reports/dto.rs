@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::report::{Report, ReportSectionConfigs};
+use crate::models::translations::TextContentId;
 
 /// Data transfer object (public API representation) for a Report.
 ///
@@ -19,7 +20,7 @@ pub struct ReportDto {
     id: Uuid,
     is_public: bool,
     conversation_id: Uuid,
-    summary: String,
+    summary: TextContentId,
     section_configs: ReportSectionConfigs,
     created_at: DateTime<Utc>,
 }

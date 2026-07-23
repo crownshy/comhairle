@@ -1602,7 +1602,7 @@ export const FullReportDto = z
     isPublic: z.boolean(),
     participantFeedback: z.array(FeedbackDto),
     sectionConfigs: ReportSectionConfigs,
-    summary: z.string(),
+    summary: z.string().uuid(),
   })
   .passthrough();
 export type FullReportDto = z.infer<typeof FullReportDto>;
@@ -1611,7 +1611,6 @@ export const PartialReport = z
     conversation_id: z.union([z.string(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     section_configs: z.union([ReportSectionConfigs, z.null()]),
-    summary: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();
@@ -1623,7 +1622,7 @@ export const ReportDto = z
     id: z.string().uuid(),
     isPublic: z.boolean(),
     sectionConfigs: ReportSectionConfigs,
-    summary: z.string(),
+    summary: z.string().uuid(),
   })
   .passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;

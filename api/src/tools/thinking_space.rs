@@ -91,7 +91,7 @@ pub struct ThinkingSpaceToolSetup {
     pub follow_up_rounds_count: u8,
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct ThinkingSpaceReport;
 
 /// Zero-sized marker type for ThinkingSpace tool implementation
