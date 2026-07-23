@@ -146,7 +146,7 @@
 </div>
 
 <style>
-	div[role='button']:has(input:user-invalid) {
+	div[role='button']:has(input:invalid) {
 		border-color: oklch(from var(--color-destructive) l c h / 0.8);
 	}
 </style>
