@@ -1,9 +1,19 @@
-import { z } from 'zod';
+import type { Schema } from '$lib/components/EasyForm';
 
-const MediaSchema = z.object({
-	media: z.instanceof(File, { message: 'Please upload a file.' }),
-	name: z.string().min(1, { message: 'Required field' }),
-	alt: z.string().min(1, { message: 'Required field' })
-});
+const MediaSchema: Schema = {
+	media: {
+		name: 'media',
+		required: true
+	},
+	name: {
+		name: 'name',
+		required: true
+	},
+	alt: {
+		name: 'alt',
+		required: true,
+		min: 5
+	}
+} as const;
 
 export default MediaSchema;

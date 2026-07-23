@@ -1,15 +1,28 @@
 <script lang="ts">
 	import { FileText } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import type { ValidationAttributes } from './EasyForm/types.svelte';
 
-	type Props = {
-		onfile: (file: File) => Promise<void>;
-		accept?: string;
+	interface BaseProps extends Omit<ValidationAttributes, 'name'> {
 		maxSizeMB?: number;
 		multiple?: boolean;
-	};
+	}
 
-	const { onfile, accept, maxSizeMB, multiple = false }: Props = $props();
+	interface FormProps extends BaseProps {
+		onfile?: undefined;
+		name: ValidationAttributes['name'];
+		required?: boolean;
+	}
+
+	interface CallbackProps extends BaseProps {
+		onfile: (file: File) => Promise<void>;
+		name?: undefined;
+		boolean?: undefined;
+	}
+
+	type Props = FormProps | CallbackProps;
+
+	const { name, onfile, required, accept, maxSizeMB, multiple = false }: Props = $props();
 
 	let fileInput = $state<HTMLInputElement | null>(null);
 
@@ -80,7 +93,7 @@
 				}
 
 				status = 'idle';
-				onfile(file);
+				onfile?.(file);
 			}
 		}
 	}
@@ -124,7 +137,7 @@
 				{inputMessage}
 			</div>
 		{/if}
-		{#if status === 'error' && fileInput?.validity.valid === false}
+		{#if status === 'error' || fileInput?.validity.valid === false}
 			<div class="text-destructive text-center text-sm">
 				{fileInput?.validationMessage}
 			</div>
@@ -134,6 +147,8 @@
 		{status === 'uploading' ? 'Uploading...' : `Select ${plural}`}
 	</Button>
 	<input
+		{name}
+		{required}
 		bind:this={fileInput}
 		type="file"
 		{accept}

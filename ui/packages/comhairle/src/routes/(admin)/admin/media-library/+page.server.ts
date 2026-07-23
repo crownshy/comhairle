@@ -1,10 +1,8 @@
 import { tryFetch, tryCatchAsync } from '$lib/utils/errorHandling';
 import { fail, type LoadEvent } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
-import Media from '$lib/interfaces/Media';
 import type { MediaDto } from '@crownshy/api-client/api';
-import { message, superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
+import { validate } from '$lib/components/EasyForm/validate';
 import MediaSchema from '$lib/components/Media/schema';
 
 export async function load({ fetch, depends }: LoadEvent) {
@@ -27,14 +25,10 @@ export async function load({ fetch, depends }: LoadEvent) {
 
 export const actions = {
 	upload: async ({ request }: RequestEvent) => {
-		const form = await superValidate(request, zod(MediaSchema));
-		console.log(form);
+		const data = await request.formData();
+		const form = validate(data, MediaSchema);
 
-		if (!form.valid) {
-			return message(form, 'Please try again');
-		}
-
-		return message(form, 'uploaded');
+		console.log('form:', form);
 	},
 	delete: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
