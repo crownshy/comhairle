@@ -11,7 +11,7 @@
 
 	const { onfile, accept, maxSizeMB, multiple = false }: Props = $props();
 
-	let fileInput: HTMLInputElement | null;
+	let fileInput = $state<HTMLInputElement | null>(null);
 
 	type State = 'idle' | 'dragging' | 'uploading' | 'error';
 	let status = $state<State>('idle');
@@ -56,6 +56,8 @@
 	// TODO: Merge with interfaces/Media.ts
 
 	function handleFiles(files: FileList | undefined | null) {
+		fileInput?.setCustomValidity('');
+
 		if (files && files.length > 0) {
 			for (const file of files) {
 				if (maxSizeBytes && file.size > maxSizeBytes) {
@@ -81,10 +83,6 @@
 			}
 		}
 	}
-
-	$effect(() => {
-		console.log('message:', fileInput?.validationMessage);
-	});
 </script>
 
 <div
@@ -125,9 +123,9 @@
 				{inputMessage}
 			</div>
 		{/if}
-		{#if fileInput?.validity.valid === false}
+		{#if status === 'error' && fileInput?.validity.valid === false}
 			<div class="text-destructive text-center text-sm">
-				{fileInput.validationMessage}
+				{fileInput?.validationMessage}
 			</div>
 		{/if}
 	</div>
