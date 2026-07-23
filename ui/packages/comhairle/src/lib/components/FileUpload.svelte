@@ -60,12 +60,6 @@
 
 		if (files && files.length > 0) {
 			for (const file of files) {
-				if (maxSizeBytes && file.size > maxSizeBytes) {
-					status = 'error';
-					fileInput?.setCustomValidity('Max file size exceeded');
-					return;
-				}
-
 				const extension = file.name.match(/\..*/)?.[0];
 				if (!extension) {
 					status = 'error';
@@ -75,6 +69,12 @@
 				if (!acceptedExtensions.includes(extension)) {
 					status = 'error';
 					fileInput?.setCustomValidity('File type not supported');
+					return;
+				}
+
+				if (maxSizeBytes && file.size > maxSizeBytes) {
+					status = 'error';
+					fileInput?.setCustomValidity('Max file size exceeded');
 					return;
 				}
 
