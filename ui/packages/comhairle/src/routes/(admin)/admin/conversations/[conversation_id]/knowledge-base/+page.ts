@@ -1,15 +1,21 @@
 import { apiClient } from '@crownshy/api-client/client';
 import type { PageLoad } from './$types';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 
-export const load: PageLoad = async ({ parent }) => {
+export const load: PageLoad = async ({ parent, depends }) => {
+	depends('knowledge-base:documents');
+
 	const { conversation } = await parent();
-	let documents;
-	try {
-		documents = await apiClient.ListDocuments({
+
+	const response = await tryCatchAsync(() =>
+		apiClient.ListDocuments({
 			params: { conversation_id: conversation.id }
-		});
-	} catch (e) {
-		console.error(e);
+		})
+	);
+
+	if (response.err !== null) {
+		console.error(response.err);
 	}
-	return { documents, conversation };
+
+	return { documents: response.ok ?? [], conversation };
 };

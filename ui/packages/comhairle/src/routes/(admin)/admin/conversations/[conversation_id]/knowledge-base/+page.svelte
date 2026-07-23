@@ -7,8 +7,8 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
-	import { invalidateAll } from '$app/navigation';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { invalidate } from '$app/navigation';
+	import { tryCatchAsync, tryFetch } from '$lib/utils/errorHandling';
 	import Media from '$lib/interfaces/Media';
 
 	const MAX_SIZE = 50;
@@ -43,7 +43,7 @@
 
 		isUploading = true;
 		const response = await tryCatchAsync(() =>
-			media.upload(`/api/conversation/${conversation.id}/upload_document`, [file], {
+			media.upload(`/api/conversation/${conversation.id}/documents`, [file], {
 				maxSizeMB: MAX_SIZE
 			})
 		);
@@ -61,7 +61,7 @@
 			message: 'File uploaded successfully',
 			priority: 'INFO'
 		});
-		await invalidateAll();
+		await invalidate('knowledge-base:documents');
 	}
 
 	async function uploadFromUrl() {
@@ -74,16 +74,14 @@
 		}
 
 		isUploading = true;
-		const response = await tryCatchAsync(() =>
-			fetch(`/api/conversation/${conversation.id}/upload_document`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ url: urlInput }),
-				credentials: 'include'
-			})
-		);
+		const response = await tryFetch(`/api/conversation/${conversation.id}/upload_document`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ url: urlInput }),
+			credentials: 'include'
+		});
 		isUploading = false;
 
 		if (response.err !== null) {
@@ -99,7 +97,7 @@
 			priority: 'INFO'
 		});
 		urlInput = '';
-		await invalidateAll();
+		await invalidate('knowledge-base:documents');
 	}
 </script>
 
@@ -117,33 +115,25 @@
 	the elicitation bot steps
 </p>
 
-<section class="mb-4">
-	<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
-		<div class="flex grow flex-col gap-4">
-			<FileUpload
-				accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt"
-				maxSizeMB={MAX_SIZE}
-				onfile={uploadFile}
+<section class="mt-4 flex w-full flex-col gap-4 border-t pt-6">
+	<FileUpload accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt" maxSizeMB={MAX_SIZE} onfile={uploadFile} />
+	<div>
+		<div class="text-muted-foreground my-2 text-sm">or upload from URL</div>
+		<div class="flex gap-2">
+			<Input
+				class="flex-1"
+				type="text"
+				placeholder="Add file URL"
+				bind:value={urlInput}
+				disabled={isUploading}
 			/>
-			<div class="flex flex-col gap-2">
-				<div class="text-muted-foreground text-sm">or upload from URL</div>
-				<div class="flex gap-2">
-					<Input
-						class="flex-1"
-						type="text"
-						placeholder="Add file URL"
-						bind:value={urlInput}
-						disabled={isUploading}
-					/>
-					<Button
-						variant="outline"
-						onclick={uploadFromUrl}
-						disabled={isUploading || !urlInput.trim()}
-					>
-						Upload
-					</Button>
-				</div>
-			</div>
+			<Button
+				variant="outline"
+				onclick={uploadFromUrl}
+				disabled={isUploading || !urlInput.trim()}
+			>
+				Upload
+			</Button>
 		</div>
 	</div>
 </section>
