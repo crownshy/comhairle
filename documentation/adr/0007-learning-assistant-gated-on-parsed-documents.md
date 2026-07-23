@@ -43,11 +43,12 @@ Two participant surfaces render the assistant, and each independently client-fet
 This is a "gate only" fix: it does not add defensive handling for an `**ERROR**:` payload arriving
 *with* documents present. "No usable documents" is treated as the sole trigger for that payload.
 
-On the admin side, the enable toggle moves onto the **Knowledge base** tab next to the documents
-that make it work, and shows an inline hint when it is on but no document has parsed yet. See
-ADR-0006, which listed `enableQaChatBot` among the Configure **Access** toggles; that toggle no
-longer lives on Configure. (Renaming the tab to "Learning Assistant" is a separate branding change
-kept out of this PR to avoid bloating it.)
+On the admin side, the tab is renamed from "Knowledge base" to **Learning Assistant** (route
+`/learning-assistant`), the enable toggle moves onto it next to the documents that make it work,
+and it shows an inline hint when it is on but no document has parsed yet. See ADR-0006, which listed
+`enableQaChatBot` among the Configure **Access** toggles; that toggle no longer lives on Configure.
+(Only the internal field name `enableQaChatBot` stays for now; renaming it is a coordinated
+full-stack change deferred to #736.)
 
 ## Considered options
 
