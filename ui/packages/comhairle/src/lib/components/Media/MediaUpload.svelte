@@ -2,73 +2,33 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Upload } from 'lucide-svelte';
 	import type { ComponentProps } from 'svelte';
-	import Media from '$lib/interfaces/Media';
-	import { notifications } from '$lib/notifications.svelte';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import * as Form from '$lib/components/ui/form';
-	import { fileProxy, superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { defaults, fileProxy, superForm, type SuperValidated } from 'sveltekit-superforms';
+	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import MediaSchema from './schema';
+	import FileUpload from '../FileUpload.svelte';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
+		data?: { form?: SuperValidated<(typeof MediaSchema)['_output']> };
 		clientSide?: boolean;
 		oncomplete?: (media: MediaDto[]) => void;
 	}
 	const { data, clientSide, oncomplete, ...props }: Props = $props();
 
-	const media = new Media();
-
 	let uploadForm: HTMLFormElement | undefined;
 
-	let uploading = $state<boolean>(false);
-
-	async function onSubmit(e: Event) {
-		if (clientSide) {
-			const result = await validateForm({ update: true });
-			if (!result.valid) {
-				return;
-			}
-
-			const rawFiles = (e.target as HTMLInputElement).files;
-			if (!rawFiles) return;
-			// FIX: Check why the erroring here is incorrect
-			const response = await media.upload('/api/media', Media.sanitiseMulti(rawFiles));
-
-			if (response.err !== null) {
-				notifications.send({
-					message: response.err.message,
-					priority: 'ERROR'
-				});
-				return;
-			}
-			return;
-		}
-		uploadForm?.submit();
-	}
-
-	const form = superForm(
-		data?.form ?? {
-			media: [],
-			name: '',
-			alt: ''
-		},
-		{
-			validators: zodClient(MediaSchema),
-			taintedMessage: false,
-			validationMethod: 'oninput'
-		}
-	);
-
-	let { form: formData, enhance, validateForm, errors } = $derived(form);
-
-	$effect(() => {
-		console.log('form:', $formData);
-		console.log('errors:', $errors);
+	const form = superForm(data?.form ?? defaults(zod(MediaSchema)), {
+		validators: zodClient(MediaSchema),
+		taintedMessage: false,
+		validationMethod: 'onsubmit'
 	});
+
+	let { form: formData, enhance, submitting } = $derived(form);
 
 	const file = fileProxy(form, 'media');
 </script>
@@ -76,16 +36,13 @@
 <Dialog.Root>
 	<Dialog.Trigger>
 		<Button {...props}>
-			{#if uploading}
-				<Spinner />
-			{:else}
-				<Upload class="h-4 w-4" />
-			{/if}
+			<Upload class="h-4 w-4" />
 			{m.upload()}
 		</Button>
 	</Dialog.Trigger>
 	<Dialog.Portal>
-		<Dialog.Content class="min-h-[50vh] min-w-[50vw]">
+		<Dialog.Content class="min-h-[50vh] min-w-138">
+			<FileUpload onfile={async () => {}} accept=".jpeg,.png,.mp4" maxSizeMB={1} multiple />
 			<form
 				bind:this={uploadForm}
 				method="POST"
@@ -116,7 +73,12 @@
 									>Filename</Form.Label
 								>
 								<div>
-									<Input {...props} type="text" bind:value={$formData.name} />
+									<Input
+										{...props}
+										type="text"
+										bind:value={$formData.name}
+										defaultvalue={$file.item(0)?.name}
+									/>
 									<Form.FieldErrors />
 								</div>
 							{/snippet}

@@ -117,6 +117,7 @@ export const LocalizedConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
@@ -677,7 +678,11 @@ export type CreateSectionRequest = z.infer<typeof CreateSectionRequest>;
 export const ResponseValue = z.union([z.number(), z.string()]);
 export type ResponseValue = z.infer<typeof ResponseValue>;
 export const Response = z
-  .object({ question_id: z.string().uuid(), value: ResponseValue })
+  .object({
+    question_id: z.string().uuid(),
+    section_id: z.union([z.string(), z.null()]).optional(),
+    value: ResponseValue,
+  })
   .passthrough();
 export type Response = z.infer<typeof Response>;
 export const QuestionResponses = z.array(Response);
@@ -824,6 +829,7 @@ export const ConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
@@ -876,6 +882,7 @@ export const ConversationWithTranslations = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
     primaryLocale: z.string(),
@@ -916,6 +923,7 @@ export const PartialConversation = z
     is_live: z.union([z.boolean(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     knowledge_base_id: z.union([z.string(), z.null()]),
+    metadata: z.unknown(),
     primary_locale: z.union([z.string(), z.null()]),
     privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
@@ -1114,6 +1122,7 @@ export const ToolConfig = z.union([
     .object({
       questions: z.array(Question),
       randomize_order: z.boolean(),
+      section_questions: z.array(Question).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -1320,6 +1329,7 @@ export const ToolSetup = z.union([
     .object({
       questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
+      section_questions: z.array(SetupQuestion).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -2942,7 +2952,7 @@ Use a raw HTTP request and process the response body incrementally.`,
   {
     method: "post",
     path: "/conversation/:conversation_id/documents",
-    alias: "postConversationConversation_iddocuments",
+    alias: "PostDocuments",
     description: `⚠️ This endpoint requires multipart/form-data.
 
 Generated API clients may not support file uploads.
@@ -3533,6 +3543,21 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "LaunchConversation",
     description: `Makes the conversation live for participants`,
     requestFormat: "json",
+    response: ConversationDto,
+  },
+  {
+    method: "patch",
+    path: "/conversation/:conversation_id/metadata",
+    alias: "PatchConversationMetadata",
+    description: `Accepts a JSON object and merges it into the conversation&#x27;s &#x60;metadata&#x60; jsonb column at the top level. Keys in the body overwrite existing keys; keys not present are left untouched. Nested objects are replaced, not deep-merged.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
     response: ConversationDto,
   },
   {
