@@ -2,30 +2,24 @@
 import { describe, it, expect } from 'vitest';
 import { Editor } from '@tiptap/core';
 import { getBaseExtensions } from './editorConfig';
-import { isMarkdownTableSeparator, containsMarkdownTable } from './markdownTables';
+import { containsMarkdownTable } from './markdownTables';
 
 describe('markdown table detection', () => {
-	it.each(['| --- | --- |', '|---|---|', '| :--- | ---: |', '  --- | --- '])(
-		'treats %p as a separator row',
-		(line) => {
-			expect(isMarkdownTableSeparator(line)).toBe(true);
-		}
-	);
-
-	it.each(['| A | B |', 'just text', '---', '| a | --- |'])(
-		'does not treat %p as a separator row',
-		(line) => {
-			expect(isMarkdownTableSeparator(line)).toBe(false);
-		}
-	);
-
 	it('detects a table inside pasted text', () => {
 		const text = ['intro', '| A | B |', '| --- | --- |', '| 1 | 2 |', 'outro'].join('\n');
 		expect(containsMarkdownTable(text)).toBe(true);
 	});
 
+	it('detects a table with alignment colons', () => {
+		expect(containsMarkdownTable('| A | B |\n| :--- | ---: |\n| 1 | 2 |')).toBe(true);
+	});
+
 	it('does not flag ordinary text with a stray pipe', () => {
 		expect(containsMarkdownTable('a | b is a choice\nsecond line')).toBe(false);
+	});
+
+	it('does not flag a horizontal rule', () => {
+		expect(containsMarkdownTable('some text\n\n---\n\nmore text')).toBe(false);
 	});
 });
 

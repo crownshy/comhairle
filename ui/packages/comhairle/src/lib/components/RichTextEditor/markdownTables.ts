@@ -1,32 +1,17 @@
-/**
- * Markdown-table detection. The parsing itself is done by `@tiptap/markdown` (via
- * `contentType: 'markdown'`); this module only decides *when* a paste is a genuine
- * GFM table, so ordinary pastes are left to the normal behaviour.
- */
+import { marked } from 'marked';
 
 /**
- * A GFM table separator row, e.g. `| --- | :--: |`. It contains only pipes,
- * dashes, colons and spaces, and has at least one dash and one pipe - which a
- * normal data row (with letters) never does, and a plain `---` horizontal rule
- * (no pipe) never does either.
- */
-export function isMarkdownTableSeparator(line: string): boolean {
-	const trimmed = line.trim();
-	if (!trimmed.includes('-') || !trimmed.includes('|')) return false;
-	return /^[|\-:\s]+$/.test(trimmed);
-}
-
-/**
- * True if the text contains a GFM table: a pipe row immediately followed by a
- * separator row. The separator requirement keeps false positives away from
- * ordinary text that happens to contain a stray `|`.
+ * True if the pasted text contains a GFM table, according to marked's lexer (the
+ * same markdown family `@tiptap/markdown` parses, and already a dependency).
+ *
+ * This is only a gate: pastes that are actually tables get re-parsed as markdown,
+ * everything else falls through to the normal paste path. The real parsing is the
+ * library's job, so we don't hand-roll table detection here.
  */
 export function containsMarkdownTable(text: string): boolean {
-	const lines = text.split(/\r?\n/);
-	for (let i = 0; i < lines.length - 1; i++) {
-		const header = lines[i];
-		if (!header.includes('|') || isMarkdownTableSeparator(header)) continue;
-		if (isMarkdownTableSeparator(lines[i + 1])) return true;
+	try {
+		return marked.lexer(text).some((token) => token.type === 'table');
+	} catch {
+		return false;
 	}
-	return false;
 }
