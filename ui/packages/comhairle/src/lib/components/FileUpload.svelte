@@ -18,6 +18,7 @@
 
 	const acceptedExtensions = $derived(accept?.split(',') ?? []);
 	const maxSizeBytes = $derived(maxSizeMB ? maxSizeMB * 1_024 * 1_024 : undefined);
+	const plural = $derived(multiple ? 'files' : 'file');
 
 	let inputMessage = $derived.by(() => {
 		let inputMessage = '';
@@ -116,7 +117,7 @@
 	</div>
 	<div class="flex flex-col items-center gap-2">
 		<div class="text-foreground text-center text-base font-medium">
-			{status === 'dragging' ? 'Drop your files here' : 'Drag and drop your files'}
+			{status === 'dragging' ? `Drop your ${plural} here` : `Drag and drop your ${plural}`}
 		</div>
 		{#if inputMessage}
 			<div class="text-muted-foreground text-center text-sm">
@@ -130,7 +131,7 @@
 		{/if}
 	</div>
 	<Button variant="outline" onclick={() => fileInput?.click()} disabled={status === 'uploading'}>
-		{status === 'uploading' ? 'Uploading...' : 'Select file'}
+		{status === 'uploading' ? 'Uploading...' : `Select ${plural}`}
 	</Button>
 	<input
 		bind:this={fileInput}
