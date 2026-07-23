@@ -1537,26 +1537,6 @@ export const DailyResponseStats = z
   })
   .passthrough();
 export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
-export const FeedbackDto = z
-  .object({
-    content: z.string(),
-    conversationId: z.string().uuid(),
-    id: z.string().uuid(),
-  })
-  .passthrough();
-export type FeedbackDto = z.infer<typeof FeedbackDto>;
-export const ReportImpactDto = z
-  .object({
-    createdAt: z.string().datetime({ offset: true }),
-    createdBy: z.string().uuid(),
-    details: z.string(),
-    id: z.string().uuid(),
-    kind: z.string(),
-    reportId: z.string().uuid(),
-    title: z.string(),
-  })
-  .passthrough();
-export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PolisReport = z.null();
 export type PolisReport = z.infer<typeof PolisReport>;
 export const HeyFormReport = z.null();
@@ -1592,26 +1572,51 @@ export const ReportSectionConfig = z
 export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
 export const ReportSectionConfigs = z.array(ReportSectionConfig);
 export type ReportSectionConfigs = z.infer<typeof ReportSectionConfigs>;
-export const FullReportDto = z
+export const Translation5 = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type Translation5 = z.infer<typeof Translation5>;
+export const ReportTranslations = z
+  .object({ summary: Translation5 })
+  .passthrough();
+export type ReportTranslations = z.infer<typeof ReportTranslations>;
+export const ReportWithTranslations = z
   .object({
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
-    facilitatorFeedback: z.array(FeedbackDto),
     id: z.string().uuid(),
-    impacts: z.array(ReportImpactDto),
     isPublic: z.boolean(),
-    participantFeedback: z.array(FeedbackDto),
+    sectionConfigs: ReportSectionConfigs,
+    summary: z.string(),
+    translations: ReportTranslations,
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type ReportWithTranslations = z.infer<typeof ReportWithTranslations>;
+export const LocalizedReportDto = z
+  .object({
+    conversationId: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    isPublic: z.boolean(),
     sectionConfigs: ReportSectionConfigs,
     summary: z.string(),
   })
   .passthrough();
+export type LocalizedReportDto = z.infer<typeof LocalizedReportDto>;
+export const FullReportDto = z.union([
+  ReportWithTranslations,
+  LocalizedReportDto,
+]);
 export type FullReportDto = z.infer<typeof FullReportDto>;
 export const PartialReport = z
   .object({
     conversation_id: z.union([z.string(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     section_configs: z.union([ReportSectionConfigs, z.null()]),
-    summary: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();
@@ -1623,10 +1628,22 @@ export const ReportDto = z
     id: z.string().uuid(),
     isPublic: z.boolean(),
     sectionConfigs: ReportSectionConfigs,
-    summary: z.string(),
+    summary: z.string().uuid(),
   })
   .passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
+export const ReportImpactDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    createdBy: z.string().uuid(),
+    details: z.string(),
+    id: z.string().uuid(),
+    kind: z.string(),
+    reportId: z.string().uuid(),
+    title: z.string(),
+  })
+  .passthrough();
+export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PartialReportImpact = z
   .object({
     created_at: z.union([z.string(), z.null()]),
@@ -1645,6 +1662,14 @@ export const CreateImpactDTO = z
   .object({ details: z.string(), kind: z.string(), title: z.string() })
   .passthrough();
 export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
+export const FeedbackDto = z
+  .object({
+    content: z.string(),
+    conversationId: z.string().uuid(),
+    id: z.string().uuid(),
+  })
+  .passthrough();
+export type FeedbackDto = z.infer<typeof FeedbackDto>;
 export const CreateFeedbackDTO = z
   .object({ content: z.string() })
   .passthrough();
@@ -1797,15 +1822,15 @@ export const EventDto = z
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
-export const Translation5 = z
+export const Translation6 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation5 = z.infer<typeof Translation5>;
+export type Translation6 = z.infer<typeof Translation6>;
 export const EventTranslations = z
-  .object({ description: Translation5, name: Translation5 })
+  .object({ description: Translation6, name: Translation6 })
   .passthrough();
 export type EventTranslations = z.infer<typeof EventTranslations>;
 export const EventWithTranslations = z
@@ -2480,8 +2505,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateInviteDTO,
   PartialInvite,
   DailyResponseStats,
-  FeedbackDto,
-  ReportImpactDto,
   PolisReport,
   HeyFormReport,
   LearnReport,
@@ -2492,11 +2515,17 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,
+  Translation5,
+  ReportTranslations,
+  ReportWithTranslations,
+  LocalizedReportDto,
   FullReportDto,
   PartialReport,
   ReportDto,
+  ReportImpactDto,
   PartialReportImpact,
   CreateImpactDTO,
+  FeedbackDto,
   CreateFeedbackDTO,
   PartialFeedback,
   ComhairleChatSession,
@@ -2519,7 +2548,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_LocalizedEventDto,
   CreateEvent,
   EventDto,
-  Translation5,
+  Translation6,
   EventTranslations,
   EventWithTranslations,
   EventResponse,
@@ -3626,6 +3655,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/report",
     alias: "GetReportForConversation",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "withTranslations",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+    ],
     response: FullReportDto,
   },
   {

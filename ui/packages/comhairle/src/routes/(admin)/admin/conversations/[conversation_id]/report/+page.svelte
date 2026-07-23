@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
@@ -18,17 +19,14 @@
 	import Delete from 'lucide-svelte/icons/delete';
 	import { Separator } from '$lib/components/ui/separator';
 	import { report_url } from '$lib/urls.js';
-	import { MarkdownEditor } from 'carta-md';
-	import { createCarta } from '$lib/utils/carta';
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
+	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte.js';
 
 	let { data } = $props();
 	let report = $derived(data.report);
 	let conversation = $derived(data.conversation);
-
-	const carta = createCarta();
 
 	let newImpact = $state({
 		title: '',
@@ -44,14 +42,11 @@
 	let impactOpen = $state(false);
 	let feedbackOpen = $state(false);
 
-	let localSummary = $state(report.summary);
-
-	async function saveSummary() {
-		await apiClient.UpdateReport(
-			{ summary: localSummary },
-			{ params: { conversation_id: conversation.id } }
-		);
-	}
+	const summaryTranslationSource = createTextContentSource({
+		getTranslation: () => report.translations.summary,
+		getPrimaryLocale: () => conversation.primaryLocale,
+		getSupportedLanguages: () => conversation.supportedLanguages
+	});
 
 	async function createFeedback() {}
 
@@ -88,9 +83,16 @@
 			<Card.Description>Overall summary of the conversation</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<MarkdownEditor {carta} bind:value={localSummary} />
+			<TranslatableField
+				source={summaryTranslationSource}
+				primaryLocale={conversation.primaryLocale}
+				supportedLanguages={conversation.supportedLanguages}
+				inputType="textarea"
+				placeholder="Summary to be filled out by the facilitator"
+				editorType="rich"
+				minHeight="100px"
+			/>
 		</Card.Content>
-		<Button variant="secondary" onclick={saveSummary}>Save</Button>
 	</Card.Root>
 
 	<Card.Root>
