@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields, GenericArgument, PathArguments, Type};
+use syn::{Data, DeriveInput, Fields, GenericArgument, PathArguments, Type, parse_macro_input};
 
 /// Macro used to allow an enum to be
 /// saved as jsonb in the database
@@ -28,11 +28,13 @@ pub fn derive_db_enum_jsonb(input: TokenStream) -> TokenStream {
                 &self,
                 buf: &mut sqlx::postgres::PgArgumentBuffer,
             ) -> Result<sqlx::encode::IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
+                #[allow(clippy::unwrap_used, reason = "the data should always be valid json")]
                 let json = serde_json::to_value(self).unwrap();
                 <serde_json::Value as sqlx::Encode<sqlx::Postgres>>::encode(json, buf)
             }
 
             fn size_hint(&self) -> usize {
+                #[allow(clippy::unwrap_used, reason = "the data should always be valid json")]
                 let json = serde_json::to_value(self).unwrap();
                 <serde_json::Value as sqlx::Encode<sqlx::Postgres>>::size_hint(&json)
             }
@@ -49,12 +51,14 @@ pub fn derive_db_enum_jsonb(input: TokenStream) -> TokenStream {
 
         impl Into<sea_query::SimpleExpr> for #name{
             fn into(self) -> sea_query::SimpleExpr {
+                #[allow(clippy::unwrap_used, reason = "the data should always be valid")]
                 serde_json::to_value(self).unwrap().into()
             }
         }
 
         impl Into<sea_query::SimpleExpr> for &#name{
             fn into(self) -> sea_query::SimpleExpr {
+                #[allow(clippy::unwrap_used, reason = "the data should always be valid")]
                 serde_json::to_value(self).unwrap().into()
             }
         }
@@ -192,6 +196,10 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
     let mut non_text_content_fields = Vec::new();
 
     for field in fields {
+        #[allow(
+            clippy::unwrap_used,
+            reason = "The field identity should always be present here"
+        )]
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
 
@@ -519,9 +527,10 @@ fn is_optional_text_content_id_type(ty: &Type) -> bool {
                 }
 
                 if let PathArguments::AngleBracketed(args) = &segment.arguments
-                    && let Some(GenericArgument::Type(inner_type)) = args.args.first() {
-                        return is_text_content_id_type(inner_type);
-                    }
+                    && let Some(GenericArgument::Type(inner_type)) = args.args.first()
+                {
+                    return is_text_content_id_type(inner_type);
+                }
             }
             false
         }
@@ -529,6 +538,10 @@ fn is_optional_text_content_id_type(ty: &Type) -> bool {
     }
 }
 
+#[allow(
+    clippy::unwrap_used,
+    reason = "we know there will always be a next character"
+)]
 fn snake_case_to_pascal(snake_word: String) -> String {
     snake_word
         .split('_')

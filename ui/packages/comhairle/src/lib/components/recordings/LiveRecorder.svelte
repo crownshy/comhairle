@@ -16,22 +16,20 @@
 
 	let controller = $state<LiveRecorderController | null>(null);
 
-	function currentContext() {
-		return {
-			conversationId: conversation_id,
-			eventId: event_id,
-			recordings,
-			onComplete,
-			mode
-		};
-	}
+	let currentContext = $derived({
+		conversationId: conversation_id,
+		eventId: event_id,
+		recordings,
+		onComplete,
+		mode
+	});
 
 	$effect(() => {
-		controller?.updateContext(currentContext());
+		controller?.updateContext(currentContext);
 	});
 
 	onMount(() => {
-		controller = new LiveRecorderController(currentContext());
+		controller = new LiveRecorderController(currentContext);
 		void controller.loadLiveRecordings();
 	});
 

@@ -115,7 +115,6 @@ impl AudioRecordingStatus {
 /// unique within that event. The status tracks transcription and report
 /// generation for this recording only.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub struct AudioRecording {
     /// Unique identifier for this recordings's recording
     pub id: Uuid,
@@ -179,7 +178,6 @@ impl From<RawAudioRecording> for AudioRecording {
 
 /// Request to create a new audio recording record
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub struct CreateAudioRecording {
     pub id: Uuid,
     pub event_id: Uuid,

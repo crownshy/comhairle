@@ -243,7 +243,10 @@ impl BulkStorageService for S3StorageService {
             .upload_id(&upload_id.0)
             .key(path)
             .part_number(part_number.0)
-            .presigned(PresigningConfig::expires_in(expires_in).unwrap())
+            .presigned(
+                PresigningConfig::expires_in(expires_in)
+                    .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e.to_string()))?,
+            )
             .await
             .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e.to_string()))?;
 

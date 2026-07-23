@@ -120,14 +120,14 @@ impl AudioRecordingMessageHandler {
         payload: WsResultPayload<T>,
     ) -> Result<(), WebsocketError> {
         let data = serde_json::to_value(payload)
-            .map_err(|err| WebsocketError::SerializationError(err.to_string()))?;
+            .map_err(|e| WebsocketError::SerializationError(e.to_string()))?;
         connection
             .send_message(&WebSocketMessage::Custom {
                 event: event.to_string(),
                 data,
             })
             .await
-            .map_err(|err| WebsocketError::SendError(err.to_string()))
+            .map_err(|e| WebsocketError::SendError(e.to_string()))
     }
 
     async fn send_error_result(
@@ -174,14 +174,6 @@ impl AudioRecordingMessageHandler {
                     ));
                 }
             }
-
-            // Ensure the recording belongs to the event from the acquire request.
-            let _ = live_audio_recording::get_by_id_and_event(
-                &state.db,
-                request.live_recording_id,
-                request.event_id,
-            )
-            .await?;
 
             // Acquire the lock for this recording session.
             let _ = live_audio_recording::lock_live_recording(
@@ -274,8 +266,7 @@ impl AudioRecordingMessageHandler {
                 }
             };
 
-            let live_recording =
-                live_audio_recording::get_by_id(&state.db, live_recording_id).await?;
+            let live_recording = live_audio_recording::get(&state.db, live_recording_id).await?;
 
             if request.part_number != live_recording.next_part_number {
                 return Err(ComhairleError::CorruptedData(format!(
@@ -724,7 +715,7 @@ impl WebSocketMessageHandler for AudioRecordingMessageHandler {
         connection: &WebSocketConnection,
         _state: &Arc<ComhairleState>,
     ) -> Result<(), WebsocketError> {
-        debug!(
+        tracing::info!(
             connection_id = ?connection.id,
             user_id = %connection.user.id,
             "audio recording websocket connected"
@@ -747,7 +738,7 @@ impl WebSocketMessageHandler for AudioRecordingMessageHandler {
                         err
                     )))
                 })
-                .map_err(|err| WebsocketError::AudioRecordingError(err.to_string()))?;
+                .map_err(|e| WebsocketError::AudioRecordingError(e.to_string()))?;
             live_recording_id_map.remove(&connection.id)
         };
 
@@ -763,7 +754,7 @@ impl WebSocketMessageHandler for AudioRecordingMessageHandler {
             .await;
         }
 
-        debug!(
+        tracing::info!(
             connection_id = ?connection.id,
             user_id = %connection.user.id,
             "audio recording websocket disconnected"
@@ -954,8 +945,7 @@ mod tests {
             0
         );
 
-        let live_recording =
-            live_audio_recording::get_by_id(&pool, context.live_recording_id).await?;
+        let live_recording = live_audio_recording::get(&pool, context.live_recording_id).await?;
         assert!(!live_recording.locked);
 
         Ok(())
@@ -1037,7 +1027,7 @@ mod tests {
                 .is_none()
         );
         assert!(
-            !live_audio_recording::get_by_id(&pool, context.live_recording_id)
+            !live_audio_recording::get(&pool, context.live_recording_id)
                 .await?
                 .locked
         );
@@ -1073,7 +1063,7 @@ mod tests {
             context.live_recording_id
         );
         assert!(
-            live_audio_recording::get_by_id(&pool, context.live_recording_id)
+            live_audio_recording::get(&pool, context.live_recording_id)
                 .await?
                 .locked
         );

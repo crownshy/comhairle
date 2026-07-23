@@ -370,6 +370,7 @@ async fn list_live_recordings(
     } else {
         live_audio_recording::list_by_event_and_owner(&state.db, event_id, user.id).await?
     };
+
     Ok((
         StatusCode::OK,
         Json(
@@ -454,12 +455,13 @@ async fn get_live_recording(
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<LiveAudioRecordingStateResponse>), ComhairleError> {
     let _ = ensure_live_recording_access(&state, event_id, &user).await?;
-    let recording =
-        live_audio_recording::get_by_id_and_event(&state.db, live_recording_id, event_id).await?;
+    let live_audio_recording = Into::<LiveAudioRecordingDto>::into(
+        live_audio_recording::get(&state.db, live_recording_id).await?,
+    );
     Ok((
         StatusCode::OK,
         Json(LiveAudioRecordingStateResponse {
-            live_audio_recording: recording.into(),
+            live_audio_recording,
         }),
     ))
 }
@@ -1239,8 +1241,7 @@ mod tests {
 
         assert_eq!(complete_status, StatusCode::INTERNAL_SERVER_ERROR);
 
-        let refreshed =
-            live_audio_recording::get_by_id(&pool, created.live_audio_recording.id).await?;
+        let refreshed = live_audio_recording::get(&pool, created.live_audio_recording.id).await?;
         assert!(
             !refreshed.locked,
             "live recording should be unlocked after complete failure"
@@ -1321,7 +1322,7 @@ mod tests {
 
         assert_eq!(delete_status, StatusCode::OK);
 
-        let lookup = live_audio_recording::get_by_id(&pool, created.live_audio_recording.id).await;
+        let lookup = live_audio_recording::get(&pool, created.live_audio_recording.id).await;
         assert!(
             lookup.is_err(),
             "live recording should be removed even when multipart abort fails"
