@@ -696,6 +696,15 @@ pub fn decode_jwt<T: Serialize + DeserializeOwned>(
     result
 }
 
+/// Best-effort extraction of the current user's id from a session JWT cookie.
+/// Intended for logging: it validates the token signature/expiry but does not
+/// hit the database, and returns `None` for any missing or invalid token.
+pub fn user_id_from_session_token(token: &str, secret: &str) -> Option<String> {
+    decode_jwt::<SessionClaims>(token, secret)
+        .ok()
+        .map(|data| data.claims.id)
+}
+
 /// An extractor to ensure that a required user has a role.
 /// If the user does not have the role then this will fail and
 /// return a Not Authorized response
