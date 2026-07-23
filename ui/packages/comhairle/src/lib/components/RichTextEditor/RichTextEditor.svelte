@@ -8,6 +8,7 @@
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
 	import { SourceDocument } from './extensions/sourceDocument';
+	import { MarkdownTablePaste } from './extensions/markdownTablePaste';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import './editor-content.css';
 
@@ -101,7 +102,9 @@
 				...getBaseExtensions({ mode: 'editor' }).filter(
 					(ext) => ext.name !== 'sourceDocument'
 				),
-				SourceDocument.configure({ documents: docMap, conversationId, editable: true })
+				SourceDocument.configure({ documents: docMap, conversationId, editable: true }),
+				// Editor-only: turns a pasted markdown table into a real table.
+				MarkdownTablePaste
 			],
 			content: detected.content,
 			contentType: detected.type,
