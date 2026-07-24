@@ -9,6 +9,7 @@
 	import MediaSchema from './schema';
 	import { enhance } from '$app/forms';
 	import { Input } from '$lib/components/EasyForm';
+	import Media from '$lib/interfaces/Media';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
 		clientSide?: boolean;
@@ -17,6 +18,8 @@
 	const { clientSide, oncomplete, ...props }: Props = $props();
 
 	let uploadForm: HTMLFormElement | null = $state(null);
+
+	let filename = $state<string>('');
 </script>
 
 <Dialog.Root>
@@ -36,8 +39,12 @@
 				class="flex flex-col"
 				use:enhance
 			>
-				<FileUpload {...MediaSchema.media} maxSizeMB={50} />
-				<Input {...MediaSchema.name} label="Filename" type="text" />
+				<FileUpload
+					{...MediaSchema.media}
+					maxSizeMB={50}
+					onfile={(f) => (filename = Media.getFilename(f.name))}
+				/>
+				<Input {...MediaSchema.name} label="Filename" type="text" bind:value={filename} />
 				<Input {...MediaSchema.alt} label="Alt" type="text" />
 				<Button class="mt-7 self-end" type="submit">Upload</Button>
 			</form>

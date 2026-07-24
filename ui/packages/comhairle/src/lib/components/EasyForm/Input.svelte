@@ -4,7 +4,7 @@
 	import type { ComponentProps } from 'svelte';
 
 	type Props = ComponentProps<typeof Input> & { label?: string };
-	const { onblur, label, ...props }: Props = $props();
+	let { onblur, label, value = $bindable(), ...props }: Props = $props();
 
 	let ref: HTMLInputElement | null = $state(null);
 	let isError: boolean = $state(false);
@@ -17,6 +17,7 @@
 	<Input
 		bind:ref
 		{...props}
+		bind:value
 		onblur={(e) => {
 			isError = !(ref?.checkValidity() ?? true);
 			onblur?.(e);

@@ -77,6 +77,9 @@ class Media {
 	static getExtension(filename: string): string | undefined {
 		return filename.match(/\..*$/)?.[0].toLowerCase();
 	}
+	static getFilename(filename: string): string {
+		return filename.replace(/\..*$/, '');
+	}
 }
 
 export default Media;

@@ -5,7 +5,7 @@
 	import Media from '$lib/interfaces/Media';
 
 	interface Props extends FileAttr {
-		onfile: (file: File) => Promise<void>;
+		onfile?: (file: File) => Promise<unknown> | unknown;
 		maxSizeMB?: number;
 		multiple?: boolean;
 	}
