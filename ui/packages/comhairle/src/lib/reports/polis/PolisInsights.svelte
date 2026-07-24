@@ -6,7 +6,6 @@
 		getConsensusStatements,
 		getDifferenceStatements,
 		totalVotes,
-		consensusDirection,
 		groupLabel
 	} from '$lib/tools/polis/report';
 	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
@@ -103,7 +102,6 @@
 			'passes',
 			'total_votes',
 			...themeCols.map((t) => `theme: ${t}`),
-			'consensus',
 			'statement_text'
 		];
 		for (const gid of groupIds) {
@@ -120,8 +118,6 @@
 
 		for (const c of data.comments) {
 			const aux = auxMap[c.tid];
-			const dir = consensusDirection(c, data.groups);
-			const consensusLabel = dir === '+' ? 'True +' : dir === '-' ? 'True −' : '';
 			const topicSet = new Set(c.topics ?? []);
 
 			const row: unknown[] = [
@@ -131,7 +127,6 @@
 				c.overall_votes.passes,
 				totalVotes(c),
 				...themeCols.map((t) => (topicSet.has(t) ? 'true' : 'false')),
-				consensusLabel,
 				c.text
 			];
 

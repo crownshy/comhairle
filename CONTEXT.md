@@ -93,7 +93,7 @@ _Avoid_: Group (bare — collides with invitee groupings), cluster, faction.
 A statement that most distinguishes an Opinion group from the others (Polis's "representative comments", per `GroupReportData.representative_comments`). Used in the report's Groups section to characterise what each group believes. Distinct from an [[#area-of-consensus]] statement, which is one *every* group agrees on.
 
 **Area of Consensus** (shown as "Area of consensus" in Insights):
-A statement all opinion groups agree on, ranked by Polis's `group_informed_consensus` (the product of each group's smoothed agree%, `(agrees+1)/(total+2)`, so it scores high only when *every* group agrees). The section lists all statements by this score, highest first, read straight off `report_data` (not recomputed). It is agree-oriented: it surfaces "all groups agree", not "all groups disagree". The 80/20 `CONSENSUS_AGREE`/`CONSENSUS_DISAGREE` thresholds survive only to label the CSV export's directional consensus column (`consensusDirection`, agree vs disagree).
+A statement all opinion groups agree on, ranked by Polis's `group_informed_consensus` (the product of each group's smoothed agree%, `(agrees+1)/(total+2)`, so it scores high only when *every* group agrees). The section lists all statements by this score, highest first, read straight off `report_data` (not recomputed). It is agree-oriented: it surfaces "all groups agree", not "all groups disagree".
 
 **Area of Difference** (shown as "Area of disagreement" in Insights):
 A statement the opinion groups split hardest on, ranked by Polis's `divisiveness`, highest first, read straight off `report_data` (not recomputed).

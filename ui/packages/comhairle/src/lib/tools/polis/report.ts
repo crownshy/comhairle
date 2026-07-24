@@ -12,15 +12,6 @@ export function groupLabel(groupId: number): string {
 }
 
 /**
- * Thresholds for the directional consensus label used by the CSV export (the
- * "consensus" column's True + / True −). Tunable here; not a Polis concept - our
- * own classification. The on-screen consensus ranking uses Polis's
- * `group_informed_consensus` instead (see `getConsensusStatements`).
- */
-export const CONSENSUS_AGREE = 80; // all groups agree% >= this -> consensus (+)
-export const CONSENSUS_DISAGREE = 20; // all groups agree% < this -> consensus (-)
-
-/**
  * Per-group vote percentages for a single comment.
  *
  * Percentages are taken over the votes cast on THIS statement, not the
@@ -118,25 +109,6 @@ export function getEngagementStats(data: PolisReportData) {
 /** Vote total for a single comment (a + d + p). */
 export function totalVotes(c: ReportComment): number {
 	return c.overall_votes.agrees + c.overall_votes.disagrees + c.overall_votes.passes;
-}
-
-/**
- * Consensus direction for a statement, or null if it isn't a consensus.
- *   '+' -> every group agrees (agree% >= CONSENSUS_AGREE)
- *   '-' -> every group disagrees (agree% < CONSENSUS_DISAGREE)
- */
-export function consensusDirection(
-	comment: ReportComment,
-	groups: ReportGroup[],
-	{ excludePasses = false }: { excludePasses?: boolean } = {}
-): '+' | '-' | null {
-	const agreed = computeGroupVotePercents(comment, groups, { excludePasses }).map(
-		(p) => p.agreed
-	);
-	if (agreed.length === 0) return null;
-	if (agreed.every((a) => a >= CONSENSUS_AGREE)) return '+';
-	if (agreed.every((a) => a < CONSENSUS_DISAGREE)) return '-';
-	return null;
 }
 
 /**
