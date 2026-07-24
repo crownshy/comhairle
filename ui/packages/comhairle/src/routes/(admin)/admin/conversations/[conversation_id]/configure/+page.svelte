@@ -128,7 +128,6 @@
 		$form.thankYouMessage = data.conversation.thankYouMessage;
 		$form.callToAction = data.conversation.callToAction;
 		$form.autoLogin = data.workflows[0]?.autoLogin;
-		$form.enableQaChatBot = data.conversation.enableQaChatBot;
 		$form.enableSignupPrompts = data.conversation.enableSignupPrompts;
 		$form.showThankYouPageAnnonInstructions =
 			data.conversation.showThankYouPageAnnonInstructions;
@@ -225,7 +224,6 @@
 			isPublic: data.conversation.isPublic,
 			isInviteOnly: data.conversation.isInviteOnly,
 			autoLogin: data.workflows[0].autoLogin,
-			enableQaChatBot: data.conversation.enableQaChatBot,
 			enableSignupPrompts: data.conversation.enableSignupPrompts,
 			showThankYouPageAnnonInstructions: data.conversation.showThankYouPageAnnonInstructions
 		},
@@ -350,7 +348,6 @@
 	type ConversationToggle =
 		| 'isPublic'
 		| 'isInviteOnly'
-		| 'enableQaChatBot'
 		| 'enableSignupPrompts'
 		| 'showThankYouPageAnnonInstructions';
 
@@ -893,42 +890,6 @@
 									{...props}
 									bind:checked={$form.autoLogin}
 									onCheckedChange={(v) => saveAutoLogin(v)}
-								/>
-							</div>
-						{/snippet}
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-
-				<Form.Field form={conversationForm} name="enableQaChatBot">
-					<Form.Control>
-						{#snippet children({ props })}
-							<div class="flex items-center justify-between gap-4">
-								<div class="flex flex-col gap-1">
-									<div class="flex items-center gap-1.5">
-										<Form.Label class="text-sm font-medium"
-											>Show Learning Assistant</Form.Label
-										>
-										{@render infoPreview(
-											"Shows a Q&A 'Learning Assistant' that answers participants' questions from the conversation's knowledge base. Set it up on the Knowledge Base page."
-										)}
-									</div>
-									<p class="text-muted-foreground text-sm">
-										Display a Q&A Learning Assistant on the conversation.<br />
-										{#if !conversation.isLive}
-											(Configure Learning Assistant on the
-											<a
-												href={`/admin/conversations/${conversation.id}/knowledge-base`}
-												class="underline">Knowledge Base page</a
-											>)
-										{/if}
-									</p>
-								</div>
-								<Switch
-									{...props}
-									bind:checked={$form.enableQaChatBot}
-									onCheckedChange={(v) =>
-										saveConversationToggle('enableQaChatBot', v)}
 								/>
 							</div>
 						{/snippet}

@@ -29,7 +29,7 @@ describe('conversationPrimaryStripSkeleton', () => {
 	});
 
 	it('returns null for sections without a primary strip', () => {
-		expect(conversationPrimaryStripSkeleton(`${base}/knowledge-base`, id)).toBeNull();
+		expect(conversationPrimaryStripSkeleton(`${base}/learning-assistant`, id)).toBeNull();
 		expect(conversationPrimaryStripSkeleton(`${base}/monitor`, id)).toBeNull();
 		expect(conversationPrimaryStripSkeleton(`${base}/report`, id)).toBeNull();
 		expect(conversationPrimaryStripSkeleton(base, id)).toBeNull();

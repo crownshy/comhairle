@@ -1,4 +1,5 @@
 import { ws } from '$lib/api/websockets.svelte';
+import type { EventAgendaItem } from '@crownshy/api-client/api';
 
 export type VideoCallStatus = 'Waiting' | 'InProgress' | 'Ended';
 
@@ -38,6 +39,8 @@ export interface BroadcastMessage {
 export class VideoCallService {
 	private _currentCallState = $state<VideoCallState | null>(null);
 	private _lastBroadcastMessage = $state<string | null>(null);
+	/** Latest agenda pushed over WS (overrides the SSR-loaded agenda when set). */
+	private _agenda = $state<EventAgendaItem[] | null>(null);
 	private isListening = false;
 
 	constructor() {
@@ -50,6 +53,11 @@ export class VideoCallService {
 
 	get lastBroadcastMessage(): string | null {
 		return this._lastBroadcastMessage;
+	}
+
+	/** Agenda pushed over WS since the call was joined, or null if none received yet. */
+	get agenda(): EventAgendaItem[] | null {
+		return this._agenda;
 	}
 
 	get isInCall(): boolean {
@@ -90,6 +98,8 @@ export class VideoCallService {
 				this.handleStateUpdate(payload.data as VideoCallState);
 			} else if (payload.event === 'video_call:message') {
 				this.handleBroadcastMessage(payload.data as BroadcastMessage);
+			} else if (payload.event === 'video_call:agenda_updated') {
+				this.handleAgendaUpdate(payload.data as EventAgendaItem[]);
 			}
 		});
 	}
@@ -112,6 +122,11 @@ export class VideoCallService {
 		this._lastBroadcastMessage = data.message;
 	}
 
+	private handleAgendaUpdate(agenda: EventAgendaItem[]) {
+		console.log('[BREAKOUT-SVC] agenda updated:', agenda?.length, 'items');
+		this._agenda = agenda;
+	}
+
 	joinCall(eventId: string) {
 		ws.sendCustom('video_call:user_joined', {
 			event_id: eventId
@@ -123,6 +138,7 @@ export class VideoCallService {
 			event_id: eventId
 		});
 		this._currentCallState = null;
+		this._agenda = null;
 	}
 
 	/** Moderator/facilitator only */
