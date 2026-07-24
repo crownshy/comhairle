@@ -949,10 +949,8 @@
 								'microphone',
 								'camera',
 								'desktop',
-								'participants-pane',
 								'chat',
 								'raisehand',
-								'breakoutrooms',
 								'tileview',
 								'hangup',
 								'fullscreen'
