@@ -3,9 +3,7 @@ import type {
 	MemberVotePercent,
 	PolisReportData,
 	ReportComment,
-	ReportGroup,
-	ThemeControversy,
-	ThemeSummary
+	ReportGroup
 } from './reportTypes';
 
 /** A-Z label for a group_id (0 -> "A"). */
@@ -14,12 +12,13 @@ export function groupLabel(groupId: number): string {
 }
 
 /**
- * Thresholds for the Insights consensus/difference labels. Defined in the
- * ticket (286), tunable here. Not Polis concepts - our own classification.
+ * Thresholds for the directional consensus label used by the CSV export (the
+ * "consensus" column's True + / True −). Tunable here; not a Polis concept - our
+ * own classification. The on-screen consensus ranking uses Polis's
+ * `group_informed_consensus` instead (see `getConsensusStatements`).
  */
 export const CONSENSUS_AGREE = 80; // all groups agree% >= this -> consensus (+)
 export const CONSENSUS_DISAGREE = 20; // all groups agree% < this -> consensus (-)
-export const DIFFERENCE_SPREAD = 30; // max-min agree% > this -> difference
 
 /**
  * Per-group vote percentages for a single comment.
@@ -121,46 +120,6 @@ export function totalVotes(c: ReportComment): number {
 	return c.overall_votes.agrees + c.overall_votes.disagrees + c.overall_votes.passes;
 }
 
-/** Fewest votes any single group cast on a comment (a + d + p per group). */
-export function minGroupVotes(c: ReportComment): number {
-	if (c.group_votes.length === 0) return 0;
-	return Math.min(...c.group_votes.map((gv) => gv.agrees + gv.disagrees + gv.passes));
-}
-
-/**
- * "Low data quality" threshold - a per-group minimum. See CONTEXT.md. A
- * statement is low quality when ANY group cast fewer than this many votes on
- * it, because every Insights table compares group agree%s and a barely-voted
- * group yields a meaningless percentage.
- */
-export const LOW_QUALITY_MIN_GROUP_VOTES = 10;
-
-/** True when any group has fewer than LOW_QUALITY_MIN_GROUP_VOTES on the comment. */
-export function isLowQuality(c: ReportComment): boolean {
-	return minGroupVotes(c) < LOW_QUALITY_MIN_GROUP_VOTES;
-}
-
-/**
- * Single classification driving the left color sliver, so the same statement
- * shows the same stripe in every table. Consensus and difference are mutually
- * exclusive by their own math (a row can't be all-same-side AND spread > 30).
- */
-export function classifyStatement(
-	c: ReportComment,
-	groups: ReportGroup[],
-	{ excludePasses = false }: { excludePasses?: boolean } = {}
-): 'consensus' | 'difference' | 'neutral' {
-	if (consensusDirection(c, groups, { excludePasses }) !== null) return 'consensus';
-	const agreed = computeGroupVotePercents(c, groups, { excludePasses }).map((p) => p.agreed);
-	const spread = agreed.length ? Math.max(...agreed) - Math.min(...agreed) : 0;
-	return spread > DIFFERENCE_SPREAD ? 'difference' : 'neutral';
-}
-
-/** Filter helpers shared by the three areas-of-* lists. */
-function withMinVotes(comments: ReportComment[], minVotes: number) {
-	return comments.filter((c) => totalVotes(c) >= minVotes);
-}
-
 /**
  * Consensus direction for a statement, or null if it isn't a consensus.
  *   '+' -> every group agrees (agree% >= CONSENSUS_AGREE)
@@ -181,124 +140,24 @@ export function consensusDirection(
 }
 
 /**
- * Areas of consensus: ALL groups land on the same side - either all agree
- * (agree% >= 80) or all disagree (agree% < 20). See CONTEXT.md / ticket 286.
+ * Areas of consensus: every statement ranked by Polis's `group_informed_consensus`
+ * (highest first). That score is the product of each opinion group's smoothed
+ * agree% ((agrees + 1) / (total + 2)), so a statement only scores high when EVERY
+ * group agrees - one dissenting group tanks the product. It's agree-oriented:
+ * it surfaces "all groups agree", not "all groups disagree". Read straight off
+ * the report data (Polis computes it); we do not recompute it.
  */
-export function getConsensusStatements(
-	data: PolisReportData,
-	{ minVotes = 5, excludePasses = false }: { minVotes?: number; excludePasses?: boolean } = {}
-): ReportComment[] {
-	return withMinVotes(data.comments, minVotes)
-		.filter((c) => consensusDirection(c, data.groups, { excludePasses }) !== null)
-		.sort((a, b) => (b.group_informed_consensus ?? 0) - (a.group_informed_consensus ?? 0));
+export function getConsensusStatements(data: PolisReportData): ReportComment[] {
+	return [...data.comments].sort(
+		(a, b) => (b.group_informed_consensus ?? 0) - (a.group_informed_consensus ?? 0)
+	);
 }
 
 /**
- * Areas of difference: the largest agree% gap between any two groups exceeds
- * the threshold (30 by default). With >2 groups this is max(agree%) -
- * min(agree%), i.e. ONE diverging pair is enough. Sorted by spread, desc.
+ * Areas of difference: every statement ranked by Polis's `divisiveness` (highest
+ * first) - higher means the opinion groups split harder on it. Read straight off
+ * the report data; we do not recompute it.
  */
-export function getDifferenceStatements(
-	data: PolisReportData,
-	{
-		threshold = DIFFERENCE_SPREAD,
-		minVotes = 5,
-		excludePasses = false
-	}: {
-		threshold?: number;
-		minVotes?: number;
-		excludePasses?: boolean;
-	} = {}
-): ReportComment[] {
-	return withMinVotes(data.comments, minVotes)
-		.map((c) => {
-			const agreePercents = computeGroupVotePercents(c, data.groups, { excludePasses }).map(
-				(p) => p.agreed
-			);
-			const spread = agreePercents.length
-				? Math.max(...agreePercents) - Math.min(...agreePercents)
-				: 0;
-			return { c, spread };
-		})
-		.filter(({ spread }) => spread > threshold)
-		.sort((a, b) => b.spread - a.spread)
-		.map(({ c }) => c);
-}
-
-/**
- * Areas of uncertainty: pass% significantly higher than the average pass
- * rate across all comments. Default = pass% >= avg + stdev (or >= 30%).
- */
-export function getUncertaintyStatements(
-	data: PolisReportData,
-	{ minVotes = 5 }: { minVotes?: number } = {}
-): ReportComment[] {
-	const filtered = withMinVotes(data.comments, minVotes);
-	if (filtered.length === 0) return [];
-
-	const passPercents = filtered.map((c) => {
-		const t = totalVotes(c);
-		return t === 0 ? 0 : (c.overall_votes.passes / t) * 100;
-	});
-	const avg = passPercents.reduce((s, x) => s + x, 0) / passPercents.length;
-	const variance = passPercents.reduce((s, x) => s + (x - avg) ** 2, 0) / passPercents.length;
-	const stdev = Math.sqrt(variance);
-	const cutoff = Math.max(avg + stdev, 30);
-
-	return filtered
-		.map((c, i) => ({ c, passPercent: passPercents[i] }))
-		.filter(({ passPercent }) => passPercent >= cutoff)
-		.sort((a, b) => b.passPercent - a.passPercent)
-		.map(({ c }) => c);
-}
-
-/** Aggregate topic counts across all comments. */
-export function getThemeCounts(data: PolisReportData): { theme: string; count: number }[] {
-	const counts = new Map<string, number>();
-	for (const c of data.comments) {
-		for (const t of c.topics ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
-	}
-	return [...counts.entries()]
-		.map(([theme, count]) => ({ theme, count }))
-		.sort((a, b) => b.count - a.count);
-}
-
-/**
- * Per-statement group-agree spread = max(agree%) - min(agree%) across groups.
- * Returns 0 when the statement has fewer than 2 groups voting.
- */
-function statementSpread(comment: ReportComment, groups: ReportGroup[]): number {
-	const agreed = computeGroupVotePercents(comment, groups).map((p) => p.agreed);
-	if (agreed.length < 2) return 0;
-	return Math.max(...agreed) - Math.min(...agreed);
-}
-
-/**
- * Controversy classification for a theme. See CONTEXT.md -> "Controversy".
- * Average per-statement group-agree spread, bucketed:
- *   <15 -> low, 15-30 -> moderate, >30 -> high.
- */
-export function themeControversy(theme: string, data: PolisReportData): ThemeControversy {
-	const tagged = data.comments.filter((c) => c.topics?.includes(theme));
-	if (tagged.length === 0) return 'low';
-	const spreads = tagged.map((c) => statementSpread(c, data.groups));
-	const avg = spreads.reduce((s, x) => s + x, 0) / spreads.length;
-	if (avg > 30) return 'high';
-	if (avg >= 15) return 'moderate';
-	return 'low';
-}
-
-/** Theme roll-ups for the Themes card: statement count + controversy bucket. */
-export function getThemeSummaries(data: PolisReportData): ThemeSummary[] {
-	return getThemeCounts(data).map(({ theme, count }) => ({
-		theme,
-		statementCount: count,
-		controversy: themeControversy(theme, data)
-	}));
-}
-
-/** Overall agree% for one comment (denominator = total votes). */
-export function overallAgreePct(c: ReportComment): number {
-	const t = totalVotes(c);
-	return t === 0 ? 0 : (c.overall_votes.agrees / t) * 100;
+export function getDifferenceStatements(data: PolisReportData): ReportComment[] {
+	return [...data.comments].sort((a, b) => (b.divisiveness ?? 0) - (a.divisiveness ?? 0));
 }

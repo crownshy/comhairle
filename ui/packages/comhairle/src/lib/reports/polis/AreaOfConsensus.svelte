@@ -1,12 +1,14 @@
 <!--
-	@component The "Area of consensus" section: the statement explorer from the
-	new design. A legend, author-type filter chips (seed / participant / all), a
-	column header (ID / STATEMENT / VOTES), and a numbered list of statements each
-	shown as a StatementVoteBlock (OVERALL + N group bars), collapsed to a preview
-	with a "See all N" expand in a muted footer bar.
+	@component A statement-explorer section from the new design, used for both
+	"Area of consensus" and "Area of disagreement" (the `title` decides which). A
+	legend, author-type filter chips (seed / participant / all), a column header
+	(ID / STATEMENT / VOTES), and a numbered list of statements each shown as a
+	StatementVoteBlock (OVERALL + N group bars), collapsed to a preview with a
+	"See all N" expand in a muted footer bar.
 
-	Dumb: takes the comments + groups and an optional CSV handler. Filtering and
-	collapse are local view state, not data fetching.
+	Dumb: takes the (already consensus- or difference-ranked) comments + groups and
+	an optional CSV handler. Filtering and collapse are local view state, not data
+	fetching.
 -->
 <script lang="ts">
 	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
@@ -18,13 +20,15 @@
 	type AuthorFilter = 'all' | 'seed' | 'participant';
 
 	type Props = {
+		/** Section heading, e.g. "Area of consensus" or "Area of disagreement". */
+		title: string;
 		comments: ReportComment[];
 		groups: ReportGroup[];
 		/** Wired from PolisInsights; omit to hide the CSV action. */
 		onDownloadCsv?: () => void;
 	};
 
-	let { comments, groups, onDownloadCsv }: Props = $props();
+	let { title, comments, groups, onDownloadCsv }: Props = $props();
 
 	const COLLAPSED_ROWS = 4;
 	let filter = $state<AuthorFilter>('all');
@@ -58,7 +62,7 @@
 <Card.Root class="gap-0 rounded-md p-0 shadow-none">
 	<header class="flex items-start justify-between gap-4 px-4 pt-3.5">
 		<div class="flex flex-col gap-0.5">
-			<h2 class="text-foreground text-lg font-bold">Area of consensus</h2>
+			<h2 class="text-foreground text-lg font-bold">{title}</h2>
 			<p class="text-muted-foreground text-sm font-medium">
 				Click a theme to see all of the statements associated with it.
 			</p>

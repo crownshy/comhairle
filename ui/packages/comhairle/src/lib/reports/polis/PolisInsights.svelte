@@ -1,22 +1,16 @@
 <script lang="ts">
-	import type {
-		ReportComment,
-		PolisReportData,
-		ThemeSummary
-	} from '$lib/tools/polis/reportTypes';
+	import type { ReportComment, PolisReportData } from '$lib/tools/polis/reportTypes';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import {
 		getEngagementStats,
-		themeControversy,
+		getConsensusStatements,
+		getDifferenceStatements,
 		totalVotes,
 		consensusDirection,
 		groupLabel
 	} from '$lib/tools/polis/report';
-	import ThemeBar from '$lib/components/polis-report/ThemeBar.svelte';
 	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import { ChevronDown } from '@lucide/svelte';
 
 	let {
 		reportData,
@@ -60,6 +54,12 @@
 	});
 
 	const stats = $derived(report ? getEngagementStats(report) : null);
+	// Statement lists for the two areas: the full statement set, ranked by the
+	// Polis-provided scores (group_informed_consensus for consensus, divisiveness
+	// for disagreement). Same statements, two orderings; the preview surfaces the
+	// strongest of each.
+	const consensusStatements = $derived(report ? getConsensusStatements(report) : []);
+	const disagreementStatements = $derived(report ? getDifferenceStatements(report) : []);
 	// Stat-card subtexts. Statement split reads aux moderation_status ("accepted" →
 	// "approved" in the UI); avg is mean votes cast per unique voter.
 	const approvedCount = $derived(
@@ -71,28 +71,6 @@
 	const avgVotesPerVoter = $derived(
 		stats && stats.totalParticipants > 0 ? stats.totalVotes / stats.totalParticipants : 0
 	);
-	// Theme roll-up over ALL tagged statements (aux), not just the Polis report
-	// set. Controversy needs vote data (only the report carries), so themes on
-	// non-report statements fall back to 'low'.
-	const themes = $derived.by<ThemeSummary[]>(() => {
-		const counts: Record<string, number> = {};
-		for (const row of Object.values(auxByTid)) {
-			for (const t of row.themes) counts[t] = (counts[t] ?? 0) + 1;
-		}
-		return Object.entries(counts)
-			.map(([theme, statementCount]) => ({
-				theme,
-				statementCount,
-				controversy: report ? themeControversy(theme, report) : ('low' as const)
-			}))
-			.sort((a, b) => b.statementCount - a.statementCount);
-	});
-	// Bars rank against the biggest theme (themes is sorted count-desc).
-	const maxThemeCount = $derived(themes[0]?.statementCount ?? 0);
-
-	// Collapse the themes list to a preview; "See all" expands in place.
-	const COLLAPSED_ROWS = 5;
-	let showAllThemes = $state(false);
 
 	// --- CSV export (inlined; one row per comment, columns match the UI) ---
 	/** Wrap a value for CSV: quote, double internal quotes, normalize newlines. */
@@ -218,60 +196,19 @@
 			/>
 		</div>
 
-		<!-- ===== Themes card ===== -->
-		<!-- Display-only for now; the click-to-filter redesign lands with the Themes ticket. -->
-		<Card.Root
-			class="hover:border-muted-foreground/40 rounded-[20px] p-0 shadow-sm transition-colors duration-200"
-		>
-			<header class="flex items-start justify-between gap-4 px-8 pt-8">
-				<div>
-					<h2 class="text-foreground text-lg font-semibold">Themes</h2>
-					<p class="text-foreground/70 mt-2 text-base font-medium">
-						Themes and subtopics emerged in the conversation.
-					</p>
-				</div>
-			</header>
-
-			<div class="px-8 pt-6 pb-2">
-				<div
-					class="text-foreground grid grid-cols-[10rem_3rem_1fr_2.5rem] items-center gap-6 px-2 py-2 text-sm font-semibold uppercase"
-				>
-					<div>Theme</div>
-					<div class="text-right">Count</div>
-					<div></div>
-					<div></div>
-				</div>
-				{#if themes.length === 0}
-					<p class="text-muted-foreground py-6 text-base italic">
-						No themes have been generated yet for this conversation.
-					</p>
-				{:else}
-					{#each showAllThemes ? themes : themes.slice(0, COLLAPSED_ROWS) as t (t.theme)}
-						<ThemeBar summary={t} barMax={maxThemeCount} />
-					{/each}
-					{#if themes.length > COLLAPSED_ROWS}
-						<button
-							type="button"
-							onclick={() => (showAllThemes = !showAllThemes)}
-							class="text-foreground/70 hover:text-foreground flex w-full items-center justify-center gap-2 py-4 text-base transition-colors"
-						>
-							{showAllThemes
-								? 'Show fewer themes'
-								: `See all ${themes.length} themes`}
-							<ChevronDown
-								class={`text-primary size-4 transition-transform ${showAllThemes ? 'rotate-180' : ''}`}
-							/>
-						</button>
-					{/if}
-				{/if}
-			</div>
-		</Card.Root>
-
 		<!-- ===== Area of consensus ===== -->
 		<AreaOfConsensus
-			comments={report.comments}
+			title="Area of consensus"
+			comments={consensusStatements}
 			groups={report.groups}
 			onDownloadCsv={handleDownloadCsv}
+		/>
+
+		<!-- ===== Area of disagreement ===== -->
+		<AreaOfConsensus
+			title="Area of disagreement"
+			comments={disagreementStatements}
+			groups={report.groups}
 		/>
 	</div>
 {/if}
