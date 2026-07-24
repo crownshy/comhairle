@@ -75,10 +75,15 @@ class Media {
 	}
 
 	static getExtension(filename: string): string | undefined {
-		return filename.match(/\..*$/)?.[0].toLowerCase();
+		const index = filename.lastIndexOf('.');
+		if (index < 0) return undefined;
+		return filename.slice(index);
 	}
+
 	static getFilename(filename: string): string {
-		return filename.replace(/\..*$/, '');
+		const index = filename.lastIndexOf('.');
+		if (index < 0) return filename;
+		return filename.slice(0, index);
 	}
 }
 
