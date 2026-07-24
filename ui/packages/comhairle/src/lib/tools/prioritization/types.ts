@@ -72,6 +72,7 @@ export type ToolConfig = {
 	/** Questions asked about each section (same set for every section). */
 	sectionQuestions: Question[];
 	randomizeOrder: boolean;
+	alignmentQuestionId: string;
 };
 
 /** Responses */

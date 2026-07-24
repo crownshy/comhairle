@@ -19,6 +19,8 @@
 		QuestionType,
 		WorkflowStepInput
 	} from './types';
+	import * as Select from '$lib/components/ui/select';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 
 	let {
 		conversationId,
@@ -249,6 +251,18 @@
 		}
 		return '';
 	}
+
+	let savingAlignmentQuestion = $state(false);
+	async function setAlignmentQuestion(value: string) {
+		savingAlignmentQuestion = true;
+		await store.saveToolConfig({
+			questions,
+			sectionQuestions,
+			randomizeOrder: toolConfig.randomizeOrder,
+			alignmentQuestionId: value
+		});
+		savingAlignmentQuestion = false;
+	}
 </script>
 
 <section class="space-y-10">
@@ -329,6 +343,30 @@
 			</DraggableList>
 		{/if}
 	</div>
+
+	{#if questions.length > 1}
+		<div class="flex flex-col gap-2">
+			<h3 class="text-lg font-bold">Select your alignment question</h3>
+			<Select.Root
+				type="single"
+				value={toolConfig.alignmentQuestionId ?? questions[0].id}
+				onValueChange={setAlignmentQuestion}
+			>
+				<Select.Trigger>
+					{questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text ??
+						questions[0].text}
+					{#if savingAlignmentQuestion}
+						<Spinner />
+					{/if}
+				</Select.Trigger>
+				<Select.Content>
+					{#each questions as question (question.id)}
+						<Select.Item value={question.id}>{question.text}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
+	{/if}
 
 	<div class="space-y-4">
 		<header class="flex items-start justify-between gap-4">

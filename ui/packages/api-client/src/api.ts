@@ -700,6 +700,23 @@ export const CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
 export type CreateResponse = z.infer<typeof CreateResponse>;
+export const RankedProposal = z
+  .object({
+    alignmentRating: z.number(),
+    id: z.string().uuid(),
+    responses: z.array(ProposalResponseDto),
+    sections: z.array(LocalizedProposalSectionDto),
+    title: z.string(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type RankedProposal = z.infer<typeof RankedProposal>;
+export const PrioritizationInsightsResponse = z
+  .object({ rankedProposals: z.array(RankedProposal) })
+  .passthrough();
+export type PrioritizationInsightsResponse = z.infer<
+  typeof PrioritizationInsightsResponse
+>;
 export const ConversationRequest2 = z
   .object({
     history: z.string(),
@@ -1144,6 +1161,7 @@ export const ToolConfig = z.union([
     .passthrough(),
   z
     .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(Question),
       randomize_order: z.boolean(),
       section_questions: z.array(Question).optional().default([]),
@@ -1351,6 +1369,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
       section_questions: z.array(SetupQuestion).optional().default([]),
@@ -2434,6 +2453,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
+  RankedProposal,
+  PrioritizationInsightsResponse,
   ConversationRequest2,
   AnswerStatus,
   status,
@@ -4874,6 +4895,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.array(ThemeStatistic),
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/insights",
+    alias: "GetPrioritizationInsights",
+    description: `Insights reporting data for prioritization tool step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationInsightsResponse,
   },
   {
     method: "get",
