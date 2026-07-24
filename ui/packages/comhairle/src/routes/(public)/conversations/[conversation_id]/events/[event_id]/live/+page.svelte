@@ -60,7 +60,7 @@
 
 	/** Participants actually in Jitsi call (excludes current user + lobby-only users) */
 	let inCallParticipants = $derived(
-		allParticipants.filter((p) => jitsiParticipantMap.has(p.user_id))
+		allParticipants.filter((p) => p.user_id !== user?.id && jitsiParticipantMap.has(p.user_id))
 	);
 	let currentStep = $derived(videoCallService.currentAgendaStep);
 	let breakoutSession = $derived(videoCallService.breakoutSession);
@@ -787,6 +787,8 @@
 	function handleVideoConferenceJoined(data: any) {
 		console.log('[BREAKOUT] Entered Jitsi room:', data.roomName);
 		currentJitsiRoomName = data.roomName;
+		// Capture everyone already in the room (participantJoined won't fire for them)
+		seedJitsiParticipants();
 		// Moderator is now in Jitsi — safe to let participants in
 		if (isModerator && callStatus === 'Waiting') {
 			videoCallService.changeCallState(eventId, 'InProgress');
@@ -797,23 +799,56 @@
 		console.log('[BREAKOUT] Left Jitsi room:', data.roomName);
 	}
 
-	function handleParticipantJoined(participant: any) {
-		console.log('[BREAKOUT] Participant joined:', participant);
+	const normalizeName = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 
-		// Try to match Jitsi participant to backend user by display name
-		const matchingUser = allParticipants.find((p) => p.username === participant.displayName);
+	/** Map a single Jitsi participant (by displayName) to a backend user in jitsiParticipantMap. */
+	function mapJitsiParticipant(jitsiId: string, displayName: string | undefined) {
+		const target = normalizeName(displayName);
+
+		// Exact (normalized) username match first, then fall back to a backend user_id
+		// embedded in the display name (guards against renamed / mis-cased Jitsi names).
+		let matchingUser =
+			allParticipants.find((p) => p.username && normalizeName(p.username) === target) ?? null;
+
+		if (!matchingUser && target) {
+			matchingUser =
+				allParticipants.find((p) => target.includes(p.user_id.toLowerCase())) ?? null;
+		}
 
 		if (matchingUser) {
 			console.log(
 				'[BREAKOUT] Mapped Jitsi participant',
-				participant.id,
+				jitsiId,
 				'→ user',
 				matchingUser.user_id
 			);
-			jitsiParticipantMap.set(matchingUser.user_id, participant.id);
+			jitsiParticipantMap.set(matchingUser.user_id, jitsiId);
 		} else {
-			console.warn('[BREAKOUT] Could not match participant:', participant.displayName);
+			console.warn('[BREAKOUT] Could not match participant:', displayName);
 		}
+	}
+
+	/** Seed jitsiParticipantMap with everyone already in the call. `participantJoined` only
+	 *  fires for people who join AFTER our listener attaches, so pre-existing participants
+	 *  (usually most of them) would otherwise never be mapped. */
+	function seedJitsiParticipants() {
+		try {
+			const roster = jitsiApi?.getParticipantsInfo?.() ?? [];
+			console.log('[BREAKOUT] Seeding', roster.length, 'existing Jitsi participants');
+			for (const p of roster) {
+				mapJitsiParticipant(
+					p.participantId ?? p.id,
+					p.displayName ?? p.formattedDisplayName
+				);
+			}
+		} catch (error) {
+			console.error('[BREAKOUT] Failed to seed Jitsi participants:', error);
+		}
+	}
+
+	function handleParticipantJoined(participant: any) {
+		console.log('[BREAKOUT] Participant joined:', participant);
+		mapJitsiParticipant(participant.id, participant.displayName);
 	}
 
 	function handleParticipantLeft(participant: any) {
