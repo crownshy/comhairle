@@ -9,6 +9,7 @@
 		groupLabel
 	} from '$lib/tools/polis/report';
 	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
+	import ConsensusContinuum from './ConsensusContinuum.svelte';
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
 
 	let {
@@ -205,5 +206,8 @@
 			comments={disagreementStatements}
 			groups={report.groups}
 		/>
+
+		<!-- ===== Consensus continuum ===== -->
+		<ConsensusContinuum comments={report.comments} groups={report.groups} />
 	</div>
 {/if}
