@@ -152,7 +152,8 @@
 		});
 	}
 
-	let agendaItems = $derived(mapApiAgenda(event?.agenda ?? []));
+	// Prefer the agenda pushed over WS (live edits) over the SSR-loaded one, which can go stale.
+	let agendaItems = $derived(mapApiAgenda(videoCallService.agenda ?? event?.agenda ?? []));
 
 	let meetingPhase = $derived.by(() => {
 		let phase: 'loading' | 'ended' | 'incall' | 'lobby';

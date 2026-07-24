@@ -12,6 +12,7 @@ use comhairle::{
     transcription_service::amazon_transcriber::AmazonTranscriber,
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
+    websockets::handlers::video_call::VideoCallMessageHandler,
     wiki_poll_service::polis_service::PolisClient,
     worker_service::{init_monitor, init_worker_service},
 };
@@ -139,11 +140,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         None
     };
 
+    let video_call_handler = Arc::new(VideoCallMessageHandler::new());
+
     let state = Arc::new(ComhairleState {
         db,
         mailer,
         config,
         websockets,
+        video_call_handler,
         translation_service,
         transcription_service,
         bot_service,

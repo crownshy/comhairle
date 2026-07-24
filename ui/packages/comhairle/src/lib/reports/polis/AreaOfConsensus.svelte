@@ -1,0 +1,156 @@
+<!--
+	@component A statement-explorer section from the new design, used for both
+	"Area of consensus" and "Area of disagreement" (the `title` decides which). A
+	legend, author-type filter chips (seed / participant / all), a column header
+	(ID / STATEMENT / VOTES), and a numbered list of statements each shown as a
+	StatementVoteBlock (OVERALL + N group bars), collapsed to a preview with a
+	"See all N" expand in a muted footer bar.
+
+	Dumb: takes the (already consensus- or difference-ranked) comments + groups and
+	an optional CSV handler. Filtering and collapse are local view state, not data
+	fetching.
+-->
+<script lang="ts">
+	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Download, ChevronDown } from '@lucide/svelte';
+	import StatementVoteBlock from './StatementVoteBlock.svelte';
+
+	type AuthorFilter = 'all' | 'seed' | 'participant';
+
+	type Props = {
+		/** Section heading, e.g. "Area of consensus" or "Area of disagreement". */
+		title: string;
+		comments: ReportComment[];
+		groups: ReportGroup[];
+		/** Wired from PolisInsights; omit to hide the CSV action. */
+		onDownloadCsv?: () => void;
+	};
+
+	let { title, comments, groups, onDownloadCsv }: Props = $props();
+
+	const COLLAPSED_ROWS = 4;
+	let filter = $state<AuthorFilter>('all');
+	let expanded = $state(false);
+
+	const filtered = $derived(
+		filter === 'seed'
+			? comments.filter((c) => c.is_seed)
+			: filter === 'participant'
+				? comments.filter((c) => !c.is_seed)
+				: comments
+	);
+	const visible = $derived(expanded ? filtered : filtered.slice(0, COLLAPSED_ROWS));
+
+	const chips: { value: AuthorFilter; label: string }[] = [
+		{ value: 'seed', label: 'Seed statement' },
+		{ value: 'participant', label: 'Participant statement' },
+		{ value: 'all', label: 'All' }
+	];
+
+	// Legend swatches map to the same tokens VoteBar renders with. `border` flags the
+	// not-voted swatch so its (near-white) fill stays visible on the card.
+	const legend = [
+		{ label: '%Agreed', color: 'var(--vote-agreed)', border: false },
+		{ label: '%Disagreed', color: 'var(--vote-disagreed)', border: false },
+		{ label: '%Passed', color: 'var(--vote-passed)', border: false },
+		{ label: '%not voted', color: 'var(--vote-not-voted)', border: true }
+	];
+</script>
+
+<Card.Root class="gap-0 rounded-md p-0 shadow-none">
+	<header class="flex items-start justify-between gap-4 px-4 pt-3.5">
+		<div class="flex flex-col gap-0.5">
+			<h2 class="text-foreground text-lg font-bold">{title}</h2>
+			<p class="text-muted-foreground text-sm font-medium">
+				Click a theme to see all of the statements associated with it.
+			</p>
+		</div>
+		{#if onDownloadCsv}
+			<Button size="sm" onclick={onDownloadCsv}>
+				<Download class="size-4" />
+				Download CSV
+			</Button>
+		{/if}
+	</header>
+
+	<!-- Legend -->
+	<div class="text-foreground flex flex-wrap items-center gap-2 px-4 pt-4 text-xs font-medium">
+		{#each legend as l, i (l.label)}
+			{#if i > 0}
+				<span class="text-muted-foreground" aria-hidden="true">·</span>
+			{/if}
+			<span class="flex items-center gap-1.5">
+				<span
+					class="size-3 rounded-sm"
+					class:border={l.border}
+					class:border-border={l.border}
+					style="background: {l.color};"
+				></span>
+				{l.label}
+			</span>
+		{/each}
+	</div>
+
+	<!-- Author-type filter -->
+	<div class="flex flex-wrap gap-2 px-4 pt-4">
+		{#each chips as c (c.value)}
+			<button
+				type="button"
+				onclick={() => (filter = c.value)}
+				class="rounded-full px-2 py-0.5 text-sm font-normal transition-colors {filter ===
+				c.value
+					? 'bg-primary text-primary-foreground'
+					: 'bg-accent text-accent-foreground hover:bg-accent/70'}"
+			>
+				{c.label}
+			</button>
+		{/each}
+	</div>
+
+	<!-- Statement list -->
+	{#if filtered.length === 0}
+		<p class="text-muted-foreground px-4 py-6 text-base italic">
+			No statements match the current filter.
+		</p>
+	{:else}
+		<!-- Column header -->
+		<div
+			class="text-subtle-foreground flex items-center gap-5 px-4 pt-4 pb-2 text-xs font-medium tracking-wide"
+		>
+			<span class="w-6 shrink-0 text-right">ID</span>
+			<span>STATEMENT / VOTES</span>
+		</div>
+
+		<div class="flex flex-col px-4">
+			{#each visible as c, i (c.tid)}
+				<div class="border-border flex items-center gap-5 border-b py-2">
+					<span
+						class="text-muted-foreground w-6 shrink-0 text-right text-xs font-medium tabular-nums"
+					>
+						{i + 1}
+					</span>
+					<div class="min-w-0 flex-1">
+						<StatementVoteBlock comment={c} {groups} />
+					</div>
+				</div>
+			{/each}
+		</div>
+
+		{#if filtered.length > COLLAPSED_ROWS}
+			<button
+				type="button"
+				onclick={() => (expanded = !expanded)}
+				class="bg-muted text-accent-foreground hover:bg-muted/70 flex w-full items-center justify-center gap-2 rounded-b-md py-3 text-base transition-colors"
+			>
+				{expanded ? 'Show fewer' : `See all ${filtered.length} statements`}
+				<ChevronDown
+					class={`text-primary size-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+				/>
+			</button>
+		{:else}
+			<div class="pb-2"></div>
+		{/if}
+	{/if}
+</Card.Root>

@@ -1,39 +1,17 @@
 <script lang="ts">
-	import type {
-		ReportComment,
-		PolisReportData,
-		ThemeSummary
-	} from '$lib/tools/polis/reportTypes';
+	import type { ReportComment, PolisReportData } from '$lib/tools/polis/reportTypes';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
-	import { apiClient } from '@crownshy/api-client/client';
 	import {
 		getEngagementStats,
 		getConsensusStatements,
 		getDifferenceStatements,
-		themeControversy,
-		classifyStatement,
-		isLowQuality,
 		totalVotes,
-		consensusDirection,
 		groupLabel
 	} from '$lib/tools/polis/report';
-	import { notifications } from '$lib/notifications.svelte';
-	import StatementRow from '$lib/components/polis-report/StatementRow.svelte';
-	import StatementSection from '$lib/components/polis-report/StatementSection.svelte';
-	import ThemeBar from '$lib/components/polis-report/ThemeBar.svelte';
-	import ThemeChip from '$lib/components/polis-report/ThemeChip.svelte';
 	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Download, ChevronDown } from '@lucide/svelte';
-	import { onMount, tick } from 'svelte';
-	import { page } from '$app/state';
-	import { replaceState, invalidate } from '$app/navigation';
-
-	const ALL_STATEMENTS_ID = 'all-statements';
+	import AreaOfConsensus from './AreaOfConsensus.svelte';
 
 	let {
-		workflowStepId,
 		reportData,
 		statementAux
 	}: {
@@ -75,6 +53,12 @@
 	});
 
 	const stats = $derived(report ? getEngagementStats(report) : null);
+	// Statement lists for the two areas: the full statement set, ranked by the
+	// Polis-provided scores (group_informed_consensus for consensus, divisiveness
+	// for disagreement). Same statements, two orderings; the preview surfaces the
+	// strongest of each.
+	const consensusStatements = $derived(report ? getConsensusStatements(report) : []);
+	const disagreementStatements = $derived(report ? getDifferenceStatements(report) : []);
 	// Stat-card subtexts. Statement split reads aux moderation_status ("accepted" →
 	// "approved" in the UI); avg is mean votes cast per unique voter.
 	const approvedCount = $derived(
@@ -86,193 +70,6 @@
 	const avgVotesPerVoter = $derived(
 		stats && stats.totalParticipants > 0 ? stats.totalVotes / stats.totalParticipants : 0
 	);
-	// Theme roll-up over ALL tagged statements (aux), not just the Polis report
-	// set. Controversy needs vote data (only the report carries), so themes on
-	// non-report statements fall back to 'low'.
-	const themes = $derived.by<ThemeSummary[]>(() => {
-		const counts = new Map<string, number>();
-		for (const row of Object.values(auxByTid)) {
-			for (const t of row.themes) counts.set(t, (counts.get(t) ?? 0) + 1);
-		}
-		return [...counts.entries()]
-			.map(([theme, statementCount]) => ({
-				theme,
-				statementCount,
-				controversy: report ? themeControversy(theme, report) : ('low' as const)
-			}))
-			.sort((a, b) => b.statementCount - a.statementCount);
-	});
-	// Bars rank against the biggest theme (themes is sorted count-desc).
-	const maxThemeCount = $derived(themes[0]?.statementCount ?? 0);
-
-	// --- Section filter state (Consensus / Difference) ---
-	let consensusExcludeHosts = $state(false);
-	let consensusExcludePasses = $state(false);
-	let differencesExcludeHosts = $state(false);
-	let differencesExcludePasses = $state(false);
-
-	// Collapse long lists to a preview; "See all" expands in place.
-	const COLLAPSED_ROWS = 5;
-	let consensusExpanded = $state(false);
-	let differencesExpanded = $state(false);
-	let showAllThemes = $state(false);
-
-	// Low-quality rows (any group < 10 votes) are hidden by default in every table
-	// but stay in the counts; each table reveals its own set.
-	let consensusShowLow = $state(false);
-	let differencesShowLow = $state(false);
-
-	const consensus = $derived(
-		report ? getConsensusStatements(report, { excludePasses: consensusExcludePasses }) : []
-	);
-	const differences = $derived(
-		report ? getDifferenceStatements(report, { excludePasses: differencesExcludePasses }) : []
-	);
-
-	const filterHosts = (list: ReportComment[], excludeHosts: boolean) =>
-		excludeHosts ? list.filter((c) => !c.is_seed) : list;
-
-	const consensusFiltered = $derived(filterHosts(consensus, consensusExcludeHosts));
-	const differencesFiltered = $derived(filterHosts(differences, differencesExcludeHosts));
-
-	// Split each list into trustworthy rows (shown) and low-quality rows (behind a
-	// reveal). Both halves stay counted in the section total.
-	const consensusMain = $derived(consensusFiltered.filter((c) => !isLowQuality(c)));
-	const consensusLow = $derived(consensusFiltered.filter((c) => isLowQuality(c)));
-	const differencesMain = $derived(differencesFiltered.filter((c) => !isLowQuality(c)));
-	const differencesLow = $derived(differencesFiltered.filter((c) => isLowQuality(c)));
-
-	/** All themes used anywhere on this conversation — powers the picker dropdown. */
-	const availableThemes = $derived.by(() => {
-		const set = new Set<string>();
-		for (const row of Object.values(auxByTid)) {
-			for (const t of row.themes) set.add(t);
-		}
-		return [...set].sort();
-	});
-
-	// --- All Statements: theme filter state ---
-	// Multi-select theme filter (OR/union). Seeded from ?theme=a,b so the view is
-	// deep-linkable/shareable.
-	let selectedThemes = $state<string[]>(
-		(page.url.searchParams.get('theme') ?? '')
-			.split(',')
-			.map((s) => s.trim())
-			.filter(Boolean)
-	);
-	let explorerExcludePasses = $state(false);
-	let explorerExcludeHosts = $state(false);
-
-	const explorerStatements = $derived.by(() => {
-		if (!report) return [] as ReportComment[];
-		let list: ReportComment[] = [...report.comments];
-		if (explorerExcludeHosts) list = list.filter((c) => !c.is_seed);
-		// OR: keep statements matching ANY selected theme.
-		if (selectedThemes.length > 0) {
-			list = list.filter((c) => selectedThemes.some((t) => c.topics?.includes(t)));
-		}
-		return list.sort((a, b) => totalVotes(b) - totalVotes(a));
-	});
-
-	// "All Statements" shows everything by default (it's last, so length doesn't
-	// disrupt) but the reveal is still reversible. Low-quality rows split out as in
-	// the other tables.
-	let explorerExpanded = $state(true);
-	let showLowQuality = $state(false);
-	const explorerMain = $derived(explorerStatements.filter((c) => !isLowQuality(c)));
-	const explorerLowQuality = $derived(explorerStatements.filter((c) => isLowQuality(c)));
-	const explorerTotal = $derived(explorerMain.length + explorerLowQuality.length);
-
-	/** Set the theme filter and mirror it into ?theme=a,b (shallow — no history spam). */
-	function setThemes(next: string[]) {
-		selectedThemes = next;
-		const url = new URL(page.url);
-		if (next.length) url.searchParams.set('theme', next.join(','));
-		else url.searchParams.delete('theme');
-		replaceState(url, {});
-	}
-
-	/** Chip bar: add/remove one theme from the OR-combined filter. */
-	function toggleTheme(theme: string) {
-		setThemes(
-			selectedThemes.includes(theme)
-				? selectedThemes.filter((t) => t !== theme)
-				: [...selectedThemes, theme]
-		);
-	}
-
-	/** Themes card: replace the filter with just this theme and scroll to the table. */
-	async function focusTheme(theme: string) {
-		setThemes([theme]);
-		await tick();
-		document
-			.getElementById(ALL_STATEMENTS_ID)
-			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
-
-	// Arriving via a ?theme= deep-link: jump to the (already filtered) table.
-	onMount(() => {
-		if (selectedThemes.length) {
-			document.getElementById(ALL_STATEMENTS_ID)?.scrollIntoView({ block: 'start' });
-		}
-	});
-
-	/** Shared theme-picker wiring for a row (disabled until the aux row exists). */
-	function pickerFor(tid: number) {
-		return {
-			availableThemes,
-			disabled: !auxByTid[tid],
-			onAddTheme: (theme: string) => addThemeFor(tid, theme),
-			onRemoveTheme: (theme: string) => removeThemeFor(tid, theme)
-		};
-	}
-
-	/**
-	 * Persist a picker edit. Optimistic + roll-back on failure, then invalidate so
-	 * the parent load re-seeds `statementAux`. No aux row means the statement hasn't
-	 * been backfilled yet — the picker is disabled for those, so this only fires
-	 * for taggable rows.
-	 */
-	async function addThemeFor(tid: number, theme: string) {
-		const row = auxByTid[tid];
-		if (!row || row.themes.includes(theme)) return;
-		const prevThemes = row.themes;
-		auxByTid = { ...auxByTid, [tid]: { ...row, themes: [...prevThemes, theme] } };
-		try {
-			const updated = await apiClient.PolisAddStatementAuxTheme(
-				{ theme },
-				{ params: { id: row.id } }
-			);
-			auxByTid = { ...auxByTid, [tid]: updated };
-			await invalidate('polis:statement-aux');
-		} catch (e) {
-			console.error('PolisAddStatementAuxTheme failed', e);
-			auxByTid = { ...auxByTid, [tid]: { ...row, themes: prevThemes } };
-			notifications.send({ priority: 'ERROR', message: 'Failed to add theme' });
-		}
-	}
-
-	async function removeThemeFor(tid: number, theme: string) {
-		const row = auxByTid[tid];
-		if (!row || !row.themes.includes(theme)) return;
-		const prevThemes = row.themes;
-		auxByTid = {
-			...auxByTid,
-			[tid]: { ...row, themes: prevThemes.filter((t) => t !== theme) }
-		};
-		try {
-			const updated = await apiClient.PolisRemoveStatementAuxTheme(
-				{ theme },
-				{ params: { id: row.id } }
-			);
-			auxByTid = { ...auxByTid, [tid]: updated };
-			await invalidate('polis:statement-aux');
-		} catch (e) {
-			console.error('PolisRemoveStatementAuxTheme failed', e);
-			auxByTid = { ...auxByTid, [tid]: { ...row, themes: prevThemes } };
-			notifications.send({ priority: 'ERROR', message: 'Failed to remove theme' });
-		}
-	}
 
 	// --- CSV export (inlined; one row per comment, columns match the UI) ---
 	/** Wrap a value for CSV: quote, double internal quotes, normalize newlines. */
@@ -284,11 +81,11 @@
 
 	/** Sorted union of every theme appearing on any statement in the report. */
 	function collectThemes(comments: ReportComment[]): string[] {
-		const set = new Set<string>();
+		const seen: Record<string, true> = {};
 		for (const c of comments) {
-			for (const t of c.topics ?? []) set.add(t);
+			for (const t of c.topics ?? []) seen[t] = true;
 		}
-		return [...set].sort();
+		return Object.keys(seen).sort();
 	}
 
 	function buildStatementsCsv(
@@ -305,7 +102,6 @@
 			'passes',
 			'total_votes',
 			...themeCols.map((t) => `theme: ${t}`),
-			'consensus',
 			'statement_text'
 		];
 		for (const gid of groupIds) {
@@ -322,8 +118,6 @@
 
 		for (const c of data.comments) {
 			const aux = auxMap[c.tid];
-			const dir = consensusDirection(c, data.groups);
-			const consensusLabel = dir === '+' ? 'True +' : dir === '-' ? 'True −' : '';
 			const topicSet = new Set(c.topics ?? []);
 
 			const row: unknown[] = [
@@ -333,7 +127,6 @@
 				c.overall_votes.passes,
 				totalVotes(c),
 				...themeCols.map((t) => (topicSet.has(t) ? 'true' : 'false')),
-				consensusLabel,
 				c.text
 			];
 
@@ -380,251 +173,37 @@
 {:else}
 	<div class="flex flex-col gap-10 pb-8">
 		<!-- ===== Top stats ===== -->
-		<div class="flex flex-wrap items-end justify-between gap-4">
-			<div class="flex flex-wrap gap-4">
-				<MetricOverviewCard
-					superText="Participants"
-					metric={stats.totalParticipants}
-					subText="unique voters"
-				/>
-				<MetricOverviewCard
-					superText="Statements"
-					metric={stats.totalStatements}
-					subText="{approvedCount} approved · {pendingCount} pending"
-				/>
-				<MetricOverviewCard
-					superText="Vote cast"
-					metric={stats.totalVotes}
-					subText="{avgVotesPerVoter.toFixed(1)} avg per voter"
-				/>
-			</div>
-			<Button onclick={handleDownloadCsv} class="w-full sm:w-auto">
-				<Download class="size-4" />
-				Download CSV
-			</Button>
+		<div class="flex flex-wrap gap-4">
+			<MetricOverviewCard
+				superText="Participants"
+				metric={stats.totalParticipants}
+				subText="unique voters"
+			/>
+			<MetricOverviewCard
+				superText="Statements"
+				metric={stats.totalStatements}
+				subText="{approvedCount} approved · {pendingCount} pending"
+			/>
+			<MetricOverviewCard
+				superText="Vote cast"
+				metric={stats.totalVotes}
+				subText="{avgVotesPerVoter.toFixed(1)} avg per voter"
+			/>
 		</div>
 
-		<!-- ===== Themes card ===== -->
-		<Card.Root
-			class="hover:border-muted-foreground/40 rounded-[20px] p-0 shadow-sm transition-colors duration-200"
-		>
-			<header class="flex items-start justify-between gap-4 px-8 pt-8">
-				<div>
-					<h2 class="text-foreground text-lg font-semibold">Themes</h2>
-					<p class="text-foreground/70 mt-2 text-base font-medium">
-						Click a theme to see all of the statements associated with it.
-					</p>
-				</div>
-			</header>
+		<!-- ===== Area of consensus ===== -->
+		<AreaOfConsensus
+			title="Area of consensus"
+			comments={consensusStatements}
+			groups={report.groups}
+			onDownloadCsv={handleDownloadCsv}
+		/>
 
-			<div class="px-8 pt-6 pb-2">
-				<div
-					class="text-foreground grid grid-cols-[10rem_3rem_1fr_2.5rem] items-center gap-6 px-2 py-2 text-sm font-semibold uppercase"
-				>
-					<div>Theme</div>
-					<div class="text-right">Count</div>
-					<div></div>
-					<div></div>
-				</div>
-				{#if themes.length === 0}
-					<p class="text-muted-foreground py-6 text-base italic">
-						No themes have been generated yet for this conversation.
-					</p>
-				{:else}
-					{#each showAllThemes ? themes : themes.slice(0, COLLAPSED_ROWS) as t (t.theme)}
-						<ThemeBar
-							summary={t}
-							barMax={maxThemeCount}
-							onclick={() => focusTheme(t.theme)}
-						/>
-					{/each}
-					{#if themes.length > COLLAPSED_ROWS}
-						<button
-							type="button"
-							onclick={() => (showAllThemes = !showAllThemes)}
-							class="text-foreground/70 hover:text-foreground flex w-full items-center justify-center gap-2 py-4 text-base transition-colors"
-						>
-							{showAllThemes
-								? 'Show fewer themes'
-								: `See all ${themes.length} themes`}
-							<ChevronDown
-								class={`text-primary size-4 transition-transform ${showAllThemes ? 'rotate-180' : ''}`}
-							/>
-						</button>
-					{/if}
-				{/if}
-			</div>
-		</Card.Root>
-
-		<!-- ===== Areas of Consensus ===== -->
-		<StatementSection
-			title="Areas of Consensus"
-			count={consensusFiltered.length}
-			countAccent="consensus"
-			description="with greater than 80% agreement across all groups."
-			metricLabel="Min Agree"
-			groupCount={report.groups.length}
-			total={consensusMain.length}
-			collapsedCount={COLLAPSED_ROWS}
-			lowQualityCount={consensusLow.length}
-			bind:expanded={consensusExpanded}
-			bind:showLowQuality={consensusShowLow}
-			bind:excludeHosts={consensusExcludeHosts}
-			bind:excludePasses={consensusExcludePasses}
-		>
-			{#if consensusMain.length === 0}
-				<p class="text-muted-foreground col-span-full px-4 py-6 text-base italic">
-					No consensus statements yet.
-				</p>
-			{:else}
-				{#each consensusExpanded ? consensusMain : consensusMain.slice(0, COLLAPSED_ROWS) as c, i (c.tid)}
-					<StatementRow
-						index={i + 1}
-						comment={c}
-						groups={report.groups}
-						variant="consensus"
-						excludePasses={consensusExcludePasses}
-						picker={pickerFor(c.tid)}
-					/>
-				{/each}
-			{/if}
-
-			{#snippet lowQuality()}
-				{#each consensusLow as c, i (c.tid)}
-					<StatementRow
-						index={i + 1}
-						comment={c}
-						groups={report.groups}
-						variant="consensus"
-						excludePasses={consensusExcludePasses}
-						picker={pickerFor(c.tid)}
-					/>
-				{/each}
-			{/snippet}
-		</StatementSection>
-
-		<!-- ===== Areas of Difference ===== -->
-		<StatementSection
-			title="Areas of Difference"
-			count={differencesFiltered.length}
-			countAccent="difference"
-			description="with greater than 30% difference across the groups."
-			metricLabel="Difference"
-			groupCount={report.groups.length}
-			total={differencesMain.length}
-			collapsedCount={COLLAPSED_ROWS}
-			lowQualityCount={differencesLow.length}
-			bind:expanded={differencesExpanded}
-			bind:showLowQuality={differencesShowLow}
-			bind:excludeHosts={differencesExcludeHosts}
-			bind:excludePasses={differencesExcludePasses}
-		>
-			{#if differencesMain.length === 0}
-				<p class="text-muted-foreground col-span-full px-4 py-6 text-base italic">
-					No clear differences yet.
-				</p>
-			{:else}
-				{#each differencesExpanded ? differencesMain : differencesMain.slice(0, COLLAPSED_ROWS) as c, i (c.tid)}
-					<StatementRow
-						index={i + 1}
-						comment={c}
-						groups={report.groups}
-						variant="difference"
-						excludePasses={differencesExcludePasses}
-						picker={pickerFor(c.tid)}
-					/>
-				{/each}
-			{/if}
-
-			{#snippet lowQuality()}
-				{#each differencesLow as c, i (c.tid)}
-					<StatementRow
-						index={i + 1}
-						comment={c}
-						groups={report.groups}
-						variant="difference"
-						excludePasses={differencesExcludePasses}
-						picker={pickerFor(c.tid)}
-					/>
-				{/each}
-			{/snippet}
-		</StatementSection>
-
-		<!-- Areas of Uncertainty is deferred. Ships as Consensus + Difference only. -->
-
-		<!-- ===== All Statements ===== -->
-		<StatementSection
-			id={ALL_STATEMENTS_ID}
-			title="All Statements"
-			count={explorerTotal}
-			countAccent="all"
-			description="in total. Use labels below to filter by theme."
-			metricLabel="Count"
-			groupCount={report.groups.length}
-			total={explorerMain.length}
-			collapsedCount={COLLAPSED_ROWS}
-			lowQualityCount={explorerLowQuality.length}
-			bind:expanded={explorerExpanded}
-			bind:showLowQuality
-			bind:excludeHosts={explorerExcludeHosts}
-			bind:excludePasses={explorerExcludePasses}
-		>
-			{#snippet headerAction()}
-				<Button size="sm" onclick={handleDownloadCsv}>
-					<Download class="size-4" />
-					Download CSV
-				</Button>
-			{/snippet}
-
-			{#snippet toolbar()}
-				<div class="flex flex-wrap gap-2">
-					{#each themes as t (t.theme)}
-						<ThemeChip
-							label={t.theme}
-							variant="primary"
-							selected={selectedThemes.includes(t.theme)}
-							onclick={() => toggleTheme(t.theme)}
-						/>
-					{/each}
-					{#if themes.length === 0}
-						<span class="text-muted-foreground text-sm italic">No themes yet.</span>
-					{/if}
-				</div>
-			{/snippet}
-
-			{#if explorerMain.length === 0}
-				<p class="text-muted-foreground col-span-full px-4 py-6 text-base italic">
-					No statements match the current filters.
-				</p>
-			{:else}
-				{#each explorerExpanded ? explorerMain : explorerMain.slice(0, COLLAPSED_ROWS) as c, i (c.tid)}
-					<StatementRow
-						index={i + 1}
-						comment={c}
-						groups={report.groups}
-						variant={classifyStatement(c, report.groups, {
-							excludePasses: explorerExcludePasses
-						})}
-						excludePasses={explorerExcludePasses}
-						picker={pickerFor(c.tid)}
-					/>
-				{/each}
-			{/if}
-
-			{#snippet lowQuality()}
-				{#each explorerLowQuality as c, i (c.tid)}
-					<StatementRow
-						index={i + 1}
-						comment={c}
-						groups={report.groups}
-						variant={classifyStatement(c, report.groups, {
-							excludePasses: explorerExcludePasses
-						})}
-						excludePasses={explorerExcludePasses}
-						picker={pickerFor(c.tid)}
-					/>
-				{/each}
-			{/snippet}
-		</StatementSection>
+		<!-- ===== Area of disagreement ===== -->
+		<AreaOfConsensus
+			title="Area of disagreement"
+			comments={disagreementStatements}
+			groups={report.groups}
+		/>
 	</div>
 {/if}

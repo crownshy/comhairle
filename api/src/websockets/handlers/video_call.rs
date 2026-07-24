@@ -1034,12 +1034,49 @@ impl VideoCallMessageHandler {
 
         Ok(())
     }
+
+    /// Pushes an updated agenda to every participant currently on the call for `event_id`,
+    /// across all API instances in the cluster.
+    ///
+    /// `agenda` must already be serialized in the same shape the frontend receives from
+    /// the events API (i.e. the `EventDto.agenda` value). No-op if nobody is on the call,
+    /// so callers can fire this unconditionally.
+    pub async fn broadcast_agenda_update(
+        &self,
+        event_id: &Uuid,
+        agenda: serde_json::Value,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let message = WebSocketMessage::Custom {
+            event: "video_call:agenda_updated".into(),
+            data: agenda,
+        };
+
+        // Fan out across the cluster: each instance resolves its own local participants
+        // for this event (see `local_room_members`), so users on any instance receive it.
+        let _ = state
+            .websockets
+            .broadcast_to_room(self.domain(), event_id, &message)
+            .await;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl WebSocketMessageHandler for VideoCallMessageHandler {
     fn domain(&self) -> &str {
         "video_call"
+    }
+
+    /// Participants of the call for `room_id` (the event id) known to THIS instance.
+    fn local_room_members(&self, room_id: &Uuid) -> Vec<Uuid> {
+        self.with_video_call_state(room_id, |call| {
+            call.participants.keys().copied().collect::<Vec<Uuid>>()
+        })
+        .ok()
+        .flatten()
+        .unwrap_or_default()
     }
 
     async fn handle_message(

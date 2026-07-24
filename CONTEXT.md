@@ -92,24 +92,18 @@ _Avoid_: Group (bare — collides with invitee groupings), cluster, faction.
 **Representative comment**:
 A statement that most distinguishes an Opinion group from the others (Polis's "representative comments", per `GroupReportData.representative_comments`). Used in the report's Groups section to characterise what each group believes. Distinct from an [[#area-of-consensus]] statement, which is one *every* group agrees on.
 
-**Controversy**:
-A per-Theme classification `low | moderate | high`, from the average per-statement group-agree spread across that theme's statements. Buckets: `<15` low, `15–30` moderate, `>30` high (tunable in `report.ts`; civic_os marks the exact cuts "to confirm").
+**Area of Consensus** (shown as "Area of consensus" in Insights):
+A statement all opinion groups agree on, ranked by Polis's `group_informed_consensus` (the product of each group's smoothed agree%, `(agrees+1)/(total+2)`, so it scores high only when *every* group agrees). The section lists all statements by this score, highest first, read straight off `report_data` (not recomputed). It is agree-oriented: it surfaces "all groups agree", not "all groups disagree".
 
-**Area of Consensus**:
-A statement where every group agrees ≥ 80% (consensus `+`) or every group < 20% (consensus `−`). Thresholds `CONSENSUS_AGREE`/`CONSENSUS_DISAGREE`.
-
-**Area of Difference**:
-A statement where the agree% gap between the most- and least-agreeing groups exceeds 30 points. One diverging pair is enough.
-
-**Low data quality**:
-A statement where any group has < 10 total votes on it (`min per-group votes < 10`), making its group %s untrustworthy. Hidden by default across the Insights tables but still counted; revealable.
+**Area of Difference** (shown as "Area of disagreement" in Insights):
+A statement the opinion groups split hardest on, ranked by Polis's `divisiveness`, highest first, read straight off `report_data` (not recomputed).
 
 ### Reporting
 
 **Report component**:
 The primitive of the reporting system: a self-contained, configurable widget fed by (usually) one tool's insight data, e.g. an "Areas of Agreement" list, an engagement stat card, a Prioritisation ranking, a beeswarm chart. The unit that gets built once per tool and reused. **Report views are compositions of report components** filtered by audience + timing; the components are the thing you design, the views are arrangements.
 _Avoid_: widget, block, card (too generic).
-_Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components (`components/polis-report/**` + `tools/polis/report.ts`). An older parallel set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
+_Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components — the Insights set in `lib/reports/polis/**` (`VoteBar`, `StatementVoteBlock`, `AreaOfConsensus`) backed by `tools/polis/report.ts`. A separate set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
 
 **Report view**:
 A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:
