@@ -63,6 +63,9 @@ pub struct VideoCallState {
     /// the live page / sitting in the lobby). Reported by each client on join/leave, so
     /// it does not depend on the user-editable Jitsi display name.
     pub in_video_participants: HashSet<Uuid>,
+    /// The Jitsi display name each user chose, keyed by user id. Reported by the client
+    /// on join and whenever it changes, so the UI can show call names instead of usernames.
+    pub jitsi_display_names: HashMap<Uuid, String>,
     /// List of breakout room assignments
     pub breakout_rooms: Vec<BreakoutRoomAssignments>,
     /// Active requests for assistance from breakout rooms
@@ -138,6 +141,7 @@ impl VideoCallState {
             status: VideoCallStatus::Waiting,
             participants: HashMap::new(),
             in_video_participants: HashSet::new(),
+            jitsi_display_names: HashMap::new(),
             video_call_id,
             breakout_room_assistance_requests: HashMap::new(),
             current_agenda_step: 0,
@@ -170,6 +174,15 @@ struct UserJoinData {
 #[derive(Serialize, Deserialize)]
 struct UserLeaveData {
     pub event_id: Uuid,
+}
+
+/// Data structure for a client reporting that it joined (or renamed itself in) the video.
+#[derive(Serialize, Deserialize)]
+struct VideoJoinedData {
+    pub event_id: Uuid,
+    /// The Jitsi display name the user chose, if any.
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 /// Data structure for setting the current agenda item.
@@ -542,6 +555,7 @@ impl VideoCallMessageHandler {
         self.with_video_call_state_mut(&leave_data.event_id, |call| {
             call.participants.remove(&user_id);
             call.in_video_participants.remove(&user_id);
+            call.jitsi_display_names.remove(&user_id);
         })?;
 
         self.broadcast_state(&leave_data.event_id, state).await?;
@@ -549,19 +563,30 @@ impl VideoCallMessageHandler {
         Ok(())
     }
 
-    /// Marks a user as having actually joined the Jitsi video for this event, then
-    /// broadcasts the updated state. Called when a client's `videoConferenceJoined`
-    /// fires — a reliable, rename-proof signal of real call presence.
+    /// Marks a user as having actually joined the Jitsi video for this event and records
+    /// the Jitsi display name they chose, then broadcasts the updated state. Called when a
+    /// client's `videoConferenceJoined` fires (and again on rename) — a reliable,
+    /// rename-proof signal of real call presence keyed by the authenticated user id.
     pub async fn handle_video_joined(
         &self,
         event_id: &Uuid,
+        data: &serde_json::Value,
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
     ) -> Result<(), VideoCallWSError> {
+        let joined_data: VideoJoinedData = serde_json::from_value(data.clone())?;
         let user_id = connection.user.id;
 
         self.with_video_call_state_mut(event_id, |call| {
             call.in_video_participants.insert(user_id);
+            match joined_data.display_name {
+                Some(name) if !name.trim().is_empty() => {
+                    call.jitsi_display_names.insert(user_id, name);
+                }
+                _ => {
+                    call.jitsi_display_names.remove(&user_id);
+                }
+            }
         })?;
 
         self.broadcast_state(event_id, state).await?;
@@ -581,6 +606,7 @@ impl VideoCallMessageHandler {
 
         self.with_video_call_state_mut(event_id, |call| {
             call.in_video_participants.remove(&user_id);
+            call.jitsi_display_names.remove(&user_id);
         })?;
 
         self.broadcast_state(event_id, state).await?;
@@ -1149,7 +1175,7 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                             .await?
                     }
                     "video_call:video_joined" => {
-                        self.handle_video_joined(&event_id, connection, state)
+                        self.handle_video_joined(&event_id, data, connection, state)
                             .await?
                     }
                     "video_call:video_left" => {
