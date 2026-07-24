@@ -5,7 +5,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import FileUpload, { type FileFormProps } from '$lib/components/FileUpload.svelte';
+	import FileUpload from '$lib/components/FileUpload.svelte';
 	import MediaSchema from './schema';
 	import { enhance } from '$app/forms';
 	import { Input } from '$lib/components/EasyForm';
@@ -36,7 +36,7 @@
 				class="flex flex-col"
 				use:enhance
 			>
-				<FileUpload {...MediaSchema.media as FileFormProps} maxSizeMB={50} />
+				<FileUpload {...MediaSchema.media} maxSizeMB={50} />
 				<Input {...MediaSchema.name} label="Filename" type="text" />
 				<Input {...MediaSchema.alt} label="Alt" type="text" />
 				<Button class="mt-7 self-end" type="submit">Upload</Button>

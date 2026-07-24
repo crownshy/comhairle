@@ -1,7 +1,7 @@
 import Media from '$lib/interfaces/Media';
 import type { Result } from '$lib/utils/errorHandling';
 import type { Schema } from '.';
-import type { FileAttr, InputAttr } from './types.svelte';
+import type { FileAttr, InputAttr } from './types';
 
 type ValidationError =
 	| 'KEY_NOT_FOUND'
@@ -26,8 +26,9 @@ export function validate(form: FormData, schema: Schema): Result<'ok', true, Val
 		if (!(name in schema)) {
 			return { ok: null, err: 'KEY_NOT_FOUND' };
 		}
-		const value = form.get(name);
-		const input = schema[name];
+	}
+	for (const input of Object.values(schema)) {
+		const value = form.get(input.name);
 
 		if (input.required && value === null) {
 			return { ok: null, err: 'REQUIRED_IS_NULL' };

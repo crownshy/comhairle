@@ -1,25 +1,20 @@
-import type { FileAttr, InputAttr } from '../EasyForm/types.svelte';
-
-const media: FileAttr = {
-	name: 'media',
-	required: true,
-	accept: '.png,.jpg'
-};
-
-const name: InputAttr = {
-	name: 'name',
-	required: true
-};
-
-const alt: InputAttr = {
-	name: 'alt',
-	required: true
-};
+import { typedObj } from '$lib/utils/types';
+import { type FileAttr, type InputAttr } from '../EasyForm/types';
 
 export const MediaSchema = {
-	media,
-	name,
-	alt
+	media: typedObj<FileAttr>({
+		name: 'media',
+		required: true,
+		accept: '.png,.jpg'
+	}),
+	name: typedObj<InputAttr>({
+		name: 'name',
+		required: true
+	}),
+	alt: typedObj<InputAttr>({
+		name: 'alt',
+		required: true
+	})
 } as const;
 
 export default MediaSchema;

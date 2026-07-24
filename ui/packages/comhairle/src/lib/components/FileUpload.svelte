@@ -1,27 +1,14 @@
 <script lang="ts">
 	import { FileText } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import type { FileAttr } from './EasyForm/types.svelte';
+	import type { FileAttr } from './EasyForm/types';
 	import Media from '$lib/interfaces/Media';
 
-	interface BaseProps extends FileAttr {
+	interface Props extends FileAttr {
+		onfile: (file: File) => Promise<void>;
 		maxSizeMB?: number;
 		multiple?: boolean;
 	}
-
-	export interface FileFormProps extends BaseProps {
-		onfile?: undefined;
-		name: FileAttr['name'];
-		required?: boolean;
-	}
-
-	export interface FileCallbackProps extends BaseProps {
-		onfile: (file: File) => Promise<void>;
-		name?: undefined;
-		boolean?: undefined;
-	}
-
-	type Props = FileFormProps | FileCallbackProps;
 
 	const { name, onfile, required, accept, maxSizeMB, multiple = false }: Props = $props();
 

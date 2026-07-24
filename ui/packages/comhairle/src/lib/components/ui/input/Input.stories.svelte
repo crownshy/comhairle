@@ -18,8 +18,7 @@
 </script>
 
 <Story name="Default">
-	<div class="w-[300px]">
+	<div class="w-75">
 		<Input placeholder="Enter text..." />
 	</div>
 </Story>
-
