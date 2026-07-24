@@ -6,15 +6,13 @@
 	StatementVoteBlock (OVERALL + N group bars), collapsed to a preview with a
 	"See all N" expand in a muted footer bar.
 
-	Dumb: takes the (already consensus- or difference-ranked) comments + groups and
-	an optional CSV handler. Filtering and collapse are local view state, not data
-	fetching.
+	Dumb: takes the (already consensus- or difference-ranked) comments + groups.
+	Filtering and collapse are local view state, not data fetching.
 -->
 <script lang="ts">
 	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
 	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Download, ChevronDown } from '@lucide/svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
 
 	type AuthorFilter = 'all' | 'seed' | 'participant';
@@ -24,11 +22,9 @@
 		title: string;
 		comments: ReportComment[];
 		groups: ReportGroup[];
-		/** Wired from PolisInsights; omit to hide the CSV action. */
-		onDownloadCsv?: () => void;
 	};
 
-	let { title, comments, groups, onDownloadCsv }: Props = $props();
+	let { title, comments, groups }: Props = $props();
 
 	const COLLAPSED_ROWS = 4;
 	let filter = $state<AuthorFilter>('all');
@@ -60,19 +56,11 @@
 </script>
 
 <Card.Root class="gap-0 rounded-md p-0 shadow-none">
-	<header class="flex items-start justify-between gap-4 px-4 pt-3.5">
-		<div class="flex flex-col gap-0.5">
-			<h2 class="text-foreground text-lg font-bold">{title}</h2>
-			<p class="text-muted-foreground text-sm font-medium">
-				Click a theme to see all of the statements associated with it.
-			</p>
-		</div>
-		{#if onDownloadCsv}
-			<Button size="sm" onclick={onDownloadCsv}>
-				<Download class="size-4" />
-				Download CSV
-			</Button>
-		{/if}
+	<header class="flex flex-col gap-0.5 px-4 pt-3.5">
+		<h2 class="text-foreground text-lg font-bold">{title}</h2>
+		<p class="text-muted-foreground text-sm font-medium">
+			Click a theme to see all of the statements associated with it.
+		</p>
 	</header>
 
 	<!-- Legend -->

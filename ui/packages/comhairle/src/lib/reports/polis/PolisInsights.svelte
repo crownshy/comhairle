@@ -11,6 +11,8 @@
 	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
 	import ConsensusContinuum from './ConsensusContinuum.svelte';
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Download } from '@lucide/svelte';
 
 	let {
 		reportData,
@@ -173,31 +175,39 @@
 	</div>
 {:else}
 	<div class="flex flex-col gap-10 pb-8">
-		<!-- ===== Top stats ===== -->
-		<div class="flex flex-wrap gap-4">
-			<MetricOverviewCard
-				superText="Participants"
-				metric={stats.totalParticipants}
-				subText="unique voters"
-			/>
-			<MetricOverviewCard
-				superText="Statements"
-				metric={stats.totalStatements}
-				subText="{approvedCount} approved · {pendingCount} pending"
-			/>
-			<MetricOverviewCard
-				superText="Vote cast"
-				metric={stats.totalVotes}
-				subText="{avgVotesPerVoter.toFixed(1)} avg per voter"
-			/>
+		<!-- ===== Top stats + page actions ===== -->
+		<div class="flex flex-wrap items-start justify-between gap-4">
+			<div class="flex flex-wrap gap-4">
+				<MetricOverviewCard
+					superText="Participants"
+					metric={stats.totalParticipants}
+					subText="unique voters"
+				/>
+				<MetricOverviewCard
+					superText="Statements"
+					metric={stats.totalStatements}
+					subText="{approvedCount} approved · {pendingCount} pending"
+				/>
+				<MetricOverviewCard
+					superText="Vote cast"
+					metric={stats.totalVotes}
+					subText="{avgVotesPerVoter.toFixed(1)} avg per voter"
+				/>
+			</div>
+			<Button size="sm" onclick={handleDownloadCsv}>
+				<Download class="size-4" />
+				Download CSV
+			</Button>
 		</div>
+
+		<!-- ===== Consensus continuum ===== -->
+		<ConsensusContinuum comments={report.comments} groups={report.groups} />
 
 		<!-- ===== Area of consensus ===== -->
 		<AreaOfConsensus
 			title="Area of consensus"
 			comments={consensusStatements}
 			groups={report.groups}
-			onDownloadCsv={handleDownloadCsv}
 		/>
 
 		<!-- ===== Area of disagreement ===== -->
@@ -206,8 +216,5 @@
 			comments={disagreementStatements}
 			groups={report.groups}
 		/>
-
-		<!-- ===== Consensus continuum ===== -->
-		<ConsensusContinuum comments={report.comments} groups={report.groups} />
 	</div>
 {/if}
