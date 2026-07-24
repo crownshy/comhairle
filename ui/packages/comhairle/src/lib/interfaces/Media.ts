@@ -85,6 +85,34 @@ class Media {
 		if (index < 0) return filename;
 		return filename.slice(0, index);
 	}
+
+	static formatBytes(bytes: number, size?: 'B' | 'KB' | 'MB' | 'GB'): string {
+		const denominations = ['B', 'KB', 'MB', 'GB'];
+		const factor = 1_000; // 1_024 for kibibytes
+
+		const calcBytes = (bytes: number, index: number): number =>
+			Math.round((bytes / Math.pow(factor, index)) * 100) / 100;
+
+		if (size) {
+			const index = denominations.indexOf(size);
+			return `${calcBytes(bytes, index)}${denominations[index]}`;
+		}
+
+		for (let i = 0; i < denominations.length; i++) {
+			const value = calcBytes(bytes, i);
+
+			if (value <= 0.7) {
+				const previousSafeIndex = Math.max(i - 1, 0);
+				return `${calcBytes(bytes, previousSafeIndex)}${denominations[previousSafeIndex]}`;
+			}
+
+			if (i === denominations.length - 1) {
+				return `${calcBytes(bytes, i)}${denominations[i]}`;
+			}
+		}
+
+		return `${bytes}B`;
+	}
 }
 
 export default Media;
