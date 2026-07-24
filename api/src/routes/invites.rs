@@ -5,18 +5,18 @@ use aide::axum::{
     routing::{get_with, patch_with, post_with},
 };
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
 };
 use axum_extra::extract::CookieJar;
 use hyper::StatusCode;
-use minijinja::context;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
     ComhairleState,
     error::ComhairleError,
+    middleware::request_logging::ClientIp,
     models::{
         self, conversation, event,
         event_attendance::{self, CreateEventAttendance},
@@ -280,9 +280,10 @@ async fn list_invites_for_event(
     Ok((StatusCode::OK, Json(invites)))
 }
 
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, client_ip))]
 async fn auto_register_event_attendance(
     State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
     Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<InviteDto>)), ComhairleError> {
@@ -304,14 +305,24 @@ async fn auto_register_event_attendance(
     let user = match users::get_user_by_email(email, &state.db).await.ok() {
         Some(existing) => existing,
         None => {
-            users::create_otp_user(
+            let new_user = users::create_otp_user(
                 &OtpSignupRequest {
                     email: email.to_string(),
                     username: None,
                 },
                 &state.db,
             )
-            .await?
+            .await?;
+
+            // Best-effort: record the signup IP for the freshly created account.
+            if let Err(error) = users::set_signup_ip(&new_user.id, &client_ip.0, &state.db).await {
+                warn!(
+                    "Failed to record signup IP for user {}: {error}",
+                    new_user.id
+                );
+            }
+
+            new_user
         }
     };
 

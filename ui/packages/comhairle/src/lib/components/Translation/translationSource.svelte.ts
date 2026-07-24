@@ -37,6 +37,14 @@ type TextContentSourceOptions = {
 	 * source still owns the content (see ADR-0005).
 	 */
 	onEdit?: (content: string) => void;
+	/**
+	 * How to re-fetch server truth after a write, so the optimistic overlay reconciles against fresh
+	 * data. Defaults to SvelteKit's `invalidateAll` (correct for consumers whose `getTranslation()`
+	 * reads route `data`). Tools with a self-managed store (e.g. prioritization) must pass their own
+	 * refresh here; otherwise `invalidateAll()` is a no-op for their list and edits reconcile against
+	 * stale data, i.e. saved content visibly reverts.
+	 */
+	refresh?: () => Promise<void>;
 };
 
 /**
@@ -60,6 +68,8 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 		ensureTextContentId,
 		onEdit
 	} = options;
+
+	const refresh = options.refresh ?? invalidateAll;
 
 	const textContentId = () => getTranslation()?.textContent?.id;
 	const otherLanguages = () => getSupportedLanguages().filter((l) => l !== getPrimaryLocale());
@@ -178,7 +188,7 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 			if (approved.length > 0)
 				await markOtherTranslationsAsDraft(id, primaryLocale, approved);
 		}
-		await invalidateAll();
+		await refresh();
 		reconcileOverlay(locale, content);
 	}
 
@@ -229,7 +239,7 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 				// aiTranslateApi persists the generated translation against this text content id.
 				result = await aiTranslateApi(id, locale, sourceContent, getPrimaryLocale());
 				overlay = { ...overlay, [locale]: result.content };
-				await invalidateAll();
+				await refresh();
 				reconcileOverlay(locale, result.content);
 			});
 			return result!;

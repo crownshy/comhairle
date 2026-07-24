@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use aide::{
     OperationIo,
@@ -39,7 +39,7 @@ use crate::{
         },
         workflow_step,
     },
-    routes::auth::RequiredUser,
+    routes::auth::{RequiredAdminUser, RequiredUser},
     tools::ToolConfig,
 };
 
@@ -91,7 +91,7 @@ pub struct ThinkingSpaceToolSetup {
     pub follow_up_rounds_count: u8,
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct ThinkingSpaceReport;
 
 /// Zero-sized marker type for ThinkingSpace tool implementation
@@ -278,6 +278,16 @@ Use a raw HTTP request and process the response body incrementally.
                         .response::<200, Json<Vec<ThinkingSpaceFollowUpQuestionDto>>>()
                 }),
             )
+            .api_route(
+                "/thinking_space/insights",
+                get_with(get_thinking_space_insights, |op| {
+                    op.id("GetThinkingSpaceInsights")
+                        .summary("Get thinking space insights data")
+                        .description("Get thinking space insights data")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ThinkingSpaceInsightsResponse>>()
+                }),
+            )
             .with_state(state.clone())
     }
 }
@@ -333,6 +343,7 @@ pub struct ThinkingSpaceSummaryDto {
     pub user_id: Uuid,
     pub summary: String,
     pub is_ai_generated: bool,
+    pub ai_generated_summary: Option<String>,
 }
 
 impl From<ThinkingSpaceSummary> for ThinkingSpaceSummaryDto {
@@ -343,6 +354,7 @@ impl From<ThinkingSpaceSummary> for ThinkingSpaceSummaryDto {
             user_id: s.user_id,
             summary: s.summary,
             is_ai_generated: s.is_ai_generated,
+            ai_generated_summary: s.ai_generated_summary,
         }
     }
 }
@@ -748,6 +760,95 @@ async fn list_thinking_space_follow_up_questions(
             .collect();
 
     Ok((StatusCode::OK, Json(follow_ups)))
+}
+
+#[derive(Serialize, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct AnswersByRoot {
+    root: ThinkingSpaceAnswerDto,
+    follow_ups: Vec<ThinkingSpaceAnswerDto>,
+}
+
+#[derive(Serialize, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct ThinkingSpaceUserInsights {
+    user_id: Uuid,
+    summary: ThinkingSpaceSummaryDto,
+    answers: Vec<AnswersByRoot>,
+}
+
+#[derive(Serialize, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct ThinkingSpaceInsightsResponse {
+    users: Vec<ThinkingSpaceUserInsights>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_thinking_space_insights(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Query(ThinkingSpaceQuery { workflow_step_id }): Query<ThinkingSpaceQuery>,
+) -> Result<(StatusCode, Json<ThinkingSpaceInsightsResponse>), ComhairleError> {
+    let summaries = thinking_space_summary::list(
+        &state.db,
+        &workflow_step_id,
+        ThinkingSpaceSummaryFilterOptions {
+            is_shared_with_organizer: Some(true),
+            ..Default::default()
+        },
+    )
+    .await?;
+    let answers = thinking_space_answer::list(
+        &state.db,
+        &workflow_step_id,
+        ThinkingSpaceAnswerFilterOptions {
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    let mut roots_by_user: HashMap<Uuid, Vec<ThinkingSpaceAnswerDto>> = HashMap::new();
+    let mut follow_ups_by_root: HashMap<Uuid, Vec<ThinkingSpaceAnswerDto>> = HashMap::new();
+    for answer in answers {
+        match answer.root_question_id {
+            Some(root_id) => follow_ups_by_root
+                .entry(root_id)
+                .or_default()
+                .push(answer.into()),
+            None => roots_by_user
+                .entry(answer.user_id)
+                .or_default()
+                .push(answer.into()),
+        }
+    }
+
+    let user_insights: Vec<ThinkingSpaceUserInsights> = summaries
+        .into_iter()
+        .map(|summary| {
+            let roots = roots_by_user.remove(&summary.user_id).unwrap_or_default();
+
+            let answers = roots
+                .into_iter()
+                .map(|root| {
+                    let follow_ups = follow_ups_by_root.remove(&root.id).unwrap_or_default();
+                    AnswersByRoot { root, follow_ups }
+                })
+                .collect();
+
+            ThinkingSpaceUserInsights {
+                user_id: summary.user_id,
+                summary: summary.into(),
+                answers,
+            }
+        })
+        .collect();
+
+    Ok((
+        StatusCode::OK,
+        Json(ThinkingSpaceInsightsResponse {
+            users: user_insights,
+        }),
+    ))
 }
 
 #[cfg(test)]

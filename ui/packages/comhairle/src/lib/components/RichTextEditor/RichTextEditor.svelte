@@ -3,10 +3,12 @@
 	import { useResizeObserver } from 'runed';
 	import { Editor } from '@tiptap/core';
 	import EditorToolbar from './EditorToolbar.svelte';
+	import TableInsertControls from './TableInsertControls.svelte';
 	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
 	import { SourceDocument } from './extensions/sourceDocument';
+	import { MarkdownTablePaste } from './extensions/markdownTablePaste';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import './editor-content.css';
 
@@ -56,6 +58,7 @@
 		bulletList: false,
 		orderedList: false,
 		blockquote: false,
+		table: false,
 		heading: 'p' as 'p' | '1' | '2' | '3',
 		textAlign: 'left' as 'left' | 'center' | 'right' | 'justify'
 	});
@@ -99,7 +102,9 @@
 				...getBaseExtensions({ mode: 'editor' }).filter(
 					(ext) => ext.name !== 'sourceDocument'
 				),
-				SourceDocument.configure({ documents: docMap, conversationId, editable: true })
+				SourceDocument.configure({ documents: docMap, conversationId, editable: true }),
+				// Editor-only: turns a pasted markdown table into a real table.
+				MarkdownTablePaste
 			],
 			content: detected.content,
 			contentType: detected.type,
@@ -108,7 +113,15 @@
 			onTransaction: () => {
 				if (editor && !isInitializing) {
 					updateActiveStates();
-
+				}
+			},
+			// Emit changes from onUpdate, not onTransaction: tiptap fires `transaction` on every
+			// transaction (including our programmatic setContent with emitUpdate:false in the value-sync
+			// effect below), but `update` respects emitUpdate:false. Emitting from onTransaction echoed
+			// server content back as a fake user edit, spawning spurious debounced saves that raced with
+			// approve and could blank the field.
+			onUpdate: () => {
+				if (editor && !isInitializing) {
 					const newValue = JSON.stringify(editor.getJSON());
 					previousValue = newValue;
 					onChange?.(newValue);
@@ -156,6 +169,7 @@
 			bulletList: editor.isActive('bulletList'),
 			orderedList: editor.isActive('orderedList'),
 			blockquote: editor.isActive('blockquote'),
+			table: editor.isActive('table'),
 			heading: editor.isActive('heading', { level: 1 })
 				? '1'
 				: editor.isActive('heading', { level: 2 })
@@ -219,6 +233,7 @@
 			compact={isCompact}
 			onToggleMenu={() => (menuExpanded = !menuExpanded)}
 		/>
+		<TableInsertControls {editor} />
 	{/if}
 
 	<div

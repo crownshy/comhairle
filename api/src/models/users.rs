@@ -2,14 +2,22 @@ use std::fmt;
 
 use crate::{
     error::ComhairleError,
+    models::{
+        pagination::{Order, PageOptions, PaginatedResults},
+        permissions::{NamedRole, ResourcePermissionIden, SYSTEM_RESOURCE_TYPE, SystemAdminRole},
+    },
     routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
     tools::id::gen_id,
 };
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr};
+use sea_query::{
+    Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def, extension::postgres::PgExpr,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
+use tracing::instrument;
 use uuid::Uuid;
 
 /// Defines the type of authentication has been used to create
@@ -134,9 +142,15 @@ pub struct User {
     pub email: Option<String>,
     pub email_verified: bool,
     pub organization_id: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    /// Client IP captured at account creation. Internal/audit only — never
+    /// serialized to API responses (see `skip_serializing`).
+    #[serde(skip_serializing)]
+    pub signup_ip: Option<String>,
 }
 
-const DEFAULT_COLUMNS: [UserIden; 8] = [
+const DEFAULT_COLUMNS: [UserIden; 11] = [
     UserIden::Id,
     UserIden::Username,
     UserIden::Password,
@@ -145,6 +159,9 @@ const DEFAULT_COLUMNS: [UserIden; 8] = [
     UserIden::Email,
     UserIden::EmailVerified,
     UserIden::OrganizationId,
+    UserIden::CreatedAt,
+    UserIden::UpdatedAt,
+    UserIden::SignupIp,
 ];
 
 /// Create a user from a signup request
@@ -297,6 +314,21 @@ async fn insert_otp_user(
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
+}
+
+/// Record the client IP address for a freshly created user.
+///
+/// Stored purely for internal/audit purposes; the value is never serialized
+/// back out over the API (the `signup_ip` field is `skip_serializing`).
+pub async fn set_signup_ip(user_id: &Uuid, ip: &str, db: &PgPool) -> Result<(), ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(UserIden::Table)
+        .value(UserIden::SignupIp, ip)
+        .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&sql, values).execute(db).await?;
+    Ok(())
 }
 
 /// Return a user by ID
@@ -555,6 +587,93 @@ pub async fn upgrade_account(
     }
 }
 
+#[derive(Deserialize, Debug, JsonSchema)]
+pub struct UserFilterOptions {
+    is_admin: Option<bool>,
+}
+
+impl UserFilterOptions {
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(is_admin) = self.is_admin {
+            let admin_subquery = Query::select()
+                .expr(Expr::val(1))
+                .from(ResourcePermissionIden::Table)
+                .and_where(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::UserId,
+                    ))
+                    .equals((UserIden::Table, UserIden::Id)),
+                )
+                .and_where(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::ResourceType,
+                    ))
+                    .eq(SYSTEM_RESOURCE_TYPE),
+                )
+                .and_where(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::RoleName,
+                    ))
+                    .eq(SystemAdminRole::name()),
+                )
+                .to_owned();
+
+            query = if is_admin {
+                query.and_where(Expr::exists(admin_subquery)).to_owned()
+            } else {
+                query
+                    .and_where(Expr::exists(admin_subquery).not())
+                    .to_owned()
+            }
+        }
+
+        query
+    }
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+pub struct UserOrderOptions {
+    username: Option<Order>,
+    created_at: Option<Order>,
+}
+
+impl UserOrderOptions {
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(order) = &self.username {
+            query = query
+                .order_by((UserIden::Table, UserIden::Username), order.into())
+                .to_owned();
+        }
+        if let Some(order) = &self.created_at {
+            query = query
+                .order_by((UserIden::Table, UserIden::CreatedAt), order.into())
+                .to_owned();
+        }
+
+        query
+    }
+}
+
+#[instrument(err(Debug))]
+pub async fn list(
+    db: &PgPool,
+    page_options: PageOptions,
+    filter_options: UserFilterOptions,
+    order_options: UserOrderOptions,
+) -> Result<PaginatedResults<User>, ComhairleError> {
+    let query = Query::select().from(UserIden::Table).to_owned();
+
+    let query = filter_options.apply(query);
+    let query = order_options.apply(query);
+
+    let users = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(users)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -589,6 +708,40 @@ mod tests {
             user.email,
             Some("test_otp@test.com".to_string()),
             "incorrect email"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_record_and_hide_signup_ip(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = create_user(
+            &SignupRequest {
+                username: "ip_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "ip_user@test.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        assert!(user.signup_ip.is_none(), "signup_ip unset before recording");
+
+        set_signup_ip(&user.id, "203.0.113.7", &pool).await?;
+
+        let stored = get_user_by_id(&user.id, &pool).await?;
+        assert_eq!(
+            stored.signup_ip.as_deref(),
+            Some("203.0.113.7"),
+            "signup_ip should be persisted"
+        );
+
+        // The IP must never leak through API serialization.
+        let json = serde_json::to_value(&stored)?;
+        assert!(
+            json.get("signup_ip").is_none(),
+            "signup_ip must not be serialized"
         );
 
         Ok(())

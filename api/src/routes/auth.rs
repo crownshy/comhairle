@@ -4,7 +4,7 @@ use aide::axum::routing::{get_with, post_with};
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use axum::{
-    RequestPartsExt,
+    Extension, RequestPartsExt,
     extract::{FromRequestParts, Json, Path, State},
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
@@ -57,11 +57,12 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
-use crate::models::permissions::{ResourceRole, has_resource_permission};
+use crate::middleware::request_logging::ClientIp;
+use crate::models::permissions::{ConversationPath, ResourceRole, has_resource_permission};
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
     create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-    get_user_by_username, get_user_resource_roles, update_user,
+    get_user_by_username, get_user_resource_roles, set_signup_ip, update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
@@ -291,10 +292,21 @@ pub struct SignupRequest {
     pub email: String,
 }
 
+/// Best-effort recording of the client IP on a newly created user. Failures are
+/// logged but never surfaced to the caller, so IP capture can't break signup.
+/// The IP is resolved by the request-logging middleware and passed through the
+/// request extensions as [`ClientIp`].
+async fn record_signup_ip(state: &Arc<ComhairleState>, user_id: &Uuid, client_ip: &ClientIp) {
+    if let Err(error) = set_signup_ip(user_id, &client_ip.0, &state.db).await {
+        warn!("Failed to record signup IP for user {user_id}: {error}");
+    }
+}
+
 /// Signup handler
-#[instrument(err(Debug), skip(state, payload))]
+#[instrument(err(Debug), skip(state, client_ip, payload))]
 async fn signup(
     State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
     jar: CookieJar,
     Json(payload): Json<SignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
@@ -303,6 +315,8 @@ async fn signup(
 
     let user = create_user(&payload, &state.db).await?;
 
+    record_signup_ip(&state, &user.id, &client_ip).await;
+
     send_verification_email(&user, &state)?;
 
     if let Some(admin_users) = &state.config.admin_users {
@@ -310,7 +324,7 @@ async fn signup(
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(&user.id),
+                    actor_id: UserOrOrganizationId::User(user.id),
                     permission_triplet: SystemAdminRole::make_system_triplet(),
                     grant_reason: "Admin signup",
                     granted_by: &user.id,
@@ -327,12 +341,15 @@ async fn signup(
 }
 
 /// Signup handler for annon
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, client_ip))]
 async fn signup_annon(
     State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_annon_user(&state.db).await?;
+
+    record_signup_ip(&state, &user.id, &client_ip).await;
 
     let cookie = create_session_cookie(&user, &state);
 
@@ -347,13 +364,16 @@ pub struct OtpSignupRequest {
     pub username: Option<String>,
 }
 
-#[instrument(err(Debug), skip(state, payload))]
+#[instrument(err(Debug), skip(state, client_ip, payload))]
 async fn signup_otp(
     State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
     jar: CookieJar,
     Json(payload): Json<OtpSignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_otp_user(&payload, &state.db).await?;
+
+    record_signup_ip(&state, &user.id, &client_ip).await;
 
     send_verification_email(&user, &state)?;
 
@@ -696,9 +716,13 @@ pub fn decode_jwt<T: Serialize + DeserializeOwned>(
     result
 }
 
-#[derive(Deserialize)]
-struct ConversationPath {
-    conversation_id: Uuid,
+/// Best-effort extraction of the current user's id from a session JWT cookie.
+/// Intended for logging: it validates the token signature/expiry but does not
+/// hit the database, and returns `None` for any missing or invalid token.
+pub fn user_id_from_session_token(token: &str, secret: &str) -> Option<String> {
+    decode_jwt::<SessionClaims>(token, secret)
+        .ok()
+        .map(|data| data.claims.id)
 }
 
 /// An extractor to ensure that a required user has a role.
@@ -900,13 +924,14 @@ where
             ComhairleError::ResourceNotFound("Path must contain a resource id".to_string())
         })?;
 
-        if has_resource_permission(
-            &state,
-            Role::make_triplet(&id.resource_id()),
-            &user.id,
-            user.organization_id.as_ref(),
-        )
-        .await?
+        if id.owner_id() == Some(user.id)
+            || has_resource_permission(
+                state,
+                Role::make_triplet(&id.resource_id()),
+                &user.id,
+                user.organization_id.as_ref(),
+            )
+            .await?
         {
             Ok(RequiredUserPermission {
                 user,
@@ -1482,6 +1507,9 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1530,6 +1558,9 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1582,6 +1613,9 @@ mod tests {
             avatar_url: None,
             email_verified: user.email_verified,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1902,6 +1936,9 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -1964,6 +2001,9 @@ mod tests {
             auth_type: UserAuthType::EmailPassword,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -2011,6 +2051,9 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
         };
         let claims = EmailLinkClaims { email: None };
         let token = generate_jwt()

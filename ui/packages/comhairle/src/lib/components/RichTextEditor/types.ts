@@ -15,6 +15,7 @@ export type ActiveStates = {
 	bulletList: boolean;
 	orderedList: boolean;
 	blockquote: boolean;
+	table: boolean;
 	heading: 'p' | '1' | '2' | '3';
 	textAlign: 'left' | 'center' | 'right' | 'justify';
 };

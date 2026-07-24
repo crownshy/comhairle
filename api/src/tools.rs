@@ -276,7 +276,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .merge(thinking_space::ThinkingSpaceTool::routes(&state))
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+#[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]
 pub enum ReportConfig {
     Polis(PolisReport),
     HeyForm(HeyFormReport),

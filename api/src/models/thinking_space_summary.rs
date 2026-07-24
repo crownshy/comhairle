@@ -1,13 +1,18 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
+use sea_query::{
+    CaseStatement, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::{
+    error::ComhairleError,
+    models::{SqlxResultExt, user_progress::UserProgressIden},
+};
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "thinking_space_summary")]
@@ -16,17 +21,19 @@ pub struct ThinkingSpaceSummary {
     pub workflow_step_id: Uuid,
     pub user_id: Uuid,
     pub summary: String,
+    pub ai_generated_summary: Option<String>,
     pub is_ai_generated: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ThinkingSpaceSummaryIden; 7] = [
+const DEFAULT_COLUMNS: [ThinkingSpaceSummaryIden; 8] = [
     ThinkingSpaceSummaryIden::Id,
     ThinkingSpaceSummaryIden::WorkflowStepId,
     ThinkingSpaceSummaryIden::UserId,
     ThinkingSpaceSummaryIden::Summary,
     ThinkingSpaceSummaryIden::IsAiGenerated,
+    ThinkingSpaceSummaryIden::AiGeneratedSummary,
     ThinkingSpaceSummaryIden::CreatedAt,
     ThinkingSpaceSummaryIden::UpdatedAt,
 ];
@@ -95,10 +102,26 @@ pub async fn update(
     id: Uuid,
     update_summary: &UpdateSummary,
 ) -> Result<ThinkingSpaceSummary, ComhairleError> {
-    let values = vec![(
-        ThinkingSpaceSummaryIden::Summary,
-        update_summary.summary.clone().into(),
-    )];
+    // If is_ai_generated is currently true, snapshot the old `summary` into
+    // ai_generated_summary; otherwise leave ai_generated_summary as-is.
+    let ai_generated_summary_exp = CaseStatement::new()
+        .case(
+            Expr::col(ThinkingSpaceSummaryIden::IsAiGenerated).eq(true),
+            Expr::col(ThinkingSpaceSummaryIden::Summary),
+        )
+        .finally(Expr::col(ThinkingSpaceSummaryIden::AiGeneratedSummary));
+
+    let values = vec![
+        (
+            ThinkingSpaceSummaryIden::Summary,
+            update_summary.summary.clone().into(),
+        ),
+        (
+            ThinkingSpaceSummaryIden::AiGeneratedSummary,
+            ai_generated_summary_exp.into(),
+        ),
+        (ThinkingSpaceSummaryIden::IsAiGenerated, false.into()),
+    ];
 
     let (sql, values) = Query::update()
         .table(ThinkingSpaceSummaryIden::Table)
@@ -136,6 +159,7 @@ pub struct ThinkingSpaceSummaryFilterOptions {
     #[schemars(skip)]
     pub user_id: Option<Uuid>,
     pub is_ai_generated: Option<bool>,
+    pub is_shared_with_organizer: Option<bool>,
 }
 
 impl ThinkingSpaceSummaryFilterOptions {
@@ -161,6 +185,40 @@ impl ThinkingSpaceSummaryFilterOptions {
                     .eq(*value),
                 )
                 .to_owned();
+        }
+        if let Some(value) = self.is_shared_with_organizer {
+            let permission_check = Expr::exists(
+                Query::select()
+                    .expr(Expr::val(1))
+                    .from(UserProgressIden::Table)
+                    .and_where(
+                        Expr::col((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                            .equals((
+                                ThinkingSpaceSummaryIden::Table,
+                                ThinkingSpaceSummaryIden::WorkflowStepId,
+                            )),
+                    )
+                    .and_where(
+                        Expr::col((UserProgressIden::Table, UserProgressIden::UserId)).equals((
+                            ThinkingSpaceSummaryIden::Table,
+                            ThinkingSpaceSummaryIden::UserId,
+                        )),
+                    )
+                    .and_where(
+                        Expr::col((
+                            UserProgressIden::Table,
+                            UserProgressIden::PermissionToShareWithOrganizers,
+                        ))
+                        .eq(true),
+                    )
+                    .to_owned(),
+            );
+
+            query = if value {
+                query.and_where(permission_check).to_owned()
+            } else {
+                query.and_where(permission_check.not()).to_owned()
+            };
         }
 
         query
@@ -214,6 +272,7 @@ mod tests {
             model_test_helpers::{
                 get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
             },
+            user_progress::{self, ProgressStatus, UpdateUserProgress},
             users,
         },
         routes::workflow_steps::dto::WorkflowStepDto,
@@ -361,6 +420,7 @@ mod tests {
         let filter_options = ThinkingSpaceSummaryFilterOptions {
             user_id: Some(user_a_id),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
         let summaries = list(&pool, &workflow_step_id, filter_options).await?;
 
@@ -371,6 +431,79 @@ mod tests {
         assert!(
             !summaries.iter().any(|s| s.id == summary_e.id),
             "user_b summary is included"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_filter_by_is_shared_with_organizer(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (user_a_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
+        let user_b = users::create_annon_user(&pool).await?;
+
+        // user_a: permission granted -> should be included when filtering true
+        let summary_shared = create(
+            &pool,
+            user_a_id,
+            workflow_step_id,
+            &CreateSummary {
+                summary: "Summary_shared".to_string(),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        // user_b: permission explicitly denied -> should be excluded when filtering true
+        let summary_not_shared = create(
+            &pool,
+            user_b.id,
+            workflow_step_id,
+            &CreateSummary {
+                summary: "Summary_not_shared".to_string(),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        // Create user_progress records, defaulting to permissions = true, and
+        // update to permission = false for user_b.
+        user_progress::create(&pool, &user_a_id, &workflow_step_id, ProgressStatus::Done).await?;
+        user_progress::create(&pool, &user_b.id, &workflow_step_id, ProgressStatus::Done).await?;
+        let not_shared_params = UpdateUserProgress {
+            permission_to_share_with_organizers: Some(false),
+            ..Default::default()
+        };
+        user_progress::update(&pool, &user_b.id, &workflow_step_id, &not_shared_params).await?;
+
+        let filter_options = ThinkingSpaceSummaryFilterOptions {
+            is_shared_with_organizer: Some(true),
+            ..Default::default()
+        };
+        let summaries = list(&pool, &workflow_step_id, filter_options).await?;
+
+        assert!(
+            summaries.iter().any(|s| s.id == summary_shared.id),
+            "summary with granted permission is missing"
+        );
+        assert!(
+            !summaries.iter().any(|s| s.id == summary_not_shared.id),
+            "summary with denied permission is included"
+        );
+
+        // Inverse filter should return the opposite set
+        let filter_options = ThinkingSpaceSummaryFilterOptions {
+            is_shared_with_organizer: Some(false),
+            ..Default::default()
+        };
+        let summaries = list(&pool, &workflow_step_id, filter_options).await?;
+
+        assert!(
+            summaries.iter().any(|s| s.id == summary_not_shared.id),
+            "summary with denied permission is missing from false filter"
+        );
+        assert!(
+            !summaries.iter().any(|s| s.id == summary_shared.id),
+            "summary with granted permission is included in false filter"
         );
 
         Ok(())

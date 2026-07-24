@@ -753,6 +753,7 @@ export type GenerateThinkingSpaceSummary = z.infer<
 >;
 export const ThinkingSpaceSummaryDto = z
   .object({
+    aiGeneratedSummary: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     isAiGenerated: z.boolean(),
     summary: z.string(),
@@ -795,6 +796,29 @@ export const UpdateFollowUpQuestions = z
   .object({ follow_up_questions: z.array(z.string()) })
   .passthrough();
 export type UpdateFollowUpQuestions = z.infer<typeof UpdateFollowUpQuestions>;
+export const AnswersByRoot = z
+  .object({
+    followUps: z.array(ThinkingSpaceAnswerDto),
+    root: ThinkingSpaceAnswerDto,
+  })
+  .passthrough();
+export type AnswersByRoot = z.infer<typeof AnswersByRoot>;
+export const ThinkingSpaceUserInsights = z
+  .object({
+    answers: z.array(AnswersByRoot),
+    summary: ThinkingSpaceSummaryDto,
+    userId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThinkingSpaceUserInsights = z.infer<
+  typeof ThinkingSpaceUserInsights
+>;
+export const ThinkingSpaceInsightsResponse = z
+  .object({ users: z.array(ThinkingSpaceUserInsights) })
+  .passthrough();
+export type ThinkingSpaceInsightsResponse = z.infer<
+  typeof ThinkingSpaceInsightsResponse
+>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -1513,26 +1537,6 @@ export const DailyResponseStats = z
   })
   .passthrough();
 export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
-export const FeedbackDto = z
-  .object({
-    content: z.string(),
-    conversationId: z.string().uuid(),
-    id: z.string().uuid(),
-  })
-  .passthrough();
-export type FeedbackDto = z.infer<typeof FeedbackDto>;
-export const ReportImpactDto = z
-  .object({
-    createdAt: z.string().datetime({ offset: true }),
-    createdBy: z.string().uuid(),
-    details: z.string(),
-    id: z.string().uuid(),
-    kind: z.string(),
-    reportId: z.string().uuid(),
-    title: z.string(),
-  })
-  .passthrough();
-export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PolisReport = z.null();
 export type PolisReport = z.infer<typeof PolisReport>;
 export const HeyFormReport = z.null();
@@ -1568,26 +1572,51 @@ export const ReportSectionConfig = z
 export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
 export const ReportSectionConfigs = z.array(ReportSectionConfig);
 export type ReportSectionConfigs = z.infer<typeof ReportSectionConfigs>;
-export const FullReportDto = z
+export const Translation5 = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type Translation5 = z.infer<typeof Translation5>;
+export const ReportTranslations = z
+  .object({ summary: Translation5 })
+  .passthrough();
+export type ReportTranslations = z.infer<typeof ReportTranslations>;
+export const ReportWithTranslations = z
   .object({
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
-    facilitatorFeedback: z.array(FeedbackDto),
     id: z.string().uuid(),
-    impacts: z.array(ReportImpactDto),
     isPublic: z.boolean(),
-    participantFeedback: z.array(FeedbackDto),
+    sectionConfigs: ReportSectionConfigs,
+    summary: z.string(),
+    translations: ReportTranslations,
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type ReportWithTranslations = z.infer<typeof ReportWithTranslations>;
+export const LocalizedReportDto = z
+  .object({
+    conversationId: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    isPublic: z.boolean(),
     sectionConfigs: ReportSectionConfigs,
     summary: z.string(),
   })
   .passthrough();
+export type LocalizedReportDto = z.infer<typeof LocalizedReportDto>;
+export const FullReportDto = z.union([
+  ReportWithTranslations,
+  LocalizedReportDto,
+]);
 export type FullReportDto = z.infer<typeof FullReportDto>;
 export const PartialReport = z
   .object({
     conversation_id: z.union([z.string(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     section_configs: z.union([ReportSectionConfigs, z.null()]),
-    summary: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();
@@ -1599,10 +1628,22 @@ export const ReportDto = z
     id: z.string().uuid(),
     isPublic: z.boolean(),
     sectionConfigs: ReportSectionConfigs,
-    summary: z.string(),
+    summary: z.string().uuid(),
   })
   .passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
+export const ReportImpactDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    createdBy: z.string().uuid(),
+    details: z.string(),
+    id: z.string().uuid(),
+    kind: z.string(),
+    reportId: z.string().uuid(),
+    title: z.string(),
+  })
+  .passthrough();
+export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PartialReportImpact = z
   .object({
     created_at: z.union([z.string(), z.null()]),
@@ -1621,6 +1662,14 @@ export const CreateImpactDTO = z
   .object({ details: z.string(), kind: z.string(), title: z.string() })
   .passthrough();
 export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
+export const FeedbackDto = z
+  .object({
+    content: z.string(),
+    conversationId: z.string().uuid(),
+    id: z.string().uuid(),
+  })
+  .passthrough();
+export type FeedbackDto = z.infer<typeof FeedbackDto>;
 export const CreateFeedbackDTO = z
   .object({ content: z.string() })
   .passthrough();
@@ -1773,15 +1822,15 @@ export const EventDto = z
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
-export const Translation5 = z
+export const Translation6 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation5 = z.infer<typeof Translation5>;
+export type Translation6 = z.infer<typeof Translation6>;
 export const EventTranslations = z
-  .object({ description: Translation5, name: Translation5 })
+  .object({ description: Translation6, name: Translation6 })
   .passthrough();
 export type EventTranslations = z.infer<typeof EventTranslations>;
 export const EventWithTranslations = z
@@ -2280,10 +2329,20 @@ export const GrantPermissionBody = z
     grant_reason: z.string(),
     organization_id: z.union([z.string(), z.null()]).optional(),
     role_name: z.string(),
+    user_email: z.union([z.string(), z.null()]).optional(),
     user_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type GrantPermissionBody = z.infer<typeof GrantPermissionBody>;
+export const UserWithPermissionDto = z
+  .object({
+    email: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    roleName: z.string(),
+    username: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type UserWithPermissionDto = z.infer<typeof UserWithPermissionDto>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2387,6 +2446,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ThinkingSpaceFollowUpQuestionDto,
   CreateFollowUpQuestions,
   UpdateFollowUpQuestions,
+  AnswersByRoot,
+  ThinkingSpaceUserInsights,
+  ThinkingSpaceInsightsResponse,
   CreateConversation,
   ConversationDto,
   Translation3,
@@ -2443,8 +2505,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateInviteDTO,
   PartialInvite,
   DailyResponseStats,
-  FeedbackDto,
-  ReportImpactDto,
   PolisReport,
   HeyFormReport,
   LearnReport,
@@ -2455,11 +2515,17 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,
+  Translation5,
+  ReportTranslations,
+  ReportWithTranslations,
+  LocalizedReportDto,
   FullReportDto,
   PartialReport,
   ReportDto,
+  ReportImpactDto,
   PartialReportImpact,
   CreateImpactDTO,
+  FeedbackDto,
   CreateFeedbackDTO,
   PartialFeedback,
   ComhairleChatSession,
@@ -2482,7 +2548,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_LocalizedEventDto,
   CreateEvent,
   EventDto,
-  Translation5,
+  Translation6,
   EventTranslations,
   EventWithTranslations,
   EventResponse,
@@ -2545,6 +2611,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResourcePermission,
   PaginatedResults_for_ResourcePermission,
   GrantPermissionBody,
+  UserWithPermissionDto,
 };
 
 const endpoints = makeApi([
@@ -3588,6 +3655,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/report",
     alias: "GetReportForConversation",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "withTranslations",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+    ],
     response: FullReportDto,
   },
   {
@@ -4451,6 +4525,51 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions/:resource_type/:resource_id/users",
+    alias: "ListUsersWithPermission",
+    description: `List users with a give permission (role + resource_type) for a given resource`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(UserWithPermissionDto),
+  },
+  {
+    method: "get",
     path: "/regions",
     alias: "ListRegions",
     description: `Paginated list of regions with optional ordering`,
@@ -5005,6 +5124,21 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "get",
+    path: "/tools/thinking_space/insights",
+    alias: "GetThinkingSpaceInsights",
+    description: `Get thinking space insights data`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: ThinkingSpaceInsightsResponse,
+  },
+  {
+    method: "get",
     path: "/tools/thinking_space/summaries",
     alias: "ListThinkingSpaceSummaries",
     description: `List thinking space summaries`,
@@ -5012,6 +5146,11 @@ Use a raw HTTP request and process the response body incrementally.
     parameters: [
       {
         name: "is_ai_generated",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_shared_with_organizer",
         type: "Query",
         schema: is_complete,
       },
@@ -5272,6 +5411,76 @@ This struct contains optional fields that can be updated on a TextTranslation re
   },
   {
     method: "get",
+    path: "/user/permitted_conversations",
+    alias: "GetPermittedConversations",
+    description: `Gets a list of the conversations a user is permitted access to`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "created_after",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "created_before",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "is_complete",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_invite_only",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_live",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_public",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "keyword",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: z.string(),
+      },
+    ],
+    response: PaginatedResults_for_LocalizedConversationDto,
+  },
+  {
+    method: "get",
     path: "/user/preferences",
     alias: "GetAllUserConversationPreferences",
     description: `Returns all conversation notification preferences for the authenticated user`,
@@ -5399,6 +5608,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 ] as const satisfies ZodiosEndpointDefinitions);
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
+export type ApiClient = typeof api;
 
 export function createApiClient(
   baseUrl: string,

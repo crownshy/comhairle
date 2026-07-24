@@ -91,4 +91,110 @@ describe('renderRichTextToHtml', () => {
 	it('returns empty string for malformed content instead of throwing', () => {
 		expect(renderRichTextToHtml('{"type":"doc","content":[{"type":"nope"}]}')).toBe('');
 	});
+
+	it('renders a table with header and body cells (SSR path)', () => {
+		const content = JSON.stringify({
+			type: 'doc',
+			content: [
+				{
+					type: 'table',
+					content: [
+						{
+							type: 'tableRow',
+							content: [
+								{
+									type: 'tableHeader',
+									content: [
+										{
+											type: 'paragraph',
+											content: [{ type: 'text', text: 'Success' }]
+										}
+									]
+								},
+								{
+									type: 'tableHeader',
+									content: [
+										{
+											type: 'paragraph',
+											content: [{ type: 'text', text: "What we'll do" }]
+										}
+									]
+								}
+							]
+						},
+						{
+							type: 'tableRow',
+							content: [
+								{
+									type: 'tableCell',
+									content: [
+										{
+											type: 'paragraph',
+											content: [{ type: 'text', text: 'Vision' }]
+										}
+									]
+								},
+								{
+									type: 'tableCell',
+									content: [
+										{
+											type: 'paragraph',
+											content: [{ type: 'text', text: 'Build it' }]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		});
+
+		const html = renderRichTextToHtml(content);
+
+		expect(html).toContain('<table');
+		expect(html).toContain('<tbody>');
+		expect(html).toContain('<th');
+		expect(html).toContain('<td');
+		expect(html).toContain('Success');
+		expect(html).toContain('Vision');
+		// header cells are <th>, body cells are <td> (not swapped)
+		expect(html).toMatch(/<th[^>]*><p>Success<\/p><\/th>/);
+		expect(html).toMatch(/<td[^>]*><p>Vision<\/p><\/td>/);
+		// renderWrapper wraps the table so the renderer matches the editor's
+		// full-width, horizontally-scrollable layout
+		expect(html).toContain('class="tableWrapper"');
+	});
+
+	it('renders a cell colour key as data-cell-color (SSR path)', () => {
+		const content = JSON.stringify({
+			type: 'doc',
+			content: [
+				{
+					type: 'table',
+					content: [
+						{
+							type: 'tableRow',
+							content: [
+								{
+									type: 'tableCell',
+									attrs: { cellColor: 'blue' },
+									content: [
+										{
+											type: 'paragraph',
+											content: [{ type: 'text', text: 'x' }]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		});
+
+		const html = renderRichTextToHtml(content);
+
+		expect(html).toContain('data-cell-color="blue"');
+	});
 });

@@ -32,11 +32,16 @@ use crate::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
+        permissions::{
+            ConversationContentEditorRole, ConversationResource, ResourceRole,
+            has_resource_permission,
+        },
         user_conversation_preferences,
         user_participation::{self},
         user_profile,
     },
     routes::{
+        auth::RequiredUserPermission,
         conversations::dto::{ConversationDto, LocalizedConversationDto},
         translations::LocaleExtractor,
     },
@@ -70,6 +75,10 @@ async fn create_conversation(
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUserPermission { .. }: RequiredUserPermission<
+        ConversationContentEditorRole,
+        ConversationResource,
+    >,
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
@@ -134,12 +143,17 @@ async fn list_conversations(
 async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.is_live {
         return Err(ComhairleError::ConversationAlreadyLive);
     }
+
+    if user.id != conversation.owner_id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
     let conversation: ConversationDto = conversation::launch(&state.db, conversation_id, &state)
         .await?
         .into();
@@ -177,11 +191,19 @@ async fn get_conversation(
     // If this isn't a live conversation and the user is not the owner
     if !original_conversation.is_live {
         if let Some(user) = &user {
-            if user.id != original_conversation.owner_id {
-                return Err(ComhairleError::UserIsNotConversationOwner);
+            if user.id != original_conversation.owner_id
+                && !has_resource_permission(
+                    &state,
+                    ConversationContentEditorRole::make_triplet(&original_conversation.id),
+                    &user.id,
+                    None,
+                )
+                .await?
+            {
+                return Err(ComhairleError::UserNotAuthorized);
             }
         } else {
-            return Err(ComhairleError::UserIsNotConversationOwner);
+            return Err(ComhairleError::UserNotAuthorized);
         }
     }
 
@@ -231,10 +253,18 @@ async fn get_conversation(
 /// Delete a specific conversation
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
     Path(id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &id).await?;
+
+    if user.id != conversation.owner_id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
     let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
     let conversation: ConversationDto = conversation.into();
+
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -597,10 +627,14 @@ async fn register_email_for_updates(
 async fn export_conversation_contacts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
     // Verify conversation exists
-    conversation::get_by_id(&state.db, &conversation_id).await?;
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    if conversation.owner_id != user.id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
 
     // Get all contacts who opted in
     let contacts =
@@ -870,18 +904,23 @@ mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
+    use crate::models::conversation::PartialConversation;
     use crate::routes::conversations::ConversationResponse;
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::media::dto::MediaDto;
+    use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
     use crate::test_helpers::{multipart_body_builder, test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
+    use axum::body::Body;
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
+
+    const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_create_conversation_without_bot_service_resources(
@@ -2383,6 +2422,138 @@ mod tests {
             status,
             StatusCode::UNAUTHORIZED,
             "non-owner must not see recipient preview"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_allow_permitted_user_to_update_conversation(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner_session = UserSession::new_admin();
+        owner_session.signup(&app).await?;
+
+        let editor_email = "test@crown-shy.com";
+        let editor_password = "Password_123(*&)";
+
+        let mut editor_session = UserSession::new("editor", editor_password, editor_email);
+        editor_session.signup(&app).await?;
+        let (_, editor, _) = editor_session.current_user(&app).await?;
+
+        let (_, value, _) = owner_session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+
+        // Grant editor user `content_editor` permission
+        let grant_body = GrantPermissionBody {
+            user_id: Some(editor.id),
+            organization_id: None,
+            user_email: None,
+            role_name: "content_editor".into(),
+            grant_reason: "Testing".into(),
+        };
+
+        let body = Body::from(serde_json::to_string(&grant_body)?);
+
+        owner_session
+            .post(
+                &app,
+                &format!(
+                    "/permissions/{}/{}",
+                    CONVERSATION_RESOURCE_TYPE, conversation.id
+                ),
+                body,
+            )
+            .await?;
+
+        // Update by editor
+        let editor_update = PartialConversation {
+            is_public: Some(true),
+            ..Default::default()
+        };
+        let body = Body::from(serde_json::to_string(&editor_update)?);
+        let (_, editor_response, _) = editor_session
+            .put(&app, &format!("/conversation/{}", conversation.id), body)
+            .await?;
+        let editor_updated_conversation: ConversationDto = serde_json::from_value(editor_response)?;
+
+        assert!(
+            editor_updated_conversation.is_public,
+            "is_public incorrect after editor update"
+        );
+
+        // Update by owner
+        let owner_update = PartialConversation {
+            is_public: Some(false),
+            ..Default::default()
+        };
+        let body = Body::from(serde_json::to_string(&owner_update)?);
+        let (_, owner_response, _) = owner_session
+            .put(&app, &format!("/conversation/{}", conversation.id), body)
+            .await?;
+        let owner_updated_conversation: ConversationDto = serde_json::from_value(owner_response)?;
+
+        assert!(
+            !owner_updated_conversation.is_public,
+            "is_public incorrect after owner update"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_allow_non_permitted_admin_users_to_update_conversation(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner_session = UserSession::new_admin();
+        owner_session.signup(&app).await?;
+
+        let other_user_email = "test@crown-shy.com";
+        let other_user_password = "Password_123(*&)";
+
+        let mut other_user_session =
+            UserSession::new("editor", other_user_password, other_user_email);
+        other_user_session.signup(&app).await?;
+
+        let (_, value, _) = owner_session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+
+        // Update by editor
+        let other_user_update = PartialConversation {
+            is_public: Some(true),
+            ..Default::default()
+        };
+        let body = Body::from(serde_json::to_string(&other_user_update)?);
+        let (_, other_user_response, _) = other_user_session
+            .put(&app, &format!("/conversation/{}", conversation.id), body)
+            .await?;
+
+        assert_eq!(
+            other_user_response.get("err").unwrap(),
+            "User is not authorized to perform this action",
+            "incorrect error message"
+        );
+
+        // Update by owner
+        let owner_update = PartialConversation {
+            is_public: Some(true),
+            ..Default::default()
+        };
+        let body = Body::from(serde_json::to_string(&owner_update)?);
+        let (_, owner_response, _) = owner_session
+            .put(&app, &format!("/conversation/{}", conversation.id), body)
+            .await?;
+        let owner_updated_conversation: ConversationDto = serde_json::from_value(owner_response)?;
+
+        assert!(
+            owner_updated_conversation.is_public,
+            "is_public incorrect after owner update"
         );
 
         Ok(())

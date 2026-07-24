@@ -927,6 +927,7 @@ async fn route_to_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
     use redis_test::server::RedisServer;
 
     #[tokio::test]
@@ -1010,6 +1011,9 @@ mod tests {
             email_verified: true,
             auth_type: crate::models::users::UserAuthType::EmailPassword,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
         };
 
         let addr = "127.0.0.1:9999".parse().unwrap();

@@ -22,6 +22,7 @@
 	import StatementSection from '$lib/components/polis-report/StatementSection.svelte';
 	import ThemeBar from '$lib/components/polis-report/ThemeBar.svelte';
 	import ThemeChip from '$lib/components/polis-report/ThemeChip.svelte';
+	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Download, ChevronDown } from '@lucide/svelte';
@@ -74,6 +75,17 @@
 	});
 
 	const stats = $derived(report ? getEngagementStats(report) : null);
+	// Stat-card subtexts. Statement split reads aux moderation_status ("accepted" →
+	// "approved" in the UI); avg is mean votes cast per unique voter.
+	const approvedCount = $derived(
+		Object.values(auxByTid).filter((a) => a.moderation_status === 'accepted').length
+	);
+	const pendingCount = $derived(
+		Object.values(auxByTid).filter((a) => a.moderation_status === 'pending').length
+	);
+	const avgVotesPerVoter = $derived(
+		stats && stats.totalParticipants > 0 ? stats.totalVotes / stats.totalParticipants : 0
+	);
 	// Theme roll-up over ALL tagged statements (aux), not just the Polis report
 	// set. Controversy needs vote data (only the report carries), so themes on
 	// non-report statements fall back to 'low'.
@@ -369,15 +381,22 @@
 	<div class="flex flex-col gap-10 pb-8">
 		<!-- ===== Top stats ===== -->
 		<div class="flex flex-wrap items-end justify-between gap-4">
-			<div class="flex flex-wrap gap-6">
-				{#each [{ label: 'Total Statements', value: stats.totalStatements }, { label: 'Themes', value: themes.length }, { label: 'Areas of Consensus', value: consensus.length }] as s (s.label)}
-					<div class="flex flex-col gap-1">
-						<span class="text-foreground text-2xl font-bold tabular-nums"
-							>{s.value}</span
-						>
-						<span class="text-muted-foreground text-sm">{s.label}</span>
-					</div>
-				{/each}
+			<div class="flex flex-wrap gap-4">
+				<MetricOverviewCard
+					superText="Participants"
+					metric={stats.totalParticipants}
+					subText="unique voters"
+				/>
+				<MetricOverviewCard
+					superText="Statements"
+					metric={stats.totalStatements}
+					subText="{approvedCount} approved · {pendingCount} pending"
+				/>
+				<MetricOverviewCard
+					superText="Vote cast"
+					metric={stats.totalVotes}
+					subText="{avgVotesPerVoter.toFixed(1)} avg per voter"
+				/>
 			</div>
 			<Button onclick={handleDownloadCsv} class="w-full sm:w-auto">
 				<Download class="size-4" />
