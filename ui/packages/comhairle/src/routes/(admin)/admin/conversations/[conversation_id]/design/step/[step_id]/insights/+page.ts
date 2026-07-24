@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { thinkingSpaceInsightsLoader } from '$lib/reports/thinking-space/insights-loader';
 import { polisInsightsLoader } from '$lib/reports/polis/insights-loader';
+import { prioritizationInsightsLoader } from '$lib/reports/prioritization/insights-loader';
 
 export const load: PageLoad = async (event) => {
 	const { api, toolConfig, step_id } = await event.parent();
@@ -18,6 +19,10 @@ export const load: PageLoad = async (event) => {
 
 		if (toolConfig?.type === 'polis') {
 			return await polisInsightsLoader(api, step_id);
+		}
+
+		if (toolConfig?.type === 'prioritization') {
+			return await prioritizationInsightsLoader(api, step_id);
 		}
 
 		redirect(

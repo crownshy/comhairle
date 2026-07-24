@@ -624,6 +624,7 @@ struct GetInsightsQuery {
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
 struct RankedProposal {
     alignment_rating: f64,
     #[serde(flatten)]
@@ -632,6 +633,7 @@ struct RankedProposal {
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
 struct PrioritizationInsightsResponse {
     ranked_proposals: Vec<RankedProposal>,
 }

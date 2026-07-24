@@ -702,7 +702,7 @@ export const CreateResponse = z
 export type CreateResponse = z.infer<typeof CreateResponse>;
 export const RankedProposal = z
   .object({
-    alignment_rating: z.number(),
+    alignmentRating: z.number(),
     id: z.string().uuid(),
     responses: z.array(ProposalResponseDto),
     sections: z.array(LocalizedProposalSectionDto),
@@ -712,7 +712,7 @@ export const RankedProposal = z
   .passthrough();
 export type RankedProposal = z.infer<typeof RankedProposal>;
 export const PrioritizationInsightsResponse = z
-  .object({ ranked_proposals: z.array(RankedProposal) })
+  .object({ rankedProposals: z.array(RankedProposal) })
   .passthrough();
 export type PrioritizationInsightsResponse = z.infer<
   typeof PrioritizationInsightsResponse
