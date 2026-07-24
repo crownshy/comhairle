@@ -1,7 +1,8 @@
 <!--
 	@component A single horizontal vote bar: agreed / disagreed / passed /
-	not-voted drawn as rounded pills packed left-to-right across the full width,
-	with an optional row label.
+	not-voted drawn as rounded pills packed left-to-right across the full width, with
+	an optional row label. Consecutive pills overlap by one cap radius so the rounded
+	ends nest into each other like the design, instead of leaving a lens-shaped gap.
 
 	Every segment is filled and the bar is full-width: it stretches to fill
 	whatever the caller gives it. Passed is a solid grey; not-voted is the empty
@@ -71,15 +72,28 @@
 		}
 	]);
 
-	// Only the non-empty slices are drawn. Each is a rounded pill sized by
-	// flex-grow in proportion to its percentage, so every bar fills the whole
-	// track and all rows end at the same right edge regardless of how many slices
-	// they have. Consecutive pills overlap by their radius (`OVERLAP`) so the caps
-	// nest like the design; earlier (leftward) slices stack on top via a
-	// descending z-index. The overlap steals a little width, but flex-grow hands it
-	// straight back, keeping totals equal.
 	const visible = $derived(segments.filter((s) => s.pct > 0));
-	const OVERLAP = '0.3125rem'; // half the h-2.5 track height, i.e. one cap radius
+
+	// How far each pill's rounded cap laps over the next one. Bump this for a more
+	// pronounced nested overlap; drop to 0 for a flush segmented bar.
+	const OVERLAP = '0.75rem';
+
+	// Lay the pills out by absolute position rather than flex + negative margins:
+	// each pill sits at its true cumulative percentage (`left`/`width`), so widths
+	// stay exact and the last pill always lands on the right edge. To nest the
+	// rounded caps, every pill except the last is widened by `OVERLAP` so it laps
+	// over its right-hand neighbour; a descending z-index keeps the left pill on
+	// top, so its rounded cap sits over the one after it (matching the design).
+	const pills = $derived.by(() => {
+		const total = visible.reduce((sum, s) => sum + s.pct, 0) || 1;
+		let acc = 0;
+		return visible.map((s, i) => {
+			const left = (acc / total) * 100;
+			acc += s.pct;
+			const width = (acc / total) * 100 - left;
+			return { ...s, left, width, isLast: i === visible.length - 1 };
+		});
+	});
 
 	const summary = $derived(
 		`${Math.round(agreed)}% agreed, ${Math.round(disagreed)}% disagreed, ` +
@@ -131,13 +145,15 @@
 			<Tooltip.Trigger
 				aria-label={summary}
 				onpointermove={trackCursor}
-				class="flex h-2.5 min-w-0 flex-1 cursor-default items-stretch border-0 bg-transparent p-0"
+				class="relative block h-2.5 min-w-0 flex-1 cursor-default border-0 bg-transparent p-0"
 			>
-				{#each visible as s, i (s.key)}
+				{#each pills as p, i (p.key)}
 					<span
-						class="h-full min-w-0 rounded-full"
-						style="flex: {s.pct} {s.pct} 0; background: {s.color}; z-index: {visible.length -
-							i}; margin-left: {i > 0 ? `-${OVERLAP}` : '0'};{s.outline
+						class="absolute inset-y-0 rounded-full"
+						style="left: {p.left}%; width: {p.isLast
+							? `${p.width}%`
+							: `calc(${p.width}% + ${OVERLAP})`}; z-index: {pills.length -
+							i}; background: {p.color};{p.outline
 							? ' box-shadow: inset 0 0 0 1px var(--vote-not-voted-border);'
 							: ''}"
 					></span>
