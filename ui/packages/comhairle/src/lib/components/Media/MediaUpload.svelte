@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { FileText } from 'lucide-svelte';
 	import { Upload } from 'lucide-svelte';
 	import type { ComponentProps } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -7,8 +8,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import MediaSchema from './schema';
-	import { enhance } from '$app/forms';
-	import { Input } from '$lib/components/EasyForm';
+	import { Form, Input, Submit } from '$lib/components/EasyForm';
 	import Media from '$lib/interfaces/Media';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
@@ -18,36 +18,50 @@
 	const { clientSide, oncomplete, ...props }: Props = $props();
 
 	let uploadForm: HTMLFormElement | null = $state(null);
-
-	let filename = $state<string>('');
+	let file = $state<File | null>(null);
+	let open = $state<boolean>(false);
 </script>
 
-<Dialog.Root>
-	<Dialog.Trigger>
-		<Button {...props} type="button">
-			<Upload class="h-4 w-4" />
-			{m.upload()}
-		</Button>
-	</Dialog.Trigger>
+<Button {...props} type="button" onclick={() => (open = true)}>
+	<Upload class="h-4 w-4" />
+	{m.upload()}
+</Button>
+
+<Dialog.Root bind:open>
 	<Dialog.Portal>
 		<Dialog.Content class=" min-h-[50vh] min-w-138  rounded-2xl p-8">
-			<form
-				bind:this={uploadForm}
+			<Form
+				bind:ref={uploadForm}
 				method="POST"
 				action="/admin/media-library?/upload"
 				enctype="multipart/form-data"
 				class="flex flex-col"
-				use:enhance
+				onsubmit={() => (open = false)}
 			>
 				<FileUpload
 					{...MediaSchema.media}
 					maxSizeMB={50}
-					onfile={(f) => (filename = Media.getFilename(f.name))}
+					onfile={(newFile) => (file = newFile)}
+					class={file !== null ? 'hidden' : ''}
 				/>
-				<Input {...MediaSchema.name} label="Filename" type="text" bind:value={filename} />
+				{#if file}
+					<div
+						class="flex w-full min-w-0 flex-row items-center gap-1 rounded-lg p-3 text-xs font-medium shadow-xs"
+					>
+						<FileText />
+						{file.name}
+						{file.size}
+					</div>
+				{/if}
+				<Input
+					{...MediaSchema.name}
+					label="Filename"
+					type="text"
+					value={file?.name ? Media.getFilename(file.name) : ''}
+				/>
 				<Input {...MediaSchema.alt} label="Alt" type="text" />
-				<Button class="mt-7 self-end" type="submit">Upload</Button>
-			</form>
+				<Submit class="mt-7 self-end" text="Upload" />
+			</Form>
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>

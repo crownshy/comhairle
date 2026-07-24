@@ -8,9 +8,18 @@
 		onfile?: (file: File) => Promise<unknown> | unknown;
 		maxSizeMB?: number;
 		multiple?: boolean;
+		class?: string;
 	}
 
-	const { name, onfile, required, accept, maxSizeMB, multiple = false }: Props = $props();
+	const {
+		name,
+		onfile,
+		required,
+		accept,
+		maxSizeMB,
+		multiple = false,
+		class: className
+	}: Props = $props();
 
 	let fileInput = $state<HTMLInputElement | null>(null);
 
@@ -91,7 +100,7 @@
 	role="button"
 	tabindex="0"
 	class="border-input dark:bg-input/30 flex w-full cursor-pointer flex-col items-center gap-4 rounded-xl border bg-gray-50 p-8 py-5 transition-colors {status ===
-		'error' && 'border-destructive!'}"
+		'error' && 'border-destructive!'} {className}"
 	class:bg-gray-100={status === 'dragging'}
 	class:border-primary={status === 'dragging'}
 	ondrop={(event) => {
