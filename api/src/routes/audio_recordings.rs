@@ -34,7 +34,8 @@ use crate::routes::audio_recordings::dto::{
     AudioRecordingDto, CreateLiveAudioRecordingRequest, CreateLiveAudioRecordingResponse,
     CreateRecordingRequest, CreateRecordingResponse, DeleteRecordingResponse,
     LiveAudioRecordingDto, LiveAudioRecordingStateResponse, ProcessRecordingResponse,
-    RecordingDetailResponse, RecordingDownloadUrls, SubmitReportResponse,
+    RecordingDetailResponse, RecordingDownloadUrls, RecordingUploadUrlResponse,
+    SubmitReportResponse,
 };
 use crate::routes::auth::{
     RequiredAdminUser, RequiredUser, is_user_admin, verify_webhook_signature,
@@ -49,7 +50,6 @@ async fn ensure_live_recording_access(
     if is_user_admin(&state, user).await {
         return Ok(true);
     }
-
     match event_attendance::get_by_event_and_user(&state.db, &event_id, &user.id).await {
         Ok(_) => Ok(false),
         Err(ComhairleError::ResourceNotFound(_)) => Err(ComhairleError::UserNotAuthorized),
@@ -61,15 +61,15 @@ async fn ensure_live_recording_access(
 ///
 /// # Errors
 /// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
-/// * `ComhairleError::DuplicateRecordingName` if a recording with this name already exists for the event.
 /// * `ComhairleError::DatabaseError` on database errors.
 #[instrument(err(Debug), skip(state))]
 async fn create_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(_user): RequiredUser,
     Json(request): Json<CreateRecordingRequest>,
 ) -> Result<(StatusCode, Json<CreateRecordingResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, event_id, &_user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let recording_id = Uuid::new_v4();
@@ -109,9 +109,8 @@ async fn create_recording(
 async fn list_recordings(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredUser(user): RequiredUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<AudioRecordingDto>>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
     let recordings = audio_recording::list_by_event(&state.db, event_id).await?;
     Ok((
         StatusCode::OK,
@@ -133,9 +132,8 @@ async fn list_recordings(
 async fn get_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id, recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredUser(user): RequiredUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<RecordingDetailResponse>), ComhairleError> {
-    let _ = ensure_live_recording_access(&state, event_id, &user).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let recording = audio_recording::get_by_id_and_event(&state.db, recording_id, event_id).await?;
@@ -163,6 +161,58 @@ async fn get_recording(
     ))
 }
 
+/// Issue a new presigned upload URL for an existing recording row.
+///
+/// Used by the live-recorder short-stop fallback to upload audio into the
+/// pre-created recording instead of creating a duplicate recording name.
+///
+/// # Errors
+/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `ComhairleError::ResourceNotFound` if the recording does not exist for this event.
+/// * `ComhairleError::BadRequest` if the recording is already being processed.
+#[instrument(err(Debug), skip(state))]
+async fn get_recording_upload_url(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id, recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredUser(_user): RequiredUser,
+) -> Result<(StatusCode, Json<RecordingUploadUrlResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, event_id, &_user).await?;
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+
+    let recording = audio_recording::get_by_id_and_event(&state.db, recording_id, event_id).await?;
+
+    match recording.status {
+        audio_recording::AudioRecordingStatus::Transcribing => {
+            return Err(ComhairleError::BadRequest(
+                "Recording is already being processed".to_string(),
+            ));
+        }
+        audio_recording::AudioRecordingStatus::Categorizing
+        | audio_recording::AudioRecordingStatus::Complete => {
+            return Err(ComhairleError::BadRequest(
+                "Recording has already been processed".to_string(),
+            ));
+        }
+        _ => {}
+    }
+
+    let extension = recording.file_extension.extension();
+    let upload_url = bulk_storage_service
+        .get_write_file_url(&format!(
+            "{}/recording.{}",
+            recording.s3_key_prefix, extension
+        ))
+        .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(RecordingUploadUrlResponse {
+            recording: recording.into(),
+            upload_url,
+        }),
+    ))
+}
+
 /// Start processing (transcription + categorization) for a single recording.
 ///
 /// # Errors
@@ -172,13 +222,28 @@ async fn get_recording(
 async fn process_recording(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id, recording_id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(_user): RequiredUser,
 ) -> Result<(StatusCode, Json<ProcessRecordingResponse>), ComhairleError> {
+    let _ = ensure_live_recording_access(&state, event_id, &_user).await?;
     let worker_service = state.required_worker_service()?;
 
     // Ensure the recording exists and belongs to this event before enqueuing work.
-    let _recording =
-        audio_recording::get_by_id_and_event(&state.db, recording_id, event_id).await?;
+    let recording = audio_recording::get_by_id_and_event(&state.db, recording_id, event_id).await?;
+
+    match recording.status {
+        audio_recording::AudioRecordingStatus::Transcribing => {
+            return Err(ComhairleError::BadRequest(
+                "Recording is already being processed".to_string(),
+            ));
+        }
+        audio_recording::AudioRecordingStatus::Categorizing
+        | audio_recording::AudioRecordingStatus::Complete => {
+            return Err(ComhairleError::BadRequest(
+                "Recording has already been processed".to_string(),
+            ));
+        }
+        _ => {}
+    }
 
     let job = job::create(
         &state.db,
@@ -380,10 +445,9 @@ async fn list_live_recordings(
     ))
 }
 
-/// Create a live audio recording, initiating a multipart upload in bulk storage.
+/// Create a live audio recording draft row.
 ///
 /// # Errors
-/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
 /// * `ComhairleError::DatabaseError` on database errors.
 #[instrument(err(Debug), skip(state))]
 async fn create_live_recording(
@@ -393,12 +457,9 @@ async fn create_live_recording(
     Json(request): Json<CreateLiveAudioRecordingRequest>,
 ) -> Result<(StatusCode, Json<CreateLiveAudioRecordingResponse>), ComhairleError> {
     let _ = ensure_live_recording_access(&state, event_id, &user).await?;
-    let bulk_storage_service = state.required_bulk_storage_service()?;
 
     let recording_id = Uuid::new_v4();
-    let extension = request.file_extension.extension();
     let s3_key_prefix = format!("events/{event_id}/recordings/{recording_id}");
-    let recording_path = format!("{s3_key_prefix}/recording.{extension}");
 
     let recording = audio_recording::create(
         &state.db,
@@ -412,21 +473,10 @@ async fn create_live_recording(
     )
     .await?;
 
-    let multipart_upload_id = bulk_storage_service
-        .create_multipart_upload(
-            &recording_path,
-            FileMetadata {
-                content_type: "application/octet-stream".to_string(),
-                is_public: false,
-            },
-        )
-        .await?;
-
     let live_recording = live_audio_recording::create(
         &state.db,
         &live_audio_recording::CreateLiveAudioRecording {
             audio_recording_id: recording.id,
-            multipart_upload_id: multipart_upload_id.0,
             owner_id: Some(user.id),
         },
     )
@@ -497,6 +547,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Get an audio recording's details and presigned S3 URLs for its audio, transcript, and report.")
                     .security_requirement("JWT")
                     .response::<200, Json<RecordingDetailResponse>>()
+            }),
+        )
+        .api_route(
+            "/{recording_id}/upload_url",
+            get_with(get_recording_upload_url, |op| {
+                op.id("GetAudioRecordingUploadUrl")
+                    .tag("Audio Recordings")
+                    .summary("Get a new upload URL for an existing recording")
+                    .description("Issue a fresh presigned upload URL for an existing recording row that is still awaiting upload or retry.")
+                    .security_requirement("JWT")
+                    .response::<200, Json<RecordingUploadUrlResponse>>()
             }),
         )
         .api_route(
@@ -572,7 +633,7 @@ mod tests {
     use serde_json::json;
     use std::sync::Arc;
 
-    use crate::models::{audio_recording::AudioFormat, live_audio_recording};
+    use crate::models::audio_recording::AudioFormat;
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
     use crate::setup_server;
@@ -651,7 +712,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_create_recording_duplicate_name_conflicts(
+    async fn test_create_recording_duplicate_name_allowed(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
@@ -691,7 +752,7 @@ mod tests {
         let (status, _, _) = session
             .post(&app, &url, json!(request).to_string().into())
             .await?;
-        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(status, StatusCode::CREATED);
 
         Ok(())
     }

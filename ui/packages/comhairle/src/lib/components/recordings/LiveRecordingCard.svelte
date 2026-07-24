@@ -3,14 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 
 	import { LiveRecorderController } from './liveRecorderController.svelte';
-	import {
-		MIN_RECORDING_BYTES,
-		formatDuration,
-		formatMb,
-		isRecordingLargeEnough,
-		totalUploadedBytes,
-		type LiveAudioRecordingDto
-	} from './liveRecorderShared';
+	import { type LiveAudioRecordingDto } from './liveRecorderShared';
 
 	type Props = {
 		controller: LiveRecorderController;
@@ -20,8 +13,13 @@
 	let { controller, liveRecording }: Props = $props();
 
 	const isActiveRow = $derived(controller.activeLiveRecordingId === liveRecording.id);
-	const uploadedBytes = $derived(totalUploadedBytes(liveRecording));
-	const minRequiredSeconds = $derived(controller.minRequiredSecondsForSave());
+	const uploadedBytes = $derived(controller.liveRecordingUploadedBytes(liveRecording));
+
+	function formatSize(bytes: number): string {
+		if (bytes < 1024) return `${bytes} B`;
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+		return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+	}
 </script>
 
 <div class="border-border rounded-lg border p-3">
@@ -34,20 +32,6 @@
 			<div class="truncate text-sm font-medium">
 				{controller.liveRecordingName(liveRecording)}
 			</div>
-			<div class="text-muted-foreground text-sm">
-				Next part: {liveRecording.nextPartNumber}, uploaded: {liveRecording.uploadedParts
-					.length}, total: {formatMb(uploadedBytes)}
-			</div>
-			{#if !isRecordingLargeEnough(liveRecording)}
-				<div class="text-xs text-amber-700">
-					Minimum required before save: {formatMb(MIN_RECORDING_BYTES)}
-				</div>
-				{#if controller.hasObservedBitrate}
-					<div class="text-xs text-amber-700">
-						Estimated minimum duration: {formatDuration(minRequiredSeconds)}
-					</div>
-				{/if}
-			{/if}
 		</div>
 		<div class="flex items-center gap-2">
 			{#if isActiveRow}

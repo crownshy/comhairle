@@ -1912,6 +1912,12 @@ export const DeleteRecordingResponse = z
   .object({ recording: AudioRecordingDto })
   .passthrough();
 export type DeleteRecordingResponse = z.infer<typeof DeleteRecordingResponse>;
+export const RecordingUploadUrlResponse = z
+  .object({ recording: AudioRecordingDto, uploadUrl: z.string() })
+  .passthrough();
+export type RecordingUploadUrlResponse = z.infer<
+  typeof RecordingUploadUrlResponse
+>;
 export const ProcessRecordingResponse = z
   .object({ jobId: z.string().uuid(), message: z.string() })
   .passthrough();
@@ -2508,6 +2514,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   RecordingDownloadUrls,
   RecordingDetailResponse,
   DeleteRecordingResponse,
+  RecordingUploadUrlResponse,
   ProcessRecordingResponse,
   SubmitReportResponse,
   UploadedPart,
@@ -3289,6 +3296,14 @@ curl -X POST \
     description: `Webhook for the categorization service to submit a recording&#x27;s report. Authenticated by HMAC signature headers.`,
     requestFormat: "json",
     response: SubmitReportResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id/upload_url",
+    alias: "GetAudioRecordingUploadUrl",
+    description: `Issue a fresh presigned upload URL for an existing recording row that is still awaiting upload or retry.`,
+    requestFormat: "json",
+    response: RecordingUploadUrlResponse,
   },
   {
     method: "get",

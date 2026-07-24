@@ -392,6 +392,40 @@ impl AudioRecordingMessageHandler {
 
                 let live_recording =
                     live_audio_recording::get(&state.db, live_recording_id).await?;
+                let recording =
+                    audio_recording::get_by_id(&state.db, live_recording.audio_recording_id)
+                        .await?;
+                let extension = recording.file_extension.extension();
+                let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+
+                if live_recording.multipart_upload_id.is_empty() {
+                    if request.part_number != 1 {
+                        return Err(ComhairleError::CorruptedData(format!(
+                            "Expected part_number 1, got {}",
+                            request.part_number
+                        )));
+                    }
+
+                    let multipart_upload_id = bulk_storage_service
+                        .create_multipart_upload(
+                            &recording_path,
+                            crate::bulk_storage_service::FileMetadata {
+                                content_type: "application/octet-stream".to_string(),
+                                is_public: false,
+                            },
+                        )
+                        .await?;
+
+                    let _ = live_audio_recording::create_multipart_upload_state(
+                        &state.db,
+                        live_recording_id,
+                        &multipart_upload_id.0,
+                    )
+                    .await?;
+                }
+
+                let live_recording =
+                    live_audio_recording::get(&state.db, live_recording_id).await?;
 
                 if request.part_number != live_recording.next_part_number {
                     return Err(ComhairleError::CorruptedData(format!(
@@ -399,12 +433,6 @@ impl AudioRecordingMessageHandler {
                         live_recording.next_part_number, request.part_number
                     )));
                 }
-
-                let recording =
-                    audio_recording::get_by_id(&state.db, live_recording.audio_recording_id)
-                        .await?;
-                let extension = recording.file_extension.extension();
-                let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
                 let upload_url = bulk_storage_service
                     .get_multipart_file_write_url(
@@ -567,6 +595,13 @@ impl AudioRecordingMessageHandler {
                 let recording =
                     audio_recording::get_by_id(&state.db, live_recording.audio_recording_id)
                         .await?;
+
+                if live_recording.multipart_upload_id.is_empty() {
+                    return Err(ComhairleError::BadRequest(
+                        "Live recording has no uploaded multipart data to complete".to_string(),
+                    ));
+                }
+
                 let extension = recording.file_extension.extension();
                 let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
@@ -677,17 +712,20 @@ impl AudioRecordingMessageHandler {
                 let bulk_storage_service = state.required_bulk_storage_service()?;
                 let live_recording = live_audio_recording::get(&state.db, request.live_recording_id).await?;
                 let recording = audio_recording::get_by_id(&state.db, live_recording.audio_recording_id).await?;
-                let extension = recording.file_extension.extension();
-                let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
 
-                if let Err(err) = bulk_storage_service
-                    .abort_multipart_upload(
-                        &recording_path,
-                        &StorageUploadID(live_recording.multipart_upload_id.clone()),
-                    )
-                    .await
-                {
-                    tracing::warn!(?err, live_recording_id = %request.live_recording_id, "failed to abort multipart upload");
+                if !live_recording.multipart_upload_id.is_empty() {
+                    let extension = recording.file_extension.extension();
+                    let recording_path = format!("{}/recording.{}", recording.s3_key_prefix, extension);
+
+                    if let Err(err) = bulk_storage_service
+                        .abort_multipart_upload(
+                            &recording_path,
+                            &StorageUploadID(live_recording.multipart_upload_id.clone()),
+                        )
+                        .await
+                    {
+                        tracing::warn!(?err, live_recording_id = %request.live_recording_id, "failed to abort multipart upload");
+                    }
                 }
 
                 live_audio_recording::delete(&state.db, request.live_recording_id).await?;
@@ -994,7 +1032,6 @@ mod tests {
             &pool,
             &live_audio_recording::CreateLiveAudioRecording {
                 audio_recording_id: recording.id,
-                multipart_upload_id: "multipart-upload-id".to_string(),
                 owner_id: Some(user.id),
             },
         )

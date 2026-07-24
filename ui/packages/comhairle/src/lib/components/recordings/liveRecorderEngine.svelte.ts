@@ -4,15 +4,13 @@ import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 import {
 	CHUNK_INTERVAL_MS,
-	DEFAULT_AUDIO_BITS_PER_SECOND,
 	MIN_RECORDING_BYTES,
 	TARGET_AUDIO_BITS_PER_SECOND,
-	formatDuration,
-	formatMb,
 	getErrorMessage,
 	isLiveRecordingMissingError,
 	type AckLiveAudioRecordingPartRequest,
 	type AckLiveAudioRecordingPartResponse,
+	type DrainStopResult,
 	type LiveAudioRecordingStateResponse,
 	type LiveRecordingCompleteRequest,
 	type LiveRecordingDeleteRequest,
@@ -37,7 +35,6 @@ type EngineOptions = {
 
 export class LiveRecorderEngine {
 	audioVolume = $state(0);
-	observedAudioBitsPerSecond = $state(0);
 
 	private mediaRecorder: MediaRecorder | null = null;
 	private mediaStream: MediaStream | null = null;
@@ -48,7 +45,8 @@ export class LiveRecorderEngine {
 	private nextPartNumber = 1;
 	private pendingBlobs: Blob[] = [];
 	private pendingBytes = 0;
-	private lastChunkTimestampMs: number | null = null;
+	private bufferedLiveRecordingId: string | null = null;
+	private multipartStarted = false;
 	private recordingWebSocket = new WSConnection();
 	private unsubscribeRecordingWebSocketClose: () => void;
 	private unsubscribeRecordingWebSocketMessages: () => void;
@@ -84,21 +82,6 @@ export class LiveRecorderEngine {
 		);
 	}
 
-	get hasObservedBitrate(): boolean {
-		return this.observedAudioBitsPerSecond > 0;
-	}
-
-	minRequiredSecondsForSave(): number {
-		return Math.ceil((MIN_RECORDING_BYTES * 8) / this.effectiveAudioBitsPerSecond());
-	}
-
-	shortRecordingWarningMessage(): string {
-		if (!this.hasObservedBitrate) {
-			return `Recording is too short to save. Minimum required is ${formatMb(MIN_RECORDING_BYTES)}.`;
-		}
-		return `Recording is too short to save. Minimum required is ${formatMb(MIN_RECORDING_BYTES)} (about ${formatDuration(this.minRequiredSecondsForSave())} at current rate).`;
-	}
-
 	connect(): void {
 		this.recordingWebSocket.connect();
 	}
@@ -107,13 +90,39 @@ export class LiveRecorderEngine {
 		this.recordingWebSocket.disconnect();
 	}
 
-	resetUploadState(nextPartNumber: number): void {
+	prepareUploadStateForRecording(liveRecordingId: string, nextPartNumber: number): void {
+		if (this.bufferedLiveRecordingId === liveRecordingId) {
+			this.nextPartNumber = nextPartNumber;
+			return;
+		}
+
+		this.bufferedLiveRecordingId = liveRecordingId;
 		this.nextPartNumber = nextPartNumber;
 		this.pendingBlobs = [];
 		this.pendingBytes = 0;
 		this.uploadChain = Promise.resolve();
-		this.observedAudioBitsPerSecond = 0;
-		this.lastChunkTimestampMs = null;
+		this.multipartStarted = false;
+	}
+
+	hasBufferedAudioForRecording(liveRecordingId: string): boolean {
+		return this.bufferedLiveRecordingId === liveRecordingId && this.pendingBytes > 0;
+	}
+
+	consumeBufferedAudioForRecording(liveRecordingId: string): Blob | null {
+		if (this.bufferedLiveRecordingId !== liveRecordingId || this.pendingBytes <= 0) return null;
+		const blob = new Blob(this.pendingBlobs, { type: 'audio/webm' });
+		this.pendingBlobs = [];
+		this.pendingBytes = 0;
+		return blob;
+	}
+
+	clearBufferedAudioState(liveRecordingId?: string): void {
+		if (liveRecordingId && this.bufferedLiveRecordingId !== liveRecordingId) return;
+		this.bufferedLiveRecordingId = null;
+		this.pendingBlobs = [];
+		this.pendingBytes = 0;
+		this.multipartStarted = false;
+		this.uploadChain = Promise.resolve();
 	}
 
 	async acquireRecordingLock(liveRecordingId: string): Promise<void> {
@@ -191,46 +200,43 @@ export class LiveRecorderEngine {
 		this.mediaRecorder = this.createCompatibleRecorder(stream, mimeType);
 		this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
 			if (event.data.size <= 0) return;
-			this.trackObservedBitrate(event.data.size);
 			this.enqueueChunk(liveRecordingId, event.data, false);
 		};
 		this.mediaRecorder.start(CHUNK_INTERVAL_MS);
 	}
 
-	async drainAndStop(liveRecordingId: string): Promise<void> {
+	async drainAndStop(liveRecordingId: string, mode: 'pause' | 'stop'): Promise<DrainStopResult> {
 		this.mediaRecorder?.requestData();
 		this.mediaRecorder?.stop();
 		await new Promise<void>((resolve) => setTimeout(resolve, 50));
 		this.releaseMediaDevices();
-		this.enqueueChunk(liveRecordingId, null, true);
+		this.enqueueChunk(liveRecordingId, null, mode === 'stop');
 		await this.uploadChain;
+
+		if (!this.multipartStarted) {
+			if (mode === 'pause') {
+				return {
+					strategy: 'buffered_pause',
+					bufferedBytes: this.pendingBytes
+				};
+			}
+
+			const bufferedBlob = this.consumeBufferedAudioForRecording(liveRecordingId);
+			return {
+				strategy: 'regular_upload_fallback',
+				bufferedBlob
+			};
+		}
+
+		return { strategy: 'multipart' };
 	}
 
 	destroy(): void {
 		this.unsubscribeRecordingWebSocketClose();
 		void this.releaseRecordingLockBestEffort();
 		this.recordingWebSocket.disconnect();
+		this.clearBufferedAudioState();
 		this.releaseMediaDevices();
-	}
-
-	private effectiveAudioBitsPerSecond(): number {
-		return this.observedAudioBitsPerSecond > 0
-			? this.observedAudioBitsPerSecond
-			: DEFAULT_AUDIO_BITS_PER_SECOND;
-	}
-
-	private trackObservedBitrate(chunkSizeBytes: number): void {
-		if (chunkSizeBytes <= 0) return;
-		const nowMs = Date.now();
-		const intervalMs = this.lastChunkTimestampMs
-			? Math.max(250, nowMs - this.lastChunkTimestampMs)
-			: CHUNK_INTERVAL_MS;
-		this.lastChunkTimestampMs = nowMs;
-		const instantaneousBitsPerSecond = (chunkSizeBytes * 8 * 1000) / intervalMs;
-		this.observedAudioBitsPerSecond =
-			this.observedAudioBitsPerSecond <= 0
-				? instantaneousBitsPerSecond
-				: this.observedAudioBitsPerSecond * 0.7 + instantaneousBitsPerSecond * 0.3;
 	}
 
 	private async releaseRecordingLock(): Promise<void> {
@@ -294,19 +300,28 @@ export class LiveRecorderEngine {
 	private enqueueChunk(liveRecordingId: string, blob: Blob | null, forceFlush: boolean): void {
 		this.uploadChain = this.uploadChain
 			.then(async () => {
+				if (this.bufferedLiveRecordingId === null) {
+					this.bufferedLiveRecordingId = liveRecordingId;
+				}
+
 				if (blob && blob.size > 0) {
 					this.pendingBlobs.push(blob);
 					this.pendingBytes += blob.size;
 				}
-				if (
-					this.pendingBytes === 0 ||
-					(!forceFlush && this.pendingBytes < MIN_RECORDING_BYTES)
-				)
-					return;
+				if (this.pendingBytes === 0) return;
+
+				if (!this.multipartStarted) {
+					if (forceFlush) return;
+					if (this.pendingBytes < MIN_RECORDING_BYTES) return;
+				}
+
+				if (!forceFlush && this.pendingBytes < MIN_RECORDING_BYTES) return;
+
 				const payload = new Blob(this.pendingBlobs, { type: 'audio/webm' });
 				const partNumber = this.nextPartNumber;
 				this.pendingBlobs = [];
 				this.pendingBytes = 0;
+				this.multipartStarted = true;
 				const presignResponse =
 					await this.recordingWebSocket.requestCustom<PresignLiveAudioRecordingPartResponse>(
 						'audio_recording:presign_part',

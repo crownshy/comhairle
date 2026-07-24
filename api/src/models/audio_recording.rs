@@ -213,22 +213,11 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    match sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
+    let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
         .fetch_one(db)
-        .await
-    {
-        Ok(recording) => Ok(recording.into()),
-        Err(sqlx::Error::Database(db_err)) => {
-            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505" {
-                return Err(ComhairleError::DuplicateRecordingName(
-                    create_recording.name.clone(),
-                ));
-            }
-            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
-        }
-        Err(e) => Err(ComhairleError::DatabaseError(e)),
-    }
+        .await?;
+
+    Ok(recording.into())
 }
 
 /// Get an audio recording by ID
@@ -394,57 +383,6 @@ mod tests {
         assert_eq!(recording.name, create_req.name);
         assert_eq!(recording.s3_key_prefix, create_req.s3_key_prefix);
         assert_eq!(recording.status, AudioRecordingStatus::AwaitingUpload);
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_create_duplicate_name_for_event_conflicts(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut config = test_config()?;
-        config.bot_service = None;
-        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
-        let app = setup_server(state.clone()).await?;
-
-        let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        let event = create_random_event(&mut session, &app).await?;
-
-        let create_req = CreateAudioRecording {
-            id: Uuid::new_v4(),
-            event_id: event.id,
-            name: "Room A".to_string(),
-            s3_key_prefix: "test/prefix".to_string(),
-            file_extension: AudioFormat::Wav,
-        };
-
-        // First create with this name succeeds.
-        create(&pool, &create_req).await?;
-
-        // A second room (distinct id) with the same name in the same event conflicts.
-        let err = create(
-            &pool,
-            &CreateAudioRecording {
-                id: Uuid::new_v4(),
-                ..create_req.clone()
-            },
-        )
-        .await
-        .unwrap_err();
-        assert!(matches!(err, ComhairleError::DuplicateRecordingName(_)));
-
-        // A second room with a different name in the same event is allowed.
-        create(
-            &pool,
-            &CreateAudioRecording {
-                id: Uuid::new_v4(),
-                name: "Room B".to_string(),
-                ..create_req.clone()
-            },
-        )
-        .await?;
-
         Ok(())
     }
 

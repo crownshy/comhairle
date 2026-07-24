@@ -282,6 +282,17 @@
 		return liveRecordingAudioIds.has(audioRecordingId);
 	}
 
+	function findLiveRecording(audioRecordingId: string): LiveAudioRecordingDto | null {
+		return (
+			liveRecordings.find((recording) => recording.audioRecordingId === audioRecordingId) ??
+			null
+		);
+	}
+
+	function formatDateTime(value: string): string {
+		return new Date(value).toLocaleString();
+	}
+
 	async function copyParticipantRecordingLink() {
 		try {
 			if (!window?.navigator?.clipboard) {
@@ -473,6 +484,7 @@
 				<thead class="bg-muted/50">
 					<tr>
 						<th class="px-4 py-2 text-left font-medium">Name</th>
+						<th class="px-4 py-2 text-left font-medium">Created</th>
 						<th class="px-4 py-2 text-left font-medium">Status</th>
 						<th class="px-4 py-2 text-right font-medium">Files</th>
 						<th class="w-12 px-4 py-2"></th>
@@ -481,7 +493,7 @@
 				<tbody>
 					{#if recordings.length === 0}
 						<tr class="border-t">
-							<td colspan="4" class="text-muted-foreground px-4 py-6 text-center">
+							<td colspan="5" class="text-muted-foreground px-4 py-6 text-center">
 								No recordings yet.
 							</td>
 						</tr>
@@ -500,6 +512,9 @@
 										{/if}
 										<span>{recording.name}</span>
 									</div>
+								</td>
+								<td class="text-muted-foreground px-4 py-3 text-xs">
+									{formatDateTime(recording.createdAt)}
 								</td>
 								<td class="px-4 py-3">
 									<div class="flex items-center gap-2">

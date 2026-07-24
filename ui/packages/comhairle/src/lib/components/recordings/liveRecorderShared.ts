@@ -23,6 +23,8 @@ export type LiveAudioRecordingDto = {
 	multipartUploadId: string;
 	nextPartNumber: number;
 	uploadedParts: UploadedPart[];
+	ownerId: string | null;
+	locked: boolean;
 };
 
 export type CreateLiveAudioRecordingResponse = {
@@ -60,6 +62,11 @@ export type ProcessRecordingResponse = {
 	jobId: string;
 };
 
+export type DrainStopResult =
+	| { strategy: 'multipart' }
+	| { strategy: 'buffered_pause'; bufferedBytes: number }
+	| { strategy: 'regular_upload_fallback'; bufferedBlob: Blob | null };
+
 export type LiveRecordingAcquireRequest = {
 	eventId: string;
 	liveRecordingId: string;
@@ -93,26 +100,6 @@ export const CHUNK_INTERVAL_MS = 10_000;
 export const MIN_RECORDING_BYTES = 5 * 1024 * 1024;
 export const TARGET_AUDIO_BITS_PER_SECOND = 768_000;
 export const DEFAULT_AUDIO_BITS_PER_SECOND = 128_000;
-
-export function totalUploadedBytes(liveRecording: LiveAudioRecordingDto): number {
-	return liveRecording.uploadedParts.reduce((sum, part) => sum + part.sizeBytes, 0);
-}
-
-export function isRecordingLargeEnough(liveRecording: LiveAudioRecordingDto): boolean {
-	return totalUploadedBytes(liveRecording) >= MIN_RECORDING_BYTES;
-}
-
-export function formatMb(bytes: number): string {
-	return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-export function formatDuration(totalSeconds: number): string {
-	const minutes = Math.floor(totalSeconds / 60);
-	const seconds = totalSeconds % 60;
-	if (minutes === 0) return `${seconds}s`;
-	if (seconds === 0) return `${minutes}m`;
-	return `${minutes}m ${seconds}s`;
-}
 
 export function getErrorMessage(err: unknown, fallback: string): string {
 	return err instanceof Error ? err.message : fallback;

@@ -4,9 +4,7 @@ import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type { AudioRecordingDto } from '@crownshy/api-client/api';
 
 import {
-	MIN_RECORDING_BYTES,
 	getErrorMessage,
-	isRecordingLargeEnough,
 	type LiveAudioRecordingDto,
 	type LiveRecorderMode,
 	type LiveRecorderPhase
@@ -87,10 +85,6 @@ export class LiveRecorderController {
 		);
 	}
 
-	get hasObservedBitrate(): boolean {
-		return this.engine.hasObservedBitrate;
-	}
-
 	get audioVolume(): number {
 		return this.engine.audioVolume;
 	}
@@ -100,14 +94,6 @@ export class LiveRecorderController {
 			this.recordings.find((recording) => recording.id === liveRecording.audioRecordingId)
 				?.name ?? 'Untitled live recording'
 		);
-	}
-
-	minRequiredSecondsForSave(): number {
-		return this.engine.minRequiredSecondsForSave();
-	}
-
-	shortRecordingWarningMessage(): string {
-		return this.engine.shortRecordingWarningMessage();
 	}
 
 	async loadLiveRecordings(): Promise<void> {
@@ -135,6 +121,7 @@ export class LiveRecorderController {
 			});
 			return;
 		}
+
 		if (this.recordings.some((recording) => recording.name === trimmedName)) {
 			notifications.send({
 				message: `A recording named "${trimmedName}" already exists`,
@@ -158,7 +145,10 @@ export class LiveRecorderController {
 		this.activeLiveRecordingId = liveRecordingId;
 		this.liveRecordings = [...this.liveRecordings, createResult.ok.liveAudioRecording];
 		void invalidateAll();
-		this.engine.resetUploadState(createResult.ok.liveAudioRecording.nextPartNumber);
+		this.engine.prepareUploadStateForRecording(
+			liveRecordingId,
+			createResult.ok.liveAudioRecording.nextPartNumber
+		);
 		this.engine.connect();
 
 		const acquireResult = await tryCatchAsync(() =>
@@ -205,7 +195,7 @@ export class LiveRecorderController {
 
 		this.phase = 'starting';
 		this.activeLiveRecordingId = liveRecording.id;
-		this.engine.resetUploadState(liveRecording.nextPartNumber);
+		this.engine.prepareUploadStateForRecording(liveRecording.id, liveRecording.nextPartNumber);
 		this.engine.connect();
 
 		const disconnectResult = await tryCatchAsync(() =>
@@ -281,7 +271,9 @@ export class LiveRecorderController {
 		const liveRecordingId = this.activeLiveRecordingId;
 		if (this.phase !== 'recording' || !liveRecordingId) return;
 		this.phase = 'stopping';
-		const pauseResult = await tryCatchAsync(() => this.engine.drainAndStop(liveRecordingId));
+		const pauseResult = await tryCatchAsync(() =>
+			this.engine.drainAndStop(liveRecordingId, 'pause')
+		);
 		if (pauseResult.err === null) await this.engine.releaseRecordingLockBestEffort();
 		this.engine.disconnect();
 		if (pauseResult.err !== null) {
@@ -302,7 +294,9 @@ export class LiveRecorderController {
 		const liveRecordingId = this.activeLiveRecordingId;
 		if (!liveRecordingId) return;
 		this.phase = 'stopping';
-		const stopResult = await tryCatchAsync(() => this.engine.drainAndStop(liveRecordingId));
+		const stopResult = await tryCatchAsync(() =>
+			this.engine.drainAndStop(liveRecordingId, 'stop')
+		);
 		if (stopResult.err === null) await this.engine.releaseRecordingLockBestEffort();
 		this.engine.disconnect();
 		if (stopResult.err !== null) {
@@ -316,16 +310,17 @@ export class LiveRecorderController {
 			return;
 		}
 
-		const latestLiveRecording = this.liveRecordings.find(
-			(recording) => recording.id === liveRecordingId
-		);
-		if (!latestLiveRecording || !isRecordingLargeEnough(latestLiveRecording)) {
+		if (stopResult.ok.strategy === 'regular_upload_fallback') {
+			const liveRecording = this.liveRecordings.find(
+				(recording) => recording.id === liveRecordingId
+			);
 			this.activeLiveRecordingId = null;
 			this.phase = 'idle';
-			notifications.send({
-				message: this.shortRecordingWarningMessage(),
-				priority: 'WARNING'
-			});
+			await this.finaliseWithRegularFallback(
+				liveRecordingId,
+				liveRecording?.audioRecordingId ?? null,
+				stopResult.ok.bufferedBlob
+			);
 			return;
 		}
 
@@ -344,6 +339,7 @@ export class LiveRecorderController {
 			});
 			return;
 		}
+		this.engine.clearBufferedAudioState(liveRecordingId);
 		notifications.send({
 			message: completeResult.ok.message || 'Recording saved — transcription started',
 			priority: 'SUCCESS'
@@ -363,11 +359,23 @@ export class LiveRecorderController {
 		const liveRecording = this.liveRecordings.find(
 			(recording) => recording.id === liveRecordingId
 		);
-		if (!liveRecording || !isRecordingLargeEnough(liveRecording)) {
+		if (!liveRecording) {
 			notifications.send({
-				message: this.shortRecordingWarningMessage(),
-				priority: 'WARNING'
+				message: 'Could not find that live recording',
+				priority: 'ERROR'
 			});
+			return;
+		}
+
+		if (liveRecording.uploadedParts.length === 0) {
+			this.finalisingLiveRecordingId = liveRecordingId;
+			const bufferedBlob = this.engine.consumeBufferedAudioForRecording(liveRecordingId);
+			await this.finaliseWithRegularFallback(
+				liveRecordingId,
+				liveRecording.audioRecordingId,
+				bufferedBlob
+			);
+			this.finalisingLiveRecordingId = null;
 			return;
 		}
 
@@ -410,6 +418,7 @@ export class LiveRecorderController {
 			});
 			return;
 		}
+		this.engine.clearBufferedAudioState(liveRecordingId);
 		this.liveRecordings = this.liveRecordings.filter(
 			(recording) => recording.id !== liveRecordingId
 		);
@@ -437,6 +446,7 @@ export class LiveRecorderController {
 	private async recoverFromMissingLiveRecording(): Promise<void> {
 		this.activeLiveRecordingId = null;
 		this.phase = 'idle';
+		this.engine.clearBufferedAudioState();
 		this.engine.disconnect();
 		await this.loadLiveRecordings();
 	}
@@ -452,11 +462,110 @@ export class LiveRecorderController {
 			this.engine.deleteLiveRecording(liveRecordingId)
 		);
 		if (cleanupResult.err === null) void invalidateAll();
+		this.engine.clearBufferedAudioState(liveRecordingId);
 		this.engine.disconnect();
 		this.liveRecordings = this.liveRecordings.filter(
 			(recording) => recording.id !== liveRecordingId
 		);
 		this.activeLiveRecordingId = null;
 		this.phase = 'idle';
+	}
+
+	private async finaliseWithRegularFallback(
+		liveRecordingId: string,
+		audioRecordingId: string | null,
+		bufferedBlob: Blob | null
+	): Promise<void> {
+		if (!bufferedBlob || bufferedBlob.size <= 0) {
+			this.engine.connect();
+			const deleteResult = await tryCatchAsync(() =>
+				this.engine.deleteLiveRecording(liveRecordingId)
+			);
+			this.engine.disconnect();
+			if (deleteResult.err !== null) {
+				notifications.send({
+					message: getErrorMessage(
+						deleteResult.err,
+						'Failed to clean up empty live recording'
+					),
+					priority: 'ERROR'
+				});
+				return;
+			}
+			this.liveRecordings = this.liveRecordings.filter(
+				(recording) => recording.id !== liveRecordingId
+			);
+			this.engine.clearBufferedAudioState(liveRecordingId);
+			notifications.send({ message: 'No audio captured to save', priority: 'WARNING' });
+			void invalidateAll();
+			return;
+		}
+
+		if (!audioRecordingId) {
+			notifications.send({
+				message: 'Could not resolve the recording to save. Please refresh and try again.',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		const uploadUrlResult = await tryCatchAsync(() =>
+			this.api.getRecordingUploadUrl(audioRecordingId)
+		);
+		if (uploadUrlResult.err !== null) {
+			notifications.send({
+				message: getErrorMessage(uploadUrlResult.err, 'Failed to prepare recording upload'),
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		const uploadResult = await tryCatchAsync(() =>
+			this.api.uploadBlobToSignedUrl(bufferedBlob, uploadUrlResult.ok)
+		);
+		if (uploadResult.err !== null) {
+			notifications.send({
+				message: getErrorMessage(uploadResult.err, 'Failed to upload recording audio'),
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		const processResult = await tryCatchAsync(() =>
+			this.api.processRecording(audioRecordingId)
+		);
+		if (processResult.err !== null) {
+			notifications.send({
+				message: getErrorMessage(processResult.err, 'Failed to start recording processing'),
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		this.engine.connect();
+		const deleteResult = await tryCatchAsync(() =>
+			this.engine.deleteLiveRecording(liveRecordingId)
+		);
+		this.engine.disconnect();
+		if (deleteResult.err !== null) {
+			notifications.send({
+				message: getErrorMessage(
+					deleteResult.err,
+					'Saved recording, but failed to clean up live draft'
+				),
+				priority: 'WARNING'
+			});
+		}
+		this.liveRecordings = this.liveRecordings.filter(
+			(recording) => recording.id !== liveRecordingId
+		);
+
+		this.engine.clearBufferedAudioState(liveRecordingId);
+		notifications.send({
+			message: processResult.ok.message || 'Recording saved — transcription started',
+			priority: 'SUCCESS'
+		});
+		await this.onComplete?.();
+		void invalidateAll();
 	}
 }
