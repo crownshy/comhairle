@@ -21,7 +21,6 @@
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import LearningAssistantSkeleton from '$lib/tools/learn/LearningAssistantSkeleton.svelte';
-	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
@@ -49,31 +48,10 @@
 
 	let isRevisiting = $derived(workflowStep.progressStatus === 'done');
 
-	let availableDocuments = $state<ComhairleDocument[]>([]);
-	let loadedDocumentsConversationId = $state<string | null>(null);
-
-	$effect(() => {
-		const conversationId = conversation?.id ?? null;
-		if (!conversationId) {
-			availableDocuments = [];
-			loadedDocumentsConversationId = null;
-			return;
-		}
-
-		if (loadedDocumentsConversationId === conversationId) return;
-
-		loadedDocumentsConversationId = conversationId;
-		apiClient
-			.ListDocuments({ params: { conversation_id: conversationId } })
-			.then((docs) => {
-				if (loadedDocumentsConversationId !== conversationId) return;
-				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
-			})
-			.catch(() => {
-				if (loadedDocumentsConversationId !== conversationId) return;
-				availableDocuments = [];
-			});
-	});
+	// Documents (and the derived "does the knowledge base have parsed docs" gate) are hoisted to
+	// the workflow +layout.ts so the step page and the support sidebar share one source.
+	let availableDocuments = $derived(data.availableDocuments);
+	let hasKnowledgeBaseDocs = $derived(data.hasKnowledgeBaseDocs);
 
 	let stepItems = $derived<StepItem[]>(
 		sortedSteps.map((ws) => {
@@ -296,7 +274,7 @@
 							<HeyForm.UserUISkeleton />
 						{:else}
 							<LearnArticleSkeleton />
-							{#if conversation?.chatBotId && conversation.enableQaChatBot}
+							{#if conversation?.chatBotId && conversation.enableQaChatBot && hasKnowledgeBaseDocs}
 								<div class="mx-auto mt-6 w-full max-w-[65ch]">
 									<LearningAssistantSkeleton />
 								</div>
@@ -311,6 +289,8 @@
 								onNextAction={handleNextAction}
 								onPrevAction={handlePrevAction}
 								{conversation}
+								{availableDocuments}
+								{hasKnowledgeBaseDocs}
 								{isSubmitting}
 							/>
 						{/key}
