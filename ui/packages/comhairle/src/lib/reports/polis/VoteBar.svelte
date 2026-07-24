@@ -6,8 +6,17 @@
 	Every segment is filled and the bar is full-width: it stretches to fill
 	whatever the caller gives it. Passed is a solid grey; not-voted is the empty
 	(near-white) tail carrying a thin outline so it stays distinct from passed even
-	when the two greys are close (e.g. scot-gov). Hovering (or focusing) a segment
-	shows a tooltip with its category and percentage.
+	when the two greys are close (e.g. scot-gov).
+
+	The tooltip follows the cursor. bits-ui's Tooltip normally anchors to the
+	trigger element and floating-ui does NOT recompute on plain mouse movement, so
+	on its own the bubble sits centred over the trigger and cannot track the
+	pointer. The way around it (without leaving bits-ui) is `customAnchor`: it
+	accepts a virtual "measurable" (anything with getBoundingClientRect). We hand
+	Tooltip.Content a zero-size virtual anchor pinned to the cursor and reassign it
+	on every pointermove; bits-ui reacts to the new reference and re-solves the
+	position, so the bubble rides along and shows whichever slice is under the
+	cursor.
 
 	Dumb leaf: it takes four already-computed percentages (0-100, summing to ~100
 	over the group's members). All fill colour comes from the shared `--vote-*`
@@ -71,6 +80,46 @@
 	// straight back, keeping totals equal.
 	const visible = $derived(segments.filter((s) => s.pct > 0));
 	const OVERLAP = '0.3125rem'; // half the h-2.5 track height, i.e. one cap radius
+
+	const summary = $derived(
+		`${Math.round(agreed)}% agreed, ${Math.round(disagreed)}% disagreed, ` +
+			`${Math.round(passed)}% passed, ${Math.round(notVoted)}% not voted`
+	);
+
+	// The slice under the cursor, tracked by key so it survives prop-driven
+	// re-derivations of `visible`; falls back to the first slice (e.g. on keyboard
+	// focus, when there is no pointer position to read).
+	let activeKey = $state<string | null>(null);
+	const active = $derived(visible.find((s) => s.key === activeKey) ?? visible[0]);
+
+	// Virtual anchor pinned to the cursor. Reassigned on each move so bits-ui
+	// re-solves the tooltip position (see the component doc above).
+	let cursorAnchor = $state<{ getBoundingClientRect: () => DOMRect } | null>(null);
+
+	function trackCursor(event: PointerEvent) {
+		const track = event.currentTarget as HTMLElement;
+		const rect = track.getBoundingClientRect();
+		const ratio = ((event.clientX - rect.left) / rect.width) * 100;
+
+		let acc = 0;
+		let hit = visible[visible.length - 1];
+		for (const s of visible) {
+			acc += s.pct;
+			if (ratio <= acc) {
+				hit = s;
+				break;
+			}
+		}
+		activeKey = hit.key;
+
+		// Follow the cursor's x; keep the y at the bar's middle so the bubble sits a
+		// steady distance above the bar instead of jittering with tiny y wobble.
+		const x = event.clientX;
+		const y = rect.top + rect.height / 2;
+		cursorAnchor = {
+			getBoundingClientRect: () => DOMRect.fromRect({ x, y, width: 0, height: 0 })
+		};
+	}
 </script>
 
 <Tooltip.Provider delayDuration={100}>
@@ -78,26 +127,25 @@
 		{#if label}
 			<span class="text-muted-foreground w-14 shrink-0 text-xs font-medium">{label}</span>
 		{/if}
-		<div
-			class="flex h-2.5 min-w-0 flex-1 items-stretch"
-			role="img"
-			aria-label={`${Math.round(agreed)}% agreed, ${Math.round(disagreed)}% disagreed, ${Math.round(
-				passed
-			)}% passed, ${Math.round(notVoted)}% not voted`}
-		>
-			{#each visible as s, i (s.key)}
-				<Tooltip.Root>
-					<Tooltip.Trigger
-						aria-label={`${s.label} ${Math.round(s.pct)}%`}
-						class="m-0 h-full min-w-0 cursor-default rounded-full border-0 p-0"
+		<Tooltip.Root>
+			<Tooltip.Trigger
+				aria-label={summary}
+				onpointermove={trackCursor}
+				class="flex h-2.5 min-w-0 flex-1 cursor-default items-stretch border-0 bg-transparent p-0"
+			>
+				{#each visible as s, i (s.key)}
+					<span
+						class="h-full min-w-0 rounded-full"
 						style="flex: {s.pct} {s.pct} 0; background: {s.color}; z-index: {visible.length -
 							i}; margin-left: {i > 0 ? `-${OVERLAP}` : '0'};{s.outline
 							? ' box-shadow: inset 0 0 0 1px var(--vote-not-voted-border);'
 							: ''}"
-					/>
-					<Tooltip.Content>{s.label} · {Math.round(s.pct)}%</Tooltip.Content>
-				</Tooltip.Root>
-			{/each}
-		</div>
+					></span>
+				{/each}
+			</Tooltip.Trigger>
+			<Tooltip.Content customAnchor={cursorAnchor} sideOffset={8}>
+				{active?.label} · {Math.round(active?.pct ?? 0)}%
+			</Tooltip.Content>
+		</Tooltip.Root>
 	</div>
 </Tooltip.Provider>

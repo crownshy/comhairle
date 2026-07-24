@@ -16,7 +16,7 @@
 	});
 </script>
 
-<!-- Hover (or focus) a segment to see its category and percentage. -->
+<!-- Hover the bar: the tooltip follows the cursor and shows the slice under it. -->
 <Story
 	name="Default"
 	args={{ label: 'OVERALL', agreed: 52, disagreed: 21, passed: 9, notVoted: 18 }}
