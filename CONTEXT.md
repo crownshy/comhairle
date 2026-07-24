@@ -103,7 +103,7 @@ A statement the opinion groups split hardest on, ranked by Polis's `divisiveness
 **Report component**:
 The primitive of the reporting system: a self-contained, configurable widget fed by (usually) one tool's insight data, e.g. an "Areas of Agreement" list, an engagement stat card, a Prioritisation ranking, a beeswarm chart. The unit that gets built once per tool and reused. **Report views are compositions of report components** filtered by audience + timing; the components are the thing you design, the views are arrangements.
 _Avoid_: widget, block, card (too generic).
-_Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components (`components/polis-report/**` + `tools/polis/report.ts`). An older parallel set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
+_Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components — the Insights set in `lib/reports/polis/**` (`VoteBar`, `StatementVoteBlock`, `AreaOfConsensus`) backed by `tools/polis/report.ts`. A separate set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
 
 **Report view**:
 A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:

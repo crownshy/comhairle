@@ -1,46 +1,8 @@
-import type {
-	GroupVotePercent,
-	MemberVotePercent,
-	PolisReportData,
-	ReportComment,
-	ReportGroup
-} from './reportTypes';
+import type { MemberVotePercent, PolisReportData, ReportComment, ReportGroup } from './reportTypes';
 
 /** A-Z label for a group_id (0 -> "A"). */
 export function groupLabel(groupId: number): string {
 	return String.fromCharCode(65 + groupId);
-}
-
-/**
- * Per-group vote percentages for a single comment.
- *
- * Percentages are taken over the votes cast on THIS statement, not the
- * group's total membership. With `excludePasses`, the denominator drops
- * passes too - agree% becomes agrees / (agrees + disagrees).
- */
-export function computeGroupVotePercents(
-	comment: ReportComment,
-	groups: ReportGroup[],
-	{ excludePasses = false }: { excludePasses?: boolean } = {}
-): GroupVotePercent[] {
-	return comment.group_votes.map((gv) => {
-		const group = groups.find((g) => g.group_id === gv.group_id);
-		const totalMembers = group ? group.total_members : gv.agrees + gv.disagrees + gv.passes;
-		const totalVoted = gv.agrees + gv.disagrees + gv.passes;
-		const denominator = excludePasses ? gv.agrees + gv.disagrees : totalVoted;
-		// Share of `denominator` a given vote count represents, as a 0-100 percentage.
-		const percentOf = (voteCount: number) =>
-			denominator > 0 ? (voteCount / denominator) * 100 : 0;
-		return {
-			group_id: gv.group_id,
-			label: groupLabel(gv.group_id),
-			totalMembers,
-			totalVoted,
-			agreed: percentOf(gv.agrees),
-			disagreed: percentOf(gv.disagrees),
-			passed: excludePasses ? 0 : percentOf(gv.passes)
-		};
-	});
 }
 
 /**

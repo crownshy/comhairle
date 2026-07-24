@@ -53,21 +53,9 @@ export interface PolisReportData {
 	participants: ParticipantReportData[];
 }
 
-/** Per-group vote percentage breakdown for one comment. Computed in report.ts. */
-export interface GroupVotePercent {
-	group_id: number;
-	label: string;
-	totalMembers: number;
-	totalVoted: number;
-	agreed: number;
-	disagreed: number;
-	passed: number;
-}
-
 /**
  * Vote breakdown for the report's stacked VoteBar, taken over a group's total
- * MEMBERSHIP (not just voters) so the not-voted remainder is shown. Distinct
- * from GroupVotePercent, which is of-voters and carries no notVoted. The four
+ * MEMBERSHIP (not just voters) so the not-voted remainder is shown. The four
  * shares sum to ~100. Computed in report.ts (`computeMemberVoteBars`).
  */
 export interface MemberVotePercent {
