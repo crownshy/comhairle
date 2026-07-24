@@ -41,6 +41,7 @@ use tokio::fs;
 use tower_http::cors::CorsLayer;
 use translation_service::TranslationService;
 use websockets::WebSocketService;
+use websockets::handlers::video_call::VideoCallMessageHandler;
 
 use crate::bulk_storage_service::BulkStorageService;
 use crate::categorization_service::CategorizationService;
@@ -62,6 +63,9 @@ pub struct ComhairleState {
     pub config: ComhairleConfig,
     pub mailer: Arc<dyn ComhairleMailer>,
     pub websockets: Arc<dyn WebSocketService>,
+    /// Video call handler, held here (as well as registered on `websockets`) so HTTP
+    /// routes can push updates to participants currently on a call (e.g. agenda changes).
+    pub video_call_handler: Arc<VideoCallMessageHandler>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub wiki_poll_service: Arc<dyn WikiPollService>,
