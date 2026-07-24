@@ -45,6 +45,7 @@ pub struct PrioritizationToolConfig {
     #[serde(default)]
     pub section_questions: Vec<Question>,
     pub randomize_order: bool,
+    pub alignment_question_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
@@ -95,6 +96,7 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
             questions: self.questions.clone(),
             section_questions: self.section_questions.clone(),
             randomize_order: self.randomize_order,
+            alignment_question_id: self.alignment_question_id,
         }
     }
 }
@@ -121,6 +123,7 @@ pub struct PrioritizationToolSetup {
     #[serde(default)]
     pub section_questions: Vec<SetupQuestion>,
     pub randomize_order: bool,
+    pub alignment_question_id: Option<Uuid>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
@@ -251,13 +254,21 @@ Create a response for prioritization tool proposal
 fn prioritization_setup(
     setup_config: &PrioritizationToolSetup,
 ) -> Result<PrioritizationToolConfig, ComhairleError> {
+    let questions: Vec<Question> = setup_config
+        .questions
+        .clone()
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    let alignment_question_id = if questions.is_empty() {
+        None
+    } else {
+        Some(questions[0].id)
+    };
+
     Ok(PrioritizationToolConfig {
-        questions: setup_config
-            .questions
-            .clone()
-            .into_iter()
-            .map(Into::into)
-            .collect(),
+        questions,
         section_questions: setup_config
             .section_questions
             .clone()
@@ -265,6 +276,7 @@ fn prioritization_setup(
             .map(Into::into)
             .collect(),
         randomize_order: setup_config.randomize_order,
+        alignment_question_id,
     })
 }
 

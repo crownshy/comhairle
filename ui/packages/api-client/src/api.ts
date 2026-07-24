@@ -1144,6 +1144,7 @@ export const ToolConfig = z.union([
     .passthrough(),
   z
     .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(Question),
       randomize_order: z.boolean(),
       section_questions: z.array(Question).optional().default([]),
@@ -1351,6 +1352,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
       section_questions: z.array(SetupQuestion).optional().default([]),

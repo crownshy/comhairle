@@ -22,8 +22,14 @@
 		onOpenChange: (open: boolean) => void;
 	};
 
-	let { open, question = null, store, toolConfig, target = 'proposal', onOpenChange }: Props =
-		$props();
+	let {
+		open,
+		question = null,
+		store,
+		toolConfig,
+		target = 'proposal',
+		onOpenChange
+	}: Props = $props();
 
 	const defaultLikertCategories: LikertCategory[] = [
 		{ label: 'Strongly disagree', value: -2 },
@@ -143,7 +149,8 @@
 			await store.saveToolConfig({
 				questions: target === 'section' ? toolConfig.questions : updated,
 				sectionQuestions: target === 'section' ? updated : toolConfig.sectionQuestions,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 			onOpenChange(false);
 		} catch (e) {
