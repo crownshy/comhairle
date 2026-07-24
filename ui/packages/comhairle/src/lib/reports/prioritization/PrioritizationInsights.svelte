@@ -1,14 +1,16 @@
 <script lang="ts">
-	import type { PrioritizationInsightsResponse } from '@crownshy/api-client/api';
+	import type { PrioritizationInsightsResponse, WorkflowStepDto } from '@crownshy/api-client/api';
 	import MetricOverviewCard from '../MetricOverviewCard.svelte';
 	import ContentCard from '../ContentCard.svelte';
 	import PrioritizationRankedProposalTable from './PrioritizationRankedProposalTable.svelte';
+	import PrioritizationScatterPlot from './PrioritizationScatterPlot.svelte';
 
 	type Props = {
 		insights: PrioritizationInsightsResponse;
+		step: WorkflowStepDto;
 	};
 
-	let { insights }: Props = $props();
+	let { insights, step }: Props = $props();
 	// Use average incase some steps weren't completed and a proposal has less
 	// responses than others
 	const averageNumParticipants = $derived.by(() => {
@@ -38,4 +40,9 @@
 
 		<PrioritizationRankedProposalTable proposals={insights.rankedProposals} />
 	</ContentCard>
+
+	<PrioritizationScatterPlot
+		proposals={insights.rankedProposals}
+		toolConfig={step.toolConfig ?? step.previewToolConfig}
+	/>
 </div>

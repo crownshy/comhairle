@@ -54,8 +54,12 @@
 					</div>
 				</Table.Cell>
 				<Table.Cell class="text-primary h-auto px-5 text-wrap!">
-					<div transition:slide={{ duration: ROW_ANIMATION_DURATION_MS }}>
+					<div
+						transition:slide={{ duration: ROW_ANIMATION_DURATION_MS }}
+						class="flex items-center gap-4"
+					>
 						<Progress value={getRatingPercentage(proposal.alignmentRating)} />
+						<span>{proposal.alignmentRating}</span>
 					</div>
 				</Table.Cell>
 			</Table.Row>

@@ -23,6 +23,6 @@
 {/if}
 
 <!-- Polis -->
-{#if data.prioritization}
-	<PrioritizationInsights {...data.prioritization} />
+{#if data.prioritization && step}
+	<PrioritizationInsights {step} {...data.prioritization} />
 {/if}
