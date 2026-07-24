@@ -1983,6 +1983,12 @@ export const DeleteRecordingResponse = z
   .object({ recording: AudioRecordingDto })
   .passthrough();
 export type DeleteRecordingResponse = z.infer<typeof DeleteRecordingResponse>;
+export const RecordingUploadUrlResponse = z
+  .object({ recording: AudioRecordingDto, uploadUrl: z.string() })
+  .passthrough();
+export type RecordingUploadUrlResponse = z.infer<
+  typeof RecordingUploadUrlResponse
+>;
 export const ProcessRecordingResponse = z
   .object({ jobId: z.string().uuid(), message: z.string() })
   .passthrough();
@@ -1991,6 +1997,47 @@ export const SubmitReportResponse = z
   .object({ success: z.boolean(), url: z.string() })
   .passthrough();
 export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
+export const UploadedPart = z
+  .object({
+    etag: z.string(),
+    partNumber: z.number().int(),
+    sizeBytes: z.number().int(),
+  })
+  .passthrough();
+export type UploadedPart = z.infer<typeof UploadedPart>;
+export const LiveAudioRecordingDto = z
+  .object({
+    audioRecordingId: z.string().uuid(),
+    id: z.string().uuid(),
+    locked: z.boolean(),
+    multipartUploadId: z.string(),
+    nextPartNumber: z.number().int(),
+    ownerId: z.union([z.string(), z.null()]).optional(),
+    uploadedParts: z.array(UploadedPart),
+  })
+  .passthrough();
+export type LiveAudioRecordingDto = z.infer<typeof LiveAudioRecordingDto>;
+export const CreateLiveAudioRecordingRequest = z
+  .object({ fileExtension: AudioFormat, name: z.string() })
+  .passthrough();
+export type CreateLiveAudioRecordingRequest = z.infer<
+  typeof CreateLiveAudioRecordingRequest
+>;
+export const CreateLiveAudioRecordingResponse = z
+  .object({
+    liveAudioRecording: LiveAudioRecordingDto,
+    recording: AudioRecordingDto,
+  })
+  .passthrough();
+export type CreateLiveAudioRecordingResponse = z.infer<
+  typeof CreateLiveAudioRecordingResponse
+>;
+export const LiveAudioRecordingStateResponse = z
+  .object({ liveAudioRecording: LiveAudioRecordingDto })
+  .passthrough();
+export type LiveAudioRecordingStateResponse = z.infer<
+  typeof LiveAudioRecordingStateResponse
+>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -2568,8 +2615,14 @@ export const schemas: Record<string, z.ZodType<any>> = {
   RecordingDownloadUrls,
   RecordingDetailResponse,
   DeleteRecordingResponse,
+  RecordingUploadUrlResponse,
   ProcessRecordingResponse,
   SubmitReportResponse,
+  UploadedPart,
+  LiveAudioRecordingDto,
+  CreateLiveAudioRecordingRequest,
+  CreateLiveAudioRecordingResponse,
+  LiveAudioRecordingStateResponse,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -3345,6 +3398,43 @@ curl -X POST \
     description: `Webhook for the categorization service to submit a recording&#x27;s report. Authenticated by HMAC signature headers.`,
     requestFormat: "json",
     response: SubmitReportResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id/upload_url",
+    alias: "GetAudioRecordingUploadUrl",
+    description: `Issue a fresh presigned upload URL for an existing recording row that is still awaiting upload or retry.`,
+    requestFormat: "json",
+    response: RecordingUploadUrlResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live",
+    alias: "ListLiveAudioRecordings",
+    requestFormat: "json",
+    response: z.array(LiveAudioRecordingDto),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live",
+    alias: "CreateLiveAudioRecording",
+    description: `Create a live audio recording for an event, initiating a multipart upload in bulk storage.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateLiveAudioRecordingRequest,
+      },
+    ],
+    response: CreateLiveAudioRecordingResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/live/:live_recording_id",
+    alias: "GetLiveAudioRecording",
+    requestFormat: "json",
+    response: LiveAudioRecordingStateResponse,
   },
   {
     method: "get",

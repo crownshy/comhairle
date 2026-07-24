@@ -4,8 +4,8 @@ use tracing::info;
 use crate::ComhairleState;
 
 use super::handlers::{
-    notifications::NotificationMessageHandler, video_call::VideoCallMessageHandler,
-    workflow::WorkflowMessageHandler,
+    audio_recording::AudioRecordingMessageHandler, notifications::NotificationMessageHandler,
+    video_call::VideoCallMessageHandler, workflow::WorkflowMessageHandler,
 };
 
 /// Register all WebSocket message handlers with the application state.
@@ -72,6 +72,10 @@ pub fn register_handlers(state: &Arc<ComhairleState>) {
     // Register video call handler
     let video_call_handler = Arc::new(VideoCallMessageHandler::new());
     state.websockets.register_handler(video_call_handler);
+
+    // Register audio recording handler
+    let audio_recording_handler = Arc::new(AudioRecordingMessageHandler::new());
+    state.websockets.register_handler(audio_recording_handler);
 
     info!("WebSocket message handlers registered successfully");
 }

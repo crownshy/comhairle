@@ -286,6 +286,9 @@ pub enum ComhairleError {
     #[error("Corrupted data: {0}")]
     CorruptedData(String),
 
+    #[error("Live audio recording is locked")]
+    LiveAudioRecordingLocked,
+
     #[error("Download error: {0}")]
     DownloadError(String),
 
@@ -364,6 +367,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::InviteResponseAlreadyCreated
             | ComhairleError::DuplicateSlug(_)
             | ComhairleError::DuplicateRecordingName(_)
+            | ComhairleError::LiveAudioRecordingLocked
             | ComhairleError::UserAlreadyRegisteredForEvent(_)
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
             | ComhairleError::Conflict(_)

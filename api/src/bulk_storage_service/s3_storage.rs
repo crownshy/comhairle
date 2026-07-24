@@ -1,15 +1,16 @@
 use async_trait::async_trait;
 use aws_config::SdkConfig;
-use aws_sdk_s3::{
-    Client,
-    config::{RequestChecksumCalculation, ResponseChecksumValidation},
-    presigning::PresigningConfig,
-    primitives::ByteStream,
-    types::ObjectCannedAcl,
-};
+use aws_sdk_s3::Client;
+use aws_sdk_s3::config::{RequestChecksumCalculation, ResponseChecksumValidation};
+use aws_sdk_s3::presigning::PresigningConfig;
+use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::types::ObjectCannedAcl;
 use std::time::Duration;
 
-use crate::bulk_storage_service::{BulkStorageService, FileMetadata, error::BulkStorageError};
+use crate::bulk_storage_service::{
+    BulkStorageService, FileMetadata, MultipartUploadPartNumber, StorageEntityTag, StorageUploadID,
+    error::BulkStorageError,
+};
 /// Presigned URL expiration time for PUT operations (in seconds)
 const PUT_EXPIRES: u64 = 600;
 /// Presigned URL expiration time for GET operations (in seconds)
@@ -194,5 +195,111 @@ impl BulkStorageService for S3StorageService {
             .collect();
 
         Ok(entries)
+    }
+
+    async fn create_multipart_upload(
+        &self,
+        path: &str,
+        metadata: FileMetadata,
+    ) -> Result<StorageUploadID, BulkStorageError> {
+        let mut put_object = self
+            .s3_client
+            .create_multipart_upload()
+            .bucket(&self.bucket)
+            .key(path)
+            .content_type(&metadata.content_type);
+
+        if metadata.is_public {
+            put_object = put_object.acl(ObjectCannedAcl::PublicRead);
+        }
+
+        let result = put_object
+            .send()
+            .await
+            .map_err(|e| BulkStorageError::FailedToCreateMultipartUpload(e.to_string()))?;
+
+        let upload_id = result
+            .upload_id()
+            .ok_or_else(|| {
+                BulkStorageError::FailedToCreateMultipartUpload("Missing upload ID".to_string())
+            })?
+            .to_string();
+
+        Ok(StorageUploadID(upload_id))
+    }
+
+    async fn get_multipart_file_write_url(
+        &self,
+        path: &str,
+        upload_id: &StorageUploadID,
+        part_number: MultipartUploadPartNumber,
+    ) -> Result<String, BulkStorageError> {
+        let expires_in: Duration = Duration::from_secs(PUT_EXPIRES);
+
+        let presigned = self
+            .s3_client
+            .upload_part()
+            .bucket(&self.bucket)
+            .upload_id(&upload_id.0)
+            .key(path)
+            .part_number(part_number.0)
+            .presigned(
+                PresigningConfig::expires_in(expires_in)
+                    .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e.to_string()))?,
+            )
+            .await
+            .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e.to_string()))?;
+
+        Ok(presigned.uri().to_string())
+    }
+
+    async fn complete_multipart_upload(
+        &self,
+        path: &str,
+        upload_id: &StorageUploadID,
+        parts: &[(MultipartUploadPartNumber, StorageEntityTag)],
+    ) -> Result<(), BulkStorageError> {
+        let completed_parts = parts
+            .iter()
+            .map(|(part_number, etag)| {
+                aws_sdk_s3::types::CompletedPart::builder()
+                    .set_part_number(Some(part_number.0))
+                    .set_e_tag(Some(etag.0.clone()))
+                    .build()
+            })
+            .collect::<Vec<_>>();
+
+        let completed_upload = aws_sdk_s3::types::CompletedMultipartUpload::builder()
+            .set_parts(Some(completed_parts))
+            .build();
+
+        self.s3_client
+            .complete_multipart_upload()
+            .bucket(&self.bucket)
+            .upload_id(&upload_id.0)
+            .key(path)
+            .multipart_upload(completed_upload)
+            .send()
+            .await
+            .map_err(|e| BulkStorageError::FailedToCompleteMultipartUpload(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn abort_multipart_upload(
+        &self,
+        path: &str,
+        upload_id: &StorageUploadID,
+    ) -> Result<(), BulkStorageError> {
+        self.s3_client
+            .abort_multipart_upload()
+            .bucket(&self.bucket)
+            .upload_id(&upload_id.0)
+            .key(path)
+            .send()
+            .await
+            .map_err(|e| BulkStorageError::FailedToAbortMultipartUpload(e.to_string()))?;
+
+        Ok(())
     }
 }
