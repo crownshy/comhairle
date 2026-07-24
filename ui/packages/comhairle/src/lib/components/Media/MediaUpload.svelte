@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { FileText } from 'lucide-svelte';
+	import { FileText, Trash2 } from 'lucide-svelte';
 	import { Upload } from 'lucide-svelte';
 	import type { ComponentProps } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -46,11 +46,29 @@
 				/>
 				{#if file}
 					<div
-						class="flex w-full min-w-0 flex-row items-center gap-1 rounded-lg p-3 text-xs font-medium shadow-xs"
+						class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
 					>
-						<FileText />
-						{file.name}
-						{file.size}
+						<div class="flex basis-3/5 flex-row items-center gap-2">
+							<FileText />
+							<span>{file.name}</span>
+						</div>
+						<div class="flex flex-row items-center justify-evenly gap-4">
+							<span class="text-muted-foreground"
+								>{Media.getExtension(file.name)?.toUpperCase()}</span
+							>
+							<span class="text-muted-foreground">{Media.formatBytes(file.size)}</span
+							>
+							<Button
+								title="Remove file"
+								aria-label="Remove file"
+								variant="ghost"
+								size="sm"
+								class="text-destructive hover:text-destructive/80 rounded-sm"
+								onclick={() => (file = null)}
+							>
+								<Trash2 />
+							</Button>
+						</div>
 					</div>
 				{/if}
 				<Input

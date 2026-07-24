@@ -11,7 +11,6 @@ import type {
 	WorkflowStepWithTranslations
 } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
-import type { ConfigureTab } from './configure/tabs';
 
 /**
  * Invalidation keys for this load. Each re-runs this fetch; the names let callers
