@@ -1,6 +1,7 @@
 use crate::{
     models::permissions::{NamedRole, ResourceRole},
     redis_connection::RedisConnection,
+    websockets::handlers::video_call::VideoCallMessageHandler,
 };
 use chrono::Utc;
 use hyper::header::AUTHORIZATION;
@@ -112,6 +113,7 @@ pub fn test_state(
         mailer: mailer.unwrap_or_else(mock_mailer),
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
+        video_call_handler: Arc::new(VideoCallMessageHandler::new()),
         translation_service: translation_service
             .map(Some)
             .unwrap_or_else(|| mock_translation_service()),
