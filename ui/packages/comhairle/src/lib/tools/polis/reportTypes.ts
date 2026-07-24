@@ -7,8 +7,7 @@
  * and adds what the client can't know about:
  *   - `topics`/`subtopics`: a client-side overlay tagged from
  *     `polis_statement_aux.themes`; the backend payload carries neither.
- *   - view models computed in `report.ts` (`GroupVotePercent`) and the Themes
- *     card roll-ups (`ThemeControversy`, `ThemeSummary`).
+ *   - view models computed in `report.ts` (`GroupVotePercent`).
  * See PolisInsights.svelte and CONTEXT.md.
  */
 
@@ -54,29 +53,15 @@ export interface PolisReportData {
 	participants: ParticipantReportData[];
 }
 
-/** Per-group vote percentage breakdown for one comment. Computed in report.ts. */
-export interface GroupVotePercent {
-	group_id: number;
+/**
+ * Vote breakdown for the report's stacked VoteBar, taken over a group's total
+ * MEMBERSHIP (not just voters) so the not-voted remainder is shown. The four
+ * shares sum to ~100. Computed in report.ts (`computeMemberVoteBars`).
+ */
+export interface MemberVotePercent {
 	label: string;
-	totalMembers: number;
-	totalVoted: number;
 	agreed: number;
 	disagreed: number;
 	passed: number;
-}
-
-/**
- * Roll-up for one theme as shown in the Themes card on the Insights page.
- *
- * `controversy` is defined in CONTEXT.md and computed in `themeControversy()`
- * - it is our own classification, not from Polis/T3C. `subtopics` is left
- * empty until a T3C-shaped source provides them.
- */
-export type ThemeControversy = 'low' | 'moderate' | 'high';
-
-export interface ThemeSummary {
-	theme: string;
-	statementCount: number;
-	controversy: ThemeControversy;
-	subtopics?: string[];
+	notVoted: number;
 }
