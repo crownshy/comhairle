@@ -45,6 +45,7 @@
 	import { inviteUrl } from '$lib/utils/invites.js';
 	import EventLocationForm from './EventLocationForm.svelte';
 	import EventRecordings from './EventRecordings.svelte';
+	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
 
 	let url = $derived(page.url);
@@ -662,6 +663,8 @@
 		/>
 		<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 	</div>
+{:else if activeTab === 'breakout'}
+	<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} />
 {:else if activeTab === 'recordings'}
 	<EventRecordings conversation_id={conversation.id} event_id={event.id} {recordings} />
 {/if}

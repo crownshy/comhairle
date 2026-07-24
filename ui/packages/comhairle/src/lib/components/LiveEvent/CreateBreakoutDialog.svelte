@@ -2,18 +2,29 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
-	import { X, RefreshCw, Clock, Pin, Users } from 'lucide-svelte';
+	import { X, RefreshCw, Clock, Pin, Users, Crown } from 'lucide-svelte';
 
 	interface Props {
 		open: boolean;
 		participants: VideoCallParticipant[];
 		defaultMaxPerRoom?: number;
 		defaultDuration?: number;
+		/** When provided, the dialog opens with this layout instead of auto-distributing. */
+		initialAssignments?: VideoCallParticipant[][];
+		/** Show a per-person moderator (crown) toggle. Used for pre-assignment. */
+		enableModerators?: boolean;
+		/** user_ids that start out flagged as moderators. */
+		moderatorIds?: string[];
+		/** Show the "Time left" duration input. Off for pre-assignment (no live timer). */
+		showDuration?: boolean;
+		/** Label for the confirm button. */
+		confirmLabel?: string;
 		onClose: () => void;
 		onCreate: (config: {
 			maxPerRoom: number;
 			durationMinutes: number;
 			roomAssignments: VideoCallParticipant[][];
+			moderatorIds: string[];
 		}) => void;
 	}
 
@@ -22,6 +33,11 @@
 		participants,
 		defaultMaxPerRoom = 4,
 		defaultDuration = 10,
+		initialAssignments,
+		enableModerators = false,
+		moderatorIds,
+		showDuration = true,
+		confirmLabel = 'Create',
 		onClose,
 		onCreate
 	}: Props = $props();
@@ -35,27 +51,53 @@
 	/** Pinned participants stay in their room on reshuffle */
 	let pinnedUsers = $state<Set<string>>(new Set());
 
+	/** user_ids currently flagged as room moderators */
+	let moderators = $state<Set<string>>(new Set());
+
 	let wasOpen = $state(false);
 
 	$effect(() => {
 		if (open && !wasOpen) {
-			// Dialog just opened — sync defaults and distribute
+			// Dialog just opened — sync defaults and lay out participants
 			maxPerRoom = defaultMaxPerRoom;
 			durationMinutes = defaultDuration;
-			roomAssignments = [];
 			pinnedUsers = new Set();
-			if (participants.length > 0) {
+			moderators = new Set(moderatorIds ?? []);
+			if (initialAssignments && initialAssignments.length > 0) {
+				// Preserve a pre-existing plan rather than reshuffling it away.
+				roomAssignments = initialAssignments.map((room) => [...room]);
+			} else if (participants.length > 0) {
 				distributeParticipants();
+			} else {
+				roomAssignments = [];
 			}
 		} else if (!open && wasOpen) {
 			// Dialog just closed — reset
 			roomAssignments = [];
 			pinnedUsers = new Set();
+			moderators = new Set();
 			maxPerRoom = defaultMaxPerRoom;
 			durationMinutes = defaultDuration;
 		}
 		wasOpen = open;
 	});
+
+	function toggleModerator(userId: string) {
+		const next = new Set(moderators);
+		if (next.has(userId)) {
+			next.delete(userId);
+		} else {
+			next.add(userId);
+		}
+		moderators = next;
+	}
+
+	/** Rooms that have no moderator assigned — surfaced as a hint. */
+	let roomsMissingModerator = $derived(
+		enableModerators
+			? roomAssignments.filter((room) => !room.some((p) => moderators.has(p.user_id))).length
+			: 0
+	);
 
 	function shuffle(arr: VideoCallParticipant[]): VideoCallParticipant[] {
 		const result = [...arr];
@@ -136,7 +178,12 @@
 	}
 
 	function handleCreate() {
-		onCreate({ maxPerRoom, durationMinutes, roomAssignments });
+		onCreate({
+			maxPerRoom,
+			durationMinutes,
+			roomAssignments,
+			moderatorIds: [...moderators]
+		});
 		open = false;
 	}
 
@@ -250,18 +297,20 @@
 
 			<!-- Time left + room size row -->
 			<div class="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2">
-				<div class="flex items-center gap-2">
-					<Clock class="text-foreground h-5 w-5" />
-					<span class="text-foreground text-sm font-normal">Time left</span>
-					<input
-						type="number"
-						bind:value={durationMinutes}
-						min={1}
-						max={120}
-						class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
-					/>
-					<span class="text-foreground text-sm font-normal">minutes</span>
-				</div>
+				{#if showDuration}
+					<div class="flex items-center gap-2">
+						<Clock class="text-foreground h-5 w-5" />
+						<span class="text-foreground text-sm font-normal">Time left</span>
+						<input
+							type="number"
+							bind:value={durationMinutes}
+							min={1}
+							max={120}
+							class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
+						/>
+						<span class="text-foreground text-sm font-normal">minutes</span>
+					</div>
+				{/if}
 				<div class="flex items-center gap-2">
 					<Users class="text-foreground h-5 w-5" />
 					<span class="text-foreground text-sm font-normal">Max per room</span>
@@ -277,14 +326,21 @@
 				</div>
 			</div>
 
+			{#if enableModerators && roomsMissingModerator > 0 && roomAssignments.length > 0}
+				<p class="shrink-0 text-sm text-amber-600">
+					{roomsMissingModerator} room{roomsMissingModerator === 1 ? '' : 's'} without a moderator.
+					Use the crown to assign one per room.
+				</p>
+			{/if}
+
 			<!-- Rooms container (dark blue) -->
-			{#if participants.length === 0}
+			{#if roomAssignments.length === 0}
 				<div
 					class="flex flex-1 items-center justify-center rounded-2xl border border-dashed p-8"
 				>
 					<p class="text-muted-foreground text-sm">
-						No participants in the call yet. Participants need to join before you can
-						create breakout rooms.
+						No one to assign yet. People need to sign up or join before you can create
+						breakout rooms.
 					</p>
 				</div>
 			{:else if roomAssignments.length > 0}
@@ -333,6 +389,24 @@
 										<span class="text-foreground text-sm font-medium">
 											{getName(p)}
 										</span>
+										{#if enableModerators}
+											<button
+												class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {moderators.has(
+													p.user_id
+												)
+													? 'bg-amber-100 text-amber-600'
+													: 'text-muted-foreground hover:text-foreground'}"
+												onclick={(e) => {
+													e.stopPropagation();
+													toggleModerator(p.user_id);
+												}}
+												title={moderators.has(p.user_id)
+													? 'Room moderator — click to unset'
+													: 'Make room moderator'}
+											>
+												<Crown class="h-3.5 w-3.5" />
+											</button>
+										{/if}
 										<button
 											class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {pinnedUsers.has(
 												p.user_id
@@ -375,10 +449,10 @@
 				<Button
 					variant="primaryDark"
 					class="h-10 min-w-32 px-5 text-base font-medium"
-					disabled={participants.length === 0 || roomAssignments.length === 0}
+					disabled={roomAssignments.length === 0}
 					onclick={handleCreate}
 				>
-					Create
+					{confirmLabel}
 				</Button>
 			</div>
 		</div>

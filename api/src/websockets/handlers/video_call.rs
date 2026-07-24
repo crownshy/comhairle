@@ -439,6 +439,27 @@ impl VideoCallMessageHandler {
         let user_id = connection.user.id;
         let username = connection.user.username.clone();
 
+        // Load any pre-assigned breakout plan before locking, so a fresh call
+        // is seeded with the rooms configured ahead of time. Async work cannot
+        // happen inside the lock, so fetch it up front.
+        let seeded_rooms = crate::models::breakout_plan::get(&state.db, &join_data.event_id)
+            .await
+            .map(|plan| {
+                plan.0
+                    .into_iter()
+                    .map(|room| BreakoutRoomAssignments {
+                        // Only known users can occupy a live room; reserved
+                        // invite placeholders are dropped until they join.
+                        participants: room
+                            .seats
+                            .into_iter()
+                            .filter_map(|seat| seat.user_id)
+                            .collect(),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
         // Initialize video call state if it doesn't exist
         {
             let mut video_calls = self
@@ -446,9 +467,17 @@ impl VideoCallMessageHandler {
                 .write()
                 .map_err(|_| VideoCallWSError::FailedToGetLockOnRoom)?;
 
-            video_calls
+            let is_new = !video_calls.contains_key(&join_data.event_id);
+            let call = video_calls
                 .entry(join_data.event_id)
                 .or_insert_with(|| VideoCallState::new(join_data.event_id));
+
+            // Seed the breakout rooms from the pre-assigned plan on first join.
+            // Pre-assigned users already occupy their room, so the auto-assign
+            // step below only affects walk-ins who were not planned for.
+            if is_new {
+                call.breakout_rooms = seeded_rooms;
+            }
         }
 
         // Add the participant to the video call and auto-assign to breakout room if needed
