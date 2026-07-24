@@ -25,6 +25,8 @@ export interface VideoCallState {
 	video_call_id: string;
 	status: VideoCallStatus;
 	participants: Record<string, VideoCallParticipant>;
+	/** User IDs that have actually joined the Jitsi video (not just the lobby). */
+	in_video_participants: string[];
 	breakout_rooms: BreakoutRoomAssignments[];
 	breakout_room_assistance_requests: Record<string, BreakoutRoomAssistanceRequest>;
 	jitsi_call_id: string;
@@ -67,6 +69,11 @@ export class VideoCallService {
 	get participants(): VideoCallParticipant[] {
 		if (!this._currentCallState) return [];
 		return Object.values(this._currentCallState.participants);
+	}
+
+	/** User IDs that have actually joined the Jitsi video (excludes lobby-only users). */
+	get inVideoParticipantIds(): Set<string> {
+		return new Set(this._currentCallState?.in_video_participants ?? []);
 	}
 
 	get breakoutRooms(): BreakoutRoomAssignments[] {
@@ -139,6 +146,20 @@ export class VideoCallService {
 		});
 		this._currentCallState = null;
 		this._agenda = null;
+	}
+
+	/** Report that this client has actually joined the Jitsi video (rename-proof presence). */
+	reportVideoJoined(eventId: string) {
+		ws.sendCustom('video_call:video_joined', {
+			event_id: eventId
+		});
+	}
+
+	/** Report that this client has left the Jitsi video. */
+	reportVideoLeft(eventId: string) {
+		ws.sendCustom('video_call:video_left', {
+			event_id: eventId
+		});
 	}
 
 	/** Moderator/facilitator only */

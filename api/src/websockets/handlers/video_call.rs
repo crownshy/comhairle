@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, RwLock},
 };
 
@@ -59,6 +59,10 @@ pub struct VideoCallState {
     pub status: VideoCallStatus,
     /// Map of participant user IDs to their participant data
     pub participants: HashMap<Uuid, VideoCallParticipant>,
+    /// User IDs that have actually joined the Jitsi video (as opposed to just opening
+    /// the live page / sitting in the lobby). Reported by each client on join/leave, so
+    /// it does not depend on the user-editable Jitsi display name.
+    pub in_video_participants: HashSet<Uuid>,
     /// List of breakout room assignments
     pub breakout_rooms: Vec<BreakoutRoomAssignments>,
     /// Active requests for assistance from breakout rooms
@@ -133,6 +137,7 @@ impl VideoCallState {
         Self {
             status: VideoCallStatus::Waiting,
             participants: HashMap::new(),
+            in_video_participants: HashSet::new(),
             video_call_id,
             breakout_room_assistance_requests: HashMap::new(),
             current_agenda_step: 0,
@@ -536,9 +541,49 @@ impl VideoCallMessageHandler {
         // Remove the participant from the video call
         self.with_video_call_state_mut(&leave_data.event_id, |call| {
             call.participants.remove(&user_id);
+            call.in_video_participants.remove(&user_id);
         })?;
 
         self.broadcast_state(&leave_data.event_id, state).await?;
+
+        Ok(())
+    }
+
+    /// Marks a user as having actually joined the Jitsi video for this event, then
+    /// broadcasts the updated state. Called when a client's `videoConferenceJoined`
+    /// fires — a reliable, rename-proof signal of real call presence.
+    pub async fn handle_video_joined(
+        &self,
+        event_id: &Uuid,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let user_id = connection.user.id;
+
+        self.with_video_call_state_mut(event_id, |call| {
+            call.in_video_participants.insert(user_id);
+        })?;
+
+        self.broadcast_state(event_id, state).await?;
+
+        Ok(())
+    }
+
+    /// Marks a user as no longer in the Jitsi video (left the call but may still have
+    /// the live page open), then broadcasts the updated state.
+    pub async fn handle_video_left(
+        &self,
+        event_id: &Uuid,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let user_id = connection.user.id;
+
+        self.with_video_call_state_mut(event_id, |call| {
+            call.in_video_participants.remove(&user_id);
+        })?;
+
+        self.broadcast_state(event_id, state).await?;
 
         Ok(())
     }
@@ -1102,6 +1147,13 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                     "video_call:user_left" => {
                         self.handle_user_leave(&event_id, data, connection, state)
                             .await?
+                    }
+                    "video_call:video_joined" => {
+                        self.handle_video_joined(&event_id, connection, state)
+                            .await?
+                    }
+                    "video_call:video_left" => {
+                        self.handle_video_left(&event_id, connection, state).await?
                     }
                     "video_call:change_state" => {
                         self.change_call_status(&event_id, data, connection, state)
