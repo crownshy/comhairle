@@ -14,13 +14,15 @@ use crate::{
     },
     config::ComhairleConfig,
     error::ComhairleError,
-    models::{self, SqlxResultExt},
+    models::{self, SqlxResultExt, permissions::ResourcePermissionIden},
 };
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Cond, Expr, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr};
+use sea_query::{
+    Cond, Expr, JoinType, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
@@ -41,7 +43,7 @@ pub enum IdOrSlug {
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "conversation")]
-#[partially(derive(Deserialize, Debug, JsonSchema, Default))]
+#[partially(derive(Serialize, Deserialize, Debug, JsonSchema, Default))]
 pub struct Conversation {
     #[partially(omit)]
     pub id: Uuid,
@@ -901,6 +903,53 @@ pub async fn list(
     Ok(conversations)
 }
 
+#[instrument(err(Debug))]
+pub async fn list_for_permitted_user(
+    db: &PgPool,
+    user_id: Uuid,
+    page_options: PageOptions,
+    order_options: ConversationOrderOptions,
+    filter_options: ConversationFilterOptions,
+    role_name: &str,
+    locale: Option<String>,
+) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
+    let query = Query::select()
+        .from(ConversationIden::Table)
+        .columns(DEFAULT_COLUMNS.map(|c| (ConversationIden::Table, c)))
+        .join(
+            JoinType::InnerJoin,
+            ResourcePermissionIden::Table,
+            Expr::col((ConversationIden::Table, ConversationIden::Id)).equals((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::ResourceId,
+            )),
+        )
+        .and_where(
+            Expr::col((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::RoleName,
+            ))
+            .eq(role_name.to_string()),
+        )
+        .and_where(
+            Expr::col((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::UserId,
+            ))
+            .eq(user_id),
+        )
+        .to_owned();
+
+    let query = LocalizedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
+
+    let query = filter_options.apply_to_localized(query);
+    let query = order_options.apply_to_localized(query);
+
+    let conversations = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(conversations)
+}
+
 #[cfg(test)]
 mod tests {
     use fake::{Fake, Faker};
@@ -909,14 +958,18 @@ mod tests {
     use crate::{
         models::{
             model_test_helpers::setup_default_app_and_session,
-            users::{UpdateUserRequest, create_user, update_user},
+            permissions::{
+                ConversationContentEditorRole, GrantRoleRequest, NamedRole, ResourceRole,
+                UserOrOrganizationId, grant_role,
+            },
+            users::{self, UpdateUserRequest, create_user, update_user},
         },
         routes::{
             auth::SignupRequest, conversations::dto::ConversationDto,
             organizations::dto::OrganizationDto,
         },
         setup_server,
-        test_helpers::{UserSession, test_state},
+        test_helpers::{TestRole, UserSession, test_state},
     };
 
     use super::*;
@@ -1173,6 +1226,129 @@ mod tests {
         assert_eq!(
             results.records[2].id, conversation_3.id,
             "incorrect third id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_conversations_for_permitted_user(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let (_, value, _) = session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+
+        let user_a = users::create_annon_user(&state.db).await?;
+        let user_b = users::create_annon_user(&state.db).await?;
+
+        let grant_request_a_a = GrantRoleRequest {
+            actor_id: UserOrOrganizationId::User(user_a.id),
+            permission_triplet: ConversationContentEditorRole::make_triplet(&conversation.id),
+            granted_by: &session.id.unwrap(),
+            grant_reason: "Testing",
+        };
+        grant_role(&state, grant_request_a_a).await?;
+
+        let grant_request_a_b = GrantRoleRequest {
+            actor_id: UserOrOrganizationId::User(user_a.id),
+            permission_triplet: TestRole::make_triplet(&conversation.id),
+            granted_by: &session.id.unwrap(),
+            grant_reason: "Testing",
+        };
+        grant_role(&state, grant_request_a_b).await?;
+
+        let page_options = PageOptions {
+            offset: None,
+            limit: None,
+        };
+        let filter_options = ConversationFilterOptions {
+            ..Default::default()
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+
+        let results_user_a_a = list_for_permitted_user(
+            &state.db,
+            user_a.id,
+            page_options.clone(),
+            order_options,
+            filter_options,
+            ConversationContentEditorRole::name(),
+            Some("en".to_string()),
+        )
+        .await?;
+
+        let filter_options = ConversationFilterOptions {
+            ..Default::default()
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+        let results_user_b_a = list_for_permitted_user(
+            &state.db,
+            user_b.id,
+            page_options.clone(),
+            order_options,
+            filter_options,
+            ConversationContentEditorRole::name(),
+            Some("en".to_string()),
+        )
+        .await?;
+
+        assert_eq!(
+            results_user_a_a.total, 1,
+            "incorrect conversation_editor total for user_a"
+        );
+        assert_eq!(
+            results_user_b_a.total, 0,
+            "incorrect conversation_editor total for user_b"
+        );
+
+        let filter_options = ConversationFilterOptions {
+            ..Default::default()
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+        let results_user_a_b = list_for_permitted_user(
+            &state.db,
+            user_a.id,
+            page_options.clone(),
+            order_options,
+            filter_options,
+            TestRole::name(),
+            Some("en".to_string()),
+        )
+        .await?;
+
+        let filter_options = ConversationFilterOptions {
+            ..Default::default()
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+        let results_user_b_b = list_for_permitted_user(
+            &state.db,
+            user_b.id,
+            page_options.clone(),
+            order_options,
+            filter_options,
+            TestRole::name(),
+            Some("en".to_string()),
+        )
+        .await?;
+
+        assert_eq!(
+            results_user_a_b.total, 1,
+            "incorrect test_role total for user_a"
+        );
+        assert_eq!(
+            results_user_b_b.total, 0,
+            "incorrect test_role total for user_b"
         );
 
         Ok(())

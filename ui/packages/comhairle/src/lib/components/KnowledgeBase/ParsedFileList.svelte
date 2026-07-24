@@ -11,7 +11,7 @@
 </script>
 
 {#if conversation.knowledgeBaseId}
-	<h2 class="mb-3 font-bold">Uploaded files</h2>
+	<h2 class="mb-3 font-bold">Processed files</h2>
 	<ul class="flex flex-col gap-3">
 		{#each documents as document (document.id)}
 			<li>

@@ -10,7 +10,6 @@ Variables:
 - event_name
 - event_time
 - invite_link
-- organization_email
 
 -->
 
@@ -32,14 +31,6 @@ Variables:
 	<p>If you are having trouble with the button above, copy and paste the URL below into your web browser.</p>
 
 	<p class="link">{{invite_link}}</p>
-
-	{% if organization_email %}
-		<p>
-			For any questions, please contact us at
-			<br />
-			<a href="mailto:{{organization_email}}">{{organization_email}}</a>
-		</p>
-	{% endif %}
 
 	{{footer|safe}}
 {% endblock %}

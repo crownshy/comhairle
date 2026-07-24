@@ -3,6 +3,8 @@
 	import type { ActiveStates } from './types';
 	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
 	import DocumentPickerPopover from './DocumentPickerPopover.svelte';
+	import TableControlsPopover from './TableControlsPopover.svelte';
+	import { insertDefaultTable } from './tableActions';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	import {
@@ -17,6 +19,7 @@
 		Image as ImageIcon,
 		Video,
 		FileText,
+		Table as TableIcon,
 		ChevronDown,
 		MoreHorizontal,
 		Music,
@@ -302,6 +305,26 @@
 					Icon: FileText
 				})}
 			</DocumentPickerPopover>
+
+			{@render divider()}
+
+			<!-- Table: click inserts when not in a table; when the caret is inside a
+			     table, the click instead opens the manage dropdown (row/col ops also
+			     live in the floating menu over the table). -->
+			<TableControlsPopover {editor}>
+				{@render button({
+					title: activeStates.table ? 'Table options' : 'Insert Table',
+					active: activeStates.table,
+					onclick: (event) => {
+						if (!activeStates.table && editor) {
+							// Suppress the popover (same trick as the link button) and insert.
+							event.stopPropagation();
+							insertDefaultTable(editor);
+						}
+					},
+					Icon: TableIcon
+				})}
+			</TableControlsPopover>
 		</div>
 	{/if}
 </div>

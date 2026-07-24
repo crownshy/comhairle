@@ -77,11 +77,11 @@ pub trait SqlxResultExt<T> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", id)
+    /// ```rust,ignore
+    /// let user = sqlx::query_as_with(&sql, values)
     ///     .fetch_one(&pool)
     ///     .await
-    ///     .resolve_db_err("user")?;
+    ///     .resolve_db_err("User")?;
     /// ```
     fn resolve_db_err(self, resource: &str) -> Result<T, ComhairleError>;
 }

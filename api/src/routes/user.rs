@@ -11,6 +11,7 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -31,6 +32,7 @@ pub mod dto;
 use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use super::translations::LocaleExtractor;
 
+#[instrument(err(Debug), skip(state))]
 pub async fn get_user_owned_conversations(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -44,6 +46,51 @@ pub async fn get_user_owned_conversations(
         page_options,
         order_options,
         filter_options,
+        Some("en".to_string()),
+    )
+    .await?;
+
+    let media = MediaResolver::load(
+        &state.db,
+        &results
+            .records
+            .iter()
+            .filter_map(|c| c.image)
+            .collect::<Vec<_>>(),
+    )
+    .await?;
+
+    let results_with_media: PaginatedResults<LocalizedConversationDto> =
+        FromWithMedia::from_with_media(
+            results,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
+
+    Ok((StatusCode::OK, Json(results_with_media)))
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+pub struct PermittedConversationsQuery {
+    pub role_name: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+pub async fn get_user_permitted_conversations(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    OrderParams(order_options): OrderParams<ConversationOrderOptions>,
+    Query(filter_options): Query<ConversationFilterOptions>,
+    Query(page_options): Query<PageOptions>,
+    Query(PermittedConversationsQuery { role_name }): Query<PermittedConversationsQuery>,
+) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
+    let results = models::conversation::list_for_permitted_user(
+        &state.db,
+        user.id,
+        page_options,
+        order_options,
+        filter_options,
+        &role_name,
         Some("en".to_string()),
     )
     .await?;
@@ -86,6 +133,7 @@ pub struct UserRoles {
     pub roles: Vec<ResourceRole>,
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn get_conversations_user_participating_in(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -113,6 +161,7 @@ pub async fn get_conversations_user_participating_in(
     Ok((StatusCode::OK, Json(conversations)))
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn get_user_roles(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -129,6 +178,7 @@ pub async fn get_user_roles(
     Ok((StatusCode::OK, Json(roles)))
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn update_user_details(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -139,6 +189,7 @@ pub async fn update_user_details(
     Ok((StatusCode::OK, Json(user)))
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn upgrade_account(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -171,7 +222,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         "Returns a list of all the conversations the user has taken part in",
                     )
                     .security_requirement("JWT")
-                    .response::<201, Json<Vec<LocalizedConversationDto>>>()
+                    .response::<200, Json<Vec<LocalizedConversationDto>>>()
             }),
         )
         .api_route(
@@ -181,7 +232,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("User")
                     .description("Gets a list of the conversations a user owns")
                     .security_requirement("JWT")
-                    .response::<201, Json<PaginatedResults<LocalizedConversationDto>>>()
+                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
+            }),
+        )
+        .api_route(
+            "/permitted_conversations",
+            get_with(get_user_permitted_conversations, |op| {
+                op.id("GetPermittedConversations")
+                    .tag("User")
+                    .description("Gets a list of the conversations a user is permitted access to")
+                    .security_requirement("JWT")
+                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
             }),
         )
         .api_route(

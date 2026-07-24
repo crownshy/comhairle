@@ -64,7 +64,7 @@ async fn upload(
         .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
     let mut files = vec![];
-    while let Some(mut field) = form_data.next_field().await? {
+    while let Some(field) = form_data.next_field().await? {
         let content_type = field.content_type().map(|ct| ct.to_string());
         let filename = field
             .file_name()
@@ -263,7 +263,7 @@ mod tests {
             store_name: "comhairle-media-test".to_string(),
             storage_key: format!("images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
-            name: format!("{random_name}"),
+            name: random_name,
             content_type: MediaContentType::Jpeg,
         };
 

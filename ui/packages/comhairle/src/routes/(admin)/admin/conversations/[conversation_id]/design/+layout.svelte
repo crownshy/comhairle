@@ -44,6 +44,16 @@
 			notifications.send({ priority: 'INFO', message: 'Step added' });
 			newStepHighlight.flag(created.id);
 			addStepDialog.open = false;
+
+			// Return to the design board (works from either entry point: the board's own Add step
+			// button or the workflow strip's while inside a step editor). The design page reacts to
+			// `newStepHighlight` by scrolling the new card into view and briefly highlighting it, so
+			// the operator sees exactly which step was just created instead of landing in its editor.
+			await goto(
+				resolve('/(admin)/admin/conversations/[conversation_id]/design', {
+					conversation_id: conversation.id
+				})
+			);
 		} catch (e) {
 			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to create step' });

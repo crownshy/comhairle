@@ -1,20 +1,25 @@
 use std::sync::Arc;
 
+use crate::models::users::UserIden;
 use crate::redis_connection::RedisConnection;
-use axum::extract::FromRequestParts;
+use axum::extract::{FromRequestParts, Path};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::IdenStatic;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{IdenStatic, JoinType};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 use sqlx::prelude::FromRow;
+use sqlx::{PgPool, Row, query_as_with};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::{
+    self,
+    pagination::{PageOptions, PaginatedResults},
+};
 
 /// Represents the system administrator role.
 #[derive(Debug)]
@@ -43,14 +48,73 @@ impl FromRequestParts<Arc<ComhairleState>> for SystemResource {
     }
 }
 
+#[derive(Deserialize)]
+pub struct ConversationPath {
+    pub conversation_id: Uuid,
+}
+
+#[derive(Debug)]
+pub struct ConversationResource {
+    conversation_id: Uuid,
+    owner_id: Uuid,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for ConversationResource {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(ConversationPath { conversation_id }) =
+            Path::<ConversationPath>::from_request_parts(parts, state)
+                .await
+                .map_err(|_| {
+                    ComhairleError::ResourceNotFound(
+                        "Path must contain a conversation_id".to_string(),
+                    )
+                })?;
+
+        let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+
+        Ok(ConversationResource {
+            conversation_id,
+            owner_id: conversation.owner_id,
+        })
+    }
+}
+
 /// A trait for extracting a resource ID from a request.
-pub trait ExtractResourceId: FromRequestParts<Arc<ComhairleState>> + 'static + Send + Sync {
+pub trait ExtractResourceId:
+    FromRequestParts<Arc<ComhairleState>> + 'static + Send + Sync + OwnedResource
+{
     fn resource_id(&self) -> Uuid;
 }
 
 impl ExtractResourceId for SystemResource {
     fn resource_id(&self) -> Uuid {
         SYSTEM_RESOURCE_ID
+    }
+}
+
+/// A trait for extracting owner_id for a resource if available
+pub trait OwnedResource {
+    fn owner_id(&self) -> Option<Uuid> {
+        None
+    }
+}
+
+impl OwnedResource for SystemResource {}
+
+impl ExtractResourceId for ConversationResource {
+    fn resource_id(&self) -> Uuid {
+        self.conversation_id
+    }
+}
+
+impl OwnedResource for ConversationResource {
+    fn owner_id(&self) -> Option<Uuid> {
+        Some(self.owner_id)
     }
 }
 
@@ -80,6 +144,29 @@ pub trait SystemResourceRole: NamedRole {
     /// Returns a `PermissionTriplet` for the global system resource.
     fn make_system_triplet() -> PermissionTriplet<'static> {
         PermissionTriplet(SYSTEM_RESOURCE_TYPE, &SYSTEM_RESOURCE_ID, Self::name())
+    }
+}
+
+/// The resource type associated with conversation-level permissions.
+pub const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
+
+/// Grants read and update access to a resource, but not full write access —
+/// only a subset of update operations are permitted (e.g. editing content), while
+/// others (e.g. `launch`) are excluded and require a higher-privileged role.
+pub const CONTENT_EDITOR_ROLE: &str = "content_editor";
+
+#[derive(Debug)]
+pub struct ConversationContentEditorRole;
+
+impl NamedRole for ConversationContentEditorRole {
+    fn name() -> &'static str {
+        "content_editor"
+    }
+}
+
+impl ResourceRole for ConversationContentEditorRole {
+    fn resource_type() -> &'static str {
+        CONVERSATION_RESOURCE_TYPE
     }
 }
 
@@ -131,16 +218,16 @@ const DEFAULT_COLUMNS: [ResourcePermissionIden; 9] = [
 ];
 
 /// Represents either a user or an organization for role assignment purposes.
-#[derive(Debug)]
-pub enum UserOrOrganizationId<'request> {
-    User(&'request Uuid),
-    Org(&'request Uuid),
+#[derive(Debug, Copy, Clone)]
+pub enum UserOrOrganizationId {
+    User(Uuid),
+    Org(Uuid),
 }
 
 /// Request struct for granting a role to a user or organization on a resource.
 #[derive(Debug)]
 pub struct GrantRoleRequest<'request> {
-    pub actor_id: UserOrOrganizationId<'request>,
+    pub actor_id: UserOrOrganizationId,
     pub granted_by: &'request Uuid,
     pub grant_reason: &'request str,
     pub permission_triplet: PermissionTriplet<'request>,
@@ -149,14 +236,14 @@ pub struct GrantRoleRequest<'request> {
 /// Request struct for revoking a role from a user or organization on a resource.
 #[derive(Debug)]
 pub struct RevokeRoleRequest<'request> {
-    pub actor_id: UserOrOrganizationId<'request>,
+    pub actor_id: UserOrOrganizationId,
     pub permission_triplet: PermissionTriplet<'request>,
 }
 
 /// Generates a cache key for storing permission checks in Redis.
 fn permission_cache_key(
     permission_triplet: &PermissionTriplet<'_>,
-    actor_id: &UserOrOrganizationId<'_>,
+    actor_id: &UserOrOrganizationId,
 ) -> String {
     let PermissionTriplet(resource_type, resource_id, role_name) = *permission_triplet;
     match *actor_id {
@@ -221,8 +308,8 @@ pub async fn grant_role(
     request: GrantRoleRequest<'_>,
 ) -> Result<ResourcePermission, ComhairleError> {
     let (user_id, organization_id) = match request.actor_id {
-        UserOrOrganizationId::User(user_id) => (Some(*user_id), None),
-        UserOrOrganizationId::Org(org_id) => (None, Some(*org_id)),
+        UserOrOrganizationId::User(user_id) => (Some(user_id), None),
+        UserOrOrganizationId::Org(org_id) => (None, Some(org_id)),
     };
 
     let PermissionTriplet(resource_type, resource_id, role_name) = request.permission_triplet;
@@ -318,10 +405,10 @@ pub async fn revoke_role(
 
     match request.actor_id {
         UserOrOrganizationId::User(user_id) => {
-            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(*user_id));
+            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(user_id));
         }
         UserOrOrganizationId::Org(org_id) => {
-            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(*org_id));
+            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(org_id));
         }
     };
 
@@ -352,7 +439,7 @@ pub async fn revoke_role(
 pub struct ListPermissionsFilters<'request> {
     pub resource_type: Option<&'request str>,
     pub resource_id: Option<&'request Uuid>,
-    pub actor: Option<UserOrOrganizationId<'request>>,
+    pub actor: Option<UserOrOrganizationId>,
     pub role_name: Option<&'request str>,
     pub page_options: PageOptions,
 }
@@ -381,10 +468,10 @@ pub async fn list_permissions(
 
     match request.actor {
         Some(UserOrOrganizationId::User(user_id)) => {
-            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(*user_id));
+            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(user_id));
         }
         Some(UserOrOrganizationId::Org(org_id)) => {
-            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(*org_id));
+            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(org_id));
         }
         None => {}
     }
@@ -409,9 +496,9 @@ pub async fn has_resource_permission(
 ) -> Result<bool, ComhairleError> {
     let redis_conn = state.redis_conn.clone();
     if let Some(ref conn) = redis_conn {
-        let key = permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(user_id));
+        let key = permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(*user_id));
         let org_key = organization_id.map(|org_id| {
-            permission_cache_key(&permission_triplet, &UserOrOrganizationId::Org(org_id))
+            permission_cache_key(&permission_triplet, &UserOrOrganizationId::Org(*org_id))
         });
         if let Some(cached) = cache_get(conn.as_ref(), &key, org_key.as_deref()).await {
             return Ok(cached);
@@ -468,11 +555,11 @@ pub async fn has_resource_permission(
             true
         };
         let key = if is_user {
-            permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(user_id))
+            permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(*user_id))
         } else {
             permission_cache_key(
                 &permission_triplet,
-                &UserOrOrganizationId::Org(organization_id.unwrap()),
+                &UserOrOrganizationId::Org(*organization_id.unwrap()),
             )
         };
         cache_set(
@@ -487,6 +574,76 @@ pub async fn has_resource_permission(
     Ok(result)
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct UserWithPermissionDto {
+    pub id: Uuid,
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub role_name: String,
+}
+
+#[instrument(err(Debug))]
+pub async fn list_users_with_permission(
+    db: &PgPool,
+    resource_type: &str,
+    resource_id: Uuid,
+    role_name: Option<&str>,
+) -> Result<Vec<UserWithPermissionDto>, ComhairleError> {
+    let mut query = Query::select()
+        .from(ResourcePermissionIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            UserIden::Table,
+            Expr::col((UserIden::Table, UserIden::Id)).equals((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::UserId,
+            )),
+        )
+        .columns([
+            (UserIden::Table, UserIden::Id),
+            (UserIden::Table, UserIden::Username),
+            (UserIden::Table, UserIden::Email),
+        ])
+        .column((
+            ResourcePermissionIden::Table,
+            ResourcePermissionIden::RoleName,
+        ))
+        .and_where(
+            Expr::col((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::ResourceType,
+            ))
+            .eq(resource_type.to_owned()),
+        )
+        .and_where(
+            Expr::col((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::ResourceId,
+            ))
+            .eq(resource_id.to_owned()),
+        )
+        .to_owned();
+
+    if let Some(role_name) = role_name {
+        query = query
+            .and_where(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::RoleName,
+                ))
+                .eq(role_name.to_owned()),
+            )
+            .to_owned();
+    }
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let users_with_permission = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(users_with_permission)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -495,27 +652,11 @@ mod tests {
         get_random_organization_id, get_random_user_id, setup_default_app_and_session,
     };
     use crate::redis_connection::{MockRedis, RedisConnection};
-    use crate::test_helpers::test_state;
+    use crate::test_helpers::{TEST_RESOURCE_TYPE, TEST_ROLE_NAME, TestRole, test_state};
 
     use sqlx::PgPool;
 
-    const TEST_RESOURCE_TYPE: &str = "test_resource_type";
-    const TEST_ROLE_NAME: &str = "tester";
     const OTHER_ROLE_NAME: &str = "other_role";
-    struct TestRole;
-
-    impl NamedRole for TestRole {
-        fn name() -> &'static str {
-            TEST_ROLE_NAME
-        }
-    }
-
-    impl ResourceRole for TestRole {
-        fn resource_type() -> &'static str {
-            TEST_RESOURCE_TYPE
-        }
-    }
-
     struct OtherRole;
 
     impl NamedRole for OtherRole {
@@ -545,7 +686,7 @@ mod tests {
 
         // Grant a role to the user
         let grant_request = GrantRoleRequest {
-            actor_id: UserOrOrganizationId::User(&user_id),
+            actor_id: UserOrOrganizationId::User(user_id),
             permission_triplet: TestRole::make_triplet(&resource_id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
@@ -598,7 +739,7 @@ mod tests {
 
         // Grant a role to the organization
         let grant_request = GrantRoleRequest {
-            actor_id: UserOrOrganizationId::Org(&org_id),
+            actor_id: UserOrOrganizationId::Org(org_id),
             permission_triplet: TestRole::make_triplet(&resource_id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
@@ -678,7 +819,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -690,7 +831,7 @@ mod tests {
         let err = grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -719,7 +860,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -737,7 +878,7 @@ mod tests {
         revoke_role(
             &state,
             RevokeRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
             },
         )
@@ -763,7 +904,7 @@ mod tests {
         let result = revoke_role(
             &state,
             RevokeRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user.id),
+                actor_id: UserOrOrganizationId::User(user.id),
                 permission_triplet: SystemAdminRole::make_system_triplet(),
             },
         )
@@ -789,7 +930,7 @@ mod tests {
         let err = revoke_role(
             &state,
             RevokeRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
             },
         )
@@ -818,7 +959,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_1_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -829,7 +970,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::Org(&org_id),
+                actor_id: UserOrOrganizationId::Org(org_id),
                 permission_triplet: OtherRole::make_triplet(&resource_1_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -840,7 +981,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: OtherRole::make_triplet(&resource_2_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -867,7 +1008,7 @@ mod tests {
 
         // List permissions for the user
         let request = ListPermissionsFilters {
-            actor: Some(UserOrOrganizationId::User(&user_id)),
+            actor: Some(UserOrOrganizationId::User(user_id)),
             ..Default::default()
         };
         let user_permissions = list_permissions(&state, request).await?;
@@ -887,7 +1028,7 @@ mod tests {
 
         // List permissions for the organization
         let request = ListPermissionsFilters {
-            actor: Some(UserOrOrganizationId::Org(&org_id)),
+            actor: Some(UserOrOrganizationId::Org(org_id)),
             ..Default::default()
         };
         let org_permissions = list_permissions(&state, request).await?;
@@ -926,7 +1067,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -937,7 +1078,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: OtherRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -953,7 +1094,7 @@ mod tests {
             let request = ListPermissionsFilters {
                 resource_type: Some(TEST_RESOURCE_TYPE),
                 resource_id: Some(&resource_id),
-                actor: Some(UserOrOrganizationId::User(&user_id)),
+                actor: Some(UserOrOrganizationId::User(user_id)),
                 page_options: PageOptions {
                     offset,
                     limit: Some(LIMIT as u64),
@@ -1014,7 +1155,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing cache",
@@ -1030,7 +1171,7 @@ mod tests {
 
         let key = permission_cache_key(
             &TestRole::make_triplet(&resource_id),
-            &UserOrOrganizationId::User(&user_id),
+            &UserOrOrganizationId::User(user_id),
         );
         let cached = mock.get_value(&key).await;
         assert_eq!(
@@ -1085,7 +1226,7 @@ mod tests {
 
         let key = permission_cache_key(
             &TestRole::make_triplet(&resource_id),
-            &UserOrOrganizationId::User(&user_id),
+            &UserOrOrganizationId::User(user_id),
         );
         let cached = mock.get_value(&key).await;
         assert_eq!(
@@ -1098,7 +1239,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing cache invalidation",
@@ -1141,7 +1282,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing cache invalidation",
@@ -1156,7 +1297,7 @@ mod tests {
 
         let key = permission_cache_key(
             &TestRole::make_triplet(&resource_id),
-            &UserOrOrganizationId::User(&user_id),
+            &UserOrOrganizationId::User(user_id),
         );
         let cached = mock.get_value(&key).await;
         assert_eq!(
@@ -1169,7 +1310,7 @@ mod tests {
         revoke_role(
             &state,
             RevokeRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
             },
         )
@@ -1186,6 +1327,65 @@ mod tests {
             has_resource_permission(&state, TestRole::make_triplet(&resource_id), &user_id, None)
                 .await?;
         assert!(!second, "expected no permission after revoke");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_users_with_permission(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let user_a_id = get_random_user_id(&app, &mut session).await?;
+        let user_b_id = get_random_user_id(&app, &mut session).await?;
+        let user_c_id = get_random_user_id(&app, &mut session).await?;
+
+        let resource_id = Uuid::new_v4();
+
+        let grant_request_a = GrantRoleRequest {
+            actor_id: UserOrOrganizationId::User(user_a_id),
+            permission_triplet: TestRole::make_triplet(&resource_id),
+            granted_by: &session.id.unwrap(),
+            grant_reason: "Testing",
+        };
+        grant_role(&state, grant_request_a).await?;
+
+        let grant_request_b = GrantRoleRequest {
+            actor_id: UserOrOrganizationId::User(user_b_id),
+            permission_triplet: TestRole::make_triplet(&resource_id),
+            granted_by: &session.id.unwrap(),
+            grant_reason: "Testing",
+        };
+        grant_role(&state, grant_request_b).await?;
+
+        let users_with_permission = list_users_with_permission(
+            &state.db,
+            TestRole::resource_type(),
+            resource_id,
+            Some(TestRole::name()),
+        )
+        .await?;
+
+        assert!(
+            users_with_permission.iter().any(|u| u.id == user_a_id),
+            "missing user_a"
+        );
+        assert!(
+            users_with_permission.iter().any(|u| u.id == user_b_id),
+            "missing user_b"
+        );
+        assert!(
+            !users_with_permission.iter().any(|u| u.id == user_c_id),
+            "user_c incorrectly included"
+        );
+        assert!(
+            users_with_permission
+                .iter()
+                .all(|u| u.role_name == TestRole::name()),
+            "wrong role_name"
+        );
 
         Ok(())
     }

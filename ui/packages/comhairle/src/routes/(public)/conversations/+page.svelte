@@ -39,38 +39,47 @@
 <div class="flex h-full flex-col pt-10 md:pt-20">
 	<header class="mb:pb-20 px-2 pb-5 md:px-0">
 		<h1 class="mb-4 text-4xl font-bold">{m.conversations()}</h1>
-		<p class="mb-4">
-			{m.find_open_conversations()}
-		</p>
-		<div class="flex justify-between">
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger
-					class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}
-				>
-					<ChevronDown class="h-4 w-4" />{m.sort()}
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content>
-					<DropdownMenu.Group>
-						{@render sortOption(pageUrl, 'title+asc')}
-						{@render sortOption(pageUrl, 'title+desc')}
-						{@render sortOption(pageUrl, 'created_at+desc')}
-						{@render sortOption(pageUrl, 'created_at+asc')}
-					</DropdownMenu.Group>
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-			<Search />
-		</div>
+		{#if data.records.length === 0}
+			<h2 class="text-muted-foreground">No conversations found</h2>
+		{:else}
+			<p class="mb-4">
+				{m.find_open_conversations()}
+			</p>
+			<div class="flex justify-between">
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger
+						class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}
+					>
+						<ChevronDown class="h-4 w-4" />{m.sort()}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content>
+						<DropdownMenu.Group>
+							{@render sortOption(pageUrl, 'title+asc')}
+							{@render sortOption(pageUrl, 'title+desc')}
+							{@render sortOption(pageUrl, 'created_at+desc')}
+							{@render sortOption(pageUrl, 'created_at+asc')}
+						</DropdownMenu.Group>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+				<Search />
+			</div>
+		{/if}
 	</header>
 
-	<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
-		{#each data.records as conversation (conversation.id)}
-			<a class="block w-full" href={`/conversations/${conversation.slug || conversation.id}`}>
-				<ConversationCard {conversation} variant="public" />
-			</a>
-		{/each}
-	</div>
+	{#if data.records.length > 0}
+		<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
+			{#each data.records as conversation (conversation.id)}
+				<a
+					class="block w-full"
+					href={`/conversations/${conversation.slug || conversation.id}`}
+				>
+					<ConversationCard {conversation} variant="public" />
+				</a>
+			{/each}
+		</div>
 
-	<div class="my-10 flex w-full justify-center md:mt-20">
-		<Pager pageSize={PAGE_SIZE} count={data.total} url={pageUrl} />
-	</div>
+		<div class="my-10 flex w-full justify-center md:mt-20">
+			<Pager pageSize={PAGE_SIZE} count={data.total} url={pageUrl} />
+		</div>
+	{/if}
 </div>

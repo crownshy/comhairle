@@ -92,7 +92,7 @@ pub struct PolisToolSetup {
     pub show_remaining_statements: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(PartialEq, Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisReport;
 
 /// Zero-sized marker type for Polis tool implementation

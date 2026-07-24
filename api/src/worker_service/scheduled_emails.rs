@@ -6,7 +6,6 @@ use uuid::Uuid;
 
 use crate::{
     ComhairleState,
-    mailer::build_invite_attachment,
     models::{
         job::{self, CreateJob},
         scheduled_email::{ScheduledEmail, list_upcoming_scheduled_emails},
@@ -31,26 +30,12 @@ pub async fn send_scheduled_email(
         "Sending scheduled email to recipient"
     );
 
-    let attachment = req
-        .scheduled_email
+    req.scheduled_email
+        .clone()
         .email_config
-        .attachment
-        .as_deref()
-        .and_then(|body| build_invite_attachment(body.to_string()).ok());
-
-    state
-        .mailer
-        .send_email(
-            &req.scheduled_email.user_email,
-            &req.scheduled_email.email_config.subject,
-            &req.scheduled_email.email_config.template.to_string(),
-            req.scheduled_email
-                .clone()
-                .email_config
-                .template
-                .to_mailer_context(),
-            attachment,
-        )
+        .template
+        .mailer_send(&req.scheduled_email.user_email, &state)
+        .await
         .map_err(|e| WorkerServiceError::MailerError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;

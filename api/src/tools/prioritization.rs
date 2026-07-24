@@ -123,7 +123,7 @@ pub struct PrioritizationToolSetup {
     pub randomize_order: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+#[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct PrioritizationReport;
 
 pub struct PrioritizationTool;

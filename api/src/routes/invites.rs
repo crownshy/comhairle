@@ -5,18 +5,18 @@ use aide::axum::{
     routing::{get_with, patch_with, post_with},
 };
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
 };
 use axum_extra::extract::CookieJar;
 use hyper::StatusCode;
-use minijinja::context;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
     ComhairleState,
     error::ComhairleError,
+    middleware::request_logging::ClientIp,
     models::{
         self, conversation, event,
         event_attendance::{self, CreateEventAttendance},
@@ -86,12 +86,12 @@ async fn reject_invite(
 async fn create_conversation_invite(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(admin_user): RequiredAdminUser,
     Json(create_invite): Json<CreateInviteDTO>,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    if conversation.owner_id != user.id {
+    if conversation.owner_id != admin_user.id {
         return Err(ComhairleError::UserIsNotConversationOwner);
     }
 
@@ -99,8 +99,13 @@ async fn create_conversation_invite(
     // exists
 
     // Create the invite
-    let invite =
-        models::invites::create(&state.db, create_invite, &conversation_id, Some(user.id)).await?;
+    let invite = models::invites::create(
+        &state.db,
+        create_invite,
+        &conversation_id,
+        Some(admin_user.id),
+    )
+    .await?;
 
     // Send out an email notification if we can
     match &invite.invite_type {
@@ -111,22 +116,30 @@ async fn create_conversation_invite(
                     &state,
                     email,
                     conversation.id,
-                    user.id,
+                    admin_user.id,
                     invite.id,
                     &conversation.primary_locale,
                 )
                 .await?;
         }
-        InviteType::User(user_id) => {
-            let user = models::users::get_user_by_id(user_id, &state.db).await?;
-            if let Some(email) = &user.email {
-                state.mailer.send_email(
-                    email,
-                    "You have been invited to the conversation",
-                    "conversation_invite.html",
-                    context! {user=>user, conversation_title=>conversation.title},
-                    None,
-                )?;
+        InviteType::User(recipient_id) => {
+            // TODO: variant doesn't appear to be in use. If required in future
+            // consider how to adjust template variables and default slots for
+            // injecting user data, or split into separate email templates with
+            // separate schemas
+            let recipient = models::users::get_user_by_id(recipient_id, &state.db).await?;
+            if let Some(email) = &recipient.email {
+                state
+                    .mailer
+                    .send_conversation_invite_email(
+                        &state,
+                        email,
+                        conversation.id,
+                        admin_user.id,
+                        invite.id,
+                        &conversation.primary_locale,
+                    )
+                    .await?;
             }
         }
         models::invites::InviteType::Open | models::invites::InviteType::SingleUse => {}
@@ -267,9 +280,10 @@ async fn list_invites_for_event(
     Ok((StatusCode::OK, Json(invites)))
 }
 
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, client_ip))]
 async fn auto_register_event_attendance(
     State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
     Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<InviteDto>)), ComhairleError> {
@@ -291,14 +305,24 @@ async fn auto_register_event_attendance(
     let user = match users::get_user_by_email(email, &state.db).await.ok() {
         Some(existing) => existing,
         None => {
-            users::create_otp_user(
+            let new_user = users::create_otp_user(
                 &OtpSignupRequest {
                     email: email.to_string(),
                     username: None,
                 },
                 &state.db,
             )
-            .await?
+            .await?;
+
+            // Best-effort: record the signup IP for the freshly created account.
+            if let Err(error) = users::set_signup_ip(&new_user.id, &client_ip.0, &state.db).await {
+                warn!(
+                    "Failed to record signup IP for user {}: {error}",
+                    new_user.id
+                );
+            }
+
+            new_user
         }
     };
 
@@ -322,7 +346,12 @@ async fn auto_register_event_attendance(
     let cookie = create_session_cookie(&user, &state);
 
     event
-        .schedule_event_reminders(&state.db, &state.config, &user)
+        .schedule_event_reminders(
+            &state.db,
+            &user,
+            conversation.owner_id,
+            &conversation.primary_locale,
+        )
         .await?;
 
     let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;

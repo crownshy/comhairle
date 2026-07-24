@@ -10,13 +10,13 @@
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
 	import ConfigureTabStrip from './configure/ConfigureTabStrip.svelte';
-	import { CONFIGURE_TABS } from './configure/tabs';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
 	import EventStrip from '$lib/components/EventStrip.svelte';
 	import { EVENT_SUBTABS } from './events/[event_id]/tabs';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
+	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 
 	let { data, children } = $props();
@@ -49,7 +49,7 @@
 	);
 
 	// Configure's sub-tabs are a static list (its `?tab=` sections share one form + load), so we
-	// server-render the strip here from CONFIGURE_TABS, the same way the workflow step strip is
+	// server-render the strip here from `configureTabs`, the same way the workflow step strip is
 	// rendered from data, rather than the page injecting it via a client `$effect`.
 	let isConfigureSection = $derived(
 		page.url.pathname.replace(/\/+$/, '') ===
@@ -104,8 +104,14 @@
 		!!navigating.to && sectionKey(navigating.to.url.pathname) !== sectionKey(page.url.pathname)
 	);
 
+	// A fast switch (Configure/Setup, a nearby step) resolves in well under 150ms; painting the
+	// skeleton for those few frames only reads as a flash. Delay the swap so quick loads keep the
+	// current strip + content visible until the destination is ready, and only genuinely slow loads
+	// (where the feedback is wanted) ever show the skeleton. Hiding is immediate, so nothing lingers.
+	let showSwitchingSkeleton = delayedFlag(() => switchingSection, 150);
+
 	// While switching, reserve the *destination's* strip and content skeletons so the whole
-	// content region flips to a loading state the instant the tab is clicked.
+	// content region flips to a loading state once the switch has run long enough to warrant it.
 	let effectivePathname = $derived(navigating.to?.url.pathname ?? page.url.pathname);
 
 	// Reserve the injected primary strip's row with a matching skeleton (null = no strip on this
@@ -265,9 +271,9 @@
 	<ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
 
 	<!-- Row 3+ : section sub-strips, all server-rendered here from loaded data / static lists
-		 (keyed off the pathname), never injected from a child `$effect`. While switching sections
-		 we ignore them and show the destination's reserved skeleton instead. -->
-	{#if switchingSection}
+		 (keyed off the pathname), never injected from a child `$effect`. Once a switch has run long
+		 enough to warrant the skeleton we ignore them and show the destination's reserved one. -->
+	{#if showSwitchingSkeleton.current}
 		{#if primaryStripSkeleton}
 			<TabStripSkeleton
 				leadingIcon={primaryStripSkeleton.leadingIcon}
@@ -281,7 +287,7 @@
 			onAddStep={() => (addStepDialog.open = true)}
 		/>
 	{:else if isConfigureSection}
-		<ConfigureTabStrip tabs={CONFIGURE_TABS} />
+		<ConfigureTabStrip tabs={data.configureTabs} />
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
 	{:else if isEventsSection}
@@ -293,7 +299,7 @@
 		/>
 	{/if}
 	<!-- Row 4: only the event-detail sub-tabs live here now. -->
-	{#if isEventDetailPage && !switchingSection}
+	{#if isEventDetailPage && !showSwitchingSkeleton.current}
 		<SubTabStrip items={EVENT_SUBTABS} defaultValue="details" />
 	{/if}
 
@@ -306,7 +312,7 @@
 
 {#if isDesignBoard}
 	<div class="bg-card flex min-h-0 grow flex-col overflow-hidden">
-		{#if switchingSection}
+		{#if showSwitchingSkeleton.current}
 			<div class="pt-page-top px-gutter">
 				<div class="w-full max-w-[1200px]">
 					<TabContentSkeleton />
@@ -319,8 +325,8 @@
 {:else if isStepPage}
 	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
-	{#if switchingSection}
-		<div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+	{#if showSwitchingSkeleton.current}
+		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
 			<div class="h-full w-full max-w-[1200px]">
 				<TabContentSkeleton />
 			</div>
@@ -331,9 +337,9 @@
 {:else}
 	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
 		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+	<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
 		<div class="h-full w-full max-w-[1200px]">
-			{#if switchingSection}
+			{#if showSwitchingSkeleton.current}
 				<TabContentSkeleton />
 			{:else}
 				{@render children()}

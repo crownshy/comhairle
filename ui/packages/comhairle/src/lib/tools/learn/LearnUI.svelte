@@ -12,9 +12,10 @@
 	} from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
 	import { navigating } from '$app/state';
-	import LearnTutor from './LearnTutor.svelte';
+	import LearningAssistant from './LearningAssistant.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 
 	let {
 		pages,
@@ -37,15 +38,12 @@
 	);
 
 	let availableDocuments = $state<ComhairleDocument[]>([]);
-	let documentsLoading = $state(true);
 
 	$effect(() => {
 		if (!conversation?.id) {
 			availableDocuments = [];
-			documentsLoading = false;
 			return;
 		}
-		documentsLoading = true;
 		apiClient
 			.ListDocuments({ params: { conversation_id: conversation.id } })
 			.then((docs) => {
@@ -53,9 +51,6 @@
 			})
 			.catch(() => {
 				availableDocuments = [];
-			})
-			.finally(() => {
-				documentsLoading = false;
 			});
 	});
 
@@ -84,8 +79,20 @@
 		});
 	}
 
-	/** True while SvelteKit is routing OR documents for embeds are still being fetched. */
-	let showSkeleton = $derived(!!navigating.to || documentsLoading);
+	/** True while SvelteKit is routing to another step. Gates the controls, which shouldn't be
+	 * clickable mid-navigation. */
+	let isNavigating = $derived(!!navigating.to);
+
+	/**
+	 * Skeleton only, so a step hop that resolves quickly never renders one and can't flash.
+	 * See delayedFlag for the reasoning.
+	 *
+	 * Deliberately not gated on the document fetch, unlike before: the article server-renders
+	 * now, and withholding it for a client-only fetch would blank content that is already on
+	 * screen. A source-document badge instead renders its placeholder label and upgrades in
+	 * place when the fetch lands, which is a far smaller change than hiding the whole article.
+	 */
+	let showSkeleton = delayedFlag(() => isNavigating, 150);
 
 	$effect(() => {
 		if (onNextAction) {
@@ -109,13 +116,11 @@
 	{/if}
 
 	<!-- Article content: own loading state (route navigation / content not ready) -->
-	{#if showSkeleton}
+	{#if showSkeleton.current}
 		<LearnArticleSkeleton />
 	{:else if content}
 		<article class="prose mx-auto w-full grow overflow-y-auto">
-			{#key content}
-				<ContentRenderer {content} {availableDocuments} conversationId={conversation?.id} />
-			{/key}
+			<ContentRenderer {content} {availableDocuments} conversationId={conversation?.id} />
 		</article>
 	{:else}
 		<h1>Sorry this page is currently not avaliable in this language</h1>
@@ -123,22 +128,24 @@
 
 	{#if tutorAvailable && conversation}
 		<div class="mx-auto w-full max-w-[65ch]">
-			<LearnTutor
+			<LearningAssistant
 				conversationId={conversation.id}
 				pageTitle={pageHeading}
-				loading={showSkeleton}
+				loading={showSkeleton.current}
 			/>
 		</div>
 	{/if}
 
 	{#if currentPageNo == pages.length - 1}
-		<Button class="mx-auto mt-10" onclick={onDone} disabled={showSkeleton || isSubmitting}>
+		<!-- Disabling tracks isNavigating, not the delayed flag: a control that stays live for
+			150ms into a navigation could fire twice. -->
+		<Button class="mx-auto mt-10" onclick={onDone} disabled={isNavigating || isSubmitting}>
 			{#if isSubmitting}
 				<Spinner class="mr-2 size-4" />
 			{/if}
 			{m.continue_()}
 		</Button>
 	{:else}
-		<Button class="mx-auto mt-10" onclick={nextPage} disabled={showSkeleton}>{m.next()}</Button>
+		<Button class="mx-auto mt-10" onclick={nextPage} disabled={isNavigating}>{m.next()}</Button>
 	{/if}
 </div>
