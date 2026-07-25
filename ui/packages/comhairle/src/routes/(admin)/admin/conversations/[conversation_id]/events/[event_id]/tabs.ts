@@ -9,5 +9,6 @@ export const EVENT_SUBTABS: { label: string; value: string }[] = [
 	{ label: 'Facilitators', value: 'facilitators' },
 	{ label: 'Location', value: 'location' },
 	{ label: 'Invites', value: 'invites' },
+	{ label: 'Breakout Rooms', value: 'breakout' },
 	{ label: 'Recordings', value: 'recordings' }
 ];
