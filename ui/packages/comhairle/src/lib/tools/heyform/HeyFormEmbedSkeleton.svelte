@@ -9,7 +9,7 @@
 	hand off from a dark skeleton to a white form.
 -->
 <div
-	class="mx-auto mt-1 h-[60dvh] max-h-[700px] min-h-[440px] w-full max-w-2xl overflow-hidden rounded-xl bg-white"
+	class="mx-auto mt-1 h-[70dvh] max-h-225 min-h-140 w-full max-w-2xl overflow-hidden rounded-xl bg-white"
 	aria-busy="true"
 	aria-live="polite"
 >

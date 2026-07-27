@@ -66,9 +66,8 @@
 <!-- The form renderer is a white, self-themed UI inside a cross-origin iframe: we can't restyle its
 	internals or match comhairle's light/dark per viewer. So we frame it as a centered white card
 	(bg-white is deliberate, matching the form's own paper) rather than a full-bleed slab, so it
-	reads as an intentional embedded form on any background, dark mode included. Bounding the height
-	keeps a short form from showing a large empty area; longer forms scroll inside the card. The
-	max-width and height are tunable. -->
+	reads as an intentional embedded form on any background, dark mode included. The max-width and
+	height are tunable. -->
 <!-- A single-cell grid rather than absolute positioning: both children claim the same cell, so the
 	skeleton inherits the iframe's exact box without restating its height clamp. -->
 <div class="grid w-full grid-cols-1 grid-rows-1">
@@ -83,7 +82,7 @@
 			title="survey"
 			onload={handleLoad}
 			allow="microphone; camera"
-			class="h-[60dvh] max-h-[700px] min-h-[440px] w-full border-none transition-opacity duration-300 {ready
+			class="h-[70dvh] max-h-225 min-h-140 w-full border-none transition-opacity duration-300 {ready
 				? 'opacity-100'
 				: 'opacity-0'}"
 		></iframe>
