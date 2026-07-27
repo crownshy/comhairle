@@ -3,6 +3,7 @@
 	import ContentCard from '../ContentCard.svelte';
 	import ScatterPlot, { type ScatterPoint } from '../ScatterPlot.svelte';
 	import * as Select from '$lib/components/ui/select';
+	import { extractAxisDomain } from './utils';
 
 	type Props = {
 		proposals: RankedProposal[];
@@ -40,22 +41,6 @@
 		}
 
 		return points;
-	}
-
-	function extractAxisDomain(question: Question): [number, number] | null {
-		if (question.type.continuous) {
-			return [question.type.continuous.min_value, question.type.continuous.max_value];
-		}
-
-		if (question.type.likert_scale) {
-			const values = question.type.likert_scale.categories.map(
-				(category) => category.value
-			) as number[];
-
-			return [Math.min(...values), Math.max(...values)];
-		}
-
-		return null;
 	}
 
 	let scatterPoints = $derived(

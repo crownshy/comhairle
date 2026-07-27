@@ -11,6 +11,7 @@
 	};
 
 	let { insights, step }: Props = $props();
+
 	// Use average incase some steps weren't completed and a proposal has less
 	// responses than others
 	const averageNumParticipants = $derived.by(() => {
