@@ -69,8 +69,7 @@
 	function setError(message: string) {
 		status = message ? 'error' : 'idle';
 		fileInput?.setCustomValidity(message);
-		fileInput?.reportValidity();
-		errorMessage = fileInput?.validationMessage ?? '';
+		errorMessage = message;
 	}
 
 	function handleFiles(files: FileList | undefined | null) {
@@ -156,7 +155,11 @@
 		{accept}
 		{multiple}
 		class="hidden"
-		oninvalid={() => (status = 'error')}
+		oninvalid={() => {
+			if (fileInput?.validity.valid === false) {
+				setError(fileInput.validationMessage);
+			}
+		}}
 		onchange={(event) => {
 			handleFiles((event.target as HTMLInputElement).files);
 		}}
