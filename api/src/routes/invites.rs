@@ -18,7 +18,7 @@ use crate::{
     error::ComhairleError,
     middleware::request_logging::ClientIp,
     models::{
-        self, conversation, event,
+        self, breakout_plan, conversation, event,
         event_attendance::{self, CreateEventAttendance},
         invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite},
         users, workflow,
@@ -339,6 +339,21 @@ async fn auto_register_event_attendance(
     .await
     {
         warn!("Error registering user for event: {error}");
+    }
+
+    // Resolve this user's reserved seat (or slot them in) in the breakout plan.
+    // Best-effort: never block sign-up on this.
+    if let Err(error) = breakout_plan::ensure_user_slotted(
+        &state.db,
+        &event_id,
+        &user.id,
+        false,
+        Some(invite_id),
+        Some(email.as_str()),
+    )
+    .await
+    {
+        warn!("Failed to slot user into breakout plan: {error}");
     }
 
     let invite = invite.accept(&state.db, &user).await?;

@@ -22,6 +22,7 @@
 		onParticipantLeft?: (participant: any) => void;
 		onVideoConferenceJoined?: (data: any) => void;
 		onVideoConferenceLeft?: (data: any) => void;
+		onDisplayNameChange?: (data: any) => void;
 		onBreakoutRoomsUpdated?: (rooms: Record<string, any>) => void;
 		onModeratorStatusChanged?: (isModerator: boolean) => void;
 	}
@@ -45,6 +46,7 @@
 		onParticipantLeft,
 		onVideoConferenceJoined,
 		onVideoConferenceLeft,
+		onDisplayNameChange,
 		onBreakoutRoomsUpdated,
 		onModeratorStatusChanged
 	}: JitsiMeetProps = $props();
@@ -136,6 +138,10 @@
 
 			api.addListener('videoConferenceLeft', (data: any) => {
 				onVideoConferenceLeft?.(data);
+			});
+
+			api.addListener('displayNameChange', (data: any) => {
+				onDisplayNameChange?.(data);
 			});
 
 			api.addListener('breakoutRoomsUpdated', (data: any) => {

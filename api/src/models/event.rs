@@ -56,6 +56,101 @@ pub enum EventAgendaItem {
 #[derive(Default)]
 pub struct EventAgenda(pub Vec<EventAgendaItem>);
 
+impl EventAgenda {
+    /// Returns the `max_per_room` of the first breakout-room agenda item, if any.
+    /// Used to size the pre-assigned breakout plan.
+    pub fn breakout_max_per_room(&self) -> Option<u32> {
+        self.0.iter().find_map(|item| match item {
+            EventAgendaItem::BreakoutRoom(b) => b.max_per_room,
+            _ => None,
+        })
+    }
+}
+
+/// A single seat in a pre-assigned breakout room.
+///
+/// A seat references either a known attendee (`user_id`) or a reserved
+/// placeholder for an invite that has not yet signed up (`invite_id`).
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct BreakoutSeat {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub user_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub invite_id: Option<Uuid>,
+    #[serde(default)]
+    pub is_moderator: bool,
+}
+
+/// A pre-assigned breakout room: an ordered list of seats.
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct BreakoutPlanRoom {
+    #[serde(default)]
+    pub seats: Vec<BreakoutSeat>,
+}
+
+/// The pre-assigned breakout plan for an event. Stored as JSONB on `event`.
+/// Room number is the index into the vector.
+#[derive(Serialize, Deserialize, Debug, JsonSchema, DbJsonBEnum, Clone, PartialEq, Default)]
+#[serde(transparent)]
+pub struct BreakoutPlan(pub Vec<BreakoutPlanRoom>);
+
+impl BreakoutPlan {
+    pub fn is_empty(&self) -> bool {
+        self.0.iter().all(|room| room.seats.is_empty())
+    }
+
+    /// True if the given user already occupies a seat.
+    pub fn contains_user(&self, user_id: &Uuid) -> bool {
+        self.0
+            .iter()
+            .flat_map(|room| &room.seats)
+            .any(|seat| seat.user_id.as_ref() == Some(user_id))
+    }
+
+    /// Resolve a reserved placeholder seat (matched by `invite_id`) to a real
+    /// user. Returns true if a placeholder was found and updated.
+    pub fn resolve_invite(&mut self, invite_id: &Uuid, user_id: Uuid, is_moderator: bool) -> bool {
+        if self.contains_user(&user_id) {
+            return true;
+        }
+        for room in &mut self.0 {
+            for seat in &mut room.seats {
+                if seat.invite_id.as_ref() == Some(invite_id) {
+                    seat.user_id = Some(user_id);
+                    seat.invite_id = None;
+                    seat.is_moderator = is_moderator;
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Place a user into the emptiest room that is still under `max_per_room`,
+    /// creating a new room if every existing room is full. No-op if already seated.
+    pub fn slot_user(&mut self, user_id: Uuid, is_moderator: bool, max_per_room: usize) {
+        if self.contains_user(&user_id) {
+            return;
+        }
+        let seat = BreakoutSeat {
+            user_id: Some(user_id),
+            invite_id: None,
+            is_moderator,
+        };
+
+        let target = self
+            .0
+            .iter_mut()
+            .filter(|room| room.seats.len() < max_per_room)
+            .min_by_key(|room| room.seats.len());
+
+        match target {
+            Some(room) => room.seats.push(seat),
+            None => self.0.push(BreakoutPlanRoom { seats: vec![seat] }),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Partial, Debug, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "event")]
 #[partially(derive(Serialize, Deserialize, Debug, JsonSchema, Default))]
@@ -75,6 +170,9 @@ pub struct Event {
     pub video_meeting_id: Option<Uuid>,
     #[serde(default)]
     pub agenda: EventAgenda,
+    #[serde(default)]
+    #[partially(omit)]
+    pub breakout_plan: BreakoutPlan,
     pub default_time_zone: String,
     pub format: EventFormat,
     #[partially(transparent)]
@@ -226,7 +324,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 15] = [
+const DEFAULT_COLUMNS: [EventIden; 16] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -237,6 +335,7 @@ const DEFAULT_COLUMNS: [EventIden; 15] = [
     EventIden::SignupMode,
     EventIden::VideoMeetingId,
     EventIden::Agenda,
+    EventIden::BreakoutPlan,
     EventIden::DefaultTimeZone,
     EventIden::Location,
     EventIden::Format,

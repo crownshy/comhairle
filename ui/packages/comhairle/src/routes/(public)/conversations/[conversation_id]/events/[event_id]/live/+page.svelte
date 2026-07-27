@@ -58,9 +58,20 @@
 		})
 	);
 
-	/** Participants actually in Jitsi call (excludes current user + lobby-only users) */
+	/** Participants actually in the Jitsi video (excludes current user + lobby-only users).
+	 *  Membership comes from the backend in-video set (reported by each client on join),
+	 *  so it is unaffected by users renaming themselves in the Jitsi interface. */
 	let inCallParticipants = $derived(
-		allParticipants.filter((p) => p.user_id !== user?.id && jitsiParticipantMap.has(p.user_id))
+		allParticipants
+			.filter(
+				(p) =>
+					p.user_id !== user?.id && videoCallService.inVideoParticipantIds.has(p.user_id)
+			)
+			// Show the Jitsi name the user chose in the call, falling back to their username.
+			.map((p) => ({
+				...p,
+				username: videoCallService.jitsiDisplayNameFor(p.user_id) ?? p.username
+			}))
 	);
 	let currentStep = $derived(videoCallService.currentAgendaStep);
 	let breakoutSession = $derived(videoCallService.breakoutSession);
@@ -80,9 +91,8 @@
 	let activePanel = $state<PanelTab>('agenda');
 	let jitsiModeratorStatus = $state<boolean>(false);
 	let currentJitsiRoomName = $state<string>('');
-
-	// Map Jitsi participant IDs to backend user IDs
-	let jitsiParticipantMap = $state<Map<string, string>>(new Map());
+	/** This client's own Jitsi participant id, used to detect our own rename events. */
+	let localParticipantId = $state<string | null>(null);
 
 	/** Mock breakout rooms for dev testing */
 	let mockBreakoutRooms = $state<BreakoutRoomDisplay[]>([]);
@@ -788,8 +798,10 @@
 	function handleVideoConferenceJoined(data: any) {
 		console.log('[BREAKOUT] Entered Jitsi room:', data.roomName);
 		currentJitsiRoomName = data.roomName;
-		// Capture everyone already in the room (participantJoined won't fire for them)
-		seedJitsiParticipants();
+		localParticipantId = data.id ?? null;
+		// Tell the backend we're really in the video (rename-proof call presence) and
+		// report the Jitsi name we chose so the UI can show it instead of the username.
+		videoCallService.reportVideoJoined(eventId, data.displayName ?? data.displayname);
 		// Moderator is now in Jitsi — safe to let participants in
 		if (isModerator && callStatus === 'Waiting') {
 			videoCallService.changeCallState(eventId, 'InProgress');
@@ -798,70 +810,14 @@
 
 	function handleVideoConferenceLeft(data: any) {
 		console.log('[BREAKOUT] Left Jitsi room:', data.roomName);
+		videoCallService.reportVideoLeft(eventId);
 	}
 
-	const normalizeName = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
-
-	/** Map a single Jitsi participant (by displayName) to a backend user in jitsiParticipantMap. */
-	function mapJitsiParticipant(jitsiId: string, displayName: string | undefined) {
-		const target = normalizeName(displayName);
-
-		// Exact (normalized) username match first, then fall back to a backend user_id
-		// embedded in the display name (guards against renamed / mis-cased Jitsi names).
-		let matchingUser =
-			allParticipants.find((p) => p.username && normalizeName(p.username) === target) ?? null;
-
-		if (!matchingUser && target) {
-			matchingUser =
-				allParticipants.find((p) => target.includes(p.user_id.toLowerCase())) ?? null;
-		}
-
-		if (matchingUser) {
-			console.log(
-				'[BREAKOUT] Mapped Jitsi participant',
-				jitsiId,
-				'→ user',
-				matchingUser.user_id
-			);
-			jitsiParticipantMap.set(matchingUser.user_id, jitsiId);
-		} else {
-			console.warn('[BREAKOUT] Could not match participant:', displayName);
-		}
-	}
-
-	/** Seed jitsiParticipantMap with everyone already in the call. `participantJoined` only
-	 *  fires for people who join AFTER our listener attaches, so pre-existing participants
-	 *  (usually most of them) would otherwise never be mapped. */
-	function seedJitsiParticipants() {
-		try {
-			const roster = jitsiApi?.getParticipantsInfo?.() ?? [];
-			console.log('[BREAKOUT] Seeding', roster.length, 'existing Jitsi participants');
-			for (const p of roster) {
-				mapJitsiParticipant(
-					p.participantId ?? p.id,
-					p.displayName ?? p.formattedDisplayName
-				);
-			}
-		} catch (error) {
-			console.error('[BREAKOUT] Failed to seed Jitsi participants:', error);
-		}
-	}
-
-	function handleParticipantJoined(participant: any) {
-		console.log('[BREAKOUT] Participant joined:', participant);
-		mapJitsiParticipant(participant.id, participant.displayName);
-	}
-
-	function handleParticipantLeft(participant: any) {
-		console.log('[BREAKOUT] Participant left:', participant);
-
-		// Remove from map
-		const entry = Array.from(jitsiParticipantMap.entries()).find(
-			([_, jitsiId]) => jitsiId === participant.id
-		);
-		if (entry) {
-			jitsiParticipantMap.delete(entry[0]);
-			console.log('[BREAKOUT] Removed participant from map:', entry[0]);
+	function handleDisplayNameChange(data: any) {
+		// Only re-report when OUR own display name changed.
+		if (data?.id && data.id === localParticipantId) {
+			console.log('[BREAKOUT] Local display name changed:', data.displayname);
+			videoCallService.reportVideoJoined(eventId, data.displayname ?? data.displayName);
 		}
 	}
 </script>
@@ -986,18 +942,15 @@
 						onModeratorStatusChanged={handleModeratorStatusChanged}
 						onVideoConferenceJoined={handleVideoConferenceJoined}
 						onVideoConferenceLeft={handleVideoConferenceLeft}
-						onParticipantJoined={handleParticipantJoined}
-						onParticipantLeft={handleParticipantLeft}
+						onDisplayNameChange={handleDisplayNameChange}
 						startWithAudioMuted={true}
 						configOverwrite={{
 							toolbarButtons: [
 								'microphone',
 								'camera',
 								'desktop',
-								'participants-pane',
 								'chat',
 								'raisehand',
-								'breakoutrooms',
 								'tileview',
 								'hangup',
 								'fullscreen'
