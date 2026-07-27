@@ -40,7 +40,6 @@
 			>
 				<FileUpload
 					{...MediaSchema.media}
-					maxSizeMB={50}
 					onfile={(newFile) => (file = newFile)}
 					class={file !== null ? 'hidden' : ''}
 				/>

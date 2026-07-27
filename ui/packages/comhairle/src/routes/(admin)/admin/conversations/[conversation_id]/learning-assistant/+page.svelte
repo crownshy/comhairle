@@ -14,8 +14,9 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import Media from '$lib/interfaces/Media';
+	import { MB } from '$lib/utils/units';
 
-	const MAX_SIZE = 50;
+	const MAX_SIZE = 50 * MB;
 
 	type Props = {
 		data: {
@@ -194,7 +195,7 @@
 				<FileUpload
 					name="files"
 					accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt"
-					maxSizeMB={MAX_SIZE}
+					maxSize={MAX_SIZE}
 					onfile={uploadFile}
 					multiple
 				/>

@@ -6,7 +6,6 @@
 
 	interface Props extends FileAttr {
 		onfile?: (file: File) => Promise<unknown> | unknown;
-		maxSizeMB?: number;
 		multiple?: boolean;
 		class?: string;
 	}
@@ -16,7 +15,7 @@
 		onfile,
 		required,
 		accept,
-		maxSizeMB,
+		maxSize,
 		multiple = false,
 		class: className
 	}: Props = $props();
@@ -27,7 +26,6 @@
 	let status = $state<State>('idle');
 
 	const acceptedExtensions = $derived(accept?.split(',') ?? []);
-	const maxSizeBytes = $derived(maxSizeMB ? maxSizeMB * 1_024 * 1_024 : undefined);
 	const plural = $derived(multiple ? 'files' : 'file');
 
 	let inputMessage = $derived.by(() => {
@@ -54,11 +52,11 @@
 		}
 
 		// Add max size info
-		if (maxSizeMB) {
+		if (maxSize) {
 			if (inputMessage !== '') {
 				inputMessage += ', ';
 			}
-			inputMessage += `up to ${maxSizeMB}MB`;
+			inputMessage += `up to ${Media.formatBytes(maxSize)}`;
 		}
 
 		return inputMessage;
@@ -83,7 +81,7 @@
 					return;
 				}
 
-				if (maxSizeBytes && file.size > maxSizeBytes) {
+				if (maxSize && file.size > maxSize) {
 					status = 'error';
 					fileInput?.setCustomValidity('Max file size exceeded');
 					return;

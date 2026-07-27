@@ -4,7 +4,7 @@ type FileErr = { id: 'MAX_SIZE_EXCEEDED'; message: string };
 type UploadReturn = Result<'ok', Response, FileErr | FetchErr>;
 
 type Opts = {
-	maxSizeMB?: number; // in MB
+	maxSize?: number; // in bytes
 	fetchRef?: typeof fetch; // If used on the backend and we need to use the alternate fetch
 };
 
@@ -13,12 +13,12 @@ class Media {
 		const formData = new FormData();
 
 		for (const file of files) {
-			if (opts?.maxSizeMB && file.size > opts.maxSizeMB * 1024 * 1024) {
+			if (opts?.maxSize && file.size > opts.maxSize) {
 				return {
 					ok: null,
 					err: {
 						id: 'MAX_SIZE_EXCEEDED',
-						message: `${file.name} exceeds max size ${opts.maxSizeMB}MB`
+						message: `${file.name} exceeds max size ${Media.formatBytes(opts.maxSize)}`
 					}
 				};
 			}

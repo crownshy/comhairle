@@ -12,6 +12,7 @@ export type FileAttr = {
 	name: string;
 	accept: string;
 	required?: boolean;
+	maxSize?: number; // In bytes
 };
 
 export type Schema = {
