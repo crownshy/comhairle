@@ -64,26 +64,32 @@
 
 	// TODO: Merge with interfaces/Media.ts
 
+	let errorMessage = $state<string>('');
+
+	function setError(message: string) {
+		status = message ? 'error' : 'idle';
+		fileInput?.setCustomValidity(message);
+		fileInput?.reportValidity();
+		errorMessage = fileInput?.validationMessage ?? '';
+	}
+
 	function handleFiles(files: FileList | undefined | null) {
-		fileInput?.setCustomValidity('');
+		setError('');
 
 		if (files && files.length > 0) {
 			for (const file of files) {
 				const extension = Media.getExtension(file.name);
 				if (!extension) {
-					status = 'error';
-					fileInput?.setCustomValidity("Couldn't recognise file type");
+					setError("Couldn't recognise file type");
 					return;
 				}
 				if (!acceptedExtensions.includes(extension)) {
-					status = 'error';
-					fileInput?.setCustomValidity('File type not supported');
+					setError('File type not supported');
 					return;
 				}
 
 				if (maxSize && file.size > maxSize) {
-					status = 'error';
-					fileInput?.setCustomValidity('Max file size exceeded');
+					setError('Max file size exceeded');
 					return;
 				}
 
@@ -133,9 +139,9 @@
 				{inputMessage}
 			</div>
 		{/if}
-		{#if status === 'error' && fileInput?.validity.valid === false}
+		{#if status === 'error'}
 			<div class="text-destructive text-center text-sm">
-				{fileInput?.validationMessage}
+				{errorMessage}
 			</div>
 		{/if}
 	</div>
