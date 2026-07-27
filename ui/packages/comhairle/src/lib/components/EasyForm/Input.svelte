@@ -7,7 +7,7 @@
 	let { onblur, label, value = $bindable(), ...props }: Props = $props();
 
 	let ref: HTMLInputElement | null = $state(null);
-	let isError: boolean = $state(false);
+	let errorMessage = $state<string>('');
 </script>
 
 <div class="flex flex-col">
@@ -19,12 +19,18 @@
 		{...props}
 		bind:value
 		onblur={(e) => {
-			isError = !(ref?.checkValidity() ?? true);
+			if (ref?.checkValidity()) {
+				errorMessage = ref.validationMessage;
+			}
 			onblur?.(e);
 		}}
-		oninvalid={() => (isError = true)}
+		oninvalid={() => {
+			if (ref?.validity.valid === false) {
+				errorMessage = ref.validationMessage;
+			}
+		}}
 	/>
-	{#if isError}
-		<p aria-live="polite" class="text-destructive text-xs">{ref?.validationMessage}</p>
+	{#if errorMessage}
+		<p aria-live="polite" class="text-destructive text-xs">{errorMessage}</p>
 	{/if}
 </div>
