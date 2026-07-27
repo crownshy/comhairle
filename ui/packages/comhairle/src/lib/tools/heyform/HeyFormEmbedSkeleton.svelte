@@ -1,19 +1,12 @@
 <!--
-	Stands in for the participant-facing form while its cross-origin iframe boots. It has to occupy
-	exactly the same box as the iframe in HeyFormEmbed (same max-width, radius and height clamp),
-	otherwise the swap shifts the page under the participant.
-
-	The placeholder bars are deliberately off-token neutrals on a white card rather than
-	bg-accent/bg-card: the frame it covers is the form renderer's own white paper, which we can't
-	theme (same reason HeyFormEmbed frames it as a white card), so theme-aware tokens here would
-	hand off from a dark skeleton to a white form.
+	Stands in for the participant-facing form while its cross-origin iframe boots.
 -->
 <div
-	class="mx-auto mt-1 h-[70dvh] max-h-225 min-h-140 w-full max-w-2xl overflow-hidden rounded-xl bg-white"
+	class="mx-auto mt-1 min-h-110 w-full max-w-2xl overflow-hidden rounded-xl bg-white"
 	aria-busy="true"
 	aria-live="polite"
 >
-	<div class="flex h-full flex-col justify-center gap-4 px-8 sm:px-12">
+	<div class="flex h-full flex-col justify-start gap-4 px-8 pt-10 sm:px-12 sm:pt-14">
 		<!-- Question number / label -->
 		<div class="h-3 w-16 animate-pulse rounded bg-neutral-200"></div>
 
