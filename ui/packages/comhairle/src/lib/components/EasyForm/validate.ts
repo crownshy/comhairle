@@ -17,8 +17,8 @@ function isFileAttr(attr: FileAttr | InputAttr): attr is FileAttr {
 	return 'accept' in attr;
 }
 
-function isFile(value: FormDataEntryValue): value is File {
-	return value instanceof File;
+function notFile(value: FormDataEntryValue): value is string {
+	return typeof value === 'string';
 }
 
 export function validate(form: FormData, schema: Schema): Result<'ok', true, ValidationError> {
@@ -40,20 +40,22 @@ export function validate(form: FormData, schema: Schema): Result<'ok', true, Val
 		}
 
 		if (isFileAttr(input)) {
-			if (!isFile(value)) {
+			if (notFile(value)) {
 				return { ok: null, err: 'TYPE_WRONG' };
 			}
-			const extension = Media.getExtension(value.name);
-			if (!extension) {
-				return { ok: null, err: 'EXTENSION_UNREADABLE' };
-			}
+			for (const file of Media.normalise(value)) {
+				const extension = Media.getExtension(file.name);
+				if (!extension) {
+					return { ok: null, err: 'EXTENSION_UNREADABLE' };
+				}
 
-			const extensions = input.accept.split(',');
-			if (!extensions.includes(extension)) {
-				return { ok: null, err: 'EXTENSION_NOT_ALLOWED' };
+				const extensions = input.accept.split(',');
+				if (!extensions.includes(extension)) {
+					return { ok: null, err: 'EXTENSION_NOT_ALLOWED' };
+				}
 			}
 		} else {
-			if (isFile(value)) {
+			if (!notFile(value)) {
 				return { ok: null, err: 'TYPE_WRONG' };
 			}
 

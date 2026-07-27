@@ -62,7 +62,7 @@ class Media {
 	 * They're very different types that are difficult to handle and FileList has limited TS support.
 	 * This function is to sanitise these outputs so that it will return a File[] which is predictable and works well with TS
 	 */
-	static sanitiseMulti(files: File | FileList): File[] {
+	static normalise(files: File | FileList): File[] {
 		const filesArray: File[] = [];
 		if (this.#isFileList(files)) {
 			for (const f of files) {
