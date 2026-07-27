@@ -4,6 +4,7 @@
 	import ContentCard from '../ContentCard.svelte';
 	import PrioritizationRankedProposalTable from './PrioritizationRankedProposalTable.svelte';
 	import PrioritizationScatterPlot from './PrioritizationScatterPlot.svelte';
+	import PrioritizationProposalResults from './PrioritizationProposalResults.svelte';
 
 	type Props = {
 		insights: PrioritizationInsightsResponse;
@@ -43,6 +44,11 @@
 	</ContentCard>
 
 	<PrioritizationScatterPlot
+		proposals={insights.rankedProposals}
+		toolConfig={step.toolConfig ?? step.previewToolConfig}
+	/>
+
+	<PrioritizationProposalResults
 		proposals={insights.rankedProposals}
 		toolConfig={step.toolConfig ?? step.previewToolConfig}
 	/>
