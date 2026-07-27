@@ -31,7 +31,7 @@
 	let inputMessage = $derived.by(() => {
 		let inputMessage = '';
 
-		// Add allowed file types info
+		// Generate text for allowed file types
 		if (accept) {
 			const length = acceptedExtensions.length - 1;
 
