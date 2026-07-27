@@ -3,7 +3,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidate } from '$app/navigation';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import FileUpload from '$lib/components/FileUpload.svelte';
+	import FileInput from '$lib/components/FileInput.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
 	import { Switch } from '$lib/components/ui/switch';
@@ -192,7 +192,7 @@
 				bot steps.
 			</p>
 			<section class="mt-4 flex w-full flex-col gap-4 border-t pt-6">
-				<FileUpload
+				<FileInput
 					name="files"
 					accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt"
 					maxSize={MAX_SIZE}

@@ -6,7 +6,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import FileUpload from '$lib/components/FileUpload.svelte';
+	import FileInput from '$lib/components/FileInput.svelte';
 	import MediaSchema from './schema';
 	import { Form, Input, Submit } from '$lib/components/EasyForm';
 	import Media from '$lib/interfaces/Media';
@@ -38,7 +38,7 @@
 				class="flex flex-col"
 				onsubmit={() => (open = false)}
 			>
-				<FileUpload
+				<FileInput
 					{...MediaSchema.media}
 					onfile={(newFile) => (file = newFile)}
 					class={file !== null ? 'hidden' : ''}

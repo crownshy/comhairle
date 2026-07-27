@@ -20,7 +20,7 @@
 		class: className
 	}: Props = $props();
 
-	let fileInput = $state<HTMLInputElement | null>(null);
+	let input = $state<HTMLInputElement | null>(null);
 
 	type State = 'idle' | 'dragging' | 'uploading' | 'error';
 	let status = $state<State>('idle');
@@ -68,7 +68,7 @@
 
 	function setError(message: string) {
 		status = message ? 'error' : 'idle';
-		fileInput?.setCustomValidity(message);
+		input?.setCustomValidity(message);
 		errorMessage = message;
 	}
 
@@ -123,7 +123,7 @@
 		if (event.key !== 'Enter') {
 			return;
 		}
-		fileInput?.click();
+		input?.click();
 	}}
 >
 	<div class="h-8 w-8 text-gray-400">
@@ -144,11 +144,11 @@
 			</div>
 		{/if}
 	</div>
-	<Button variant="outline" onclick={() => fileInput?.click()} disabled={status === 'uploading'}>
+	<Button variant="outline" onclick={() => input?.click()} disabled={status === 'uploading'}>
 		{status === 'uploading' ? 'Uploading...' : `Select ${plural}`}
 	</Button>
 	<input
-		bind:this={fileInput}
+		bind:this={input}
 		type="file"
 		{name}
 		{required}
@@ -156,8 +156,8 @@
 		{multiple}
 		class="hidden"
 		oninvalid={() => {
-			if (fileInput?.validity.valid === false) {
-				setError(fileInput.validationMessage);
+			if (input?.validity.valid === false) {
+				setError(input.validationMessage);
 			}
 		}}
 		onchange={(event) => {
