@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ProposalResponseDto, Question, RankedProposal } from '@crownshy/api-client/api';
+	import type { ProposalResponseDto, RankedProposal, ToolConfig } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
 	import ScatterPlot, { type ScatterPoint } from '../ScatterPlot.svelte';
 	import * as Select from '$lib/components/ui/select';
@@ -7,7 +7,7 @@
 
 	type Props = {
 		proposals: RankedProposal[];
-		toolConfig: { alignment_question_id: string; questions: Question[] };
+		toolConfig: ToolConfig;
 	};
 
 	let { proposals, toolConfig }: Props = $props();

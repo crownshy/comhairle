@@ -36,13 +36,15 @@
 			<div class="h-full w-full px-4 py-4">
 				<div class="relative h-[90%] w-full">
 					<!-- y axis -->
-					<div class="bg-muted-foreground absolute top-0 left-1/2 h-full w-0.5">
-						<ChevronUp class="text-muted-foreground absolute -top-2.5 -left-2.75" />
+					<div class="bg-muted-foreground/50 absolute top-0 left-1/2 h-full w-0.5">
+						<ChevronUp class="text-muted-foreground/50 absolute -top-2.5 -left-2.75" />
 					</div>
 
 					<!-- x axis -->
-					<div class="bg-muted-foreground absolute top-1/2 left-0 h-0.5 w-full">
-						<ChevronRight class="text-muted-foreground absolute -top-2.75 -right-2.5" />
+					<div class="bg-muted-foreground/50 absolute top-1/2 left-0 h-0.5 w-full">
+						<ChevronRight
+							class="text-muted-foreground/50 absolute -top-2.75 -right-2.5"
+						/>
 					</div>
 
 					<!-- points -->

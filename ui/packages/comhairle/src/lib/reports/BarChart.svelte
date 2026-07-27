@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Chart from '$lib/components/ui/chart/index.js';
-	import { BarChart, type ChartContextValue } from 'layerchart';
+	import { BarChart, type ChartState } from 'layerchart';
 	import { cubicInOut } from 'svelte/easing';
 
 	type Props = {
@@ -13,7 +13,7 @@
 
 	let { data, series, xKey, yKey, chartConfig }: Props = $props();
 
-	let context = $state<ChartContextValue>();
+	let context = $state<ChartState>();
 </script>
 
 <Chart.Container config={chartConfig} class="aspect-auto h-62 w-full">
@@ -28,6 +28,7 @@
 			bars: {
 				stroke: 'none',
 				radius: 8,
+				rounded: 'all',
 				motion: {
 					x: { type: 'tween', duration: 500, easing: cubicInOut },
 					width: { type: 'tween', duration: 500, easing: cubicInOut },

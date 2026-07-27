@@ -14,7 +14,7 @@
 	import { scoredComments, mostDivisiveTid } from '$lib/tools/polis/beeswarm';
 	import { scaleLinear } from 'd3-scale';
 	import { forceX, forceY, forceCollide, type Force, type SimulationNodeDatum } from 'd3-force';
-	import { ForceSimulation } from 'layerchart';
+	import { ForceSimulation } from 'layerchart/force';
 	import * as Card from '$lib/components/ui/card';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
 

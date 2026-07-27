@@ -1,13 +1,14 @@
 <script lang="ts">
 	import * as Chart from '$lib/components/ui/chart/index.js';
-	import type { Question, RankedProposal } from '@crownshy/api-client/api';
+	import type { Question, RankedProposal, ToolConfig } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
 	import { cn } from '$lib/utils';
 	import BarChart from '../BarChart.svelte';
+	import KdePlot from '../KdePlot.svelte';
 
 	type Props = {
 		proposals: RankedProposal[];
-		toolConfig: { alignment_question_id: string; questions: Question[] };
+		toolConfig: ToolConfig;
 	};
 
 	let { proposals, toolConfig }: Props = $props();
@@ -17,10 +18,9 @@
 
 		const data = question.type.likert_scale.categories.map((category) => ({
 			category: category.label,
-			count: proposal.responses
-				.map((response) => response.response.filter((r) => r.question_id === question.id))
-				.flat()
-				.filter((response) => response.value === category.value).length
+			count: extractQuestionResponses(proposal, question.id).filter(
+				(response) => response.value === category.value
+			).length
 		}));
 
 		return data;
@@ -80,6 +80,20 @@
 								xKey="category"
 								yKey="count"
 								{chartConfig}
+							/>
+						{/if}
+						{#if question.type.continuous}
+							<KdePlot
+								minLabel={question.type.continuous.min_label}
+								maxLabel={question.type.continuous.max_label}
+								category={question.text}
+								rawData={{
+									[question.text]: extractQuestionResponses(
+										proposal,
+										question.id
+									).map((entry) => entry.value)
+								}}
+								maxX={question.type.continuous.max_value}
 							/>
 						{/if}
 						{#if question.type === 'text'}
