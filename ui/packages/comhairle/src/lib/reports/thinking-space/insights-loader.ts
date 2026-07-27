@@ -1,6 +1,6 @@
-import type { ApiClient } from '@crownshy/api-client/api';
+import { apiClient } from '@crownshy/api-client/client';
 
-export async function thinkingSpaceInsightsLoader(apiClient: ApiClient, workflowStepId: string) {
+export async function thinkingSpaceInsightsLoader(workflowStepId: string) {
 	const insights = await apiClient.GetThinkingSpaceInsights({
 		queries: { workflow_step_id: workflowStepId }
 	});
