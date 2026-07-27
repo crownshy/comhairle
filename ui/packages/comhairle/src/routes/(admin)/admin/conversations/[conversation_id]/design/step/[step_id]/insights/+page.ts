@@ -3,6 +3,8 @@ import type { PageLoad } from './$types';
 import { thinkingSpaceInsightsLoader } from '$lib/reports/thinking-space/insights-loader';
 import { polisInsightsLoader } from '$lib/reports/polis/insights-loader';
 import { prioritizationInsightsLoader } from '$lib/reports/prioritization/insights-loader';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { HttpStatus } from '$lib/utils/constants';
 
 export const load: PageLoad = async (event) => {
 	const { api, toolConfig, step_id } = await event.parent();
@@ -11,25 +13,28 @@ export const load: PageLoad = async (event) => {
 	event.depends('polis:statement-aux');
 	event.depends('polis:report');
 
-	try {
-		// TODO: add other tool insights loaders
-		if (toolConfig?.type === 'thinkingspace') {
-			return await thinkingSpaceInsightsLoader(api, step_id);
+	const response = await tryCatchAsync(async () => {
+		switch (toolConfig?.type) {
+			case 'polis':
+				return await polisInsightsLoader(api, step_id);
+			case 'prioritization':
+				return await prioritizationInsightsLoader(api, step_id);
+			case 'thinkingspace':
+				return await thinkingSpaceInsightsLoader(api, step_id);
+			case 'learn':
+			case 'heyform':
+			case 'stories':
+			case 'elicitationbot':
+				throw Error('Not yet implemented');
 		}
+	});
 
-		if (toolConfig?.type === 'polis') {
-			return await polisInsightsLoader(api, step_id);
-		}
-
-		if (toolConfig?.type === 'prioritization') {
-			return await prioritizationInsightsLoader(api, step_id);
-		}
-
+	if (response.err !== null) {
 		redirect(
-			307,
+			HttpStatus.TemporaryRedirect,
 			`/admin/conversations/${event.params.conversation_id}/design/step/${event.params.step_id}/setup`
 		);
-	} catch (e) {
-		console.error(e);
 	}
+
+	return response.ok;
 };
