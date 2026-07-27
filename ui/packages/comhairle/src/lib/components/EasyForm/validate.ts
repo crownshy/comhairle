@@ -6,6 +6,7 @@ import type { FileAttr, InputAttr } from './types';
 type ValidationError =
 	| 'KEY_NOT_FOUND'
 	| 'REQUIRED_IS_NULL'
+	| 'MAX_SIZE_EXCEEDED'
 	| 'EXTENSION_UNREADABLE'
 	| 'EXTENSION_NOT_ALLOWED'
 	| 'TOO_SHORT'
@@ -44,6 +45,10 @@ export function validate(form: FormData, schema: Schema): Result<'ok', true, Val
 				return { ok: null, err: 'TYPE_WRONG' };
 			}
 			for (const file of Media.normalise(value)) {
+				if (input.maxSize && file.size > input.maxSize) {
+					return { ok: null, err: 'MAX_SIZE_EXCEEDED' };
+				}
+
 				const extension = Media.getExtension(file.name);
 				if (!extension) {
 					return { ok: null, err: 'EXTENSION_UNREADABLE' };
