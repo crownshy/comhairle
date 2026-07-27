@@ -11,6 +11,7 @@
 	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
 	import ConsensusContinuum from './ConsensusContinuum.svelte';
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
+	import OpinionGroups from './OpinionGroups.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Download } from '@lucide/svelte';
 
@@ -216,5 +217,8 @@
 			comments={disagreementStatements}
 			groups={report.groups}
 		/>
+
+		<!-- ===== Opinion groups ===== -->
+		<OpinionGroups comments={report.comments} groups={report.groups} />
 	</div>
 {/if}
