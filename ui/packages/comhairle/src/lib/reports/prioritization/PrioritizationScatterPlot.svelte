@@ -42,9 +42,30 @@
 		return points;
 	}
 
+	function extractAxisDomain(question: Question): [number, number] | null {
+		if (question.type.continuous) {
+			return [question.type.continuous.min_value, question.type.continuous.max_value];
+		}
+
+		if (question.type.likert_scale) {
+			const values = question.type.likert_scale.categories.map(
+				(category) => category.value
+			) as number[];
+
+			return [Math.min(...values), Math.max(...values)];
+		}
+
+		return null;
+	}
+
 	let scatterPoints = $derived(
-		extractScatterPoints(selectedProposal.responses, xQuestion.id, yQuestion.id)
+		xQuestion && yQuestion
+			? extractScatterPoints(selectedProposal.responses, xQuestion.id, yQuestion.id)
+			: []
 	);
+
+	let xDomain = $derived.by(() => (xQuestion ? extractAxisDomain(xQuestion) : null));
+	let yDomain = $derived.by(() => (yQuestion ? extractAxisDomain(yQuestion) : null));
 </script>
 
 <ContentCard>
@@ -56,19 +77,35 @@
 		</p>
 	</div>
 
-	<div class="flex justify-end">
-		<Select.Root
-			type="single"
-			onValueChange={(v) => (selectedProposal = proposals.find((p) => p.id === v))}
-		>
-			<Select.Trigger>{selectedProposal.title}</Select.Trigger>
-			<Select.Content>
-				{#each proposals as proposal (proposal.id)}
-					<Select.Item value={proposal.id}>{proposal.title}</Select.Item>
-				{/each}
-			</Select.Content>
-		</Select.Root>
-	</div>
+	{#if xQuestion && yQuestion && xDomain && yDomain}
+		<div class="flex justify-end">
+			<Select.Root
+				type="single"
+				onValueChange={(v) => {
+					const found = proposals.find((p) => p.id === v);
+					if (found) selectedProposal = found;
+				}}
+			>
+				<Select.Trigger>{selectedProposal.title}</Select.Trigger>
+				<Select.Content>
+					{#each proposals as proposal (proposal.id)}
+						<Select.Item value={proposal.id}>{proposal.title}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
 
-	<ScatterPlot xAxisLabel={xQuestion.text} yAxisLabel={yQuestion.text} points={scatterPoints} />
+		<ScatterPlot
+			xAxisLabel={xQuestion.text}
+			yAxisLabel={yQuestion.text}
+			{xDomain}
+			{yDomain}
+			points={scatterPoints}
+		/>
+	{:else}
+		<div class="flex flex-col items-center justify-center gap-2">
+			<span>Somethign went wrong gathering data.</span>
+			<span>Unable to render scatter plot.</span>
+		</div>
+	{/if}
 </ContentCard>

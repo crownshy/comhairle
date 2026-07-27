@@ -1,13 +1,6 @@
 <script lang="ts">
 	import { ChevronUp, ChevronRight } from 'lucide-svelte';
 
-	/*
-	maxY -> max of any response for whatever the y axis question is
-	ySteps -> optional, default 1
-	maxX -> max of any response for whatever the y axis question is
-	xSteps -> optional, default 1
-	*/
-
 	export type ScatterPoint = {
 		id: string;
 		x: number;
@@ -17,25 +10,13 @@
 	type Props = {
 		xAxisLabel: string;
 		yAxisLabel: string;
+		xDomain: [number, number];
+		yDomain: [number, number];
 		height?: string;
 		points: ScatterPoint[];
 	};
 
-	let { xAxisLabel, yAxisLabel, height = '50vh', points }: Props = $props();
-
-	let xDomain = $derived.by(() => {
-		const maxAbs = Math.max(...points.map((p) => Math.abs(p.x)), 1);
-		return [-maxAbs, maxAbs] as const;
-	});
-
-	// TODO: This assumes 0 is the mid point, but this doesn't work for slider
-	// questions that range from 0-10
-	// Use the questions from the tool_config to get the ranges instead of
-	// calculating from the passed in points data
-	let yDomain = $derived.by(() => {
-		const maxAbs = Math.max(...points.map((p) => Math.abs(p.y)), 1);
-		return [-maxAbs, maxAbs] as const;
-	});
+	let { xAxisLabel, yAxisLabel, xDomain, yDomain, height = '50vh', points }: Props = $props();
 
 	function toLeftPercent(x: number, [min, max]: readonly [number, number]) {
 		return ((x - min) / (max - min)) * 100;
