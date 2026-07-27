@@ -4,7 +4,6 @@
 
 .tiptap {
 	outline: none;
-	min-height: var(--editor-min-height, 200px);
 	color: var(--color-foreground);
 }
 
