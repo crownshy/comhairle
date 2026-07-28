@@ -51,9 +51,9 @@
 	const tooltipCtx = getChartContext().tooltip;
 
 	const formattedLabel = $derived.by(() => {
-		if (hideLabel || !tooltipCtx.payload?.length) return null;
+		if (hideLabel || !tooltipCtx.series?.length) return null;
 
-		const [item] = tooltipCtx.payload;
+		const [item] = tooltipCtx.series;
 		const key = labelKey ?? item?.label ?? item?.name ?? 'value';
 
 		const itemConfig = getPayloadConfigFromPayload(chart.config, item, key);
@@ -65,10 +65,10 @@
 
 		if (value === undefined) return null;
 		if (!labelFormatter) return value;
-		return labelFormatter(value, tooltipCtx.payload);
+		return labelFormatter(value, tooltipCtx.series);
 	});
 
-	const nestLabel = $derived(tooltipCtx.payload.length === 1 && indicator !== 'dot');
+	const nestLabel = $derived(tooltipCtx.series?.length === 1 && indicator !== 'dot');
 </script>
 
 {#snippet TooltipLabel()}
@@ -95,7 +95,7 @@
 			{@render TooltipLabel()}
 		{/if}
 		<div class="grid gap-1.5">
-			{#each tooltipCtx.payload as item, i (item.key + i)}
+			{#each tooltipCtx.series as item, i (item.key + i)}
 				{@const key = `${nameKey || item.key || item.name || 'value'}`}
 				{@const itemConfig = getPayloadConfigFromPayload(chart.config, item, key)}
 				{@const indicatorColor = color || item.payload?.color || item.color}
@@ -111,7 +111,7 @@
 							name: item.name,
 							item,
 							index: i,
-							payload: tooltipCtx.payload
+							payload: tooltipCtx.series
 						})}
 					{:else}
 						{#if itemConfig?.icon}

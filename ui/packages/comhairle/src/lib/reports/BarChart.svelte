@@ -38,5 +38,9 @@
 			},
 			highlight: { area: { fill: 'none' } }
 		}}
-	></BarChart>
+	>
+		{#snippet tooltip()}
+			<Chart.Tooltip />
+		{/snippet}
+	</BarChart>
 </Chart.Container>
