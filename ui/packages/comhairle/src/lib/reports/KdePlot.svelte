@@ -107,7 +107,7 @@
 	<div class="bg-muted-foreground/50 relative mb-2 h-1 rounded-full">
 		<div class="bg-primary absolute h-full rounded-full" style="width: {averagePercentage}%">
 			<div
-				class="bg-primary text-accent-foreground absolute top-1/2 right-0 -translate-y-1/2 rounded-full px-1.5 py-px text-xs"
+				class="bg-primary text-primary-foreground absolute top-1/2 right-0 -translate-y-1/2 rounded-full px-1.5 py-px text-xs"
 			>
 				{average.toFixed(1)}
 			</div>

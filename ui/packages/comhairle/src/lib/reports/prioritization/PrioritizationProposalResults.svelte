@@ -1,10 +1,13 @@
 <script lang="ts">
 	import * as Chart from '$lib/components/ui/chart/index.js';
-	import type { Question, RankedProposal, ToolConfig } from '@crownshy/api-client/api';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { RankedProposal, type Question, type ToolConfig } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
 	import { cn } from '$lib/utils';
 	import BarChart from '../BarChart.svelte';
 	import KdePlot from '../KdePlot.svelte';
+	import Button, { buttonVariants } from '$lib/components/ui/button/button.svelte';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 
 	type Props = {
 		proposals: RankedProposal[];
@@ -40,6 +43,9 @@
 
 		return data;
 	}
+
+	let selectedProposal = $state<RankedProposal | null>(null);
+	let openDialog = $state(false);
 </script>
 
 <ContentCard>
@@ -58,9 +64,18 @@
 					index !== proposals.length - 1 && 'border-b'
 				)}
 			>
-				<h3 class="mb-5 text-lg font-bold">
-					Proposal {index + 1}: {proposal.title}
-				</h3>
+				<div class="mb-5 flex items-center justify-between">
+					<h3 class="text-lg font-bold">
+						Proposal {index + 1}: {proposal.title}
+					</h3>
+					<Button
+						variant="outline"
+						onclick={() => {
+							selectedProposal = proposal;
+							openDialog = true;
+						}}>View Proposal</Button
+					>
+				</div>
 				{#each toolConfig.questions as question (question.id)}
 					<div class="flex flex-col gap-4">
 						<div>
@@ -117,3 +132,27 @@
 		{/each}
 	</div>
 </ContentCard>
+
+<Dialog.Root bind:open={openDialog}>
+	<Dialog.Content
+		class="flex h-auto max-h-[80vh] min-h-[30vh] w-full max-w-6xl flex-col gap-8 sm:w-full sm:max-w-6xl"
+	>
+		<Dialog.Header>
+			<span class="bg-primary text-primary-foreground w-fit rounded-full px-2 py-0.5 text-xs"
+				>Proposal</span
+			>
+			<Dialog.Title class="text-lg">{selectedProposal?.title}</Dialog.Title>
+		</Dialog.Header>
+		<ContentCard class="overflow-y-auto">
+			{#each selectedProposal?.sections as section (section.id)}
+				<ContentRenderer content={section.body} />
+			{/each}
+		</ContentCard>
+		<Dialog.Close
+			class={cn(buttonVariants({ variant: 'default', size: 'default' }), 'mt-auto self-end')}
+			onclick={() => {
+				selectedProposal = null;
+			}}>Close</Dialog.Close
+		>
+	</Dialog.Content>
+</Dialog.Root>
