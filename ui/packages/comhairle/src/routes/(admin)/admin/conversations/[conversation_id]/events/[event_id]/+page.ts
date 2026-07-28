@@ -13,13 +13,12 @@ export const load: PageLoad = async ({ params, parent }) => {
 			queries: { withTranslations: true }
 		});
 
-		const facilitators = await api.ListEventAttendances({
+		// All registered attendees (any role), so the facilitators tab can list
+		// everyone and let an admin promote/demote them per person. Large limit to
+		// pull the whole roster in one page.
+		const attendees = await api.ListEventAttendances({
 			params: { conversation_id, event_id },
-			queries: { role: 'facilitator' }
-		});
-		const moderators = await api.ListEventAttendances({
-			params: { conversation_id, event_id },
-			queries: { role: 'moderator' }
+			queries: { limit: 1000 }
 		});
 
 		const invites = await api.ListInvitesForEvent({
@@ -33,8 +32,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 		return {
 			event,
 			conversation,
-			facilitators: facilitators.records,
-			moderators: moderators.records,
+			attendees: attendees.records,
 			invites,
 			recordings
 		};

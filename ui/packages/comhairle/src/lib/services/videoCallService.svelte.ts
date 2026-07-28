@@ -25,6 +25,10 @@ export interface VideoCallState {
 	video_call_id: string;
 	status: VideoCallStatus;
 	participants: Record<string, VideoCallParticipant>;
+	/** User IDs that have actually joined the Jitsi video (not just the lobby). */
+	in_video_participants: string[];
+	/** Jitsi display name each user chose, keyed by user id. */
+	jitsi_display_names: Record<string, string>;
 	breakout_rooms: BreakoutRoomAssignments[];
 	breakout_room_assistance_requests: Record<string, BreakoutRoomAssistanceRequest>;
 	jitsi_call_id: string;
@@ -67,6 +71,16 @@ export class VideoCallService {
 	get participants(): VideoCallParticipant[] {
 		if (!this._currentCallState) return [];
 		return Object.values(this._currentCallState.participants);
+	}
+
+	/** User IDs that have actually joined the Jitsi video (excludes lobby-only users). */
+	get inVideoParticipantIds(): Set<string> {
+		return new Set(this._currentCallState?.in_video_participants ?? []);
+	}
+
+	/** The Jitsi display name a user chose, or null if none reported. */
+	jitsiDisplayNameFor(userId: string): string | null {
+		return this._currentCallState?.jitsi_display_names?.[userId] ?? null;
 	}
 
 	get breakoutRooms(): BreakoutRoomAssignments[] {
@@ -139,6 +153,22 @@ export class VideoCallService {
 		});
 		this._currentCallState = null;
 		this._agenda = null;
+	}
+
+	/** Report that this client has actually joined the Jitsi video (rename-proof presence),
+	 *  along with the Jitsi display name it chose. Re-send on rename to update the name. */
+	reportVideoJoined(eventId: string, displayName?: string) {
+		ws.sendCustom('video_call:video_joined', {
+			event_id: eventId,
+			display_name: displayName ?? null
+		});
+	}
+
+	/** Report that this client has left the Jitsi video. */
+	reportVideoLeft(eventId: string) {
+		ws.sendCustom('video_call:video_left', {
+			event_id: eventId
+		});
 	}
 
 	/** Moderator/facilitator only */
@@ -233,7 +263,8 @@ export class VideoCallService {
 		const room = this._currentCallState.breakout_rooms[roomIndex];
 		return room.participants
 			.map((userId) => this._currentCallState!.participants[userId])
-			.filter(Boolean);
+			.filter(Boolean)
+			.map((p) => ({ ...p, username: this.jitsiDisplayNameFor(p.user_id) ?? p.username }));
 	}
 
 	isAuthorized(userId: string): boolean {

@@ -32,7 +32,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
-	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
+	import FacilitatorRoleList from './FacilitatorRoleList.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
 	import AgendaEditor from './AgendaEditor.svelte';
@@ -45,6 +45,7 @@
 	import { inviteUrl } from '$lib/utils/invites.js';
 	import EventLocationForm from './EventLocationForm.svelte';
 	import EventRecordings from './EventRecordings.svelte';
+	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
 
 	let url = $derived(page.url);
@@ -54,8 +55,7 @@
 
 	const event = $derived(data.event);
 	const conversation = $derived(data.conversation);
-	const facilitators = $derived(data.facilitators);
-	const moderators = $derived(data.moderators);
+	const attendees = $derived(data.attendees);
 	const recordings = $derived(data.recordings);
 
 	let emailInvites = $derived(
@@ -65,6 +65,21 @@
 				'email' in invite.inviteType &&
 				invite.inviteType.email
 		)
+	);
+
+	/** Invited-by-email people who haven't registered yet — shown non-selectable
+	 *  in the facilitators tab (a role can't attach without a registration). */
+	let pendingInvites = $derived(
+		emailInvites
+			.filter((invite) => invite.status === 'pending' || invite.status === 'open')
+			.map((invite) => ({
+				id: invite.id,
+				email:
+					typeof invite.inviteType !== 'string' && 'email' in invite.inviteType
+						? invite.inviteType.email
+						: '',
+				status: invite.status
+			}))
 	);
 	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
@@ -281,21 +296,22 @@
 		}
 	}
 
-	async function handleAddFacilitator(value: string) {
+	async function handleSetAttendeeRole(attendanceId: string, role: string) {
 		try {
-			await apiClient.CreateFacilitatorEventAttendance(
-				{ email: value },
+			await apiClient.UpdateEventAttendance(
+				{ role },
 				{
 					params: {
 						conversation_id: conversation.id,
-						event_id: event.id
+						event_id: event.id,
+						attendance_id: attendanceId
 					}
 				}
 			);
 
 			notifications.send({
 				priority: 'INFO',
-				message: 'Facilitator added'
+				message: 'Role updated'
 			});
 
 			await invalidateAll();
@@ -303,33 +319,7 @@
 			console.error(e);
 			notifications.send({
 				priority: 'ERROR',
-				message:
-					e.status === 404 ? 'Unable to find user' : 'Failed to add facilitator to event'
-			});
-		}
-	}
-
-	async function handleDeleteFacilitator(id: string) {
-		try {
-			await apiClient.DeleteEventAttendance(undefined, {
-				params: {
-					conversation_id: conversation.id,
-					event_id: event.id,
-					attendance_id: id
-				}
-			});
-
-			notifications.send({
-				priority: 'INFO',
-				message: 'Facilitator removed'
-			});
-
-			await invalidateAll();
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				priority: 'ERROR',
-				message: 'Failed to remove facilitator from event'
+				message: 'Failed to update role'
 			});
 		}
 	}
@@ -631,15 +621,7 @@
 	>
 		<div class="contents">
 			<Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Facilitators</Label>
-			<BadgeInput
-				onAddBadge={handleAddFacilitator}
-				onDeleteBadge={handleDeleteFacilitator}
-				badges={[...facilitators, ...moderators].map((f) => ({
-					id: f.id,
-					value: f.email
-				}))}
-				placeholder="Enter an email address"
-			/>
+			<FacilitatorRoleList {attendees} {pendingInvites} onSetRole={handleSetAttendeeRole} />
 		</div>
 	</div>
 {:else if activeTab === 'location'}
@@ -662,6 +644,8 @@
 		/>
 		<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 	</div>
+{:else if activeTab === 'breakout'}
+	<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} />
 {:else if activeTab === 'recordings'}
 	<EventRecordings conversation_id={conversation.id} event_id={event.id} {recordings} />
 {/if}

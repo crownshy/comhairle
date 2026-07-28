@@ -700,6 +700,23 @@ export const CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
 export type CreateResponse = z.infer<typeof CreateResponse>;
+export const RankedProposal = z
+  .object({
+    alignmentRating: z.number(),
+    id: z.string().uuid(),
+    responses: z.array(ProposalResponseDto),
+    sections: z.array(LocalizedProposalSectionDto),
+    title: z.string(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type RankedProposal = z.infer<typeof RankedProposal>;
+export const PrioritizationInsightsResponse = z
+  .object({ rankedProposals: z.array(RankedProposal) })
+  .passthrough();
+export type PrioritizationInsightsResponse = z.infer<
+  typeof PrioritizationInsightsResponse
+>;
 export const ConversationRequest2 = z
   .object({
     history: z.string(),
@@ -1144,6 +1161,7 @@ export const ToolConfig = z.union([
     .passthrough(),
   z
     .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(Question),
       randomize_order: z.boolean(),
       section_questions: z.array(Question).optional().default([]),
@@ -1351,6 +1369,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
       section_questions: z.array(SetupQuestion).optional().default([]),
@@ -1822,6 +1841,20 @@ export const EventDto = z
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
+export const BreakoutSeat = z
+  .object({
+    invite_id: z.union([z.string(), z.null()]),
+    is_moderator: z.boolean().default(false),
+    user_id: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type BreakoutSeat = z.infer<typeof BreakoutSeat>;
+export const BreakoutPlanRoom = z
+  .object({ seats: z.array(BreakoutSeat).default([]) })
+  .partial()
+  .passthrough();
+export type BreakoutPlanRoom = z.infer<typeof BreakoutPlanRoom>;
 export const Translation6 = z
   .object({
     textContent: TextContentDto,
@@ -1836,6 +1869,7 @@ export type EventTranslations = z.infer<typeof EventTranslations>;
 export const EventWithTranslations = z
   .object({
     agenda: z.array(EventAgendaItem),
+    breakoutPlan: z.array(BreakoutPlanRoom),
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -1879,6 +1913,28 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const BreakoutSeatDto = z
+  .object({
+    inviteId: z.union([z.string(), z.null()]).optional(),
+    isModerator: z.boolean(),
+    label: z.string(),
+    pending: z.boolean(),
+    userId: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type BreakoutSeatDto = z.infer<typeof BreakoutSeatDto>;
+export const BreakoutRoomDto = z
+  .object({ seats: z.array(BreakoutSeatDto) })
+  .passthrough();
+export type BreakoutRoomDto = z.infer<typeof BreakoutRoomDto>;
+export const BreakoutPlanDto = z
+  .object({ rooms: z.array(BreakoutRoomDto) })
+  .passthrough();
+export type BreakoutPlanDto = z.infer<typeof BreakoutPlanDto>;
+export const SaveBreakoutPlanRequest = z
+  .object({ rooms: z.array(BreakoutPlanRoom) })
+  .passthrough();
+export type SaveBreakoutPlanRequest = z.infer<typeof SaveBreakoutPlanRequest>;
 export const EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -2434,6 +2490,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
+  RankedProposal,
+  PrioritizationInsightsResponse,
   ConversationRequest2,
   AnswerStatus,
   status,
@@ -2548,12 +2606,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_LocalizedEventDto,
   CreateEvent,
   EventDto,
+  BreakoutSeat,
+  BreakoutPlanRoom,
   Translation6,
   EventTranslations,
   EventWithTranslations,
   EventResponse,
   PartialEvent,
   JwtResponse,
+  BreakoutSeatDto,
+  BreakoutRoomDto,
+  BreakoutPlanDto,
+  SaveBreakoutPlanRequest,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -3353,6 +3417,35 @@ curl -X POST \
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
     response: JwtResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/breakout",
+    alias: "GetEventBreakoutPlan",
+    requestFormat: "json",
+    response: BreakoutPlanDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/events/:event_id/breakout",
+    alias: "SaveEventBreakoutPlan",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `Body for saving an edited plan.`,
+        type: "Body",
+        schema: SaveBreakoutPlanRequest,
+      },
+    ],
+    response: BreakoutPlanDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/breakout/seed",
+    alias: "SeedEventBreakoutPlan",
+    requestFormat: "json",
+    response: BreakoutPlanDto,
   },
   {
     method: "get",
@@ -4874,6 +4967,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.array(ThemeStatistic),
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/insights",
+    alias: "GetPrioritizationInsights",
+    description: `Insights reporting data for prioritization tool step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationInsightsResponse,
   },
   {
     method: "get",

@@ -259,6 +259,35 @@ pub async fn list(
     Ok(events)
 }
 
+/// Every attendee of an event (with email), unpaginated. Used to seed the
+/// pre-assigned breakout plan.
+#[instrument(err(Debug))]
+pub async fn list_all_for_event(
+    db: &PgPool,
+    event_id: &Uuid,
+) -> Result<Vec<EventAttendanceEtx>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (EventAttendanceIden::Table, col)))
+        .column((UserIden::Table, UserIden::Email))
+        .from(EventAttendanceIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            UserIden::Table,
+            Expr::col((UserIden::Table, UserIden::Id))
+                .equals((EventAttendanceIden::Table, EventAttendanceIden::UserId)),
+        )
+        .and_where(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::EventId)).eq(*event_id),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let attendances = sqlx::query_as_with::<_, EventAttendanceEtx, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    Ok(attendances)
+}
+
 #[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, ComhairleError> {
     let (sql, values) = Query::select()

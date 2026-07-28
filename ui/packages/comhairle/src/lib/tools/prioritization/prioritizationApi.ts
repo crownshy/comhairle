@@ -103,7 +103,8 @@ export function resolveToolConfig(workflowStep: WorkflowStepInput, isLive: boole
 	return {
 		questions: (raw.questions ?? []).map(normaliseQuestion),
 		sectionQuestions: (withSections.section_questions ?? []).map(normaliseQuestion),
-		randomizeOrder: Boolean(raw.randomize_order)
+		randomizeOrder: Boolean(raw.randomize_order),
+		alignmentQuestionId: raw.alignment_question_id
 	};
 }
 
@@ -220,7 +221,8 @@ export async function updateToolConfig(opts: {
 		isLive: opts.isLive,
 		questions: opts.toolConfig.questions.map(denormaliseQuestion),
 		sectionQuestions: opts.toolConfig.sectionQuestions.map(denormaliseQuestion),
-		randomizeOrder: opts.toolConfig.randomizeOrder
+		randomizeOrder: opts.toolConfig.randomizeOrder,
+		alignmentQuestionId: opts.toolConfig.alignmentQuestionId
 	});
 }
 
@@ -232,12 +234,14 @@ async function putToolConfig(opts: {
 	questions: ApiQuestion[];
 	sectionQuestions: ApiQuestion[];
 	randomizeOrder: boolean;
+	alignmentQuestionId?: string;
 }): Promise<void> {
 	const payload = {
 		type: 'prioritization' as const,
 		questions: opts.questions,
 		section_questions: opts.sectionQuestions,
-		randomize_order: opts.randomizeOrder
+		randomize_order: opts.randomizeOrder,
+		...(opts.alignmentQuestionId && { alignment_question_id: opts.alignmentQuestionId })
 	};
 	const body: PartialWorkflowStep = opts.isLive
 		? { tool_config: payload }
