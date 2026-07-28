@@ -24,10 +24,11 @@
 	const noGroups: PolisReportData['groups'] = [];
 </script>
 
-<!-- Default: both opinion groups. The name + summary are placeholders (no group
-     names in the payload yet); the size line, membership share, and representative
-     statements are real. The nav chips focus a single group; the per-card "See all"
-     expander is local view state, so both work live here. -->
+<!-- Default: both opinion groups. The AI name + summary are hidden here (the live
+     report has no source for them yet -- see OpinionGroupCard for the generated
+     version); the size line, membership share, and representative statements are real.
+     The nav chips focus a single group; the per-card "See all" expander is local view
+     state, so both work live here. -->
 <Story name="Default" args={{ comments: report.comments, groups: report.groups }} />
 
 <!-- One group only: the chip row has a single chip and one card renders. -->
