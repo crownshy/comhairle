@@ -3,11 +3,11 @@
 	import BarChart from './BarChart.svelte';
 	import { scaleBand } from 'd3-scale';
 	import { cubicInOut } from 'svelte/easing';
-	import type { ChartContextValue } from 'layerchart';
+	import type { ChartState } from 'layerchart';
 
 	let { x, y, props: BarProps, ...props }: ComponentProps<typeof BarChart> = $props();
 
-	let context = $state<ChartContextValue>();
+	let context = $state<ChartState>();
 </script>
 
 <BarChart
@@ -28,8 +28,7 @@
 		},
 		yAxis: {
 			tickLabelProps: {
-				dx: -15,
-				width: 150
+				dx: -15
 			}
 		}
 	}}
@@ -37,8 +36,9 @@
 	y={x ?? 'label'}
 	x={y ?? 'value'}
 	labels
-	yScale={scaleBand().paddingOuter(0.4).paddingInner(0.7)}
+	yScale={scaleBand().paddingOuter(0.4).paddingInner(0.4)}
 	grid={false}
 	axis="y"
+	height={200}
 	padding={{ left: 170 }}
 />

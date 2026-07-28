@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BarChart, type ChartContextValue } from 'layerchart';
+	import { BarChart, type ChartState } from 'layerchart';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import { cubicInOut } from 'svelte/easing';
 	import type { ComponentProps } from 'svelte';
@@ -10,7 +10,7 @@
 
 	let { data, x, y, props: BarProps, ...props }: Props = $props();
 
-	let context = $state<ChartContextValue>();
+	let context = $state<ChartState>();
 
 	const chartConfig = {
 		desktop: { label: 'Desktop', color: 'var(--chart-1)' },
@@ -41,7 +41,6 @@
 			highlight: { area: { fill: 'none' } },
 			...BarProps
 		}}
-		height={300}
 		{...props}
 	>
 		{#snippet tooltip()}

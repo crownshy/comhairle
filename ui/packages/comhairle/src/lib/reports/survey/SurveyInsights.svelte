@@ -13,7 +13,6 @@
 	<div class="py-10">
 		<h2>{section.title}</h2>
 		{#if section.chart.type === 'Barplot'}
-			<p>Label!</p>
 			<VBarChart data={section.chart.data} />
 		{/if}
 		{#if section.chart.type === 'Doughnut'}
