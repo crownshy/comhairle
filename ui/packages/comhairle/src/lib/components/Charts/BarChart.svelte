@@ -4,11 +4,7 @@
 	import { cubicInOut } from 'svelte/easing';
 	import type { ComponentProps } from 'svelte';
 
-	interface Props extends ComponentProps<typeof BarChart> {
-		variant?: 'label' | 'value';
-	}
-
-	let { data, x, y, props: BarProps, ...props }: Props = $props();
+	let { data, x, y, props: BarProps, ...props }: ComponentProps<typeof BarChart> = $props();
 
 	let context = $state<ChartState>();
 
