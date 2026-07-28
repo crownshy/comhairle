@@ -41,12 +41,11 @@
 			highlight: { area: { fill: 'none' } },
 			...BarProps
 		}}
+		height={300}
 		{...props}
 	>
 		{#snippet tooltip()}
-			{#if props.tooltip !== false}
-				<Chart.Tooltip />
-			{/if}
+			<Chart.Tooltip />
 		{/snippet}
 	</BarChart>
 </Chart.Container>

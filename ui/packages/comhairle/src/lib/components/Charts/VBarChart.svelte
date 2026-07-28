@@ -25,13 +25,20 @@
 				x: { type: 'tween', duration: 500, easing: cubicInOut },
 				width: { type: 'tween', duration: 500, easing: cubicInOut }
 			}
+		},
+		yAxis: {
+			tickLabelProps: {
+				dx: -15,
+				width: 150
+			}
 		}
 	}}
 	orientation="horizontal"
 	y={x ?? 'label'}
 	x={y ?? 'value'}
 	labels
-	yScale={scaleBand().paddingOuter(0.5).paddingInner(0.5)}
+	yScale={scaleBand().paddingOuter(0.4).paddingInner(0.7)}
 	grid={false}
 	axis="y"
+	padding={{ left: 170 }}
 />
