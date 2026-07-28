@@ -1,6 +1,7 @@
 <script lang="ts">
-	import PolisInsights from '$lib/tools/polis/PolisInsights.svelte';
+	import PolisInsights from '$lib/reports/polis/PolisInsights.svelte';
 	import ThinkingSpaceInsights from '$lib/reports/thinking-space/ThinkingSpaceInsights.svelte';
+	import PrioritizationInsights from '$lib/reports/prioritization/PrioritizationInsights.svelte';
 
 	let { data } = $props();
 
@@ -19,4 +20,9 @@
 		reportData={data.polis.reportData ?? null}
 		statementAux={data.polis.statementAux ?? []}
 	/>
+{/if}
+
+<!-- Polis -->
+{#if data.prioritization && step}
+	<PrioritizationInsights {step} {...data.prioritization} />
 {/if}

@@ -9,11 +9,26 @@
 	import ComhairleFAQs from './ComhairleFAQs.svelte';
 	import ChatBot from './Chatbot/ChatBot.svelte';
 
-	let { conversation, user }: { conversation: LocalizedConversationDto; user: UserDto } =
-		$props();
+	let {
+		conversation,
+		user,
+		hasKnowledgeBaseDocs = false
+	}: {
+		conversation: LocalizedConversationDto;
+		user: UserDto;
+		hasKnowledgeBaseDocs?: boolean;
+	} = $props();
+
+	// The Learning Assistant only answers from parsed knowledge base documents, so it is hidden
+	// entirely when the knowledge base is empty (see workflow +layout.ts for the single source).
+	let learningAssistantAvailable = $derived(
+		!!conversation?.chatBotId && !!conversation.enableQaChatBot && hasKnowledgeBaseDocs
+	);
 
 	let activeTab = $state(
-		conversation?.chatBotId && conversation.enableQaChatBot ? 'learningAssistant' : 'faqs'
+		conversation?.chatBotId && conversation.enableQaChatBot && hasKnowledgeBaseDocs
+			? 'learningAssistant'
+			: 'faqs'
 	);
 
 	let tabs = [
@@ -43,7 +58,7 @@
 		>
 		<Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col">
 			<div class="bg-sidebar mb-4 flex shrink-0 flex-row gap-0.5 rounded-xl p-1">
-				{#if conversation?.chatBotId && conversation.enableQaChatBot}
+				{#if learningAssistantAvailable}
 					<Tabs.Trigger
 						value="learningAssistant"
 						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
@@ -71,7 +86,7 @@
 						{/if}
 					</Tabs.Content>
 				{/each}
-				{#if conversation?.chatBotId && conversation.enableQaChatBot}
+				{#if learningAssistantAvailable}
 					<Tabs.Content value="learningAssistant" class="flex min-h-0 flex-1 flex-col">
 						<div class="flex min-h-0 flex-1 flex-col">
 							<ChatBot

@@ -17,7 +17,7 @@ use crate::{
     ComhairleState,
     error::ComhairleError,
     models::{
-        conversation, event,
+        breakout_plan, conversation, event,
         event_attendance::{
             self, CreateEventAttendance, EventAttendanceEtx, EventAttendanceFilterOptions,
             EventAttendanceOrderOptions, UpdateEventAttendance,
@@ -103,6 +103,23 @@ pub async fn create(
     };
 
     let event_attendance = event_attendance::create(&state.db, &create_event_attendance).await?;
+
+    // Slot the new attendee into the pre-assigned breakout plan if one exists.
+    // Best-effort: a failure here must not block registration.
+    let is_moderator =
+        event_attendance.role == "moderator" || event_attendance.role == "facilitator";
+    if let Err(error) = breakout_plan::ensure_user_slotted(
+        &state.db,
+        &event_id,
+        &user.id,
+        is_moderator,
+        None,
+        user.email.as_deref(),
+    )
+    .await
+    {
+        tracing::warn!("Failed to slot user into breakout plan: {error}");
+    }
 
     if let Some(ref email) = user.email
         && &event_attendance.role == "participant"

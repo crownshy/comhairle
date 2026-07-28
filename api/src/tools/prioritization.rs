@@ -21,19 +21,20 @@ use crate::{
         proposal::{self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations},
         proposal_response::{
             self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
-            ProposalResponseOrderOptions, QuestionResponses,
+            ProposalResponseOrderOptions, QuestionResponses, ResponseValue,
         },
         proposal_section::{
             self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
         },
         translations::TextContentId,
+        workflow_step,
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser, is_user_admin},
         translations::LocaleExtractor,
     },
     schema_helpers::{example_localized_text, example_uuid},
-    tools::{ToolConfigSanitize, ToolImpl},
+    tools::{ToolConfig, ToolConfigSanitize, ToolImpl},
 };
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
@@ -45,6 +46,7 @@ pub struct PrioritizationToolConfig {
     #[serde(default)]
     pub section_questions: Vec<Question>,
     pub randomize_order: bool,
+    pub alignment_question_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
@@ -95,6 +97,7 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
             questions: self.questions.clone(),
             section_questions: self.section_questions.clone(),
             randomize_order: self.randomize_order,
+            alignment_question_id: self.alignment_question_id,
         }
     }
 }
@@ -121,6 +124,7 @@ pub struct PrioritizationToolSetup {
     #[serde(default)]
     pub section_questions: Vec<SetupQuestion>,
     pub randomize_order: bool,
+    pub alignment_question_id: Option<Uuid>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
@@ -244,6 +248,17 @@ Create a response for prioritization tool proposal
                         .response::<200, Json<Vec<ProposalResponseDto>>>()
                 }),
             )
+            .api_route(
+                "/prioritization/insights",
+                get_with(get_prioritization_insights, |op| {
+                    op.id("GetPrioritizationInsights")
+                        .tag("Tools")
+                        .security_requirement("JWT")
+                        .summary("Get prioritization insights")
+                        .description("Insights reporting data for prioritization tool step")
+                        .response::<200, Json<PrioritizationInsightsResponse>>()
+                }),
+            )
             .with_state(state.clone())
     }
 }
@@ -251,13 +266,21 @@ Create a response for prioritization tool proposal
 fn prioritization_setup(
     setup_config: &PrioritizationToolSetup,
 ) -> Result<PrioritizationToolConfig, ComhairleError> {
+    let questions: Vec<Question> = setup_config
+        .questions
+        .clone()
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    let alignment_question_id = if questions.is_empty() {
+        None
+    } else {
+        Some(questions[0].id)
+    };
+
     Ok(PrioritizationToolConfig {
-        questions: setup_config
-            .questions
-            .clone()
-            .into_iter()
-            .map(Into::into)
-            .collect(),
+        questions,
         section_questions: setup_config
             .section_questions
             .clone()
@@ -265,6 +288,7 @@ fn prioritization_setup(
             .map(Into::into)
             .collect(),
         randomize_order: setup_config.randomize_order,
+        alignment_question_id,
     })
 }
 
@@ -592,6 +616,103 @@ async fn list_proposal_responses(
     .collect();
 
     Ok((StatusCode::OK, Json(responses)))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct GetInsightsQuery {
+    workflow_step_id: Uuid,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+struct RankedProposal {
+    alignment_rating: f64,
+    #[serde(flatten)]
+    proposal: LocalizedProposalDto,
+    responses: Vec<ProposalResponseDto>,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+struct PrioritizationInsightsResponse {
+    ranked_proposals: Vec<RankedProposal>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_prioritization_insights(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Query(GetInsightsQuery { workflow_step_id }): Query<GetInsightsQuery>,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<PrioritizationInsightsResponse>), ComhairleError> {
+    let workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+    let tool_config = match workflow_step.tool_config {
+        Some(ToolConfig::Prioritization(config)) => config,
+        None => return Err(ComhairleError::ConversationNotLive),
+        _ => {
+            return Err(ComhairleError::WorkflowStepHasWrongType(
+                "Prioritization type required".to_string(),
+            ));
+        }
+    };
+
+    let alignment_question_id = if let Some(q_id) = tool_config.alignment_question_id {
+        q_id
+    } else {
+        return Err(ComhairleError::Unprocessable(
+            "Cannot generate insights. Missing alignment question".to_string(),
+        ));
+    };
+
+    let proposals = proposal::list_localized(&state.db, &workflow_step_id, &locale).await?;
+    // let mut proposal_dtos = Vec::with_capacity(proposals.len());
+    let mut ranked_proposals = Vec::with_capacity(proposals.len());
+
+    for proposal in proposals {
+        let sections = proposal_section::list_localized(&state.db, &proposal.id, &locale).await?;
+        let proposal_responses = proposal_response::list(
+            &state.db,
+            &proposal.id,
+            ProposalResponseFilterOptions,
+            ProposalResponseOrderOptions,
+        )
+        .await?;
+
+        let proposal_dto = LocalizedProposalDto::from_parts(proposal, sections);
+
+        let mut alignment_score: f64 = 0.0;
+        for response in &proposal_responses {
+            let Some(alignment_question_response) = response.response.0.iter().find_map(|r| {
+                // Discard responses that don't match alignment question
+                if r.question_id != alignment_question_id {
+                    return None;
+                }
+
+                // Discard text values
+                match r.value {
+                    ResponseValue::Number(v) => Some(v),
+                    ResponseValue::Text(_) => None,
+                }
+            }) else {
+                continue;
+            };
+
+            alignment_score += alignment_question_response
+        }
+
+        ranked_proposals.push(RankedProposal {
+            alignment_rating: alignment_score,
+            proposal: proposal_dto,
+            responses: proposal_responses.into_iter().map(Into::into).collect(),
+        })
+    }
+
+    ranked_proposals.sort_by(|a, b| b.alignment_rating.total_cmp(&a.alignment_rating));
+
+    Ok((
+        StatusCode::OK,
+        Json(PrioritizationInsightsResponse { ranked_proposals }),
+    ))
 }
 
 #[cfg(test)]

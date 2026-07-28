@@ -133,6 +133,15 @@ pub trait WebSocketMessageHandler: Send + Sync {
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
     ) -> Result<(), crate::websockets::error::WebsocketError>;
+
+    /// Local user IDs this handler considers members of `room_id`, used for
+    /// cluster-wide fan-out via [`WebSocketService::broadcast_to_room`].
+    ///
+    /// "Local" means only users whose connection this instance is aware of; each
+    /// instance answers for its own members. Default: the handler manages no rooms.
+    fn local_room_members(&self, _room_id: &Uuid) -> Vec<Uuid> {
+        Vec::new()
+    }
 }
 
 static NEXT_CONNECTION_ID: AtomicUsize = AtomicUsize::new(1);
@@ -227,6 +236,15 @@ pub enum WebsocketPubSubMessage {
         connection_ids: Vec<usize>,
         message: serde_json::Value,
     },
+    /// Deliver `message` to the members of `room_id`, as reported by the handler
+    /// registered for `domain`. Each instance resolves its OWN local members, so
+    /// participants spread across instances all receive the message.
+    SendToRoom {
+        sender_id: Uuid,
+        domain: String,
+        room_id: String,
+        message: serde_json::Value,
+    },
 }
 
 impl WebsocketPubSubMessage {
@@ -235,6 +253,7 @@ impl WebsocketPubSubMessage {
             WebsocketPubSubMessage::Broadcast { message, .. } => message.clone(),
             WebsocketPubSubMessage::SendToUser { message, .. } => message.clone(),
             WebsocketPubSubMessage::SendToConnections { message, .. } => message.clone(),
+            WebsocketPubSubMessage::SendToRoom { message, .. } => message.clone(),
         };
         serde_json::from_value(message)
             .map_err(|e| ComhairleError::DeserializationError(e.to_string()))
@@ -264,6 +283,18 @@ pub trait WebSocketService: Send + Sync {
     async fn send_to_connections(
         &self,
         connection_ids: &[ConnectionId],
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError>;
+
+    /// Send `message` to every member of `room_id` across ALL instances.
+    ///
+    /// Membership is resolved per-instance by the handler registered for `domain`
+    /// (via [`WebSocketMessageHandler::local_room_members`]), so participants
+    /// connected to different instances all receive the message.
+    async fn broadcast_to_room(
+        &self,
+        domain: &str,
+        room_id: &Uuid,
         message: &WebSocketMessage,
     ) -> Result<usize, ComhairleError>;
 
@@ -299,6 +330,9 @@ impl MockWebSocketService {
         websockets
             .expect_send_to_connections()
             .returning(|_, _| Box::pin(async move { Ok(0) }));
+        websockets
+            .expect_broadcast_to_room()
+            .returning(|_, _, _| Box::pin(async move { Ok(0) }));
         websockets.expect_get_connection_count().returning(|| 0);
         websockets
             .expect_get_user_connection_count()
@@ -432,6 +466,22 @@ impl ComhairleWebSocketService {
                                 .await;
                         }
                     }
+                    WebsocketPubSubMessage::SendToRoom {
+                        domain,
+                        room_id,
+                        message,
+                        ..
+                    } => {
+                        // Deliberately NO echo-skip: the publishing instance did not deliver
+                        // locally (see `broadcast_to_room`), so it must also forward here.
+                        if let Ok(ws_message) = serde_json::from_value(message) {
+                            if let Ok(room_uuid) = Uuid::parse_str(&room_id) {
+                                let _ = self_clone
+                                    .send_to_room_members_local(&domain, &room_uuid, &ws_message)
+                                    .await;
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -530,6 +580,27 @@ impl ComhairleWebSocketService {
 
         for failed_id in failed_connections {
             self.remove_connection(&failed_id);
+        }
+
+        Ok(sent_count)
+    }
+
+    /// Deliver `message` to this instance's locally-connected members of `room_id`,
+    /// as reported by the handler for `domain`. Does not touch Redis.
+    async fn send_to_room_members_local(
+        &self,
+        domain: &str,
+        room_id: &Uuid,
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError> {
+        let members = match self.handlers.get(domain) {
+            Some(handler) => handler.local_room_members(room_id),
+            None => return Ok(0),
+        };
+
+        let mut sent_count = 0;
+        for user_id in members {
+            sent_count += self.send_to_user_local(&user_id, message).await?;
         }
 
         Ok(sent_count)
@@ -670,6 +741,38 @@ impl WebSocketService for ComhairleWebSocketService {
         }
 
         Ok(sent_count)
+    }
+
+    async fn broadcast_to_room(
+        &self,
+        domain: &str,
+        room_id: &Uuid,
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError> {
+        // With Redis, publish once and let EVERY instance — including this one, via its
+        // own subscription — forward to the members it holds. That keeps a single code
+        // path and avoids local/remote duplication.
+        //
+        // Without Redis (single instance / dev) there is no subscriber loop, so publishing
+        // would reach nobody; deliver locally as a fallback instead.
+        match &self.redis_service {
+            Some(redis_service) => {
+                let pubsub_message = WebsocketPubSubMessage::SendToRoom {
+                    sender_id: redis_service.instance_id,
+                    domain: domain.to_string(),
+                    room_id: room_id.to_string(),
+                    message: serde_json::to_value(message)
+                        .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+                };
+
+                self.publish_to_redis(&pubsub_message).await?;
+                Ok(0)
+            }
+            None => {
+                self.send_to_room_members_local(domain, room_id, message)
+                    .await
+            }
+        }
     }
 
     fn get_connection_count(&self) -> usize {
@@ -1078,5 +1181,157 @@ mod tests {
         // Verify the message was received by both services
         assert_eq!(service_1.get_connection_count(), 1);
         assert_eq!(service_2.get_connection_count(), 1);
+    }
+
+    /// Returns a usable Redis URL (plus the temp-server guard, if one was spawned),
+    /// or None if Redis is unavailable and the test should skip.
+    fn redis_url_or_skip() -> Option<(Option<RedisServer>, String)> {
+        let can_connect = redis::Client::open("redis://localhost:6379/")
+            .map(|c| c.get_connection().is_ok())
+            .unwrap_or(false);
+        if can_connect {
+            return Some((None, "redis://localhost:6379/".to_string()));
+        }
+
+        let server =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(RedisServer::new)).ok()?;
+        let redis_url = format!("redis://{}/", server.connection_info().addr());
+        for _ in 0..5 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            if let Ok(client) = redis::Client::open(redis_url.as_str()) {
+                if client.get_connection().is_ok() {
+                    return Some((Some(server), redis_url));
+                }
+            }
+        }
+        None
+    }
+
+    fn test_user(id: Uuid) -> crate::models::users::User {
+        crate::models::users::User {
+            id,
+            email: Some("test@example.com".to_string()),
+            username: Some("test_user".to_string()),
+            password: None,
+            avatar_url: None,
+            email_verified: true,
+            auth_type: crate::models::users::UserAuthType::EmailPassword,
+            organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
+        }
+    }
+
+    /// Registers `user_id` as a participant of `event_id`'s call in the handler's local map.
+    fn insert_call_participant(
+        handler: &crate::websockets::handlers::video_call::VideoCallMessageHandler,
+        event_id: Uuid,
+        user_id: Uuid,
+    ) {
+        use crate::websockets::handlers::video_call::{VideoCallParticipant, VideoCallState};
+        let mut calls = handler.video_calls.write().unwrap();
+        let mut state = VideoCallState::new(event_id);
+        state.participants.insert(
+            user_id,
+            VideoCallParticipant {
+                user_id,
+                username: Some("test_user".to_string()),
+                role: "participant".to_string(),
+            },
+        );
+        calls.insert(event_id, state);
+    }
+
+    async fn assert_received_agenda_update(
+        receiver: &mut mpsc::UnboundedReceiver<Message>,
+        who: &str,
+    ) {
+        let msg = tokio::time::timeout(std::time::Duration::from_millis(1000), receiver.recv())
+            .await
+            .unwrap_or_else(|_| panic!("{who} timed out waiting for a message"))
+            .unwrap_or_else(|| panic!("{who} channel closed"));
+        let text = msg.to_text().expect("text frame");
+        let ws_msg: WebSocketMessage = serde_json::from_str(text).expect("parse ws message");
+        match ws_msg {
+            WebSocketMessage::Custom { event, .. } => {
+                assert_eq!(
+                    event, "video_call:agenda_updated",
+                    "{who} received wrong event"
+                );
+            }
+            other => panic!("{who} expected Custom message, got {other:?}"),
+        }
+    }
+
+    /// A participant connected to a DIFFERENT instance than the one that publishes an
+    /// agenda update must still receive it, via Redis fan-out through `broadcast_to_room`.
+    #[tokio::test]
+    async fn test_broadcast_to_room_fans_out_across_instances() {
+        use crate::websockets::handlers::video_call::VideoCallMessageHandler;
+
+        let Some((_redis_server, redis_url)) = redis_url_or_skip() else {
+            eprintln!("Redis unavailable - skipping test");
+            return;
+        };
+
+        let websocket_config = Some(WebsocketConfig {
+            redis_pubsub_url: redis_url.clone(),
+        });
+
+        let service_1 = ComhairleWebSocketService::new(websocket_config.as_ref())
+            .await
+            .expect("Failed to create service 1");
+        let service_2 = ComhairleWebSocketService::new(websocket_config.as_ref())
+            .await
+            .expect("Failed to create service 2");
+
+        let _subscriber_1 = service_1
+            .start_pubsub_subscriber()
+            .await
+            .expect("Failed to start subscriber 1");
+        let _subscriber_2 = service_2
+            .start_pubsub_subscriber()
+            .await
+            .expect("Failed to start subscriber 2");
+
+        let event_id = Uuid::new_v4();
+        let user_a = Uuid::new_v4(); // connected to service_1 (the publisher)
+        let user_b = Uuid::new_v4(); // connected to service_2 (a different instance)
+
+        // Each instance's handler knows only the participant connected to it.
+        let handler_1 = Arc::new(VideoCallMessageHandler::new());
+        insert_call_participant(&handler_1, event_id, user_a);
+        service_1.register_handler(handler_1);
+
+        let handler_2 = Arc::new(VideoCallMessageHandler::new());
+        insert_call_participant(&handler_2, event_id, user_b);
+        service_2.register_handler(handler_2);
+
+        let addr = "127.0.0.1:9999".parse().unwrap();
+        let (conn_a, mut recv_a) = WebSocketConnection::new(test_user(user_a), addr);
+        let (conn_b, mut recv_b) = WebSocketConnection::new(test_user(user_b), addr);
+        service_1.add_connection(conn_a);
+        service_2.add_connection(conn_b);
+
+        // Let both subscriptions settle.
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        let message = WebSocketMessage::Custom {
+            event: "video_call:agenda_updated".to_string(),
+            data: serde_json::json!([{ "Basic": { "title": "Updated agenda item" } }]),
+        };
+
+        // Publish from service_1 ONLY.
+        service_1
+            .broadcast_to_room("video_call", &event_id, &message)
+            .await
+            .expect("broadcast_to_room failed");
+
+        // The publisher's own participant receives it (no local pre-delivery — it comes
+        // back through service_1's own subscription)...
+        assert_received_agenda_update(&mut recv_a, "user_a (publishing instance)").await;
+        // ...and so does the participant on the OTHER instance. This is the fan-out.
+        assert_received_agenda_update(&mut recv_b, "user_b (remote instance)").await;
     }
 }

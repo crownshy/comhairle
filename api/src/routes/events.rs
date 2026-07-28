@@ -31,6 +31,7 @@ use crate::{
     },
 };
 
+pub mod breakout;
 pub mod dto;
 
 #[instrument(err(Debug), skip(state))]
@@ -121,7 +122,18 @@ async fn update(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(event): Json<PartialEvent>,
 ) -> Result<(StatusCode, Json<EventDto>), ComhairleError> {
-    let event = event::update(&state.db, &event_id, &event).await?.into();
+    let agenda_updated = event.agenda.is_some();
+    let event: EventDto = event::update(&state.db, &event_id, &event).await?.into();
+
+    // If the agenda changed, push it to anyone currently on the call for this event.
+    if agenda_updated {
+        if let Ok(agenda) = serde_json::to_value(&event.agenda) {
+            let _ = state
+                .video_call_handler
+                .broadcast_agenda_update(&event_id, agenda, &state)
+                .await;
+        }
+    }
 
     Ok((StatusCode::OK, Json(event)))
 }
@@ -260,7 +272,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<EventDto>>()
 
         }))
-        .api_route("/{event_id}/auth", 
+        .api_route("/{event_id}/auth",
             get_with(get_jwt, |op| {
                 op.id("GetEventJWT")
                     .tag("Events")
@@ -269,6 +281,30 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<JwtResponse>>()
 
+        }))
+        .api_route("/{event_id}/breakout",
+            get_with(breakout::get_plan, |op| {
+                op.id("GetEventBreakoutPlan")
+                    .tag("Events")
+                    .summary("Get the pre-assigned breakout plan for an event")
+                    .security_requirement("JWT")
+                    .response::<200, Json<breakout::BreakoutPlanDto>>()
+        }))
+        .api_route("/{event_id}/breakout",
+            put_with(breakout::save_plan, |op| {
+                op.id("SaveEventBreakoutPlan")
+                    .tag("Events")
+                    .summary("Save an edited pre-assigned breakout plan")
+                    .security_requirement("JWT")
+                    .response::<200, Json<breakout::BreakoutPlanDto>>()
+        }))
+        .api_route("/{event_id}/breakout/seed",
+            post_with(breakout::seed_plan, |op| {
+                op.id("SeedEventBreakoutPlan")
+                    .tag("Events")
+                    .summary("Randomly seed the breakout plan from attendees and invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<breakout::BreakoutPlanDto>>()
         }))
         .with_state(state)
 }

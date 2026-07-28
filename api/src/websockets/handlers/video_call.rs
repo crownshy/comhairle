@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, RwLock},
 };
 
@@ -59,6 +59,13 @@ pub struct VideoCallState {
     pub status: VideoCallStatus,
     /// Map of participant user IDs to their participant data
     pub participants: HashMap<Uuid, VideoCallParticipant>,
+    /// User IDs that have actually joined the Jitsi video (as opposed to just opening
+    /// the live page / sitting in the lobby). Reported by each client on join/leave, so
+    /// it does not depend on the user-editable Jitsi display name.
+    pub in_video_participants: HashSet<Uuid>,
+    /// The Jitsi display name each user chose, keyed by user id. Reported by the client
+    /// on join and whenever it changes, so the UI can show call names instead of usernames.
+    pub jitsi_display_names: HashMap<Uuid, String>,
     /// List of breakout room assignments
     pub breakout_rooms: Vec<BreakoutRoomAssignments>,
     /// Active requests for assistance from breakout rooms
@@ -133,6 +140,8 @@ impl VideoCallState {
         Self {
             status: VideoCallStatus::Waiting,
             participants: HashMap::new(),
+            in_video_participants: HashSet::new(),
+            jitsi_display_names: HashMap::new(),
             video_call_id,
             breakout_room_assistance_requests: HashMap::new(),
             current_agenda_step: 0,
@@ -165,6 +174,15 @@ struct UserJoinData {
 #[derive(Serialize, Deserialize)]
 struct UserLeaveData {
     pub event_id: Uuid,
+}
+
+/// Data structure for a client reporting that it joined (or renamed itself in) the video.
+#[derive(Serialize, Deserialize)]
+struct VideoJoinedData {
+    pub event_id: Uuid,
+    /// The Jitsi display name the user chose, if any.
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 /// Data structure for setting the current agenda item.
@@ -434,6 +452,27 @@ impl VideoCallMessageHandler {
         let user_id = connection.user.id;
         let username = connection.user.username.clone();
 
+        // Load any pre-assigned breakout plan before locking, so a fresh call
+        // is seeded with the rooms configured ahead of time. Async work cannot
+        // happen inside the lock, so fetch it up front.
+        let seeded_rooms = crate::models::breakout_plan::get(&state.db, &join_data.event_id)
+            .await
+            .map(|plan| {
+                plan.0
+                    .into_iter()
+                    .map(|room| BreakoutRoomAssignments {
+                        // Only known users can occupy a live room; reserved
+                        // invite placeholders are dropped until they join.
+                        participants: room
+                            .seats
+                            .into_iter()
+                            .filter_map(|seat| seat.user_id)
+                            .collect(),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
         // Initialize video call state if it doesn't exist
         {
             let mut video_calls = self
@@ -441,9 +480,17 @@ impl VideoCallMessageHandler {
                 .write()
                 .map_err(|_| VideoCallWSError::FailedToGetLockOnRoom)?;
 
-            video_calls
+            let is_new = !video_calls.contains_key(&join_data.event_id);
+            let call = video_calls
                 .entry(join_data.event_id)
                 .or_insert_with(|| VideoCallState::new(join_data.event_id));
+
+            // Seed the breakout rooms from the pre-assigned plan on first join.
+            // Pre-assigned users already occupy their room, so the auto-assign
+            // step below only affects walk-ins who were not planned for.
+            if is_new {
+                call.breakout_rooms = seeded_rooms;
+            }
         }
 
         // Add the participant to the video call and auto-assign to breakout room if needed
@@ -536,9 +583,62 @@ impl VideoCallMessageHandler {
         // Remove the participant from the video call
         self.with_video_call_state_mut(&leave_data.event_id, |call| {
             call.participants.remove(&user_id);
+            call.in_video_participants.remove(&user_id);
+            call.jitsi_display_names.remove(&user_id);
         })?;
 
         self.broadcast_state(&leave_data.event_id, state).await?;
+
+        Ok(())
+    }
+
+    /// Marks a user as having actually joined the Jitsi video for this event and records
+    /// the Jitsi display name they chose, then broadcasts the updated state. Called when a
+    /// client's `videoConferenceJoined` fires (and again on rename) — a reliable,
+    /// rename-proof signal of real call presence keyed by the authenticated user id.
+    pub async fn handle_video_joined(
+        &self,
+        event_id: &Uuid,
+        data: &serde_json::Value,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let joined_data: VideoJoinedData = serde_json::from_value(data.clone())?;
+        let user_id = connection.user.id;
+
+        self.with_video_call_state_mut(event_id, |call| {
+            call.in_video_participants.insert(user_id);
+            match joined_data.display_name {
+                Some(name) if !name.trim().is_empty() => {
+                    call.jitsi_display_names.insert(user_id, name);
+                }
+                _ => {
+                    call.jitsi_display_names.remove(&user_id);
+                }
+            }
+        })?;
+
+        self.broadcast_state(event_id, state).await?;
+
+        Ok(())
+    }
+
+    /// Marks a user as no longer in the Jitsi video (left the call but may still have
+    /// the live page open), then broadcasts the updated state.
+    pub async fn handle_video_left(
+        &self,
+        event_id: &Uuid,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let user_id = connection.user.id;
+
+        self.with_video_call_state_mut(event_id, |call| {
+            call.in_video_participants.remove(&user_id);
+            call.jitsi_display_names.remove(&user_id);
+        })?;
+
+        self.broadcast_state(event_id, state).await?;
 
         Ok(())
     }
@@ -1034,12 +1134,49 @@ impl VideoCallMessageHandler {
 
         Ok(())
     }
+
+    /// Pushes an updated agenda to every participant currently on the call for `event_id`,
+    /// across all API instances in the cluster.
+    ///
+    /// `agenda` must already be serialized in the same shape the frontend receives from
+    /// the events API (i.e. the `EventDto.agenda` value). No-op if nobody is on the call,
+    /// so callers can fire this unconditionally.
+    pub async fn broadcast_agenda_update(
+        &self,
+        event_id: &Uuid,
+        agenda: serde_json::Value,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let message = WebSocketMessage::Custom {
+            event: "video_call:agenda_updated".into(),
+            data: agenda,
+        };
+
+        // Fan out across the cluster: each instance resolves its own local participants
+        // for this event (see `local_room_members`), so users on any instance receive it.
+        let _ = state
+            .websockets
+            .broadcast_to_room(self.domain(), event_id, &message)
+            .await;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl WebSocketMessageHandler for VideoCallMessageHandler {
     fn domain(&self) -> &str {
         "video_call"
+    }
+
+    /// Participants of the call for `room_id` (the event id) known to THIS instance.
+    fn local_room_members(&self, room_id: &Uuid) -> Vec<Uuid> {
+        self.with_video_call_state(room_id, |call| {
+            call.participants.keys().copied().collect::<Vec<Uuid>>()
+        })
+        .ok()
+        .flatten()
+        .unwrap_or_default()
     }
 
     async fn handle_message(
@@ -1065,6 +1202,13 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                     "video_call:user_left" => {
                         self.handle_user_leave(&event_id, data, connection, state)
                             .await?
+                    }
+                    "video_call:video_joined" => {
+                        self.handle_video_joined(&event_id, data, connection, state)
+                            .await?
+                    }
+                    "video_call:video_left" => {
+                        self.handle_video_left(&event_id, connection, state).await?
                     }
                     "video_call:change_state" => {
                         self.change_call_status(&event_id, data, connection, state)

@@ -199,6 +199,9 @@ pub enum ComhairleError {
     #[error("Workflow Step has wrong type expected {0}")]
     WorkflowStepHasWrongType(String),
 
+    #[error("Conversation not live")]
+    ConversationNotLive,
+
     #[error("Requires Auth User")]
     RequiresAuthUser,
 
@@ -298,6 +301,9 @@ pub enum ComhairleError {
     #[error("Conflict: {0}")]
     Conflict(String),
 
+    #[error("Unprocessable: {0}")]
+    Unprocessable(String),
+
     #[error("Tool config error: {0}")]
     ToolConfigError(String),
 
@@ -379,9 +385,11 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::RequiresAuthUser
             | ComhairleError::InviteDoesNotMatchUser
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
-            ComhairleError::NoValidUpdates | ComhairleError::EventHasPast => {
-                StatusCode::UNPROCESSABLE_ENTITY
-            }
+            ComhairleError::NoValidUpdates
+            | ComhairleError::EventHasPast
+            | ComhairleError::ConversationNotLive
+            | ComhairleError::Unprocessable(_)
+            | ComhairleError::WorkflowStepHasWrongType(_) => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
             | ComhairleError::CannotRevokeLastAdmin

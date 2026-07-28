@@ -30,11 +30,39 @@
 		setTimeout(() => (ready = true), RENDERER_BOOT_GRACE_MS);
 	}
 
-	function onFrameMessage(e: any) {
-		if (e.data.eventName === 'HIDE_EMBED_MODAL') {
-			setTimeout(() => {
-				onDone();
-			}, 2000);
+	/**
+	 * Auto-height. The form is a cross-origin iframe, so we can't measure it from here (the browser
+	 * blocks reaching into its document). Instead our HeyForm fork measures its own active question
+	 * and posts the height out; we listen and size the iframe to it. That gives long / grouped
+	 * questions exactly the room they need (no footer overlapping the answers) without leaving a big
+	 * empty card on short ones.
+	 *
+	 * Contract with the fork (see its `sendMessageToParent`):
+	 *   { source: 'HEYFORM', eventName: 'FORM_RESIZE', height: <content height in px> }
+	 *
+	 * `measuredHeight` stays null until that message arrives, so the iframe falls back to the bounded
+	 * viewport height in the markup. That keeps this correct against a fork that hasn't shipped the
+	 * emit yet: it just behaves like the fixed-height version until the messages start coming.
+	 */
+	const MIN_FRAME_PX = 440;
+	const MAX_FRAME_PX = 2000;
+
+	let measuredHeight = $state<number | null>(null);
+
+	function onFrameMessage(e: MessageEvent) {
+		const data = e.data;
+		// HeyForm tags every message it posts; ignore anything else on the page (HMR, analytics, ...).
+		if (!data || data.source !== 'HEYFORM') return;
+
+		switch (data.eventName) {
+			case 'HIDE_EMBED_MODAL':
+				setTimeout(() => onDone(), 2000);
+				break;
+			case 'FORM_RESIZE':
+				if (typeof data.height === 'number' && Number.isFinite(data.height)) {
+					measuredHeight = Math.min(Math.max(data.height, MIN_FRAME_PX), MAX_FRAME_PX);
+				}
+				break;
 		}
 	}
 
@@ -66,9 +94,14 @@
 <!-- The form renderer is a white, self-themed UI inside a cross-origin iframe: we can't restyle its
 	internals or match comhairle's light/dark per viewer. So we frame it as a centered white card
 	(bg-white is deliberate, matching the form's own paper) rather than a full-bleed slab, so it
-	reads as an intentional embedded form on any background, dark mode included. Bounding the height
-	keeps a short form from showing a large empty area; longer forms scroll inside the card. The
-	max-width and height are tunable. -->
+	reads as an intentional embedded form on any background, dark mode included. The max-width is
+	tunable.
+
+	Height: once the fork reports its content height (measuredHeight, see the FORM_RESIZE handler) we
+	size the iframe to exactly that. Until then we fall back to a compact fixed height that matches the
+	skeleton, so the pre-emit flash and the loaded form line up. NOTE: this assumes the fork emits
+	FORM_RESIZE; a heyform build without that would render every form at this short fixed height, so
+	the emit must be deployed alongside this. The height transition smooths the per-question resize. -->
 <!-- A single-cell grid rather than absolute positioning: both children claim the same cell, so the
 	skeleton inherits the iframe's exact box without restating its height clamp. -->
 <div class="grid w-full grid-cols-1 grid-rows-1">
@@ -83,7 +116,10 @@
 			title="survey"
 			onload={handleLoad}
 			allow="microphone; camera"
-			class="h-[60dvh] max-h-[700px] min-h-[440px] w-full border-none transition-opacity duration-300 {ready
+			style={measuredHeight ? `height:${measuredHeight}px` : undefined}
+			class="{measuredHeight
+				? ''
+				: 'min-h-110'} w-full border-none transition-[height,opacity] duration-300 {ready
 				? 'opacity-100'
 				: 'opacity-0'}"
 		></iframe>

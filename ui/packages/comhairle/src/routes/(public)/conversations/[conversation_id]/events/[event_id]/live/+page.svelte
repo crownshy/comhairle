@@ -58,9 +58,20 @@
 		})
 	);
 
-	/** Participants actually in Jitsi call (excludes current user + lobby-only users) */
+	/** Participants actually in the Jitsi video (excludes current user + lobby-only users).
+	 *  Membership comes from the backend in-video set (reported by each client on join),
+	 *  so it is unaffected by users renaming themselves in the Jitsi interface. */
 	let inCallParticipants = $derived(
-		allParticipants.filter((p) => jitsiParticipantMap.has(p.user_id))
+		allParticipants
+			.filter(
+				(p) =>
+					p.user_id !== user?.id && videoCallService.inVideoParticipantIds.has(p.user_id)
+			)
+			// Show the Jitsi name the user chose in the call, falling back to their username.
+			.map((p) => ({
+				...p,
+				username: videoCallService.jitsiDisplayNameFor(p.user_id) ?? p.username
+			}))
 	);
 	let currentStep = $derived(videoCallService.currentAgendaStep);
 	let breakoutSession = $derived(videoCallService.breakoutSession);
@@ -80,9 +91,8 @@
 	let activePanel = $state<PanelTab>('agenda');
 	let jitsiModeratorStatus = $state<boolean>(false);
 	let currentJitsiRoomName = $state<string>('');
-
-	// Map Jitsi participant IDs to backend user IDs
-	let jitsiParticipantMap = $state<Map<string, string>>(new Map());
+	/** This client's own Jitsi participant id, used to detect our own rename events. */
+	let localParticipantId = $state<string | null>(null);
 
 	/** Mock breakout rooms for dev testing */
 	let mockBreakoutRooms = $state<BreakoutRoomDisplay[]>([]);
@@ -152,7 +162,8 @@
 		});
 	}
 
-	let agendaItems = $derived(mapApiAgenda(event?.agenda ?? []));
+	// Prefer the agenda pushed over WS (live edits) over the SSR-loaded one, which can go stale.
+	let agendaItems = $derived(mapApiAgenda(videoCallService.agenda ?? event?.agenda ?? []));
 
 	let meetingPhase = $derived.by(() => {
 		let phase: 'loading' | 'ended' | 'incall' | 'lobby';
@@ -787,6 +798,10 @@
 	function handleVideoConferenceJoined(data: any) {
 		console.log('[BREAKOUT] Entered Jitsi room:', data.roomName);
 		currentJitsiRoomName = data.roomName;
+		localParticipantId = data.id ?? null;
+		// Tell the backend we're really in the video (rename-proof call presence) and
+		// report the Jitsi name we chose so the UI can show it instead of the username.
+		videoCallService.reportVideoJoined(eventId, data.displayName ?? data.displayname);
 		// Moderator is now in Jitsi — safe to let participants in
 		if (isModerator && callStatus === 'Waiting') {
 			videoCallService.changeCallState(eventId, 'InProgress');
@@ -795,37 +810,14 @@
 
 	function handleVideoConferenceLeft(data: any) {
 		console.log('[BREAKOUT] Left Jitsi room:', data.roomName);
+		videoCallService.reportVideoLeft(eventId);
 	}
 
-	function handleParticipantJoined(participant: any) {
-		console.log('[BREAKOUT] Participant joined:', participant);
-
-		// Try to match Jitsi participant to backend user by display name
-		const matchingUser = allParticipants.find((p) => p.username === participant.displayName);
-
-		if (matchingUser) {
-			console.log(
-				'[BREAKOUT] Mapped Jitsi participant',
-				participant.id,
-				'→ user',
-				matchingUser.user_id
-			);
-			jitsiParticipantMap.set(matchingUser.user_id, participant.id);
-		} else {
-			console.warn('[BREAKOUT] Could not match participant:', participant.displayName);
-		}
-	}
-
-	function handleParticipantLeft(participant: any) {
-		console.log('[BREAKOUT] Participant left:', participant);
-
-		// Remove from map
-		const entry = Array.from(jitsiParticipantMap.entries()).find(
-			([_, jitsiId]) => jitsiId === participant.id
-		);
-		if (entry) {
-			jitsiParticipantMap.delete(entry[0]);
-			console.log('[BREAKOUT] Removed participant from map:', entry[0]);
+	function handleDisplayNameChange(data: any) {
+		// Only re-report when OUR own display name changed.
+		if (data?.id && data.id === localParticipantId) {
+			console.log('[BREAKOUT] Local display name changed:', data.displayname);
+			videoCallService.reportVideoJoined(eventId, data.displayname ?? data.displayName);
 		}
 	}
 </script>
@@ -950,18 +942,15 @@
 						onModeratorStatusChanged={handleModeratorStatusChanged}
 						onVideoConferenceJoined={handleVideoConferenceJoined}
 						onVideoConferenceLeft={handleVideoConferenceLeft}
-						onParticipantJoined={handleParticipantJoined}
-						onParticipantLeft={handleParticipantLeft}
+						onDisplayNameChange={handleDisplayNameChange}
 						startWithAudioMuted={true}
 						configOverwrite={{
 							toolbarButtons: [
 								'microphone',
 								'camera',
 								'desktop',
-								'participants-pane',
 								'chat',
 								'raisehand',
-								'breakoutrooms',
 								'tileview',
 								'hangup',
 								'fullscreen'
