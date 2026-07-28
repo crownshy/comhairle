@@ -9,11 +9,13 @@
 	to the full report comment (from `comments`) to render the vote bars; any that
 	don't resolve are skipped.
 
-	The name + summary are NOT in the report payload today (Polis carries neither) —
-	they arrive as a placeholder from the caller and render behind an "AI Generated"
-	badge until a real source populates them.
+	The name + summary are NOT in the report payload today (Polis carries neither).
+	They come in via the optional `aiSummary` prop and render behind an "AI Generated"
+	badge. The live report leaves it undefined for now (so the whole block is hidden);
+	Storybook passes it to demo the eventual AI-generated version. Once we have a source
+	(likely an on-demand "generate group summaries" agent), the caller fills this in.
 
-	Dumb: takes the group, the placeholder name/summary, and the full comment list.
+	Dumb: takes the group, an optional AI name/summary, and the full comment list.
 	Collapse is local view state.
 -->
 <script lang="ts">
@@ -29,11 +31,14 @@
 		comments: ReportComment[];
 		/** All opinion groups, so each statement block draws OVERALL + one bar per group. */
 		groups: ReportGroup[];
-		/** Placeholder AI name + summary until the backend provides them. */
-		placeholder: { name: string; summary: string };
+		/**
+		 * AI-generated name + summary for this group. Omitted in the live report today
+		 * (the block is hidden); Storybook passes it to demo the generated version.
+		 */
+		aiSummary?: { name: string; summary: string };
 	};
 
-	let { group, comments, groups, placeholder }: Props = $props();
+	let { group, comments, groups, aiSummary }: Props = $props();
 
 	const totalParticipants = $derived(groups.reduce((sum, g) => sum + g.total_members, 0));
 
@@ -75,24 +80,26 @@
 		</span>
 	</div>
 
-	<!-- Name + AI summary -->
-	<div class="flex flex-col gap-4">
-		<div class="flex flex-wrap items-center gap-2">
-			<h3 class="text-foreground text-2xl font-semibold">{placeholder.name}</h3>
-			<span
-				class="bg-accent border-border text-primary flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
-			>
-				<Sparkles class="size-4" />
-				AI Generated
-			</span>
-		</div>
-		<div class="bg-accent border-border rounded-[10px] border p-4">
-			<div class="flex items-start gap-2.5">
-				<Sparkles class="text-primary mt-0.5 size-4 shrink-0" />
-				<p class="text-primary text-base leading-7">{placeholder.summary}</p>
+	<!-- Name + AI summary (hidden until an AI source populates it) -->
+	{#if aiSummary}
+		<div class="flex flex-col gap-4">
+			<div class="flex flex-wrap items-center gap-2">
+				<h3 class="text-foreground text-2xl font-semibold">{aiSummary.name}</h3>
+				<span
+					class="bg-accent border-border text-primary flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
+				>
+					<Sparkles class="size-4" />
+					AI Generated
+				</span>
+			</div>
+			<div class="bg-accent border-border rounded-[10px] border p-4">
+				<div class="flex items-start gap-2.5">
+					<Sparkles class="text-primary mt-0.5 size-4 shrink-0" />
+					<p class="text-primary text-base leading-7">{aiSummary.summary}</p>
+				</div>
 			</div>
 		</div>
-	</div>
+	{/if}
 
 	<!-- Key statements -->
 	<p class="text-muted-foreground text-sm">KEY STATEMENTS</p>

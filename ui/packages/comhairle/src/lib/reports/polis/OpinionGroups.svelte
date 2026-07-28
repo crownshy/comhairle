@@ -7,10 +7,11 @@
 	clicking it again clears the filter and shows every group. All groups are shown
 	by default.
 
-	The AI name + summary aren't in the report payload yet, so this component holds a
-	PLACEHOLDER set (`GROUP_PLACEHOLDERS`, cycled by group index) and hands each card
-	its slot. Swap this for the real per-group summaries once the backend provides
-	them.
+	The AI group name + summary aren't in the report payload yet, so the live report
+	renders each card without them (the OpinionGroupCard hides that block when it has
+	no `aiSummary`). When we have a source for it (likely an on-demand agent that reads
+	each group's statements), hand each card its `aiSummary`. Storybook still demos the
+	generated version at the OpinionGroupCard level.
 
 	Dumb: takes the comments + groups. Chip selection is local view state.
 -->
@@ -25,36 +26,6 @@
 	};
 
 	let { comments, groups }: Props = $props();
-
-	// PLACEHOLDER copy — the report payload carries no group names or summaries yet.
-	// Cycled by group index; replace with real AI-generated summaries when available.
-	const GROUP_PLACEHOLDERS: { name: string; summary: string }[] = [
-		{
-			name: 'Progressive Digital Advocates',
-			summary:
-				'This group strongly believes in the constructive role technology plays in ' +
-				"young people's development. They champion digital literacy education, view online " +
-				'communities as meaningful social spaces, and tend to support platform-driven ' +
-				'innovations that empower rather than restrict youth. Members are generally ' +
-				'optimistic about the long-term benefits of social media when guided by thoughtful ' +
-				'design and parental engagement, rather than blunt regulatory controls.'
-		},
-		{
-			name: 'Cautious Traditionalists',
-			summary:
-				'Members of this group express significant concern about the unregulated exposure ' +
-				'of young people to social media platforms. They consistently favour in-person ' +
-				'interaction over digital engagement and support robust regulatory frameworks, ' +
-				'including strict age verification and outright bans for younger children. While not ' +
-				'uniformly anti-technology, this group believes current platform designs prioritise ' +
-				'engagement over wellbeing.'
-		}
-	];
-
-	function placeholderFor(index: number): { name: string; summary: string } {
-		if (GROUP_PLACEHOLDERS.length === 0) return { name: '', summary: '' };
-		return GROUP_PLACEHOLDERS[index % GROUP_PLACEHOLDERS.length];
-	}
 
 	// null = show every group; a group_id = focus that one.
 	let selectedGroupId = $state<number | null>(null);
@@ -93,6 +64,6 @@
 	</div>
 
 	{#each shownGroups as g (g.group_id)}
-		<OpinionGroupCard group={g} {comments} {groups} placeholder={placeholderFor(g.group_id)} />
+		<OpinionGroupCard group={g} {comments} {groups} />
 	{/each}
 </section>
