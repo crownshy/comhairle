@@ -13,7 +13,7 @@
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
 	import OpinionGroups from './OpinionGroups.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Download } from '@lucide/svelte';
+	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
 
 	let {
 		reportData,
@@ -171,8 +171,16 @@
 </script>
 
 {#if !report || !stats}
-	<div class="text-muted-foreground p-8 text-base">
-		No report data yet — participants need to vote first.
+	<div
+		class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
+	>
+		<ChartNoAxesColumn class="text-muted-foreground/60 size-8" />
+		<div class="flex flex-col gap-1">
+			<p class="text-foreground text-base font-medium">No insights yet</p>
+			<p class="text-base">
+				Insights appear once participants start voting on statements in this step.
+			</p>
+		</div>
 	</div>
 {:else}
 	<div class="flex flex-col gap-10 pb-8">
