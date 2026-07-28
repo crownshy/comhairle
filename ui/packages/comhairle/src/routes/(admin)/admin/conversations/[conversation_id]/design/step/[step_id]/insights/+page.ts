@@ -3,6 +3,7 @@ import type { PageLoad } from './$types';
 import { thinkingSpaceInsightsLoader } from '$lib/reports/thinking-space/insights-loader';
 import { polisInsightsLoader } from '$lib/reports/polis/insights-loader';
 import { prioritizationInsightsLoader } from '$lib/reports/prioritization/insights-loader';
+import { surveyInsightsLoader } from '$lib/reports/survey/insights-loader';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { HttpStatus } from '$lib/utils/constants';
 
@@ -22,8 +23,9 @@ export const load: PageLoad = async (event) => {
 				return await prioritizationInsightsLoader(step_id);
 			case 'thinkingspace':
 				return await thinkingSpaceInsightsLoader(step_id);
-			case 'learn':
 			case 'heyform':
+				return await surveyInsightsLoader(step_id);
+			case 'learn':
 			case 'stories':
 			case 'elicitationbot':
 				throw Error('Not yet implemented');
