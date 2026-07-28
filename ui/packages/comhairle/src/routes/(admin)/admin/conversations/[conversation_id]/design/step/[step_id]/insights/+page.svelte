@@ -18,6 +18,7 @@
 	<PolisInsights
 		workflowStepId={step.id}
 		reportData={data.polis.reportData ?? null}
+		reportError={data.polis.reportError ?? null}
 		statementAux={data.polis.statementAux ?? []}
 	/>
 {/if}

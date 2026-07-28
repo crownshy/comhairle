@@ -13,14 +13,17 @@
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
 	import OpinionGroups from './OpinionGroups.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
+	import { Download, ChartNoAxesColumn, TriangleAlert } from '@lucide/svelte';
 
 	let {
 		reportData,
+		reportError = null,
 		statementAux
 	}: {
 		workflowStepId: string;
 		reportData: PolisReportData | null;
+		/** Set when the report failed to load for a real reason (not just "no votes yet"). */
+		reportError?: string | null;
 		statementAux: PolisStatementAux[];
 	} = $props();
 
@@ -170,7 +173,20 @@
 	}
 </script>
 
-{#if !report || !stats}
+{#if reportError}
+	<div
+		class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
+	>
+		<TriangleAlert class="text-destructive/70 size-8" />
+		<div class="flex flex-col gap-1">
+			<p class="text-foreground text-base font-medium">Couldn't load insights</p>
+			<p class="text-base">
+				Something went wrong fetching the report. Refresh to try again; if it keeps
+				happening, the poll service may be down.
+			</p>
+		</div>
+	</div>
+{:else if !report || !stats}
 	<div
 		class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 	>
