@@ -9,8 +9,9 @@
 	const report = reportData as PolisReportData;
 	const group = report.groups[0];
 
-	// Placeholder AI copy -- the payload carries no group names or summaries yet.
-	const placeholder = {
+	// Demo AI copy -- the payload carries no group names or summaries yet, so we pass a
+	// stand-in here to show the eventual AI-generated version. The live report omits it.
+	const aiSummary = {
 		name: 'Progressive Digital Advocates',
 		summary:
 			'This group strongly believes in the constructive role technology plays in young ' +
@@ -28,26 +29,25 @@
 			group: { control: false },
 			comments: { control: false },
 			groups: { control: false },
-			placeholder: { control: false }
+			aiSummary: { control: false }
 		}
 	});
 </script>
 
-<!-- Default: size line, placeholder name/summary behind the "AI Generated" badge,
-     then the group's representative statements (starts collapsed to 3, "See all N"
-     expander is local view state). -->
+<!-- Default: size line, AI name/summary behind the "AI Generated" badge, then the
+     group's representative statements (starts collapsed to 3, "See all N" expander is
+     local view state). -->
 <Story
 	name="Default"
-	args={{ group, comments: report.comments, groups: report.groups, placeholder }}
+	args={{ group, comments: report.comments, groups: report.groups, aiSummary }}
 />
+
+<!-- No AI summary: how the live report renders today. The name/summary block is
+     hidden, so the card is just the size line + representative statements. -->
+<Story name="No AI summary" args={{ group, comments: report.comments, groups: report.groups }} />
 
 <!-- No representative comments: the statement list is replaced by the empty message. -->
 <Story
 	name="No statements"
-	args={{
-		group: groupNoStatements,
-		comments: report.comments,
-		groups: report.groups,
-		placeholder
-	}}
+	args={{ group: groupNoStatements, comments: report.comments, groups: report.groups }}
 />
