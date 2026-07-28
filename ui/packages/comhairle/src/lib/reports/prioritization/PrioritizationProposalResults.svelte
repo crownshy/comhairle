@@ -1,13 +1,15 @@
 <script lang="ts">
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { RankedProposal, type Question, type ToolConfig } from '@crownshy/api-client/api';
+	import { RankedProposal } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
 	import { cn } from '$lib/utils';
-	import BarChart from '../BarChart.svelte';
 	import KdePlot from '../KdePlot.svelte';
 	import Button, { buttonVariants } from '$lib/components/ui/button/button.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import { BarChart, type ChartState } from 'layerchart';
+	import { cubicInOut } from 'svelte/easing';
+	import type { ToolConfig, Question, ProposalSection } from '$lib/tools/prioritization';
 
 	type Props = {
 		proposals: RankedProposal[];
@@ -16,10 +18,15 @@
 
 	let { proposals, toolConfig }: Props = $props();
 
-	function extractBarChartData(question: Question, proposal: RankedProposal, section?: unknown) {
-		if (!question.type.likert_scale) return;
+	function extractBarChartData(
+		question: Question,
+		proposal: RankedProposal,
+		section?: ProposalSection
+	) {
+		if (question.type.kind !== 'likert') return;
+		if (!('categories' in question.type)) return;
 
-		const data = question.type.likert_scale.categories.map((category) => ({
+		const data = question.type.categories.map((category) => ({
 			category: category.label,
 			count: extractQuestionResponses(proposal, question.id, section?.id).filter(
 				(response) => response.value === category.value
@@ -28,10 +35,6 @@
 
 		return data;
 	}
-
-	const chartConfig = {
-		categories: { label: 'Categories', color: 'var(--primary)' }
-	} satisfies Chart.ChartConfig;
 
 	function extractQuestionResponses(
 		proposal: RankedProposal,
@@ -55,7 +58,7 @@
 	function countResponses(
 		question: Question,
 		proposal: RankedProposal,
-		section?: unknown // TODO:
+		section?: ProposalSection
 	) {
 		const count = proposal.responses.reduce(
 			(acc, res) =>
@@ -74,7 +77,7 @@
 
 	let selectedProposalOrSection = $state<{
 		proposal: RankedProposal | null;
-		section: any | null;
+		section: ProposalSection | null;
 	}>({ proposal: null, section: null });
 	let openDialog = $state(false);
 
@@ -85,8 +88,13 @@
 	});
 
 	let showProposalSections = $state<{ [proposalId: string]: boolean }>(
-		Object.fromEntries(proposals.map((proposal) => [proposal.id, false])) // TODO: reset to false
+		Object.fromEntries(proposals.map((proposal) => [proposal.id, false]))
 	);
+
+	const chartConfig = {
+		categories: { label: 'Categories', color: 'var(--primary)' }
+	} satisfies Chart.ChartConfig;
+	let context = $state<ChartState>();
 </script>
 
 {#snippet sectionToggleButton(label: string, value: boolean, proposalId: string)}
@@ -100,29 +108,50 @@
 	>
 {/snippet}
 
-{#snippet questionType(question: Question, proposal: RankedProposal, section?: unknown)}
-	{#if question.type.likert_scale}
-		<BarChart
-			data={extractBarChartData(question, proposal, section)}
-			xKey="category"
-			yKey="count"
-			{chartConfig}
-		/>
+{#snippet questionType(question: Question, proposal: RankedProposal, section?: ProposalSection)}
+	{#if question.type.kind === 'likert'}
+		<Chart.Container config={chartConfig} class="aspect-auto h-62 w-full">
+			<BarChart
+				bind:context
+				data={extractBarChartData(question, proposal, section)}
+				x="category"
+				axis="x"
+				y="count"
+				props={{
+					bars: {
+						stroke: 'none',
+						radius: 8,
+						rounded: 'all',
+						motion: {
+							x: { type: 'tween', duration: 500, easing: cubicInOut },
+							width: { type: 'tween', duration: 500, easing: cubicInOut },
+							height: { type: 'tween', duration: 500, easing: cubicInOut },
+							y: { type: 'tween', duration: 500, easing: cubicInOut }
+						}
+					},
+					highlight: { area: { fill: 'none' } }
+				}}
+			>
+				{#snippet tooltip()}
+					<Chart.Tooltip />
+				{/snippet}
+			</BarChart>
+		</Chart.Container>
 	{/if}
-	{#if question.type.continuous}
+	{#if question.type.kind === 'continuous'}
 		<KdePlot
-			minLabel={question.type.continuous.min_label}
-			maxLabel={question.type.continuous.max_label}
+			minLabel={question.type.minLabel}
+			maxLabel={question.type.maxLabel}
 			category={question.text}
 			rawData={{
 				[question.text]: extractQuestionResponses(proposal, question.id, section?.id).map(
 					(entry) => entry.value
 				)
-			}}
-			maxX={question.type.continuous.max_value}
+			} as Record<string, number[]>}
+			maxX={question.type.maxValue}
 		/>
 	{/if}
-	{#if question.type === 'text'}
+	{#if question.type.kind === 'text'}
 		{@const textResponses = extractQuestionResponses(proposal, question.id, section?.id)}
 		<div>
 			{#each textResponses as res, index (index)}
@@ -134,7 +163,7 @@
 	{/if}
 {/snippet}
 
-{#snippet questionHeader(question: Question, proposal: RankedProposal, section?: unknown)}
+{#snippet questionHeader(question: Question, proposal: RankedProposal, section?: ProposalSection)}
 	<div>
 		<h4 class="mb-2 font-bold">{question.text}</h4>
 		<p class="text-muted-foreground text-xs">
@@ -171,7 +200,7 @@
 						}}>View Proposal</Button
 					>
 				</div>
-				{#if proposal.sections.length > 1 && toolConfig.section_questions.length > 0}
+				{#if proposal.sections.length > 1 && toolConfig.sectionQuestions.length > 0}
 					<div class="bg-muted mb-4 flex w-fit flex-row gap-2 rounded-xl px-2 py-1">
 						{@render sectionToggleButton('General', false, proposal.id)}
 						{@render sectionToggleButton('Per-section', true, proposal.id)}
@@ -185,16 +214,25 @@
 								<Button
 									variant="outline"
 									onclick={() => {
-										selectedProposalOrSection.section = section;
+										selectedProposalOrSection.section =
+											section as ProposalSection;
 										openDialog = true;
 									}}>View Section</Button
 								>
 							</div>
 							<ContentRenderer class="font-bold" content={section.body} />
 
-							{#each toolConfig.section_questions as sectionQuestion (sectionQuestion.id)}
-								{@render questionHeader(sectionQuestion, proposal, section)}
-								{@render questionType(sectionQuestion, proposal, section)}
+							{#each toolConfig.sectionQuestions as sectionQuestion (sectionQuestion.id)}
+								{@render questionHeader(
+									sectionQuestion,
+									proposal,
+									section as ProposalSection
+								)}
+								{@render questionType(
+									sectionQuestion,
+									proposal,
+									section as ProposalSection
+								)}
 							{/each}
 						</ContentCard>
 					{/each}

@@ -5,6 +5,7 @@
 	import PrioritizationRankedProposalTable from './PrioritizationRankedProposalTable.svelte';
 	import PrioritizationScatterPlot from './PrioritizationScatterPlot.svelte';
 	import PrioritizationProposalResults from './PrioritizationProposalResults.svelte';
+	import { resolveToolConfig } from '$lib/tools/prioritization/prioritizationApi';
 
 	type Props = {
 		insights: PrioritizationInsightsResponse;
@@ -12,6 +13,7 @@
 	};
 
 	let { insights, step }: Props = $props();
+	let toolConfig = $derived(resolveToolConfig(step, !!step.toolConfig));
 
 	// Use average incase some steps weren't completed and a proposal has less
 	// responses than others
@@ -43,13 +45,7 @@
 		<PrioritizationRankedProposalTable proposals={insights.rankedProposals} />
 	</ContentCard>
 
-	<PrioritizationScatterPlot
-		proposals={insights.rankedProposals}
-		toolConfig={step.toolConfig ?? step.previewToolConfig}
-	/>
+	<PrioritizationScatterPlot proposals={insights.rankedProposals} {toolConfig} />
 
-	<PrioritizationProposalResults
-		proposals={insights.rankedProposals}
-		toolConfig={step.toolConfig ?? step.previewToolConfig}
-	/>
+	<PrioritizationProposalResults proposals={insights.rankedProposals} {toolConfig} />
 </div>

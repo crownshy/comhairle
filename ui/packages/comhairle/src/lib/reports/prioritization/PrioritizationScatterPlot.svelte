@@ -1,9 +1,10 @@
 <script lang="ts">
-	import type { ProposalResponseDto, RankedProposal, ToolConfig } from '@crownshy/api-client/api';
+	import type { ProposalResponseDto, RankedProposal } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
 	import ScatterPlot, { type ScatterPoint } from '../ScatterPlot.svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { extractAxisDomain } from './utils';
+	import type { ToolConfig } from '$lib/tools/prioritization';
 
 	type Props = {
 		proposals: RankedProposal[];
@@ -15,10 +16,10 @@
 	let selectedProposal = $state(proposals[0]);
 
 	const xQuestion = $derived(
-		toolConfig.questions.find((question) => question.id === toolConfig.alignment_question_id)
+		toolConfig.questions.find((question) => question.id === toolConfig.alignmentQuestionId)
 	);
 	const yQuestion = $derived(
-		toolConfig.questions.find((question) => question.id !== toolConfig.alignment_question_id)
+		toolConfig.questions.find((question) => question.id !== toolConfig.alignmentQuestionId)
 	);
 
 	function extractScatterPoints(
