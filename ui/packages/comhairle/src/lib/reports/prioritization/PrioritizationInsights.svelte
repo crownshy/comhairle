@@ -8,16 +8,19 @@
 	import { resolveToolConfig } from '$lib/tools/prioritization/prioritizationApi';
 
 	type Props = {
-		insights: PrioritizationInsightsResponse;
+		insights: PrioritizationInsightsResponse | null;
 		step: WorkflowStepDto;
+		error?: string;
 	};
 
-	let { insights, step }: Props = $props();
+	let { insights, step, error }: Props = $props();
 	let toolConfig = $derived(resolveToolConfig(step, !!step.toolConfig));
 
 	// Use average incase some steps weren't completed and a proposal has less
 	// responses than others
 	const averageNumParticipants = $derived.by(() => {
+		if (!insights) return 0;
+
 		const total = insights.rankedProposals.reduce(
 			(acc, proposal) => proposal.responses.length + acc,
 			0
@@ -27,25 +30,32 @@
 	});
 </script>
 
-<div class="flex w-full flex-col gap-10">
-	<div class="flex gap-4">
-		<MetricOverviewCard
-			superText="Participants"
-			metric={averageNumParticipants}
-			subText="unique voters"
-		/>
+{#if error}
+	<div class="flex w-full flex-col gap-10">
+		<h2>{error}</h2>
 	</div>
-
-	<ContentCard>
-		<div class="mb-10">
-			<h2 class="text-lg font-bold">Proposal Ranking</h2>
-			<p class="text-muted-foreground text-sm">See how all proposals rank.</p>
+{/if}
+{#if insights}
+	<div class="flex w-full flex-col gap-10">
+		<div class="flex gap-4">
+			<MetricOverviewCard
+				superText="Participants"
+				metric={averageNumParticipants}
+				subText="unique voters"
+			/>
 		</div>
 
-		<PrioritizationRankedProposalTable proposals={insights.rankedProposals} />
-	</ContentCard>
+		<ContentCard>
+			<div class="mb-10">
+				<h2 class="text-lg font-bold">Proposal Ranking</h2>
+				<p class="text-muted-foreground text-sm">See how all proposals rank.</p>
+			</div>
 
-	<PrioritizationScatterPlot proposals={insights.rankedProposals} {toolConfig} />
+			<PrioritizationRankedProposalTable proposals={insights.rankedProposals} />
+		</ContentCard>
 
-	<PrioritizationProposalResults proposals={insights.rankedProposals} {toolConfig} />
-</div>
+		<PrioritizationScatterPlot proposals={insights.rankedProposals} {toolConfig} />
+
+		<PrioritizationProposalResults proposals={insights.rankedProposals} {toolConfig} />
+	</div>
+{/if}
