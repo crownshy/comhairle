@@ -5101,6 +5101,29 @@ Create a response for prioritization tool proposal
     response: z.void(),
   },
   {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/form_report",
+    alias: "HeyFormGetFormReport",
+    description: `Fetches HeyForm report data for the HeyForm tool attached to a workflow step`,
+    requestFormat: "json",
+    response: z.unknown(),
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/submissions",
+    alias: "HeyFormGetSubmissions",
+    description: `Fetches paginated HeyForm submissions and returns them as a single list`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "category",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.unknown(),
+  },
+  {
     method: "post",
     path: "/tools/thinking_space",
     alias: "postToolsthinking_space",

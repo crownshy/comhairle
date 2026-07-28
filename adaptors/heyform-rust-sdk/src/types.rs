@@ -182,6 +182,14 @@ pub struct FormDetailInput {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct SubmissionsInput {
+    pub form_id: String,
+    pub category: String,
+    pub page: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateHiddenFieldInput {
     pub form_id: String,
     pub field_id: String,
@@ -203,6 +211,310 @@ pub enum FormKind {
     Poll = 3,
     Quiz = 4,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ChoiceIcon {
+    pub name: String,
+    pub color: String,
+    pub background: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Choice {
+    pub id: String,
+    pub label: String,
+
+    // Picture choice
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<ChoiceIcon>,
+
+    // HeySheet custom columns
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+
+    // Quiz
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub score: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_expected: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ChoiceBadgeEnum {
+    #[default]
+    Letter,
+    Number,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Column {
+    pub id: String,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Property {
+    // Statement
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub show_button: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub button_text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hide_marks: Option<bool>,
+
+    // Choice
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_other: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_multiple: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub choices: Option<Vec<Choice>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub randomize: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub other: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub badge: Option<ChoiceBadgeEnum>, // default is ChoiceBadgeEnum.LETTER
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vertical_alignment: Option<bool>,
+
+    // Only for group
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fields: Option<Vec<FormField>>,
+
+    // Rating
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shape: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<i32>,
+
+    // Opinion Scale
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub left_label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub center_label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub right_label: Option<String>,
+
+    // PhoneNumber
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_country_code: Option<String>,
+
+    // Payment
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub price: Option<serde_json::Value>, // NumberPrice | VariablePrice, so leaving as Value
+
+    // Date
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+    // Allow input time
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_time: Option<bool>,
+    // Time
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_format: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub use_12_hours: Option<bool>,
+
+    // Data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub table_columns: Option<Vec<Column>>,
+
+    // Score
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub score: Option<i32>,
+
+    // HeyForm Form Builder v2.0
+    // Embed & Image
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+
+    // Screen
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_share_icon: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_complete_time: Option<bool>,
+
+    // Thank You
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub button_link_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redirect_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redirect_on_completion: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redirect_delay: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum FieldKind {
+    Group,
+
+    // Statement
+    Welcome,
+    ThankYou,
+    Statement,
+
+    // Input
+    ShortText,
+    LongText,
+    Number,
+
+    // Select
+    YesNo,
+    MultipleChoice,
+    PictureChoice,
+
+    // File
+    FileUpload,
+
+    // Rating
+    OpinionScale,
+    Rating,
+
+    // Picker
+    Date,
+    DateRange,
+    Time,
+
+    // Data
+    InputTable,
+    
+    // Fieldset
+    Payment,
+    FullName,
+    Address,
+    Email,
+    Url,
+    PhoneNumber,
+    Country,
+    Signature,
+    LegalTerms,
+
+    // Hidden fields
+    SubmitDate,
+    HiddenFields,
+    Variable,
+    HiddenCheckbox,
+
+    // HeySheet custom columns
+    CustomText,
+    CustomSingle,
+    CustomMultiple,
+    CustomDate,
+    CustomNumber,
+    CustomCheckbox,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct Choose {
+    pub id: String,
+    pub label: String,
+
+    // Picture choice
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<ChoiceIcon>,
+
+    // HeySheet custom columns
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+
+    // Quiz
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub score: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_expected: Option<bool>,
+
+    pub count: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct FormReportResponse {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub total: i32,
+    pub count: i32,
+    pub average: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chooses: Option<Vec<Choose>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct FormReportAnswer {
+    pub submission_id: String,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<serde_json::Value>,
+    pub end_at: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct FormReportSubmission {
+    pub id: String,
+    pub answers: Vec<FormReportAnswer>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct FormReport {
+    pub responses: Vec<FormReportResponse>,
+    pub submissions: Vec<FormReportSubmission>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct HiddenFieldAnswer {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum SubmissionCategory {
+    #[default]
+    Inbox,
+    Spam,
+    Starred,
+    Archive,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct Submission {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<SubmissionCategory>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub answers: Vec<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hidden_fields: Option<Vec<HiddenFieldAnswer>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<Vec<serde_json::Value>>,
+    pub end_at: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct Submissions {
+    pub total: i32,
+    pub submissions: Vec<Submission>,
+}
+
 
 // Project types
 #[derive(Debug, Serialize, Deserialize, Clone)]

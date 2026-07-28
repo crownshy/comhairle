@@ -199,6 +199,12 @@ pub fn elicitation_bot_tool_config() -> serde_json::Value {
         "topic": "test_topic"
     })
 }
+pub fn heyform_tool_config() -> serde_json::Value {
+    json!({
+        "type": "heyform",
+        "server_url": "forms.comhairle.scot"
+    })
+}
 
 pub fn prioritization_tool_config() -> serde_json::Value {
     json!({

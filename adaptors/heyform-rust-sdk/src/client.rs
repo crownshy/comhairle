@@ -380,4 +380,38 @@ impl HeyFormClient {
             .copied()
             .unwrap_or(false))
     }
+
+    pub async fn get_form_report(&self, form_id: String) -> Result<FormReport> {
+        let variables = serde_json::to_value(FormDetailInput {
+            form_id: form_id,
+        })
+        .map_err(|e| HeyFormError::GraphQL(format!("Failed to serialize variables: {}", e)))?;
+
+        let response: HashMap<String, FormReport> = self
+            .execute_graphql(FORM_REPORT_QUERY, variables, Some("formReport"))
+            .await?;
+
+        response
+            .get("formReport")
+            .cloned()
+            .ok_or_else(|| HeyFormError::NotFound("Form report not found".to_string()))
+    }
+
+    pub async fn get_form_submissions(&self, form_id: String, category: String, page: i32) -> Result<Submissions> {
+        let variables = serde_json::to_value(SubmissionsInput {
+            form_id,
+            page,
+            category,
+        })
+        .map_err(|e| HeyFormError::GraphQL(format!("Failed to serialize variables: {}", e)))?;
+
+        let response: HashMap<String, Submissions> = self
+            .execute_graphql(SUBMISSIONS_QUERY, variables, Some("submissions"))
+            .await?;
+
+        response
+            .get("submissions")
+            .cloned()
+            .ok_or_else(|| HeyFormError::NotFound("Submissions not found".to_string()))
+    }
 }
