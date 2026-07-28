@@ -10,9 +10,20 @@
 		category: string;
 		rawData: Record<string, number[]>;
 		maxX?: number;
+		options?: {
+			densityLine?: boolean;
+			outline?: boolean;
+		};
 	};
 
-	let { minLabel, maxLabel, category, rawData, maxX = 10 }: Props = $props();
+	let {
+		minLabel,
+		maxLabel,
+		category,
+		rawData,
+		maxX = 10,
+		options = { densityLine: true, outline: false }
+	}: Props = $props();
 
 	let overlap = $state(4);
 	let height = $state(200);
@@ -97,6 +108,9 @@
 								curve={curveBasis}
 								fill={gradient}
 								class=""
+								line={options.outline
+									? { class: 'stroke-primary stroke-2' }
+									: undefined}
 							/>
 						{/snippet}
 					</LinearGradient>
@@ -104,15 +118,20 @@
 			{/each}
 		</Layer>
 	</Chart>
-	<div class="bg-muted-foreground/50 relative mb-2 h-1 rounded-full">
-		<div class="bg-primary absolute h-full rounded-full" style="width: {averagePercentage}%">
+	{#if options.densityLine}
+		<div class="bg-muted-foreground/50 relative mb-2 h-1 rounded-full">
 			<div
-				class="bg-primary text-primary-foreground absolute top-1/2 right-0 -translate-y-1/2 rounded-full px-1.5 py-px text-xs"
+				class="bg-primary absolute h-full rounded-full"
+				style="width: {averagePercentage}%"
 			>
-				{average.toFixed(1)}
+				<div
+					class="bg-primary text-primary-foreground absolute top-1/2 right-0 -translate-y-1/2 rounded-full px-1.5 py-px text-xs"
+				>
+					{average.toFixed(1)}
+				</div>
 			</div>
 		</div>
-	</div>
+	{/if}
 	{#if minLabel && maxLabel}
 		<div class="text-muted-foreground relative bottom-0 flex justify-between text-xs">
 			<span>{minLabel}</span>
