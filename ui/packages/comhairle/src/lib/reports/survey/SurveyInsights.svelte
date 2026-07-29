@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BarChart from '$lib/components/Charts/BarChart.svelte';
+	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
 	import VBarChart from '$lib/components/Charts/VBarChart.svelte';
 	import type { Insight } from './insights-loader';
 
@@ -21,7 +22,7 @@
 			{/if}
 		{/if}
 		{#if section.chart.type === 'Doughnut'}
-			<VBarChart data={section.chart.data} />
+			<Doughnut data={section.chart.data} />
 		{/if}
 		{#if section.chart.type === 'Line'}
 			<VBarChart data={section.chart.data} />
