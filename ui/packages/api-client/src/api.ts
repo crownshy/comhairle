@@ -536,6 +536,86 @@ export const ModerateStatementAuxBatchResponse = z
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
 >;
+export const ChoiceIcon = z
+  .object({ background: z.string(), color: z.string(), name: z.string() })
+  .passthrough();
+export type ChoiceIcon = z.infer<typeof ChoiceIcon>;
+export const Choose = z
+  .object({
+    color: z.union([z.string(), z.null()]).optional(),
+    count: z.number().int(),
+    icon: z.union([ChoiceIcon, z.null()]).optional(),
+    id: z.string(),
+    image: z.union([z.string(), z.null()]).optional(),
+    is_expected: z.union([z.boolean(), z.null()]).optional(),
+    label: z.string(),
+    score: z.union([z.number(), z.null()]).optional(),
+  })
+  .passthrough();
+export type Choose = z.infer<typeof Choose>;
+export const FormReportResponse = z
+  .object({
+    average: z.number(),
+    chooses: z.union([z.array(Choose), z.null()]).optional(),
+    count: z.number().int(),
+    id: z.string(),
+    kind: z.union([z.string(), z.null()]).optional(),
+    title: z.union([z.string(), z.null()]).optional(),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type FormReportResponse = z.infer<typeof FormReportResponse>;
+export const FormReportAnswer = z
+  .object({
+    end_at: z.number().int(),
+    kind: z.string(),
+    submission_id: z.string(),
+    value: z.unknown().optional(),
+  })
+  .passthrough();
+export type FormReportAnswer = z.infer<typeof FormReportAnswer>;
+export const FormReportSubmission = z
+  .object({ answers: z.array(FormReportAnswer), id: z.string() })
+  .passthrough();
+export type FormReportSubmission = z.infer<typeof FormReportSubmission>;
+export const FormReport = z
+  .object({
+    responses: z.array(FormReportResponse),
+    submissions: z.array(FormReportSubmission),
+  })
+  .passthrough();
+export type FormReport = z.infer<typeof FormReport>;
+export const SubmissionCategory = z.enum([
+  "inbox",
+  "spam",
+  "starred",
+  "archive",
+]);
+export type SubmissionCategory = z.infer<typeof SubmissionCategory>;
+export const HiddenFieldAnswer = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    value: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type HiddenFieldAnswer = z.infer<typeof HiddenFieldAnswer>;
+export const Submission = z
+  .object({
+    answers: z.array(z.object({}).partial().passthrough()),
+    category: z.union([SubmissionCategory, z.null()]).optional(),
+    end_at: z.number().int(),
+    hidden_fields: z.union([z.array(HiddenFieldAnswer), z.null()]).optional(),
+    id: z.string(),
+    title: z.union([z.string(), z.null()]).optional(),
+    variables: z.union([z.array(z.unknown()), z.null()]).optional(),
+  })
+  .passthrough();
+export type Submission = z.infer<typeof Submission>;
+export const Submissions = z
+  .object({ submissions: z.array(Submission), total: z.number().int() })
+  .passthrough();
+export type Submissions = z.infer<typeof Submissions>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -2469,6 +2549,16 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
+  ChoiceIcon,
+  Choose,
+  FormReportResponse,
+  FormReportAnswer,
+  FormReportSubmission,
+  FormReport,
+  SubmissionCategory,
+  HiddenFieldAnswer,
+  Submission,
+  Submissions,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
@@ -5106,7 +5196,7 @@ Create a response for prioritization tool proposal
     alias: "HeyFormGetFormReport",
     description: `Fetches HeyForm report data for the HeyForm tool attached to a workflow step`,
     requestFormat: "json",
-    response: z.unknown(),
+    response: FormReport,
   },
   {
     method: "get",
@@ -5121,7 +5211,7 @@ Create a response for prioritization tool proposal
         schema: created_after,
       },
     ],
-    response: z.unknown(),
+    response: Submissions,
   },
   {
     method: "post",
