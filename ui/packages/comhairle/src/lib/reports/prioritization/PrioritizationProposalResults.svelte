@@ -55,26 +55,6 @@
 		return data;
 	}
 
-	function countResponses(
-		question: Question,
-		proposal: RankedProposal,
-		section?: ProposalSection
-	) {
-		const count = proposal.responses.reduce(
-			(acc, res) =>
-				res.response.filter((r) => {
-					if (section) {
-						return r.section_id === section.id && r.question_id === question.id;
-					} else {
-						return r.question_id === question.id;
-					}
-				}).length + acc,
-			0
-		);
-
-		return count;
-	}
-
 	let selectedProposalOrSection = $state<{
 		proposal: RankedProposal | null;
 		section: ProposalSection | null;
@@ -167,7 +147,7 @@
 	<div>
 		<h4 class="mb-2 font-bold">{question.text}</h4>
 		<p class="text-muted-foreground text-xs">
-			{countResponses(question, proposal, section)} responses
+			{extractQuestionResponses(proposal, question.id, section?.id).length} responses
 		</p>
 	</div>
 {/snippet}

@@ -38,9 +38,9 @@
 		const target = e.target as HTMLSelectElement;
 
 		if (target.name === 'yAxis') {
-			flipAxes = target.value === xAxisLabel ? true : false;
+			flipAxes = target.value === xAxisLabel;
 		} else if (target.name === 'xAxis') {
-			flipAxes = target.value === yAxisLabel ? true : false;
+			flipAxes = target.value === yAxisLabel;
 		}
 	}
 
