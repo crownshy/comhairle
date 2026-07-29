@@ -299,7 +299,7 @@ impl ToolImpl for HeyFormTool {
                         .tag("Tools")
                         .summary("Get HeyForm report data for a workflow step")
                         .description("Fetches HeyForm report data for the HeyForm tool attached to a workflow step")
-                        .response::<200, Json<serde_json::Value>>()
+                        .response::<200, Json<FormReport>>()
                 }),
             )
             .api_route(
@@ -309,7 +309,7 @@ impl ToolImpl for HeyFormTool {
                         .tag("Tools")
                         .summary("Get HeyForm submissions for a workflow step")
                         .description("Fetches paginated HeyForm submissions and returns them as a single list")
-                        .response::<200, Json<serde_json::Value>>()
+                        .response::<200, Json<Submissions>>()
                 }),
             )
             .with_state(state.clone())
