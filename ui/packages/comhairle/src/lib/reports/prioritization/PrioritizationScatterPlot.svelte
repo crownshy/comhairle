@@ -64,7 +64,7 @@
 	</div>
 
 	{#if xQuestion && yQuestion && xDomain && yDomain}
-		<div class="flex justify-end">
+		<div class="mb-4 flex justify-end">
 			<Select.Root
 				type="single"
 				onValueChange={(v) => {
@@ -82,11 +82,11 @@
 		</div>
 
 		<ScatterPlot
+			points={scatterPoints}
 			xAxisLabel={xQuestion.text}
 			yAxisLabel={yQuestion.text}
 			{xDomain}
 			{yDomain}
-			points={scatterPoints}
 		/>
 	{:else}
 		<div class="flex flex-col items-center justify-center gap-2">

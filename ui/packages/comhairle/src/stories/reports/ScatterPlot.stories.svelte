@@ -15,7 +15,7 @@
 
 	const samplePoints: ScatterPoint[] = [
 		{ id: '1', x: 2, y: 8 },
-		{ id: '2', x: 5, y: 5 },
+		{ id: '2', x: 4, y: 1 },
 		{ id: '3', x: 8, y: 2 },
 		{ id: '4', x: 3, y: 3 },
 		{ id: '5', x: 7, y: 9 }
@@ -26,7 +26,7 @@
 	name="Default"
 	args={{
 		xAxisLabel: 'How important is this to you?',
-		yAxisLabel: 'How important is this to you?',
+		yAxisLabel: 'How satisfied are you with this?',
 		xDomain: [0, 10],
 		yDomain: [0, 10],
 		points: samplePoints
@@ -74,7 +74,7 @@
 		yAxisLabel: 'How satisfied are you with this?',
 		xDomain: [0, 10],
 		yDomain: [0, 10],
-		height: '25vh',
+		height: 200,
 		points: samplePoints
 	}}
 />
