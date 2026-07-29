@@ -15,14 +15,15 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::models::permissions::{
-    self, GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, RevokeRoleRequest,
-    SystemAdminRole, SystemResource, UserOrOrganizationId, UserWithPermissionDto, list_permissions,
+    self, Action, GrantRoleRequest, ListPermissionsFilters, PermissionTargetResource,
+    PermissionTriplet, RevokeRoleRequest, SystemResource, UserOrOrganizationId,
+    UserWithPermissionDto, list_permissions,
 };
 use crate::models::{
     pagination::{PageOptions, PaginatedResults},
     users,
 };
-use crate::routes::auth::RequiredUserPermission;
+use crate::routes::auth::{RequiredUser, authorize};
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -102,13 +103,13 @@ async fn resolve_actor(
 #[instrument(err(Debug), skip(state))]
 async fn grant(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUserPermission { user: caller, .. }: RequiredUserPermission<
-        SystemAdminRole,
-        SystemResource,
-    >,
+    RequiredUser(caller): RequiredUser,
+    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Json(body): Json<GrantPermissionBody>,
 ) -> Result<(StatusCode, Json<permissions::ResourcePermission>), ComhairleError> {
+    authorize(&state, &caller, Action::GrantPermission, &resource).await?;
+
     let actor_id = resolve_actor(
         &state.db,
         body.user_id,
@@ -158,10 +159,13 @@ async fn grant(
 #[instrument(err(Debug), skip(state))]
 async fn revoke(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUserPermission { .. }: RequiredUserPermission<SystemAdminRole, SystemResource>,
+    RequiredUser(caller): RequiredUser,
+    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<RevokePermissionQuery>,
 ) -> Result<StatusCode, ComhairleError> {
+    authorize(&state, &caller, Action::RevokePermission, &resource).await?;
+
     let actor_id = resolve_actor(&state.db, query.user_id, query.organization_id, None, false)
         .await?
         .unwrap();
@@ -189,7 +193,8 @@ async fn revoke(
 #[instrument(err(Debug), skip(state))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUserPermission { .. }: RequiredUserPermission<SystemAdminRole, SystemResource>,
+    RequiredUser(caller): RequiredUser,
+    system: SystemResource,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<
     (
@@ -198,6 +203,8 @@ async fn list(
     ),
     ComhairleError,
 > {
+    authorize(&state, &caller, Action::ListPermission, &system).await?;
+
     let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
     let page_options = PageOptions {
         limit: query.limit,
@@ -225,7 +232,8 @@ async fn list(
 #[instrument(err(Debug), skip(state))]
 async fn list_for_resource(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUserPermission { .. }: RequiredUserPermission<SystemAdminRole, SystemResource>,
+    RequiredUser(caller): RequiredUser,
+    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<
@@ -235,6 +243,8 @@ async fn list_for_resource(
     ),
     ComhairleError,
 > {
+    authorize(&state, &caller, Action::ListPermission, &resource).await?;
+
     let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
     let page_options = PageOptions {
         limit: query.limit,
@@ -257,9 +267,13 @@ async fn list_for_resource(
 #[instrument(err(Debug), skip(state))]
 async fn list_users_with_permission(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(caller): RequiredUser,
+    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<(StatusCode, Json<Vec<UserWithPermissionDto>>), ComhairleError> {
+    authorize(&state, &caller, Action::ListPermission, &resource).await?;
+
     let users_with_permission = permissions::list_users_with_permission(
         &state.db,
         &path.resource_type,
@@ -356,12 +370,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use crate::models::pagination::PaginatedResults;
     use crate::models::permissions::{
-        GrantRoleRequest, ListPermissionsFilters, NamedRole, PermissionTriplet, ResourcePermission,
-        ResourceRole, SystemResourceRole, UserOrOrganizationId, grant_role,
-        has_resource_permission, list_permissions,
+        GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, ResourcePermission, Role,
+        UserOrOrganizationId, grant_role, has_resource_permission, list_permissions,
     };
     use crate::routes::permissions::{
-        GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery, SystemAdminRole,
+        GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
     };
     use crate::test_helpers::{test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
@@ -376,15 +389,13 @@ mod tests {
 
     struct TestRole;
 
-    impl NamedRole for TestRole {
+    impl TestRole {
         fn name() -> &'static str {
             "editor"
         }
-    }
 
-    impl ResourceRole for TestRole {
-        fn resource_type() -> &'static str {
-            RESOURCE_TYPE
+        fn make_triplet(resource_id: &uuid::Uuid) -> PermissionTriplet<'_> {
+            PermissionTriplet(RESOURCE_TYPE, resource_id, "editor")
         }
     }
 
@@ -423,8 +434,8 @@ mod tests {
         url.trim_end_matches('&').trim_end_matches('?').to_string()
     }
 
-    #[sqlx::test]
-    async fn test_admin_user_should_have_system_admin_role(
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_admin_user_should_have_system_admin_role(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
@@ -440,7 +451,7 @@ mod tests {
         // Check if the user has the system admin role
         let has_admin_role = has_resource_permission(
             &state,
-            SystemAdminRole::make_system_triplet(),
+            Role::Admin.system_triplet(),
             &user.id,
             user.organization_id.as_ref(),
         )
@@ -455,8 +466,8 @@ mod tests {
     }
 
     // Grant permission
-    #[sqlx::test]
-    async fn test_post_permission(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_post_permission(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool).config(config).call()?);
@@ -466,6 +477,18 @@ mod tests {
         session.signup(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
+
+        // Assign super admin role to the user to ensure they can grant/revoke permissions
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
+                granted_by: &user.id,
+                grant_reason: "Testing".into(),
+            },
+        )
+        .await?;
 
         // Create a resource to grant permissions on
         let resource_id = uuid::Uuid::new_v4();
@@ -508,8 +531,8 @@ mod tests {
     }
 
     // Revoke permission
-    #[sqlx::test]
-    async fn test_delete_permission(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_delete_permission(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool).config(config).call()?);
@@ -519,6 +542,18 @@ mod tests {
         session.signup(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
+
+        // Assign super admin role to the user to ensure they can grant/revoke permissions
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
+                granted_by: &user.id,
+                grant_reason: "Testing".into(),
+            },
+        )
+        .await?;
 
         // Create a resource to grant permissions on
         let resource_id = uuid::Uuid::new_v4();
@@ -557,8 +592,8 @@ mod tests {
     }
 
     // List permissions (general)
-    #[sqlx::test]
-    async fn test_get_permissions(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_get_permissions(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool).config(config).call()?);
@@ -568,6 +603,18 @@ mod tests {
         session.signup(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
+
+        // Assign super admin role to the user to ensure they can grant/revoke permissions
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
+                granted_by: &user.id,
+                grant_reason: "Testing".into(),
+            },
+        )
+        .await?;
 
         // Create a resource to grant permissions on
         let resource_id = uuid::Uuid::new_v4();
@@ -606,7 +653,7 @@ mod tests {
         let permissions_page =
             serde_json::from_value::<PaginatedResults<ResourcePermission>>(response)?;
 
-        assert_eq!(permissions_page.total, 6);
+        assert_eq!(permissions_page.total, 7);
         assert_eq!(permissions_page.records.len(), 4);
 
         let next_query = ListPermissionsQuery {
@@ -622,16 +669,14 @@ mod tests {
         let next_permissions_page =
             serde_json::from_value::<PaginatedResults<ResourcePermission>>(response)?;
 
-        assert_eq!(next_permissions_page.records.len(), 2);
+        assert_eq!(next_permissions_page.records.len(), 3);
 
         Ok(())
     }
 
     // List permissions (for resource)
-    #[sqlx::test]
-    async fn test_get_permissions_for_resource(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_get_permissions_for_resource(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool).config(config).call()?);
@@ -641,6 +686,18 @@ mod tests {
         session.signup(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
+
+        // Assign super admin role to the user to ensure they can grant/revoke permissions
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
+                granted_by: &user.id,
+                grant_reason: "Testing".into(),
+            },
+        )
+        .await?;
 
         // Create two resources to grant permissions on
         let resource_id = uuid::Uuid::new_v4();
@@ -723,8 +780,8 @@ mod tests {
     }
 
     // List permissions for a resource with filters
-    #[sqlx::test]
-    async fn test_get_permissions_for_resource_with_filters(
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_get_permissions_for_resource_with_filters(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
@@ -736,6 +793,18 @@ mod tests {
         session.signup(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
+
+        // Assign super admin role to the user to ensure they can grant/revoke permissions
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
+                granted_by: &user.id,
+                grant_reason: "Testing".into(),
+            },
+        )
+        .await?;
 
         // Create a resource to grant permissions on
         let resource_id = uuid::Uuid::new_v4();
@@ -797,8 +866,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_permissions_audit_trail(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_permissions_audit_trail(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool).config(config).call()?);
@@ -808,6 +877,18 @@ mod tests {
         session.signup(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
+
+        // Assign super admin role to the user to ensure they can grant/revoke permissions
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
+                granted_by: &user.id,
+                grant_reason: "Testing".into(),
+            },
+        )
+        .await?;
 
         // Create a resource to grant permissions on
         let resource_id = uuid::Uuid::new_v4();

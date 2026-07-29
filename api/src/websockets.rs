@@ -1048,7 +1048,6 @@ mod tests {
         };
 
         if can_connect {
-            eprintln!("Using Redis at localhost:6379 (CI environment)");
             _redis_server = None;
             redis_url = "redis://localhost:6379/".to_string();
         } else {
@@ -1063,19 +1062,16 @@ mod tests {
                         std::thread::sleep(std::time::Duration::from_millis(100));
                         if let Ok(client) = redis::Client::open(redis_url.as_str()) {
                             if client.get_connection().is_ok() {
-                                eprintln!("Temporary Redis server started at {}", addr);
                                 break;
                             }
                         }
                         if attempt == 4 {
-                            eprintln!("Failed to start temporary Redis server");
                             return;
                         }
                     }
                     _redis_server = Some(server);
                 }
                 Err(_) => {
-                    eprintln!("Could not start temporary Redis - skipping test");
                     return;
                 }
             }
@@ -1271,7 +1267,6 @@ mod tests {
         use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 
         let Some((_redis_server, redis_url)) = redis_url_or_skip() else {
-            eprintln!("Redis unavailable - skipping test");
             return;
         };
 

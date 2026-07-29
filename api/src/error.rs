@@ -349,7 +349,7 @@ pub enum ComhairleError {
     RoleNotFound(String),
 
     #[error("Cannot revoke the last system admin role")]
-    CannotRevokeLastAdmin,
+    CannotRevokeLastSuperAdmin,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -392,7 +392,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WorkflowStepHasWrongType(_) => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
-            | ComhairleError::CannotRevokeLastAdmin
+            | ComhairleError::CannotRevokeLastSuperAdmin
             | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)

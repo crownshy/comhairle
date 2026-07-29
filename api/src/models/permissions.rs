@@ -1,16 +1,47 @@
+//! # Permissions model
+//!
+//! This module defines the permissions model for the Comhairle application, including resource types, roles, actions, and permission handling.
+//!
+//! ## Definitions:
+//! - Resource Type      : A string that identifies a category of resources in the system (e.g., "system", "conversation").
+//! - Resource ID        : A UUID that uniquely identifies a specific resource within its category.
+//! - Role               : An alias for a group of permissions that can be assigned to a user or organization on a specific resource.
+//! - Action             : A specific operation that can be performed on a resource, such as reading, updating, or deleting it.
+//! - Policy             : Defines which actions are allowed for a specific resource type on a per-role basis.
+//! - Permission Triplet : A combination of resource type, resource ID, and role name that uniquely identifies a permission assignment.
+//!
+//! ## Adding New Resource Types, Roles, and Actions
+//! Resource types, roles, and actions are each a single enum ([`ResourceType`],
+//! [`Role`], [`Action`]). To extend the model:
+//! 1. Add a variant to the relevant enum, preserving any persisted string value via
+//!    `#[strum(serialize = "...")]` / `#[serde(rename = "...")]`.
+//! 2. Map new roles to their resource type in [`Role::resource_type`] and their allowed
+//!    actions in [`Role::actions`]; map new actions to their resource type in
+//!    [`Action::resource_type`].
+//! 3. If the resource is addressed by a path, add an extractor struct via
+//!    `define_owned_resource!` / `define_unowned_resource!` so [`crate::routes::auth::authorize`]
+//!    can resolve its id and owner.
+//!
+//! ## Helper Macros
+//! - `define_owned_resource!`   : Defines a resource struct with an owner and implements the `ExtractResourceId` and `OwnedResource` traits for it.
+//! - `define_unowned_resource!` : Defines a resource struct without an owner and implements the `ExtractResourceId` and `OwnedResource` traits for it.
+
 use std::sync::Arc;
 
 use crate::models::users::UserIden;
 use crate::redis_connection::RedisConnection;
+use aide::OperationIo;
 use axum::extract::{FromRequestParts, Path};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
+use sea_query::JoinType;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, enum_def};
-use sea_query::{IdenStatic, JoinType};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use sqlx::{PgPool, Row, query_as_with};
+use sqlx::{PgPool, query_as_with};
+use strum::IntoEnumIterator;
+use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -21,80 +52,86 @@ use crate::models::{
     pagination::{PageOptions, PaginatedResults},
 };
 
-/// Represents the system administrator role.
-#[derive(Debug)]
-pub struct SystemAdminRole;
+// ---------- //
+// * MACROS * //
+// ---------- //
 
-impl NamedRole for SystemAdminRole {
-    fn name() -> &'static str {
-        "admin"
-    }
+macro_rules! define_unowned_resource {
+    ($resource_struct:ident, $resource_id_field:ident, $extract_logic:expr) => {
+        #[derive(Debug, OperationIo)]
+        pub struct $resource_struct {
+            pub $resource_id_field: Uuid,
+        }
+
+        impl FromRequestParts<Arc<ComhairleState>> for $resource_struct {
+            type Rejection = ComhairleError;
+
+            async fn from_request_parts(
+                parts: &mut axum::http::request::Parts,
+                state: &Arc<ComhairleState>,
+            ) -> Result<Self, Self::Rejection> {
+                ($extract_logic)(parts, state).await
+            }
+        }
+
+        impl ExtractResourceId for $resource_struct {
+            fn resource_id(&self) -> Uuid {
+                self.$resource_id_field
+            }
+        }
+
+        impl OwnedResource for $resource_struct {}
+    };
 }
 
-impl SystemResourceRole for SystemAdminRole {}
+macro_rules! define_owned_resource {
+    ($resource_struct:ident, $resource_id_field:ident, $owner_id_field:ident, $extract_logic:expr) => {
+        #[derive(Debug, OperationIo)]
+        pub struct $resource_struct {
+            pub $resource_id_field: Uuid,
+            pub $owner_id_field: Uuid,
+        }
 
-/// Represents the system resource, which is a global resource used for system-level permissions.
-#[derive(Debug)]
-pub struct SystemResource;
+        impl FromRequestParts<Arc<ComhairleState>> for $resource_struct {
+            type Rejection = ComhairleError;
 
-impl FromRequestParts<Arc<ComhairleState>> for SystemResource {
-    type Rejection = ComhairleError;
+            async fn from_request_parts(
+                parts: &mut axum::http::request::Parts,
+                state: &Arc<ComhairleState>,
+            ) -> Result<Self, Self::Rejection> {
+                ($extract_logic)(parts, state).await
+            }
+        }
 
-    async fn from_request_parts(
-        _parts: &mut axum::http::request::Parts,
-        _state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        Ok(SystemResource)
-    }
+        impl ExtractResourceId for $resource_struct {
+            fn resource_id(&self) -> Uuid {
+                self.$resource_id_field
+            }
+        }
+
+        impl OwnedResource for $resource_struct {
+            fn owner_id(&self) -> Option<Uuid> {
+                Some(self.$owner_id_field)
+            }
+        }
+    };
 }
 
-#[derive(Deserialize)]
-pub struct ConversationPath {
-    pub conversation_id: Uuid,
-}
+// ------------------ //
+// * RESOURCE TYPES * //
+// ------------------ //
+//
+// - A resource type is a string that identifies a category of resources in the system.
+// - A resource ID is a UUID that uniquely identifies a specific resource within its category.
+//
 
-#[derive(Debug)]
-pub struct ConversationResource {
-    conversation_id: Uuid,
-    owner_id: Uuid,
-}
-
-impl FromRequestParts<Arc<ComhairleState>> for ConversationResource {
-    type Rejection = ComhairleError;
-
-    async fn from_request_parts(
-        parts: &mut axum::http::request::Parts,
-        state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        let Path(ConversationPath { conversation_id }) =
-            Path::<ConversationPath>::from_request_parts(parts, state)
-                .await
-                .map_err(|_| {
-                    ComhairleError::ResourceNotFound(
-                        "Path must contain a conversation_id".to_string(),
-                    )
-                })?;
-
-        let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
-
-        Ok(ConversationResource {
-            conversation_id,
-            owner_id: conversation.owner_id,
-        })
-    }
-}
+// -- TRAITS -- //
 
 /// A trait for extracting a resource ID from a request.
 pub trait ExtractResourceId:
     FromRequestParts<Arc<ComhairleState>> + 'static + Send + Sync + OwnedResource
 {
     fn resource_id(&self) -> Uuid;
-}
-
-impl ExtractResourceId for SystemResource {
-    fn resource_id(&self) -> Uuid {
-        SYSTEM_RESOURCE_ID
-    }
 }
 
 /// A trait for extracting owner_id for a resource if available
@@ -104,19 +141,316 @@ pub trait OwnedResource {
     }
 }
 
-impl OwnedResource for SystemResource {}
+// -- ENUM -- //
 
-impl ExtractResourceId for ConversationResource {
+/// The set of resource categories that permissions can be granted on.
+///
+/// The string form (via [`AsRefStr`] / [`Display`]) is what is persisted in the
+/// `resource_permissions.resource_type` column, so those values are load bearing.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    Display,
+    EnumString,
+    AsRefStr,
+    EnumIter,
+    IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResourceType {
+    System,
+    Conversation,
+    #[cfg(test)]
+    Test,
+}
+
+impl ResourceType {
+    /// Returns every resource type, for discovery endpoints.
+    pub fn all() -> impl Iterator<Item = ResourceType> {
+        ResourceType::iter()
+    }
+}
+
+// -- SYSTEM RESOURCE -- //
+
+/// The global system resource uses a fixed ID as a workaround to avoid having a
+/// separate table for system-level permissions.
+pub const SYSTEM_RESOURCE_ID: Uuid = Uuid::nil();
+
+define_unowned_resource!(
+    SystemResource,
+    resource_id,
+    |_parts: &mut axum::http::request::Parts, _state: &Arc<ComhairleState>| async {
+        Ok(SystemResource {
+            resource_id: SYSTEM_RESOURCE_ID,
+        })
+    }
+);
+
+#[derive(Debug, Deserialize)]
+pub struct PermissionTargetPath {
+    pub resource_type: String,
+    pub resource_id: Uuid,
+}
+
+#[derive(Debug, OperationIo)]
+pub struct PermissionTargetResource {
+    pub resource_type: String,
+    pub resource_id: Uuid,
+    pub owner_id: Option<Uuid>,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for PermissionTargetResource {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(PermissionTargetPath {
+            resource_type,
+            resource_id,
+        }) = Path::<PermissionTargetPath>::from_request_parts(parts, state)
+            .await
+            .map_err(|_| {
+                ComhairleError::ResourceNotFound(
+                    "Path must contain resource_type and resource_id".to_string(),
+                )
+            })?;
+
+        let owner_id = if resource_type == ResourceType::Conversation.as_ref() {
+            models::conversation::get_by_id(&state.db, &resource_id)
+                .await
+                .ok()
+                .map(|conversation| conversation.owner_id)
+        } else {
+            None
+        };
+
+        Ok(PermissionTargetResource {
+            resource_type,
+            resource_id,
+            owner_id,
+        })
+    }
+}
+
+impl ExtractResourceId for PermissionTargetResource {
     fn resource_id(&self) -> Uuid {
-        self.conversation_id
+        self.resource_id
     }
 }
 
-impl OwnedResource for ConversationResource {
+impl OwnedResource for PermissionTargetResource {
     fn owner_id(&self) -> Option<Uuid> {
-        Some(self.owner_id)
+        self.owner_id
     }
 }
+
+// -- CONVERSATION RESOURCE -- //
+
+/// A struct representing the path parameters for a conversation resource.
+#[derive(Deserialize)]
+pub struct ConversationPath {
+    pub conversation_id: Uuid,
+}
+
+async fn extract_conversation_resource(
+    parts: &mut axum::http::request::Parts,
+    state: &Arc<ComhairleState>,
+) -> Result<ConversationResource, ComhairleError> {
+    let Path(ConversationPath { conversation_id }) =
+        Path::<ConversationPath>::from_request_parts(parts, state)
+            .await
+            .map_err(|_| {
+                ComhairleError::ResourceNotFound("Path must contain a conversation_id".to_string())
+            })?;
+
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    Ok(ConversationResource {
+        conversation_id,
+        owner_id: conversation.owner_id,
+    })
+}
+
+define_owned_resource!(
+    ConversationResource,
+    conversation_id,
+    owner_id,
+    extract_conversation_resource
+);
+
+// --------- //
+// * ROLES * //
+// --------- //
+//
+// - A role is an alias for a group of permissions that can be assigned to a user or organization on a specific resource.
+//
+
+/// The set of roles that can be assigned to a user or organization.
+///
+/// The string form (via [`AsRefStr`] / [`Display`]) is what is persisted in the
+/// `resource_permissions.role_name` column, so those values are load bearing.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    Display,
+    EnumString,
+    AsRefStr,
+    EnumIter,
+    IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum Role {
+    SuperAdmin,
+    Admin,
+    #[serde(rename = "content_editor")]
+    #[strum(serialize = "content_editor")]
+    ConversationContentEditor,
+    #[cfg(test)]
+    Tester,
+}
+
+impl Role {
+    /// The resource type this role applies to.
+    pub fn resource_type(self) -> ResourceType {
+        match self {
+            Role::SuperAdmin | Role::Admin => ResourceType::System,
+            Role::ConversationContentEditor => ResourceType::Conversation,
+            #[cfg(test)]
+            Role::Tester => ResourceType::Test,
+        }
+    }
+
+    /// The actions this role is permitted to perform (the permission policy).
+    pub fn actions(self) -> &'static [Action] {
+        match self {
+            Role::SuperAdmin => &[
+                Action::ListPermission,
+                Action::GrantPermission,
+                Action::RevokePermission,
+            ],
+            Role::Admin => &[],
+            Role::ConversationContentEditor => {
+                &[Action::ConversationRead, Action::ConversationUpdate]
+            }
+            #[cfg(test)]
+            Role::Tester => &[],
+        }
+    }
+
+    /// Builds a [`PermissionTriplet`] for this role on a specific resource.
+    pub fn triplet(self, resource_id: &Uuid) -> PermissionTriplet<'_> {
+        if self.resource_type() == ResourceType::System && *resource_id != SYSTEM_RESOURCE_ID {
+            panic!(
+                "Cannot create a triplet for a system role with a specific resource ID. Use `system_triplet()` instead."
+            );
+        }
+        PermissionTriplet(self.resource_type().into(), resource_id, self.into())
+    }
+
+    /// Builds a [`PermissionTriplet`] for this role on the global system resource.
+    pub fn system_triplet(self) -> PermissionTriplet<'static> {
+        if self.resource_type() != ResourceType::System {
+            panic!("Cannot create a system triplet for a non-system role.");
+        }
+        PermissionTriplet(
+            ResourceType::System.into(),
+            &SYSTEM_RESOURCE_ID,
+            self.into(),
+        )
+    }
+
+    /// Returns every role, for discovery endpoints.
+    pub fn all() -> impl Iterator<Item = Role> {
+        Role::iter()
+    }
+
+    /// Returns the roles that apply to a given resource type.
+    pub fn for_resource_type(resource_type: ResourceType) -> impl Iterator<Item = Role> {
+        Role::iter().filter(move |role| role.resource_type() == resource_type)
+    }
+}
+
+// ----------- //
+// * ACTIONS * //
+// ----------- //
+//
+// - An action represents a specific operation that can be performed on a resource, such as reading, updating, or deleting it.
+//
+
+/// The set of actions that can be performed on a resource.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    Display,
+    EnumString,
+    AsRefStr,
+    EnumIter,
+    IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum Action {
+    ListPermission,
+    GrantPermission,
+    RevokePermission,
+    ConversationRead,
+    ConversationUpdate,
+}
+
+impl Action {
+    /// The resource type this action applies to.
+    pub fn resource_type(self) -> ResourceType {
+        match self {
+            Action::ListPermission | Action::GrantPermission | Action::RevokePermission => {
+                ResourceType::System
+            }
+            Action::ConversationRead | Action::ConversationUpdate => ResourceType::Conversation,
+        }
+    }
+
+    /// Returns every action, for discovery endpoints.
+    pub fn all() -> impl Iterator<Item = Action> {
+        Action::iter()
+    }
+
+    /// Returns the actions that apply to a given resource type.
+    pub fn for_resource_type(resource_type: ResourceType) -> impl Iterator<Item = Action> {
+        Action::iter().filter(move |action| action.resource_type() == resource_type)
+    }
+}
+
+// ----------------------- //
+// * PERMISSION HANDLING * //
+// ----------------------- //
+//
+// - Permission handling involves granting, revoking, and checking permissions for users and organizations on specific resources.
+//
 
 /// The triplet associated with a permission for a resource.
 #[derive(Debug)]
@@ -125,70 +459,6 @@ pub struct PermissionTriplet<'a>(
     pub &'a Uuid, // resource_id
     pub &'a str,  // role_name
 );
-
-/// A trait for roles that have a name, used for permission checks.
-pub trait NamedRole: Send + Sync {
-    /// Returns the name of the role as a static string.
-    fn name() -> &'static str;
-}
-
-/// The resource type associated with system-level permissions.
-pub const SYSTEM_RESOURCE_TYPE: &str = "system";
-/// The global system resource uses a fixed ID as a workaround to avoid having a
-/// separate table for system-level permissions.
-pub const SYSTEM_RESOURCE_ID: Uuid = Uuid::nil();
-
-/// Represents a role that can be assigned to a user or organization on the global
-/// system resource.
-pub trait SystemResourceRole: NamedRole {
-    /// Returns a `PermissionTriplet` for the global system resource.
-    fn make_system_triplet() -> PermissionTriplet<'static> {
-        PermissionTriplet(SYSTEM_RESOURCE_TYPE, &SYSTEM_RESOURCE_ID, Self::name())
-    }
-}
-
-/// The resource type associated with conversation-level permissions.
-pub const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
-
-/// Grants read and update access to a resource, but not full write access —
-/// only a subset of update operations are permitted (e.g. editing content), while
-/// others (e.g. `launch`) are excluded and require a higher-privileged role.
-pub const CONTENT_EDITOR_ROLE: &str = "content_editor";
-
-#[derive(Debug)]
-pub struct ConversationContentEditorRole;
-
-impl NamedRole for ConversationContentEditorRole {
-    fn name() -> &'static str {
-        "content_editor"
-    }
-}
-
-impl ResourceRole for ConversationContentEditorRole {
-    fn resource_type() -> &'static str {
-        CONVERSATION_RESOURCE_TYPE
-    }
-}
-
-/// Represents a role that can be assigned to a user or organization on a specific
-/// resource.
-pub trait ResourceRole: NamedRole {
-    /// Returns a `PermissionTriplet` for the given resource ID, combining the
-    /// resource type, resource ID, and role name.
-    fn make_triplet<'a>(resource_id: &'a Uuid) -> PermissionTriplet<'a> {
-        PermissionTriplet(Self::resource_type(), resource_id, Self::name())
-    }
-
-    /// Returns the resource type associated with the role.
-    fn resource_type() -> &'static str;
-}
-
-// Automatically implement `ResourceRole` for any type that implements `SystemResourceRole`.
-impl<SystemRole: SystemResourceRole> ResourceRole for SystemRole {
-    fn resource_type() -> &'static str {
-        SYSTEM_RESOURCE_TYPE
-    }
-}
 
 /// Represents a role assignment for a user or organization on a specific resource.
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
@@ -240,59 +510,117 @@ pub struct RevokeRoleRequest<'request> {
     pub permission_triplet: PermissionTriplet<'request>,
 }
 
-/// Generates a cache key for storing permission checks in Redis.
-fn permission_cache_key(
-    permission_triplet: &PermissionTriplet<'_>,
+/// Generates a cache key for storing all assigned role names for an actor on a resource.
+fn role_list_cache_key(
+    resource_type: &str,
+    resource_id: &Uuid,
     actor_id: &UserOrOrganizationId,
 ) -> String {
-    let PermissionTriplet(resource_type, resource_id, role_name) = *permission_triplet;
     match *actor_id {
         UserOrOrganizationId::User(user_id) => {
-            format!("perm:v1:{resource_type}:{resource_id}:{role_name}:user:{user_id}")
+            format!("roles:v1:{resource_type}:{resource_id}:user:{user_id}")
         }
         UserOrOrganizationId::Org(org_id) => {
-            format!("perm:v1:{resource_type}:{resource_id}:{role_name}:org:{org_id}")
+            format!("roles:v1:{resource_type}:{resource_id}:org:{org_id}")
         }
     }
 }
 
-/// Checks the Redis cache for a permission check result.
-async fn cache_get(
-    conn: &dyn RedisConnection,
-    user_key: &str,
-    org_key: Option<&str>,
-) -> Option<bool> {
-    let mut keys = vec![user_key];
-    if let Some(k) = org_key {
-        keys.push(k);
-    }
-    let results = match conn.get_multi(&keys).await {
-        Ok(v) => v,
-        Err(_) => return None,
-    };
-    let user_result = results.first().cloned().flatten();
-    let org_result = if results.len() > 1 {
-        results.get(1).cloned().flatten()
-    } else {
-        None
-    };
-
-    match (user_result.as_deref(), org_result.as_deref()) {
-        (Some("1"), _) | (_, Some("1")) => Some(true),
-        (None, None) => None,
-        _ => Some(false),
-    }
-}
-
-/// Sets a permission check result in the Redis cache.
-async fn cache_set(conn: &dyn RedisConnection, key: &str, value: bool, ttl_secs: u64) {
-    let val = if value { "1" } else { "0" };
-    let _ = conn.set_ex(key, val, ttl_secs).await;
-}
-
-/// Deletes a permission check result from the Redis cache.
+/// Deletes a cache key from Redis.
 async fn cache_delete(conn: &dyn RedisConnection, key: &str) {
     let _ = conn.del(key).await;
+}
+
+/// Reads a cached role list for an actor on a resource.
+async fn cache_get_role_list(conn: &dyn RedisConnection, key: &str) -> Option<Vec<String>> {
+    let raw = match conn.get(key).await {
+        Ok(Some(value)) => value,
+        Ok(None) => return None,
+        Err(_) => return None,
+    };
+
+    serde_json::from_str(&raw).ok()
+}
+
+/// Stores a role list for an actor on a resource.
+async fn cache_set_role_list(
+    conn: &dyn RedisConnection,
+    key: &str,
+    roles: &[String],
+    ttl_secs: u64,
+) {
+    let serialized = match serde_json::to_string(roles) {
+        Ok(value) => value,
+        Err(_) => return,
+    };
+    let _ = conn.set_ex(key, &serialized, ttl_secs).await;
+}
+
+/// Loads all role names assigned to a specific actor on a specific resource from Postgres.
+async fn fetch_actor_roles_for_resource(
+    db: &PgPool,
+    resource_type: &str,
+    resource_id: &Uuid,
+    actor_id: UserOrOrganizationId,
+) -> Result<Vec<String>, ComhairleError> {
+    let mut query = Query::select();
+    query
+        .column(ResourcePermissionIden::RoleName)
+        .from(ResourcePermissionIden::Table)
+        .and_where(Expr::col(ResourcePermissionIden::ResourceId).eq(*resource_id))
+        .and_where(Expr::col(ResourcePermissionIden::ResourceType).eq(resource_type));
+
+    match actor_id {
+        UserOrOrganizationId::User(user_id) => {
+            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(user_id));
+        }
+        UserOrOrganizationId::Org(org_id) => {
+            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(org_id));
+        }
+    }
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let roles: Vec<String> = sqlx::query_as_with::<_, (String,), _>(&sql, values)
+        .fetch_all(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)?
+        .into_iter()
+        .map(|(role_name,)| role_name)
+        .collect();
+
+    Ok(roles)
+}
+
+/// Returns role names for an actor on a resource, using Redis cache when available.
+async fn get_actor_roles_for_resource(
+    state: &Arc<ComhairleState>,
+    resource_type: &str,
+    resource_id: &Uuid,
+    actor_id: UserOrOrganizationId,
+) -> Result<Vec<String>, ComhairleError> {
+    let cache_key = role_list_cache_key(resource_type, resource_id, &actor_id);
+
+    if let Some(conn) = &state.redis_conn {
+        if let Some(cached_roles) = cache_get_role_list(conn.as_ref(), &cache_key).await {
+            return Ok(cached_roles);
+        }
+    }
+
+    let roles =
+        fetch_actor_roles_for_resource(&state.db, resource_type, resource_id, actor_id).await?;
+
+    if let Some(conn) = &state.redis_conn {
+        cache_set_role_list(
+            conn.as_ref(),
+            &cache_key,
+            &roles,
+            state.config.redis_cache_ttl_secs,
+        )
+        .await;
+    }
+
+    Ok(roles)
 }
 
 /// Grants a role to a user or organization on a specific resource.
@@ -349,8 +677,8 @@ pub async fn grant_role(
         response.ok_or_else(|| ComhairleError::RoleAlreadyGranted(role_name.to_string()))?;
 
     if let Some(conn) = &state.redis_conn {
-        let key = permission_cache_key(&request.permission_triplet, &request.actor_id);
-        cache_delete(conn.as_ref(), &key).await;
+        let role_list_key = role_list_cache_key(resource_type, resource_id, &request.actor_id);
+        cache_delete(conn.as_ref(), &role_list_key).await;
     }
 
     Ok(permission)
@@ -376,13 +704,15 @@ pub async fn revoke_role(
         .await
         .map_err(ComhairleError::DatabaseError)?;
 
-    if resource_type == SYSTEM_RESOURCE_TYPE && role_name == "admin" {
+    if resource_type == ResourceType::System.as_ref() && role_name == Role::SuperAdmin.as_ref() {
         let mut count_query = Query::select();
         count_query
             .expr(sea_query::Expr::cust("count(*)"))
             .from(ResourcePermissionIden::Table)
-            .and_where(Expr::col(ResourcePermissionIden::ResourceType).eq(SYSTEM_RESOURCE_TYPE))
-            .and_where(Expr::col(ResourcePermissionIden::RoleName).eq("admin"));
+            .and_where(
+                Expr::col(ResourcePermissionIden::ResourceType).eq(ResourceType::System.as_ref()),
+            )
+            .and_where(Expr::col(ResourcePermissionIden::RoleName).eq(Role::SuperAdmin.as_ref()));
 
         let (sql, values) = count_query.build_sqlx(PostgresQueryBuilder);
 
@@ -392,7 +722,7 @@ pub async fn revoke_role(
             .map_err(ComhairleError::DatabaseError)?;
 
         if count <= 1 {
-            return Err(ComhairleError::CannotRevokeLastAdmin);
+            return Err(ComhairleError::CannotRevokeLastSuperAdmin);
         }
     }
 
@@ -426,8 +756,8 @@ pub async fn revoke_role(
     tx.commit().await.map_err(ComhairleError::DatabaseError)?;
 
     if let Some(conn) = &state.redis_conn {
-        let key = permission_cache_key(&request.permission_triplet, &request.actor_id);
-        cache_delete(conn.as_ref(), &key).await;
+        let role_list_key = role_list_cache_key(resource_type, resource_id, &request.actor_id);
+        cache_delete(conn.as_ref(), &role_list_key).await;
     }
 
     Ok(())
@@ -494,84 +824,91 @@ pub async fn has_resource_permission(
     user_id: &Uuid,
     organization_id: Option<&Uuid>,
 ) -> Result<bool, ComhairleError> {
-    let redis_conn = state.redis_conn.clone();
-    if let Some(ref conn) = redis_conn {
-        let key = permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(*user_id));
-        let org_key = organization_id.map(|org_id| {
-            permission_cache_key(&permission_triplet, &UserOrOrganizationId::Org(*org_id))
-        });
-        if let Some(cached) = cache_get(conn.as_ref(), &key, org_key.as_deref()).await {
-            return Ok(cached);
-        }
-    }
-
     let PermissionTriplet(resource_type, resource_id, role_name) = permission_triplet;
 
-    let mut query = Query::select();
-    query
-        .expr(Expr::val(1))
-        .from(ResourcePermissionIden::Table)
-        .and_where(Expr::col(ResourcePermissionIden::ResourceId).eq(*resource_id))
-        .and_where(Expr::col(ResourcePermissionIden::ResourceType).eq(resource_type))
-        .and_where(Expr::col(ResourcePermissionIden::RoleName).eq(role_name))
-        .limit(1);
-
-    match organization_id {
-        Some(organization_id) => {
-            query.and_where(
-                Expr::col(ResourcePermissionIden::UserId)
-                    .eq(*user_id)
-                    .or(Expr::col(ResourcePermissionIden::OrganizationId).eq(*organization_id)),
-            );
-        }
-        None => {
-            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(*user_id));
-        }
-    }
-
-    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-
-    let response = sqlx::query_with(&sql, values)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(ComhairleError::DatabaseError)?;
-
-    let result = response.is_some();
-
-    if let Some(ref conn) = redis_conn {
-        // If organization_id is not None and the returned PgRow has a populated organization_id, cache the result for the organization only.
-        // Otherwise, cache the result for the user only.
-        let is_user = if organization_id.is_some() {
-            match response {
-                Some(row) => {
-                    let org_id_in_row: Option<Uuid> = row
-                        .try_get(ResourcePermissionIden::OrganizationId.as_str())
-                        .unwrap_or(None);
-                    org_id_in_row.is_none()
-                }
-                None => true,
-            }
-        } else {
-            true
-        };
-        let key = if is_user {
-            permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(*user_id))
-        } else {
-            permission_cache_key(
-                &permission_triplet,
-                &UserOrOrganizationId::Org(*organization_id.unwrap()),
+    let user_roles = get_actor_roles_for_resource(
+        state,
+        resource_type,
+        resource_id,
+        UserOrOrganizationId::User(*user_id),
+    )
+    .await?;
+    let org_roles = match organization_id {
+        Some(org_id) => Some(
+            get_actor_roles_for_resource(
+                state,
+                resource_type,
+                resource_id,
+                UserOrOrganizationId::Org(*org_id),
             )
-        };
-        cache_set(
-            conn.as_ref(),
-            &key,
-            result,
-            state.config.redis_cache_ttl_secs,
-        )
-        .await;
+            .await?,
+        ),
+        None => None,
+    };
+
+    let user_has_role = user_roles
+        .iter()
+        .any(|cached_role| cached_role == role_name);
+    let org_has_role = org_roles
+        .as_ref()
+        .is_some_and(|roles| roles.iter().any(|cached_role| cached_role == role_name));
+
+    Ok(user_has_role || org_has_role)
+}
+
+/// Check whether a user, or their organization, can perform an action on a resource.
+pub async fn can_perform_resource_action(
+    state: &Arc<ComhairleState>,
+    resource_id: &Uuid,
+    action: Action,
+    user_id: &Uuid,
+    organization_id: Option<&Uuid>,
+    owner_id: Option<&Uuid>,
+) -> Result<bool, ComhairleError> {
+    if owner_id.is_some_and(|resource_owner_id| resource_owner_id == user_id) {
+        return Ok(true);
     }
 
-    Ok(result)
+    // Bypass permission checks for super admins
+    if has_resource_permission(
+        state,
+        Role::SuperAdmin.system_triplet(),
+        user_id,
+        organization_id,
+    )
+    .await?
+    {
+        return Ok(true);
+    }
+
+    let resource_type = action.resource_type();
+
+    let mut roles = get_actor_roles_for_resource(
+        state,
+        resource_type.as_ref(),
+        resource_id,
+        UserOrOrganizationId::User(*user_id),
+    )
+    .await?;
+
+    if let Some(org_id) = organization_id {
+        let org_roles = get_actor_roles_for_resource(
+            state,
+            resource_type.as_ref(),
+            resource_id,
+            UserOrOrganizationId::Org(*org_id),
+        )
+        .await?;
+        roles.extend(org_roles);
+    }
+
+    roles.dedup();
+
+    Ok(roles.iter().any(|role_name| {
+        role_name
+            .parse::<Role>()
+            .is_ok_and(|role| role.actions().contains(&action))
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, FromRow)]
@@ -654,27 +991,24 @@ mod tests {
     use crate::redis_connection::{MockRedis, RedisConnection};
     use crate::test_helpers::{TEST_RESOURCE_TYPE, TEST_ROLE_NAME, TestRole, test_state};
 
+    use sea_query::DeleteStatement;
     use sqlx::PgPool;
 
     const OTHER_ROLE_NAME: &str = "other_role";
     struct OtherRole;
 
-    impl NamedRole for OtherRole {
+    impl OtherRole {
         fn name() -> &'static str {
             OTHER_ROLE_NAME
         }
-    }
 
-    impl ResourceRole for OtherRole {
-        fn resource_type() -> &'static str {
-            TEST_RESOURCE_TYPE
+        fn make_triplet(resource_id: &Uuid) -> PermissionTriplet<'_> {
+            PermissionTriplet(TEST_RESOURCE_TYPE, resource_id, OTHER_ROLE_NAME)
         }
     }
 
-    #[sqlx::test]
-    async fn test_grant_and_check_user_role(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_grant_and_check_user_role(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
@@ -717,8 +1051,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_grant_and_check_organization_role(
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_grant_and_check_organization_role(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
@@ -774,8 +1108,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_unauthorized_access(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_unauthorized_access(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
@@ -805,10 +1139,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_grant_role_already_granted(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_grant_role_already_granted(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
@@ -848,8 +1180,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_revoke_user_role(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_revoke_user_role(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
@@ -893,33 +1225,45 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_revoke_last_admin_fails(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_revoke_last_admin_fails(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
+
+        // Grant the user the super admin role, which should be the only one.
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
+                granted_by: &session.id.unwrap(),
+                grant_reason: "Testing",
+            },
+        )
+        .await?;
 
         // Attempt to revoke the admin role, which should be the only one
         let result = revoke_role(
             &state,
             RevokeRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: SystemAdminRole::make_system_triplet(),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
             },
         )
         .await;
 
         assert!(
-            matches!(result, Err(ComhairleError::CannotRevokeLastAdmin)),
-            "Expected CannotRevokeLastAdmin, got {result:?}"
+            matches!(result, Err(ComhairleError::CannotRevokeLastSuperAdmin)),
+            "Expected CannotRevokeLastSuperAdmin, got {result:?}"
         );
 
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_revoke_role_not_found(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_revoke_role_not_found(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
@@ -945,8 +1289,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_list_permissions(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_list_permissions(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
@@ -1053,8 +1397,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_list_permissions_offset_pagination(
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_list_permissions_offset_pagination(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
@@ -1135,8 +1479,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_permission_is_cached_after_first_call(
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_role_list_is_cached_after_first_call(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mock = Arc::new(MockRedis::new());
@@ -1169,15 +1513,17 @@ mod tests {
                 .await?;
         assert!(first, "expected permission to be present");
 
-        let key = permission_cache_key(
-            &TestRole::make_triplet(&resource_id),
+        let key = role_list_cache_key(
+            TestRole::resource_type(),
+            &resource_id,
             &UserOrOrganizationId::User(user_id),
         );
         let cached = mock.get_value(&key).await;
-        assert_eq!(
-            cached.as_deref(),
-            Some("1"),
-            "expected cache key to hold \"1\" after first positive check"
+        assert!(
+            cached
+                .as_ref()
+                .is_some_and(|raw| raw.contains(TestRole::name())),
+            "expected cache key to contain the granted role after first positive check"
         );
 
         // Remove the DB row directly – bypassing the permission model so the
@@ -1202,8 +1548,8 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_cache_invalidated_on_grant(
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_role_list_cache_invalidated_on_grant(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mock = Arc::new(MockRedis::new());
@@ -1218,52 +1564,41 @@ mod tests {
         let user_id = get_random_user_id(&app, &mut session).await?;
         let resource_id = Uuid::new_v4();
 
-        // First check: no permission exists; false result is cached.
-        let first =
+        let initial_has_role =
             has_resource_permission(&state, TestRole::make_triplet(&resource_id), &user_id, None)
                 .await?;
-        assert!(!first, "expected no permission to exist yet");
+        assert!(!initial_has_role, "expected no role before grant");
 
-        let key = permission_cache_key(
-            &TestRole::make_triplet(&resource_id),
+        let role_list_key = role_list_cache_key(
+            TestRole::resource_type(),
+            &resource_id,
             &UserOrOrganizationId::User(user_id),
         );
-        let cached = mock.get_value(&key).await;
-        assert_eq!(
-            cached.as_deref(),
-            Some("0"),
-            "expected cache key to hold \"0\" after first negative check"
-        );
+        let cached_before_grant = mock.get_value(&role_list_key).await;
+        assert_eq!(cached_before_grant.as_deref(), Some("[]"));
 
-        // Grant the role, which should invalidate the cache.
         grant_role(
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
-                grant_reason: "Testing cache invalidation",
+                grant_reason: "Testing role list cache invalidation on grant",
             },
         )
         .await?;
 
-        let after_grant = mock.get_value(&key).await;
+        let cached_after_grant = mock.get_value(&role_list_key).await;
         assert!(
-            after_grant.is_none(),
-            "expected cache key to be deleted after grant_role, got {after_grant:?}"
+            cached_after_grant.is_none(),
+            "expected actor role-list cache key to be deleted after grant"
         );
-
-        // Permission check now re-queries the DB and should return true.
-        let second =
-            has_resource_permission(&state, TestRole::make_triplet(&resource_id), &user_id, None)
-                .await?;
-        assert!(second, "expected permission to be present after grant");
 
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn test_cache_invalidated_on_revoke(
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_role_list_cache_invalidated_on_revoke(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mock = Arc::new(MockRedis::new());
@@ -1278,35 +1613,35 @@ mod tests {
         let user_id = get_random_user_id(&app, &mut session).await?;
         let resource_id = Uuid::new_v4();
 
-        // Grant the role and confirm it is cached.
         grant_role(
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
-                grant_reason: "Testing cache invalidation",
+                grant_reason: "Testing role list cache invalidation on revoke",
             },
         )
         .await?;
 
-        let first =
+        let has_role =
             has_resource_permission(&state, TestRole::make_triplet(&resource_id), &user_id, None)
                 .await?;
-        assert!(first, "expected permission to be present");
+        assert!(has_role, "expected role to exist before revoke");
 
-        let key = permission_cache_key(
-            &TestRole::make_triplet(&resource_id),
+        let role_list_key = role_list_cache_key(
+            TestRole::resource_type(),
+            &resource_id,
             &UserOrOrganizationId::User(user_id),
         );
-        let cached = mock.get_value(&key).await;
-        assert_eq!(
-            cached.as_deref(),
-            Some("1"),
-            "expected cache key to hold \"1\" after positive check"
+        let cached_before_revoke = mock.get_value(&role_list_key).await;
+        assert!(
+            cached_before_revoke
+                .as_ref()
+                .is_some_and(|raw| raw.contains(TEST_ROLE_NAME)),
+            "expected role list cache to include the granted role"
         );
 
-        // Revoke the role, which should invalidate the cache.
         revoke_role(
             &state,
             RevokeRoleRequest {
@@ -1316,25 +1651,94 @@ mod tests {
         )
         .await?;
 
-        let after_revoke = mock.get_value(&key).await;
+        let cached_after_revoke = mock.get_value(&role_list_key).await;
         assert!(
-            after_revoke.is_none(),
-            "expected cache key to be deleted after revoke_role, got {after_revoke:?}"
+            cached_after_revoke.is_none(),
+            "expected actor role-list cache key to be deleted after revoke"
         );
-
-        // Permission check now re-queries the DB and should return false.
-        let second =
-            has_resource_permission(&state, TestRole::make_triplet(&resource_id), &user_id, None)
-                .await?;
-        assert!(!second, "expected no permission after revoke");
 
         Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_list_users_with_permission(
+    fn test_action_check_uses_cached_role_list(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let mock = Arc::new(MockRedis::new());
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let state = Arc::new(
+            test_state()
+                .db(pool.clone())
+                .redis_conn(mock.clone() as Arc<dyn RedisConnection>)
+                .call()?,
+        );
+
+        let user_id = get_random_user_id(&app, &mut session).await?;
+        let resource_id = Uuid::new_v4();
+
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user_id),
+                permission_triplet: Role::ConversationContentEditor.triplet(&resource_id),
+                granted_by: &session.id.unwrap(),
+                grant_reason: "Testing action role list cache",
+            },
+        )
+        .await?;
+
+        let first = can_perform_resource_action(
+            &state,
+            &resource_id,
+            Action::ConversationRead,
+            &user_id,
+            None,
+            None,
+        )
+        .await?;
+        assert!(first, "expected first action check to be allowed");
+
+        let role_list_key = role_list_cache_key(
+            ResourceType::Conversation.as_ref(),
+            &resource_id,
+            &UserOrOrganizationId::User(user_id),
+        );
+        let cached_roles = mock.get_value(&role_list_key).await;
+        assert!(
+            cached_roles
+                .as_ref()
+                .is_some_and(|raw| raw.contains(Role::ConversationContentEditor.as_ref())),
+            "expected cached role list to include content editor role"
+        );
+
+        let (sql, values) = DeleteStatement::new()
+            .from_table("resource_permissions")
+            .and_where(Expr::col("user_id").eq(user_id))
+            .and_where(Expr::col("resource_id").eq(resource_id))
+            .and_where(Expr::col("resource_type").eq(ResourceType::Conversation.as_ref()))
+            .and_where(Expr::col("role_name").eq(Role::ConversationContentEditor.as_ref()))
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values).execute(&pool).await?;
+
+        let second = can_perform_resource_action(
+            &state,
+            &resource_id,
+            Action::ConversationRead,
+            &user_id,
+            None,
+            None,
+        )
+        .await?;
+        assert!(
+            second,
+            "expected second action check to be served by cached role list"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_list_users_with_permission(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let state = Arc::new(test_state().db(pool).call()?);
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
@@ -1385,6 +1789,90 @@ mod tests {
                 .iter()
                 .all(|u| u.role_name == TestRole::name()),
             "wrong role_name"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_action_permission_granted_for_content_editor(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let user_id = get_random_user_id(&app, &mut session).await?;
+        let resource_id = Uuid::new_v4();
+
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user_id),
+                permission_triplet: Role::ConversationContentEditor.triplet(&resource_id),
+                granted_by: &session.id.unwrap(),
+                grant_reason: "Testing action checks",
+            },
+        )
+        .await?;
+
+        let can_read = can_perform_resource_action(
+            &state,
+            &resource_id,
+            Action::ConversationRead,
+            &user_id,
+            None,
+            None,
+        )
+        .await?;
+        assert!(can_read, "content editor should allow read action");
+
+        let can_update = can_perform_resource_action(
+            &state,
+            &resource_id,
+            Action::ConversationUpdate,
+            &user_id,
+            None,
+            None,
+        )
+        .await?;
+        assert!(can_update, "content editor should allow update action");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_action_permission_denied_when_resource_type_mismatch(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let user_id = get_random_user_id(&app, &mut session).await?;
+        let resource_id = Uuid::new_v4();
+
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user_id),
+                permission_triplet: OtherRole::make_triplet(&resource_id),
+                granted_by: &session.id.unwrap(),
+                grant_reason: "Testing action checks",
+            },
+        )
+        .await?;
+
+        let can_read = can_perform_resource_action(
+            &state,
+            &resource_id,
+            Action::ConversationRead,
+            &user_id,
+            None,
+            None,
+        )
+        .await?;
+        assert!(
+            !can_read,
+            "conversation read action should be denied for non-conversation role assignment"
         );
 
         Ok(())

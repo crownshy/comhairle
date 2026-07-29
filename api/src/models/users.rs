@@ -4,7 +4,9 @@ use crate::{
     error::ComhairleError,
     models::{
         pagination::{Order, PageOptions, PaginatedResults},
-        permissions::{NamedRole, ResourcePermissionIden, SYSTEM_RESOURCE_TYPE, SystemAdminRole},
+        permissions::{
+            ResourcePermissionIden, ResourceType as PermissionResourceType, Role as PermissionRole,
+        },
     },
     routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
     tools::id::gen_id,
@@ -610,14 +612,14 @@ impl UserFilterOptions {
                         ResourcePermissionIden::Table,
                         ResourcePermissionIden::ResourceType,
                     ))
-                    .eq(SYSTEM_RESOURCE_TYPE),
+                    .eq(PermissionResourceType::System.as_ref()),
                 )
                 .and_where(
                     Expr::col((
                         ResourcePermissionIden::Table,
                         ResourcePermissionIden::RoleName,
                     ))
-                    .eq(SystemAdminRole::name()),
+                    .eq(PermissionRole::Admin.as_ref()),
                 )
                 .to_owned();
 
