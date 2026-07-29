@@ -40,6 +40,7 @@
 	{y}
 	{x}
 	labels
+	xScale={undefined}
 	yScale={scaleBand().paddingOuter(0.4).paddingInner(0.4)}
 	grid={false}
 	axis="y"
