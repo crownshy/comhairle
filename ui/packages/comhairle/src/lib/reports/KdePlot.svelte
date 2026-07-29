@@ -10,6 +10,8 @@
 		category: string;
 		rawData: Record<string, number[]>;
 		maxX?: number;
+		minX?: number;
+		height?: number;
 		options?: {
 			densityLine?: boolean;
 			outline?: boolean;
@@ -22,11 +24,12 @@
 		category,
 		rawData,
 		maxX = 10,
+		minX = 0,
+		height = 200,
 		options = { densityLine: true, outline: false }
 	}: Props = $props();
 
-	let overlap = $state(4);
-	let height = $state(200);
+	let overlap = 4;
 
 	const categories = $derived([category]);
 
@@ -44,9 +47,9 @@
 		}));
 	}
 
-	const N = categories.length;
+	const N = $derived(categories.length);
 	const basePadding = { top: 0, bottom: 0, left: 0, right: 0 };
-	const thresholds = range(0, maxX + 1, 1);
+	const thresholds = $derived(range(minX, maxX + 1, 1));
 	const bandwidth = 7;
 
 	// Compute KDE for each category
@@ -55,7 +58,9 @@
 		values: kde(epanechnikov(bandwidth), thresholds, rawData[name])
 	}));
 
-	const maxDensity = max(seriesData.flatMap((s) => s.values.map((d) => d.value))) ?? 0.01;
+	const maxDensity = $derived(
+		max(seriesData.flatMap((s) => s.values.map((d) => d.value))) ?? 0.01
+	);
 
 	const overlapExtra = $derived(Math.max(0, overlap - 1));
 	const paddingTop = $derived(
@@ -76,7 +81,7 @@
 	);
 
 	let average = $derived(mean(rawData[category]) ?? 0);
-	const averagePercentage = $derived((average / maxX) * 100);
+	const averagePercentage = $derived(((average - minX) / (maxX - minX)) * 100);
 </script>
 
 <div class="relative">
@@ -107,7 +112,6 @@
 								y1={(d) => zScale(d.value)}
 								curve={curveBasis}
 								fill={gradient}
-								class=""
 								line={options.outline
 									? { class: 'stroke-primary stroke-2' }
 									: undefined}

@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { ChevronUp, ChevronRight } from 'lucide-svelte';
+	import {
+		ScatterChart,
+		Tooltip,
+		defaultChartPadding,
+		Points,
+		Layer,
+		Rule,
+		Highlight
+	} from 'layerchart';
 
 	export type ScatterPoint = {
 		id: string;
@@ -12,60 +20,106 @@
 		yAxisLabel: string;
 		xDomain: [number, number];
 		yDomain: [number, number];
-		height?: string;
+		height?: number;
 		points: ScatterPoint[];
 	};
 
-	let { xAxisLabel, yAxisLabel, xDomain, yDomain, height = '50vh', points }: Props = $props();
+	let { xAxisLabel, yAxisLabel, xDomain, yDomain, height = 500, points }: Props = $props();
 
-	function toLeftPercent(x: number, [min, max]: readonly [number, number]) {
-		return ((x - min) / (max - min)) * 100;
+	let midPoints = $derived.by(() => {
+		return {
+			x: (xDomain[0] + xDomain[1]) / 2,
+			y: (yDomain[0] + yDomain[1]) / 2
+		};
+	});
+
+	let flipAxes = $state(false);
+	function handleFlipAxes(e: Event) {
+		const target = e.target as HTMLSelectElement;
+
+		if (target.name === 'yAxis') {
+			flipAxes = target.value === xAxisLabel;
+		} else if (target.name === 'xAxis') {
+			flipAxes = target.value === yAxisLabel;
+		}
 	}
 
-	function toTopPercent(y: number, [min, max]: readonly [number, number]) {
-		return 100 - ((y - min) / (max - min)) * 100;
+	function truncateLabel(value: string) {
+		const limit = 20;
+		return value.length < limit ? value : value.slice(0, limit).concat('...');
 	}
+
+	const SELECT_CLASSES = 'rounded-full border px-2 py-1 focus:outline-none';
+	const OPTION_CLASSES = 'dark:bg-background dark:text-foreground';
 </script>
 
-<article class="relative w-full" style="height: {height}">
-	<div class="grid h-full grid-cols-[85%_1fr] gap-4">
+<article class="relative w-full pr-16">
+	<div class="grid h-full grid-cols-[85%_1fr]">
 		<div class="h-full">
 			<div class="mb-2 flex justify-center">
-				<span>{yAxisLabel}</span>
-			</div>
-			<div class="h-full w-full px-4 py-4">
-				<div class="relative h-[90%] w-full">
-					<!-- y axis -->
-					<div
-						class="bg-muted-foreground/50 absolute top-0 left-1/2 h-full w-0.5 -translate-x-1/2"
+				<select
+					class={SELECT_CLASSES}
+					name="yAxis"
+					onchange={handleFlipAxes}
+					value={flipAxes ? xAxisLabel : yAxisLabel}
+				>
+					<option class={OPTION_CLASSES} value={yAxisLabel}
+						>{truncateLabel(yAxisLabel)}</option
 					>
-						<ChevronUp class="text-muted-foreground/50 absolute -top-2.5 -left-2.75" />
-					</div>
-
-					<!-- x axis -->
-					<div
-						class="bg-muted-foreground/50 absolute top-1/2 left-0 h-0.5 w-full -translate-y-1/2"
+					<option class={OPTION_CLASSES} value={xAxisLabel}
+						>{truncateLabel(xAxisLabel)}</option
 					>
-						<ChevronRight
-							class="text-muted-foreground/50 absolute -top-2.75 -right-2.5"
-						/>
-					</div>
-
-					<!-- points -->
-					{#each points as point (point.id)}
-						<div
-							class="border-primary absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-transparent"
-							style="left: {toLeftPercent(point.x, xDomain)}%; top: {toTopPercent(
-								point.y,
-								yDomain
-							)}%"
-						></div>
-					{/each}
-				</div>
+				</select>
 			</div>
 		</div>
-		<div class="flex items-center">
-			<span>{xAxisLabel}</span>
+	</div>
+	<div class="grid h-full grid-cols-[85%_1fr]">
+		<ScatterChart
+			data={points}
+			xBaseline={0}
+			yBaseline={5}
+			xDomain={flipAxes ? yDomain : xDomain}
+			yDomain={flipAxes ? xDomain : yDomain}
+			{height}
+			x={flipAxes ? 'y' : 'x'}
+			y={flipAxes ? 'x' : 'y'}
+			padding={defaultChartPadding({ top: 20, bottom: 20, left: 20, right: 20 })}
+		>
+			{#snippet children({ context })}
+				<Layer>
+					<Points class="fill-primary/10 stroke-primary" />
+					<Rule
+						x={flipAxes ? midPoints.y : midPoints.x}
+						y={flipAxes ? midPoints.x : midPoints.y}
+						class="stroke-muted-foreground stroke-2"
+					/>
+					<Highlight points lines axis="both" />
+				</Layer>
+				<Tooltip.Root>
+					{#snippet children({ data })}
+						<Tooltip.Header>Response</Tooltip.Header>
+						<Tooltip.List>
+							<Tooltip.Item label={xAxisLabel} value={context.x(data)} />
+							<Tooltip.Item label={yAxisLabel} value={context.y(data)} />
+						</Tooltip.List>
+					{/snippet}
+				</Tooltip.Root>
+			{/snippet}
+		</ScatterChart>
+		<div class="flex items-center text-center">
+			<select
+				class={SELECT_CLASSES}
+				name="xAxis"
+				onchange={handleFlipAxes}
+				value={flipAxes ? yAxisLabel : xAxisLabel}
+			>
+				<option class={OPTION_CLASSES} value={xAxisLabel}
+					>{truncateLabel(xAxisLabel)}</option
+				>
+				<option class={OPTION_CLASSES} value={yAxisLabel}
+					>{truncateLabel(yAxisLabel)}</option
+				>
+			</select>
 		</div>
 	</div>
 </article>
