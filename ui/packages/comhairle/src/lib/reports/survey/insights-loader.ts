@@ -103,11 +103,26 @@ export async function surveyInsightsLoader(workflowStepId: string) {
 				]
 			})
 		},
-
 		{
 			title: 'Can we contact you?',
 			chart: typedObj<Doughnut>({
 				type: 'Doughnut',
+				data: [
+					{
+						label: 'Yes',
+						value: 2
+					},
+					{
+						label: 'No',
+						value: 1
+					}
+				]
+			})
+		},
+		{
+			title: 'Responses over time',
+			chart: typedObj<Line>({
+				type: 'Line',
 				data: [
 					{
 						label: 'Yes',

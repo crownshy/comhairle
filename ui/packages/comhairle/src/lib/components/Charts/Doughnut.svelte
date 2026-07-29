@@ -12,6 +12,14 @@
 		...props
 	}: Omit<ComponentProps<typeof PieChart>, 'data'> & { data: ChartData[] } = $props();
 
+	const colours = [
+		'var(--chart-1)',
+		'var(--chart-2)',
+		'var(--chart-3)',
+		'var(--chart-4)',
+		'var(--chart-5)'
+	];
+
 	const chartConfig = {
 		desktop: { label: 'Desktop', color: 'var(--chart-2)' },
 		mobile: { label: 'Mobile', color: 'var(--chart-3)' }
@@ -36,8 +44,10 @@
 		{key}
 		{value}
 		innerRadius={-40}
-		padding={{ top: 24, bottom: 24, left: 80, right: 80 }}
 		cornerRadius={2}
+		legend
+		range={[-180, 180]}
+		cRange={colours}
 		{height}
 		{...props}
 	>
