@@ -1,12 +1,19 @@
 <script lang="ts">
-	import { BarChart, type ChartState } from 'layerchart';
+	import { BarChart } from 'layerchart';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import { cubicInOut } from 'svelte/easing';
 	import type { ComponentProps } from 'svelte';
+	import { scaleBand } from 'd3-scale';
 
-	let { data, x, y, props: BarProps, ...props }: ComponentProps<typeof BarChart> = $props();
-
-	let context = $state<ChartState>();
+	let {
+		data,
+		x = 'label',
+		y = 'value',
+		height = 300,
+		props: BarProps,
+		context = $bindable(),
+		...props
+	}: ComponentProps<typeof BarChart> = $props();
 
 	const chartConfig = {
 		desktop: { label: 'Desktop', color: 'var(--chart-1)' },
@@ -14,13 +21,12 @@
 	} satisfies Chart.ChartConfig;
 </script>
 
-<!-- <DiffBarChart /> -->
 <Chart.Container config={chartConfig}>
 	<BarChart
 		bind:context
 		{data}
-		x={x ?? 'label'}
-		y={y ?? 'value'}
+		{x}
+		{y}
 		props={{
 			bars: {
 				stroke: 'none',
@@ -37,6 +43,8 @@
 			highlight: { area: { fill: 'none' } },
 			...BarProps
 		}}
+		xScale={scaleBand().paddingInner(0.7)}
+		{height}
 		{...props}
 	>
 		{#snippet tooltip()}

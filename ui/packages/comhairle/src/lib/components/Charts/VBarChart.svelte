@@ -5,7 +5,12 @@
 	import { cubicInOut } from 'svelte/easing';
 	import type { ChartState } from 'layerchart';
 
-	let { x, y, props: BarProps, ...props }: ComponentProps<typeof BarChart> = $props();
+	let {
+		x = 'value',
+		y = 'label',
+		props: BarProps,
+		...props
+	}: ComponentProps<typeof BarChart> = $props();
 
 	let context = $state<ChartState>();
 </script>
@@ -13,7 +18,6 @@
 <BarChart
 	{...props}
 	props={{
-		...BarProps,
 		bars: {
 			stroke: BarProps?.bars?.stroke ?? 'none',
 			strokeWidth: BarProps?.bars?.strokeWidth ?? 0,
@@ -33,8 +37,8 @@
 		}
 	}}
 	orientation="horizontal"
-	y={x ?? 'label'}
-	x={y ?? 'value'}
+	{y}
+	{x}
 	labels
 	yScale={scaleBand().paddingOuter(0.4).paddingInner(0.4)}
 	grid={false}
