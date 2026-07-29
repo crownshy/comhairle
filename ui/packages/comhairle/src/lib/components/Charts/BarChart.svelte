@@ -48,7 +48,9 @@
 		{...props}
 	>
 		{#snippet tooltip()}
-			<Chart.Tooltip />
+			{#if tooltip !== undefined}
+				<Chart.Tooltip />
+			{/if}
 		{/snippet}
 	</BarChart>
 </Chart.Container>
