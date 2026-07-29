@@ -19,7 +19,7 @@ export type Doughnut = {
 
 export type Line = {
 	type: 'Line';
-	data: ChartData[];
+	data: Record<string, number[]>;
 };
 
 type Title = string;
@@ -123,16 +123,12 @@ export async function surveyInsightsLoader(workflowStepId: string) {
 			title: 'Responses over time',
 			chart: typedObj<Line>({
 				type: 'Line',
-				data: [
-					{
-						label: 'Yes',
-						value: 2
-					},
-					{
-						label: 'No',
-						value: 1
-					}
-				]
+				data: {
+					Frequency: [
+						1.5, 2, 1.8, 2.2, 1.6, 1.9, 2.1, 1.7, 2.3, 1.4, 8, 7.6, 8.3, 7.9, 8.5, 7.7,
+						8.1, 8.4, 7.8, 8.2
+					]
+				}
 			})
 		}
 	] as const;

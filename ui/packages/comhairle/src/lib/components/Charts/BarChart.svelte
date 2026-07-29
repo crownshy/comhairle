@@ -16,8 +16,8 @@
 	}: ComponentProps<typeof BarChart> = $props();
 
 	const chartConfig = {
-		desktop: { label: 'Desktop', color: 'var(--chart-1)' },
-		mobile: { label: 'Mobile', color: 'var(--chart-2)' }
+		desktop: { label: 'label', color: 'var(--chart-1)' },
+		mobile: { label: 'label', color: 'var(--chart-2)' }
 	} satisfies Chart.ChartConfig;
 </script>
 
