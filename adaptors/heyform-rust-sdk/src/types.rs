@@ -214,6 +214,7 @@ pub enum FormKind {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct ChoiceIcon {
     pub name: String,
     pub color: String,
@@ -221,6 +222,7 @@ pub struct ChoiceIcon {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct Choose {
     pub id: String,
     pub label: String,
@@ -245,6 +247,7 @@ pub struct Choose {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct FormReportResponse {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -259,6 +262,7 @@ pub struct FormReportResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct FormReportAnswer {
     pub submission_id: String,
     pub kind: String,
@@ -268,18 +272,22 @@ pub struct FormReportAnswer {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct FormReportSubmission {
-    pub id: String,
+    #[serde(rename = "_id")]
+    pub r#_id: String,
     pub answers: Vec<FormReportAnswer>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct FormReport {
     pub responses: Vec<FormReportResponse>,
     pub submissions: Vec<FormReportSubmission>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct HiddenFieldAnswer {
     pub id: String,
     pub name: String,
@@ -288,7 +296,7 @@ pub struct HiddenFieldAnswer {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone, Copy, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub enum SubmissionCategory {
     #[default]
     Inbox,
@@ -298,6 +306,7 @@ pub enum SubmissionCategory {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct Submission {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -313,6 +322,7 @@ pub struct Submission {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct Submissions {
     pub total: i32,
     pub submissions: Vec<Submission>,

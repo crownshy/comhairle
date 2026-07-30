@@ -547,7 +547,7 @@ export const Choose = z
     icon: z.union([ChoiceIcon, z.null()]).optional(),
     id: z.string(),
     image: z.union([z.string(), z.null()]).optional(),
-    is_expected: z.union([z.boolean(), z.null()]).optional(),
+    isExpected: z.union([z.boolean(), z.null()]).optional(),
     label: z.string(),
     score: z.union([z.number(), z.null()]).optional(),
   })
@@ -567,9 +567,9 @@ export const FormReportResponse = z
 export type FormReportResponse = z.infer<typeof FormReportResponse>;
 export const FormReportAnswer = z
   .object({
-    end_at: z.number().int(),
+    endAt: z.number().int(),
     kind: z.string(),
-    submission_id: z.string(),
+    submissionId: z.string(),
     value: z.unknown().optional(),
   })
   .passthrough();
@@ -604,8 +604,8 @@ export const Submission = z
   .object({
     answers: z.array(z.object({}).partial().passthrough()),
     category: z.union([SubmissionCategory, z.null()]).optional(),
-    end_at: z.number().int(),
-    hidden_fields: z.union([z.array(HiddenFieldAnswer), z.null()]).optional(),
+    endAt: z.number().int(),
+    hiddenFields: z.union([z.array(HiddenFieldAnswer), z.null()]).optional(),
     id: z.string(),
     title: z.union([z.string(), z.null()]).optional(),
     variables: z.union([z.array(z.unknown()), z.null()]).optional(),

@@ -388,14 +388,24 @@ impl HeyFormClient {
             }
         });
 
-        let response: HashMap<String, FormReport> = self
+        let response: HashMap<String, serde_json::Value> = self
             .execute_graphql(FORM_REPORT_QUERY, variables, Some("formReport"))
             .await?;
 
-        response
-            .get("formReport")
-            .cloned()
-            .ok_or_else(|| HeyFormError::NotFound("Form report not found".to_string()))
+        eprintln!(" --- GHLOG --- : Response from get_form_report: {}", serde_json::to_string_pretty(response.get("formReport").unwrap()).unwrap());
+
+        let form_report = serde_json::from_value::<FormReport>(
+            response
+                .get("formReport")
+                .cloned()
+                .ok_or_else(|| HeyFormError::NotFound("Form report not found".to_string()))
+                .map_err(|e| {
+                    eprintln!(" --- GHLOG --- : Error in get_form_report: {e:?}");
+                    e
+                })?,
+        )?;
+
+        Ok(form_report)
     }
 
     pub async fn get_form_submissions(&self, form_id: String, category: String, page: i32) -> Result<Submissions> {
@@ -407,13 +417,23 @@ impl HeyFormClient {
             }
         });
 
-        let response: HashMap<String, Submissions> = self
+        let response: HashMap<String, serde_json::Value> = self
             .execute_graphql(SUBMISSIONS_QUERY, variables, Some("submissions"))
             .await?;
 
-        response
-            .get("submissions")
-            .cloned()
-            .ok_or_else(|| HeyFormError::NotFound("Submissions not found".to_string()))
+        eprintln!(" --- GHLOG --- : Response from get_form_submissions: {}", serde_json::to_string_pretty(response.get("submissions").unwrap()).unwrap());
+
+        let submissions: Submissions = serde_json::from_value(
+            response
+                .get("submissions")
+                .cloned()
+                .ok_or_else(|| HeyFormError::NotFound("Submissions not found".to_string()))
+                .map_err(|e| {
+                    eprintln!(" --- GHLOG --- : Error in get_form_submissions: {e:?}");
+                    e
+                })?,
+        )?;
+
+        Ok(submissions)
     }
 }

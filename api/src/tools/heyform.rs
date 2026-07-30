@@ -463,7 +463,7 @@ mod tests {
                 }]),
             }],
             submissions: vec![FormReportSubmission {
-                id: "submission-1".to_string(),
+                r#_id: "submission-1".to_string(),
                 answers: vec![FormReportAnswer {
                     submission_id: "submission-1".to_string(),
                     kind: "text".to_string(),
