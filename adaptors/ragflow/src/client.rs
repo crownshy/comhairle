@@ -1,9 +1,9 @@
 use crate::error::{RagflowError, Result};
 
 use reqwest::{
+    Client as HttpClient, StatusCode,
     header::{HeaderName, HeaderValue},
     multipart::Form,
-    Client as HttpClient, StatusCode,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -242,11 +242,11 @@ mod tests {
     use std::error::Error;
 
     use crate::{client::RagflowClient, error::RagflowError};
-    use reqwest::{multipart::Form, StatusCode};
+    use reqwest::{StatusCode, multipart::Form};
     use serde_json::json;
     use wiremock::{
-        matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
     };
 
     #[tokio::test]

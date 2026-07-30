@@ -1,13 +1,13 @@
 use reqwest::{
-    multipart::{Form, Part},
     StatusCode,
+    multipart::{Form, Part},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::DeleteResources;
 use crate::client::RagflowClient;
 use crate::error::Result;
-use crate::DeleteResources;
 use crate::{ChunkMethod, GetQueryParams};
 
 pub async fn list(
@@ -211,8 +211,8 @@ mod tests {
 
     use serde_json::json;
     use wiremock::{
-        matchers::{method, path, query_param},
         Mock, MockServer, ResponseTemplate,
+        matchers::{method, path, query_param},
     };
 
     #[tokio::test]

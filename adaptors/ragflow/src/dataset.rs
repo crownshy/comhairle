@@ -108,8 +108,8 @@ mod tests {
     use crate::client::RagflowClient;
     use serde_json::json;
     use wiremock::{
-        matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
     };
 
     #[tokio::test]

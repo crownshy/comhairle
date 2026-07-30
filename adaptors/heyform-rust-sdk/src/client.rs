@@ -1,8 +1,8 @@
 use reqwest::{
-    cookie::{CookieStore, Jar},
     Client,
+    cookie::{CookieStore, Jar},
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
