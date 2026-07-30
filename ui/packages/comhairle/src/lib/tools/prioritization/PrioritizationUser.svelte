@@ -57,7 +57,11 @@
 
 	async function scrollToProposalTop() {
 		await tick();
-		proposalTopEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		proposalTopEl?.scrollIntoView({
+			behavior: reduceMotion ? 'auto' : 'smooth',
+			block: 'start'
+		});
 	}
 
 	/** Brief success interstitial shown between proposals so a submit registers as a
@@ -596,12 +600,12 @@
 {#if showSubmitted}
 	<Portal>
 		<div
-			class="bg-background/70 animate-in fade-in-0 fixed inset-0 z-100 flex items-center justify-center backdrop-blur-sm duration-200"
+			class="bg-background/70 animate-in fade-in-0 fixed inset-0 z-100 flex items-center justify-center backdrop-blur-sm duration-200 motion-reduce:animate-none"
 			role="status"
 			aria-live="polite"
 		>
 			<div
-				class="bg-card border-border animate-in zoom-in-95 fade-in-0 flex flex-col items-center gap-3 rounded-2xl border px-10 py-8 text-center shadow-lg duration-200"
+				class="bg-card border-border animate-in zoom-in-95 fade-in-0 flex flex-col items-center gap-3 rounded-2xl border px-10 py-8 text-center shadow-lg duration-200 motion-reduce:animate-none"
 			>
 				<CheckCircle2 class="text-primary size-12" />
 				<span class="text-foreground text-lg font-semibold">Response submitted</span>
