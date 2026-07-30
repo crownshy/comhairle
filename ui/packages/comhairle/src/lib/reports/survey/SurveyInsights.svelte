@@ -15,7 +15,7 @@
 
 {#each data as section (section.title)}
 	<div class="py-10">
-		<h2>{section.title}</h2>
+		<h2 class="text-md font-bold">{section.title}</h2>
 		{#if section.chart.type === 'BarChart'}
 			{#if section.chart.variant === 'label'}
 				<BarChart data={section.chart.data} />
