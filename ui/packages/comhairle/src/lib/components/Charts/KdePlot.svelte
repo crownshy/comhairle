@@ -7,8 +7,7 @@
 	type Props = {
 		minLabel?: string;
 		maxLabel?: string;
-		category: string;
-		rawData: Record<string, number[]>;
+		data: Record<string, number[]>;
 		maxX?: number;
 		minX?: number;
 		height?: number;
@@ -21,8 +20,7 @@
 	let {
 		minLabel,
 		maxLabel,
-		category,
-		rawData,
+		data,
 		maxX = 10,
 		minX = 0,
 		height = 200,
@@ -31,7 +29,8 @@
 
 	let overlap = 4;
 
-	const categories = $derived([category]);
+	const categories = $derived(Object.keys(data));
+	console.log('categories:', categories);
 
 	// Epanechnikov kernel for KDE
 	function epanechnikov(bandwidth: number) {
@@ -49,14 +48,17 @@
 
 	const N = $derived(categories.length);
 	const basePadding = { top: 0, bottom: 0, left: 0, right: 0 };
-	const thresholds = $derived(range(minX, maxX + 1, 1));
-	const bandwidth = 7;
 
 	// Compute KDE for each category
-	const seriesData = categories.map((name) => ({
-		name,
-		values: kde(epanechnikov(bandwidth), thresholds, rawData[name])
-	}));
+	const seriesData = $derived.by(() => {
+		const thresholds = $derived(range(minX, maxX + 1, 1));
+		const bandwidth = 7;
+
+		return categories.map((name) => ({
+			name,
+			values: kde(epanechnikov(bandwidth), thresholds, data[name])
+		}));
+	});
 
 	const maxDensity = $derived(
 		max(seriesData.flatMap((s) => s.values.map((d) => d.value))) ?? 0.01
@@ -80,8 +82,18 @@
 			.range([0, -overlap * step])
 	);
 
-	let average = $derived(mean(rawData[category]) ?? 0);
-	const averagePercentage = $derived(((average - minX) / (maxX - minX)) * 100);
+	let averages = $derived.by(() => {
+		const averages: Record<string, { value: number; percentage: number }> = {};
+		for (const category of categories) {
+			const average = mean(data[category]) ?? 0;
+			averages[category] ??= {
+				value: average,
+				percentage: ((average - minX) / (maxX - minX)) * 100
+			};
+		}
+		console.log('averages:', averages);
+		return averages;
+	});
 </script>
 
 <div class="relative">
@@ -123,18 +135,23 @@
 		</Layer>
 	</Chart>
 	{#if options.densityLine}
-		<div class="bg-muted-foreground/50 relative mb-2 h-1 rounded-full">
-			<div
-				class="bg-primary absolute h-full rounded-full"
-				style="width: {averagePercentage}%"
-			>
-				<div
-					class="bg-primary text-primary-foreground absolute top-1/2 right-0 -translate-y-1/2 rounded-full px-1.5 py-px text-xs"
-				>
-					{average.toFixed(1)}
+		{#each categories as category (category)}
+			{@const average = averages[category]}
+			{#if average}
+				<div class="bg-muted-foreground/50 relative mb-2 h-1 rounded-full">
+					<div
+						class="bg-primary absolute h-full rounded-full"
+						style="width: {average.percentage}%"
+					>
+						<div
+							class="bg-primary text-primary-foreground absolute top-1/2 right-0 -translate-y-1/2 rounded-full px-1.5 py-px text-xs"
+						>
+							{average.value.toFixed(1)}
+						</div>
+					</div>
 				</div>
-			</div>
-		</div>
+			{/if}
+		{/each}
 	{/if}
 	{#if minLabel && maxLabel}
 		<div class="text-muted-foreground relative bottom-0 flex justify-between text-xs">

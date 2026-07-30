@@ -2,7 +2,7 @@
 	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
 	import VBarChart from '$lib/components/Charts/VBarChart.svelte';
-	import KdePlot from '../KdePlot.svelte';
+	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 	import type { Insight } from './insights-loader';
 	import Responses from './Responses.svelte';
 
@@ -27,7 +27,7 @@
 			<Doughnut data={section.chart.data} />
 		{/if}
 		{#if section.chart.type === 'Line'}
-			<KdePlot rawData={section.chart.data} category="Frequency" />
+			<KdePlot data={section.chart.data} />
 		{/if}
 		{#if section.chart.type === 'Text'}
 			<Responses data={section.chart.data} />
