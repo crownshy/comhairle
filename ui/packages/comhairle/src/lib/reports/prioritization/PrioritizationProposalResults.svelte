@@ -8,6 +8,7 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import type { ToolConfig, Question, ProposalSection } from '$lib/tools/prioritization';
+	import type { ComponentProps } from 'svelte';
 
 	type Props = {
 		proposals: RankedProposal[];
@@ -20,7 +21,7 @@
 		question: Question,
 		proposal: RankedProposal,
 		section?: ProposalSection
-	) {
+	): ComponentProps<typeof BarChart>['data'] | undefined {
 		if (question.type.kind !== 'likert') return;
 		if (!('categories' in question.type)) return;
 
