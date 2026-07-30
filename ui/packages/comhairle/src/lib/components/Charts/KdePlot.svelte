@@ -30,7 +30,6 @@
 	let overlap = 4;
 
 	const categories = $derived(Object.keys(data));
-	console.log('categories:', categories);
 
 	// Epanechnikov kernel for KDE
 	function epanechnikov(bandwidth: number) {
@@ -91,7 +90,6 @@
 				percentage: ((average - minX) / (maxX - minX)) * 100
 			};
 		}
-		console.log('averages:', averages);
 		return averages;
 	});
 </script>
