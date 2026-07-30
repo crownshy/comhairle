@@ -1,3 +1,4 @@
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { typedObj } from '$lib/utils/types';
 import { apiClient } from '@crownshy/api-client/client';
 
@@ -35,15 +36,19 @@ export type Insight = {
 
 export async function surveyInsightsLoader(workflowStepId: string) {
 	// TODO: Undo when the backend data is ready
-	// const r1 = await apiClient.HeyFormGetFormReport({
-	// 	params: { workflow_step_id: workflowStepId }
-	// });
-	// const r2 = await apiClient.HeyFormGetSubmissions({
-	// 	params: { workflow_step_id: workflowStepId }
-	// });
-	//
-	// console.log("r1:", r1);
-	// console.log("r2:", r2);
+	const r1 = await tryCatchAsync(() =>
+		apiClient.HeyFormGetFormReport({
+			params: { workflow_step_id: workflowStepId }
+		})
+	);
+	const r2 = await tryCatchAsync(() =>
+		apiClient.HeyFormGetSubmissions({
+			params: { workflow_step_id: workflowStepId }
+		})
+	);
+
+	console.log('r1:', r1);
+	console.log('r2:', r2);
 
 	const insights: Insight[] = [
 		{
