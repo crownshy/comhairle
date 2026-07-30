@@ -146,12 +146,20 @@
 		cursor: pointer;
 	}
 
-	/* Before the participant answers: neutral resting thumb, no track fill. */
+	/* The track is the same grey whether or not the question is answered, so the
+	 * unfilled remainder after voting matches the unvoted state. */
+	.pref-slider :global([data-slot='slider-track']) {
+		background-color: var(--border);
+	}
+
+	/* Before the participant answers: no track fill, and a blue-outlined resting
+	 * thumb so it reads as "interactive but unset" rather than disabled. */
 	.pref-slider[data-answered='false'] :global([data-slot='slider-range']) {
 		background-color: transparent;
 	}
 	.pref-slider[data-answered='false'] :global([data-slot='slider-thumb']) {
-		border-color: var(--border);
+		border-width: 2px;
+		border-color: var(--primary);
 		background-color: var(--background);
 	}
 
