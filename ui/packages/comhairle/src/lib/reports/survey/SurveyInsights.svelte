@@ -4,6 +4,7 @@
 	import VBarChart from '$lib/components/Charts/VBarChart.svelte';
 	import KdePlot from '../KdePlot.svelte';
 	import type { Insight } from './insights-loader';
+	import Responses from './Responses.svelte';
 
 	interface Props {
 		data: Insight[];
@@ -27,6 +28,9 @@
 		{/if}
 		{#if section.chart.type === 'Line'}
 			<KdePlot rawData={section.chart.data} category="Frequency" />
+		{/if}
+		{#if section.chart.type === 'Text'}
+			<Responses data={section.chart.data} />
 		{/if}
 	</div>
 {/each}
