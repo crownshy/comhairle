@@ -3,9 +3,9 @@
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
-	let { conversation, user, hasKnowledgeBaseDocs } = $derived(data);
+	let { conversation, hasKnowledgeBaseDocs } = $derived(data);
 </script>
 
 {@render children()}
 
-<ConversationSupportSidebar {conversation} {user} {hasKnowledgeBaseDocs} />
+<ConversationSupportSidebar {conversation} {hasKnowledgeBaseDocs} />

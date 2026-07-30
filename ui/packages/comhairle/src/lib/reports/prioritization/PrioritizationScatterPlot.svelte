@@ -1,12 +1,14 @@
 <script lang="ts">
-	import type { ProposalResponseDto, Question, RankedProposal } from '@crownshy/api-client/api';
+	import type { ProposalResponseDto, RankedProposal } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
 	import ScatterPlot, { type ScatterPoint } from '../ScatterPlot.svelte';
 	import * as Select from '$lib/components/ui/select';
+	import { extractAxisDomain } from './utils';
+	import type { ToolConfig } from '$lib/tools/prioritization';
 
 	type Props = {
 		proposals: RankedProposal[];
-		toolConfig: { alignment_question_id: string; questions: Question[] };
+		toolConfig: ToolConfig;
 	};
 
 	let { proposals, toolConfig }: Props = $props();
@@ -14,10 +16,10 @@
 	let selectedProposal = $state(proposals[0]);
 
 	const xQuestion = $derived(
-		toolConfig.questions.find((question) => question.id === toolConfig.alignment_question_id)
+		toolConfig.questions.find((question) => question.id === toolConfig.alignmentQuestionId)
 	);
 	const yQuestion = $derived(
-		toolConfig.questions.find((question) => question.id !== toolConfig.alignment_question_id)
+		toolConfig.questions.find((question) => question.id !== toolConfig.alignmentQuestionId)
 	);
 
 	function extractScatterPoints(
@@ -43,8 +45,13 @@
 	}
 
 	let scatterPoints = $derived(
-		extractScatterPoints(selectedProposal.responses, xQuestion.id, yQuestion.id)
+		xQuestion && yQuestion
+			? extractScatterPoints(selectedProposal.responses, xQuestion.id, yQuestion.id)
+			: []
 	);
+
+	let xDomain = $derived.by(() => (xQuestion ? extractAxisDomain(xQuestion) : null));
+	let yDomain = $derived.by(() => (yQuestion ? extractAxisDomain(yQuestion) : null));
 </script>
 
 <ContentCard>
@@ -56,19 +63,35 @@
 		</p>
 	</div>
 
-	<div class="flex justify-end">
-		<Select.Root
-			type="single"
-			onValueChange={(v) => (selectedProposal = proposals.find((p) => p.id === v))}
-		>
-			<Select.Trigger>{selectedProposal.title}</Select.Trigger>
-			<Select.Content>
-				{#each proposals as proposal (proposal.id)}
-					<Select.Item value={proposal.id}>{proposal.title}</Select.Item>
-				{/each}
-			</Select.Content>
-		</Select.Root>
-	</div>
+	{#if xQuestion && yQuestion && xDomain && yDomain}
+		<div class="mb-4 flex justify-end">
+			<Select.Root
+				type="single"
+				onValueChange={(v) => {
+					const found = proposals.find((p) => p.id === v);
+					if (found) selectedProposal = found;
+				}}
+			>
+				<Select.Trigger>{selectedProposal.title}</Select.Trigger>
+				<Select.Content>
+					{#each proposals as proposal (proposal.id)}
+						<Select.Item value={proposal.id}>{proposal.title}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
 
-	<ScatterPlot xAxisLabel={xQuestion.text} yAxisLabel={yQuestion.text} points={scatterPoints} />
+		<ScatterPlot
+			points={scatterPoints}
+			xAxisLabel={xQuestion.text}
+			yAxisLabel={yQuestion.text}
+			{xDomain}
+			{yDomain}
+		/>
+	{:else}
+		<div class="flex flex-col items-center justify-center gap-2">
+			<span>Somethign went wrong gathering data.</span>
+			<span>Unable to render scatter plot.</span>
+		</div>
+	{/if}
 </ContentCard>

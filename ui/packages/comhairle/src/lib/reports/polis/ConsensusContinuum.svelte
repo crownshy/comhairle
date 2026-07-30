@@ -12,9 +12,9 @@
 <script lang="ts">
 	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
 	import { scoredComments, mostDivisiveTid } from '$lib/tools/polis/beeswarm';
-	import { scaleLinear } from 'd3-scale';
+	import { scaleSqrt } from 'd3-scale';
 	import { forceX, forceY, forceCollide, type Force, type SimulationNodeDatum } from 'd3-force';
-	import { ForceSimulation } from 'layerchart';
+	import { ForceSimulation } from 'layerchart/force';
 	import * as Card from '$lib/components/ui/card';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
 
@@ -40,11 +40,8 @@
 	// divisiveness -> x pixel. forceX reads this, so a new scale (on resize) means
 	// new forces, which restarts the layout at the correct positions.
 	const xScale = $derived(
-		scaleLinear()
-			.domain([
-				Math.min(...scored.map((c) => c.divisiveness)),
-				Math.max(...scored.map((c) => c.divisiveness))
-			])
+		scaleSqrt()
+			.domain([0, Math.max(...scored.map((c) => c.divisiveness))])
 			.range([PADDING, Math.max(PADDING, plotWidth - PADDING)])
 	);
 

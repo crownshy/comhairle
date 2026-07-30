@@ -12,7 +12,7 @@
 	} from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
 	import { navigating } from '$app/state';
-	import LearningAssistant from './LearningAssistant.svelte';
+	import LearningAssistant from '$lib/components/LearningAssistant/LearningAssistant.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 
