@@ -39,30 +39,29 @@
 <div class="flex h-full flex-col pt-10 md:pt-20">
 	<header class="mb:pb-20 px-2 pb-5 md:px-0">
 		<h1 class="mb-4 text-4xl font-bold">{m.conversations()}</h1>
+		<p class="mb-4">
+			{m.find_open_conversations()}
+		</p>
+		<div class="flex justify-between">
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}
+				>
+					<ChevronDown class="h-4 w-4" />{m.sort()}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content>
+					<DropdownMenu.Group>
+						{@render sortOption(pageUrl, 'title+asc')}
+						{@render sortOption(pageUrl, 'title+desc')}
+						{@render sortOption(pageUrl, 'created_at+desc')}
+						{@render sortOption(pageUrl, 'created_at+asc')}
+					</DropdownMenu.Group>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+			<Search />
+		</div>
 		{#if data.records.length === 0}
-			<h2 class="text-muted-foreground">No conversations found</h2>
-		{:else}
-			<p class="mb-4">
-				{m.find_open_conversations()}
-			</p>
-			<div class="flex justify-between">
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}
-					>
-						<ChevronDown class="h-4 w-4" />{m.sort()}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content>
-						<DropdownMenu.Group>
-							{@render sortOption(pageUrl, 'title+asc')}
-							{@render sortOption(pageUrl, 'title+desc')}
-							{@render sortOption(pageUrl, 'created_at+desc')}
-							{@render sortOption(pageUrl, 'created_at+asc')}
-						</DropdownMenu.Group>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-				<Search />
-			</div>
+			<h2 class="text-muted-foreground pt-10">No conversations found</h2>
 		{/if}
 	</header>
 
