@@ -18,7 +18,7 @@
 		<h2 class="text-md font-bold">{section.title}</h2>
 		{#if section.chart.type === 'BarChart'}
 			{#if section.chart.variant === 'label'}
-				<BarChart data={section.chart.data} />
+				<BarChart data={section.chart.data} axis="x" />
 			{:else}
 				<VBarChart data={section.chart.data} />
 			{/if}
