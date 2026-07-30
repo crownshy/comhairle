@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+	import { Portal } from 'bits-ui';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
@@ -49,6 +51,29 @@
 	let submitError = $state<string | null>(null);
 	let savingReview = $state(false);
 	let reviewError = $state<string | null>(null);
+	/** Top of the current-proposal view; scrolled into view after advancing so it's
+	 * clear the participant has moved on to the next proposal. */
+	let proposalTopEl = $state<HTMLDivElement | null>(null);
+
+	async function scrollToProposalTop() {
+		await tick();
+		proposalTopEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
+
+	/** Brief success interstitial shown between proposals so a submit registers as a
+	 * distinct, deliberate moment rather than a silent form reset. */
+	let showSubmitted = $state(false);
+	const SUBMITTED_INTERSTITIAL_MS = 1100;
+
+	function flashSubmittedInterstitial(): Promise<void> {
+		showSubmitted = true;
+		return new Promise((resolve) =>
+			setTimeout(() => {
+				showSubmitted = false;
+				resolve();
+			}, SUBMITTED_INTERSTITIAL_MS)
+		);
+	}
 
 	/** Text answers are optional — completeness only requires likert / continuous. */
 	const requiredQuestions = $derived<Question[]>(
@@ -277,9 +302,13 @@
 		await submitCurrent();
 		if (submitError) return;
 		submitAttempted = false;
-		/** If anything is left, move on. Otherwise let allDone surface the summary view. */
+		/** Confirm the submission with a short interstitial before revealing what's next. */
+		await flashSubmittedInterstitial();
+		/** If anything is left, move on and scroll the fresh proposal to the top so the
+		 * jump to the next one is unmistakable. Otherwise let allDone surface the summary. */
 		if (currentIndex < proposals.length - 1) {
 			currentIndex += 1;
+			await scrollToProposalTop();
 		}
 	}
 
@@ -426,7 +455,7 @@
 		</div>
 	</div>
 {:else if current}
-	<div class="space-y-6">
+	<div class="space-y-6" bind:this={proposalTopEl}>
 		<div class="space-y-2">
 			<div class="flex items-center justify-between gap-3 text-sm">
 				<span class="text-muted-foreground">
@@ -562,4 +591,21 @@
 			<p class="text-destructive text-right text-sm">{submitError}</p>
 		{/if}
 	</div>
+{/if}
+
+{#if showSubmitted}
+	<Portal>
+		<div
+			class="bg-background/70 animate-in fade-in-0 fixed inset-0 z-100 flex items-center justify-center backdrop-blur-sm duration-200"
+			role="status"
+			aria-live="polite"
+		>
+			<div
+				class="bg-card border-border animate-in zoom-in-95 fade-in-0 flex flex-col items-center gap-3 rounded-2xl border px-10 py-8 text-center shadow-lg duration-200"
+			>
+				<CheckCircle2 class="text-primary size-12" />
+				<span class="text-foreground text-lg font-semibold">Response submitted</span>
+			</div>
+		</div>
+	</Portal>
 {/if}
