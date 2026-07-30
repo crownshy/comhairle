@@ -157,15 +157,36 @@
 	let currentAnswers = $derived(current ? (answers[current.id] ?? {}) : {});
 	let currentSectionAnswers = $derived(current ? (sectionAnswers[current.id] ?? {}) : {});
 
-	let isComplete = $derived.by(() => {
-		if (!current) return false;
-		const proposalOk = requiredQuestions.every((q) => isAnswered(currentAnswers[q.id]));
-		const sectionsOk = current.sections.every((section) => {
+	/** Set to true once the participant tries to submit, so we only surface
+	 * "required" errors after an attempt rather than nagging up front. */
+	let submitAttempted = $state(false);
+
+	/** Keys of required questions still unanswered on the current proposal.
+	 * Proposal-level questions key on `q.id`; per-section questions on `${section.id}:${q.id}`. */
+	function sectionKey(sectionId: string, questionId: string): string {
+		return `${sectionId}:${questionId}`;
+	}
+
+	let missingKeys = $derived.by(() => {
+		const keys = new Set<string>();
+		if (!current) return keys;
+		for (const q of requiredQuestions) {
+			if (!isAnswered(currentAnswers[q.id])) keys.add(q.id);
+		}
+		for (const section of current.sections) {
 			const sa = currentSectionAnswers[section.id] ?? {};
-			return requiredSectionQuestions.every((q) => isAnswered(sa[q.id]));
-		});
-		return proposalOk && sectionsOk;
+			for (const q of requiredSectionQuestions) {
+				if (!isAnswered(sa[q.id])) keys.add(sectionKey(section.id, q.id));
+			}
+		}
+		return keys;
 	});
+
+	let isComplete = $derived(current !== null && missingKeys.size === 0);
+
+	/** Only show the required-field errors once the user has attempted a submit
+	 * and something is still missing; auto-clears as they fill the fields in. */
+	let showRequiredErrors = $derived(submitAttempted && missingKeys.size > 0);
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
 
@@ -247,7 +268,15 @@
 	}
 
 	async function submitAndAdvance() {
+		if (currentSubmitted) return;
+		/** Surface which required fields are missing rather than silently doing nothing. */
+		if (!isComplete) {
+			submitAttempted = true;
+			return;
+		}
 		await submitCurrent();
+		if (submitError) return;
+		submitAttempted = false;
 		/** If anything is left, move on. Otherwise let allDone surface the summary view. */
 		if (currentIndex < proposals.length - 1) {
 			currentIndex += 1;
@@ -255,7 +284,10 @@
 	}
 
 	function goBack() {
-		if (currentIndex > 0) currentIndex -= 1;
+		if (currentIndex > 0) {
+			submitAttempted = false;
+			currentIndex -= 1;
+		}
 	}
 
 	let progressPercent = $derived(
@@ -283,7 +315,9 @@
 	<Card.Root>
 		<Card.Content class="space-y-3 py-8 text-center">
 			<p class="text-destructive">{loadState.message}</p>
-			<Button variant="outline" onclick={() => void loadProposalsAndProgress()}>Try again</Button>
+			<Button variant="outline" onclick={() => void loadProposalsAndProgress()}
+				>Try again</Button
+			>
 		</Card.Content>
 	</Card.Root>
 {:else if proposals.length === 0}
@@ -449,8 +483,15 @@
 											question.id
 										] ?? null}
 										disabled={currentSubmitted}
+										invalid={showRequiredErrors &&
+											missingKeys.has(sectionKey(section.id, question.id))}
 										onChange={(v) =>
-											setSectionAnswer(current.id, section.id, question.id, v)}
+											setSectionAnswer(
+												current.id,
+												section.id,
+												question.id,
+												v
+											)}
 									/>
 								{/each}
 							</div>
@@ -465,6 +506,7 @@
 								{question}
 								value={currentAnswers[question.id] ?? null}
 								disabled={currentSubmitted}
+								invalid={showRequiredErrors && missingKeys.has(question.id)}
 								onChange={(v) => setAnswer(current.id, question.id, v)}
 							/>
 						{/each}
@@ -486,14 +528,19 @@
 
 			{#if currentSubmitted}
 				{#if currentIndex < proposals.length - 1}
-					<Button onclick={() => (currentIndex += 1)}>
+					<Button
+						onclick={() => {
+							submitAttempted = false;
+							currentIndex += 1;
+						}}
+					>
 						Next <ArrowRight class="ml-2 h-4 w-4" />
 					</Button>
 				{:else}
 					<Button onclick={onDone}>Finish</Button>
 				{/if}
 			{:else}
-				<Button onclick={submitAndAdvance} disabled={!isComplete || submitting}>
+				<Button onclick={submitAndAdvance} disabled={submitting}>
 					{#if submitting}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
@@ -502,6 +549,11 @@
 				</Button>
 			{/if}
 		</div>
+		{#if showRequiredErrors}
+			<p class="text-destructive text-right text-sm">
+				Please answer the highlighted question{missingKeys.size > 1 ? 's' : ''} before continuing.
+			</p>
+		{/if}
 		{#if submitError}
 			<p class="text-destructive text-right text-sm">{submitError}</p>
 		{/if}

@@ -9,10 +9,12 @@
 		question: Question;
 		value: number | string | null;
 		disabled?: boolean;
+		/** When true, the question is required but unanswered after a submit attempt. */
+		invalid?: boolean;
 		onChange: (value: number | string) => void;
 	};
 
-	let { question, value, disabled = false, onChange }: Props = $props();
+	let { question, value, disabled = false, invalid = false, onChange }: Props = $props();
 
 	function handleLikert(raw: string) {
 		const n = Number(raw);
@@ -40,7 +42,7 @@
 </script>
 
 <div class="space-y-3" class:opacity-60={disabled}>
-	<p class="text-base font-medium">{question.text}</p>
+	<p class="text-base font-medium" class:text-destructive={invalid}>{question.text}</p>
 
 	{#if question.type.kind === 'likert'}
 		<RadioGroup.Root
@@ -86,5 +88,9 @@
 			value={typeof value === 'string' ? value : ''}
 			oninput={handleText}
 		/>
+	{/if}
+
+	{#if invalid}
+		<p class="text-destructive text-sm">Please answer this question to continue.</p>
 	{/if}
 </div>
