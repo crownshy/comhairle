@@ -20,7 +20,7 @@
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
-	import LearningAssistantSkeleton from '$lib/tools/learn/LearningAssistantSkeleton.svelte';
+	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
