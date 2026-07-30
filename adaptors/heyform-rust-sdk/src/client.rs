@@ -392,17 +392,11 @@ impl HeyFormClient {
             .execute_graphql(FORM_REPORT_QUERY, variables, Some("formReport"))
             .await?;
 
-        eprintln!(" --- GHLOG --- : Response from get_form_report: {}", serde_json::to_string_pretty(response.get("formReport").unwrap()).unwrap());
-
         let form_report = serde_json::from_value::<FormReport>(
             response
                 .get("formReport")
                 .cloned()
-                .ok_or_else(|| HeyFormError::NotFound("Form report not found".to_string()))
-                .map_err(|e| {
-                    eprintln!(" --- GHLOG --- : Error in get_form_report: {e:?}");
-                    e
-                })?,
+                .ok_or_else(|| HeyFormError::NotFound("Form report not found".to_string()))?,
         )?;
 
         Ok(form_report)
@@ -421,17 +415,11 @@ impl HeyFormClient {
             .execute_graphql(SUBMISSIONS_QUERY, variables, Some("submissions"))
             .await?;
 
-        eprintln!(" --- GHLOG --- : Response from get_form_submissions: {}", serde_json::to_string_pretty(response.get("submissions").unwrap()).unwrap());
-
         let submissions: Submissions = serde_json::from_value(
             response
                 .get("submissions")
                 .cloned()
-                .ok_or_else(|| HeyFormError::NotFound("Submissions not found".to_string()))
-                .map_err(|e| {
-                    eprintln!(" --- GHLOG --- : Error in get_form_submissions: {e:?}");
-                    e
-                })?,
+                .ok_or_else(|| HeyFormError::NotFound("Submissions not found".to_string()))?,
         )?;
 
         Ok(submissions)
