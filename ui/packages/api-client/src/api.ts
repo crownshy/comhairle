@@ -575,7 +575,7 @@ export const FormReportAnswer = z
   .passthrough();
 export type FormReportAnswer = z.infer<typeof FormReportAnswer>;
 export const FormReportSubmission = z
-  .object({ answers: z.array(FormReportAnswer), id: z.string() })
+  .object({ _id: z.string(), answers: z.array(FormReportAnswer) })
   .passthrough();
 export type FormReportSubmission = z.infer<typeof FormReportSubmission>;
 export const FormReport = z

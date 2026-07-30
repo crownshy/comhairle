@@ -274,8 +274,8 @@ pub struct FormReportAnswer {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormReportSubmission {
-    #[serde(rename = "_id")]
-    pub r#_id: String,
+    #[serde(rename(serialize = "_id", deserialize = "_id"))]
+    pub id: String,
     pub answers: Vec<FormReportAnswer>,
 }
 
