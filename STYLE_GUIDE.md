@@ -285,6 +285,46 @@ If you copy a block a second time, stop and extract it.
 - Use the **flat shadcn design tokens** (`bg-card`, `text-muted-foreground`, …). When
   translating from Figma, map its doubled token names to the flat token in markup.
 
+### Motion and reduced motion
+
+Animation can make people with vestibular disorders motion sick, and the OS exposes their
+"reduce motion" setting to us through the `prefers-reduced-motion: reduce` media query.
+Honour it, but with judgement: not every animation needs to be gated, and reaching for
+`animation: none` reflexively can break flows that depend on an animation finishing.
+
+- **Gate large motion; small motion is usually fine.** The vestibular triggers are _big_
+  movements: parallax, scaling or panning a medium-to-large object, an element that
+  travels a long distance. A brief opacity fade, a colour transition, or a small (a few
+  px) hover nudge generally does not need gating. When you can't tell whether a motion is
+  "large", gate it. Background:
+  [MDN on `prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion)
+  and
+  [the A11Y Project on vestibular disorders](https://www.a11yproject.com/posts/understanding-vestibular-disorders/).
+
+- **CSS with Tailwind → the `motion-reduce:` / `motion-safe:` variants.** For a Tailwind
+  `animate-*`, add `motion-reduce:animate-none` (see the submit interstitial in
+  `src/lib/tools/prioritization/PrioritizationUser.svelte`). For hand-written keyframes in
+  a `<style>` block, wrap the rule in `@media (prefers-reduced-motion: reduce)` (see
+  `src/lib/components/LiveEvent/AnimatedLoader.svelte`).
+
+- **JS-driven motion → branch on `matchMedia`.** Anything you animate imperatively (a
+  smooth `scrollIntoView`, a programmatic scroll or transition) has to read the query
+  yourself, since the CSS variants don't reach it:
+
+    ```ts
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+    ```
+
+    (see `scrollToProposalTop` in the same prioritization component).
+
+- **Shorten, don't kill, an animation something waits on.** If code advances state off an
+  `animationend` / `transitionend` event (or a Svelte transition's outro end),
+  `animation: none` means that event never fires and the flow stalls. In that case set the
+  duration to near-zero (`0.001s`) rather than removing the animation, so the event still
+  fires but the motion is imperceptible. When nothing listens for the end,
+  `motion-reduce:animate-none` is the simpler choice.
+
 ### Svelte (runes only)
 
 State is `$state` / `$derived` / `$props`, not the Svelte 4 style. Do not write
