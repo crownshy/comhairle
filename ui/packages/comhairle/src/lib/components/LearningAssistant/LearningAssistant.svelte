@@ -22,9 +22,15 @@
 		pageTitle?: string;
 		/** True while the surrounding page is loading (e.g. route transition). Disables input. */
 		loading?: boolean;
+		/**
+		 * Presentation context. 'inline' (default) is the learn-page embed with its full
+		 * header + intro. 'sidebar' drops the redundant label/intro (the drawer tab already
+		 * titles it) and leaves just the input + Q&A.
+		 */
+		variant?: 'inline' | 'sidebar';
 	};
 
-	let { conversationId, pageTitle = '', loading = false }: Props = $props();
+	let { conversationId, pageTitle = '', loading = false, variant = 'inline' }: Props = $props();
 
 	let enabled = $state(true);
 	let inputVal = $state('');
@@ -105,8 +111,6 @@
 
 	let showPlaceholder = $derived(!focused && !inputVal);
 
-	const quickPrompts = ['Explain this simply', 'Key takeaways?', 'Why does this matter?'];
-
 	$effect(() => {
 		if (!session) return;
 		if (initStartedFor === session.conversationId) return;
@@ -139,12 +143,6 @@
 		await session.retryInit();
 	}
 
-	function pickPrompt(p: string) {
-		inputVal = p;
-		focused = true;
-		tick().then(() => inputRef?.focus());
-	}
-
 	function activate() {
 		focused = true;
 		tick().then(() => inputRef?.focus());
@@ -166,11 +164,15 @@
 </script>
 
 {#if !loading}
-	<div class="my-6">
+	<div class={variant === 'sidebar' ? 'flex min-h-0 flex-1 flex-col' : 'my-6'}>
 		{#if enabled}
-			<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
-				Learning assistant
-			</p>
+			<!-- The uppercase label is hidden in the sidebar: the drawer tab already titles it,
+			     so repeating it here reads as a doubled heading. -->
+			{#if variant === 'inline'}
+				<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
+					Learning assistant
+				</p>
+			{/if}
 			<div class="text-muted-foreground mb-3 space-y-2 text-sm leading-relaxed">
 				<p>Use this this space to answer questions you might have about the topic.</p>
 				<p>
@@ -179,7 +181,11 @@
 					this conversation.
 				</p>
 			</div>
-			<div class="bg-primary/10 rounded-lg p-4">
+			<div
+				class="bg-primary/10 rounded-lg p-4 {variant === 'sidebar'
+					? 'min-h-0 flex-1 overflow-y-auto'
+					: ''}"
+			>
 				<!-- Init error: shown when there's no usable session yet -->
 				{#if chatError && pageQAs.length === 0 && !initializing}
 					<div
