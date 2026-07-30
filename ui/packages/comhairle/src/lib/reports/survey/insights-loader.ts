@@ -22,10 +22,15 @@ export type Line = {
 	data: Record<string, number[]>;
 };
 
+type Text = {
+	type: 'Text';
+	data: string[];
+};
+
 type Title = string;
 export type Insight = {
 	title: Title;
-	chart: Barplot | Doughnut | Line;
+	chart: Barplot | Doughnut | Line | Text;
 };
 
 export async function surveyInsightsLoader(workflowStepId: string) {
