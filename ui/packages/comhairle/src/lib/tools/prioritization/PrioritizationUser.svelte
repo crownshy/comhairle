@@ -540,7 +540,11 @@
 					<Button onclick={onDone}>Finish</Button>
 				{/if}
 			{:else}
-				<Button onclick={submitAndAdvance} disabled={submitting}>
+				<Button
+					variant={isComplete ? 'default' : 'secondary'}
+					onclick={submitAndAdvance}
+					disabled={submitting}
+				>
 					{#if submitting}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
