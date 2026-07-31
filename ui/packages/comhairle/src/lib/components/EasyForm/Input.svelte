@@ -3,11 +3,29 @@
 	import { Label } from '$lib/components/ui/label';
 	import type { ComponentProps } from 'svelte';
 
-	type Props = ComponentProps<typeof Input> & { label?: string };
-	let { onblur, label, value = $bindable(), ...props }: Props = $props();
+	type Props = Exclude<ComponentProps<typeof Input>, 'value'> & {
+		ref?: HTMLInputElement | null;
+		label?: string;
+	};
+	let { onblur, ref = $bindable(), label, ...props }: Props = $props();
 
-	let ref: HTMLInputElement | null = $state(null);
 	let errorMessage = $state<string>('');
+
+	export function clearError() {
+		ref?.setCustomValidity('');
+		errorMessage = '';
+	}
+	export function setError(error: string) {
+		ref?.setCustomValidity(error);
+		errorMessage = error;
+	}
+	export function setValue(value: string) {
+		if (ref) {
+			ref.value = value;
+			ref.checkValidity();
+			setError(ref.validationMessage);
+		}
+	}
 </script>
 
 <div class="flex flex-col">
@@ -17,12 +35,11 @@
 	<Input
 		bind:ref
 		{...props}
-		bind:value
 		onblur={(e) => {
+			onblur?.(e);
 			if (ref?.checkValidity()) {
 				errorMessage = ref.validationMessage;
 			}
-			onblur?.(e);
 		}}
 		oninvalid={() => {
 			if (ref?.validity.valid === false) {

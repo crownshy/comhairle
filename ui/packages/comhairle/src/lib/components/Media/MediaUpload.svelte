@@ -19,6 +19,7 @@
 
 	let uploadForm: HTMLFormElement | null = $state(null);
 	let file = $state<File | null>(null);
+	let filename = $state<Input | null>(null);
 	let open = $state<boolean>(false);
 </script>
 
@@ -40,7 +41,10 @@
 			>
 				<FileInput
 					{...MediaSchema.media}
-					onfile={(newFile) => (file = newFile)}
+					onfile={(newFile) => {
+						file = newFile;
+						filename?.setValue(Media.getFilename(file.name));
+					}}
 					class={file !== null ? 'hidden' : ''}
 				/>
 				{#if file}
@@ -70,12 +74,7 @@
 						</div>
 					</div>
 				{/if}
-				<Input
-					{...MediaSchema.name}
-					label="Filename"
-					type="text"
-					value={file?.name ? Media.getFilename(file.name) : ''}
-				/>
+				<Input {...MediaSchema.name} bind:this={filename} label="Filename" type="text" />
 				<Input {...MediaSchema.alt} label="Alt" type="text" />
 				<Submit class="mt-7 self-end" text="Upload" />
 			</Form>
