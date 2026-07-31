@@ -28,6 +28,9 @@ pub struct PolisStatementAux {
     pub polis_conversation_id: String,
     pub polis_statement_id: i32,
     pub statement_text: String,
+    /// Locale of `statement_text` (client hint or machine-detected at
+    /// submission). `None` for rows created before translation was enabled.
+    pub source_locale: Option<String>,
     pub moderation_status: ModerationStatus,
     pub is_seed: bool,
     pub themes: Vec<String>,
@@ -37,7 +40,7 @@ pub struct PolisStatementAux {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [PolisStatementAuxIden; 14] = [
+const DEFAULT_COLUMNS: [PolisStatementAuxIden; 15] = [
     PolisStatementAuxIden::Id,
     PolisStatementAuxIden::WorkflowStepId,
     PolisStatementAuxIden::UserId,
@@ -45,6 +48,7 @@ const DEFAULT_COLUMNS: [PolisStatementAuxIden; 14] = [
     PolisStatementAuxIden::PolisConversationId,
     PolisStatementAuxIden::PolisStatementId,
     PolisStatementAuxIden::StatementText,
+    PolisStatementAuxIden::SourceLocale,
     PolisStatementAuxIden::ModerationStatus,
     PolisStatementAuxIden::IsSeed,
     PolisStatementAuxIden::Themes,
@@ -61,6 +65,10 @@ pub struct CreatePolisStatementAux {
     pub polis_conversation_id: String,
     pub polis_statement_id: i32,
     pub statement_text: String,
+    /// Optional client-supplied locale hint (e.g. browser language) for
+    /// `statement_text`. When absent the handler detects it before insert.
+    #[serde(default)]
+    pub source_locale: Option<String>,
     #[serde(default)]
     pub moderation_status: ModerationStatus,
     pub is_seed: bool,
@@ -77,6 +85,7 @@ impl CreatePolisStatementAux {
             PolisStatementAuxIden::PolisConversationId,
             PolisStatementAuxIden::PolisStatementId,
             PolisStatementAuxIden::StatementText,
+            PolisStatementAuxIden::SourceLocale,
             PolisStatementAuxIden::ModerationStatus,
             PolisStatementAuxIden::IsSeed,
             PolisStatementAuxIden::Themes,
@@ -92,6 +101,7 @@ impl CreatePolisStatementAux {
             self.polis_conversation_id.clone().into(),
             self.polis_statement_id.into(),
             self.statement_text.clone().into(),
+            self.source_locale.clone().into(),
             self.moderation_status.clone().into(),
             self.is_seed.into(),
             self.themes.clone().into(),
@@ -133,6 +143,7 @@ pub struct UpsertFromPolis {
     pub polis_conversation_id: String,
     pub polis_statement_id: i32,
     pub statement_text: String,
+    pub source_locale: Option<String>,
     pub is_seed: bool,
     pub moderation_status: ModerationStatus,
 }
@@ -153,6 +164,7 @@ pub async fn upsert_from_polis(
         PolisStatementAuxIden::PolisConversationId,
         PolisStatementAuxIden::PolisStatementId,
         PolisStatementAuxIden::StatementText,
+        PolisStatementAuxIden::SourceLocale,
         PolisStatementAuxIden::IsSeed,
         PolisStatementAuxIden::ModerationStatus,
     ];
@@ -163,6 +175,7 @@ pub async fn upsert_from_polis(
         record.polis_conversation_id.clone().into(),
         record.polis_statement_id.into(),
         record.statement_text.clone().into(),
+        record.source_locale.clone().into(),
         record.is_seed.into(),
         record.moderation_status.clone().into(),
     ];
@@ -178,6 +191,7 @@ pub async fn upsert_from_polis(
             ])
             .update_columns([
                 PolisStatementAuxIden::StatementText,
+                PolisStatementAuxIden::SourceLocale,
                 PolisStatementAuxIden::IsSeed,
                 PolisStatementAuxIden::ModerationStatus,
             ])
@@ -575,6 +589,7 @@ mod tests {
             polis_conversation_id: "test-poll".into(),
             polis_statement_id: 42,
             statement_text: "first text".into(),
+            source_locale: Some("en".into()),
             is_seed: false,
             moderation_status: ModerationStatus::Pending,
         };
