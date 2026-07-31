@@ -37,7 +37,7 @@
 	}}
 >
 	<Dialog.Portal>
-		<Dialog.Content class=" min-h-[50vh] min-w-138  rounded-2xl p-8">
+		<Dialog.Content class="min-w-138  rounded-2xl p-8">
 			<Form
 				bind:ref={uploadForm}
 				method="POST"
