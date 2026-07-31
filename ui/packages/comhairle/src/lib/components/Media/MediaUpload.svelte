@@ -28,7 +28,14 @@
 	{m.upload()}
 </Button>
 
-<Dialog.Root bind:open>
+<Dialog.Root
+	bind:open
+	onOpenChangeComplete={(open) => {
+		if (!open) {
+			file = null;
+		}
+	}}
+>
 	<Dialog.Portal>
 		<Dialog.Content class=" min-h-[50vh] min-w-138  rounded-2xl p-8">
 			<Form
