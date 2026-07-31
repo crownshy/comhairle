@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { FileText, Trash2 } from 'lucide-svelte';
+	import { Trash2 } from 'lucide-svelte';
 	import { Upload } from 'lucide-svelte';
 	import type { ComponentProps } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -10,6 +10,7 @@
 	import MediaSchema from './schema';
 	import { Form, Input, Submit } from '$lib/components/EasyForm';
 	import Media from '$lib/interfaces/Media';
+	import FileIcon from '$lib/components/FileIcon.svelte';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
 		clientSide?: boolean;
@@ -19,6 +20,7 @@
 
 	let uploadForm: HTMLFormElement | null = $state(null);
 	let file = $state<File | null>(null);
+	let fileInput = $state<FileInput | null>(null);
 	let filename = $state<Input | null>(null);
 	let open = $state<boolean>(false);
 </script>
@@ -48,6 +50,7 @@
 			>
 				<FileInput
 					{...MediaSchema.media}
+					bind:this={fileInput}
 					onfile={(newFile) => {
 						file = newFile;
 						filename?.setValue(Media.getFilename(file.name));
@@ -59,7 +62,7 @@
 						class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
 					>
 						<div class="flex basis-3/5 flex-row items-center gap-2">
-							<FileText />
+							<FileIcon {file} />
 							<span>{file.name}</span>
 						</div>
 						<div class="flex flex-row items-center justify-evenly gap-4">
@@ -74,7 +77,12 @@
 								variant="ghost"
 								size="sm"
 								class="text-destructive hover:text-destructive/80 rounded-sm"
-								onclick={() => (file = null)}
+								onclick={() => {
+									file = null;
+									filename?.setValue('');
+									filename?.setError('');
+									fileInput?.clear();
+								}}
 							>
 								<Trash2 />
 							</Button>

@@ -72,6 +72,12 @@
 		errorMessage = message;
 	}
 
+	export function clear() {
+		if (input) {
+			input.value = '';
+		}
+	}
+
 	function handleFiles(files: FileList | undefined | null) {
 		setError('');
 
