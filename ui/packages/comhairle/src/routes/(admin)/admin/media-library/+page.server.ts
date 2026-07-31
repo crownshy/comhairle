@@ -4,18 +4,24 @@ import type { RequestEvent } from './$types';
 import type { MediaDto } from '@crownshy/api-client/api';
 import { validate } from '$lib/components/EasyForm/validate';
 import MediaSchema from '$lib/components/Media/schema';
+import Media from '$lib/interfaces/Media';
+import { HttpStatus } from '$lib/utils/constants';
 
 export async function load({ fetch, depends }: LoadEvent) {
 	depends('media-library:media');
 
 	const response = await tryFetch('/api/media', undefined, fetch);
 	if (response.err !== null) {
-		return fail(500, { error: "Couldn't get media from the server" });
+		return fail(HttpStatus.InternalServerError, {
+			error: "Couldn't get media from the server"
+		});
 	}
 	const data = await tryCatchAsync(() => response.ok.json());
 	if (data.err !== null) {
 		// FIX: Return JSON error
-		return fail(500, { error: 'Failed to parse the response from the server' });
+		return fail(HttpStatus.InternalServerError, {
+			error: 'Failed to parse the response from the server'
+		});
 	}
 
 	return {
@@ -24,10 +30,24 @@ export async function load({ fetch, depends }: LoadEvent) {
 }
 
 export const actions = {
-	upload: async ({ request }: RequestEvent) => {
+	upload: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
 		const form = validate(data, MediaSchema);
 
+		if (form.err !== null) {
+			return fail(HttpStatus.UnprocessableContent);
+		}
+
+		const media = new Media();
+		const response = await tryCatchAsync(() =>
+			media.upload('/api/media', data, { fetchRef: fetch })
+		);
+
+		if (response.err !== null) {
+			return fail(HttpStatus.InternalServerError);
+		}
+
+		console.log(response);
 		console.log('form:', form);
 	},
 	delete: async ({ request, fetch }: RequestEvent) => {

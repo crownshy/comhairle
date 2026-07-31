@@ -4,7 +4,7 @@
 	import { isSubmitting } from './form.svelte';
 
 	interface Props extends HTMLFormAttributes {
-		ref: HTMLFormElement | null;
+		ref?: HTMLFormElement | null;
 	}
 
 	let { children, ref = $bindable(), ...props }: Props = $props();

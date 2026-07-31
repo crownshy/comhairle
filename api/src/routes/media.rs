@@ -17,8 +17,8 @@ use crate::{
     error::ComhairleError,
     models::{
         media::{
-            self, CreateMedia, MediaContentType, MediaEditableFields, MediaFilterOptions,
-            MediaOrderOptions,
+            self, CreateMedia, File, MediaContentType, MediaEditableFields, MediaFilterOptions,
+            MediaOrderOptions, UploadMediaForm,
         },
         pagination::{PageOptions, PaginatedResults},
     },
@@ -55,7 +55,7 @@ async fn upload(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     mut form_data: Multipart,
-) -> Result<(StatusCode, Json<Vec<MediaDto>>), ComhairleError> {
+) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let bulk_storage_config = state
         .config
@@ -63,74 +63,86 @@ async fn upload(
         .as_ref()
         .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
-    let mut files = vec![];
+    let mut upload_media_form = UploadMediaForm::new();
+
     while let Some(field) = form_data.next_field().await? {
-        let content_type = field.content_type().map(|ct| ct.to_string());
+        let Some(content_type) = field.content_type().map(|f| f.to_string()) else {
+            if let Some(field_name) = field.name().map(|n| n.to_string()) {
+                let text = field.text().await.map(|t| t.to_string());
+                let Ok(text) = text else {
+                    continue;
+                };
+                upload_media_form.update_field(&field_name, text);
+            }
+            continue;
+        };
+
         let filename = field
             .file_name()
             .map(|f| f.to_string())
             .unwrap_or_else(gen_id);
         let bytes = field.bytes().await?.to_vec();
 
-        files.push((filename, bytes, content_type));
-    }
-
-    if files.is_empty() {
-        return Err(ComhairleError::BadRequest("No files to upload".to_string()));
-    }
-
-    let mut media = vec![];
-
-    for (filename, bytes, content_type_header) in files {
-        let content_type = content_type_header
-            .map(|ct| MediaContentType::try_from_mime(&ct))
-            .unwrap_or_else(|| {
-                let extension = std::path::Path::new(&filename)
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("");
-                MediaContentType::try_from_extension(extension)
-            })?;
-
-        let metadata = FileMetadata {
-            is_public: true,
+        upload_media_form.file = File {
+            filename,
+            bytes,
             content_type: content_type.to_string(),
         };
-        let prefix = match content_type {
-            MediaContentType::Jpeg
-            | MediaContentType::Png
-            | MediaContentType::Gif
-            | MediaContentType::Webp => "images",
-            MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
-            MediaContentType::Mp3 => "audio",
-        };
-        let storage_key = format!("{prefix}/{filename}");
-        bulk_storage_service
-            .upload_file(&storage_key, bytes, metadata)
-            .await?;
-
-        let mut name = filename.clone();
-
-        if let Some((prefix, _)) = name.rsplit_once('.') {
-            name = prefix.to_string();
-        }
-
-        // TODO: Change name to be able to be set when uploading instead of copied from filename
-        let create_media = CreateMedia {
-            store_name: bulk_storage_config.store_name.to_string(),
-            storage_key,
-            name,
-            filename,
-            content_type,
-        };
-        let media_record = media::create(&state.db, &create_media, &user.id).await?;
-
-        media.push(media_record);
     }
 
-    let media: Vec<MediaDto> = media.into_iter().map(Into::into).collect();
+    if upload_media_form.name.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "No file name provided".to_string(),
+        ));
+    }
+    if upload_media_form.alt.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "No alt text provided".to_string(),
+        ));
+    }
+    if upload_media_form.file.content_type.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "No content-type set".to_string(),
+        ));
+    }
 
-    Ok((StatusCode::CREATED, Json(media)))
+    // Unsupported content will error out here
+    let content_type = MediaContentType::get_type(&upload_media_form.file)?;
+
+    let prefix = match content_type {
+        MediaContentType::Jpeg
+        | MediaContentType::Png
+        | MediaContentType::Gif
+        | MediaContentType::Webp => "images",
+        MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
+        MediaContentType::Mp3 => "audio",
+    };
+
+    let storage_key = format!("{}/{}", prefix, upload_media_form.file.filename);
+    bulk_storage_service
+        .upload_file(
+            &storage_key,
+            upload_media_form.file.bytes,
+            FileMetadata {
+                is_public: true,
+                content_type: upload_media_form.file.content_type.to_string(),
+            },
+        )
+        .await?;
+
+    // TODO: Change name to be able to be set when uploading instead of copied from filename
+    let create_media = CreateMedia {
+        store_name: bulk_storage_config.store_name.to_string(),
+        storage_key,
+        filename: upload_media_form.file.filename.to_string(),
+        name: upload_media_form.name,
+        alt: upload_media_form.alt,
+        content_type,
+    };
+
+    let media = media::create(&state.db, &create_media, &user.id).await?;
+
+    Ok((StatusCode::CREATED, Json(media.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -264,6 +276,7 @@ mod tests {
             storage_key: format!("images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
             name: random_name,
+            alt: "alt text".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 

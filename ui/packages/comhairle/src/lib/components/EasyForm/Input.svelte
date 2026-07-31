@@ -26,6 +26,9 @@
 			setError(ref.validationMessage);
 		}
 	}
+	export function getValue(): string | undefined {
+		return ref?.value;
+	}
 </script>
 
 <div class="flex flex-col">

@@ -9,22 +9,20 @@ type Opts = {
 };
 
 class Media {
-	async upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn> {
-		const formData = new FormData();
-
-		for (const file of files) {
-			if (opts?.maxSize && file.size > opts.maxSize) {
-				return {
-					ok: null,
-					err: {
-						id: 'MAX_SIZE_EXCEEDED',
-						message: `${file.name} exceeds max size ${Media.formatBytes(opts.maxSize)}`
-					}
-				};
-			}
-
-			formData.append('file', file, file.name);
-		}
+	async upload(to: string, formData: FormData, opts?: Opts): Promise<UploadReturn> {
+		// for (const file of files) {
+		// 	if (opts?.maxSize && file.size > opts.maxSize) {
+		// 		return {
+		// 			ok: null,
+		// 			err: {
+		// 				id: 'MAX_SIZE_EXCEEDED',
+		// 				message: `${file.name} exceeds max size ${Media.formatBytes(opts.maxSize)}`
+		// 			}
+		// 		};
+		// 	}
+		//
+		// 	formData.append('file', file, file.name);
+		// }
 
 		const response = await tryFetch(
 			to,

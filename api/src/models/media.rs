@@ -20,6 +20,41 @@ use crate::{
     },
 };
 
+/// File type to handle the incoming File from the HTTP Request
+pub struct File {
+    pub filename: String,
+    pub bytes: Vec<u8>,
+    pub content_type: String,
+}
+
+/// Incoming form type from the upload request
+pub struct UploadMediaForm {
+    pub file: File,
+    pub name: String,
+    pub alt: String,
+}
+
+impl UploadMediaForm {
+    pub fn new() -> Self {
+        Self {
+            file: File {
+                filename: "".to_string(),
+                bytes: Vec::new(),
+                content_type: "".to_string(),
+            },
+            name: "".to_string(),
+            alt: "".to_string(),
+        }
+    }
+    pub fn update_field(&mut self, field: &str, value: String) {
+        match field {
+            "name" => self.name = value,
+            "alt" => self.alt = value,
+            &_ => (),
+        }
+    }
+}
+
 /// A media record, which references an upload in the bulk_storage_service.
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "media")]
@@ -32,6 +67,8 @@ pub struct Media {
     pub filename: String,
     /// User defined identifier
     pub name: String,
+    /// Alt text for the media
+    pub alt: String,
     /// MIME type of the media uploaded
     pub content_type: MediaContentType,
     pub owner_id: Uuid,
@@ -101,7 +138,7 @@ impl std::fmt::Display for MediaContentType {
 }
 
 impl MediaContentType {
-    pub fn try_from_mime(source: &str) -> Result<Self, ComhairleError> {
+    fn try_from_mime(source: &str) -> Result<Self, ComhairleError> {
         match source {
             "image/jpeg" => Ok(Self::Jpeg),
             "image/png" => Ok(Self::Png),
@@ -114,10 +151,7 @@ impl MediaContentType {
             ct => Err(ComhairleError::UnsupportedContentType(ct.to_string())),
         }
     }
-}
-
-impl MediaContentType {
-    pub fn try_from_extension(extension: &str) -> Result<Self, ComhairleError> {
+    fn try_from_extension(extension: &str) -> Result<Self, ComhairleError> {
         match extension.to_lowercase().as_str() {
             "jpg" | "jpeg" => Ok(Self::Jpeg),
             "png" => Ok(Self::Png),
@@ -130,14 +164,30 @@ impl MediaContentType {
             ext => Err(ComhairleError::UnsupportedContentType(ext.to_string())),
         }
     }
+    pub fn get_type(file: &File) -> Result<Self, ComhairleError> {
+        let mime = MediaContentType::try_from_mime(&file.content_type);
+        if mime.is_ok() {
+            return mime;
+        }
+
+        let extension: Vec<&str> = file.filename.rsplit('.').collect();
+        let Some(extension) = extension.get(0) else {
+            return Err(ComhairleError::UnsupportedContentType(
+                file.filename.clone(),
+            ));
+        };
+        let extension = MediaContentType::try_from_extension(extension);
+        extension
+    }
 }
 
-const DEFAULT_COLUMNS: [MediaIden; 9] = [
+const DEFAULT_COLUMNS: [MediaIden; 10] = [
     MediaIden::Id,
     MediaIden::StoreName,
     MediaIden::StorageKey,
     MediaIden::Filename,
     MediaIden::Name,
+    MediaIden::Alt,
     MediaIden::ContentType,
     MediaIden::OwnerId,
     MediaIden::CreatedAt,
@@ -212,6 +262,7 @@ pub struct CreateMedia {
     pub storage_key: String,
     pub filename: String,
     pub name: String,
+    pub alt: String,
     pub content_type: MediaContentType,
 }
 
@@ -222,6 +273,7 @@ impl CreateMedia {
             MediaIden::StorageKey,
             MediaIden::Filename,
             MediaIden::Name,
+            MediaIden::Alt,
             MediaIden::ContentType,
         ]
     }
@@ -232,6 +284,7 @@ impl CreateMedia {
             (*self.storage_key).into(),
             (*self.filename).into(),
             (*self.name).into(),
+            (*self.alt).into(),
             self.content_type.clone().into(),
         ]
     }
@@ -486,6 +539,7 @@ mod tests {
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
             name: "test-image".to_string(),
+            alt: "test alt text".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -520,6 +574,7 @@ mod tests {
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
             name: "test-image".to_string(),
+            alt: "test alt text".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -554,6 +609,7 @@ mod tests {
             storage_key: "asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
             name: "image-b".to_string(),
+            alt: "alt text b".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
@@ -561,6 +617,7 @@ mod tests {
             storage_key: "asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
             name: "image-a".to_string(),
+            alt: "alt text a".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
@@ -568,6 +625,7 @@ mod tests {
             storage_key: "asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
             name: "image-d".to_string(),
+            alt: "alt text d".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_4 = CreateMedia {
@@ -575,6 +633,7 @@ mod tests {
             storage_key: "asd123/image-c.jpg".to_string(),
             filename: "image-c.jpg".to_string(),
             name: "image-c".to_string(),
+            alt: "alt text c".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_5 = CreateMedia {
@@ -582,6 +641,7 @@ mod tests {
             storage_key: "asd123/image-e.jpg".to_string(),
             filename: "image-e.jpg".to_string(),
             name: "image-e".to_string(),
+            alt: "alt text e".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -626,6 +686,7 @@ mod tests {
             storage_key: "asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
             name: "image-b".to_string(),
+            alt: "alt text b".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
@@ -633,6 +694,7 @@ mod tests {
             storage_key: "asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
             name: "image-a".to_string(),
+            alt: "alt text a".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
@@ -640,6 +702,7 @@ mod tests {
             storage_key: "asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
             name: "image-d".to_string(),
+            alt: "alt text d".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -683,6 +746,7 @@ mod tests {
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
             name: "test-image".to_string(),
+            alt: "test alt text".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -717,6 +781,7 @@ mod tests {
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
             name: "test-image".to_string(),
+            alt: "test alt text".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
