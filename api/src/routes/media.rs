@@ -66,14 +66,18 @@ async fn upload(
     let mut upload_media_form = UploadMediaForm::new();
 
     while let Some(field) = form_data.next_field().await? {
-        let Some(content_type) = field.content_type().map(|f| f.to_string()) else {
-            if let Some(field_name) = field.name().map(|n| n.to_string()) {
-                let text = field.text().await.map(|t| t.to_string());
-                let Ok(text) = text else {
-                    continue;
-                };
-                upload_media_form.update_field(&field_name, text);
-            }
+        let content_type = field.content_type().map(|f| f.to_string());
+        let field_name = field.name().map(|n| n.to_string());
+
+        if let None = content_type {
+            let Some(field_name) = field_name else {
+                continue;
+            };
+            let text = field.text().await.map(|t| t.to_string());
+            let Ok(text) = text else {
+                continue;
+            };
+            upload_media_form.update_field(&field_name, text);
             continue;
         };
 
@@ -86,7 +90,7 @@ async fn upload(
         upload_media_form.file = File {
             filename,
             bytes,
-            content_type: content_type.to_string(),
+            content_type: content_type.unwrap_or("".to_string()),
         };
     }
 
