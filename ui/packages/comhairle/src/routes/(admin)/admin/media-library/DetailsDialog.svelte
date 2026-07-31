@@ -89,7 +89,13 @@
 {#snippet deleteMediaDialog()}
 	<AlertDialog.Root bind:open={deleteDialogOpen}>
 		<AlertDialog.Trigger>
-			<Button variant="outline" size="sm" aria-label="Delete" title="Delete">
+			<Button
+				variant="outline"
+				size="sm"
+				class="text-destructive"
+				aria-label="Delete"
+				title="Delete"
+			>
 				<Trash2 />
 			</Button>
 		</AlertDialog.Trigger>
