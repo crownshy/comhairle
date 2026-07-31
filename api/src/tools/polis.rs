@@ -26,6 +26,7 @@ use crate::{
             PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux,
             UpsertFromPolis,
         },
+        polis_statement_translation::PolisStatementTranslation,
     },
     routes::auth::{RequiredAdminUser, RequiredUser},
     wiki_poll_service::{
@@ -261,6 +262,20 @@ impl ToolImpl for PolisTool {
                              visible_statement_when_submitted and user_id are preserved.",
                         )
                         .response::<200, Json<SyncStatementAuxResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/statement_aux/{id}/translations",
+                get_with(list_statement_translations, |op| {
+                    op.id("PolisListStatementTranslations")
+                        .tag("Tools")
+                        .summary("List machine translations for a Polis statement")
+                        .description(
+                            "Returns the stored translations of a statement into the \
+                             conversation's supported languages. Each carries ai_generated \
+                             and requires_validation flags.",
+                        )
+                        .response::<200, Json<Vec<PolisStatementTranslation>>>()
                 }),
             )
             .api_route(
@@ -674,11 +689,100 @@ async fn post_seed(
     ))
 }
 
+/// The conversation-level locale settings that drive statement translation:
+/// the conversation's `primary_locale` and its `supported_languages`.
+#[instrument(err(Debug), skip(state))]
+async fn conversation_locales(
+    state: &Arc<ComhairleState>,
+    workflow_id: &Uuid,
+) -> Result<(String, Vec<String>), ComhairleError> {
+    let workflow = models::workflow::get_by_id(&state.db, workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+        "workflow is not attached to a conversation".into(),
+    ))?;
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+    Ok((
+        conversation.primary_locale,
+        conversation.supported_languages,
+    ))
+}
+
+/// Resolve the source locale of a submitted statement using the hybrid strategy:
+/// trust the client `hint` when present, otherwise ask the translation service to
+/// detect it, falling back to the conversation `primary_locale` if no service is
+/// configured or detection fails.
+#[instrument(skip(state, statement_text))]
+async fn resolve_source_locale(
+    state: &Arc<ComhairleState>,
+    hint: Option<String>,
+    statement_text: &str,
+    primary_locale: &str,
+) -> String {
+    if let Some(locale) = hint {
+        return locale;
+    }
+    match &state.translation_service {
+        Some(translator) => translator
+            .detect_language(statement_text)
+            .await
+            .unwrap_or_else(|err| {
+                info!(
+                    ?err,
+                    "language detection failed, defaulting to primary_locale"
+                );
+                primary_locale.to_owned()
+            }),
+        None => primary_locale.to_owned(),
+    }
+}
+
+/// Fire-and-forget machine translation of a statement into every supported
+/// language other than its source. No-op when no translation service is
+/// configured or the conversation is single-language. Failures are logged inside
+/// the spawned task and never affect the submission response.
+fn spawn_statement_translations(
+    state: &Arc<ComhairleState>,
+    aux: &PolisStatementAux,
+    source_locale: &str,
+    supported_languages: &[String],
+) {
+    let Some(translator) = state.translation_service.clone() else {
+        return;
+    };
+    let targets: Vec<String> = supported_languages
+        .iter()
+        .filter(|locale| locale.as_str() != source_locale)
+        .cloned()
+        .collect();
+    if targets.is_empty() {
+        return;
+    }
+
+    let db = state.db.clone();
+    let aux_id = aux.id;
+    let statement_text = aux.statement_text.clone();
+    let source_locale = source_locale.to_owned();
+    tokio::spawn(async move {
+        if let Err(err) = models::polis_statement_translation::generate_for_statement(
+            &db,
+            &translator,
+            aux_id,
+            &statement_text,
+            &source_locale,
+            &targets,
+        )
+        .await
+        {
+            tracing::warn!(?err, %aux_id, "background statement translation failed");
+        }
+    });
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn create_statement_aux(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Json(create_request): Json<CreatePolisStatementAux>,
+    Json(mut create_request): Json<CreatePolisStatementAux>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let workflow_step =
         models::workflow_step::get_by_id(&state.db, &create_request.workflow_step_id).await?;
@@ -690,7 +794,22 @@ async fn create_statement_aux(
     )
     .await?;
 
+    let (primary_locale, supported_languages) =
+        conversation_locales(&state, &workflow_step.workflow_id).await?;
+
+    let source_locale = resolve_source_locale(
+        &state,
+        create_request.source_locale.take(),
+        &create_request.statement_text,
+        &primary_locale,
+    )
+    .await;
+    create_request.source_locale = Some(source_locale.clone());
+
     let aux = models::polis_statement_aux::create(&state.db, user.id, &create_request).await?;
+
+    spawn_statement_translations(&state, &aux, &source_locale, &supported_languages);
+
     Ok((StatusCode::CREATED, Json(aux)))
 }
 
@@ -733,6 +852,17 @@ async fn list_statement_aux(
     Ok((StatusCode::OK, Json(aux)))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn list_statement_translations(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Path(id): Path<Uuid>,
+) -> Result<(StatusCode, Json<Vec<PolisStatementTranslation>>), ComhairleError> {
+    let translations =
+        models::polis_statement_translation::list_by_statement_aux_id(&state.db, &id).await?;
+    Ok((StatusCode::OK, Json(translations)))
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct SyncStatementAuxRequest {
     pub workflow_step_id: Uuid,
@@ -768,6 +898,9 @@ async fn sync_statement_aux(
         None => false,
     };
 
+    let (primary_locale, supported_languages) =
+        conversation_locales(&state, &workflow_step.workflow_id).await?;
+
     let config = if is_live {
         match workflow_step.tool_config {
             Some(ToolConfig::Polis(config)) => config,
@@ -780,7 +913,14 @@ async fn sync_statement_aux(
         }
     };
 
-    let response = sync_statement_aux_inner(&state, &workflow_step_id, &config).await?;
+    let response = sync_statement_aux_inner(
+        &state,
+        &workflow_step_id,
+        &config,
+        &primary_locale,
+        &supported_languages,
+    )
+    .await?;
     Ok((StatusCode::OK, Json(response)))
 }
 
@@ -792,6 +932,8 @@ pub async fn sync_statement_aux_inner(
     state: &Arc<ComhairleState>,
     workflow_step_id: &Uuid,
     config: &PolisToolConfig,
+    primary_locale: &str,
+    supported_languages: &[String],
 ) -> Result<SyncStatementAuxResponse, ComhairleError> {
     let client = &state.wiki_poll_service;
     let auth_cookies = client
@@ -813,13 +955,16 @@ pub async fn sync_statement_aux_inner(
     let mut statements = Vec::with_capacity(comments.len());
     let mut skipped_invalid_xid = 0;
 
-    info!("COMMENTS {comments:#?}");
-
     for comment in comments {
         let user_id = pid_to_user_id.get(&comment.pid).copied();
         if user_id.is_none() && !comment.is_seed {
             skipped_invalid_xid += 1;
         }
+
+        // Polis carries no source-language metadata, so detect it (no client
+        // hint is available on this path).
+        let source_locale = resolve_source_locale(&state, None, &comment.txt, primary_locale).await;
+
         let aux = models::polis_statement_aux::upsert_from_polis(
             &state.db,
             &UpsertFromPolis {
@@ -829,11 +974,15 @@ pub async fn sync_statement_aux_inner(
                 polis_conversation_id: config.poll_id.clone(),
                 polis_statement_id: comment.tid as i32,
                 statement_text: comment.txt,
+                source_locale: Some(source_locale.clone()),
                 is_seed: comment.is_seed,
                 moderation_status: comment.moderation.try_into()?,
             },
         )
         .await?;
+
+        spawn_statement_translations(&state, &aux, &source_locale, &supported_languages);
+
         statements.push(aux);
     }
 
