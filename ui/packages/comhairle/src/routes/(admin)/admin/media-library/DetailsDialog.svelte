@@ -23,12 +23,12 @@
 		id: string;
 		filename: string;
 		name: string;
-		src: string;
 		alt: string;
+		src: string;
 		close: () => void;
 	}
 
-	const { id, type, filename, name: currentName, src, close }: Props = $props();
+	const { id, type, filename, name: currentName, alt, src, close }: Props = $props();
 
 	let name = $derived(currentName);
 	// let alt = $derived(currentAlt);
@@ -151,11 +151,7 @@
 				</div>
 				<aside class="mr-0 flex w-full flex-col lg:mr-auto lg:w-9/10">
 					{@render details({ id: 'name', value: name })}
-					<!-- Need to first add in alt field on the DB -->
-					<!-- <Label class={`${LABEL_SPACING} text-muted-foreground`} for="alt" -->
-					<!-- 	>Alt text</Label -->
-					<!-- > -->
-					<!-- <Input class={INPUT_SPACING} id="alt" type="text" bind:value={alt} /> -->
+					{@render details({ id: 'alt', value: alt })}
 					<div class="mt-4 self-end">
 						{#if editable}
 							<Button variant="outline" onclick={() => (editable = false)}>

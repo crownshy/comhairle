@@ -2189,6 +2189,7 @@ export const content_type = z.union([MediaContentType, z.null()]).optional();
 export type content_type = z.infer<typeof content_type>;
 export const MediaDto = z
   .object({
+    alt: z.string(),
     contentType: MediaContentType,
     createdAt: z.string().datetime({ offset: true }),
     filename: z.string(),

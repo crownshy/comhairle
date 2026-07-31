@@ -119,7 +119,7 @@
 									bind:group={selected}
 								/>
 								<span>
-									<MediaItem {type} {...media} alt="" />
+									<MediaItem {type} {...media} />
 								</span>
 							</label>
 						{:else}
