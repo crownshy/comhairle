@@ -25,6 +25,7 @@
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		polis_id: string;
@@ -142,6 +143,9 @@
 				polis_conversation_id: polis_id,
 				polis_statement_id: newStatement.tid,
 				statement_text: statementText,
+				// Hint the source language from the participant's active UI locale.
+				// The backend falls back to auto-detection when this is absent.
+				source_locale: getLocale(),
 				is_seed: false,
 				themes: [],
 				visible_statement_when_submitted: visibleTid?.toString() ?? null

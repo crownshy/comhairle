@@ -482,6 +482,7 @@ export const PolisStatementAux = z
     original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
     statement_text: z.string(),
     themes: z.array(z.string()),
     updated_at: z.string().datetime({ offset: true }),
@@ -501,6 +502,7 @@ export const CreatePolisStatementAux = z
     moderation_status: ModerationStatus.optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional().default(null),
     statement_text: z.string(),
     themes: z.array(z.string()),
     visible_statement_when_submitted: z
@@ -534,6 +536,21 @@ export const SyncStatementAuxResponse = z
   })
   .passthrough();
 export type SyncStatementAuxResponse = z.infer<typeof SyncStatementAuxResponse>;
+export const PolisStatementTranslation = z
+  .object({
+    ai_generated: z.boolean(),
+    content: z.string(),
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    locale: z.string(),
+    polis_statement_aux_id: z.string().uuid(),
+    requires_validation: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type PolisStatementTranslation = z.infer<
+  typeof PolisStatementTranslation
+>;
 export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
@@ -3335,6 +3352,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdatePolisStatementAux,
   SyncStatementAuxRequest,
   SyncStatementAuxResponse,
+  PolisStatementTranslation,
   ThemeStatistic,
   ThemeRequest,
   ModerationDecisionRequest,
@@ -6500,6 +6518,14 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisStatementAux,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/statement_aux/:id/translations",
+    alias: "PolisListStatementTranslations",
+    description: `Returns the stored translations of a statement into the conversation&#x27;s supported languages. Each carries ai_generated and requires_validation flags.`,
+    requestFormat: "json",
+    response: z.array(PolisStatementTranslation),
   },
   {
     method: "post",
