@@ -1151,6 +1151,8 @@ pub async fn new_translation(
 
 #[cfg(test)]
 mod tests {
+    use comhairle_macros::TranslatableJson;
+
     use super::*;
 
     use std::error::Error;
@@ -1282,6 +1284,65 @@ mod tests {
         assert_eq!(
             resolved.description, "Test description",
             "incorrect descrition"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_auto_implement_traits_to_resolve_translations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        #[derive(TranslatableJson)]
+        struct Root {
+            #[translatable]
+            title: TextContentId,
+            #[translatable]
+            nested_arr: Vec<Nested>,
+        }
+
+        #[derive(TranslatableJson)]
+        struct Nested {
+            #[translatable]
+            text_field: TextContentId,
+            other_field: String,
+        }
+
+        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
+        let nested_a = new_translation(&pool, "en", "Nested a", TextFormat::Plain).await?;
+        let nested_b = new_translation(&pool, "en", "Nested b", TextFormat::Plain).await?;
+
+        let root = Root {
+            title: root_title.id,
+            nested_arr: vec![
+                Nested {
+                    text_field: nested_a.id,
+                    other_field: "test a".to_string(),
+                },
+                Nested {
+                    text_field: nested_b.id,
+                    other_field: "test b".to_string(),
+                },
+            ],
+        };
+
+        let mut out: HashSet<TextContentId> = HashSet::new();
+        root.collect_text_content_ids(&mut out);
+        let map = resolve_translations(&pool, &out.into_iter().collect::<Vec<_>>(), "en").await?;
+        let resolved = root.resolve(&map);
+
+        assert_eq!(
+            resolved.title,
+            "Root title".to_string(),
+            "incorrect root title"
+        );
+        assert_eq!(
+            resolved.nested_arr[0].text_field, "Nested a",
+            "incorrect nested a"
+        );
+        assert_eq!(
+            resolved.nested_arr[1].text_field, "Nested b",
+            "incorrect nested a"
         );
 
         Ok(())

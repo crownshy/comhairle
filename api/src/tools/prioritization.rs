@@ -9,58 +9,59 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        proposal::{self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations},
-        proposal_response::{
-            self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
-            ProposalResponseOrderOptions, QuestionResponses, ResponseValue,
-        },
-        proposal_section::{
-            self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
-        },
-        translations::TextContentId,
-        workflow_step,
-    },
-    routes::{
-        auth::{RequiredAdminUser, RequiredUser, is_user_admin},
-        translations::LocaleExtractor,
-    },
-    schema_helpers::{example_localized_text, example_uuid},
-    tools::{ToolConfig, ToolConfigSanitize, ToolImpl},
+use crate::models::proposal::{
+    self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations,
 };
+use crate::models::proposal_response::{
+    self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
+    ProposalResponseOrderOptions, QuestionResponses, ResponseValue,
+};
+use crate::models::proposal_section::{
+    self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
+};
+use crate::models::translations::TextContentId;
+use crate::models::workflow_step;
+use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::routes::translations::LocaleExtractor;
+use crate::schema_helpers::{example_localized_text, example_uuid};
+use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};
+use crate::{ComhairleError, ComhairleState};
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct PrioritizationToolConfig {
     /// Questions asked once about the proposal as a whole.
+    #[translatable]
     pub questions: Vec<Question>,
     /// Questions asked about each section individually. The same set is used
     /// for every section; participants answer them once per section.
     #[serde(default)]
+    #[translatable]
     pub section_questions: Vec<Question>,
     pub randomize_order: bool,
     pub alignment_question_id: Option<Uuid>,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct Question {
     pub id: Uuid,
-    pub text: String,
+    #[translatable]
+    pub text: TextContentId,
+    #[translatable]
     pub r#type: QuestionType,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 #[serde(rename_all = "snake_case")]
 pub enum QuestionType {
     Text,
     LikertScale {
+        #[translatable]
         categories: Vec<Category>,
     },
     Continuous {
@@ -70,10 +71,10 @@ pub enum QuestionType {
         min_value: f64,
         #[serde(default = "default_max_value")]
         max_value: f64,
-        #[serde(default)]
-        min_label: String,
-        #[serde(default)]
-        max_label: String,
+        #[translatable]
+        min_label: TextContentId,
+        #[translatable]
+        max_label: TextContentId,
     },
 }
 
@@ -85,10 +86,11 @@ fn default_max_value() -> f64 {
     10.0
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct Category {
     value: f64,
-    label: String,
+    #[translatable]
+    label: TextContentId,
 }
 
 impl ToolConfigSanitize for PrioritizationToolConfig {
@@ -104,7 +106,7 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
 pub struct SetupQuestion {
-    pub text: String,
+    pub text: TextContentId, // TODO: undo, this should be handled in macro so that
     pub r#type: QuestionType,
 }
 
