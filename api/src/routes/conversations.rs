@@ -1568,7 +1568,9 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn should_be_able_to_get_conversation_with_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_be_able_to_get_conversation_with_media(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
         let boundary = "test-boundary";
         let filename = "test_file.jpg";
         let content_type = "image/jpeg";
@@ -1580,7 +1582,7 @@ mod tests {
             .returning(move |_, _, _| {
                 Box::pin(async move {
                     Ok(UploadResult {
-                        url: format!("https://storage.com/{}", filename),
+                        url: format!("https://storage.com/images/{}", filename),
                     })
                 })
             });
@@ -1615,19 +1617,21 @@ mod tests {
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
         let body = MultipartBodyBuilder::new(boundary.to_string())
+            .add_field("name", "test-name")
+            .add_field("alt", "test-alt")
             .add_file(filename, Some(content_type), "test-content")
             .build();
 
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
-        let media: Vec<MediaDto> = serde_json::from_value(value)?;
+        let media: MediaDto = serde_json::from_value(value)?;
 
         session
             .update_conversation(
                 &app,
                 &conversation.id.to_string(),
-                json!({ "image": media[0].id }),
+                json!({ "image": media.id }),
             )
             .await?;
 
