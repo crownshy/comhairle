@@ -148,6 +148,41 @@ export const PaginatedResults_for_LocalizedConversationDto = z
 export type PaginatedResults_for_LocalizedConversationDto = z.infer<
   typeof PaginatedResults_for_LocalizedConversationDto
 >;
+export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
+export type OrganizationType = z.infer<typeof OrganizationType>;
+export const LocalizedOrganizationDto = z
+  .object({
+    contactEmail: z.union([z.string(), z.null()]).optional(),
+    createdAt: z.string().datetime({ offset: true }),
+    description: z.string(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    mission: z.string(),
+    name: z.string(),
+    orgType: OrganizationType,
+    regions: z.array(z.string().uuid()),
+  })
+  .passthrough();
+export type LocalizedOrganizationDto = z.infer<typeof LocalizedOrganizationDto>;
+export const UserOrganizationsResponse = z
+  .object({
+    organizations: z.array(
+      z
+        .object({
+          canDelete: z.boolean(),
+          canManageTeam: z.boolean(),
+          canUpdate: z.boolean(),
+          isAssociated: z.boolean(),
+          organization: LocalizedOrganizationDto,
+        })
+        .passthrough()
+    ),
+    canCreateOrganization: z.boolean(),
+  })
+  .passthrough();
+export type UserOrganizationsResponse = z.infer<
+  typeof UserOrganizationsResponse
+>;
 export const UpdateUserRequest = z
   .object({
     email_verified: z.union([z.boolean(), z.null()]),
@@ -2069,21 +2104,6 @@ export const SendToUserMessage = z
   .object({ message: z.string(), user_id: z.string().uuid() })
   .passthrough();
 export type SendToUserMessage = z.infer<typeof SendToUserMessage>;
-export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
-export type OrganizationType = z.infer<typeof OrganizationType>;
-export const LocalizedOrganizationDto = z
-  .object({
-    createdAt: z.string().datetime({ offset: true }),
-    description: z.string(),
-    externalUrl: z.union([z.string(), z.null()]).optional(),
-    id: z.string().uuid(),
-    mission: z.string(),
-    name: z.string(),
-    orgType: OrganizationType,
-    regions: z.array(z.string().uuid()),
-  })
-  .passthrough();
-export type LocalizedOrganizationDto = z.infer<typeof LocalizedOrganizationDto>;
 export const PaginatedResults_for_LocalizedOrganizationDto = z
   .object({
     records: z.array(LocalizedOrganizationDto),
@@ -2095,17 +2115,42 @@ export type PaginatedResults_for_LocalizedOrganizationDto = z.infer<
 >;
 export const CreateOrganization = z
   .object({
+    contact_email: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     external_url: z.union([z.string(), z.null()]).optional(),
     mission: z.string(),
     name: z.string(),
     org_type: OrganizationType,
+    organization_admin_emails: z.union([z.array(z.string()), z.null()]).optional(),
     regions: z.union([z.array(z.string().uuid()), z.null()]).optional(),
+    user_emails: z.union([z.array(z.string()), z.null()]).optional(),
   })
   .passthrough();
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
+export const OrganizationAdminBootstrapFailureDto = z
+  .object({
+    email: z.string(),
+    message: z.string(),
+  })
+  .passthrough();
+export type OrganizationAdminBootstrapFailureDto = z.infer<
+  typeof OrganizationAdminBootstrapFailureDto
+>;
+export const OrganizationAdminBootstrapSummaryDto = z
+  .object({
+    attempted: z.number().int(),
+    assigned: z.number().int(),
+    createdAccounts: z.number().int(),
+    emailed: z.number().int(),
+    failures: z.array(OrganizationAdminBootstrapFailureDto),
+  })
+  .passthrough();
+export type OrganizationAdminBootstrapSummaryDto = z.infer<
+  typeof OrganizationAdminBootstrapSummaryDto
+>;
 export const OrganizationDto = z
   .object({
+    contactEmail: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
     externalUrl: z.union([z.string(), z.null()]).optional(),
@@ -2117,9 +2162,16 @@ export const OrganizationDto = z
   })
   .passthrough();
 export type OrganizationDto = z.infer<typeof OrganizationDto>;
+export const CreateOrganizationResponseDto = OrganizationDto.extend({
+  adminBootstrapSummary: OrganizationAdminBootstrapSummaryDto,
+}).passthrough();
+export type CreateOrganizationResponseDto = z.infer<typeof CreateOrganizationResponseDto>;
 export const PartialOrganization = z
   .object({
+    contact_email: z.union([z.string(), z.null()]),
+    description: z.union([z.string(), z.null()]),
     external_url: z.union([z.string(), z.null()]),
+    mission: z.union([z.string(), z.null()]),
     name: z.union([z.string(), z.null()]),
     org_type: z.union([OrganizationType, z.null()]),
     regions: z.union([z.array(z.string().uuid()), z.null()]),
@@ -2422,6 +2474,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   is_complete,
   limit,
   PaginatedResults_for_LocalizedConversationDto,
+  OrganizationType,
+  LocalizedOrganizationDto,
+  UserOrganizationsResponse,
   UpdateUserRequest,
   UpgradeAccountRequest,
   UserConversationPreferencesDto,
@@ -2638,8 +2693,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   BroadcastMessage,
   BroadcastResponse,
   SendToUserMessage,
-  OrganizationType,
-  LocalizedOrganizationDto,
   PaginatedResults_for_LocalizedOrganizationDto,
   CreateOrganization,
   OrganizationDto,
@@ -4442,7 +4495,7 @@ curl -X POST \
         schema: CreateOrganization,
       },
     ],
-    response: OrganizationDto,
+    response: CreateOrganizationResponseDto,
   },
   {
     method: "get",
@@ -5451,6 +5504,14 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
     ],
     response: UserDto,
+  },
+  {
+    method: "get",
+    path: "/user/organizations",
+    alias: "GetUserOrganizations",
+    description: `Gets the organizations associated with the current user and those they can manage`,
+    requestFormat: "json",
+    response: UserOrganizationsResponse,
   },
   {
     method: "get",

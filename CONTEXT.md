@@ -52,6 +52,32 @@ A single allowed operation (for example list, grant, revoke, read, update) that 
 **Authorization precedence**:
 Permission checks resolve in this order: resource ownership allows, then system admin grant allows globally, then role-action mapping on the target resource is evaluated. There are currently no explicit deny rules.
 
+### Organizations and access
+
+**Organization Administrator**:
+A user explicitly assigned elevated permissions on one Organization, including organization update, organization delete, and organization member add/remove.
+_Avoid_: Org owner, org contact, organization user.
+
+**Organization Member**:
+A user associated with an Organization for membership purposes, without implied administrative permissions.
+_Avoid_: Organization admin (unless they also hold Organization Administrator assignment).
+
+**Organization contact email**:
+A communication address for the Organization entity itself. It is not a permission grant and is distinct from both member emails and Organization Administrator emails.
+_Avoid_: Admin email, owner email.
+
+**Initial Organization Administrators**:
+The set of users selected during Organization creation who receive Organization Administrator permissions for that new Organization.
+_Avoid_: Default members, contact email recipients.
+
+**Silent account bootstrap**:
+When an Initial Organization Administrator email has no matching user account, the system auto-creates a full email-password user account without a blocking confirmation step, then assigns permissions.
+_Avoid_: OTP-only bootstrap, manual pre-provisioning.
+
+**Initial password reset email**:
+The first-access email sent to newly created Organization Administrators at creation time, containing a one-time password reset link with 24-hour validity so they set their own password before first login.
+_Avoid_: Magic-link sign-in email, plaintext password email.
+
 ### Polis admin (Discuss step)
 
 The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Moderation · Insights`** (civic_os's "Participants" tab is dropped — see Insights/Report and the Participants note).

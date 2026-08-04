@@ -5,7 +5,9 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        organization::{LocalizedOrganization, Organization, OrganizationType},
+        organization::{
+            LocalizedOrganization, Organization, OrganizationAdminBootstrapResult, OrganizationType,
+        },
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -20,7 +22,7 @@ use crate::{
 /// * `updated_at`
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OrganizationDto {
     #[schemars(example = "example_uuid")]
@@ -31,9 +33,35 @@ pub struct OrganizationDto {
     #[schemars(example = "example_uuid")]
     pub mission: TextContentId,
     pub org_type: OrganizationType,
+    pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Vec<Uuid>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationAdminBootstrapFailureDto {
+    pub email: String,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationAdminBootstrapSummaryDto {
+    pub attempted: usize,
+    pub assigned: usize,
+    pub created_accounts: usize,
+    pub emailed: usize,
+    pub failures: Vec<OrganizationAdminBootstrapFailureDto>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateOrganizationResponseDto {
+    #[serde(flatten)]
+    pub organization: OrganizationDto,
+    pub admin_bootstrap_summary: OrganizationAdminBootstrapSummaryDto,
 }
 
 /// Data transfer object (public API representation) for a LocalizedOrganization.
@@ -44,7 +72,7 @@ pub struct OrganizationDto {
 /// * `updated_at`
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalizedOrganizationDto {
     #[schemars(example = "example_uuid")]
@@ -55,6 +83,7 @@ pub struct LocalizedOrganizationDto {
     #[schemars(example = "example_localized_text")]
     pub mission: String,
     pub org_type: OrganizationType,
+    pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Vec<Uuid>,
     pub created_at: DateTime<Utc>,
@@ -68,9 +97,42 @@ impl From<Organization> for OrganizationDto {
             description: o.description,
             mission: o.mission,
             org_type: o.org_type,
+            contact_email: o.contact_email,
             external_url: o.external_url,
             regions: o.regions,
             created_at: o.created_at,
+        }
+    }
+}
+
+impl OrganizationAdminBootstrapSummaryDto {
+    pub fn from_results(results: &[OrganizationAdminBootstrapResult]) -> Self {
+        let attempted = results.len();
+        let assigned = results.iter().filter(|result| result.assigned).count();
+        let created_accounts = results
+            .iter()
+            .filter(|result| result.created_account)
+            .count();
+        let emailed = results.iter().filter(|result| result.emailed).count();
+        let failures = results
+            .iter()
+            .filter_map(|result| {
+                result
+                    .error
+                    .as_ref()
+                    .map(|message| OrganizationAdminBootstrapFailureDto {
+                        email: result.email.clone(),
+                        message: message.clone(),
+                    })
+            })
+            .collect();
+
+        Self {
+            attempted,
+            assigned,
+            created_accounts,
+            emailed,
+            failures,
         }
     }
 }
@@ -83,6 +145,7 @@ impl From<LocalizedOrganization> for LocalizedOrganizationDto {
             description: o.description,
             mission: o.mission,
             org_type: o.org_type,
+            contact_email: o.contact_email,
             external_url: o.external_url,
             regions: o.regions,
             created_at: o.created_at,

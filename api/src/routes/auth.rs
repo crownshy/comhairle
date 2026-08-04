@@ -221,8 +221,8 @@ struct PasswordResetUpdateRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct EmailLinkClaims {
-    email: Option<String>,
+pub(crate) struct EmailLinkClaims {
+    pub(crate) email: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
