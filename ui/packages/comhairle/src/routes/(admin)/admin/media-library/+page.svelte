@@ -140,7 +140,7 @@
 					filename={details.filename}
 					name={details.name}
 					src={details.url}
-					alt=""
+					alt={details.alt}
 					close={() => (details = null)}
 				/>
 			{/if}

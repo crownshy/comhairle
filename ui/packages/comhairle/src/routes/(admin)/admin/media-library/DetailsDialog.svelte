@@ -2,8 +2,6 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { HTMLMediaElement } from '$lib/utils/types';
 	import '$lib/components/Media/MediaBackground.css';
-	import Label from '$lib/components/ui/label/label.svelte';
-	import Input from '$lib/components/ui/input/input.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -11,12 +9,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
-	import { capitalise } from '$lib/utils/casingUtils';
-
-	interface DetailsProps {
-		id: string;
-		value: string;
-	}
+	import DetailsField from './DetailsField.svelte';
 
 	interface Props {
 		type: HTMLMediaElement | undefined;
@@ -28,10 +21,7 @@
 		close: () => void;
 	}
 
-	const { id, type, filename, name: currentName, alt, src, close }: Props = $props();
-
-	let name = $derived(currentName);
-	// let alt = $derived(currentAlt);
+	const { id, type, filename, name: initialName, alt: initialAlt, src, close }: Props = $props();
 
 	let editable = $state<boolean>(false);
 	let deleteDialogOpen = $state<boolean>(false);
@@ -60,8 +50,9 @@
 
 	async function updateMedia() {
 		const response = await tryCatchAsync(() =>
+			// FIX: Currently not uploading the new name and alt
 			apiClient.UpdateMedia(
-				{ name },
+				{ name: initialName },
 				{
 					params: {
 						media_id: id
@@ -111,18 +102,6 @@
 	</AlertDialog.Root>
 {/snippet}
 
-{#snippet details({ id, value }: DetailsProps)}
-	<div class="flex flex-col">
-		{#if !editable}
-			<span class="text-muted-foreground mb-1 text-sm font-semibold">{capitalise(id)}</span>
-			<span class="mb-5">{value}</span>
-		{:else}
-			<Label class="text-muted-foreground mb-2" for={id}>{capitalise(id)}</Label>
-			<Input {id} type="text" bind:value={name} class="mb-5 flex flex-row items-center" />
-		{/if}
-	</div>
-{/snippet}
-
 <Dialog.Portal>
 	<Dialog.Overlay>
 		<Dialog.Content class="flex h-[80vh] min-w-[90vw] flex-col overflow-y-scroll">
@@ -156,8 +135,8 @@
 					{/if}
 				</div>
 				<aside class="mr-0 flex w-full flex-col lg:mr-auto lg:w-9/10">
-					{@render details({ id: 'name', value: name })}
-					{@render details({ id: 'alt', value: alt })}
+					<DetailsField label="Name" initialValue={initialName} {editable} field="name" />
+					<DetailsField label="Alt" initialValue={initialAlt} {editable} field="alt" />
 					<div class="mt-4 self-end">
 						{#if editable}
 							<Button variant="outline" onclick={() => (editable = false)}>
