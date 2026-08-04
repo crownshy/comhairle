@@ -314,12 +314,23 @@ mod tests {
         let mut session = UserSession::new_admin();
         session.signup(&app).await?;
 
-        let body = multipart_body_builder()
-            .content("test-content")
+        let name = multipart_body_builder()
             .boundary(boundary)
+            .field_name("name")
+            .content("test-name")
+            .call();
+        let alt_text = multipart_body_builder()
+            .boundary(boundary)
+            .field_name("alt")
+            .content("test-alt")
+            .call();
+        let file = multipart_body_builder()
+            .boundary(boundary)
+            .content("test-content")
             .filename(filename)
             .content_type(content_type)
             .call();
+        let body = name.clone() + &alt_text + &file;
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
@@ -330,6 +341,8 @@ mod tests {
             filename.to_string(),
             "incorrect filename"
         );
+        assert_eq!(media[0].name, name.to_string(), "incorrect name");
+        assert_eq!(media[0].alt, alt_text.to_string(), "incorrect alt text");
         assert_eq!(
             media[0].content_type,
             MediaContentType::Jpeg,

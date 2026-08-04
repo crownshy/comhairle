@@ -243,15 +243,17 @@ pub async fn response_to_json(response: Response) -> Value {
 pub fn multipart_body_builder(
     content: &str,
     boundary: Option<&str>,
+    field_name: Option<&str>,
     filename: Option<&str>,
     content_type: Option<&str>,
 ) -> String {
     let boundary = boundary.unwrap_or("test-boundary");
+    let field_name = filename.unwrap_or("file");
     let filename = filename.unwrap_or("test-file.txt");
     let content_type = content_type.unwrap_or("text/plain");
     format!(
         "--{boundary}\r\n\
-            Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n\
+            Content-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\n\
             Content-Type: {content_type}\r\n\
             \r\n\
             {content}\r\n\
