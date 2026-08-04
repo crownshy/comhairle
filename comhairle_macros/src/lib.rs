@@ -1,6 +1,8 @@
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{Data, DeriveInput, Fields, GenericArgument, PathArguments, Type, parse_macro_input};
+use quote::{format_ident, quote};
+use syn::{
+    Attribute, Data, DeriveInput, Fields, GenericArgument, PathArguments, Type, parse_macro_input,
+};
 
 /// Macro used to allow an enum to be
 /// saved as jsonb in the database
@@ -493,6 +495,246 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+/// Derives translation-resolution support for a type whose fields (or, for
+/// enums, whose variants' fields) may reference translatable text via
+/// [`TextContentId`].
+///
+/// Allows translation resolution for nested JSON structures with translatable
+/// text fields at different levels of nesting.
+///
+/// For a type `Foo`, `#[derive(TranslatableJson)]` generates:
+///
+/// - A mirror type `LocalizedFoo`, identical to `Foo` except every
+///   `#[translatable]` field's type is replaced by that type's
+///   [`ResolveTranslations::Resolved`] associated type (e.g. a
+///   `TextContentId` field becomes `String`; a `Vec<Question>` field becomes
+///   `Vec<LocalizedQuestion>`). Fields without `#[translatable]` are copied
+///   through unchanged. `LocalizedFoo` derives `Debug`, `Clone`,
+///   `serde::Serialize`, `serde::Deserialize`, `JsonSchema`, and
+///   `PartialEq`.
+/// - `impl CollectTextContentIds for Foo`, which walks every
+///   `#[translatable]` field (recursing into nested translatable types,
+///   `Option`, and `Vec`) and collects every [`TextContentId`] found.
+/// - `impl ResolveTranslations for Foo`, with `type Resolved = LocalizedFoo`,
+///   which consumes `self` and a `&HashMap<TextContentId, String>` and
+///   produces a `LocalizedFoo` by resolving each `#[translatable]` field
+///   through the map and passing other fields through unchanged.
+///
+/// # Field attribute
+///
+/// Mark any field whose type is [`TextContentId`], or whose type itself
+/// derives `TranslatableJson` (directly, or wrapped in `Option<_>`/`Vec<_>`),
+/// with `#[translatable]`:
+///
+/// ```ignore
+/// #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
+/// pub struct Question {
+///     pub id: Uuid,
+///     #[translatable]
+///     pub text: TextContentId,
+///     #[translatable]
+///     pub r#type: QuestionType,
+/// }
+/// ```
+///
+/// expands (informally) to a `LocalizedQuestion { id: Uuid, text: String,
+/// r#type: LocalizedQuestionType }` plus the two trait impls described
+/// above. Fields without the attribute (e.g. `id`) are assumed to contain no
+/// translatable content and are copied through as-is into `LocalizedQuestion`.
+///
+/// # Not currently supported
+///
+/// - Tuple variants (`Foo::Bar(String)`) — the macro panics at
+///   expansion time if one is encountered.
+/// - Tuple structs and unit structs — only structs with named fields are
+///   supported.
+///
+/// # Requirements on `#[translatable]` field types
+///
+/// The type of a `#[translatable]` field must implement both
+/// `CollectTextContentIds` and `ResolveTranslations` (directly, or via the
+/// `Option`/`Vec` blanket impls). [`TextContentId`] implements both
+/// directly; any other type used in a `#[translatable]` field should itself
+/// derive `TranslatableJson`. Marking a field `#[translatable]` when its
+/// type doesn't satisfy this produces a trait-bound compile error at the
+/// use site (e.g. `the trait bound ... ResolveTranslations is not
+/// satisfied`), naming the offending type.
+#[proc_macro_derive(TranslatableJson, attributes(translatable))]
+pub fn derive_translatable_json(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    let resolved_name = format_ident!("Localized{}", name);
+    // TODO: perhaps allow configuration via macro or take from original struct
+    let derives: Vec<syn::Path> = vec![
+        syn::parse_quote!(Debug),
+        syn::parse_quote!(Clone),
+        syn::parse_quote!(serde::Serialize),
+        syn::parse_quote!(serde::Deserialize),
+        syn::parse_quote!(JsonSchema),
+        syn::parse_quote!(PartialEq),
+    ];
+
+    let expanded = match &input.data {
+        Data::Struct(data) => derive_translatable_json_struct(name, &resolved_name, data, &derives),
+        Data::Enum(data) => derive_translatable_enum_struct(name, &resolved_name, data, &derives),
+        _ => panic!("TranslatableJson can only be derived for structs and enums"),
+    };
+
+    expanded.into()
+}
+
+fn has_translatable_attr(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("translatable"))
+}
+
+fn derive_translatable_json_struct(
+    name: &syn::Ident,
+    resolved_name: &syn::Ident,
+    data: &syn::DataStruct,
+    derives: &[syn::Path],
+) -> proc_macro2::TokenStream {
+    let fields = match &data.fields {
+        Fields::Named(f) => &f.named,
+        _ => panic!("TranslatableJson only supports structs with named fields"),
+    };
+
+    let mut resolved_fields = Vec::new();
+    let mut collect_statements = Vec::new();
+    let mut resolve_inits = Vec::new();
+
+    for field in fields {
+        let ident = field.ident.as_ref().unwrap();
+        let ty = &field.ty;
+        let visibility = &field.vis;
+
+        if has_translatable_attr(&field.attrs) {
+            resolved_fields.push(quote! {
+                #visibility #ident: <#ty as crate::models::translations::ResolveTranslations>::Resolved
+            });
+            collect_statements.push(quote! {
+                self.#ident.collect_text_content_ids(out);
+            });
+            resolve_inits.push(quote! {
+                #ident: self.#ident.resolve(map)
+            });
+        } else {
+            resolved_fields.push(quote! { #visibility #ident: #ty });
+            resolve_inits.push(quote! { #ident: self.#ident });
+        }
+    }
+
+    quote! {
+        #[derive(#(#derives),*)]
+        pub struct #resolved_name {
+            #(#resolved_fields),*
+        }
+
+        impl crate::models::translations::CollectTextContentIds for #name {
+            fn collect_text_content_ids(&self, out: &mut std::collections::HashSet<TextContentId>) {
+                #(#collect_statements)*
+            }
+        }
+
+        impl crate::models::translations::ResolveTranslations for #name {
+            type Resolved = #resolved_name;
+
+            fn resolve(self, map: &std::collections::HashMap<TextContentId, String>) -> Self::Resolved {
+                #resolved_name {
+                    #(#resolve_inits),*
+                }
+            }
+        }
+    }
+}
+
+fn derive_translatable_enum_struct(
+    name: &syn::Ident,
+    resolved_name: &syn::Ident,
+    data: &syn::DataEnum,
+    derives: &[syn::Path],
+) -> proc_macro2::TokenStream {
+    let mut resolved_variants = Vec::new();
+    let mut collect_arms = Vec::new();
+    let mut resolve_arms = Vec::new();
+
+    for variant in &data.variants {
+        let variant_ident = &variant.ident;
+
+        match &variant.fields {
+            Fields::Unit => {
+                // Nothing to resolve so push verbatim
+                resolved_variants.push(quote! { #variant_ident });
+                // No data to collect so use empty block
+                collect_arms.push(quote! { Self::#variant_ident => {} });
+                // Nothing to resolve, `Self::Text => LocalizedType::Text`
+                resolve_arms
+                    .push(quote! { Self::#variant_ident => #resolved_name::#variant_ident });
+            }
+            Fields::Named(fields) => {
+                let mut field_idents = Vec::new();
+                let mut resolved_fields = Vec::new();
+                let mut collect_body = Vec::new();
+                let mut resolve_inits = Vec::new();
+
+                for field in &fields.named {
+                    let ident = field.ident.as_ref().unwrap();
+                    let ty = &field.ty;
+                    field_idents.push(quote! { #ident });
+
+                    if has_translatable_attr(&field.attrs) {
+                        resolved_fields.push(quote! {
+                            #ident: <#ty as crate::models::translations::ResolveTranslations>::Resolved
+                        });
+                        collect_body.push(quote! {
+                            #ident.collect_text_content_ids(out);
+                        });
+                        resolve_inits.push(quote! { #ident: #ident.resolve(map) });
+                    } else {
+                        resolved_fields.push(quote! { #ident: #ty });
+                        resolve_inits.push(quote! { #ident: #ident });
+                    }
+                }
+
+                resolved_variants.push(quote! { #variant_ident { #(#resolved_fields),* }});
+                collect_arms.push(quote! {
+                    Self::#variant_ident { #(#field_idents),* } => { #(#collect_body)* }
+                });
+                resolve_arms.push(quote! {
+                    Self::#variant_ident { #(#field_idents),* } => #resolved_name::#variant_ident { #(#resolve_inits),* }
+                });
+            }
+            Fields::Unnamed(_) => panic!("TranslatableJson does not support tuple variants"),
+        }
+    }
+
+    quote! {
+        #[derive(#(#derives),*)]
+        pub enum #resolved_name {
+            #(#resolved_variants),*
+        }
+
+        impl crate::models::translations::CollectTextContentIds for #name {
+            fn collect_text_content_ids(&self, out: &mut std::collections::HashSet<TextContentId>) {
+                match self {
+                    #(#collect_arms),*
+                }
+            }
+        }
+
+        impl crate::models::translations::ResolveTranslations for #name {
+            type Resolved = #resolved_name;
+
+            fn resolve(self, map: &std::collections::HashMap<TextContentId, String>) -> Self::Resolved {
+                match self {
+                    #(#resolve_arms),*
+                }
+            }
+        }
+    }
 }
 
 /// Helper function to check if a type is TextContentId

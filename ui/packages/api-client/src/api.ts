@@ -1081,7 +1081,7 @@ export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
 export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
 export const Category = z
-  .object({ label: z.string(), value: z.number() })
+  .object({ label: z.string().uuid(), value: z.number() })
   .passthrough();
 export type Category = z.infer<typeof Category>;
 export const QuestionType = z.union([
@@ -1092,19 +1092,22 @@ export const QuestionType = z.union([
   z.object({
     continuous: z
       .object({
-        max_label: z.string().default(""),
-        max_value: z.number().default(10),
-        min_label: z.string().default(""),
-        min_value: z.number().default(0),
-        sub_steps: z.number().int().default(10),
+        max_label: z.string().uuid(),
+        max_value: z.number().optional().default(10),
+        min_label: z.string().uuid(),
+        min_value: z.number().optional().default(0),
+        sub_steps: z.number().int().optional().default(10),
       })
-      .partial()
       .passthrough(),
   }),
 ]);
 export type QuestionType = z.infer<typeof QuestionType>;
 export const Question = z
-  .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
+  .object({
+    id: z.string().uuid(),
+    text: z.string().uuid(),
+    type: QuestionType,
+  })
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
@@ -1330,7 +1333,7 @@ export type WorkflowStepsListResponse = z.infer<
   typeof WorkflowStepsListResponse
 >;
 export const SetupQuestion = z
-  .object({ text: z.string(), type: QuestionType })
+  .object({ text: z.string().uuid(), type: QuestionType })
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
 export const ThinkingSpaceSetupQuestion = z
