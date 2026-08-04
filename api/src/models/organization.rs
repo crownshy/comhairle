@@ -33,6 +33,7 @@ pub struct Organization {
     #[partially(omit)]
     pub mission: TextContentId,
     pub org_type: OrganizationType,
+    pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Vec<Uuid>,
     #[partially(omit)]
@@ -74,12 +75,13 @@ impl std::fmt::Display for OrganizationType {
     }
 }
 
-const DEFAULT_COLUMNS: [OrganizationIden; 9] = [
+const DEFAULT_COLUMNS: [OrganizationIden; 10] = [
     OrganizationIden::Id,
     OrganizationIden::Name,
     OrganizationIden::Description,
     OrganizationIden::Mission,
     OrganizationIden::OrgType,
+    OrganizationIden::ContactEmail,
     OrganizationIden::ExternalUrl,
     OrganizationIden::Regions,
     OrganizationIden::CreatedAt,
@@ -92,6 +94,7 @@ pub struct CreateOrganization {
     pub description: String,
     pub mission: String,
     pub org_type: OrganizationType,
+    pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Option<Vec<Uuid>>,
 }
@@ -100,6 +103,9 @@ impl CreateOrganization {
     fn columns(&self) -> Vec<OrganizationIden> {
         let mut columns = vec![OrganizationIden::Name, OrganizationIden::OrgType];
 
+        if self.contact_email.is_some() {
+            columns.push(OrganizationIden::ContactEmail);
+        }
         if self.external_url.is_some() {
             columns.push(OrganizationIden::ExternalUrl);
         }
@@ -113,6 +119,9 @@ impl CreateOrganization {
     fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let mut values = vec![(*self.name).into(), self.org_type.clone().into()];
 
+        if let Some(value) = &self.contact_email {
+            values.push(value.clone().into());
+        }
         if let Some(value) = &self.external_url {
             values.push(value.clone().into());
         }
@@ -164,6 +173,9 @@ impl PartialOrganization {
         }
         if let Some(value) = &self.org_type {
             values.push((OrganizationIden::OrgType, value.clone().into()));
+        }
+        if let Some(value) = &self.contact_email {
+            values.push((OrganizationIden::ContactEmail, value.clone().into()));
         }
         if let Some(value) = &self.external_url {
             values.push((OrganizationIden::ExternalUrl, value.clone().into()));
@@ -346,11 +358,13 @@ mod tests {
             description: "test_org".to_string(),
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
+            contact_email: Some("test@org.com".to_string()),
             external_url: Some("test.com".to_string()),
             ..Default::default()
         };
 
         let org = create(&pool, &new_org, "en").await?;
+        let fetched_org = get_by_id(&pool, &org.id).await?;
 
         assert_eq!(org.name, "test_org".to_string(), "incorrect name");
         assert_eq!(
@@ -361,6 +375,11 @@ mod tests {
         assert!(
             org.regions.is_empty(),
             "regions not initialized as empty vec"
+        );
+        assert_eq!(
+            fetched_org.contact_email,
+            Some("test@org.com".to_string()),
+            "contact_email not persisted"
         );
 
         Ok(())
@@ -478,6 +497,7 @@ mod tests {
             description: "test_org_1".to_string(),
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
+            contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_1.id]),
         };
@@ -486,6 +506,7 @@ mod tests {
             description: "test_org_2".to_string(),
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
+            contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_2.id]),
         };
@@ -494,6 +515,7 @@ mod tests {
             description: "test_org_3".to_string(),
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
+            contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_1.id]),
         };
