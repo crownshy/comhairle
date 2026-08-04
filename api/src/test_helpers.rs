@@ -248,17 +248,25 @@ pub fn multipart_body_builder(
     content_type: Option<&str>,
 ) -> String {
     let boundary = boundary.unwrap_or("test-boundary");
-    let field_name = filename.unwrap_or("file");
-    let filename = filename.unwrap_or("test-file.txt");
-    let content_type = content_type.unwrap_or("text/plain");
-    format!(
-        "--{boundary}\r\n\
-            Content-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\n\
-            Content-Type: {content_type}\r\n\
-            \r\n\
-            {content}\r\n\
-            --{boundary}--\r\n"
-    )
+
+    let body = format!("--{boundary}\r\n");
+    let body = body + format!("Content-Disposition: form-data").as_str();
+    let body = match field_name {
+        Some(f) => body + format!("; name=\"{f}\"").as_str(),
+        None => body,
+    };
+    let body = match filename {
+        Some(f) => body + format!("; filename=\"{f}\"\r\n").as_str(),
+        None => body + "\r\n",
+    };
+    let body = match content_type {
+        Some(c) => body + format!("Content-Type: {c}\r\n").as_str(),
+        None => body,
+    };
+    let body = body + "\r\n";
+    let body = body + format!("{content}\r\n").as_str();
+
+    body
 }
 
 #[derive(Debug)]

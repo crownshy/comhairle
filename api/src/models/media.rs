@@ -21,6 +21,7 @@ use crate::{
 };
 
 /// File type to handle the incoming File from the HTTP Request
+#[derive(Debug)]
 pub struct File {
     pub filename: String,
     pub bytes: Vec<u8>,
@@ -28,6 +29,7 @@ pub struct File {
 }
 
 /// Incoming form type from the upload request
+#[derive(Debug)]
 pub struct UploadMediaForm {
     pub file: File,
     pub name: String,

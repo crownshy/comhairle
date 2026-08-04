@@ -17,8 +17,8 @@ use crate::{
     error::ComhairleError,
     models::{
         media::{
-            self, CreateMedia, File, MediaContentType, MediaEditableFields, MediaFilterOptions,
-            MediaOrderOptions, UploadMediaForm,
+            self, CreateMedia, File, Media, MediaContentType, MediaEditableFields,
+            MediaFilterOptions, MediaOrderOptions, UploadMediaForm,
         },
         pagination::{PageOptions, PaginatedResults},
     },
@@ -134,7 +134,6 @@ async fn upload(
         )
         .await?;
 
-    // TODO: Change name to be able to be set when uploading instead of copied from filename
     let create_media = CreateMedia {
         store_name: bulk_storage_config.store_name.to_string(),
         storage_key,
@@ -294,6 +293,8 @@ mod tests {
         let boundary = "test-boundary";
         let filename = "test_file.jpg";
         let content_type = "image/jpeg";
+        let name = "test-name";
+        let alt = "test-alt";
 
         let mut bulk_storage_service = MockBulkStorageService::new();
         bulk_storage_service
@@ -314,37 +315,33 @@ mod tests {
         let mut session = UserSession::new_admin();
         session.signup(&app).await?;
 
-        let name = multipart_body_builder()
+        let field_name = multipart_body_builder()
             .boundary(boundary)
             .field_name("name")
-            .content("test-name")
+            .content(&name)
             .call();
-        let alt_text = multipart_body_builder()
+        let field_alt = multipart_body_builder()
             .boundary(boundary)
             .field_name("alt")
-            .content("test-alt")
+            .content(&alt)
             .call();
-        let file = multipart_body_builder()
+        let field_file = multipart_body_builder()
             .boundary(boundary)
             .content("test-content")
             .filename(filename)
             .content_type(content_type)
             .call();
-        let body = name.clone() + &alt_text + &file;
+        let body = field_name + &field_alt + &field_file + format!("--{boundary}--").as_str();
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
-        let media: Vec<MediaDto> = serde_json::from_value(value)?;
+        let media: MediaDto = serde_json::from_value(value)?;
 
+        assert_eq!(media.filename, filename.to_string(), "incorrect filename");
+        assert_eq!(media.name, name.to_string(), "incorrect name");
+        assert_eq!(media.alt, alt.to_string(), "incorrect alt text");
         assert_eq!(
-            media[0].filename,
-            filename.to_string(),
-            "incorrect filename"
-        );
-        assert_eq!(media[0].name, name.to_string(), "incorrect name");
-        assert_eq!(media[0].alt, alt_text.to_string(), "incorrect alt text");
-        assert_eq!(
-            media[0].content_type,
+            media.content_type,
             MediaContentType::Jpeg,
             "incorrect content_type"
         );
