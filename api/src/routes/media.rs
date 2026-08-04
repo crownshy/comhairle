@@ -17,8 +17,8 @@ use crate::{
     error::ComhairleError,
     models::{
         media::{
-            self, CreateMedia, File, Media, MediaContentType, MediaEditableFields,
-            MediaFilterOptions, MediaOrderOptions, UploadMediaForm,
+            self, CreateMedia, File, MediaContentType, MediaEditableFields, MediaFilterOptions,
+            MediaOrderOptions, UploadMediaForm,
         },
         pagination::{PageOptions, PaginatedResults},
     },
@@ -264,7 +264,7 @@ mod tests {
             pagination::PaginatedResults,
         },
         setup_server,
-        test_helpers::{TEST_PASSWORD, UserSession, multipart_body_builder, test_state},
+        test_helpers::{MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_state},
     };
 
     use sqlx::PgPool;
@@ -315,23 +315,12 @@ mod tests {
         let mut session = UserSession::new_admin();
         session.signup(&app).await?;
 
-        let field_name = multipart_body_builder()
-            .boundary(boundary)
-            .field_name("name")
-            .content(&name)
-            .call();
-        let field_alt = multipart_body_builder()
-            .boundary(boundary)
-            .field_name("alt")
-            .content(&alt)
-            .call();
-        let field_file = multipart_body_builder()
-            .boundary(boundary)
-            .content("test-content")
-            .filename(filename)
-            .content_type(content_type)
-            .call();
-        let body = field_name + &field_alt + &field_file + format!("--{boundary}--").as_str();
+        let body = MultipartBodyBuilder::new(boundary.to_string())
+            .add_field("name", &name)
+            .add_field("alt", &alt)
+            .add_file(filename, Some(content_type), "test-content")
+            .build();
+
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;

@@ -910,7 +910,7 @@ mod tests {
     use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{multipart_body_builder, test_config, test_state};
+    use crate::test_helpers::{MultipartBodyBuilder, test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::body::Body;
     use axum::http::StatusCode;
@@ -1614,12 +1614,10 @@ mod tests {
             .await?;
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
-        let body = multipart_body_builder()
-            .content("test-content")
-            .boundary(boundary)
-            .filename(filename)
-            .content_type(content_type)
-            .call();
+        let body = MultipartBodyBuilder::new(boundary.to_string())
+            .add_file(filename, Some(content_type), "test-content")
+            .build();
+
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
