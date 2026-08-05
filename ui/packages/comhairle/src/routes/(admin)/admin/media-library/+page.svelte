@@ -5,7 +5,6 @@
 	import DeleteDialog from './DeleteDialog.svelte';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
-	import { notifications } from '$lib/notifications.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -15,24 +14,12 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { capitalise } from '$lib/utils/casingUtils';
 
-	let deleteForm: HTMLFormElement | undefined;
+	const { data } = $props();
 
+	let deleteForm: HTMLFormElement | undefined;
 	let bulkEdit = $state<boolean>(false);
 	let selected = $state([]);
-
-	const { form, data } = $props();
-
-	$effect(() => {
-		if (form?.error) {
-			notifications.send({
-				message: form.error,
-				priority: 'ERROR'
-			});
-		}
-	});
-
 	let details = $state<MediaDto | null>(null);
-
 	let filter = $state<HTMLMediaElement | null>(null);
 
 	let items = $derived.by(() => {
