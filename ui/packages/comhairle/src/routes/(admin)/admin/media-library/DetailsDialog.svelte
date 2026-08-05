@@ -10,6 +10,8 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
 	import DetailsField from './DetailsField.svelte';
+	import Form from '$lib/components/EasyForm/Form.svelte';
+	import Submit from '$lib/components/EasyForm/Submit.svelte';
 
 	interface Props {
 		type: HTMLMediaElement | undefined;
@@ -48,11 +50,21 @@
 		await invalidate('media-library:media');
 	}
 
-	async function updateMedia() {
+	async function updateMedia(formData: FormData) {
+		const newName = formData.get('name') as string | null | undefined;
+		const newAlt = formData.get('alt');
+
+		// If the values are the same then just cancel
+		if (newName === initialName && newAlt === initialAlt) {
+			editable = false;
+			return;
+		}
+
+		console.log('newName:', newName);
+
 		const response = await tryCatchAsync(() =>
-			// FIX: Currently not uploading the new name and alt
 			apiClient.UpdateMedia(
-				{ name: initialName },
+				{ name: newName },
 				{
 					params: {
 						media_id: id
@@ -104,7 +116,7 @@
 
 <Dialog.Portal>
 	<Dialog.Overlay>
-		<Dialog.Content class="flex h-[80vh] min-w-[90vw] flex-col overflow-y-scroll">
+		<Dialog.Content class="flex min-w-[90vw] flex-col overflow-y-scroll">
 			<Dialog.Header class="mr-10 flex h-8 flex-row items-center text-xl font-bold">
 				<span class="grow">{filename}</span>
 				{#if !editable}
@@ -134,17 +146,33 @@
 						<img {src} alt="" class="max-h-[60vh] object-contain" />
 					{/if}
 				</div>
-				<aside class="mr-0 flex w-full flex-col lg:mr-auto lg:w-9/10">
-					<DetailsField label="Name" initialValue={initialName} {editable} field="name" />
-					<DetailsField label="Alt" initialValue={initialAlt} {editable} field="alt" />
-					<div class="mt-4 self-end">
-						{#if editable}
-							<Button variant="outline" onclick={() => (editable = false)}>
-								Cancel
-							</Button>
-							<Button class="ml-2" onclick={updateMedia}>Update</Button>
-						{/if}
-					</div>
+				<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
+					<Form class="flex flex-col" handleSubmission={updateMedia}>
+						<DetailsField
+							label="Name"
+							initialValue={initialName}
+							{editable}
+							field="name"
+						/>
+						<DetailsField
+							label="Alt"
+							initialValue={initialAlt}
+							{editable}
+							field="alt"
+						/>
+						<div class="mt-4 self-end">
+							{#if editable}
+								<Button
+									variant="outline"
+									onclick={() => (editable = false)}
+									type="button"
+								>
+									Cancel
+								</Button>
+								<Submit class="ml-2" text="Update" />
+							{/if}
+						</div>
+					</Form>
 				</aside>
 			</div>
 		</Dialog.Content>
