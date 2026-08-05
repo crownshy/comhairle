@@ -254,7 +254,10 @@ impl MultipartBodyBuilder {
 
     pub fn add_field(mut self, field_name: &str, content: &str) -> Self {
         self.body.push_str(&format!(
-            "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n",
+            "--{}\r\n\
+		Content-Disposition: form-data; name=\"{}\"\r\n\
+		\r\n\
+		{}\r\n",
             self.boundary, field_name, content
         ));
 
@@ -262,7 +265,17 @@ impl MultipartBodyBuilder {
     }
 
     pub fn add_file(mut self, filename: &str, content_type: Option<&str>, content: &str) -> Self {
-        self.body.push_str(&format!("--{}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{}\"\r\nContent-Type: {}\r\n\r\n{}\r\n", self.boundary, filename, content_type.unwrap_or("text/plain"), content));
+        self.body.push_str(&format!(
+            "--{}\r\n\
+		Content-Disposition: form-data; name=\"file\"; filename=\"{}\"\r\n\
+		Content-Type: {}\r\n\
+		\r\n\
+		{}\r\n",
+            self.boundary,
+            filename,
+            content_type.unwrap_or("text/plain"),
+            content
+        ));
         self
     }
 
