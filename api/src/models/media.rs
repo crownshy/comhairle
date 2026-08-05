@@ -769,6 +769,11 @@ mod tests {
         let media = get_by_id(&pool, &created_media.id).await?;
 
         assert_eq!(media.name, "new-name".to_string(), "incorrect filename");
+        assert_eq!(
+            media.alt,
+            "test alt text".to_string(),
+            "alt text was modified incorrectly"
+        );
 
         Ok(())
     }
