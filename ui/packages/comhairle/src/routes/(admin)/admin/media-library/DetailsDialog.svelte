@@ -99,7 +99,7 @@
 			<Button
 				variant="outline"
 				size="sm"
-				class="text-destructive"
+				class="text-destructive/90 hover:text-destructive"
 				aria-label="Delete"
 				title="Delete"
 			>
