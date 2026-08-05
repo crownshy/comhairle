@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { FileText } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import type { FileAttr } from './EasyForm/types';
+	import type { FileAttr } from '$lib/components/EasyForm';
 	import Media from '$lib/interfaces/Media';
 
 	interface Props extends FileAttr {

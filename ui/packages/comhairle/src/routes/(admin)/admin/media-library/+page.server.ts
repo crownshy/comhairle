@@ -2,7 +2,7 @@ import { tryFetch, tryCatchAsync } from '$lib/utils/errorHandling';
 import { fail, type LoadEvent } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import type { MediaDto } from '@crownshy/api-client/api';
-import { validate } from '$lib/components/EasyForm/validate';
+import { validate } from '$lib/components/EasyForm';
 import MediaSchema from '$lib/schemas/MediaSchema';
 import Media from '$lib/interfaces/Media';
 import { HttpStatus } from '$lib/utils/constants';

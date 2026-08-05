@@ -1,4 +1,4 @@
-import type { InputAttr } from '$lib/components/EasyForm/types';
+import type { InputAttr } from '$lib/components/EasyForm';
 import { typedObj } from '$lib/utils/types';
 
 const UpdateSchema = {

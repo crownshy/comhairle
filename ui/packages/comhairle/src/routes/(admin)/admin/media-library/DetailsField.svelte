@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Input from '$lib/components/EasyForm/Input.svelte';
+	import { Input } from '$lib/components/EasyForm';
 	import UpdateSchema from './UpdateSchema';
 
 	interface Props {

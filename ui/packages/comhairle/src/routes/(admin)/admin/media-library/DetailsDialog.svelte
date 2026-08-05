@@ -10,8 +10,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
 	import DetailsField from './DetailsField.svelte';
-	import Form from '$lib/components/EasyForm/Form.svelte';
-	import Submit from '$lib/components/EasyForm/Submit.svelte';
+	import { Form, Submit } from '$lib/components/EasyForm';
 
 	interface Props {
 		type: HTMLMediaElement | undefined;
