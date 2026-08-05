@@ -64,10 +64,9 @@
 			return;
 		}
 
-		// FIX: Add alt text to update
 		const response = await tryCatchAsync(() =>
 			apiClient.UpdateMedia(
-				{ name: newName },
+				{ name: newName, alt: newAlt },
 				{
 					params: {
 						media_id: id

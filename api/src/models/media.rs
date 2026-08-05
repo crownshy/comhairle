@@ -359,6 +359,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
 pub struct MediaEditableFields {
     pub name: Option<String>,
+    pub alt: Option<String>,
 }
 
 impl MediaEditableFields {
@@ -367,6 +368,10 @@ impl MediaEditableFields {
 
         if let Some(value) = &self.name {
             values.push((MediaIden::Name, value.into()));
+        }
+
+        if let Some(value) = &self.alt {
+            values.push((MediaIden::Alt, value.into()));
         }
 
         values

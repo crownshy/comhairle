@@ -2209,7 +2209,10 @@ export type PaginatedResults_for_MediaDto = z.infer<
   typeof PaginatedResults_for_MediaDto
 >;
 export const MediaEditableFields = z
-  .object({ name: z.union([z.string(), z.null()]) })
+  .object({
+    alt: z.union([z.string(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+  })
   .partial()
   .passthrough();
 export type MediaEditableFields = z.infer<typeof MediaEditableFields>;
