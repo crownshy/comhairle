@@ -22,11 +22,21 @@ use crate::{
     models::{
         conversation,
         job::{self, CreateJob},
-        user_participation,
+        translations, user_participation, workflow, workflow_step,
     },
     routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin},
+    tools::{
+        ToolConfig,
+        learn::{LearnPageEntry, PageContent},
+    },
     worker_service::process_documents::DocumentJob,
 };
+
+/// Reserved knowledge-base document name for the auto-synced learn-step content.
+///
+/// A conversation has at most one of these in its knowledge base; a re-sync
+/// replaces it
+pub const LEARN_CONTENT_DOCUMENT_NAME: &str = "learn-step-content.md";
 
 /// Not sure if this is the desired behaviour. I made a few assumptions:
 /// - The user owns the conversation
@@ -263,6 +273,178 @@ async fn get_knowledge_base_id(
     Ok(knowledge_base_id)
 }
 
+/// Resolve a single learn page entry to its markdown text in the given locale.
+///
+/// Modern pages reference `text_content`; legacy pages carry inline markdown.
+/// Returns `None` when the page has no text for this locale.
+async fn resolve_page_content(
+    db: &sqlx::PgPool,
+    entry: &LearnPageEntry,
+    locale: &str,
+) -> Result<Option<String>, ComhairleError> {
+    match entry {
+        LearnPageEntry::TextContent(page) => {
+            Ok(
+                translations::get_text_translation_optional(db, &page.text_content_id, locale)
+                    .await?
+                    .map(|translation| translation.content),
+            )
+        }
+        LearnPageEntry::Legacy(localized_pages) => {
+            let content = localized_pages
+                .iter()
+                .find(|page| page.lang == locale)
+                .or_else(|| localized_pages.first())
+                .map(|page| match &page.content {
+                    PageContent::Markdown(markdown) => markdown.clone(),
+                });
+            Ok(content)
+        }
+    }
+}
+
+/// Gather every learn step's authored content for a conversation into a single
+/// markdown document, with per-step headings and page separators.
+///
+/// Only the live (published) `tool_config` is synced, so the assistant knows
+/// exactly what a participant can read. Returns `None` when there is nothing to
+/// sync (no learn steps, or none with resolvable content).
+#[instrument(err(Debug), skip(state))]
+async fn build_learn_content_document(
+    state: &Arc<ComhairleState>,
+    conversation_id: &Uuid,
+) -> Result<Option<String>, ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, conversation_id).await?;
+    let locale = &conversation.primary_locale;
+
+    let workflows = workflow::list(&state.db, *conversation_id, None).await?;
+
+    let mut sections: Vec<String> = Vec::new();
+
+    for workflow in workflows {
+        let steps = workflow_step::list(&state.db, &workflow.id).await?;
+        for step in steps {
+            let Some(ToolConfig::Learn(config)) = step.tool_config.as_ref() else {
+                continue;
+            };
+
+            let heading =
+                translations::get_text_translation_optional(&state.db, &step.name, locale)
+                    .await?
+                    .map(|translation| translation.content)
+                    .filter(|content| !content.trim().is_empty())
+                    .unwrap_or_else(|| "Untitled step".to_string());
+
+            let mut pages: Vec<String> = Vec::new();
+            for entry in &config.pages {
+                if let Some(text) = resolve_page_content(&state.db, entry, locale).await? {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        pages.push(trimmed.to_string());
+                    }
+                }
+            }
+
+            if pages.is_empty() {
+                continue;
+            }
+
+            sections.push(format!("# {heading}\n\n{}", pages.join("\n\n")));
+        }
+    }
+
+    if sections.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(sections.join("\n\n---\n\n")))
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+pub struct SyncLearningContentResponse {
+    message: String,
+    job_id: Option<Uuid>,
+    document: Option<ComhairleDocument>,
+}
+
+/// Rebuild the conversation's learn-content knowledge-base document from the
+/// current learn-step content and kick off a re-parse.
+///
+/// The reserved-name document is deleted first (RAGFlow re-chunks on parse, so
+/// we replace rather than update in place) and the same background parse job as
+/// a normal upload connects the chat bot once parsing completes.
+#[instrument(err(Debug), skip(state))]
+async fn sync_learning_content(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<SyncLearningContentResponse>), ComhairleError> {
+    let bot_service = state.required_bot_service()?;
+    let worker_service = state.required_worker_service()?;
+
+    let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
+
+    // Drop any previously-synced learn-content document so retrieval never
+    // serves stale chunks.
+    let (_, existing) = bot_service
+        .list_documents(
+            &knowledge_base_id,
+            Some(GetQueryParams {
+                name: Some(LEARN_CONTENT_DOCUMENT_NAME.to_string()),
+                ..Default::default()
+            }),
+        )
+        .await?;
+    for document in existing
+        .into_iter()
+        .filter(|document| document.name == LEARN_CONTENT_DOCUMENT_NAME)
+    {
+        bot_service
+            .delete_document(document.id, knowledge_base_id.clone())
+            .await?;
+    }
+
+    let Some(content) = build_learn_content_document(&state, &conversation_id).await? else {
+        return Ok((
+            StatusCode::OK,
+            Json(SyncLearningContentResponse {
+                message: "No learn-step content to sync".to_string(),
+                job_id: None,
+                document: None,
+            }),
+        ));
+    };
+
+    let file = UploadFileRequest {
+        filename: LEARN_CONTENT_DOCUMENT_NAME.to_string(),
+        bytes: content.into_bytes(),
+    };
+    let (_, document) = bot_service
+        .upload_document(&knowledge_base_id, file)
+        .await?;
+
+    let create_job = CreateJob {
+        progress: Some(0.0),
+        ..Default::default()
+    };
+    let job = job::create(&state.db, create_job).await?;
+    let worker_job = DocumentJob {
+        job_id: job.id,
+        conversation_id,
+        document_id: document.id.clone(),
+    };
+    worker_service.push_document_job(worker_job).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(SyncLearningContentResponse {
+            message: "Learn content sync started".to_string(),
+            job_id: Some(job.id),
+            document: Some(document),
+        }),
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -323,6 +505,18 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Download a document")
                     .security_requirement("JWT")
                     .response::<204, Response<Body>>()
+            }),
+        )
+        .api_route(
+            "/sync_learning_content",
+            post_with(sync_learning_content, |op| {
+                op.id("SyncLearningContent")
+                    .tag("Documents")
+                    .summary(
+                        "Rebuild the conversation's learn-step content knowledge-base document",
+                    )
+                    .security_requirement("JWT")
+                    .response::<200, Json<SyncLearningContentResponse>>()
             }),
         )
         .api_route(
@@ -610,6 +804,40 @@ mod tests {
         assert!(status.is_success(), "error response status");
         assert_eq!(id, "kb-123".to_string(), "incorrect json response");
         assert_eq!(name, "test_doc".to_string(), "incorrect json response");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn sync_learning_content_no_learn_steps_is_noop(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let kb_id = "kb-123".to_string();
+        let (app, mut session, conversation_id) =
+            setup_test_app_with_conversation(pool, kb_id, |bot_service| {
+                // No reserved document exists yet.
+                bot_service
+                    .expect_list_documents()
+                    .once()
+                    .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+                // A conversation with no learn steps has nothing to upload.
+                bot_service.expect_upload_document().never();
+            })
+            .await?;
+
+        let (status, value, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/documents/sync_learning_content"),
+                Body::empty(),
+            )
+            .await?;
+
+        assert!(status.is_success(), "sync should succeed: {status}");
+        assert!(
+            value.get("job_id").map(|v| v.is_null()).unwrap_or(false),
+            "no job should be created when there is nothing to sync: {value}"
+        );
 
         Ok(())
     }
