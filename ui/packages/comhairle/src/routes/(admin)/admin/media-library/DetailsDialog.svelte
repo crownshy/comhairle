@@ -125,14 +125,14 @@
 			<Dialog.Header class="mr-10 flex h-8 flex-row items-center text-xl font-bold">
 				<span class="grow">{filename}</span>
 				{#if !editable}
-					{@render deleteMediaDialog()}
 					<Button
-						class="ml-2"
+						class="mr-2"
 						size="sm"
 						onclick={() => (editable = true)}
 						aria-label="Edit"
 						title="Edit"><Edit /></Button
 					>
+					{@render deleteMediaDialog()}
 				{/if}
 			</Dialog.Header>
 			<div class="grid-columns grid gap-7">
