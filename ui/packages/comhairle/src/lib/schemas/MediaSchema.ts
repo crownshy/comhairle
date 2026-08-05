@@ -1,6 +1,6 @@
 import { typedObj } from '$lib/utils/types';
 import { MB } from '$lib/utils/units';
-import { type FileAttr, type InputAttr } from '../EasyForm/types';
+import { type FileAttr, type InputAttr } from '$lib/components/EasyForm';
 
 export const MediaSchema = {
 	media: typedObj<FileAttr>({

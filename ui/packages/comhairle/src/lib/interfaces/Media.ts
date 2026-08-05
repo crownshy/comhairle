@@ -1,7 +1,6 @@
+import { validate, type ValidationErr } from '$lib/components/EasyForm';
+import MediaSchema from '$lib/schemas/MediaSchema';
 import { tryFetch, type FetchErr, type Result } from '$lib/utils/errorHandling';
-
-type FileErr = { id: 'MAX_SIZE_EXCEEDED'; message: string };
-type UploadReturn = Result<'ok', Response, FileErr | FetchErr>;
 
 type Opts = {
 	maxSize?: number; // in bytes
@@ -9,21 +8,16 @@ type Opts = {
 };
 
 class Media {
-	async upload(to: string, formData: FormData, opts?: Opts): Promise<UploadReturn> {
-		// FIX: This
-		// for (const file of files) {
-		// 	if (opts?.maxSize && file.size > opts.maxSize) {
-		// 		return {
-		// 			ok: null,
-		// 			err: {
-		// 				id: 'MAX_SIZE_EXCEEDED',
-		// 				message: `${file.name} exceeds max size ${Media.formatBytes(opts.maxSize)}`
-		// 			}
-		// 		};
-		// 	}
-		//
-		// 	formData.append('file', file, file.name);
-		// }
+	async upload(
+		to: string,
+		formData: FormData,
+		opts?: Opts
+	): Promise<Result<'ok', Response, ValidationErr | FetchErr>> {
+		const form = validate(formData, MediaSchema);
+
+		if (form.err !== null) {
+			return { ok: null, err: form.err };
+		}
 
 		const response = await tryFetch(
 			to,

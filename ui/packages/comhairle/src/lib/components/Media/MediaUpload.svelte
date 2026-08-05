@@ -7,14 +7,16 @@
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import FileInput from '$lib/components/FileInput.svelte';
-	import MediaSchema from './schema';
+	import MediaSchema from '$lib/schemas/MediaSchema';
 	import { Form, Input, Submit } from '$lib/components/EasyForm';
 	import Media from '$lib/interfaces/Media';
 	import FileIcon from '$lib/components/FileIcon.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { notifications } from '$lib/notifications.svelte';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
 		clientSide?: boolean;
-		oncomplete?: (media: MediaDto[]) => void;
+		oncomplete?: (media: MediaDto) => void;
 	}
 	const { clientSide, oncomplete, ...props }: Props = $props();
 
@@ -23,6 +25,38 @@
 	let fileInput = $state<FileInput | null>(null);
 	let nameInput = $state<Input | null>(null);
 	let open = $state<boolean>(false);
+
+	const media = new Media();
+
+	async function handleSubmission(formData: FormData) {
+		const response = await media.upload('/api/media', formData, {
+			maxSize: MediaSchema.media.maxSize
+		});
+
+		if (response.err !== null) {
+			notifications.send({
+				message: 'Failed to upload. Please try again',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		const mediaDto = await tryCatchAsync(() => response.ok.json());
+		if (mediaDto.err !== null) {
+			notifications.send({
+				message: 'Failed to parse result. Please try refreshing',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		notifications.send({
+			message: 'Successfully uploaded',
+			priority: 'SUCCESS'
+		});
+
+		oncomplete?.(mediaDto.ok as MediaDto);
+	}
 </script>
 
 <Button {...props} type="button" onclick={() => (open = true)}>
@@ -46,6 +80,7 @@
 				action="/admin/media-library?/upload"
 				enctype="multipart/form-data"
 				class="flex flex-col"
+				handleSubmission={clientSide ? handleSubmission : undefined}
 				onsubmit={() => (open = false)}
 			>
 				<FileInput

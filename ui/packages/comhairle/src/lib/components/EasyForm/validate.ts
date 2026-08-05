@@ -3,7 +3,7 @@ import type { Result } from '$lib/utils/errorHandling';
 import type { Schema } from '.';
 import type { FileAttr, InputAttr } from './types';
 
-type ValidationError =
+export type ValidationErr =
 	| 'KEY_NOT_FOUND'
 	| 'REQUIRED_IS_NULL'
 	| 'MAX_SIZE_EXCEEDED'
@@ -22,7 +22,7 @@ function notFile(value: FormDataEntryValue): value is string {
 	return typeof value === 'string';
 }
 
-export function validate(form: FormData, schema: Schema): Result<'ok', true, ValidationError> {
+export function validate(form: FormData, schema: Schema): Result<'ok', true, ValidationErr> {
 	for (const name of form.keys()) {
 		if (!(name in schema)) {
 			return { ok: null, err: 'KEY_NOT_FOUND' };
