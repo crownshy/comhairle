@@ -1582,7 +1582,7 @@ mod tests {
             .returning(move |_, _, _| {
                 Box::pin(async move {
                     Ok(UploadResult {
-                        url: format!("https://storage.com/images/{}", filename),
+                        url: format!("https://storage.com/{}", filename),
                     })
                 })
             });
