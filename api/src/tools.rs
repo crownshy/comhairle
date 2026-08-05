@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use async_trait::async_trait;
-use comhairle_macros::DbJsonBEnum;
+use comhairle_macros::{DbJsonBEnum, TranslatableJson};
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
+use crate::models::translations::TextContentId;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -106,7 +107,9 @@ pub trait ToolConfigSanitize {
     fn sanitize(&self) -> Self;
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum, PartialEq)]
+#[derive(
+    Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum, PartialEq, TranslatableJson,
+)]
 #[serde(rename_all = "lowercase", tag = "type")]
 #[enum_dispatch(ToolConfigSanitize)]
 pub enum ToolConfig {
@@ -115,6 +118,7 @@ pub enum ToolConfig {
     HeyForm(HeyFormToolConfig),
     Stories(StoriesToolConfig),
     ElicitationBot(ElicitationBotToolConfig),
+    #[translatable]
     Prioritization(PrioritizationToolConfig),
     ThinkingSpace(ThinkingSpaceToolConfig),
 }

@@ -566,6 +566,7 @@ pub fn derive_translatable_json(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
     let resolved_name = format_ident!("Localized{}", name);
+    let serde_attributes = passthrough_serde_attrs(&input.attrs);
     // TODO: perhaps allow configuration via macro or take from original struct
     let derives: Vec<syn::Path> = vec![
         syn::parse_quote!(Debug),
@@ -577,8 +578,12 @@ pub fn derive_translatable_json(input: TokenStream) -> TokenStream {
     ];
 
     let expanded = match &input.data {
-        Data::Struct(data) => derive_translatable_json_struct(name, &resolved_name, data, &derives),
-        Data::Enum(data) => derive_translatable_enum_struct(name, &resolved_name, data, &derives),
+        Data::Struct(data) => {
+            derive_translatable_json_struct(name, &resolved_name, data, &derives, &serde_attributes)
+        }
+        Data::Enum(data) => {
+            derive_translatable_enum_struct(name, &resolved_name, data, &derives, &serde_attributes)
+        }
         _ => panic!("TranslatableJson can only be derived for structs and enums"),
     };
 
@@ -591,11 +596,20 @@ fn has_translatable_attr(attrs: &[Attribute]) -> bool {
         .any(|attr| attr.path().is_ident("translatable"))
 }
 
+fn passthrough_serde_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
+    attrs
+        .iter()
+        .filter(|a| a.path().is_ident("serde"))
+        .cloned()
+        .collect()
+}
+
 fn derive_translatable_json_struct(
     name: &syn::Ident,
     resolved_name: &syn::Ident,
     data: &syn::DataStruct,
     derives: &[syn::Path],
+    serde_attrs: &Vec<Attribute>,
 ) -> proc_macro2::TokenStream {
     let fields = match &data.fields {
         Fields::Named(f) => &f.named,
@@ -629,6 +643,7 @@ fn derive_translatable_json_struct(
 
     quote! {
         #[derive(#(#derives),*)]
+        #(#serde_attrs)*
         pub struct #resolved_name {
             #(#resolved_fields),*
         }
@@ -656,6 +671,7 @@ fn derive_translatable_enum_struct(
     resolved_name: &syn::Ident,
     data: &syn::DataEnum,
     derives: &[syn::Path],
+    serde_attrs: &Vec<Attribute>,
 ) -> proc_macro2::TokenStream {
     let mut resolved_variants = Vec::new();
     let mut collect_arms = Vec::new();
@@ -707,12 +723,40 @@ fn derive_translatable_enum_struct(
                     Self::#variant_ident { #(#field_idents),* } => #resolved_name::#variant_ident { #(#resolve_inits),* }
                 });
             }
-            Fields::Unnamed(_) => panic!("TranslatableJson does not support tuple variants"),
+            Fields::Unnamed(fields) => {
+                if fields.unnamed.len() != 1 {
+                    panic!(
+                        "TranslatableJson only supports tuple variants with exactly one field \
+             (newtype variants), e.g. `Foo(Bar)`"
+                    );
+                }
+
+                let inner_ty = &fields.unnamed[0].ty;
+
+                if has_translatable_attr(&variant.attrs) {
+                    resolved_variants.push(quote! {
+                        #variant_ident(<#inner_ty as crate::models::translations::ResolveTranslations>::Resolved)
+                    });
+                    collect_arms.push(quote! {
+                        Self::#variant_ident(inner) => { inner.collect_text_content_ids(out); }
+                    });
+                    resolve_arms.push(quote! {
+                        Self::#variant_ident(inner) => #resolved_name::#variant_ident(inner.resolve(map))
+                    });
+                } else {
+                    resolved_variants.push(quote! { #variant_ident(#inner_ty )});
+                    collect_arms.push(quote! { Self::#variant_ident(_inner ) => {} });
+                    resolve_arms.push(quote! {
+                        Self::#variant_ident(inner) => #resolved_name::#variant_ident(inner)
+                    });
+                }
+            }
         }
     }
 
     quote! {
         #[derive(#(#derives),*)]
+        #(#serde_attrs)*
         pub enum #resolved_name {
             #(#resolved_variants),*
         }

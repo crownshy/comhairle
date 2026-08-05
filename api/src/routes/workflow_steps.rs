@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use aide::OperationIo;
@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::translations::{CollectTextContentIds, resolve_translations};
 use crate::models::workflow_step::{LocalizedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
@@ -180,10 +181,31 @@ async fn list_workflows_step(
     } else if query.with_user_progress {
         let steps_with_progress =
             workflow_step::list_localized_with_progress(&state.db, &workflow_id, &locale, &user.id)
-                .await?
-                .into_iter()
-                .map(Into::into)
-                .collect();
+                .await?;
+
+        // TODO: dry up similar code in different blocks
+        // Resolve translations for tool_config
+        let mut text_content_ids = HashSet::new();
+        for step in &steps_with_progress {
+            if let Some(config) = &step.step.tool_config {
+                config.collect_text_content_ids(&mut text_content_ids);
+            }
+            step.step
+                .preview_tool_config
+                .collect_text_content_ids(&mut text_content_ids);
+        }
+
+        let config_translations_map = resolve_translations(
+            &state.db,
+            &text_content_ids.into_iter().collect::<Vec<_>>(),
+            &locale,
+        )
+        .await?;
+
+        let steps_with_progress = steps_with_progress
+            .into_iter()
+            .map(|step| step.into_dto(&config_translations_map))
+            .collect();
 
         Ok((
             StatusCode::OK,
@@ -199,7 +221,29 @@ async fn list_workflows_step(
                 workflow_step.sanatize();
             }
         }
-        let workflow_steps = workflow_steps.into_iter().map(Into::into).collect();
+
+        // Resolve translations for tool_config
+        let mut text_content_ids = HashSet::new();
+        for step in &workflow_steps {
+            if let Some(config) = &step.tool_config {
+                config.collect_text_content_ids(&mut text_content_ids);
+            }
+            step.preview_tool_config
+                .collect_text_content_ids(&mut text_content_ids);
+        }
+
+        let config_translations_map = resolve_translations(
+            &state.db,
+            &text_content_ids.into_iter().collect::<Vec<_>>(),
+            &locale,
+        )
+        .await?;
+
+        let workflow_steps = workflow_steps
+            .into_iter()
+            .map(|step| step.into_dto(&config_translations_map))
+            .collect();
+
         Ok((
             StatusCode::OK,
             Json(WorkflowStepsListResponse::Localized(workflow_steps)),
@@ -233,7 +277,25 @@ async fn get_workflow_step(
         workflow_step.sanatize();
     }
 
-    Ok((StatusCode::OK, Json(workflow_step.into())))
+    // Resolve translations for tool_config
+    let mut text_content_ids = HashSet::new();
+    if let Some(config) = &workflow_step.tool_config {
+        config.collect_text_content_ids(&mut text_content_ids);
+    }
+    workflow_step
+        .preview_tool_config
+        .collect_text_content_ids(&mut text_content_ids);
+
+    let config_translations_map = resolve_translations(
+        &state.db,
+        &text_content_ids.into_iter().collect::<Vec<_>>(),
+        &locale,
+    )
+    .await?;
+
+    let workflow_step = workflow_step.into_dto(&config_translations_map);
+
+    Ok((StatusCode::OK, Json(workflow_step)))
 }
 
 /// Delete a specific workflow
