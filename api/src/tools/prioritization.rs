@@ -12,6 +12,7 @@ use axum::{
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -25,7 +26,7 @@ use crate::models::proposal_response::{
 use crate::models::proposal_section::{
     self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
 };
-use crate::models::translations::TextContentId;
+use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
 use crate::models::workflow_step;
 use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::routes::translations::LocaleExtractor;
@@ -93,6 +94,107 @@ pub struct Category {
     label: TextContentId,
 }
 
+// =================
+// Setup structs
+// =================
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct SetupQuestion {
+    pub text: String,
+    pub r#type: SetupQuestionType,
+}
+
+impl SetupQuestion {
+    async fn build_with_translations(
+        self,
+        db: &PgPool,
+        locale: &str,
+    ) -> Result<Question, ComhairleError> {
+        Ok(Question {
+            id: Uuid::new_v4(),
+            text: self
+                .text
+                .build_text_translation(db, locale, TextFormat::Plain)
+                .await?,
+            r#type: self.r#type.build_with_translations(db, locale).await?,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SetupQuestionType {
+    Text,
+    LikertScale {
+        categories: Vec<SetupCategory>,
+    },
+    Continuous {
+        sub_steps: i32,
+        min_value: f64,
+        max_value: f64,
+        min_label: String,
+        max_label: String,
+    },
+}
+
+impl SetupQuestionType {
+    async fn build_with_translations(
+        self,
+        db: &PgPool,
+        locale: &str,
+    ) -> Result<QuestionType, ComhairleError> {
+        Ok(match self {
+            SetupQuestionType::Text => QuestionType::Text,
+            SetupQuestionType::LikertScale { categories } => {
+                let mut built = Vec::with_capacity(categories.len());
+                for category in categories {
+                    built.push(category.build_with_translations(db, locale).await?);
+                }
+                QuestionType::LikertScale { categories: built }
+            }
+            SetupQuestionType::Continuous {
+                sub_steps,
+                min_value,
+                max_value,
+                min_label,
+                max_label,
+            } => QuestionType::Continuous {
+                sub_steps,
+                min_value,
+                max_value,
+                min_label: min_label
+                    .build_text_translation(db, locale, TextFormat::Plain)
+                    .await?,
+                max_label: max_label
+                    .build_text_translation(db, locale, TextFormat::Plain)
+                    .await?,
+            },
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct SetupCategory {
+    value: f64,
+    label: String,
+}
+
+impl SetupCategory {
+    async fn build_with_translations(
+        self,
+        db: &PgPool,
+        locale: &str,
+    ) -> Result<Category, ComhairleError> {
+        Ok(Category {
+            value: self.value,
+            label: self
+                .label
+                .build_text_translation(db, locale, TextFormat::Plain)
+                .await?,
+        })
+    }
+}
+
 impl ToolConfigSanitize for PrioritizationToolConfig {
     fn sanitize(&self) -> Self {
         Self {
@@ -104,29 +206,9 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
-pub struct SetupQuestion {
-    pub text: TextContentId, // TODO: undo, this should be handled in macro so that
-    pub r#type: QuestionType,
-}
-
-impl From<SetupQuestion> for Question {
-    fn from(q: SetupQuestion) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            text: q.text,
-            r#type: q.r#type,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct PrioritizationToolSetup {
     pub questions: Vec<SetupQuestion>,
-    #[serde(default)]
-    pub section_questions: Vec<SetupQuestion>,
-    pub randomize_order: bool,
-    pub alignment_question_id: Option<Uuid>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
@@ -142,9 +224,10 @@ impl ToolImpl for PrioritizationTool {
 
     async fn setup(
         setup: &Self::Setup,
-        _state: &Arc<ComhairleState>,
+        state: &Arc<ComhairleState>,
+        locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
-        prioritization_setup(setup)
+        prioritization_setup(&state.db, setup, locale).await
     }
 
     async fn clone_tool(
@@ -265,31 +348,22 @@ Create a response for prioritization tool proposal
     }
 }
 
-fn prioritization_setup(
+async fn prioritization_setup(
+    db: &PgPool,
     setup_config: &PrioritizationToolSetup,
+    locale: &str,
 ) -> Result<PrioritizationToolConfig, ComhairleError> {
-    let questions: Vec<Question> = setup_config
-        .questions
-        .clone()
-        .into_iter()
-        .map(Into::into)
-        .collect();
+    let mut questions = Vec::with_capacity(setup_config.questions.len());
+    for question in setup_config.questions.clone() {
+        questions.push(question.build_with_translations(db, locale).await?); // TODO: allow access to locale
+    }
 
-    let alignment_question_id = if questions.is_empty() {
-        None
-    } else {
-        Some(questions[0].id)
-    };
+    let alignment_question_id = questions.first().map(|q| q.id);
 
     Ok(PrioritizationToolConfig {
         questions,
-        section_questions: setup_config
-            .section_questions
-            .clone()
-            .into_iter()
-            .map(Into::into)
-            .collect(),
-        randomize_order: setup_config.randomize_order,
+        section_questions: vec![],
+        randomize_order: false,
         alignment_question_id,
     })
 }

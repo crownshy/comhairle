@@ -1542,8 +1542,32 @@ export const WorkflowStepsListResponse = z.union([
 export type WorkflowStepsListResponse = z.infer<
   typeof WorkflowStepsListResponse
 >;
+export const SetupCategory = z
+  .object({ label: z.string(), value: z.number() })
+  .passthrough();
+export type SetupCategory = z.infer<typeof SetupCategory>;
+export const SetupQuestionType = z.union([
+  z.literal("text"),
+  z.object({
+    likert_scale: z
+      .object({ categories: z.array(SetupCategory) })
+      .passthrough(),
+  }),
+  z.object({
+    continuous: z
+      .object({
+        max_label: z.string(),
+        max_value: z.number(),
+        min_label: z.string(),
+        min_value: z.number(),
+        sub_steps: z.number().int(),
+      })
+      .passthrough(),
+  }),
+]);
+export type SetupQuestionType = z.infer<typeof SetupQuestionType>;
 export const SetupQuestion = z
-  .object({ text: z.string().uuid(), type: QuestionType })
+  .object({ text: z.string(), type: SetupQuestionType })
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
 export const ThinkingSpaceSetupQuestion = z
@@ -1582,10 +1606,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
-      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(SetupQuestion),
-      randomize_order: z.boolean(),
-      section_questions: z.array(SetupQuestion).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -2879,6 +2900,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedWorkflowStepWithProgressDto,
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
+  SetupCategory,
+  SetupQuestionType,
   SetupQuestion,
   ThinkingSpaceSetupQuestion,
   ToolSetup,

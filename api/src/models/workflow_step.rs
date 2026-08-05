@@ -495,9 +495,10 @@ pub async fn list_with_translations(
 pub async fn setup_tool(
     setup: &ToolSetup,
     state: &Arc<ComhairleState>,
+    locale: &str,
 ) -> Result<ToolConfig, ComhairleError> {
     // Use the new trait method for setup
-    setup.setup(state).await.map_err(|err| {
+    setup.setup(state, locale).await.map_err(|err| {
         warn!("Tool setup error {err:#?}");
         err
     })
@@ -537,7 +538,8 @@ pub async fn create(
     columns.push(WorkflowStepIden::Description);
     values.push(description_translation.id.into());
 
-    let preview_tool_config = setup_tool(&new_workflow_step.tool_setup, state).await?;
+    let preview_tool_config =
+        setup_tool(&new_workflow_step.tool_setup, state, primary_locale).await?;
 
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());
