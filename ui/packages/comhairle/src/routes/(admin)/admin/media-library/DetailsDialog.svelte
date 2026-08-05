@@ -60,8 +60,6 @@
 			return;
 		}
 
-		console.log('newName:', newName);
-
 		const response = await tryCatchAsync(() =>
 			apiClient.UpdateMedia(
 				{ name: newName },

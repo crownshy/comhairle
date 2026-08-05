@@ -46,9 +46,6 @@ export const actions = {
 		if (response.err !== null) {
 			return fail(HttpStatus.InternalServerError);
 		}
-
-		console.log(response);
-		console.log('form:', form);
 	},
 	delete: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
