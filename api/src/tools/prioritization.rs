@@ -195,6 +195,11 @@ impl SetupCategory {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct PrioritizationToolSetup {
+    pub questions: Vec<SetupQuestion>,
+}
+
 impl ToolConfigSanitize for PrioritizationToolConfig {
     fn sanitize(&self) -> Self {
         Self {
@@ -204,11 +209,6 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
             alignment_question_id: self.alignment_question_id,
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-pub struct PrioritizationToolSetup {
-    pub questions: Vec<SetupQuestion>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
@@ -355,7 +355,7 @@ async fn prioritization_setup(
 ) -> Result<PrioritizationToolConfig, ComhairleError> {
     let mut questions = Vec::with_capacity(setup_config.questions.len());
     for question in setup_config.questions.clone() {
-        questions.push(question.build_with_translations(db, locale).await?); // TODO: allow access to locale
+        questions.push(question.build_with_translations(db, locale).await?);
     }
 
     let alignment_question_id = questions.first().map(|q| q.id);
