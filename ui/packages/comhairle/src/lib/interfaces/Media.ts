@@ -10,6 +10,7 @@ type Opts = {
 
 class Media {
 	async upload(to: string, formData: FormData, opts?: Opts): Promise<UploadReturn> {
+		// FIX: This
 		// for (const file of files) {
 		// 	if (opts?.maxSize && file.size > opts.maxSize) {
 		// 		return {
