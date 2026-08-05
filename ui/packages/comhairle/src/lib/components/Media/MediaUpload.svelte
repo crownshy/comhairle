@@ -21,7 +21,7 @@
 	let uploadForm: HTMLFormElement | null = $state(null);
 	let file = $state<File | null>(null);
 	let fileInput = $state<FileInput | null>(null);
-	let filename = $state<Input | null>(null);
+	let nameInput = $state<Input | null>(null);
 	let open = $state<boolean>(false);
 </script>
 
@@ -53,7 +53,7 @@
 					bind:this={fileInput}
 					onfile={(newFile) => {
 						file = newFile;
-						filename?.setValue(Media.getFilename(file.name));
+						nameInput?.setValue(Media.getFilename(file.name));
 					}}
 					class={file !== null ? 'hidden' : ''}
 				/>
@@ -79,8 +79,8 @@
 								class="text-destructive hover:text-destructive/80 rounded-sm"
 								onclick={() => {
 									file = null;
-									filename?.setValue('');
-									filename?.setError('');
+									nameInput?.setValue('');
+									nameInput?.setError('');
 									fileInput?.clear();
 								}}
 							>
@@ -89,7 +89,7 @@
 						</div>
 					</div>
 				{/if}
-				<Input {...MediaSchema.name} bind:this={filename} label="Filename" type="text" />
+				<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" type="text" />
 				<Input {...MediaSchema.alt} label="Alt" type="text" />
 				<Submit class="mt-7 self-end" text="Upload" />
 			</Form>
