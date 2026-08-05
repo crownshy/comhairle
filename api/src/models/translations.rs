@@ -5,6 +5,7 @@ use std::{fmt, sync::Arc};
 use crate::{
     error::ComhairleError, models::SqlxResultExt, translation_service::TranslationService,
 };
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Alias, Expr, Func, JoinType, PostgresQueryBuilder, Query, enum_def};
@@ -220,6 +221,65 @@ pub trait ResolveTranslations {
     ///   gather from `self`, or missing ids can silently resolve to an
     ///   empty string.
     fn resolve(self, map: &HashMap<TextContentId, String>) -> Self::Resolved;
+}
+
+/// Implemented by types that represent "raw" setup input which needs to be
+/// persisted as translatable text, converting them into their "built" form
+/// backed by a [`TextContentId`].
+///
+/// This is the write-side counterpart to `ResolveTranslations`: where
+/// resolving turns a [`TextContentId`] into a `String` for display, building
+/// turns a `String` (from setup/creation input) into a [`TextContentId`] by
+/// inserting a new `text_content`/`text_translation` row pair.
+#[async_trait]
+pub trait BuildTextTranslation {
+    /// The built form of `Self`. For `String` this is [`TextContentId`];
+    /// for `Option<T>` this is `Option<T::Built>`.
+    type Built;
+
+    /// Persists `self` as translatable text and returns its built form.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ComhairleError`] if the underlying insert fails.
+    async fn build_text_translation(
+        self,
+        db: &PgPool,
+        locale: &str,
+        format: TextFormat,
+    ) -> Result<Self::Built, ComhairleError>;
+}
+
+#[async_trait]
+impl BuildTextTranslation for String {
+    type Built = TextContentId;
+
+    async fn build_text_translation(
+        self,
+        db: &PgPool,
+        locale: &str,
+        format: TextFormat,
+    ) -> Result<Self::Built, ComhairleError> {
+        let translation = new_translation(db, locale, &self, format).await?;
+        Ok(translation.id)
+    }
+}
+
+#[async_trait]
+impl<T: BuildTextTranslation + Send> BuildTextTranslation for Option<T> {
+    type Built = Option<T::Built>;
+
+    async fn build_text_translation(
+        self,
+        db: &PgPool,
+        locale: &str,
+        format: TextFormat,
+    ) -> Result<Self::Built, ComhairleError> {
+        match self {
+            Some(v) => Ok(Some(v.build_text_translation(db, locale, format).await?)),
+            None => Ok(None),
+        }
+    }
 }
 
 // ======================================

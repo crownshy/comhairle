@@ -49,6 +49,7 @@ pub trait ToolImpl: Send + Sync + 'static {
     async fn setup(
         setup: &Self::Setup,
         state: &Arc<ComhairleState>,
+        locale: &str,
     ) -> Result<Self::Config, ComhairleError>;
 
     /// Sync data from tool to common data pool
@@ -237,28 +238,32 @@ pub enum ToolSetup {
 
 impl ToolSetup {
     /// Setup a new tool from setup configuration
-    pub async fn setup(&self, state: &Arc<ComhairleState>) -> Result<ToolConfig, ComhairleError> {
+    pub async fn setup(
+        &self,
+        state: &Arc<ComhairleState>,
+        locale: &str,
+    ) -> Result<ToolConfig, ComhairleError> {
         match self {
             ToolSetup::Polis(setup) => Ok(ToolConfig::Polis(
-                polis::PolisTool::setup(setup, state).await?,
+                polis::PolisTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::Learn(setup) => Ok(ToolConfig::Learn(
-                learn::LearnTool::setup(setup, state).await?,
+                learn::LearnTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::HeyForm(setup) => Ok(ToolConfig::HeyForm(
-                heyform::HeyFormTool::setup(setup, state).await?,
+                heyform::HeyFormTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::Stories(setup) => Ok(ToolConfig::Stories(
-                stories::StoriesTool::setup(setup, state).await?,
+                stories::StoriesTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::ElicitationBot(setup) => Ok(ToolConfig::ElicitationBot(
-                elicitation_bot::ElicitationBotTool::setup(setup, state).await?,
+                elicitation_bot::ElicitationBotTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::Prioritization(setup) => Ok(ToolConfig::Prioritization(
-                prioritization::PrioritizationTool::setup(setup, state).await?,
+                prioritization::PrioritizationTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::ThinkingSpace(setup) => Ok(ToolConfig::ThinkingSpace(
-                thinking_space::ThinkingSpaceTool::setup(setup, state).await?,
+                thinking_space::ThinkingSpaceTool::setup(setup, state, locale).await?,
             )),
         }
     }

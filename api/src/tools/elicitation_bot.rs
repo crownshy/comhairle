@@ -79,6 +79,7 @@ impl ToolImpl for ElicitationBotTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         elicitation_bot_setup(setup).await
     }

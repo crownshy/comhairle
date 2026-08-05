@@ -107,6 +107,7 @@ impl ToolImpl for PolisTool {
     async fn setup(
         setup: &Self::Setup,
         state: &Arc<ComhairleState>,
+        _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function
         polis_setup(setup, &state.config.polis_url, &state.wiki_poll_service).await

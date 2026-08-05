@@ -224,6 +224,7 @@ impl ToolImpl for HeyFormTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function
         heyform_setup(setup).await
