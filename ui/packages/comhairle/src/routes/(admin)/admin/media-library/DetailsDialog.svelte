@@ -23,7 +23,7 @@
 		close: () => void;
 	}
 
-	const { id, type, filename, name: initialName, alt: initialAlt, src, close }: Props = $props();
+	let { id, type, filename, name: initialName, alt: initialAlt, src, close }: Props = $props();
 
 	let editable = $state<boolean>(false);
 	let deleteDialogOpen = $state<boolean>(false);
@@ -51,8 +51,12 @@
 	}
 
 	async function updateMedia(formData: FormData) {
-		const newName = formData.get('name') as string | null | undefined;
-		const newAlt = formData.get('alt');
+		const newName = (formData.get('name') ?? undefined) as string | undefined;
+		const newAlt = (formData.get('alt') ?? undefined) as string | undefined;
+
+		if (!newName || !newAlt) {
+			return;
+		}
 
 		// If the values are the same then just cancel
 		if (newName === initialName && newAlt === initialAlt) {
@@ -60,6 +64,7 @@
 			return;
 		}
 
+		// FIX: Add alt text to update
 		const response = await tryCatchAsync(() =>
 			apiClient.UpdateMedia(
 				{ name: newName },
@@ -83,6 +88,8 @@
 			priority: 'SUCCESS'
 		});
 		editable = false;
+		initialName = newName;
+		initialAlt = newAlt;
 		await invalidate('media-library:media');
 	}
 </script>
