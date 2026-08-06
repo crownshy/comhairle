@@ -96,41 +96,42 @@
 		await invalidate('knowledge-base:documents');
 	}
 
-	async function uploadFromUrl() {
-		if (!urlInput.trim()) {
-			notifications.send({
-				message: 'Please enter a valid URL',
-				priority: 'ERROR'
-			});
-			return;
-		}
-
-		isUploading = true;
-		const response = await tryFetch(`/api/conversation/${conversation.id}/upload_document`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ url: urlInput }),
-			credentials: 'include'
-		});
-		isUploading = false;
-
-		if (response.err !== null) {
-			notifications.send({
-				message: 'Failed to upload from URL',
-				priority: 'ERROR'
-			});
-			return;
-		}
-
-		notifications.send({
-			message: 'File uploaded from URL successfully',
-			priority: 'INFO'
-		});
-		urlInput = '';
-		await invalidate('knowledge-base:documents');
-	}
+	// FIX: Upload from Url functionality
+	// async function uploadFromUrl() {
+	// 	if (!urlInput.trim()) {
+	// 		notifications.send({
+	// 			message: 'Please enter a valid URL',
+	// 			priority: 'ERROR'
+	// 		});
+	// 		return;
+	// 	}
+	//
+	// 	isUploading = true;
+	// 	const response = await tryFetch(`/api/conversation/${conversation.id}/upload_document`, {
+	// 		method: 'POST',
+	// 		headers: {
+	// 			'Content-Type': 'application/json'
+	// 		},
+	// 		body: JSON.stringify({ url: urlInput }),
+	// 		credentials: 'include'
+	// 	});
+	// 	isUploading = false;
+	//
+	// 	if (response.err !== null) {
+	// 		notifications.send({
+	// 			message: 'Failed to upload from URL',
+	// 			priority: 'ERROR'
+	// 		});
+	// 		return;
+	// 	}
+	//
+	// 	notifications.send({
+	// 		message: 'File uploaded from URL successfully',
+	// 		priority: 'INFO'
+	// 	});
+	// 	urlInput = '';
+	// 	await invalidate('knowledge-base:documents');
+	// }
 </script>
 
 <svelte:head>
@@ -199,25 +200,26 @@
 					onfile={uploadFile}
 					multiple
 				/>
-				<div>
-					<div class="text-muted-foreground my-2 text-sm">or upload from URL</div>
-					<div class="flex gap-2">
-						<Input
-							class="flex-1"
-							type="text"
-							placeholder="Add file URL"
-							bind:value={urlInput}
-							disabled={isUploading}
-						/>
-						<Button
-							variant="outline"
-							onclick={uploadFromUrl}
-							disabled={isUploading || !urlInput.trim()}
-						>
-							Upload
-						</Button>
-					</div>
-				</div>
+				<!-- FIX: Upload from Url functionality -->
+				<!-- <div> -->
+				<!-- 	<div class="text-muted-foreground my-2 text-sm">or upload from URL</div> -->
+				<!-- 	<div class="flex gap-2"> -->
+				<!-- 		<Input -->
+				<!-- 			class="flex-1" -->
+				<!-- 			type="text" -->
+				<!-- 			placeholder="Add file URL" -->
+				<!-- 			bind:value={urlInput} -->
+				<!-- 			disabled={isUploading} -->
+				<!-- 		/> -->
+				<!-- 		<Button -->
+				<!-- 			variant="outline" -->
+				<!-- 			onclick={uploadFromUrl} -->
+				<!-- 			disabled={isUploading || !urlInput.trim()} -->
+				<!-- 		> -->
+				<!-- 			Upload -->
+				<!-- 		</Button> -->
+				<!-- 	</div> -->
+				<!-- </div> -->
 			</section>
 			{#if parsingDocuments?.length}
 				<ParsingFileList documents={parsingDocuments} {conversation} />
