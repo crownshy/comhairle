@@ -482,7 +482,6 @@ export const PolisStatementAux = z
     original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
-    source_locale: z.union([z.string(), z.null()]).optional(),
     statement_text: z.string(),
     themes: z.array(z.string()),
     updated_at: z.string().datetime({ offset: true }),
@@ -502,7 +501,6 @@ export const CreatePolisStatementAux = z
     moderation_status: ModerationStatus.optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
-    source_locale: z.union([z.string(), z.null()]).optional().default(null),
     statement_text: z.string(),
     themes: z.array(z.string()),
     visible_statement_when_submitted: z
@@ -536,34 +534,6 @@ export const SyncStatementAuxResponse = z
   })
   .passthrough();
 export type SyncStatementAuxResponse = z.infer<typeof SyncStatementAuxResponse>;
-export const LocalizedStatement = z
-  .object({
-    ai_generated: z.boolean(),
-    display_locale: z.string(),
-    is_translation: z.boolean(),
-    original_text: z.string(),
-    polis_statement_id: z.number().int(),
-    requires_validation: z.boolean(),
-    source_locale: z.union([z.string(), z.null()]).optional(),
-    text: z.string(),
-  })
-  .passthrough();
-export type LocalizedStatement = z.infer<typeof LocalizedStatement>;
-export const PolisStatementTranslation = z
-  .object({
-    ai_generated: z.boolean(),
-    content: z.string(),
-    created_at: z.string().datetime({ offset: true }),
-    id: z.string().uuid(),
-    locale: z.string(),
-    polis_statement_aux_id: z.string().uuid(),
-    requires_validation: z.boolean(),
-    updated_at: z.string().datetime({ offset: true }),
-  })
-  .passthrough();
-export type PolisStatementTranslation = z.infer<
-  typeof PolisStatementTranslation
->;
 export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
@@ -2794,10 +2764,62 @@ export const CreateOrganization = z
     mission: z.string(),
     name: z.string(),
     org_type: OrganizationType,
+    organization_admin_emails: z
+      .union([z.array(z.string()), z.null()])
+      .optional(),
     regions: z.union([z.array(z.string().uuid()), z.null()]).optional(),
+    user_emails: z.union([z.array(z.string()), z.null()]).optional(),
   })
   .passthrough();
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
+export const OrganizationAdminBootstrapFailureDto = z
+  .object({ email: z.string(), message: z.string() })
+  .passthrough();
+export type OrganizationAdminBootstrapFailureDto = z.infer<
+  typeof OrganizationAdminBootstrapFailureDto
+>;
+export const OrganizationAdminBootstrapSummaryDto = z
+  .object({
+    assigned: z.number().int().gte(0),
+    attempted: z.number().int().gte(0),
+    createdAccounts: z.number().int().gte(0),
+    emailed: z.number().int().gte(0),
+    failures: z.array(OrganizationAdminBootstrapFailureDto),
+  })
+  .passthrough();
+export type OrganizationAdminBootstrapSummaryDto = z.infer<
+  typeof OrganizationAdminBootstrapSummaryDto
+>;
+export const CreateOrganizationResponseDto = z
+  .object({
+    adminBootstrapSummary: OrganizationAdminBootstrapSummaryDto,
+    contactEmail: z.union([z.string(), z.null()]).optional(),
+    createdAt: z.string().datetime({ offset: true }),
+    description: z.string().uuid(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    mission: z.string().uuid(),
+    name: z.string(),
+    orgType: OrganizationType,
+    regions: z.array(z.string().uuid()),
+  })
+  .passthrough();
+export type CreateOrganizationResponseDto = z.infer<
+  typeof CreateOrganizationResponseDto
+>;
+export const UpdateOrganizationBody = z
+  .object({
+    contact_email: z.union([z.string(), z.null()]),
+    description: z.union([z.string(), z.null()]),
+    external_url: z.union([z.string(), z.null()]),
+    mission: z.union([z.string(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+    org_type: z.union([OrganizationType, z.null()]),
+    regions: z.union([z.array(z.string().uuid()), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
 export const OrganizationDto = z
   .object({
     contactEmail: z.union([z.string(), z.null()]).optional(),
@@ -2824,7 +2846,6 @@ export const UpdateOrganizationBody = z
     org_type: z.union([OrganizationType, z.null()]),
     regions: z.union([z.array(z.string().uuid()), z.null()]),
   })
-  .partial()
   .passthrough();
 export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
 export const OrganizationTeamRole = z.enum(["member", "admin"]);
@@ -3365,8 +3386,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdatePolisStatementAux,
   SyncStatementAuxRequest,
   SyncStatementAuxResponse,
-  LocalizedStatement,
-  PolisStatementTranslation,
   ThemeStatistic,
   ThemeRequest,
   ModerationDecisionRequest,
@@ -3600,6 +3619,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SendToUserMessage,
   PaginatedResults_for_LocalizedOrganizationDto,
   CreateOrganization,
+  OrganizationAdminBootstrapFailureDto,
+  OrganizationAdminBootstrapSummaryDto,
+  CreateOrganizationResponseDto,
+  UpdateOrganizationBody,
   OrganizationDto,
   UpdateOrganizationBody,
   OrganizationTeamRole,
@@ -5815,7 +5838,7 @@ curl -X POST \
         schema: CreateOrganization,
       },
     ],
-    response: OrganizationDto,
+    response: CreateOrganizationResponseDto,
   },
   {
     method: "get",
@@ -6532,39 +6555,6 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisStatementAux,
-  },
-  {
-    method: "get",
-    path: "/tools/polis/statement_aux/:id/translations",
-    alias: "PolisListStatementTranslations",
-    description: `Returns the stored translations of a statement into the conversation&#x27;s supported languages. Each carries ai_generated and requires_validation flags.`,
-    requestFormat: "json",
-    response: z.array(PolisStatementTranslation),
-  },
-  {
-    method: "get",
-    path: "/tools/polis/statement_aux/localized",
-    alias: "PolisGetLocalizedStatement",
-    description: `Returns the statement text to display for a live Polis statement in the requested locale: the stored translation when one exists, otherwise the original. Carries is_translation, original_text and source_locale so the UI can indicate a translation and reveal the source.`,
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "locale",
-        type: "Query",
-        schema: z.string(),
-      },
-      {
-        name: "polis_conversation_id",
-        type: "Query",
-        schema: z.string(),
-      },
-      {
-        name: "polis_statement_id",
-        type: "Query",
-        schema: z.number().int(),
-      },
-    ],
-    response: LocalizedStatement,
   },
   {
     method: "post",
