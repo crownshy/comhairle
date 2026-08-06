@@ -168,6 +168,7 @@ pub trait OwnedResource {
 pub enum ResourceType {
     System,
     Conversation,
+    Organization,
     #[cfg(test)]
     Test,
 }
@@ -321,6 +322,7 @@ define_owned_resource!(
 pub enum Role {
     SuperAdmin,
     Admin,
+    OrganizationAdmin,
     #[serde(rename = "content_editor")]
     #[strum(serialize = "content_editor")]
     ConversationContentEditor,
@@ -333,6 +335,7 @@ impl Role {
     pub fn resource_type(self) -> ResourceType {
         match self {
             Role::SuperAdmin | Role::Admin => ResourceType::System,
+            Role::OrganizationAdmin => ResourceType::Organization,
             Role::ConversationContentEditor => ResourceType::Conversation,
             #[cfg(test)]
             Role::Tester => ResourceType::Test,
@@ -348,6 +351,7 @@ impl Role {
                 Action::RevokePermission,
             ],
             Role::Admin => &[],
+            Role::OrganizationAdmin => &[Action::OrganizationUpdate, Action::OrganizationDelete],
             Role::ConversationContentEditor => {
                 &[Action::ConversationRead, Action::ConversationUpdate]
             }
@@ -421,16 +425,21 @@ pub enum Action {
     RevokePermission,
     ConversationRead,
     ConversationUpdate,
+    OrganizationCreate,
+    OrganizationUpdate,
+    OrganizationDelete,
 }
 
 impl Action {
     /// The resource type this action applies to.
     pub fn resource_type(self) -> ResourceType {
         match self {
-            Action::ListPermission | Action::GrantPermission | Action::RevokePermission => {
-                ResourceType::System
-            }
+            Action::ListPermission
+            | Action::GrantPermission
+            | Action::RevokePermission
+            | Action::OrganizationCreate => ResourceType::System,
             Action::ConversationRead | Action::ConversationUpdate => ResourceType::Conversation,
+            Action::OrganizationUpdate | Action::OrganizationDelete => ResourceType::Organization,
         }
     }
 

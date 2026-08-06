@@ -258,6 +258,44 @@ pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<Use
     }
 }
 
+fn organization_admin_username(email: &str) -> String {
+    let local_part = email
+        .split('@')
+        .next()
+        .unwrap_or("org_admin")
+        .chars()
+        .filter(|character| {
+            character.is_ascii_alphanumeric() || *character == '_' || *character == '-'
+        })
+        .collect::<String>();
+
+    let base = if local_part.is_empty() {
+        "org_admin".to_string()
+    } else {
+        local_part.to_lowercase()
+    };
+
+    format!("{}_{}", base, gen_id())
+}
+
+fn organization_admin_temporary_password() -> String {
+    format!("TempAdmin#{}Aa1", gen_id())
+}
+
+pub async fn create_organization_admin_user(
+    email: &str,
+    db: &PgPool,
+) -> Result<User, ComhairleError> {
+    let signup_request = SignupRequest {
+        username: organization_admin_username(email),
+        password: organization_admin_temporary_password(),
+        avatar_url: None,
+        email: email.to_string(),
+    };
+
+    create_user(&signup_request, db).await
+}
+
 async fn create_otp_user_with_username(
     email: &str,
     username: &str,
@@ -453,6 +491,42 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .fetch_one(db)
         .await
         .map_err(|_| ComhairleError::NoUserFound)
+}
+
+/// Return all users associated with an organization.
+pub async fn list_by_organization_id(
+    organization_id: &Uuid,
+    db: &PgPool,
+) -> Result<Vec<User>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(UserIden::Table)
+        .and_where(Expr::col(UserIden::OrganizationId).eq(*organization_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_all(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)
+}
+
+/// Set or clear the organization membership for a user.
+pub async fn set_user_organization_id(
+    user_id: &Uuid,
+    organization_id: Option<Uuid>,
+    db: &PgPool,
+) -> Result<User, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(UserIden::Table)
+        .value(UserIden::OrganizationId, organization_id)
+        .and_where(Expr::col(UserIden::Id).eq(*user_id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, JsonSchema)]

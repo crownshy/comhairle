@@ -11,22 +11,32 @@
 		Mail,
 		Images,
 		PanelLeftClose,
-		PanelLeftOpen
+		PanelLeftOpen,
+		Plus
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
 	import NewConversationButton from './NewConversationButton.svelte';
 	import { userInitials } from '$lib/utils';
+	import { getOrganizationSections } from '$lib/utils/organizationSections';
 	import ComhairleLogo from './ComhairleLogo.svelte';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import SidebarResizeHandle from './SidebarResizeHandle.svelte';
 	import { useSidebarWidth } from './sidebarWidthContext.svelte.js';
 	import { EXPAND_WIDTH } from './sidebarWidth.js';
-	import type { LocalizedConversationDto, UserDto } from '@crownshy/api-client/api';
+	import type {
+		LocalizedConversationDto,
+		UserOrganizationsResponse,
+		UserDto
+	} from '@crownshy/api-client/api';
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
 
 	type Props = {
 		ownedConversations: LocalizedConversationDto[];
 		permittedConversations: LocalizedConversationDto[];
+		userOrganizations: {
+			organizations: UserOrganizationsResponse['organizations'];
+			canCreateOrganization: boolean;
+		};
 		user: UserDto;
 		path: string;
 	};
@@ -44,10 +54,16 @@
 	let user = $derived(props.user);
 	let ownedConversations = $derived(props.ownedConversations);
 	let permittedConversations = $derived(props.permittedConversations);
+	let userOrganizations = $derived(props.userOrganizations);
 	let user_initials = $derived(userInitials(user?.username ?? ''));
+	let organizationSections = $derived(getOrganizationSections(userOrganizations));
 
 	function isConversationActive(conversationId: string): boolean {
 		return path.startsWith(`/admin/conversations/${conversationId}`);
+	}
+
+	function isOrganizationActive(organizationId: string): boolean {
+		return path.startsWith(`/admin/organizations/${organizationId}`);
 	}
 </script>
 
@@ -300,13 +316,87 @@
 				</SideBar.GroupContent>
 			</SideBar.Group>
 		{/if}
+
+		{#if organizationSections.length > 0}
+			{#each organizationSections as section (section.key)}
+				<SideBar.Group
+					class="flex min-h-0 flex-1 flex-col pr-1 group-data-[collapsible=icon]:hidden"
+				>
+					<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">
+						{section.title}
+					</SideBar.GroupLabel>
+
+					<SideBar.GroupContent class="min-h-0 flex-1">
+						<ScrollArea.Root class="h-full pr-3" type="always">
+							<SideBar.Menu>
+								{#each section.organizations as organization (organization.id)}
+									{@const active = isOrganizationActive(organization.id)}
+									<SideBar.MenuItem>
+										<SideBar.MenuButton
+											class="text-sidebar-foreground/80 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground h-8 w-full overflow-hidden rounded-lg p-2 data-[active=true]:font-semibold"
+											isActive={active}
+										>
+											{#snippet child({ props: btnProps })}
+												<a
+													{...btnProps}
+													href={`/admin/organizations/${organization.id}`}
+													class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center rounded-lg px-2 py-1.5 {active
+														? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+														: ''}"
+												>
+													{#if organization.name.length > 29}
+														<Tooltip.Root>
+															<Tooltip.Trigger>
+																{#snippet child({
+																	props: tipProps
+																})}
+																	<span
+																		{...tipProps}
+																		class="flex-1 truncate text-left text-sm leading-4 font-medium"
+																	>
+																		{organization.name}
+																	</span>
+																{/snippet}
+															</Tooltip.Trigger>
+															<Tooltip.Content side="right">
+																{organization.name}
+															</Tooltip.Content>
+														</Tooltip.Root>
+													{:else}
+														<span
+															class="flex-1 truncate text-left text-sm leading-4 font-medium"
+														>
+															{organization.name}
+														</span>
+													{/if}
+												</a>
+											{/snippet}
+										</SideBar.MenuButton>
+									</SideBar.MenuItem>
+								{/each}
+							</SideBar.Menu>
+						</ScrollArea.Root>
+					</SideBar.GroupContent>
+				</SideBar.Group>
+			{/each}
+		{/if}
 	</SideBar.Content>
 
-	<div class="shrink-0 px-7 group-data-[collapsible=icon]:px-2">
+	<div class="flex shrink-0 flex-col gap-2 px-7 group-data-[collapsible=icon]:px-2">
 		<NewConversationButton
 			class="w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0"
 			labelClass="group-data-[collapsible=icon]:hidden"
 		/>
+
+		{#if userOrganizations?.canCreateOrganization}
+			<Button
+				href="/admin/organizations/new"
+				class="w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0"
+			>
+				<Plus class="size-4" />
+				<span class="group-data-[collapsible=icon]:hidden">New organization</span>
+			</Button>
+		{/if}
 	</div>
 
 	<SideBar.Footer>
