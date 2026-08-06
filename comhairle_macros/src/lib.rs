@@ -578,12 +578,22 @@ pub fn derive_translatable_json(input: TokenStream) -> TokenStream {
     ];
 
     let expanded = match &input.data {
-        Data::Struct(data) => {
-            derive_translatable_json_struct(name, &resolved_name, data, &derives, &serde_attributes)
-        }
-        Data::Enum(data) => {
-            derive_translatable_enum_struct(name, &resolved_name, data, &derives, &serde_attributes)
-        }
+        Data::Struct(data) => derive_translatable_json_struct(
+            name,
+            &resolved_name,
+            data,
+            &input.attrs,
+            &derives,
+            &serde_attributes,
+        ),
+        Data::Enum(data) => derive_translatable_enum_struct(
+            name,
+            &resolved_name,
+            data,
+            &input.attrs,
+            &derives,
+            &serde_attributes,
+        ),
         _ => panic!("TranslatableJson can only be derived for structs and enums"),
     };
 
@@ -604,10 +614,108 @@ fn passthrough_serde_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
         .collect()
 }
 
+enum TagMode {
+    External,
+    Internal,
+    Untagged,
+    Adjacent(String),
+}
+
+fn detect_tag_mode(attrs: &[Attribute]) -> TagMode {
+    let mut tag = None;
+    let mut content = None;
+    let mut untagged = false;
+
+    for attr in attrs.iter().filter(|a| a.path().is_ident("serde")) {
+        let _ = attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("tag") {
+                tag = Some(meta.value()?.parse::<syn::LitStr>()?.value());
+            } else if meta.path.is_ident("content") {
+                content = Some(meta.value()?.parse::<syn::LitStr>()?.value());
+            } else if meta.path.is_ident("untagged") {
+                untagged = true;
+            }
+            Ok(())
+        });
+    }
+
+    match (untagged, tag, content) {
+        (true, _, _) => TagMode::Untagged,
+        (_, Some(_), Some(content)) => TagMode::Adjacent(content),
+        (_, Some(_), None) => TagMode::Internal,
+        _ => TagMode::External,
+    }
+}
+
+/// Determines if a field has an explicit serde rename, eg `#[serde(rename = "myField")]`
+fn explicit_rename(attrs: &[Attribute]) -> Option<String> {
+    attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("serde"))
+        .find_map(|attr| {
+            let mut renamed = None;
+            let _ = attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("rename") {
+                    renamed = Some(meta.value()?.parse::<syn::LitStr>()?.value());
+                }
+                Ok(())
+            });
+            renamed
+        })
+}
+
+/// Determines if a struct / enum is serialized with `#[serde(rename_all = "camelCase")]` etc.
+fn container_rename_all(attrs: &[Attribute]) -> Option<String> {
+    attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("serde"))
+        .find_map(|attr| {
+            let mut case = None;
+            let _ = attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("rename_all") {
+                    case = Some(meta.value()?.parse::<syn::LitStr>()?.value());
+                }
+                Ok(())
+            });
+            case
+        })
+}
+
+fn to_snake_case(s: &str) -> String {
+    let mut out = String::new();
+    for (i, ch) in s.char_indices() {
+        if ch.is_uppercase() {
+            if i != 0 {
+                out.push('_');
+            }
+            out.extend(ch.to_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// Computes the name a field or variant will actually serialize as, given its
+/// own attrs (checked for an explicit `#[serde(rename = "...")]` first) and
+/// the container's `rename_all` case, if any.
+fn serialize_name(raw: &str, attrs: &[Attribute], container_case: Option<&str>) -> String {
+    if let Some(explicit) = explicit_rename(attrs) {
+        return explicit;
+    }
+
+    match container_case {
+        // TODO: potentially need to account for camelCase for some use cases
+        Some("snake_case") => to_snake_case(raw),
+        _ => raw.to_string(),
+    }
+}
+
 fn derive_translatable_json_struct(
     name: &syn::Ident,
     resolved_name: &syn::Ident,
     data: &syn::DataStruct,
+    input_attrs: &[Attribute],
     derives: &[syn::Path],
     serde_attrs: &Vec<Attribute>,
 ) -> proc_macro2::TokenStream {
@@ -617,23 +725,36 @@ fn derive_translatable_json_struct(
     };
 
     let mut resolved_fields = Vec::new();
-    let mut collect_statements = Vec::new();
+    let mut collect_text_content_id_statements = Vec::new();
     let mut resolve_inits = Vec::new();
+    let mut collect_path_statements = Vec::new();
+
+    let container_case = container_rename_all(input_attrs);
 
     for field in fields {
         let ident = field.ident.as_ref().unwrap();
         let ty = &field.ty;
         let visibility = &field.vis;
 
+        // Field name respecting serde serialization if applicable, used for the
+        // JSON pointer path recorded against each translation.
+        let json_field_name =
+            serialize_name(&ident.to_string(), &field.attrs, container_case.as_deref());
+
         if has_translatable_attr(&field.attrs) {
             resolved_fields.push(quote! {
                 #visibility #ident: <#ty as crate::models::translations::ResolveTranslations>::Resolved
             });
-            collect_statements.push(quote! {
+            collect_text_content_id_statements.push(quote! {
                 self.#ident.collect_text_content_ids(out);
             });
             resolve_inits.push(quote! {
                 #ident: self.#ident.resolve(map)
+            });
+            collect_path_statements.push(quote! {
+                pointer.push_field(#json_field_name);
+                self.#ident.collect_text_content_ids_with_path(pointer, out);
+                pointer.pop();
             });
         } else {
             resolved_fields.push(quote! { #visibility #ident: #ty });
@@ -650,7 +771,7 @@ fn derive_translatable_json_struct(
 
         impl crate::models::translations::CollectTextContentIds for #name {
             fn collect_text_content_ids(&self, out: &mut std::collections::HashSet<TextContentId>) {
-                #(#collect_statements)*
+                #(#collect_text_content_id_statements)*
             }
         }
 
@@ -663,6 +784,16 @@ fn derive_translatable_json_struct(
                 }
             }
         }
+
+        impl crate::models::translations::CollectTextContentIdsWithPath for #name {
+            fn collect_text_content_ids_with_path(
+                &self,
+                pointer: &mut crate::models::translations::JsonPointer,
+                out: &mut Vec<(String, TextContentId)>,
+            ) {
+                #(#collect_path_statements)*
+            }
+        }
     }
 }
 
@@ -670,15 +801,36 @@ fn derive_translatable_enum_struct(
     name: &syn::Ident,
     resolved_name: &syn::Ident,
     data: &syn::DataEnum,
+    input_attrs: &[Attribute],
     derives: &[syn::Path],
     serde_attrs: &Vec<Attribute>,
 ) -> proc_macro2::TokenStream {
+    let container_case = container_rename_all(input_attrs);
+    let tag_mode = detect_tag_mode(input_attrs);
+
     let mut resolved_variants = Vec::new();
     let mut collect_arms = Vec::new();
     let mut resolve_arms = Vec::new();
+    let mut collect_path_arms = Vec::new();
 
     for variant in &data.variants {
         let variant_ident = &variant.ident;
+
+        // The pointer segment that wraps this variant's fields, if any, depending
+        // on how the enum is tagged:
+        //   External   -> {"VariantName": {fields...}}   => wrap = variant name
+        //   Internal   -> {"tag": "variant_name", fields flattened}  => no wrap
+        //   Adjacent   -> {"tag": "...", "content": {fields...}}     => wrap = content key
+        //   Untagged   -> fields flattened, no discriminator at all  => no wrap
+        let variant_wrap: Option<String> = match &tag_mode {
+            TagMode::External => Some(serialize_name(
+                &variant_ident.to_string(),
+                &variant.attrs,
+                container_case.as_deref(),
+            )),
+            TagMode::Adjacent(content) => Some(content.clone()),
+            TagMode::Internal | TagMode::Untagged => None,
+        };
 
         match &variant.fields {
             Fields::Unit => {
@@ -686,6 +838,7 @@ fn derive_translatable_enum_struct(
                 resolved_variants.push(quote! { #variant_ident });
                 // No data to collect so use empty block
                 collect_arms.push(quote! { Self::#variant_ident => {} });
+                collect_path_arms.push(quote! { Self::#variant_ident => {} });
                 // Nothing to resolve, `Self::Text => LocalizedType::Text`
                 resolve_arms
                     .push(quote! { Self::#variant_ident => #resolved_name::#variant_ident });
@@ -695,11 +848,18 @@ fn derive_translatable_enum_struct(
                 let mut resolved_fields = Vec::new();
                 let mut collect_body = Vec::new();
                 let mut resolve_inits = Vec::new();
+                let mut collect_path_body = Vec::new();
 
                 for field in &fields.named {
                     let ident = field.ident.as_ref().unwrap();
                     let ty = &field.ty;
                     field_idents.push(quote! { #ident });
+
+                    // NOTE: rename_all on the enum applies to variant names,
+                    // not automatically to fields within a variant, so no
+                    // container_case is threaded through here — only an
+                    // explicit per-field #[serde(rename = "...")] applies.
+                    let json_field_name = serialize_name(&ident.to_string(), &field.attrs, None);
 
                     if has_translatable_attr(&field.attrs) {
                         resolved_fields.push(quote! {
@@ -709,6 +869,11 @@ fn derive_translatable_enum_struct(
                             #ident.collect_text_content_ids(out);
                         });
                         resolve_inits.push(quote! { #ident: #ident.resolve(map) });
+                        collect_path_body.push(quote! {
+                            pointer.push_field(#json_field_name);
+                            #ident.collect_text_content_ids_with_path(pointer, out);
+                            pointer.pop();
+                        });
                     } else {
                         resolved_fields.push(quote! { #ident: #ty });
                         resolve_inits.push(quote! { #ident: #ident });
@@ -721,6 +886,19 @@ fn derive_translatable_enum_struct(
                 });
                 resolve_arms.push(quote! {
                     Self::#variant_ident { #(#field_idents),* } => #resolved_name::#variant_ident { #(#resolve_inits),* }
+                });
+                collect_path_arms.push(if let Some(wrap) = &variant_wrap {
+                    quote! {
+                        Self::#variant_ident { #(#field_idents),* } => {
+                            pointer.push_field(#wrap);
+                            #(#collect_path_body)*
+                            pointer.pop();
+                        }
+                    }
+                } else {
+                    quote! {
+                        Self::#variant_ident { #(#field_idents),* } => { #(#collect_path_body)* }
+                    }
                 });
             }
             Fields::Unnamed(fields) => {
@@ -743,12 +921,28 @@ fn derive_translatable_enum_struct(
                     resolve_arms.push(quote! {
                         Self::#variant_ident(inner) => #resolved_name::#variant_ident(inner.resolve(map))
                     });
+                    collect_path_arms.push(if let Some(wrap) = &variant_wrap {
+                        quote! {
+                            Self::#variant_ident(inner) => {
+                                pointer.push_field(#wrap);
+                                inner.collect_text_content_ids_with_path(pointer, out);
+                                pointer.pop();
+                            }
+                        }
+                    } else {
+                        quote! {
+                            Self::#variant_ident(inner) => {
+                                inner.collect_text_content_ids_with_path(pointer, out);
+                            }
+                        }
+                    });
                 } else {
                     resolved_variants.push(quote! { #variant_ident(#inner_ty )});
                     collect_arms.push(quote! { Self::#variant_ident(_inner ) => {} });
                     resolve_arms.push(quote! {
                         Self::#variant_ident(inner) => #resolved_name::#variant_ident(inner)
                     });
+                    collect_path_arms.push(quote! { Self::#variant_ident(_inner) => {} });
                 }
             }
         }
@@ -775,6 +969,18 @@ fn derive_translatable_enum_struct(
             fn resolve(self, map: &std::collections::HashMap<TextContentId, String>) -> Self::Resolved {
                 match self {
                     #(#resolve_arms),*
+                }
+            }
+        }
+
+        impl crate::models::translations::CollectTextContentIdsWithPath for #name {
+            fn collect_text_content_ids_with_path(
+                &self,
+                pointer: &mut crate::models::translations::JsonPointer,
+                out: &mut Vec<(String, TextContentId)>,
+            ) {
+                match self {
+                    #(#collect_path_arms),*
                 }
             }
         }
