@@ -704,9 +704,13 @@ fn serialize_name(raw: &str, attrs: &[Attribute], container_case: Option<&str>) 
         return explicit;
     }
 
+    // Account for identifiers, which need to be escaped on Rust types due to
+    // name matching reserved keyword, e.g. `r#type` -> `type`.
+    let raw = raw.replace("r#", "");
     match container_case {
         // TODO: potentially need to account for camelCase for some use cases
-        Some("snake_case") => to_snake_case(raw),
+        Some("snake_case") => to_snake_case(&raw),
+        Some("lowercase") => raw.to_lowercase(),
         _ => raw.to_string(),
     }
 }

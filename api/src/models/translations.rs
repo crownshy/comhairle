@@ -1345,6 +1345,68 @@ pub async fn new_translation(
     Ok(translation)
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TranslationDto {
+    pub text_content: crate::routes::translations::dto::TextContentDto,
+    pub text_translations: Vec<crate::routes::translations::dto::TextTranslationDto>,
+}
+
+#[instrument(err(Debug))]
+pub async fn get_text_content_with_translations(
+    db: &PgPool,
+    text_content_ids: Vec<TextContentId>,
+) -> Result<HashMap<TextContentId, TranslationDto>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(TextContentIden::Table)
+        .columns(TEXT_CONTENT_DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col(TextContentIden::Id).is_in(text_content_ids.iter().map(|id| id.into_uuid())),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_contents: Vec<TextContent> = query_as_with(&sql, values).fetch_all(db).await?;
+
+    let (sql, values) = Query::select()
+        .from(TextTranslationIden::Table)
+        .columns(TEXT_TRANSLATION_DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col(TextTranslationIden::ContentId)
+                .is_in(text_content_ids.iter().map(|id| id.into_uuid())),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_translations: Vec<TextTranslation> = query_as_with(&sql, values).fetch_all(db).await?;
+
+    let mut tts_by_tc_id: HashMap<TextContentId, Vec<TextTranslation>> = HashMap::new();
+    for translation in text_translations {
+        tts_by_tc_id
+            .entry(translation.content_id)
+            .or_default()
+            .push(translation);
+    }
+
+    Ok(text_contents
+        .into_iter()
+        .map(|tc| {
+            let text_translations = tts_by_tc_id
+                .remove(&tc.id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect();
+
+            (
+                tc.id,
+                TranslationDto {
+                    text_content: tc.into(),
+                    text_translations,
+                },
+            )
+        })
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use comhairle_macros::TranslatableJson;
