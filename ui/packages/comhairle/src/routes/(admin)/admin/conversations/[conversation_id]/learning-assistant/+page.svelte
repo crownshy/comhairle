@@ -10,9 +10,7 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import { TriangleAlert } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
-	import { tryCatchAsync, tryFetch } from '$lib/utils/errorHandling';
-	import { Input } from '$lib/components/ui/input';
-	import { Button } from '$lib/components/ui/button';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import Media from '$lib/interfaces/Media';
 	import { MB } from '$lib/utils/units';
 
@@ -28,9 +26,6 @@
 	let { data }: Props = $props();
 	let conversation = $derived(data.conversation);
 	let documents = $derived(data.documents);
-
-	let isUploading = $state<boolean>(false);
-	let urlInput = $state<string>('');
 
 	const parsingDocuments = $derived(
 		documents?.filter((doc) => doc.parse_progress < 1 && doc.parse_progress > 0)
@@ -72,14 +67,14 @@
 
 	async function uploadFile(file: File) {
 		const media = new Media();
+		const formData = new FormData();
+		formData.append('file', file);
 
-		isUploading = true;
 		const response = await tryCatchAsync(() =>
-			media.upload(`/api/conversation/${conversation.id}/documents`, [file], {
-				maxSizeMB: MAX_SIZE
+			media.upload(`/api/conversation/${conversation.id}/documents`, formData, {
+				maxSize: MAX_SIZE
 			})
 		);
-		isUploading = false;
 
 		if (response.err !== null) {
 			notifications.send({

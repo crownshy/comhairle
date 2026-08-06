@@ -1,9 +1,10 @@
 import { validate, type ValidationErr } from '$lib/components/EasyForm';
-import MediaSchema from '$lib/schemas/MediaSchema';
 import { tryFetch, type FetchErr, type Result } from '$lib/utils/errorHandling';
+import type { Schema } from '$lib/components/EasyForm';
 
 type Opts = {
 	maxSize?: number; // in bytes
+	schema?: Schema; // Schema for validation
 	fetchRef?: typeof fetch; // If used on the backend and we need to use the alternate fetch
 };
 
@@ -13,10 +14,21 @@ class Media {
 		formData: FormData,
 		opts?: Opts
 	): Promise<Result<'ok', Response, ValidationErr | FetchErr>> {
-		const form = validate(formData, MediaSchema);
+		if (opts?.schema) {
+			const form = validate(formData, opts.schema);
 
-		if (form.err !== null) {
-			return { ok: null, err: form.err };
+			if (form.err !== null) {
+				return { ok: null, err: form.err };
+			}
+		}
+
+		if (opts?.maxSize) {
+			for (const key of formData.keys()) {
+				const field = formData.get(key);
+				if (field instanceof File && field.size > opts.maxSize) {
+					return { ok: null, err: 'MAX_SIZE_EXCEEDED' };
+				}
+			}
 		}
 
 		const response = await tryFetch(

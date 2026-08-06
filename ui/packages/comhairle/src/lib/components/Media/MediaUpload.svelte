@@ -30,7 +30,7 @@
 
 	async function handleSubmission(formData: FormData) {
 		const response = await media.upload('/api/media', formData, {
-			maxSize: MediaSchema.media.maxSize
+			schema: MediaSchema
 		});
 
 		if (response.err !== null) {
