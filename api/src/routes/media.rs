@@ -69,15 +69,19 @@ async fn upload(
         let content_type = field.content_type().map(|f| f.to_string());
         let field_name = field.name().map(|n| n.to_string());
 
-        if let None = content_type {
+        // Check if the field is not a file
+        if content_type.is_none() {
             let Some(field_name) = field_name else {
                 continue;
             };
-            let text = field.text().await.map(|t| t.to_string());
-            let Ok(text) = text else {
+            let Ok(text) = field.text().await.map(|f| f.to_string()) else {
                 continue;
             };
-            upload_media_form.update_field(&field_name, text);
+            match field_name.as_str() {
+                "name" => upload_media_form.name = text,
+                "alt" => upload_media_form.alt = text,
+                &_ => (),
+            }
             continue;
         };
 
@@ -90,7 +94,7 @@ async fn upload(
         upload_media_form.file = File {
             filename,
             bytes,
-            content_type: content_type.unwrap_or("".to_string()),
+            content_type: content_type.unwrap_or_default(),
         };
     }
 
