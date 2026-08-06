@@ -647,6 +647,19 @@ async fn sync_statement_aux(
         _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
     };
 
+    let response = sync_statement_aux_inner(&state, &workflow_step_id, &config).await?;
+    Ok((StatusCode::OK, Json(response)))
+}
+
+/// Fetch comments and xid mappings from Polis and upsert a `polis_statement_aux`
+/// row per statement. Shared by the HTTP sync endpoint and the workflow-step
+/// launch path (so going live seeds the aux table immediately).
+#[instrument(err(Debug), skip(state))]
+pub async fn sync_statement_aux_inner(
+    state: &Arc<ComhairleState>,
+    workflow_step_id: &Uuid,
+    config: &PolisToolConfig,
+) -> Result<SyncStatementAuxResponse, ComhairleError> {
     let client = &state.wiki_poll_service;
     let auth_cookies = client
         .login(&WikiPollLogin {
@@ -677,7 +690,7 @@ async fn sync_statement_aux(
         let aux = models::polis_statement_aux::upsert_from_polis(
             &state.db,
             &UpsertFromPolis {
-                workflow_step_id,
+                workflow_step_id: *workflow_step_id,
                 user_id,
                 zid: comment.pid as i32,
                 polis_conversation_id: config.poll_id.clone(),
@@ -691,14 +704,11 @@ async fn sync_statement_aux(
         statements.push(aux);
     }
 
-    Ok((
-        StatusCode::OK,
-        Json(SyncStatementAuxResponse {
-            synced: statements.len(),
-            skipped_invalid_xid,
-            statements,
-        }),
-    ))
+    Ok(SyncStatementAuxResponse {
+        synced: statements.len(),
+        skipped_invalid_xid,
+        statements,
+    })
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, Copy)]
