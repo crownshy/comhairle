@@ -1,3 +1,4 @@
+use hyper::StatusCode;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -18,3 +19,13 @@ pub enum TranscriptionServiceError {
     BatchTranscriptionFailure(String),
 }
 pub type Result<T> = std::result::Result<T, TranscriptionServiceError>;
+
+impl Into<StatusCode> for &TranscriptionServiceError {
+    fn into(self) -> StatusCode {
+        match self {
+            TranscriptionServiceError::BatchProcessingUnsupported
+            | TranscriptionServiceError::StreamingProcessingUnsupported => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}

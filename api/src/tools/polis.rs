@@ -325,31 +325,54 @@ pub enum PolisError {
     Serde(#[from] serde_json::Error),
 
     #[error("Failed to create new admin user")]
-    FailedToCreateNewAdminUser,
+    FailedToCreateNewAdminUser(StatusCode),
 
     #[error("Failed to login")]
-    FailedToLogin,
+    FailedToLogin(StatusCode),
 
     #[error("Failed to create new poll")]
-    FailedToCreateNewPoll,
+    FailedToCreateNewPoll(StatusCode),
 
     #[error("Failed to get comments {0}")]
-    FailedToGetComments(String),
+    FailedToGetComments(StatusCode, String),
 
     #[error("Failed to get xids {0}")]
-    FailedToGetXIDs(String),
+    FailedToGetXIDs(StatusCode, String),
 
     #[error("Failed to update poll {0}")]
-    FailedPollUpdate(String),
+    FailedPollUpdate(StatusCode, String),
 
     #[error("Failed to post seed comment {0}")]
-    FailedToPostSeedComment(String),
+    FailedToPostSeedComment(StatusCode, String),
 
     #[error("Failed to moderate comment {0}")]
-    FailedToModerateComment(String),
+    FailedToModerateComment(StatusCode, String),
 
     #[error("Failed to proxy route {from} : {to}")]
     ProxyError { from: String, to: String },
+}
+
+impl Into<StatusCode> for &PolisError {
+    fn into(self) -> StatusCode {
+        match self {
+            PolisError::Http(err) => {
+                if let Some(status) = err.status() {
+                    status
+                } else {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            }
+            PolisError::FailedToCreateNewAdminUser(status) => *status,
+            PolisError::FailedToLogin(status) => *status,
+            PolisError::FailedToCreateNewPoll(status) => *status,
+            PolisError::FailedToGetComments(status, _) => *status,
+            PolisError::FailedToGetXIDs(status, _) => *status,
+            PolisError::FailedPollUpdate(status, _) => *status,
+            PolisError::FailedToPostSeedComment(status, _) => *status,
+            PolisError::FailedToModerateComment(status, _) => *status,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize)]
