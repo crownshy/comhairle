@@ -68,7 +68,6 @@ pub async fn get_random_organization_id(
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
     let (_, response, _) = session.create_random_organization(app).await?;
-    eprintln!("Organization creation response: {:?}", response);
     let organization: OrganizationDto = serde_json::from_value(response)?;
 
     Ok(organization.id)

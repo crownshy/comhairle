@@ -6,16 +6,15 @@ use super::{
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
-use crate::{
-    ComhairleState,
-    bot_service::{
-        ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
-        DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
-    },
-    config::ComhairleConfig,
-    error::ComhairleError,
-    models::{self, SqlxResultExt, permissions::ResourcePermissionIden},
+use crate::ComhairleState;
+use crate::bot_service::{
+    ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
+    DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
 };
+use crate::config::ComhairleConfig;
+use crate::error::ComhairleError;
+use crate::models::permissions::ResourcePermissionIden;
+use crate::models::{self, SqlxResultExt};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -955,22 +954,14 @@ mod tests {
     use fake::{Fake, Faker};
     use serde_json::json;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            permissions::{
-                ConversationContentEditorRole, GrantRoleRequest, NamedRole, ResourceRole,
-                UserOrOrganizationId, grant_role,
-            },
-            users::{self, UpdateUserRequest, create_user, update_user},
-        },
-        routes::{
-            auth::SignupRequest, conversations::dto::ConversationDto,
-            organizations::dto::OrganizationDto,
-        },
-        setup_server,
-        test_helpers::{TestRole, UserSession, test_state},
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId, grant_role};
+    use crate::models::users::{self, UpdateUserRequest, create_user, update_user};
+    use crate::routes::auth::SignupRequest;
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::routes::organizations::dto::OrganizationDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
 
     use super::*;
     use std::error::Error;
@@ -1246,7 +1237,7 @@ mod tests {
 
         let grant_request_a_a = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: ConversationContentEditorRole::make_triplet(&conversation.id),
+            permission_triplet: Role::ConversationContentEditor.triplet(&conversation.id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
         };
@@ -1254,7 +1245,7 @@ mod tests {
 
         let grant_request_a_b = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: TestRole::make_triplet(&conversation.id),
+            permission_triplet: Role::Tester.triplet(&conversation.id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
         };
@@ -1277,7 +1268,7 @@ mod tests {
             page_options.clone(),
             order_options,
             filter_options,
-            ConversationContentEditorRole::name(),
+            Role::ConversationContentEditor.as_ref(),
             Some("en".to_string()),
         )
         .await?;
@@ -1294,7 +1285,7 @@ mod tests {
             page_options.clone(),
             order_options,
             filter_options,
-            ConversationContentEditorRole::name(),
+            Role::ConversationContentEditor.as_ref(),
             Some("en".to_string()),
         )
         .await?;
@@ -1320,7 +1311,7 @@ mod tests {
             page_options.clone(),
             order_options,
             filter_options,
-            TestRole::name(),
+            Role::Tester.as_ref(),
             Some("en".to_string()),
         )
         .await?;
@@ -1337,7 +1328,7 @@ mod tests {
             page_options.clone(),
             order_options,
             filter_options,
-            TestRole::name(),
+            Role::Tester.as_ref(),
             Some("en".to_string()),
         )
         .await?;

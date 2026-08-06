@@ -1,8 +1,6 @@
-use crate::{
-    models::permissions::{NamedRole, ResourceRole},
-    redis_connection::RedisConnection,
-    websockets::handlers::video_call::VideoCallMessageHandler,
-};
+use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
+use crate::redis_connection::RedisConnection;
+use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 use chrono::Utc;
 use hyper::header::AUTHORIZATION;
 use std::{collections::HashMap, error::Error, sync::Arc};
@@ -144,19 +142,24 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     Ok(config)
 }
 
-pub const TEST_RESOURCE_TYPE: &str = "test_resource_type";
+pub const TEST_RESOURCE_TYPE: &str = "test";
 pub const TEST_ROLE_NAME: &str = "tester";
+
+/// Test-only shim around [`Role::Test`] / [`ResourceType::Test`] so existing
+/// tests can keep using `TestRole::name()` / `resource_type()` / `make_triplet()`.
 pub struct TestRole;
 
-impl NamedRole for TestRole {
-    fn name() -> &'static str {
-        TEST_ROLE_NAME
+impl TestRole {
+    pub fn name() -> &'static str {
+        Role::Tester.as_ref()
     }
-}
 
-impl ResourceRole for TestRole {
-    fn resource_type() -> &'static str {
-        TEST_RESOURCE_TYPE
+    pub fn resource_type() -> &'static str {
+        ResourceType::Test.as_ref()
+    }
+
+    pub fn make_triplet(resource_id: &Uuid) -> PermissionTriplet<'_> {
+        Role::Tester.triplet(resource_id)
     }
 }
 

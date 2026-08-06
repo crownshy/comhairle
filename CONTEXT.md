@@ -43,6 +43,15 @@ A per-Step declaration of who may see the data participants produce in that Step
 _Avoid_: Private/Limited (stale Learn-guide wording for Confidential/Restricted), "data sharing", "data policy".
 _Status_: Only Confidential and Restricted are backed today — they map onto the existing `request_user_share_permission` boolean (`false`→Confidential, `true`→Restricted). Collaborative and Open appear in the UI for design fidelity but are disabled pending a team decision on introducing a real `data_protocol` enum column (flagged as an open question on the PR).
 
+**Role assignment**:
+An explicit grant that links an actor (user or organisation) to a named role on a resource (`resource_type` + `resource_id`). Role assignments are durable records and form the source of truth for authorization.
+
+**Permission action**:
+A single allowed operation (for example list, grant, revoke, read, update) that routes enforce. Roles grant sets of permission actions; authorization succeeds when any assigned role on the target resource grants the required action.
+
+**Authorization precedence**:
+Permission checks resolve in this order: resource ownership allows, then system admin grant allows globally, then role-action mapping on the target resource is evaluated. There are currently no explicit deny rules.
+
 ### Polis admin (Discuss step)
 
 The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Moderation · Insights`** (civic_os's "Participants" tab is dropped — see Insights/Report and the Participants note).
