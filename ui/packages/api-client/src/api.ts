@@ -1252,6 +1252,13 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
+export const TranslationDto = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type TranslationDto = z.infer<typeof TranslationDto>;
 export const Translation4 = z
   .object({
     textContent: TextContentDto,
@@ -1263,7 +1270,7 @@ export const WorkflowStepTranslations = z
   .object({ description: Translation4, name: Translation4 })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
-export const WorkflowStepWithTranslations = z
+export const WorkflowStepWithTranslationsDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
@@ -1277,13 +1284,16 @@ export const WorkflowStepWithTranslations = z
     required: z.boolean(),
     stepOrder: z.number().int(),
     toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    toolConfigTranslations: z
+      .union([z.record(TranslationDto), z.null()])
+      .optional(),
     translations: WorkflowStepTranslations,
     updatedAt: z.string().datetime({ offset: true }),
     workflowId: z.string().uuid(),
   })
   .passthrough();
-export type WorkflowStepWithTranslations = z.infer<
-  typeof WorkflowStepWithTranslations
+export type WorkflowStepWithTranslationsDto = z.infer<
+  typeof WorkflowStepWithTranslationsDto
 >;
 export const LocalizedCategory = z
   .object({ label: z.string(), value: z.number() })
@@ -1424,7 +1434,7 @@ export const LocalizedWorkflowStepDto = z
   .passthrough();
 export type LocalizedWorkflowStepDto = z.infer<typeof LocalizedWorkflowStepDto>;
 export const WorkflowStepsListResponse = z.union([
-  z.array(WorkflowStepWithTranslations),
+  z.array(WorkflowStepWithTranslationsDto),
   z.array(LocalizedWorkflowStepWithProgressDto),
   z.array(LocalizedWorkflowStepDto),
 ]);
@@ -2661,9 +2671,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicCategory,
   DemographicReport,
   UserParticipation,
+  TranslationDto,
   Translation4,
   WorkflowStepTranslations,
-  WorkflowStepWithTranslations,
+  WorkflowStepWithTranslationsDto,
   LocalizedCategory,
   LocalizedQuestionType,
   LocalizedQuestion,

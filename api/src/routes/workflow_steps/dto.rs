@@ -6,10 +6,11 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        translations::{ResolveTranslations, TextContentId},
+        translations::{ResolveTranslations, TextContentId, TranslationDto},
         user_progress::ProgressStatus,
         workflow_step::{
             ActivationRule, LocalizedWorkflowStep, LocalizedWorkflowStepWithProgress, WorkflowStep,
+            WorkflowStepWithTranslations,
         },
     },
     schema_helpers::{example_localized_text, example_uuid},
@@ -122,6 +123,26 @@ pub struct LocalizedWorkflowStepWithProgressDto {
     pub preview_tool_config: LocalizedToolConfig,
     pub progress_status: ProgressStatus,
     pub request_user_share_permission: bool,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowStepWithTranslationsDto {
+    #[serde(flatten)]
+    step: WorkflowStepWithTranslations,
+    tool_config_translations: Option<HashMap<String, TranslationDto>>,
+}
+
+impl WorkflowStepWithTranslations {
+    pub fn into_dto(
+        self,
+        tool_config_translations: Option<HashMap<String, TranslationDto>>,
+    ) -> WorkflowStepWithTranslationsDto {
+        WorkflowStepWithTranslationsDto {
+            step: self,
+            tool_config_translations,
+        }
+    }
 }
 
 impl From<WorkflowStep> for WorkflowStepDto {

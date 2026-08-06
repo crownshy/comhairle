@@ -16,11 +16,14 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::translations::{CollectTextContentIds, resolve_translations};
-use crate::models::workflow_step::{LocalizedWorkflowStep, WorkflowStepWithTranslations};
+use crate::models::translations::{
+    CollectTextContentIds, CollectTextContentIdsWithPath, JsonPointer, TextContentId,
+    TranslationDto, get_text_content_with_translations, resolve_translations,
+};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
     LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
+    WorkflowStepWithTranslationsDto,
 };
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
 use crate::{
@@ -44,15 +47,8 @@ struct GetWorkflowStepsQuery {
 
 #[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
-pub enum WorkflowStepResponse {
-    Localized(LocalizedWorkflowStep),
-    WithTranslations(WorkflowStepWithTranslations),
-}
-
-#[derive(Serialize, JsonSchema)]
-#[serde(untagged)]
 pub enum WorkflowStepsListResponse {
-    WithTranslations(Vec<WorkflowStepWithTranslations>),
+    WithTranslations(Vec<WorkflowStepWithTranslationsDto>),
     WithUserProgress(Vec<LocalizedWorkflowStepWithProgressDto>),
     Localized(Vec<LocalizedWorkflowStepDto>),
 }
@@ -170,12 +166,49 @@ async fn list_workflows_step(
         query.with_translations && is_user_admin(&state, &user).await;
 
     if should_return_with_translations {
-        let steps_with_translations =
-            workflow_step::list_with_translations(&state.db, &workflow_id, &locale).await?;
+        let steps = workflow_step::list_with_translations(&state.db, &workflow_id, &locale).await?;
+
+        // TODO: look into refactoring / simplifying / extracting
+        let mut steps_with_full_translations = Vec::with_capacity(steps.len());
+
+        for step in &steps {
+            let mut pointer = JsonPointer { segments: vec![] };
+            let mut path_id_pairs = Vec::new();
+            let tool_config = match &step.tool_config {
+                Some(config) => config,
+                None => &step.preview_tool_config,
+            };
+
+            tool_config.collect_text_content_ids_with_path(&mut pointer, &mut path_id_pairs);
+
+            if path_id_pairs.is_empty() {
+                steps_with_full_translations.push(step.clone().into_dto(None));
+                continue;
+            }
+
+            let text_content_ids: Vec<TextContentId> =
+                path_id_pairs.iter().map(|(_, id)| *id).collect();
+            let tool_config_translations =
+                get_text_content_with_translations(&state.db, text_content_ids).await?;
+
+            let translations_by_json_pointer: HashMap<String, TranslationDto> = path_id_pairs
+                .into_iter()
+                .filter_map(|(path, id)| {
+                    tool_config_translations
+                        .get(&id)
+                        .cloned()
+                        .map(|trans| (path, trans))
+                })
+                .collect();
+
+            steps_with_full_translations
+                .push(step.clone().into_dto(Some(translations_by_json_pointer)));
+        }
+
         Ok((
             StatusCode::OK,
             Json(WorkflowStepsListResponse::WithTranslations(
-                steps_with_translations,
+                steps_with_full_translations,
             )),
         ))
     } else if query.with_user_progress {
