@@ -164,20 +164,20 @@ export const LocalizedOrganizationDto = z
   })
   .passthrough();
 export type LocalizedOrganizationDto = z.infer<typeof LocalizedOrganizationDto>;
+export const UserOrganizationAccess = z
+  .object({
+    canDelete: z.boolean(),
+    canManageTeam: z.boolean(),
+    canUpdate: z.boolean(),
+    isAssociated: z.boolean(),
+    organization: LocalizedOrganizationDto,
+  })
+  .passthrough();
+export type UserOrganizationAccess = z.infer<typeof UserOrganizationAccess>;
 export const UserOrganizationsResponse = z
   .object({
-    organizations: z.array(
-      z
-        .object({
-          canDelete: z.boolean(),
-          canManageTeam: z.boolean(),
-          canUpdate: z.boolean(),
-          isAssociated: z.boolean(),
-          organization: LocalizedOrganizationDto,
-        })
-        .passthrough()
-    ),
     canCreateOrganization: z.boolean(),
+    organizations: z.array(UserOrganizationAccess),
   })
   .passthrough();
 export type UserOrganizationsResponse = z.infer<
@@ -2121,33 +2121,62 @@ export const CreateOrganization = z
     mission: z.string(),
     name: z.string(),
     org_type: OrganizationType,
-    organization_admin_emails: z.union([z.array(z.string()), z.null()]).optional(),
+    organization_admin_emails: z
+      .union([z.array(z.string()), z.null()])
+      .optional(),
     regions: z.union([z.array(z.string().uuid()), z.null()]).optional(),
     user_emails: z.union([z.array(z.string()), z.null()]).optional(),
   })
   .passthrough();
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
 export const OrganizationAdminBootstrapFailureDto = z
-  .object({
-    email: z.string(),
-    message: z.string(),
-  })
+  .object({ email: z.string(), message: z.string() })
   .passthrough();
 export type OrganizationAdminBootstrapFailureDto = z.infer<
   typeof OrganizationAdminBootstrapFailureDto
 >;
 export const OrganizationAdminBootstrapSummaryDto = z
   .object({
-    attempted: z.number().int(),
-    assigned: z.number().int(),
-    createdAccounts: z.number().int(),
-    emailed: z.number().int(),
+    assigned: z.number().int().gte(0),
+    attempted: z.number().int().gte(0),
+    createdAccounts: z.number().int().gte(0),
+    emailed: z.number().int().gte(0),
     failures: z.array(OrganizationAdminBootstrapFailureDto),
   })
   .passthrough();
 export type OrganizationAdminBootstrapSummaryDto = z.infer<
   typeof OrganizationAdminBootstrapSummaryDto
 >;
+export const CreateOrganizationResponseDto = z
+  .object({
+    adminBootstrapSummary: OrganizationAdminBootstrapSummaryDto,
+    contactEmail: z.union([z.string(), z.null()]).optional(),
+    createdAt: z.string().datetime({ offset: true }),
+    description: z.string().uuid(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    mission: z.string().uuid(),
+    name: z.string(),
+    orgType: OrganizationType,
+    regions: z.array(z.string().uuid()),
+  })
+  .passthrough();
+export type CreateOrganizationResponseDto = z.infer<
+  typeof CreateOrganizationResponseDto
+>;
+export const UpdateOrganizationBody = z
+  .object({
+    contact_email: z.union([z.string(), z.null()]),
+    description: z.union([z.string(), z.null()]),
+    external_url: z.union([z.string(), z.null()]),
+    mission: z.union([z.string(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+    org_type: z.union([OrganizationType, z.null()]),
+    regions: z.union([z.array(z.string().uuid()), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
 export const OrganizationDto = z
   .object({
     contactEmail: z.union([z.string(), z.null()]).optional(),
@@ -2162,23 +2191,49 @@ export const OrganizationDto = z
   })
   .passthrough();
 export type OrganizationDto = z.infer<typeof OrganizationDto>;
-export const CreateOrganizationResponseDto = OrganizationDto.extend({
-  adminBootstrapSummary: OrganizationAdminBootstrapSummaryDto,
-}).passthrough();
-export type CreateOrganizationResponseDto = z.infer<typeof CreateOrganizationResponseDto>;
-export const PartialOrganization = z
+export const OrganizationTeamRole = z.enum(["member", "admin"]);
+export type OrganizationTeamRole = z.infer<typeof OrganizationTeamRole>;
+export const OrganizationTeamUserDto = z
   .object({
-    contact_email: z.union([z.string(), z.null()]),
-    description: z.union([z.string(), z.null()]),
-    external_url: z.union([z.string(), z.null()]),
-    mission: z.union([z.string(), z.null()]),
-    name: z.union([z.string(), z.null()]),
-    org_type: z.union([OrganizationType, z.null()]),
-    regions: z.union([z.array(z.string().uuid()), z.null()]),
+    email: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    role: OrganizationTeamRole,
+    username: z.union([z.string(), z.null()]).optional(),
   })
-  .partial()
   .passthrough();
-export type PartialOrganization = z.infer<typeof PartialOrganization>;
+export type OrganizationTeamUserDto = z.infer<typeof OrganizationTeamUserDto>;
+export const OrganizationTeamResponseDto = z
+  .object({ members: z.array(OrganizationTeamUserDto) })
+  .passthrough();
+export type OrganizationTeamResponseDto = z.infer<
+  typeof OrganizationTeamResponseDto
+>;
+export const UpsertOrganizationUserBody = z
+  .object({
+    allow_create_user: z.union([z.boolean(), z.null()]).optional(),
+    email: z.string(),
+    role: z.union([OrganizationTeamRole, z.null()]).optional(),
+  })
+  .passthrough();
+export type UpsertOrganizationUserBody = z.infer<
+  typeof UpsertOrganizationUserBody
+>;
+export const UpsertOrganizationUserResponseDto = z
+  .object({
+    createdAccount: z.boolean(),
+    emailed: z.boolean(),
+    user: OrganizationTeamUserDto,
+  })
+  .passthrough();
+export type UpsertOrganizationUserResponseDto = z.infer<
+  typeof UpsertOrganizationUserResponseDto
+>;
+export const UpdateOrganizationMemberRoleBody = z
+  .object({ role: OrganizationTeamRole })
+  .passthrough();
+export type UpdateOrganizationMemberRoleBody = z.infer<
+  typeof UpdateOrganizationMemberRoleBody
+>;
 export const RegionType = z.enum(["custom", "official"]);
 export type RegionType = z.infer<typeof RegionType>;
 export const LocalizedRegionDto = z
@@ -2476,6 +2531,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_LocalizedConversationDto,
   OrganizationType,
   LocalizedOrganizationDto,
+  UserOrganizationAccess,
   UserOrganizationsResponse,
   UpdateUserRequest,
   UpgradeAccountRequest,
@@ -2695,8 +2751,17 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SendToUserMessage,
   PaginatedResults_for_LocalizedOrganizationDto,
   CreateOrganization,
+  OrganizationAdminBootstrapFailureDto,
+  OrganizationAdminBootstrapSummaryDto,
+  CreateOrganizationResponseDto,
+  UpdateOrganizationBody,
   OrganizationDto,
-  PartialOrganization,
+  OrganizationTeamRole,
+  OrganizationTeamUserDto,
+  OrganizationTeamResponseDto,
+  UpsertOrganizationUserBody,
+  UpsertOrganizationUserResponseDto,
+  UpdateOrganizationMemberRoleBody,
   RegionType,
   LocalizedRegionDto,
   PaginatedResults_for_LocalizedRegionDto,
@@ -4515,7 +4580,7 @@ curl -X POST \
       {
         name: "body",
         type: "Body",
-        schema: PartialOrganization,
+        schema: UpdateOrganizationBody,
       },
     ],
     response: OrganizationDto,
@@ -4527,6 +4592,74 @@ curl -X POST \
     description: `Delete an organization`,
     requestFormat: "json",
     response: OrganizationDto,
+  },
+  {
+    method: "post",
+    path: "/organizations/:organization_id/members",
+    alias: "AddOrganizationMember",
+    description: `Adds a member by email and bootstraps an account when needed`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpsertOrganizationUserBody,
+      },
+    ],
+    response: UpsertOrganizationUserResponseDto,
+  },
+  {
+    method: "delete",
+    path: "/organizations/:organization_id/members/:user_id",
+    alias: "RemoveOrganizationMember",
+    description: `Removes a user&#x27;s organization membership`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "user_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "put",
+    path: "/organizations/:organization_id/members/:user_id/role",
+    alias: "UpdateOrganizationMemberRole",
+    description: `Updates organization member role between member and admin`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateOrganizationMemberRoleBody,
+      },
+      {
+        name: "organization_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "user_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/organizations/:organization_id/team",
+    alias: "GetOrganizationTeam",
+    description: `Returns members and administrators for an organization`,
+    requestFormat: "json",
+    response: OrganizationTeamResponseDto,
   },
   {
     method: "get",
