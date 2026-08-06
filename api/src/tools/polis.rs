@@ -242,6 +242,22 @@ impl ToolImpl for PolisTool {
                 }),
             )
             .api_route(
+                "/polis/statement_aux/localized",
+                get_with(localized_statement, |op| {
+                    op.id("PolisGetLocalizedStatement")
+                        .tag("Tools")
+                        .summary("Resolve a Polis statement into a participant's locale")
+                        .description(
+                            "Returns the statement text to display for a live Polis \
+                             statement in the requested locale: the stored translation \
+                             when one exists, otherwise the original. Carries \
+                             is_translation, original_text and source_locale so the UI \
+                             can indicate a translation and reveal the source.",
+                        )
+                        .response::<200, Json<LocalizedStatement>>()
+                }),
+            )
+            .api_route(
                 "/polis/statement_aux/{id}/translations",
                 get_with(list_statement_translations, |op| {
                     op.id("PolisListStatementTranslations")
@@ -725,6 +741,96 @@ async fn list_statement_translations(
     let translations =
         models::polis_statement_translation::list_by_statement_aux_id(&state.db, &id).await?;
     Ok((StatusCode::OK, Json(translations)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct LocalizedStatementQuery {
+    pub polis_conversation_id: String,
+    pub polis_statement_id: i32,
+    /// The locale the participant is currently viewing the interface in.
+    pub locale: String,
+}
+
+/// A statement resolved for display in a participant's chosen locale. `text` is
+/// what to render: the stored translation when one exists for `locale`,
+/// otherwise the original. `is_translation` tells the UI whether to surface the
+/// "viewing a translation" affordance and expose `original_text`/`source_locale`.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct LocalizedStatement {
+    pub polis_statement_id: i32,
+    /// The text to display in the requested locale.
+    pub text: String,
+    /// Locale of `text` — the requested locale when translated, else the source.
+    pub display_locale: String,
+    /// Locale the statement was originally authored/detected in, if known.
+    pub source_locale: Option<String>,
+    /// The original, untranslated statement text.
+    pub original_text: String,
+    /// True when `text` differs from the original because a translation was used.
+    pub is_translation: bool,
+    /// Whether the displayed translation was machine-generated (false for originals).
+    pub ai_generated: bool,
+    /// Whether the displayed translation still awaits human validation (false for originals).
+    pub requires_validation: bool,
+}
+
+/// Resolve a live Polis statement into the participant's chosen locale. Falls
+/// back to the original text (with `is_translation = false`) whenever no aux row
+/// exists yet, the locale matches the source, or no translation has been stored
+/// for that locale — so the caller always has something to render.
+#[instrument(err(Debug), skip(state))]
+async fn localized_statement(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(query): Query<LocalizedStatementQuery>,
+) -> Result<(StatusCode, Json<LocalizedStatement>), ComhairleError> {
+    let aux = models::polis_statement_aux::get_by_conversation_and_statement(
+        &state.db,
+        &query.polis_conversation_id,
+        query.polis_statement_id,
+    )
+    .await?
+    .ok_or_else(|| {
+        ComhairleError::ResourceNotFound("No auxiliary data for this Polis statement".into())
+    })?;
+
+    let original = LocalizedStatement {
+        polis_statement_id: aux.polis_statement_id,
+        text: aux.statement_text.clone(),
+        display_locale: aux
+            .source_locale
+            .clone()
+            .unwrap_or_else(|| query.locale.clone()),
+        source_locale: aux.source_locale.clone(),
+        original_text: aux.statement_text.clone(),
+        is_translation: false,
+        ai_generated: false,
+        requires_validation: false,
+    };
+
+    // Already in the requested locale — nothing to translate.
+    if aux.source_locale.as_deref() == Some(query.locale.as_str()) {
+        return Ok((StatusCode::OK, Json(original)));
+    }
+
+    let translations =
+        models::polis_statement_translation::list_by_statement_aux_id(&state.db, &aux.id).await?;
+
+    let resolved = match translations.into_iter().find(|t| t.locale == query.locale) {
+        Some(translation) => LocalizedStatement {
+            polis_statement_id: aux.polis_statement_id,
+            text: translation.content,
+            display_locale: translation.locale,
+            source_locale: aux.source_locale.clone(),
+            original_text: aux.statement_text,
+            is_translation: true,
+            ai_generated: translation.ai_generated,
+            requires_validation: translation.requires_validation,
+        },
+        None => original,
+    };
+
+    Ok((StatusCode::OK, Json(resolved)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]

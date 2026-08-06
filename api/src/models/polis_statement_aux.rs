@@ -287,6 +287,28 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, Comh
     Ok(aux)
 }
 
+/// Fetch the single aux row for a `(polis_conversation_id, polis_statement_id)`
+/// pair, if one exists. Returns `None` rather than erroring when no row has been
+/// synced yet (e.g. a statement submitted moments ago whose aux insert has not
+/// landed). Used to resolve a live Polis `tid` to its stored auxiliary data.
+#[instrument(err(Debug))]
+pub async fn get_by_conversation_and_statement(
+    db: &PgPool,
+    polis_conversation_id: &str,
+    polis_statement_id: i32,
+) -> Result<Option<PolisStatementAux>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(PolisStatementAuxIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(PolisStatementAuxIden::PolisConversationId).eq(polis_conversation_id))
+        .and_where(Expr::col(PolisStatementAuxIden::PolisStatementId).eq(polis_statement_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_optional(db).await?;
+
+    Ok(aux)
+}
+
 /// Bulk partial-update many rows in one statement, returning the updated rows.
 /// Applies the same field semantics as [`update`]: only the `Some` fields of
 /// `update_aux` are written. Used by batch moderation once the decisions have
