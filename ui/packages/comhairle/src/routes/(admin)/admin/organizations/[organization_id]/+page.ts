@@ -1,4 +1,5 @@
 import type { PageLoad } from './$types';
+import { apiClient } from '@crownshy/api-client/client';
 
 export const load: PageLoad = async ({ parent, params, depends, fetch }) => {
 	const { api, userOrganizations } = await parent();
@@ -33,14 +34,8 @@ export const load: PageLoad = async ({ parent, params, depends, fetch }) => {
 			}
 		}
 
-		let regions: { id: string; name: string }[] = [];
-		const regionsResponse = await fetch('/api/regions?limit=500');
-		if (regionsResponse.ok) {
-			const regionResults = (await regionsResponse.json()) as {
-				records: { id: string; name: string }[];
-			};
-			regions = regionResults.records;
-		}
+		const regionsResponse = await apiClient.ListRegions({ queries: { limit: 500 } });
+		const regions = regionsResponse.records;
 
 		return {
 			organization,

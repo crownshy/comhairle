@@ -7,40 +7,112 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
-	import type { OrganizationType } from '@crownshy/api-client/api';
+	import type { LocalizedRegionDto, OrganizationType } from '@crownshy/api-client/api';
+	import { superForm } from 'sveltekit-superforms';
+	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { z } from 'zod';
 
-	let name = $state('');
-	let description = $state('');
-	let mission = $state('');
-	let orgType: OrganizationType = $state('non_profit');
-	let contactEmail = $state('');
-	let externalUrl = $state('');
-	let allRegions = $state<{ id: string; name: string }[]>([]);
-	let selectedRegions = $state<string[]>([]);
-	let userEmails = $state('');
-	let organizationAdminEmails = $state('');
+	const organizationFormSchema = z.object({
+		name: z.string().trim().min(1, 'Name is required'),
+		description: z.string().optional(),
+		mission: z.string().optional(),
+		org_type: z.enum(['non_profit', 'governmental', 'other'] as const),
+		contact_email: z.string().optional(),
+		external_url: z.string().optional(),
+		regions: z.array(z.string().uuid()).default([]),
+		user_emails: z.string().optional(),
+		organization_admin_emails: z.string().optional()
+	});
+
+	const organizationForm = superForm(
+		{
+			name: '',
+			description: '',
+			mission: '',
+			org_type: 'non_profit' as OrganizationType,
+			contact_email: '',
+			external_url: '',
+			regions: [] as string[],
+			user_emails: '',
+			organization_admin_emails: ''
+		},
+		{
+			validators: zodClient(organizationFormSchema),
+			taintedMessage: false,
+			onSubmit: async ({ cancel }) => {
+				cancel();
+				submitting = true;
+
+				const validation = await validateForm({ update: true });
+				if (!validation.valid) {
+					submitting = false;
+					return;
+				}
+
+				const response = await tryCatchAsync(() =>
+					apiClient.CreateOrganization({
+						name: $form.name,
+						description: $form.description || undefined,
+						mission: $form.mission || undefined,
+						org_type: $form.org_type,
+						contact_email: $form.contact_email || undefined,
+						external_url: $form.external_url || undefined,
+						regions: $form.regions,
+						user_emails: parseEmailList($form.user_emails ?? ''),
+						organization_admin_emails: parseEmailList(
+							$form.organization_admin_emails ?? ''
+						)
+					})
+				);
+
+				if (response.err !== null) {
+					notifications.send({
+						priority: 'ERROR',
+						message: 'Failed to create organization'
+					});
+					submitting = false;
+					return;
+				}
+
+				const organization = response.ok;
+				const summary = organization.adminBootstrapSummary;
+				const failedCount = summary.failures.length;
+
+				notifications.send({
+					priority: failedCount > 0 ? 'WARNING' : 'INFO',
+					message:
+						failedCount > 0
+							? `Organization created. ${summary.assigned} of ${summary.attempted} administrators assigned; ${failedCount} need follow-up.`
+							: 'Organization created'
+				});
+
+				submitting = false;
+				goto(`/admin/organizations/${organization.id}`);
+			}
+		}
+	);
+
+	const { form, enhance, validateForm } = organizationForm;
+
+	let allRegions = $state<LocalizedRegionDto[]>([]);
+	let submitting = $state(false);
 
 	onMount(async () => {
-		const response = await fetch('/api/regions?limit=500');
-		if (!response.ok) {
-			return;
-		}
-
-		const regionResults = (await response.json()) as {
-			records: { id: string; name: string }[];
-		};
-		allRegions = regionResults.records;
+		const response = await apiClient.ListRegions({ queries: { limit: 500 } });
+		allRegions = response.records;
 	});
 
 	function toggleRegion(regionId: string, enabled: boolean) {
+		const selectedRegionIds = new Set($form.regions);
+
 		if (enabled) {
-			if (!selectedRegions.includes(regionId)) {
-				selectedRegions = [...selectedRegions, regionId];
+			if (!selectedRegionIds.has(regionId)) {
+				$form.regions = [...selectedRegionIds, regionId];
 			}
 			return;
 		}
 
-		selectedRegions = selectedRegions.filter((id) => id !== regionId);
+		$form.regions = [...selectedRegionIds].filter((id) => id !== regionId);
 	}
 
 	function parseEmailList(value: string): string[] | undefined {
@@ -51,43 +123,6 @@
 
 		return emails.length > 0 ? emails : undefined;
 	}
-
-	async function handleSubmit(event: Event) {
-		event.preventDefault();
-
-		const response = await tryCatchAsync(() =>
-			apiClient.CreateOrganization({
-				name,
-				description,
-				mission,
-				org_type: orgType,
-				contact_email: contactEmail || undefined,
-				external_url: externalUrl || undefined,
-				regions: selectedRegions,
-				user_emails: parseEmailList(userEmails),
-				organization_admin_emails: parseEmailList(organizationAdminEmails)
-			})
-		);
-
-		if (response.err !== null) {
-			notifications.send({ priority: 'ERROR', message: 'Failed to create organization' });
-			return;
-		}
-
-		const organization = response.ok;
-		const summary = organization.adminBootstrapSummary;
-		const failedCount = summary.failures.length;
-
-		notifications.send({
-			priority: failedCount > 0 ? 'WARNING' : 'INFO',
-			message:
-				failedCount > 0
-					? `Organization created. ${summary.assigned} of ${summary.attempted} administrators assigned; ${failedCount} need follow-up.`
-					: 'Organization created'
-		});
-
-		goto(`/admin/organizations/${organization.id}`);
-	}
 </script>
 
 <svelte:head>
@@ -97,17 +132,17 @@
 <div class="flex flex-col gap-6 p-8">
 	<h1 class="text-3xl font-semibold">Create organization</h1>
 
-	<form class="flex flex-col gap-4" onsubmit={handleSubmit}>
+	<form class="flex flex-col gap-4" method="POST" use:enhance>
 		<div class="grid gap-4 md:grid-cols-2">
 			<div class="flex flex-col gap-2">
 				<Label for="name">Name</Label>
-				<Input id="name" bind:value={name} required />
+				<Input id="name" bind:value={$form.name} required />
 			</div>
 			<div class="flex flex-col gap-2">
 				<Label for="orgType">Type</Label>
 				<select
 					id="orgType"
-					bind:value={orgType}
+					bind:value={$form.org_type}
 					class="border-input bg-background h-10 rounded-md border px-3 py-2 text-sm"
 				>
 					<option value="non_profit">Non-profit</option>
@@ -119,22 +154,22 @@
 
 		<div class="flex flex-col gap-2">
 			<Label for="description">Description</Label>
-			<Input id="description" bind:value={description} />
+			<Input id="description" bind:value={$form.description} />
 		</div>
 
 		<div class="flex flex-col gap-2">
 			<Label for="mission">Mission</Label>
-			<Input id="mission" bind:value={mission} />
+			<Input id="mission" bind:value={$form.mission} />
 		</div>
 
 		<div class="flex flex-col gap-2">
 			<Label for="contactEmail">Contact email</Label>
-			<Input id="contactEmail" type="email" bind:value={contactEmail} />
+			<Input id="contactEmail" type="email" bind:value={$form.contact_email} />
 		</div>
 
 		<div class="flex flex-col gap-2">
 			<Label for="externalUrl">External URL</Label>
-			<Input id="externalUrl" type="url" bind:value={externalUrl} />
+			<Input id="externalUrl" type="url" bind:value={$form.external_url} />
 		</div>
 
 		<div class="flex flex-col gap-2">
@@ -147,7 +182,7 @@
 						<label class="flex items-center gap-2 text-sm">
 							<input
 								type="checkbox"
-								checked={selectedRegions.includes(region.id)}
+								checked={$form.regions.includes(region.id)}
 								onchange={(event) =>
 									toggleRegion(
 										region.id,
@@ -165,7 +200,7 @@
 			<Label for="userEmails">User emails to add</Label>
 			<textarea
 				id="userEmails"
-				bind:value={userEmails}
+				bind:value={$form.user_emails}
 				class="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-sm"
 				placeholder="one per line or comma separated"
 			></textarea>
@@ -178,14 +213,14 @@
 			</p>
 			<textarea
 				id="organizationAdminEmails"
-				bind:value={organizationAdminEmails}
+				bind:value={$form.organization_admin_emails}
 				class="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-sm"
 				placeholder="one per line or comma separated"
 			></textarea>
 		</div>
 
 		<div class="flex justify-end">
-			<Button type="submit">Create organization</Button>
+			<Button type="submit" disabled={submitting}>Create organization</Button>
 		</div>
 	</form>
 </div>
