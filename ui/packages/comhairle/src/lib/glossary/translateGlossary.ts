@@ -1,5 +1,6 @@
 import type { LocalizedGlossary } from './types';
 import { aiTranslateContent } from '$lib/components/Translation/translationUtils';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 /**
  * Fills a target locale's missing terms and explanations by translating each entry's
@@ -28,30 +29,26 @@ export async function translateGlossaryToLocale(
 
 		const sourceTerms = entry.text[primaryLocale];
 		if (sourceTerms?.length && !entry.text[targetLocale]?.length) {
-			try {
-				const translated = await translate(
-					sourceTerms.join(', '),
-					targetLocale,
-					primaryLocale
-				);
-				const terms = translated
+			// Best-effort: leave this entry's terms untranslated if the call fails.
+			const result = await tryCatchAsync(() =>
+				translate(sourceTerms.join(', '), targetLocale, primaryLocale)
+			);
+			if (result.err === null) {
+				const terms = result.ok
 					.split(',')
 					.map((term) => term.trim())
 					.filter(Boolean);
 				if (terms.length) text[targetLocale] = terms;
-			} catch {
-				// leave this entry's terms untranslated
 			}
 		}
 
 		const sourceTip = entry.tooltip[primaryLocale];
 		if (sourceTip?.trim() && !entry.tooltip[targetLocale]?.trim()) {
-			try {
-				const translated = await translate(sourceTip, targetLocale, primaryLocale);
-				if (translated.trim()) tooltip[targetLocale] = translated.trim();
-			} catch {
-				// leave this entry's explanation untranslated
-			}
+			// Best-effort: leave this entry's explanation untranslated if the call fails.
+			const result = await tryCatchAsync(() =>
+				translate(sourceTip, targetLocale, primaryLocale)
+			);
+			if (result.err === null && result.ok.trim()) tooltip[targetLocale] = result.ok.trim();
 		}
 
 		result.push({ text, tooltip });

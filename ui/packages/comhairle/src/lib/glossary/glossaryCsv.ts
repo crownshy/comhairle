@@ -13,9 +13,7 @@ export function parseCsvRows(text: string): string[][] {
 	let inQuotes = false;
 
 	// Skip a UTF-8 BOM if a spreadsheet exported one.
-	let i = text.charCodeAt(0) === 0xfeff ? 1 : 0;
-
-	for (; i < text.length; i++) {
+	for (let i = text.charCodeAt(0) === 0xfeff ? 1 : 0; i < text.length; i++) {
 		const char = text[i];
 
 		if (inQuotes) {
