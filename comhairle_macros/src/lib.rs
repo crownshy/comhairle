@@ -634,6 +634,17 @@ fn detect_tag_mode(attrs: &[Attribute]) -> TagMode {
                 content = Some(meta.value()?.parse::<syn::LitStr>()?.value());
             } else if meta.path.is_ident("untagged") {
                 untagged = true;
+            } else if meta.input.peek(syn::Token![=]) {
+                // Any other key = "value" pair we don't care about
+                // (rename_all, deny_unknown_fields, etc.) — still must be
+                // consumed or parse_nested_meta aborts the whole attribute.
+                let _ = meta.value()?.parse::<syn::Expr>()?;
+            } else if meta.input.peek(syn::token::Paren) {
+                // Any other key(...) form we don't care about — consume the
+                // parenthesized group so parsing can continue.
+                let content;
+                syn::parenthesized!(content in meta.input);
+                let _ = content.parse::<proc_macro2::TokenStream>()?;
             }
             Ok(())
         });

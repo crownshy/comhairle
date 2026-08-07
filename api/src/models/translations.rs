@@ -2256,4 +2256,132 @@ mod tests {
 
         Ok(())
     }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_collect_text_content_ids_with_json_pointer_paths_for_multiple_serde_attrs(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        #[derive(serde::Serialize, TranslatableJson)]
+        struct Root {
+            #[translatable]
+            title: TextContentId,
+            #[translatable]
+            nested_arr: Vec<Nested>,
+        }
+
+        #[derive(serde::Serialize, TranslatableJson)]
+        struct Nested {
+            #[translatable]
+            text_field: TextContentId,
+            other_field: String,
+            #[translatable]
+            internal: InternalTaggedEnum,
+        }
+
+        #[derive(serde::Serialize, TranslatableJson)]
+        #[serde(rename_all = "lowercase", tag = "type")]
+        enum InternalTaggedEnum {
+            #[translatable]
+            VarOne(InnerTrans),
+            VarTwo(InnerRaw),
+        }
+
+        #[derive(serde::Serialize, TranslatableJson)]
+        struct InnerTrans {
+            #[translatable]
+            value: TextContentId,
+        }
+
+        #[derive(
+            serde::Serialize, PartialEq, Debug, serde::Deserialize, schemars::JsonSchema, Clone,
+        )]
+        struct InnerRaw {
+            value: String,
+        }
+
+        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
+        let nested_1_text =
+            new_translation(&pool, "en", "Nested 1 text", TextFormat::Plain).await?;
+        let nested_2_text =
+            new_translation(&pool, "en", "Nested 2 text", TextFormat::Plain).await?;
+        let nested_3_text =
+            new_translation(&pool, "en", "Nested 3 text", TextFormat::Plain).await?;
+        let int_1_value = new_translation(&pool, "en", "Tagged 1 value", TextFormat::Plain).await?;
+        let int_2_value = new_translation(&pool, "en", "Tagged 2 value", TextFormat::Plain).await?;
+
+        let root_json = Root {
+            title: root_title.id,
+            nested_arr: vec![
+                Nested {
+                    text_field: nested_1_text.id,
+                    other_field: "test".to_string(),
+                    internal: InternalTaggedEnum::VarOne(InnerTrans {
+                        value: int_1_value.id,
+                    }),
+                },
+                Nested {
+                    text_field: nested_2_text.id,
+                    other_field: "test".to_string(),
+                    internal: InternalTaggedEnum::VarTwo(InnerRaw {
+                        value: "test".to_string(),
+                    }),
+                },
+                Nested {
+                    text_field: nested_3_text.id,
+                    other_field: "test".to_string(),
+                    internal: InternalTaggedEnum::VarOne(InnerTrans {
+                        value: int_2_value.id,
+                    }),
+                },
+            ],
+        };
+
+        let mut pointer = JsonPointer { segments: vec![] };
+        let mut path_id_pairs = Vec::new();
+        root_json.collect_text_content_ids_with_path(&mut pointer, &mut path_id_pairs);
+
+        assert_eq!(
+            path_id_pairs.len(),
+            6,
+            "incorrect number of translations collected"
+        );
+        assert!(
+            path_id_pairs
+                .iter()
+                .any(|pair| pair.0 == "/title" && pair.1 == root_title.id),
+            "missing root title tc_id"
+        );
+        assert!(
+            path_id_pairs
+                .iter()
+                .any(|pair| pair.0 == "/nested_arr/0/text_field" && pair.1 == nested_1_text.id),
+            "missing nested_1 tc_id"
+        );
+        assert!(
+            path_id_pairs
+                .iter()
+                .any(|pair| pair.0 == "/nested_arr/1/text_field" && pair.1 == nested_2_text.id),
+            "missing nested_3 tc_id"
+        );
+        assert!(
+            path_id_pairs
+                .iter()
+                .any(|pair| pair.0 == "/nested_arr/2/text_field" && pair.1 == nested_3_text.id),
+            "missing nested_3 tc_id"
+        );
+        assert!(
+            path_id_pairs
+                .iter()
+                .any(|pair| pair.0 == "/nested_arr/0/internal/value" && pair.1 == int_1_value.id),
+            "missing int 1 tc_id"
+        );
+        assert!(
+            path_id_pairs
+                .iter()
+                .any(|pair| pair.0 == "/nested_arr/2/internal/value" && pair.1 == int_2_value.id),
+            "missing int 2 tc_id"
+        );
+
+        Ok(())
+    }
 }
