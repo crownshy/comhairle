@@ -641,10 +641,30 @@ async fn sync_statement_aux(
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
     models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
 
-    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
-        (Some(ToolConfig::Polis(config)), _) => config,
-        (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    // Fetch from the live poll when the conversation is live, otherwise from
+    // the preview poll. We key off the conversation's live status rather than
+    // the presence of a live tool_config so preview data stays isolated from
+    // live data.
+    let workflow = models::workflow::get_by_id(&state.db, &workflow_step.workflow_id).await?;
+    let is_live = match workflow.conversation_id {
+        Some(conversation_id) => {
+            models::conversation::get_by_id(&state.db, &conversation_id)
+                .await?
+                .is_live
+        }
+        None => false,
+    };
+
+    let config = if is_live {
+        match workflow_step.tool_config {
+            Some(ToolConfig::Polis(config)) => config,
+            _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        }
+    } else {
+        match workflow_step.preview_tool_config {
+            ToolConfig::Polis(config) => config,
+            _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        }
     };
 
     let client = &state.wiki_poll_service;
