@@ -102,8 +102,6 @@ pub struct CreateOrganization {
     pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Option<Vec<Uuid>>,
-    pub user_emails: Option<Vec<String>>,
-    pub organization_admin_emails: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -636,7 +634,6 @@ mod tests {
             org_type: OrganizationType::NonProfit,
             contact_email: None,
             external_url: None,
-            user_emails: None,
             ..Default::default()
         };
 
@@ -727,7 +724,6 @@ mod tests {
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
             external_url: Some("test.com".to_string()),
-            user_emails: None,
             ..Default::default()
         };
         let new_org_2 = CreateOrganization {
@@ -736,7 +732,6 @@ mod tests {
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
             external_url: Some("test.com".to_string()),
-            user_emails: None,
             ..Default::default()
         };
         let new_org_3 = CreateOrganization {
@@ -745,7 +740,6 @@ mod tests {
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
             external_url: Some("test.com".to_string()),
-            user_emails: None,
             ..Default::default()
         };
 
@@ -791,8 +785,6 @@ mod tests {
             contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_1.id]),
-            user_emails: None,
-            organization_admin_emails: None,
         };
         let new_org_2 = CreateOrganization {
             name: "test_org_2".to_string(),
@@ -802,8 +794,6 @@ mod tests {
             contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_2.id]),
-            user_emails: None,
-            organization_admin_emails: None,
         };
         let new_org_3 = CreateOrganization {
             name: "test_org_3".to_string(),
@@ -813,8 +803,6 @@ mod tests {
             contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_1.id]),
-            user_emails: None,
-            organization_admin_emails: None,
         };
 
         let _ = create(&pool, &new_org_1, "en").await?;

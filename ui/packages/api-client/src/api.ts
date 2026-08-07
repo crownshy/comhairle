@@ -1017,6 +1017,16 @@ export const PartialConversation = z
   .partial()
   .passthrough();
 export type PartialConversation = z.infer<typeof PartialConversation>;
+export const OrganizationWithPermissionDto = z
+  .object({ id: z.string().uuid(), name: z.string(), roleName: z.string() })
+  .passthrough();
+export type OrganizationWithPermissionDto = z.infer<
+  typeof OrganizationWithPermissionDto
+>;
+export const CohostInfo = z
+  .object({ organization_id: z.string().uuid() })
+  .passthrough();
+export type CohostInfo = z.infer<typeof CohostInfo>;
 export const SendNotificationRequest = z
   .object({
     content: z.string(),
@@ -2127,50 +2137,10 @@ export const CreateOrganization = z
     mission: z.string(),
     name: z.string(),
     org_type: OrganizationType,
-    organization_admin_emails: z
-      .union([z.array(z.string()), z.null()])
-      .optional(),
     regions: z.union([z.array(z.string().uuid()), z.null()]).optional(),
-    user_emails: z.union([z.array(z.string()), z.null()]).optional(),
   })
   .passthrough();
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
-export const OrganizationAdminBootstrapFailureDto = z
-  .object({ email: z.string(), message: z.string() })
-  .passthrough();
-export type OrganizationAdminBootstrapFailureDto = z.infer<
-  typeof OrganizationAdminBootstrapFailureDto
->;
-export const OrganizationAdminBootstrapSummaryDto = z
-  .object({
-    assigned: z.number().int().gte(0),
-    attempted: z.number().int().gte(0),
-    createdAccounts: z.number().int().gte(0),
-    emailed: z.number().int().gte(0),
-    failures: z.array(OrganizationAdminBootstrapFailureDto),
-  })
-  .passthrough();
-export type OrganizationAdminBootstrapSummaryDto = z.infer<
-  typeof OrganizationAdminBootstrapSummaryDto
->;
-export const CreateOrganizationResponseDto = z
-  .object({
-    adminBootstrapSummary: OrganizationAdminBootstrapSummaryDto,
-    contactEmail: z.union([z.string(), z.null()]).optional(),
-    createdAt: z.string().datetime({ offset: true }),
-    description: z.string().uuid(),
-    externalUrl: z.union([z.string(), z.null()]).optional(),
-    id: z.string().uuid(),
-    metadata: z.unknown().optional(),
-    mission: z.string().uuid(),
-    name: z.string(),
-    orgType: OrganizationType,
-    regions: z.array(z.string().uuid()),
-  })
-  .passthrough();
-export type CreateOrganizationResponseDto = z.infer<
-  typeof CreateOrganizationResponseDto
->;
 export const UpdateOrganizationBody = z
   .object({
     contact_email: z.union([z.string(), z.null()]),
@@ -2661,6 +2631,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ConversationWithTranslations,
   ConversationResponse,
   PartialConversation,
+  OrganizationWithPermissionDto,
+  CohostInfo,
   SendNotificationRequest,
   SendEmailNotificationResponse,
   NotificationRecipientsResponse,
@@ -2787,9 +2759,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SendToUserMessage,
   PaginatedResults_for_LocalizedOrganizationDto,
   CreateOrganization,
-  OrganizationAdminBootstrapFailureDto,
-  OrganizationAdminBootstrapSummaryDto,
-  CreateOrganizationResponseDto,
   UpdateOrganizationBody,
   OrganizationDto,
   OrganizationTeamRole,
@@ -3186,6 +3155,37 @@ Use a raw HTTP request and process the response body incrementally.`,
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/cohosts",
+    alias: "ListConversationCoHostOrganizations",
+    description: `Returns organizations that hold the conversation co-host role for this conversation.`,
+    requestFormat: "json",
+    response: z.array(OrganizationWithPermissionDto),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/cohosts",
+    alias: "AddConversationCoHostOrganization",
+    description: `Grants the conversation co-host role to the specified organization.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ organization_id: z.string().uuid() }).passthrough(),
+      },
+    ],
+    response: OrganizationWithPermissionDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/cohosts/:cohost_id",
+    alias: "RemoveConversationCoHostOrganization",
+    description: `Revokes the conversation co-host role from the specified organization.`,
+    requestFormat: "json",
+    response: OrganizationWithPermissionDto,
   },
   {
     method: "get",
@@ -4622,7 +4622,7 @@ curl -X POST \
         schema: CreateOrganization,
       },
     ],
-    response: CreateOrganizationResponseDto,
+    response: OrganizationDto,
   },
   {
     method: "get",
@@ -5929,11 +5929,6 @@ This struct contains optional fields that can be updated on a TextTranslation re
         name: "offset",
         type: "Query",
         schema: limit,
-      },
-      {
-        name: "role_name",
-        type: "Query",
-        schema: z.string(),
       },
     ],
     response: PaginatedResults_for_LocalizedConversationDto,

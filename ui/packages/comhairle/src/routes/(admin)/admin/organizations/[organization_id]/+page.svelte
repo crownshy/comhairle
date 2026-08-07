@@ -44,6 +44,7 @@
 	let editRegionIds = $state<string[]>(data.organization?.regions ?? []);
 
 	let activeTab = $derived(page.url.searchParams.get('tab') ?? 'details');
+	let currentUserId = $derived(data.user?.id ?? '');
 
 	$effect(() => {
 		members = data.team.members ?? [];
@@ -541,32 +542,50 @@
 							</thead>
 							<tbody>
 								{#each members as member (member.id)}
+									{@const isCurrentUser = member.id === currentUserId}
 									<tr class="border-b">
-										<td class="py-2">{member.username ?? 'Unknown user'}</td>
+										<td class="py-2">
+											<div class="flex items-center gap-2">
+												<span>{member.username ?? 'Unknown user'}</span>
+												{#if isCurrentUser}
+													<span
+														class="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs"
+													>
+														You
+													</span>
+												{/if}
+											</div>
+										</td>
 										<td class="py-2">{member.email ?? 'No email'}</td>
 										<td class="py-2">
-											<select
-												value={member.role}
-												onchange={(event) =>
-													updateMemberRole(
-														member.id,
-														(event.currentTarget as HTMLSelectElement)
-															.value as TeamRole
-													)}
-												disabled={teamBusy}
-												class="border-input bg-background h-9 rounded-md border px-2 py-1 text-sm"
-											>
-												<option value="member">Member</option>
-												<option value="admin">Admin</option>
-											</select>
+											<div class="flex flex-col gap-1">
+												<select
+													value={member.role}
+													onchange={(event) =>
+														updateMemberRole(
+															member.id,
+															(
+																event.currentTarget as HTMLSelectElement
+															).value as TeamRole
+														)}
+													disabled={teamBusy || isCurrentUser}
+													title={isCurrentUser
+														? 'You cannot change your own role'
+														: undefined}
+													class="border-input bg-background h-9 rounded-md border px-2 py-1 text-sm disabled:pointer-events-none disabled:opacity-50"
+												>
+													<option value="member">Member</option>
+													<option value="admin">Admin</option>
+												</select>
+											</div>
 										</td>
 										<td class="py-2 text-right">
 											<button
 												type="button"
 												aria-label="Remove member"
-												class="hover:bg-primary group rounded-full p-1.5"
+												class="hover:bg-primary group rounded-full p-1.5 disabled:pointer-events-none disabled:opacity-50"
 												onclick={() => removeMember(member.id)}
-												disabled={teamBusy}
+												disabled={teamBusy || isCurrentUser}
 											>
 												<Trash
 													class="group-hover:text-primary-foreground size-4"

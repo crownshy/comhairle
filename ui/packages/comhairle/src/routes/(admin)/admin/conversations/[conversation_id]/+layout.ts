@@ -2,14 +2,12 @@ import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
 import type {
 	ConversationWithTranslations,
-	LocalizedEventDto,
 	MediaDto,
-	UserDto,
 	UserWithPermissionDto,
-	WorkflowDto,
 	WorkflowStats,
-	WorkflowStepWithTranslations
+	WorkflowStepsListResponse
 } from '@crownshy/api-client/api';
+import type {} from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
 
 /**
@@ -24,19 +22,7 @@ import type { LayoutLoad } from './$types';
  * workflow step strip from `data.workflowSteps`. It runs in parallel with the workflow
  * fetch, so it adds no extra latency to a page load.
  */
-export const load: LayoutLoad = async ({
-	params,
-	parent,
-	depends
-}): Promise<{
-	conversation: ConversationWithTranslations;
-	workflows: WorkflowDto[];
-	workflowSteps: WorkflowStepWithTranslations[];
-	stats: WorkflowStats;
-	events: LocalizedEventDto[];
-	media: MediaDto | null;
-	user: UserDto;
-}> => {
+export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	depends('conversation:meta');
 	depends('conversation:workflow');
 	depends('conversation:events');
@@ -49,14 +35,19 @@ export const load: LayoutLoad = async ({
 			params: { conversation_id },
 			queries: { withTranslations: true }
 		})) as ConversationWithTranslations;
-		const [workflows, eventsResponse] = await Promise.all([
+		const [workflows, eventsResponse, cohostOrganizations] = await Promise.all([
 			api.ListConversationWorkflows({ params: { conversation_id } }),
-			api.ListEvents({ params: { conversation_id }, queries: { created_at: 'desc' } })
+			api.ListEvents({ params: { conversation_id }, queries: { created_at: 'desc' } }),
+			api.ListConversationCoHostOrganizations({ params: { conversation_id } })
 		]);
 		// ListEvents returns a paginated `{ records }` wrapper; expose the flat array.
 		const events = eventsResponse.records;
-		let stats = undefined;
-		let workflowSteps = undefined;
+		let stats: WorkflowStats = {
+			signupStats: [],
+			stepStats: [],
+			totalUsers: 0
+		};
+		let workflowSteps: WorkflowStepsListResponse = [];
 
 		let media: MediaDto | null = null;
 		if (conversation.image) {
@@ -99,6 +90,8 @@ export const load: LayoutLoad = async ({
 			workflowSteps,
 			events,
 			media,
+			user,
+			cohostOrganizations,
 			usersWithPermission,
 			configureTabs
 		};

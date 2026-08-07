@@ -40,29 +40,21 @@ pub struct OrganizationDto {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct OrganizationAdminBootstrapFailureDto {
-    pub email: String,
-    pub message: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct OrganizationAdminBootstrapSummaryDto {
-    pub attempted: usize,
-    pub assigned: usize,
-    pub created_accounts: usize,
-    pub emailed: usize,
-    pub failures: Vec<OrganizationAdminBootstrapFailureDto>,
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateOrganizationResponseDto {
-    #[serde(flatten)]
-    pub organization: OrganizationDto,
-    pub admin_bootstrap_summary: OrganizationAdminBootstrapSummaryDto,
+impl From<Organization> for OrganizationDto {
+    fn from(o: Organization) -> Self {
+        Self {
+            id: o.id,
+            name: o.name,
+            description: o.description,
+            mission: o.mission,
+            org_type: o.org_type,
+            contact_email: o.contact_email,
+            external_url: o.external_url,
+            regions: o.regions,
+            metadata: o.metadata,
+            created_at: o.created_at,
+        }
+    }
 }
 
 /// Data transfer object (public API representation) for a LocalizedOrganization.
@@ -89,55 +81,6 @@ pub struct LocalizedOrganizationDto {
     pub regions: Vec<Uuid>,
     pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
-}
-
-impl From<Organization> for OrganizationDto {
-    fn from(o: Organization) -> Self {
-        Self {
-            id: o.id,
-            name: o.name,
-            description: o.description,
-            mission: o.mission,
-            org_type: o.org_type,
-            contact_email: o.contact_email,
-            external_url: o.external_url,
-            regions: o.regions,
-            metadata: o.metadata,
-            created_at: o.created_at,
-        }
-    }
-}
-
-impl OrganizationAdminBootstrapSummaryDto {
-    pub fn from_results(results: &[OrganizationAdminBootstrapResult]) -> Self {
-        let attempted = results.len();
-        let assigned = results.iter().filter(|result| result.assigned).count();
-        let created_accounts = results
-            .iter()
-            .filter(|result| result.created_account)
-            .count();
-        let emailed = results.iter().filter(|result| result.emailed).count();
-        let failures = results
-            .iter()
-            .filter_map(|result| {
-                result
-                    .error
-                    .as_ref()
-                    .map(|message| OrganizationAdminBootstrapFailureDto {
-                        email: result.email.clone(),
-                        message: message.clone(),
-                    })
-            })
-            .collect();
-
-        Self {
-            attempted,
-            assigned,
-            created_accounts,
-            emailed,
-            failures,
-        }
-    }
 }
 
 impl From<LocalizedOrganization> for LocalizedOrganizationDto {
