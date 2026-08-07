@@ -92,6 +92,21 @@ describe('renderRichTextToHtml', () => {
 		expect(renderRichTextToHtml('{"type":"doc","content":[{"type":"nope"}]}')).toBe('');
 	});
 
+	it('wraps glossary terms in a tooltip span when a glossary is passed', () => {
+		const html = renderRichTextToHtml(paragraph('Take the bus home'), {
+			glossary: [{ text: ['bus'], tooltip: 'A vehicle that carries people' }]
+		});
+		expect(html).toContain('data-glossary-term');
+		expect(html).toContain('data-glossary-tooltip="A vehicle that carries people"');
+		expect(html).toContain('>bus</span>');
+	});
+
+	it('leaves content unchanged when no glossary is passed', () => {
+		expect(renderRichTextToHtml(paragraph('Take the bus home'))).toBe(
+			'<p>Take the bus home</p>'
+		);
+	});
+
 	it('renders a table with header and body cells (SSR path)', () => {
 		const content = JSON.stringify({
 			type: 'doc',

@@ -5,6 +5,8 @@ import { getBaseExtensions } from '$lib/components/RichTextEditor/editorConfig';
 import { SourceDocument } from '$lib/components/RichTextEditor/extensions/sourceDocument';
 import { CONTENT_TYPES } from '$lib/components/RichTextEditor/types';
 import { detectContentType } from './contentDetection';
+import { applyGlossary } from '$lib/glossary/applyGlossary';
+import type { Glossary } from '$lib/glossary/types';
 import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 /**
@@ -14,6 +16,11 @@ import type { ComhairleDocument } from '@crownshy/api-client/api';
 export type RenderRichTextOptions = {
 	documents?: ComhairleDocument[];
 	conversationId?: string;
+	/**
+	 * Glossary terms to auto-tooltip. Matched terms get a `glossaryTerm` mark at render
+	 * time, so content picks up glossary edits without being re-saved. Empty = no-op.
+	 */
+	glossary?: Glossary;
 };
 
 function buildExtensions(documents: ComhairleDocument[], conversationId: string): AnyExtension[] {
@@ -50,7 +57,7 @@ export function renderRichTextToHtml(
 	content: string | null | undefined,
 	options: RenderRichTextOptions = {}
 ): string {
-	const { documents = [], conversationId = '' } = options;
+	const { documents = [], conversationId = '', glossary = [] } = options;
 
 	const detected = detectContentType(content);
 	if (!detected.content) return '';
@@ -58,12 +65,14 @@ export function renderRichTextToHtml(
 	const extensions = buildExtensions(documents, conversationId);
 
 	try {
-		const document =
+		const parsed =
 			detected.type === CONTENT_TYPES.JSON
 				? (detected.content as JSONContent)
 				: (new MarkdownManager({ extensions }).parse(
 						String(detected.content)
 					) as JSONContent);
+
+		const document = glossary.length > 0 ? applyGlossary(parsed, glossary) : parsed;
 
 		return renderToHTMLString({ content: document, extensions });
 	} catch (error) {
