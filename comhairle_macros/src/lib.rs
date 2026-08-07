@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields, GenericArgument, PathArguments, Type};
+use syn::{Data, DeriveInput, Fields, GenericArgument, PathArguments, Type, parse_macro_input};
 
 /// Macro used to allow an enum to be
 /// saved as jsonb in the database
@@ -519,9 +519,10 @@ fn is_optional_text_content_id_type(ty: &Type) -> bool {
                 }
 
                 if let PathArguments::AngleBracketed(args) = &segment.arguments
-                    && let Some(GenericArgument::Type(inner_type)) = args.args.first() {
-                        return is_text_content_id_type(inner_type);
-                    }
+                    && let Some(GenericArgument::Type(inner_type)) = args.args.first()
+                {
+                    return is_text_content_id_type(inner_type);
+                }
             }
             false
         }

@@ -4,7 +4,8 @@
 	import { getChatSession, type ChatMessage } from '$lib/api/chatSession.svelte';
 	import type { ChatReference, ReferenceChunk } from '$lib/api/chatClient.svelte';
 	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';
-	import * as Dialog from '$lib/components/ui/dialog';
+	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
+	import { highlightsFromPositions } from '$lib/components/PdfViewer/highlights';
 	import LearningAssistantSkeleton from './LearningAssistantSkeleton.svelte';
 
 	type QA = {
@@ -22,15 +23,22 @@
 		pageTitle?: string;
 		/** True while the surrounding page is loading (e.g. route transition). Disables input. */
 		loading?: boolean;
+		/**
+		 * Presentation context. 'inline' (default) is the learn-page embed with its full
+		 * header + intro. 'sidebar' drops the redundant label/intro (the drawer tab already
+		 * titles it) and leaves just the input + Q&A.
+		 */
+		variant?: 'inline' | 'sidebar';
 	};
 
-	let { conversationId, pageTitle = '', loading = false }: Props = $props();
+	let { conversationId, pageTitle = '', loading = false, variant = 'inline' }: Props = $props();
 
 	let enabled = $state(true);
 	let inputVal = $state('');
 	let focused = $state(false);
 	let inputRef = $state<HTMLInputElement | null>(null);
 	let activeChunk = $state<ReferenceChunk | null>(null);
+	let viewerOpen = $state(false);
 	let initStartedFor = $state<string | null>(null);
 	/** Manual overrides for collapsed state, keyed by QA id. Unset → use default. */
 	let expandedOverrides = $state<Record<string, boolean>>({});
@@ -105,8 +113,6 @@
 
 	let showPlaceholder = $derived(!focused && !inputVal);
 
-	const quickPrompts = ['Explain this simply', 'Key takeaways?', 'Why does this matter?'];
-
 	$effect(() => {
 		if (!session) return;
 		if (initStartedFor === session.conversationId) return;
@@ -139,16 +145,47 @@
 		await session.retryInit();
 	}
 
-	function pickPrompt(p: string) {
-		inputVal = p;
-		focused = true;
-		tick().then(() => inputRef?.focus());
-	}
-
 	function activate() {
 		focused = true;
 		tick().then(() => inputRef?.focus());
 	}
+
+	const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif'];
+
+	function previewKind(fileName: string): 'pdf' | 'image' | 'docx' {
+		const lower = fileName.toLowerCase();
+		if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'docx';
+		if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'image';
+		return 'pdf';
+	}
+
+	function openSource(chunk: ReferenceChunk) {
+		activeChunk = chunk;
+		viewerOpen = true;
+	}
+
+	/**
+	 * Turn the selected source chunk into props for the document viewer: the
+	 * download URL doubles as the viewer src, and RAGFlow `positions` (present on
+	 * freshly-asked answers) become passage highlights on the right page. Reloaded
+	 * answers carry no positions, so those just open the document with no
+	 * highlight.
+	 */
+	let activeSource = $derived.by(() => {
+		const chunk = activeChunk;
+		if (!chunk) return null;
+		const kind = previewKind(chunk.document_name);
+		const href = `/api/conversation/${conversationId}/documents/${chunk.document_id}/download`;
+		const highlights = kind === 'pdf' ? highlightsFromPositions(chunk.positions) : [];
+		return {
+			kind,
+			src: href,
+			downloadHref: href,
+			name: chunk.document_name,
+			highlights,
+			page: highlights[0]?.page ?? null
+		};
+	});
 
 	function uniqueDocsFromReference(ref: ChatReference | null): ReferenceChunk[] {
 		if (!ref?.chunks?.length) return [];
@@ -166,11 +203,15 @@
 </script>
 
 {#if !loading}
-	<div class="my-6">
+	<div class={variant === 'sidebar' ? 'flex min-h-0 flex-1 flex-col' : 'my-6'}>
 		{#if enabled}
-			<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
-				Learning assistant
-			</p>
+			<!-- The uppercase label is hidden in the sidebar: the drawer tab already titles it,
+			     so repeating it here reads as a doubled heading. -->
+			{#if variant === 'inline'}
+				<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
+					Learning assistant
+				</p>
+			{/if}
 			<div class="text-muted-foreground mb-3 space-y-2 text-sm leading-relaxed">
 				<p>Use this this space to answer questions you might have about the topic.</p>
 				<p>
@@ -179,7 +220,11 @@
 					this conversation.
 				</p>
 			</div>
-			<div class="bg-primary/10 rounded-lg p-4">
+			<div
+				class="bg-primary/10 rounded-lg p-4 {variant === 'sidebar'
+					? 'min-h-0 flex-1 overflow-y-auto'
+					: ''}"
+			>
 				<!-- Init error: shown when there's no usable session yet -->
 				{#if chatError && pageQAs.length === 0 && !initializing}
 					<div
@@ -326,6 +371,7 @@
 												<MessageWithReferences
 													content={qa.answer}
 													reference={qa.reference}
+													onOpenSource={openSource}
 												/>
 												{#if qa.streaming}
 													<span
@@ -366,8 +412,7 @@
 															<button
 																type="button"
 																class="border-border bg-muted/40 hover:bg-primary hover:text-primary-foreground hover:border-primary text-foreground inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors"
-																onclick={() =>
-																	(activeChunk = chunk)}
+																onclick={() => openSource(chunk)}
 															>
 																<FileText
 																	class="h-3 w-3 shrink-0"
@@ -398,28 +443,14 @@
 	</div>
 {/if}
 
-<!-- Source chunk modal -->
-<Dialog.Root open={!!activeChunk} onOpenChange={(o) => !o && (activeChunk = null)}>
-	<Dialog.Content class="max-w-xl">
-		{#if activeChunk}
-			<Dialog.Header>
-				<Dialog.Title class="flex items-start gap-2">
-					<FileText class="text-primary mt-1 h-4 w-4 shrink-0" />
-					<span>{activeChunk.document_name}</span>
-				</Dialog.Title>
-			</Dialog.Header>
-			<div
-				class="text-foreground/90 max-h-[55vh] overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap"
-			>
-				{activeChunk.content
-					.replace(/<[^>]*>/g, ' ')
-					.replace(/\s+/g, ' ')
-					.trim()}
-			</div>
-			<p class="text-muted-foreground border-border border-t pt-3 text-xs">
-				This excerpt was retrieved from the document above and may not reflect its full
-				content.
-			</p>
-		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+<!-- Source document: opens the real PDF (or Word/image) in the shared viewer,
+     with the retrieved passage highlighted when position data is available. -->
+<PdfDocumentDialog
+	bind:open={viewerOpen}
+	kind={activeSource?.kind ?? 'pdf'}
+	src={activeSource?.src ?? null}
+	name={activeSource?.name ?? 'Document'}
+	downloadHref={activeSource?.downloadHref ?? null}
+	highlights={activeSource?.highlights ?? []}
+	page={activeSource?.page ?? null}
+/>

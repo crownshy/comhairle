@@ -6,7 +6,7 @@
 	import { Home } from 'lucide-svelte';
 
 	let props: PageProps = $props();
-	let conversations = props.data.conversations;
+	let conversations = $derived(props.data.conversations?.records ?? []);
 </script>
 
 <svelte:head>
@@ -34,7 +34,7 @@
 		<NewConversationButton class="w-full sm:w-auto" label="Create New Conversation" />
 	</div>
 	<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16 overflow-y-auto">
-		{#each conversations.records as conversation (conversation.id)}
+		{#each conversations as conversation (conversation.id)}
 			<a href={`/admin/conversations/${conversation.id}/configure`}>
 				<ConversationCard {conversation} />
 			</a>

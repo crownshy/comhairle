@@ -65,7 +65,11 @@ export class ChatSession {
 										content: ref.content,
 										document_id: ref.document_id,
 										document_name: ref.document_name,
-										dataset_id: ref.dataset_id
+										dataset_id: ref.dataset_id,
+										// Re-attached from the chunk store on reload so old answers
+										// highlight too (issue #783). Normalise the API's null to
+										// undefined to match ReferenceChunk.
+										positions: ref.positions ?? undefined
 									}))
 								}
 							: null,

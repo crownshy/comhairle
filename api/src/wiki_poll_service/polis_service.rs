@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use async_trait::async_trait;
 use cookie::Cookie;
+use hyper::StatusCode;
 use rand::{Rng, distributions::Alphanumeric};
 use reqwest::{
     Client,
@@ -232,7 +233,10 @@ impl PolisClient {
 
         let response = self.client.get(&url).send().await.map_err(|e| {
             warn!("Failed to get comments: {e}");
-            PolisError::FailedToGetComments(format!("Failed to get comments: {e}"))
+            PolisError::FailedToGetComments(
+                e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                format!("Failed to get comments: {e}"),
+            )
         })?;
 
         let data = response
@@ -240,7 +244,10 @@ impl PolisClient {
             .await
             .map_err(|e| {
                 warn!("Failed to parse comments: {e}");
-                PolisError::FailedToGetComments(format!("Failed to parse comments: {e}"))
+                PolisError::FailedToGetComments(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    format!("Failed to parse comments: {e}"),
+                )
             })?;
 
         Ok(data)
@@ -251,15 +258,20 @@ impl PolisClient {
             "https://{}/api/v3/comments?conversation_id={poll_id}&moderation=true",
             self.base_url
         );
-        let comments: Vec<PolisComment> =
-            self.client
-                .get(url)
-                .send()
-                .await
-                .unwrap()
-                .json()
-                .await
-                .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
+        let comments: Vec<PolisComment> = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .map_err(|e| {
+            PolisError::FailedToGetComments(
+                e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                e.to_string(),
+            )
+        })?;
 
         Ok(comments)
     }
@@ -282,7 +294,12 @@ impl PolisClient {
             .json(params)
             .send()
             .await
-            .map_err(|e| PolisError::FailedPollUpdate(e.to_string()))?
+            .map_err(|e| {
+                PolisError::FailedPollUpdate(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    e.to_string(),
+                )
+            })?
             .json::<PolisPoll>()
             .await?;
 
@@ -297,12 +314,18 @@ impl PolisClient {
 
         let response = self.client.get(&url).send().await.map_err(|e| {
             warn!("Failed to get PCA data: {e}");
-            PolisError::FailedToGetComments(format!("Failed to get PCA data: {e}"))
+            PolisError::FailedToGetComments(
+                e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                format!("Failed to get PCA data: {e}"),
+            )
         })?;
 
         let data = response.json::<PolisMathPca>().await.map_err(|e| {
             warn!("Failed to parse PCA data: {e:#?}");
-            PolisError::FailedToGetComments(format!("Failed to parse PCA data: {e}"))
+            PolisError::FailedToGetComments(
+                e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                format!("Failed to parse PCA data: {e}"),
+            )
         })?;
 
         Ok(data)
@@ -487,13 +510,17 @@ impl WikiPollService for PolisClient {
             .await
             .map_err(|e| {
                 warn!("{e}");
-                PolisError::FailedToCreateNewAdminUser
+                PolisError::FailedToCreateNewAdminUser(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                )
             })?
             .text()
             .await
             .map_err(|e| {
                 warn!("{e}");
-                PolisError::FailedToCreateNewAdminUser
+                PolisError::FailedToCreateNewAdminUser(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                )
             })?;
 
         Ok((new_user.email, new_user.password))
@@ -528,7 +555,9 @@ impl WikiPollService for PolisClient {
             .json(&login)
             .send()
             .await
-            .map_err(|_| PolisError::FailedToLogin)?;
+            .map_err(|err| {
+                PolisError::FailedToLogin(err.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR))
+            })?;
 
         let cookies = resp
             .headers()
@@ -540,10 +569,9 @@ impl WikiPollService for PolisClient {
             .collect::<Vec<_>>()
             .join("; ");
 
-        let _ = resp
-            .json::<LoginResp>()
-            .await
-            .map_err(|_| PolisError::FailedToLogin)?;
+        let _ = resp.json::<LoginResp>().await.map_err(|err| {
+            PolisError::FailedToLogin(err.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR))
+        })?;
 
         Ok(cookies)
     }
@@ -557,13 +585,17 @@ impl WikiPollService for PolisClient {
             .await
             .map_err(|e| {
                 warn!("Failed to create new poll: {e:#?}");
-                PolisError::FailedToCreateNewPoll
+                PolisError::FailedToCreateNewPoll(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                )
             })?
             .json::<NewPollResp>()
             .await
             .map_err(|e| {
                 warn!("Failed to create new poll: {e:#?}");
-                PolisError::FailedToCreateNewPoll
+                PolisError::FailedToCreateNewPoll(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                )
             })?;
         Ok(new_poll.conversation_id.to_owned())
     }
@@ -630,10 +662,20 @@ impl WikiPollService for PolisClient {
             .json(&post_json)
             .send()
             .await
-            .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?
+            .map_err(|e| {
+                PolisError::FailedToPostSeedComment(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    e.to_string(),
+                )
+            })?
             .json::<PolisCommentCreateResponse>()
             .await
-            .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?;
+            .map_err(|e| {
+                PolisError::FailedToPostSeedComment(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    e.to_string(),
+                )
+            })?;
 
         Ok(resp.tid.to_string())
     }
@@ -654,7 +696,12 @@ impl WikiPollService for PolisClient {
             .await?
             .json()
             .await
-            .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
+            .map_err(|e| {
+                PolisError::FailedToGetComments(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    e.to_string(),
+                )
+            })?;
 
         Ok(comments)
     }
@@ -679,7 +726,12 @@ impl WikiPollService for PolisClient {
             .await?
             .json()
             .await
-            .map_err(|e| PolisError::FailedToGetXIDs(e.to_string()))?;
+            .map_err(|e| {
+                PolisError::FailedToGetXIDs(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    e.to_string(),
+                )
+            })?;
 
         Ok(xids)
     }
@@ -717,14 +769,20 @@ impl WikiPollService for PolisClient {
             .json(&body)
             .send()
             .await
-            .map_err(|e| PolisError::FailedToModerateComment(e.to_string()))?;
+            .map_err(|e| {
+                PolisError::FailedToModerateComment(
+                    e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    e.to_string(),
+                )
+            })?;
 
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            return Err(PolisError::FailedToModerateComment(format!(
-                "polis returned {status}: {text}"
-            ))
+            return Err(PolisError::FailedToModerateComment(
+                status,
+                format!("polis returned {status}: {text}"),
+            )
             .into());
         }
 

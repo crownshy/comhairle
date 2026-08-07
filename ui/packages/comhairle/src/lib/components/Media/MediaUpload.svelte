@@ -1,89 +1,138 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { Trash2 } from 'lucide-svelte';
 	import { Upload } from 'lucide-svelte';
 	import type { ComponentProps } from 'svelte';
-	import Media from '$lib/interfaces/Media';
-	import { notifications } from '$lib/notifications.svelte';
-	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import FileInput from '$lib/components/FileInput.svelte';
+	import MediaSchema from '$lib/schemas/MediaSchema';
+	import { Form, Input, Submit } from '$lib/components/EasyForm';
+	import Media from '$lib/interfaces/Media';
+	import FileIcon from '$lib/components/FileIcon.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { notifications } from '$lib/notifications.svelte';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
 		clientSide?: boolean;
-		oncomplete?: (media: MediaDto[]) => void;
+		oncomplete?: (media: MediaDto) => void;
 	}
 	const { clientSide, oncomplete, ...props }: Props = $props();
 
+	let uploadForm: HTMLFormElement | null = $state(null);
+	let file = $state<File | null>(null);
+	let fileInput = $state<FileInput | null>(null);
+	let nameInput = $state<Input | null>(null);
+	let open = $state<boolean>(false);
+
 	const media = new Media();
 
-	let fileInput: HTMLInputElement | undefined;
-	let uploadForm: HTMLFormElement | undefined;
+	async function handleSubmission(formData: FormData) {
+		const response = await media.upload('/api/media', formData, {
+			schema: MediaSchema
+		});
 
-	let uploading = $state<boolean>(false);
-
-	async function oninput(e: Event) {
-		if (clientSide) {
-			const rawFiles = (e.target as HTMLInputElement).files;
-			if (!rawFiles) return;
-			// FIX: Check why the erroring here is incorrect
-			const response = await media.upload('/api/media', Media.sanitiseMulti(rawFiles));
-
-			if (response.err !== null) {
-				notifications.send({
-					message: response.err.message,
-					priority: 'ERROR'
-				});
-				return;
-			}
-			const result = await tryCatchAsync(() => response.ok.json());
-			if (result.err !== null) {
-				// NOTE: Data might be uploaded but wouldn't count as uploaded if the response can't be parsed, probably need to fix at some point
-				return;
-			}
-
-			oncomplete?.(result.ok as MediaDto[]);
+		if (response.err !== null) {
+			notifications.send({
+				message: 'Failed to upload. Please try again',
+				priority: 'ERROR'
+			});
 			return;
 		}
-		uploadForm?.submit();
+
+		const mediaDto = await tryCatchAsync(() => response.ok.json());
+		if (mediaDto.err !== null) {
+			notifications.send({
+				message: 'Failed to parse result. Please try refreshing',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		notifications.send({
+			message: 'Successfully uploaded',
+			priority: 'SUCCESS'
+		});
+
+		oncomplete?.(mediaDto.ok as MediaDto);
 	}
 </script>
 
-<form
-	bind:this={uploadForm}
-	method="POST"
-	action="/admin/media-library?/upload"
-	enctype="multipart/form-data"
-	use:enhance={() => {
-		uploading = true;
-		return async ({ update }) => {
-			await update();
-			uploading = false;
-		};
+<Button {...props} type="button" onclick={() => (open = true)}>
+	<Upload class="h-4 w-4" />
+	{m.upload()}
+</Button>
+
+<Dialog.Root
+	bind:open
+	onOpenChangeComplete={(open) => {
+		if (!open) {
+			file = null;
+		}
 	}}
 >
-	<input
-		bind:this={fileInput}
-		type="file"
-		name="media"
-		multiple
-		class="hidden"
-		aria-hidden="true"
-		{oninput}
-	/>
-	<Button
-		disabled={uploading}
-		onclick={() => {
-			fileInput?.click();
-		}}
-		{...props}
-	>
-		{#if uploading}
-			<Spinner />
-		{:else}
-			<Upload class="h-4 w-4" />
-		{/if}
-		{m.upload()}
-	</Button>
-</form>
+	<Dialog.Portal>
+		<Dialog.Content class="min-w-138  rounded-2xl p-8">
+			<Form
+				bind:ref={uploadForm}
+				method="POST"
+				action="/admin/media-library?/upload"
+				enctype="multipart/form-data"
+				class="flex flex-col"
+				handleSubmission={clientSide ? handleSubmission : undefined}
+				onsubmit={() => (open = false)}
+			>
+				<FileInput
+					{...MediaSchema.media}
+					bind:this={fileInput}
+					onfile={(newFile) => {
+						file = newFile;
+						nameInput?.setValue(Media.getFilename(file.name));
+					}}
+					class={file !== null ? 'hidden' : ''}
+				/>
+				{#if file}
+					<div
+						class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
+					>
+						<div class="flex basis-3/5 flex-row items-center gap-2">
+							<FileIcon {file} />
+							<span>{file.name}</span>
+						</div>
+						<div class="flex flex-row items-center justify-evenly gap-4">
+							<span class="text-muted-foreground"
+								>{Media.getExtension(file.name)?.toUpperCase()}</span
+							>
+							<span class="text-muted-foreground">{Media.formatBytes(file.size)}</span
+							>
+							<Button
+								title="Remove file"
+								aria-label="Remove file"
+								variant="ghost"
+								size="sm"
+								class="text-destructive hover:text-destructive/80 rounded-sm"
+								onclick={() => {
+									file = null;
+									nameInput?.setValue('');
+									nameInput?.setError('');
+									fileInput?.clear();
+								}}
+							>
+								<Trash2 />
+							</Button>
+						</div>
+					</div>
+				{/if}
+				<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" type="text" />
+				<Input
+					{...MediaSchema.alt}
+					label="Alt"
+					type="text"
+					placeholder="e.g. Company logo"
+				/>
+				<Submit class="mt-7 self-end" text="Upload" />
+			</Form>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>

@@ -4,7 +4,7 @@
 	import { ChevronDown } from 'lucide-svelte';
 	import type { RankedProposal } from '@crownshy/api-client/api';
 	import Crown from '$lib/components/icons/Crown.svelte';
-	import { Progress } from '$lib/components/ui/progress';
+	import DivergingProgress from '../DivergingProgress.svelte';
 
 	type Props = {
 		proposals: RankedProposal[];
@@ -14,11 +14,11 @@
 	const ROW_ANIMATION_DURATION_MS = 1000;
 	let rowLimit = $state(4);
 	let visibleRows = $derived(proposals.slice(0, rowLimit));
-	let maxRating = $derived(proposals.length > 0 ? proposals[0].alignmentRating : 100);
-
-	function getRatingPercentage(rating: number) {
-		return (rating / maxRating) * 100;
-	}
+	let maxRating = $derived(proposals.length > 0 ? proposals[0].alignmentRating : 0);
+	let minRating = $derived(
+		proposals.length > 0 ? proposals[proposals.length - 1].alignmentRating : 0
+	);
+	let progressDomain = $derived([minRating, maxRating]);
 </script>
 
 <Table.Root class="w-full table-fixed">
@@ -58,8 +58,11 @@
 						transition:slide={{ duration: ROW_ANIMATION_DURATION_MS }}
 						class="flex items-center gap-4"
 					>
-						<Progress value={getRatingPercentage(proposal.alignmentRating)} />
-						<span>{proposal.alignmentRating}</span>
+						<DivergingProgress
+							value={proposal.alignmentRating}
+							min={progressDomain?.[0]}
+							max={progressDomain?.[1]}
+						/>
 					</div>
 				</Table.Cell>
 			</Table.Row>

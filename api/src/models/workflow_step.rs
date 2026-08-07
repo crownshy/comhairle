@@ -107,11 +107,18 @@ pub async fn launch(
         workflow_step_id,
         &workflow_step.workflow_id,
         &PartialWorkflowStep {
-            tool_config: Some(new_live_config),
+            tool_config: Some(new_live_config.clone()),
             ..Default::default()
         },
     )
     .await?;
+
+    // When a Polis poll goes live, seed the aux statement table from the new
+    // live poll so moderation/theming has rows to work with immediately.
+    if let ToolConfig::Polis(config) = &new_live_config {
+        crate::tools::polis::sync_statement_aux_inner(state, workflow_step_id, config).await?;
+    }
+
     Ok(())
 }
 

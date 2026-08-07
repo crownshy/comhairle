@@ -7,9 +7,15 @@
 	interface Props {
 		content: string;
 		reference?: ChatReference | null;
+		/**
+		 * Called when an inline citation is clicked, with the exact chunk it points
+		 * at. The learning assistant uses this to open that passage in the document
+		 * viewer. When omitted, citations are hover-only.
+		 */
+		onOpenSource?: (chunk: ReferenceChunk) => void;
 	}
 
-	let { content, reference = null }: Props = $props();
+	let { content, reference = null, onOpenSource }: Props = $props();
 
 	// Parse content and extract reference markers [ID:X]
 	function parseContentWithReferences(
@@ -48,26 +54,32 @@
 </script>
 
 <span class="message-with-refs">
-	{#each parsedContent as part}
+	{#each parsedContent as part, i (i)}
 		{#if part.type === 'text'}
 			{part.value}
 		{:else}
 			{@const chunk = getChunkById(part.value)}
 			{#if chunk}
 				<HoverCard.Root openDelay={200} closeDelay={100}>
-					<HoverCard.Trigger class="inline-flex items-center">
-						<span
-							class="text-chat-primary bg-chat-primary-lighter hover:bg-chat-primary-light mx-0.5 inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full text-[10px] font-medium transition-colors"
-						>
-							<Info class="h-3 w-3" />
-						</span>
+					<HoverCard.Trigger>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								type="button"
+								title="Open source"
+								onclick={() => onOpenSource?.(chunk)}
+								class="text-chat-primary bg-chat-primary-lighter hover:bg-chat-primary-light mx-0.5 inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full align-baseline text-[10px] font-medium transition-colors"
+							>
+								<Info class="h-3 w-3" />
+							</button>
+						{/snippet}
 					</HoverCard.Trigger>
 					<HoverCard.Content
 						class="bg-chat-bubble border-chat-border max-h-96 w-96 overflow-y-auto rounded-lg border p-0 shadow-lg"
 						side="top"
 						sideOffset={8}
 					>
-						<ReferencePopoverContent {chunk} />
+						<ReferencePopoverContent {chunk} {onOpenSource} />
 					</HoverCard.Content>
 				</HoverCard.Root>
 			{:else}

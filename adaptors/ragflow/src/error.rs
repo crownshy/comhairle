@@ -17,3 +17,20 @@ pub enum RagflowError {
     #[error("Not found: {0}")]
     NotFound(String),
 }
+
+impl Into<StatusCode> for &RagflowError {
+    fn into(self) -> StatusCode {
+        match self {
+            RagflowError::Http(err) => {
+                if let Some(status) = err.status() {
+                    status
+                } else {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            }
+            RagflowError::Api { status, .. } => *status,
+            RagflowError::Serde(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            RagflowError::NotFound(_) => StatusCode::NOT_FOUND,
+        }
+    }
+}

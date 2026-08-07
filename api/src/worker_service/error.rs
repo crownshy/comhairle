@@ -1,4 +1,5 @@
 use chrono::Utc;
+use hyper::StatusCode;
 use sqlx::PgPool;
 use thiserror::Error;
 use uuid::Uuid;
@@ -54,6 +55,30 @@ pub enum WorkerServiceError {
 
     #[error("Job failure: {0}")]
     JobFailure(String),
+}
+
+impl Into<StatusCode> for &WorkerServiceError {
+    fn into(self) -> StatusCode {
+        match self {
+            WorkerServiceError::NoWorkerServiceConfigured
+            | WorkerServiceError::NoTranscriptionServiceConfigured
+            | WorkerServiceError::NoBulkStorageServiceConfigured
+            | WorkerServiceError::NoBotServiceConfigured
+            | WorkerServiceError::NoCategorizationServiceError => StatusCode::SERVICE_UNAVAILABLE,
+
+            WorkerServiceError::SerdeJsonError(_)
+            | WorkerServiceError::DbError(_)
+            | WorkerServiceError::MailerError(_)
+            | WorkerServiceError::WrongUserType
+            | WorkerServiceError::BackgroundJobFailedToQueue
+            | WorkerServiceError::TranscriptionServiceError(_)
+            | WorkerServiceError::BulkStorageServiceError(_)
+            | WorkerServiceError::CategorizationServiceError(_)
+            | WorkerServiceError::InvalidState(_)
+            | WorkerServiceError::ExternalServiceFailure(_)
+            | WorkerServiceError::JobFailure(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 pub type Result<T> = std::result::Result<T, WorkerServiceError>;
