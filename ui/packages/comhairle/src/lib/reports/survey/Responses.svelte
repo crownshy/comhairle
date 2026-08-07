@@ -5,6 +5,8 @@ Component to show the raw responses to long text questions
 	import { Button } from '$lib/components/ui/button';
 	import { ChevronDown, ChevronUp } from 'lucide-svelte';
 
+	const LIMIT = 10;
+
 	interface Props {
 		data: string[];
 	}
@@ -12,7 +14,7 @@ Component to show the raw responses to long text questions
 	let { data: rawData }: Props = $props();
 
 	let show = $state<boolean>(false);
-	let data = $derived(rawData.slice(0, show ? undefined : 10));
+	let data = $derived(rawData.slice(0, show ? undefined : LIMIT));
 </script>
 
 <section class="pt-5">
