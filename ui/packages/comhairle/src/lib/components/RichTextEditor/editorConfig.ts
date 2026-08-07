@@ -11,6 +11,7 @@ import { ListItem } from '@tiptap/extension-list-item';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Underline } from '@tiptap/extension-underline';
 import { SourceDocument } from './extensions/sourceDocument';
+import { GlossaryTerm } from './extensions/glossaryTerm';
 import type { Extensions } from '@tiptap/core';
 
 export const EDITOR_HTML_ATTRIBUTES = {
@@ -83,6 +84,9 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 		Iframe,
 		Audio,
 		SourceDocument,
+		// Applied to matched terms at render time by applyGlossary; lives in the shared
+		// schema so the static renderer can emit it. Harmless in the editor (no input rule).
+		GlossaryTerm,
 		TextAlign.configure({
 			types: ['heading', 'paragraph']
 		}),
