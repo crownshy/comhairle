@@ -478,6 +478,7 @@ export const PolisStatementAux = z
     moderation_status: ModerationStatus,
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
     statement_text: z.string(),
     themes: z.array(z.string()),
     updated_at: z.string().datetime({ offset: true }),
@@ -497,6 +498,7 @@ export const CreatePolisStatementAux = z
     moderation_status: ModerationStatus.optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional().default(null),
     statement_text: z.string(),
     themes: z.array(z.string()),
     visible_statement_when_submitted: z
@@ -530,6 +532,34 @@ export const SyncStatementAuxResponse = z
   })
   .passthrough();
 export type SyncStatementAuxResponse = z.infer<typeof SyncStatementAuxResponse>;
+export const LocalizedStatement = z
+  .object({
+    ai_generated: z.boolean(),
+    display_locale: z.string(),
+    is_translation: z.boolean(),
+    original_text: z.string(),
+    polis_statement_id: z.number().int(),
+    requires_validation: z.boolean(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
+    text: z.string(),
+  })
+  .passthrough();
+export type LocalizedStatement = z.infer<typeof LocalizedStatement>;
+export const PolisStatementTranslation = z
+  .object({
+    ai_generated: z.boolean(),
+    content: z.string(),
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    locale: z.string(),
+    polis_statement_aux_id: z.string().uuid(),
+    requires_validation: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type PolisStatementTranslation = z.infer<
+  typeof PolisStatementTranslation
+>;
 export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
@@ -2517,6 +2547,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdatePolisStatementAux,
   SyncStatementAuxRequest,
   SyncStatementAuxResponse,
+  LocalizedStatement,
+  PolisStatementTranslation,
   ThemeStatistic,
   ThemeRequest,
   ModerationDecisionRequest,
@@ -4970,6 +5002,39 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisStatementAux,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/statement_aux/:id/translations",
+    alias: "PolisListStatementTranslations",
+    description: `Returns the stored translations of a statement into the conversation&#x27;s supported languages. Each carries ai_generated and requires_validation flags.`,
+    requestFormat: "json",
+    response: z.array(PolisStatementTranslation),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/statement_aux/localized",
+    alias: "PolisGetLocalizedStatement",
+    description: `Returns the statement text to display for a live Polis statement in the requested locale: the stored translation when one exists, otherwise the original. Carries is_translation, original_text and source_locale so the UI can indicate a translation and reveal the source.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "locale",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "polis_conversation_id",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "polis_statement_id",
+        type: "Query",
+        schema: z.number().int(),
+      },
+    ],
+    response: LocalizedStatement,
   },
   {
     method: "post",

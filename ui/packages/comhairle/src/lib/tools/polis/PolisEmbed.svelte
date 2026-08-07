@@ -10,7 +10,8 @@
 		X,
 		ChevronRight,
 		MessageSquare,
-		AlertTriangle
+		AlertTriangle,
+		Languages
 	} from 'lucide-svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import { getVoteData, incrementVotes, resetVoteCount } from './polisVoteStore';
@@ -18,6 +19,8 @@
 	import * as m from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { type LocalizedStatement } from '@crownshy/api-client/api';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		polis_id: string;
@@ -56,6 +59,57 @@
 	let polisRemaining = $state(0);
 	let polisTotal = $state(0);
 	let polisPid = $state<number | undefined>(undefined);
+
+	// The current statement resolved into the participant's active locale. When a
+	// stored translation exists it carries the translated `text` plus the original
+	// (`original_text`/`source_locale`) so we can show a "translated" affordance.
+	let localized = $state<LocalizedStatement | undefined>(undefined);
+	let showOriginal = $state(false);
+	let localizedReqToken = 0;
+	let lastLocalizedKey = '';
+
+	// Text to render: the translation when one is available, else the raw Polis text.
+	const displayText = $derived(localized?.text ?? polisCurrentStatement?.txt ?? '');
+	const isTranslated = $derived(localized?.is_translation ?? false);
+
+	// Resolve a locale code (e.g. "gd") to a language name in the viewer's locale,
+	// falling back to the raw code if the platform can't name it.
+	function languageName(locale: string | null | undefined): string {
+		if (!locale) return '';
+		try {
+			return new Intl.DisplayNames([getLocale()], { type: 'language' }).of(locale) ?? locale;
+		} catch {
+			return locale;
+		}
+	}
+
+	// Whenever the statement (or viewer locale) changes, fetch its localized form.
+	// A monotonic token drops stale responses so a slow lookup can't overwrite a
+	// newer statement. A missing aux row (e.g. just-submitted) falls back to raw text.
+	$effect(() => {
+		const tid = polisCurrentStatement?.tid;
+		const locale = getLocale();
+		// `polisCurrentStatement` is reassigned on every loading toggle; only act
+		// when the statement or viewer locale actually changed.
+		const key = `${tid ?? ''}:${locale}`;
+		if (key === lastLocalizedKey) return;
+		lastLocalizedKey = key;
+		showOriginal = false;
+		localized = undefined;
+		if (tid === undefined) return;
+		const token = ++localizedReqToken;
+		apiClient
+			.PolisGetLocalizedStatement({
+				queries: { polis_conversation_id: polis_id, polis_statement_id: tid, locale }
+			})
+			.then((res) => {
+				if (token === localizedReqToken) localized = res;
+			})
+			.catch((err) => {
+				if (token === localizedReqToken) localized = undefined;
+				console.debug('[PolisEmbed] localized statement unavailable:', err);
+			});
+	});
 
 	function handlePolisChange(s: PolisApiState) {
 		polisCurrentStatement = s.currentStatement;
@@ -114,6 +168,9 @@
 				polis_conversation_id: polis_id,
 				polis_statement_id: newStatement.tid,
 				statement_text: statementText,
+				// Hint the source language from the participant's active UI locale.
+				// The backend falls back to auto-detection when this is absent.
+				source_locale: getLocale(),
 				is_seed: false,
 				themes: [],
 				visible_statement_when_submitted: visibleTid?.toString() ?? null
@@ -334,8 +391,39 @@
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
 						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
-							{polisCurrentStatement.txt}
+							{displayText}
 						</p>
+						{#if isTranslated}
+							<button
+								type="button"
+								onclick={() => (showOriginal = !showOriginal)}
+								class="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+								aria-expanded={showOriginal}
+							>
+								<Languages class="h-4 w-4" />
+								{localized?.source_locale
+									? m.polis_translated_from({
+											language: languageName(localized.source_locale)
+										})
+									: m.polis_translated_label()}
+							</button>
+							{#if showOriginal}
+								<div
+									class="border-border bg-muted/40 text-card-foreground mt-2 rounded-lg border p-4 text-left"
+									in:fade={{ duration: 150 }}
+								>
+									<p
+										class="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase"
+									>
+										{m.polis_original_statement()}
+									</p>
+									<p class="text-base leading-7">{localized?.original_text}</p>
+									<p class="text-muted-foreground mt-2 text-xs">
+										{m.polis_ai_translation_note()}
+									</p>
+								</div>
+							{/if}
+						{/if}
 					</div>
 				{/if}
 			</div>

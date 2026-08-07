@@ -23,6 +23,7 @@ pub mod otp;
 pub mod pagination;
 pub mod permissions;
 pub mod polis_statement_aux;
+pub mod polis_statement_translation;
 pub mod proposal;
 pub mod proposal_response;
 pub mod proposal_section;
