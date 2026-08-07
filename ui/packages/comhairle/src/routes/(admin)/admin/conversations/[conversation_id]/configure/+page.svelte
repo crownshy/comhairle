@@ -633,11 +633,8 @@
 							clientSide
 							size="sm"
 							oncomplete={(media) => {
-								if (!media.length) return;
-								updateConversationMedia(media[0], 'image');
-								for (const m of media) {
-									addToCache(m);
-								}
+								updateConversationMedia(media, 'image');
+								addToCache(media);
 							}}
 						/>
 					</div>

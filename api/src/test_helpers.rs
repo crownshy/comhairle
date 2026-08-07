@@ -242,24 +242,49 @@ pub async fn response_to_json(response: Response) -> Value {
     })
 }
 
-#[builder]
-pub fn multipart_body_builder(
-    content: &str,
-    boundary: Option<&str>,
-    filename: Option<&str>,
-    content_type: Option<&str>,
-) -> String {
-    let boundary = boundary.unwrap_or("test-boundary");
-    let filename = filename.unwrap_or("test-file.txt");
-    let content_type = content_type.unwrap_or("text/plain");
-    format!(
-        "--{boundary}\r\n\
-            Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n\
-            Content-Type: {content_type}\r\n\
-            \r\n\
-            {content}\r\n\
-            --{boundary}--\r\n"
-    )
+pub struct MultipartBodyBuilder {
+    boundary: String,
+    body: String,
+}
+
+impl MultipartBodyBuilder {
+    pub fn new(boundary: String) -> Self {
+        Self {
+            boundary,
+            body: String::new(),
+        }
+    }
+
+    pub fn add_field(mut self, field_name: &str, content: &str) -> Self {
+        self.body.push_str(&format!(
+            "--{}\r\n\
+		Content-Disposition: form-data; name=\"{}\"\r\n\
+		\r\n\
+		{}\r\n",
+            self.boundary, field_name, content
+        ));
+
+        self
+    }
+
+    pub fn add_file(mut self, filename: &str, content_type: Option<&str>, content: &str) -> Self {
+        self.body.push_str(&format!(
+            "--{}\r\n\
+		Content-Disposition: form-data; name=\"file\"; filename=\"{}\"\r\n\
+		Content-Type: {}\r\n\
+		\r\n\
+		{}\r\n",
+            self.boundary,
+            filename,
+            content_type.unwrap_or("text/plain"),
+            content
+        ));
+        self
+    }
+
+    pub fn build(self) -> String {
+        format!("{}--{}--", self.body, self.boundary)
+    }
 }
 
 #[derive(Debug)]

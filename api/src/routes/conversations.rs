@@ -909,7 +909,7 @@ mod tests {
     use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{multipart_body_builder, test_config, test_state};
+    use crate::test_helpers::{MultipartBodyBuilder, test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::body::Body;
     use axum::http::StatusCode;
@@ -1568,7 +1568,9 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn should_be_able_to_get_conversation_with_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_be_able_to_get_conversation_with_media(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
         let boundary = "test-boundary";
         let filename = "test_file.jpg";
         let content_type = "image/jpeg";
@@ -1614,22 +1616,22 @@ mod tests {
             .await?;
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
-        let body = multipart_body_builder()
-            .content("test-content")
-            .boundary(boundary)
-            .filename(filename)
-            .content_type(content_type)
-            .call();
+        let body = MultipartBodyBuilder::new(boundary.to_string())
+            .add_field("name", "test-name")
+            .add_field("alt", "test-alt")
+            .add_file(filename, Some(content_type), "test-content")
+            .build();
+
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
-        let media: Vec<MediaDto> = serde_json::from_value(value)?;
+        let media: MediaDto = serde_json::from_value(value)?;
 
         session
             .update_conversation(
                 &app,
                 &conversation.id.to_string(),
-                json!({ "image": media[0].id }),
+                json!({ "image": media.id }),
             )
             .await?;
 

@@ -119,10 +119,8 @@
 						clientSide
 						size="sm"
 						oncomplete={(media) => {
-							for (const m of media) {
-								addToCache(m);
-								onSubmit(m.url);
-							}
+							addToCache(media);
+							onSubmit(media.url);
 							open = false;
 						}}
 					/>

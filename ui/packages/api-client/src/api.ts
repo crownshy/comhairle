@@ -2241,6 +2241,7 @@ export const content_type = z.union([MediaContentType, z.null()]).optional();
 export type content_type = z.infer<typeof content_type>;
 export const MediaDto = z
   .object({
+    alt: z.string(),
     contentType: MediaContentType,
     createdAt: z.string().datetime({ offset: true }),
     filename: z.string(),
@@ -2260,7 +2261,10 @@ export type PaginatedResults_for_MediaDto = z.infer<
   typeof PaginatedResults_for_MediaDto
 >;
 export const MediaEditableFields = z
-  .object({ name: z.union([z.string(), z.null()]) })
+  .object({
+    alt: z.union([z.string(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+  })
   .partial()
   .passthrough();
 export type MediaEditableFields = z.infer<typeof MediaEditableFields>;
@@ -3136,7 +3140,7 @@ Use a raw HTTP request and process the response body incrementally.`,
   {
     method: "post",
     path: "/conversation/:conversation_id/documents",
-    alias: "postConversationConversation_iddocuments",
+    alias: "PostDocuments",
     description: `⚠️ This endpoint requires multipart/form-data.
 
 Generated API clients may not support file uploads.

@@ -1,38 +1,44 @@
 import { tryFetch, tryCatchAsync } from '$lib/utils/errorHandling';
 import { fail, type LoadEvent } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
-import Media from '$lib/interfaces/Media';
 import type { MediaDto } from '@crownshy/api-client/api';
+import MediaSchema from '$lib/schemas/MediaSchema';
+import Media from '$lib/interfaces/Media';
+import { HttpStatus } from '$lib/utils/constants';
 
 export async function load({ fetch, depends }: LoadEvent) {
 	depends('media-library:media');
 
 	const response = await tryFetch('/api/media', undefined, fetch);
 	if (response.err !== null) {
-		return fail(500, { error: "Couldn't get media from the server" });
+		return fail(HttpStatus.InternalServerError, {
+			error: "Couldn't get media from the server"
+		});
 	}
 	const data = await tryCatchAsync(() => response.ok.json());
 	if (data.err !== null) {
 		// FIX: Return JSON error
-		return fail(500, { error: 'Failed to parse the response from the server' });
+		return fail(HttpStatus.InternalServerError, {
+			error: 'Failed to parse the response from the server'
+		});
 	}
+
 	return {
 		media: data.ok.records as MediaDto[]
 	};
 }
+
 export const actions = {
 	upload: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
-		const files = data.getAll('media');
-		if (files === null) {
-			return fail(422, { error: "Couldn't find files" });
-		}
 
 		const media = new Media();
-		const response = await media.upload('/api/media', files as File[], { fetchRef: fetch });
+		const response = await tryCatchAsync(() =>
+			media.upload('/api/media', data, { fetchRef: fetch, schema: MediaSchema })
+		);
 
 		if (response.err !== null) {
-			return fail(422, { error: response.err.message });
+			return fail(HttpStatus.UnprocessableContent);
 		}
 	},
 	delete: async ({ request, fetch }: RequestEvent) => {

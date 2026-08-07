@@ -15,3 +15,15 @@ export function htmlFromMediaType(content: MediaContentType): HTMLMediaElement |
 	}
 	return undefined;
 }
+
+/**
+ * Function to type nested objects without any coercion, narrowing or widening
+ * Example:
+ * const obj = {
+ *		name: typedObj<InputAttr>({}), // Type safety with input now (with `as` you wouldn't get that)
+ *		file: typedObj<FileAttr>({})
+ * }
+ */
+export function typedObj<T>(obj: T): T {
+	return obj;
+}
