@@ -1,6 +1,6 @@
 -- Add name column to the media table
 ALTER TABLE media
-ADD COLUMN alt TEXT;
+ADD COLUMN IF NOT EXISTS alt TEXT;
 
 UPDATE media
 SET alt = 'temp';
