@@ -8,6 +8,7 @@
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import MinusIcon from '@lucide/svelte/icons/minus';
 	import PlusIcon from '@lucide/svelte/icons/plus';
+	import type { PdfHighlight } from './highlights';
 
 	pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 		'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -18,9 +19,19 @@
 
 	type Props = {
 		src: string;
+		/** Passage rectangles to shade, in PDF points (see {@link PdfHighlight}). */
+		highlights?: PdfHighlight[];
+		/**
+		 * Page to scroll to when the document first renders (1-based). Defaults to
+		 * the first highlighted page when `highlights` is set.
+		 */
+		initialPage?: number | null;
 	};
 
-	let { src }: Props = $props();
+	let { src, highlights = [], initialPage = null }: Props = $props();
+
+	const highlightsForPage = (pageNumber: number) =>
+		highlights.filter((h) => h.page === pageNumber);
 
 	const MIN_ZOOM = 0.25;
 	const MAX_ZOOM = 4;
@@ -40,6 +51,11 @@
 	let resizeTick = $state(0);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	// True once a full render pass has completed, so page wrappers have their real
+	// height and an auto-jump lands on the right place. Reset when `src` changes.
+	let renderedOnce = $state(false);
+	// Guards the one-shot auto-jump, keyed by `src` + target page.
+	let jumpedFor = $state<string | null>(null);
 
 	let doc: PDFDocumentProxy | null = null;
 	let renderTasks: RenderTask[] = [];
@@ -140,10 +156,12 @@
 
 			if (textDiv) await renderTextLayer(page, textDiv, viewport, scale, gen);
 		}
+
+		if (gen === renderGen) renderedOnce = true;
 	}
 
-	function goToPage(pageNumber: number) {
-		pageWrappers[pageNumber - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	function goToPage(pageNumber: number, behavior: 'smooth' | 'auto' = 'smooth') {
+		pageWrappers[pageNumber - 1]?.scrollIntoView({ behavior, block: 'start' });
 	}
 
 	function zoomIn() {
@@ -163,6 +181,7 @@
 		numPages = 0;
 		currentPage = 1;
 		userZoom = 1;
+		renderedOnce = false;
 
 		let cancelled = false;
 		const task = pdfjsLib.getDocument(url);
@@ -223,6 +242,21 @@
 			clearTimeout(timer);
 			observer.disconnect();
 		};
+	});
+
+	// Auto-scroll to the passage once the document has rendered. Runs once per
+	// src/target (guarded by `jumpedFor`) so it doesn't fight the user's own
+	// scrolling on zoom or resize. Instant jump, not smooth, so a deep target
+	// page doesn't animate through everything above it.
+	$effect(() => {
+		if (!renderedOnce || !scrollContainer) return;
+		const target =
+			initialPage ?? (highlights.length ? Math.min(...highlights.map((h) => h.page)) : null);
+		if (!target) return;
+		const key = `${src}:${target}`;
+		if (jumpedFor === key) return;
+		jumpedFor = key;
+		goToPage(target, 'auto');
 	});
 
 	// Track which page is most visible so the toolbar counter stays accurate.
@@ -321,6 +355,14 @@
 				<div class="pdf-page" data-page={i + 1} bind:this={pageWrappers[i]}>
 					<canvas bind:this={canvases[i]}></canvas>
 					<div class="textLayer" bind:this={textLayers[i]}></div>
+					{#each highlightsForPage(i + 1) as h, hi (hi)}
+						<div
+							class="pdf-highlight"
+							style="left: {h.left * renderedScale}px; top: {h.top *
+								renderedScale}px; width: {h.width *
+								renderedScale}px; height: {h.height * renderedScale}px;"
+						></div>
+					{/each}
 				</div>
 			{/each}
 		{/if}
@@ -385,6 +427,16 @@
 
 	.pdf-page canvas {
 		display: block;
+	}
+
+	/* Passage highlight. mix-blend-multiply keeps the underlying text legible
+	   (the page is always on white), so the amber reads as a marker-pen tint. */
+	.pdf-highlight {
+		position: absolute;
+		background-color: rgba(250, 204, 21, 0.4);
+		mix-blend-mode: multiply;
+		border-radius: 2px;
+		pointer-events: none;
 	}
 
 	.pdf-message {

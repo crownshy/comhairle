@@ -65,7 +65,11 @@ export class ChatSession {
 										content: ref.content,
 										document_id: ref.document_id,
 										document_name: ref.document_name,
-										dataset_id: ref.dataset_id
+										dataset_id: ref.dataset_id,
+										// The backend re-attaches passage positions on reload so old
+										// answers can highlight too (issue #783). The generated
+										// api-client type hasn't been regenerated for this field yet.
+										positions: (ref as { positions?: number[][] }).positions
 									}))
 								}
 							: null,

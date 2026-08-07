@@ -1,4 +1,8 @@
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    pin::Pin,
+    sync::Arc,
+};
 
 use async_trait::async_trait;
 use axum::body::Bytes;
@@ -41,6 +45,83 @@ impl ComhairleRagBotService {
                 base_url.to_string(),
                 api_key.to_string(),
             )),
+        }
+    }
+
+    /// Re-attach passage highlight `positions` to a reloaded session's
+    /// references.
+    ///
+    /// RAGFlow's stored session history omits `positions`, but its chunk store
+    /// keeps them: they describe where a chunk sits in the document, not the
+    /// query, so the same chunk id always maps to the same boxes. We fetch each
+    /// cited document's chunks once and fill in positions by chunk id, which
+    /// fixes reloaded answers (old and new) the same way live answers already
+    /// work. Best-effort: any RAGFlow failure just leaves those references
+    /// without positions (no highlight), never a failed history load. See issue
+    /// #783.
+    async fn enrich_reference_positions(&self, session: &mut ComhairleChatSession) {
+        // Chunk-list pagination bounds. A page size this large usually means one
+        // request per document; the page cap is a runaway guard.
+        const CHUNK_PAGE_SIZE: i32 = 512;
+        const MAX_CHUNK_PAGES: i32 = 20;
+
+        let mut documents: HashSet<(String, String)> = HashSet::new();
+        for message in &session.messages {
+            let Some(refs) = &message.reference else {
+                continue;
+            };
+            for reference in refs {
+                if reference.positions.is_none() {
+                    documents.insert((reference.dataset_id.clone(), reference.document_id.clone()));
+                }
+            }
+        }
+        if documents.is_empty() {
+            return;
+        }
+
+        let mut positions_by_chunk: HashMap<String, Vec<Vec<f64>>> = HashMap::new();
+        for (dataset_id, document_id) in documents {
+            for page in 1..=MAX_CHUNK_PAGES {
+                let query = GetQueryParams {
+                    page: Some(page),
+                    page_size: Some(CHUNK_PAGE_SIZE),
+                    ..Default::default()
+                };
+                let chunks = match ragflow::document::list_chunks(
+                    &self.client,
+                    &dataset_id,
+                    &document_id,
+                    Some(query),
+                )
+                .await
+                {
+                    Ok((_, chunk_list)) => chunk_list.chunks,
+                    Err(_) => break,
+                };
+                let page_len = chunks.len();
+                for chunk in chunks {
+                    if let Some(positions) = chunk.positions {
+                        positions_by_chunk.insert(chunk.id, positions);
+                    }
+                }
+                if page_len < CHUNK_PAGE_SIZE as usize {
+                    break;
+                }
+            }
+        }
+
+        for message in &mut session.messages {
+            let Some(refs) = &mut message.reference else {
+                continue;
+            };
+            for reference in refs {
+                if reference.positions.is_none() {
+                    if let Some(positions) = positions_by_chunk.get(&reference.id) {
+                        reference.positions = Some(positions.clone());
+                    }
+                }
+            }
         }
     }
 }
@@ -363,7 +444,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         let (status, chat_sessions) =
             ragflow::chat::session::list(&self.client, chat_id, Some(params)).await?;
 
-        let chat_session: ComhairleChatSession = (&chat_sessions[0]).into();
+        let mut chat_session: ComhairleChatSession = (&chat_sessions[0]).into();
+        self.enrich_reference_positions(&mut chat_session).await;
 
         Ok((status, chat_session))
     }
@@ -1005,6 +1087,8 @@ impl From<MessageReference> for ComhairleMessageReference {
             dataset_id: r.dataset_id,
             document_id: r.document_id,
             document_name: r.document_name,
+            // History omits positions; enriched from the chunk store on reload.
+            positions: None,
         }
     }
 }
@@ -1017,6 +1101,7 @@ impl From<&MessageReference> for ComhairleMessageReference {
             dataset_id: r.dataset_id.clone(),
             document_id: r.document_id.clone(),
             document_name: r.document_name.clone(),
+            positions: None,
         }
     }
 }

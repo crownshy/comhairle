@@ -4,6 +4,9 @@
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
+	import type { PdfHighlight } from './highlights';
+
+	type PdfViewerProps = { src: string; highlights?: PdfHighlight[]; initialPage?: number | null };
 
 	type Props = {
 		open: boolean;
@@ -11,6 +14,10 @@
 		name?: string;
 		downloadHref?: string | null;
 		kind?: 'pdf' | 'image' | 'docx';
+		/** Passage rectangles to shade (PDF only). */
+		highlights?: PdfHighlight[];
+		/** Page to open on (1-based, PDF only). */
+		page?: number | null;
 	};
 
 	let {
@@ -18,19 +25,21 @@
 		src,
 		name = 'Document',
 		downloadHref = null,
-		kind = 'pdf'
+		kind = 'pdf',
+		highlights = [],
+		page = null
 	}: Props = $props();
 
 	// pdfjs-dist (~1MB) and mammoth (~500KB) are heavy and not SSR-safe, so the
 	// viewers are loaded lazily in the browser the first time a document is opened.
-	let PdfViewer = $state<Component<{ src: string }> | null>(null);
+	let PdfViewer = $state<Component<PdfViewerProps> | null>(null);
 	let DocxViewer = $state<Component<{ src: string }> | null>(null);
 
 	$effect(() => {
 		if (!browser || !open) return;
 		if (kind === 'pdf' && !PdfViewer) {
 			import('./PdfViewer.svelte').then((m) => {
-				PdfViewer = m.default as unknown as Component<{ src: string }>;
+				PdfViewer = m.default as unknown as Component<PdfViewerProps>;
 			});
 		} else if (kind === 'docx' && !DocxViewer) {
 			import('./DocxViewer.svelte').then((m) => {
@@ -73,7 +82,7 @@
 				{:else if kind === 'docx' && DocxViewer}
 					<DocxViewer {src} />
 				{:else if kind === 'pdf' && PdfViewer}
-					<PdfViewer {src} />
+					<PdfViewer {src} {highlights} initialPage={page} />
 				{:else}
 					<div
 						class="text-muted-foreground flex h-full items-center justify-center text-sm"
