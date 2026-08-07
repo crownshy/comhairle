@@ -15,6 +15,10 @@
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
 	import ExampleDialog from './ExampleDialog.svelte';
+	import GlossaryEditor from './GlossaryEditor.svelte';
+	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
+	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
+	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
@@ -64,6 +68,11 @@
 		content: {
 			title: 'Content',
 			description: 'Participant-facing copy shown throughout the conversation.'
+		},
+		glossary: {
+			title: 'Glossary',
+			description:
+				"Define terms once and their explanation appears as a hover tooltip wherever the term shows up in this conversation's Learn steps. Add synonyms of the same term, separated by commas, and they'll all share one explanation."
 		},
 		access: { title: 'Access', description: 'Visibility, invites and participation.' },
 		team: { title: 'Team', description: 'Manage collaborators.' }
@@ -185,17 +194,37 @@
 			notifications.send({ message: 'Languages updated', priority: 'INFO' });
 
 			if (newlyAddedLanguages.length > 0) {
-				const textContentIds = getTranslatableTextContentIds();
-				if (textContentIds.length > 0) {
-					notifications.send({ message: 'Generating translations...', priority: 'INFO' });
+				notifications.send({ message: 'Generating translations...', priority: 'INFO' });
 
-					for (const locale of newlyAddedLanguages) {
+				const textContentIds = getTranslatableTextContentIds();
+				for (const locale of newlyAddedLanguages) {
+					if (textContentIds.length > 0) {
 						await autoTranslateNewLanguage(locale, textContentIds);
 					}
-
-					await invalidateAll();
-					notifications.send({ message: 'Translations generated', priority: 'INFO' });
 				}
+
+				// The glossary lives in metadata, so it's auto-translated separately from the
+				// TextContent-backed fields above.
+				let glossary = localizedGlossaryFromMetadata(
+					conversation.metadata,
+					primaryLanguage
+				);
+				if (glossary.length > 0) {
+					for (const locale of newlyAddedLanguages) {
+						glossary = await translateGlossaryToLocale(
+							glossary,
+							locale,
+							primaryLanguage
+						);
+					}
+					await apiClient.PatchConversationMetadata(
+						{ [GLOSSARY_METADATA_KEY]: glossary },
+						{ params: { conversation_id: conversation.id } }
+					);
+				}
+
+				await invalidateAll();
+				notifications.send({ message: 'Translations generated', priority: 'INFO' });
 			}
 		} catch (e) {
 			notifications.send({ message: 'Failed to update languages', priority: 'ERROR' });
@@ -960,6 +989,15 @@
 				</Form.Field>
 			</div>
 		</div>
+	{/if}
+
+	{#if activeTab === 'glossary'}
+		<GlossaryEditor
+			conversationId={conversation.id}
+			primaryLocale={primaryLanguage}
+			{supportedLanguages}
+			initial={localizedGlossaryFromMetadata(conversation.metadata, primaryLanguage)}
+		/>
 	{/if}
 
 	{#if activeTab === 'team'}
