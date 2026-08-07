@@ -732,7 +732,7 @@ async fn moderate_statement_aux(
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
 
-    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
 
     let workflow_step = models::workflow_step::get_by_id(&state.db, &aux.workflow_step_id).await?;
 
@@ -830,7 +830,7 @@ async fn moderate_statement_aux_batch(
         ));
     }
 
-    polis_statement_aux::check_can_moderate(&state.db, &user, &workflow_step_id).await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &workflow_step_id).await?;
 
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
@@ -904,7 +904,7 @@ async fn add_statement_aux_theme(
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
 
     let updated =
         models::polis_statement_aux::add_theme(&state.db, statement_id, &request.theme).await?;
@@ -919,7 +919,7 @@ async fn remove_statement_aux_theme(
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
 
     let updated =
         models::polis_statement_aux::remove_theme(&state.db, statement_id, &request.theme).await?;
