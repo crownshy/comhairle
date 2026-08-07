@@ -4,6 +4,8 @@
 	import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 	import 'pdfjs-dist/web/pdf_viewer.css';
 	import { Button } from '$lib/components/ui/button';
+	import * as Select from '$lib/components/ui/select';
+	import { cn } from '$lib/utils';
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import MinusIcon from '@lucide/svelte/icons/minus';
@@ -16,6 +18,9 @@
 	).toString();
 
 	type RenderTask = ReturnType<PDFPageProxy['render']>;
+
+	// Either a fit mode or an explicit scale (1 === 100% of the PDF's natural size).
+	type Zoom = 'fit-width' | 'fit-page' | number;
 
 	type Props = {
 		src: string;
@@ -35,18 +40,36 @@
 
 	const MIN_ZOOM = 0.25;
 	const MAX_ZOOM = 4;
-	// Breathing room left/right of the document at the default (fit-to-width) zoom.
+	// Breathing room around the document in the scroll area at the fit zooms.
 	const FIT_GUTTER = 24;
+	// Backing-store width of a thumbnail, before devicePixelRatio.
+	const THUMB_WIDTH = 116;
+	// Open filling the available width, so the page is fully visible and centered
+	// with no horizontal scroll at any dialog or screen size (the capped dialog
+	// keeps this from overshooting on wide desktops).
+	const DEFAULT_ZOOM: Zoom = 'fit-width';
+
+	const ZOOM_PRESETS = [
+		{ value: 'fit-width', label: 'Fit width' },
+		{ value: 'fit-page', label: 'Fit page' },
+		{ value: '0.5', label: '50%' },
+		{ value: '0.75', label: '75%' },
+		{ value: '1', label: '100%' },
+		{ value: '1.25', label: '125%' },
+		{ value: '1.5', label: '150%' }
+	];
 
 	let scrollContainer = $state<HTMLDivElement | null>(null);
 	let canvases = $state<HTMLCanvasElement[]>([]);
 	let textLayers = $state<HTMLDivElement[]>([]);
 	let pageWrappers = $state<HTMLDivElement[]>([]);
+	let thumbCanvases = $state<HTMLCanvasElement[]>([]);
+	let thumbButtons = $state<HTMLButtonElement[]>([]);
 
 	let pages = $state<PDFPageProxy[]>([]);
 	let numPages = $state(0);
 	let currentPage = $state(1);
-	let userZoom = $state(1);
+	let zoom = $state<Zoom>(DEFAULT_ZOOM);
 	let renderedScale = $state(1);
 	let resizeTick = $state(0);
 	let loading = $state(true);
@@ -64,7 +87,23 @@
 
 	const canPrev = $derived(currentPage > 1);
 	const canNext = $derived(currentPage < numPages);
-	const zoomPercent = $derived(Math.round(renderedScale * 100));
+	// Per-page CSS aspect-ratio, so a thumbnail holds its true page shape (A4,
+	// Letter, etc.) even before its preview finishes rendering.
+	const thumbAspects = $derived(
+		pages.map((p) => {
+			const v = p.getViewport({ scale: 1 });
+			return `${v.width} / ${v.height}`;
+		})
+	);
+	// The Select binds to a string; explicit scales stringify to their preset value.
+	const zoomValue = $derived(String(zoom));
+	const zoomLabel = $derived(
+		zoom === 'fit-width'
+			? 'Fit width'
+			: zoom === 'fit-page'
+				? 'Fit page'
+				: `${Math.round(renderedScale * 100)}%`
+	);
 
 	function cancelRenderTasks() {
 		for (const task of renderTasks) {
@@ -101,6 +140,25 @@
 		}
 	}
 
+	// Resolve the current zoom setting to a concrete render scale for the container.
+	function resolveScale(): number {
+		if (!scrollContainer || pages.length === 0) return typeof zoom === 'number' ? zoom : 1;
+
+		const base = pages[0].getViewport({ scale: 1 });
+		const usableWidth = Math.max(scrollContainer.clientWidth - FIT_GUTTER * 2, 0);
+		const usableHeight = Math.max(scrollContainer.clientHeight - FIT_GUTTER * 2, 0);
+
+		let scale: number;
+		if (zoom === 'fit-width') {
+			scale = usableWidth / base.width;
+		} else if (zoom === 'fit-page') {
+			scale = Math.min(usableWidth / base.width, usableHeight / base.height);
+		} else {
+			scale = zoom;
+		}
+		return Math.min(Math.max(scale, MIN_ZOOM), MAX_ZOOM);
+	}
+
 	async function renderAll() {
 		if (!doc || pages.length === 0 || !scrollContainer) return;
 		if (canvases.filter(Boolean).length !== pages.length) return;
@@ -111,13 +169,7 @@
 		// The canvas backing store is sized at devicePixelRatio and scaled back
 		// down via CSS, so pages stay sharp on HiDPI screens.
 		const dpr = window.devicePixelRatio || 1;
-		const baseWidth = pages[0].getViewport({ scale: 1 }).width;
-		const containerWidth = scrollContainer.clientWidth;
-		if (containerWidth <= 0 || baseWidth <= 0) return;
-
-		// Fit-to-width: the document fills the container minus a gutter, userZoom on top.
-		const usableWidth = Math.max(containerWidth - FIT_GUTTER * 2, 0);
-		const scale = (usableWidth / baseWidth) * userZoom;
+		const scale = resolveScale();
 		renderedScale = scale;
 
 		for (let i = 0; i < pages.length; i++) {
@@ -164,12 +216,16 @@
 		pageWrappers[pageNumber - 1]?.scrollIntoView({ behavior, block: 'start' });
 	}
 
+	function setZoom(value: string) {
+		zoom = value === 'fit-width' || value === 'fit-page' ? value : Number(value);
+	}
+
 	function zoomIn() {
-		userZoom = Math.min(userZoom * 1.25, MAX_ZOOM);
+		zoom = Math.min(renderedScale * 1.25, MAX_ZOOM);
 	}
 
 	function zoomOut() {
-		userZoom = Math.max(userZoom / 1.25, MIN_ZOOM);
+		zoom = Math.max(renderedScale / 1.25, MIN_ZOOM);
 	}
 
 	// Load the document and every page proxy when src changes.
@@ -180,7 +236,7 @@
 		pages = [];
 		numPages = 0;
 		currentPage = 1;
-		userZoom = 1;
+		zoom = DEFAULT_ZOOM;
 		renderedOnce = false;
 
 		let cancelled = false;
@@ -220,16 +276,58 @@
 		};
 	});
 
-	// Re-render when pages load, zoom changes, or the container resizes.
+	// Re-render the main pages when they load, zoom changes, or the container resizes.
 	$effect(() => {
-		void userZoom;
+		void zoom;
 		void resizeTick;
 		if (pages.length === 0 || !scrollContainer) return;
 		if (canvases.filter(Boolean).length !== pages.length) return;
 		renderAll();
 	});
 
-	// Recompute fit-to-width scale on container resize.
+	// Render the thumbnail rail once per document. Thumbnails are zoom-independent.
+	$effect(() => {
+		if (pages.length === 0) return;
+		if (thumbCanvases.filter(Boolean).length !== pages.length) return;
+
+		let cancelled = false;
+		const dpr = window.devicePixelRatio || 1;
+
+		(async () => {
+			for (let i = 0; i < pages.length; i++) {
+				if (cancelled) return;
+				const page = pages[i];
+				const canvas = thumbCanvases[i];
+				const ctx = canvas?.getContext('2d');
+				if (!canvas || !ctx) continue;
+				// Already drawn. Can't use canvas.width as the sentinel: a fresh
+				// canvas defaults to 300, so we track completion on the element.
+				if (canvas.dataset.rendered === 'true') continue;
+
+				const base = page.getViewport({ scale: 1 });
+				const cssScale = THUMB_WIDTH / base.width;
+				const viewport = page.getViewport({ scale: cssScale * dpr });
+
+				// Backing store only; CSS sizes the display so the rail can shrink
+				// thumbnails on mobile without re-rendering, staying crisp on HiDPI.
+				canvas.width = Math.floor(viewport.width);
+				canvas.height = Math.floor(viewport.height);
+
+				try {
+					await page.render({ canvasContext: ctx, viewport }).promise;
+					canvas.dataset.rendered = 'true';
+				} catch {
+					// Superseded by a document change; the next pass will redraw.
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	// Recompute fit scale on container resize.
 	$effect(() => {
 		if (!scrollContainer) return;
 		let timer: ReturnType<typeof setTimeout>;
@@ -259,7 +357,7 @@
 		goToPage(target, 'auto');
 	});
 
-	// Track which page is most visible so the toolbar counter stays accurate.
+	// Track which page is most visible so the toolbar counter and rail stay accurate.
 	$effect(() => {
 		if (pages.length === 0 || !scrollContainer) return;
 		if (pageWrappers.filter(Boolean).length !== pages.length) return;
@@ -290,15 +388,22 @@
 		}
 		return () => observer.disconnect();
 	});
+
+	// Keep the active thumbnail in view as the reader scrolls the document.
+	$effect(() => {
+		thumbButtons[currentPage - 1]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+	});
 </script>
 
-<div class="pdf-viewer">
-	<div class="pdf-toolbar">
-		<div class="pdf-toolbar-group">
+<div class="flex h-full w-full flex-col">
+	<div
+		class="border-border bg-background flex flex-wrap items-center justify-between gap-x-8 gap-y-2 border-b px-4 py-2"
+	>
+		<div class="flex items-center gap-2">
 			<Button
 				variant="outline"
 				size="sm"
-				class="pdf-page-button"
+				class="max-sm:hidden"
 				aria-label="Previous page"
 				title="Previous page"
 				disabled={!canPrev || loading}
@@ -306,11 +411,12 @@
 			>
 				<ChevronLeftIcon class="size-4" />
 			</Button>
-			<span class="pdf-toolbar-text">Page {currentPage} of {numPages}</span>
+			<span class="text-foreground text-sm font-medium">Page {currentPage} of {numPages}</span
+			>
 			<Button
 				variant="outline"
 				size="sm"
-				class="pdf-page-button"
+				class="max-sm:hidden"
 				aria-label="Next page"
 				title="Next page"
 				disabled={!canNext || loading}
@@ -320,24 +426,33 @@
 			</Button>
 		</div>
 
-		<div class="pdf-toolbar-group">
+		<div class="flex items-center gap-2">
 			<Button
 				variant="outline"
 				size="sm"
 				aria-label="Zoom out"
 				title="Zoom out"
-				disabled={userZoom <= MIN_ZOOM}
+				disabled={loading || renderedScale <= MIN_ZOOM}
 				onclick={zoomOut}
 			>
 				<MinusIcon class="size-4" />
 			</Button>
-			<span class="pdf-toolbar-text pdf-zoom">{zoomPercent}%</span>
+			<Select.Root type="single" value={zoomValue} onValueChange={setZoom}>
+				<Select.Trigger size="sm" class="min-w-26 justify-between" aria-label="Zoom level">
+					{zoomLabel}
+				</Select.Trigger>
+				<Select.Content>
+					{#each ZOOM_PRESETS as preset (preset.value)}
+						<Select.Item value={preset.value}>{preset.label}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 			<Button
 				variant="outline"
 				size="sm"
 				aria-label="Zoom in"
 				title="Zoom in"
-				disabled={userZoom >= MAX_ZOOM}
+				disabled={loading || renderedScale >= MAX_ZOOM}
 				onclick={zoomIn}
 			>
 				<PlusIcon class="size-4" />
@@ -345,110 +460,75 @@
 		</div>
 	</div>
 
-	<div bind:this={scrollContainer} class="pdf-scroll">
-		{#if error}
-			<p class="pdf-message text-destructive">Failed to load PDF: {error}</p>
-		{:else if loading}
-			<p class="pdf-message text-muted-foreground">Loading document…</p>
-		{:else}
-			{#each pages as page, i (page.pageNumber)}
-				<div class="pdf-page" data-page={i + 1} bind:this={pageWrappers[i]}>
-					<canvas bind:this={canvases[i]}></canvas>
-					<div class="textLayer" bind:this={textLayers[i]}></div>
-					{#each highlightsForPage(i + 1) as h, hi (hi)}
-						<div
-							class="pdf-highlight"
-							style="left: {h.left * renderedScale}px; top: {h.top *
-								renderedScale}px; width: {h.width *
-								renderedScale}px; height: {h.height * renderedScale}px;"
-						></div>
+	<div class="flex min-h-0 flex-1 max-sm:flex-col">
+		{#if !loading && !error && pages.length > 0}
+			<div
+				class="border-border bg-background flex w-45 shrink-0 flex-col gap-2 overflow-y-auto border-r p-3 max-sm:order-2 max-sm:w-full max-sm:flex-row max-sm:items-center max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-t max-sm:border-r-0 max-sm:px-3 max-sm:py-2.5"
+			>
+				<span class="text-muted-foreground px-1 text-sm font-medium max-sm:hidden"
+					>Pages</span
+				>
+				<div class="flex flex-col gap-3 max-sm:flex-row max-sm:gap-2.5">
+					{#each pages as page, i (page.pageNumber)}
+						<button
+							type="button"
+							class={cn(
+								'group flex shrink-0 cursor-pointer flex-col items-center gap-1 border-0 bg-transparent p-0',
+								currentPage === i + 1 ? 'text-foreground' : 'text-muted-foreground'
+							)}
+							aria-label={`Go to page ${i + 1}`}
+							aria-current={currentPage === i + 1 ? 'page' : undefined}
+							bind:this={thumbButtons[i]}
+							onclick={() => goToPage(i + 1)}
+						>
+							<span
+								class={cn(
+									'block w-29 overflow-hidden rounded-lg border-2 bg-white transition-colors max-sm:w-16',
+									currentPage === i + 1
+										? 'border-primary'
+										: 'border-border group-hover:border-muted-foreground'
+								)}
+								style="aspect-ratio: {thumbAspects[i] ?? '1 / 1.414'};"
+							>
+								<canvas class="block h-full w-full" bind:this={thumbCanvases[i]}
+								></canvas>
+							</span>
+							<span class="text-xs font-medium">{i + 1}</span>
+						</button>
 					{/each}
 				</div>
-			{/each}
+			</div>
 		{/if}
+
+		<div
+			bind:this={scrollContainer}
+			class="bg-muted flex min-h-0 flex-1 flex-col gap-4 overflow-auto py-4 [scrollbar-gutter:stable] max-sm:order-1"
+		>
+			{#if error}
+				<p class="text-destructive m-auto p-8 text-sm">Failed to load PDF: {error}</p>
+			{:else if loading}
+				<p class="text-muted-foreground m-auto p-8 text-sm">Loading document…</p>
+			{:else}
+				{#each pages as page, i (page.pageNumber)}
+					<div
+						class="relative mx-auto shrink-0 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.15)]"
+						data-page={i + 1}
+						bind:this={pageWrappers[i]}
+					>
+						<canvas class="block" bind:this={canvases[i]}></canvas>
+						<div class="textLayer" bind:this={textLayers[i]}></div>
+						{#each highlightsForPage(i + 1) as h, hi (hi)}
+							<!-- Amber marker-pen tint; mix-blend-multiply keeps the text legible on the white page. -->
+							<div
+								class="pointer-events-none absolute rounded-[2px] bg-yellow-400/40 mix-blend-multiply"
+								style="left: {h.left * renderedScale}px; top: {h.top *
+									renderedScale}px; width: {h.width *
+									renderedScale}px; height: {h.height * renderedScale}px;"
+							></div>
+						{/each}
+					</div>
+				{/each}
+			{/if}
+		</div>
 	</div>
 </div>
-
-<style>
-	.pdf-viewer {
-		display: flex;
-		flex-direction: column;
-		width: 100%;
-		height: 100%;
-	}
-
-	.pdf-toolbar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem 2rem;
-		padding: 0.5rem 1rem;
-		background-color: var(--background);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.pdf-toolbar-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.pdf-toolbar-text {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--foreground);
-	}
-
-	.pdf-zoom {
-		min-width: 3.5rem;
-		text-align: center;
-	}
-
-	.pdf-scroll {
-		flex: 1;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		padding: 1rem 0;
-		overflow: auto;
-		scrollbar-gutter: stable;
-		background-color: var(--muted);
-	}
-
-	.pdf-page {
-		position: relative;
-		flex-shrink: 0;
-		margin-inline: auto;
-		background-color: white;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-	}
-
-	.pdf-page canvas {
-		display: block;
-	}
-
-	/* Passage highlight. mix-blend-multiply keeps the underlying text legible
-	   (the page is always on white), so the amber reads as a marker-pen tint. */
-	.pdf-highlight {
-		position: absolute;
-		background-color: rgba(250, 204, 21, 0.4);
-		mix-blend-mode: multiply;
-		border-radius: 2px;
-		pointer-events: none;
-	}
-
-	.pdf-message {
-		margin: auto;
-		padding: 2rem;
-		font-size: 0.875rem;
-	}
-
-	/* Continuous scroll replaces page stepping on small screens. */
-	@media (max-width: 640px) {
-		:global(.pdf-page-button) {
-			display: none;
-		}
-	}
-</style>

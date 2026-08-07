@@ -51,7 +51,7 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Content
-		class="flex h-[95vh] max-h-screen w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:w-[90vw] sm:max-w-[95vw]"
+		class="flex h-[95vh] max-h-screen w-[98vw] max-w-270 flex-col gap-0 overflow-hidden p-0 sm:w-[92vw] sm:max-w-270"
 	>
 		<Dialog.Header
 			class="flex-row items-center justify-between gap-4 border-b px-4 py-3 pe-12 text-left"
