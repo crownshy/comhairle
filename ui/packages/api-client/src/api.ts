@@ -588,6 +588,7 @@ export const ComhairleMessageReference = z
     document_id: z.string(),
     document_name: z.string(),
     id: z.string(),
+    positions: z.union([z.array(z.array(z.number())), z.null()]).optional(),
   })
   .passthrough();
 export type ComhairleMessageReference = z.infer<

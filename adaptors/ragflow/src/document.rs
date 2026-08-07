@@ -109,6 +109,44 @@ pub async fn stop_parse(
     client.delete(&path, Some(&body), None).await
 }
 
+/// List a document's chunks. RAGFlow keeps each chunk's `positions` here (the
+/// coordinates of the passage in the source PDF) even though the stored session
+/// history strips them, so this is how we re-attach highlight coordinates on
+/// reload. See issue #783.
+pub async fn list_chunks(
+    client: &RagflowClient,
+    dataset_id: &str,
+    document_id: &str,
+    query: Option<GetQueryParams>,
+) -> Result<(StatusCode, ChunkList)> {
+    let path = format!("/datasets/{dataset_id}/documents/{document_id}/chunks");
+    let (status, value) = client.get(&path, query.as_ref(), None).await?;
+
+    let json: GetChunksResponse = serde_json::from_value(value)?;
+
+    Ok((status, json.data))
+}
+
+#[derive(Deserialize)]
+pub struct GetChunksResponse {
+    pub data: ChunkList,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct ChunkList {
+    #[serde(default)]
+    pub chunks: Vec<DocumentChunk>,
+}
+
+/// A document chunk from the chunk-listing endpoint. Only the fields we need to
+/// map a citation back to its passage; RAGFlow returns more.
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct DocumentChunk {
+    pub id: String,
+    #[serde(default)]
+    pub positions: Option<Vec<Vec<f64>>>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct GetDocumentsResponse {
     pub code: i32,
@@ -253,6 +291,53 @@ mod tests {
             "test_doc".to_string(),
             "incorrect json response"
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_list_document_chunks_with_positions() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "{}/datasets/ds1/documents/doc1/chunks",
+                client.path_prefix
+            )))
+            .and(query_param("page", "1"))
+            .and(query_param("page_size", "512"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "code": 0,
+                "data": {
+                    "chunks": [
+                        { "id": "chunk-a", "content": "…", "positions": [[8, 71, 394, 469, 484]] },
+                        { "id": "chunk-b", "content": "…" }
+                    ],
+                    "total": 2
+                }
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let query = GetQueryParams {
+            page: Some(1),
+            page_size: Some(512),
+            ..Default::default()
+        };
+        let (status, list) = list_chunks(&client, "ds1", "doc1", Some(query)).await?;
+
+        assert!(status.is_success());
+        assert_eq!(list.chunks.len(), 2);
+        assert_eq!(list.chunks[0].id, "chunk-a");
+        assert_eq!(
+            list.chunks[0].positions,
+            Some(vec![vec![8.0, 71.0, 394.0, 469.0, 484.0]]),
+            "positions parse into the highlight coordinate shape"
+        );
+        // A chunk with no positions field is fine (defaults to None).
+        assert_eq!(list.chunks[1].positions, None);
 
         Ok(())
     }
