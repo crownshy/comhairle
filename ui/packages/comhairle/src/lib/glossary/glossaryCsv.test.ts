@@ -27,10 +27,6 @@ describe('parseCsvRows', () => {
 			['c', 'd']
 		]);
 	});
-
-	it('strips a UTF-8 BOM', () => {
-		expect(parseCsvRows('﻿a,b')).toEqual([['a', 'b']]);
-	});
 });
 
 describe('parseGlossaryCsv', () => {
@@ -52,6 +48,11 @@ describe('parseGlossaryCsv', () => {
 			{ text: ['bus'], tooltip: 'A vehicle' },
 			{ text: ['referral'], tooltip: 'Passed to another team' }
 		]);
+	});
+
+	it('skips the header row even when the file starts with a UTF-8 BOM', () => {
+		const csv = '\ufeffTerm,Definition\nbus,A vehicle';
+		expect(parseGlossaryCsv(csv)).toEqual([{ text: ['bus'], tooltip: 'A vehicle' }]);
 	});
 
 	it('does not treat a data row as a header', () => {
