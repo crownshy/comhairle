@@ -67,6 +67,7 @@ export const load: LayoutLoad = async ({
 		const configureTabs: { id: string; label: string }[] = [
 			{ id: 'details', label: 'Details' },
 			{ id: 'content', label: 'Content' },
+			{ id: 'glossary', label: 'Glossary' },
 			{ id: 'access', label: 'Access' }
 		];
 
