@@ -909,7 +909,9 @@ impl From<ChatSession> for ComhairleChatSession {
             id: session.id,
             chat_id: session.chat_id,
             name: session.name,
-            messages: session.messages.into_iter().map(Into::into).collect(),
+            messages: reassociate_message_references(
+                session.messages.into_iter().map(Into::into).collect(),
+            ),
         }
     }
 }
@@ -920,14 +922,52 @@ impl From<&ChatSession> for ComhairleChatSession {
             id: session.id.clone(),
             chat_id: session.chat_id.clone(),
             name: session.name.clone(),
-            messages: session
-                .messages
-                .clone()
-                .into_iter()
-                .map(Into::into)
-                .collect(),
+            messages: reassociate_message_references(
+                session.messages.iter().map(Into::into).collect(),
+            ),
         }
     }
+}
+
+/// Fix RAGFlow's off-by-one association between an answer and its retrieval
+/// references in stored session history
+///
+/// The session always opens with a canned greeting assistant message that never
+/// ran a retrieval, but it still occupies the first assistant slot. RAGFlow's
+/// reference list has one entry per *answered* question, and the history payload
+/// zips those entries onto assistant messages starting from that opener. The net
+/// effect is a one-turn shift: the opener carries answer 1's chunks, answer 1
+/// carries answer 2's chunks, and the most recent answer comes back with no
+/// reference at all. The `[ID:N]` markers in each answer index positionally into
+/// its reference list, so this shift makes citations resolve against the wrong
+/// chunks (or, for the latest answer, against nothing).
+///
+/// We undo it by shifting references forward one assistant turn: each assistant
+/// message takes the reference that was parked on the previous assistant
+/// message, and the opener is left with none. This is only valid when the
+/// session actually starts with that opener, which is why we bail out unless the
+/// first message is an assistant one.
+fn reassociate_message_references(
+    mut messages: Vec<ComhairleSessionMessage>,
+) -> Vec<ComhairleSessionMessage> {
+    if messages
+        .first()
+        .map(|m| m.role != "assistant")
+        .unwrap_or(true)
+    {
+        return messages;
+    }
+
+    let mut carry: Option<Vec<ComhairleMessageReference>> = None;
+    for message in messages.iter_mut() {
+        if message.role != "assistant" {
+            continue;
+        }
+        let stored = message.reference.take();
+        message.reference = carry;
+        carry = stored;
+    }
+    messages
 }
 
 impl From<SessionMessage> for ComhairleSessionMessage {
@@ -1177,5 +1217,66 @@ mod tests {
         let _results: Vec<BotServiceSseEvent> = results.into_iter().map(Into::into).collect();
 
         Ok(())
+    }
+
+    fn msg(role: &str, id: &str, ref_ids: Option<Vec<&str>>) -> ComhairleSessionMessage {
+        ComhairleSessionMessage {
+            id: id.to_string(),
+            content: String::new(),
+            role: role.to_string(),
+            reference: ref_ids.map(|ids| {
+                ids.into_iter()
+                    .map(|rid| ComhairleMessageReference {
+                        id: rid.to_string(),
+                        ..Default::default()
+                    })
+                    .collect()
+            }),
+        }
+    }
+
+    fn reference_ids(message: &ComhairleSessionMessage) -> Option<Vec<String>> {
+        message
+            .reference
+            .as_ref()
+            .map(|refs| refs.iter().map(|r| r.id.clone()).collect())
+    }
+
+    #[test]
+    fn reassociates_shifted_history_references() {
+        // Mirrors RAGFlow's stored session (issue #791): the opener carries
+        // answer 1's chunks, answer 1 carries answer 2's chunks, and the latest
+        // answer comes back with none.
+        let messages = vec![
+            msg("assistant", "", Some(vec!["r1"])),
+            msg("user", "q1", None),
+            msg("assistant", "a1", Some(vec!["r2"])),
+            msg("user", "q2", None),
+            msg("assistant", "a2", None),
+        ];
+
+        let fixed = reassociate_message_references(messages);
+
+        // Opener drops its (bogus) reference; each answer recovers its own.
+        assert!(fixed[0].reference.is_none());
+        assert_eq!(reference_ids(&fixed[2]), Some(vec!["r1".to_string()]));
+        assert_eq!(reference_ids(&fixed[4]), Some(vec!["r2".to_string()]));
+        // User turns are never touched.
+        assert!(fixed[1].reference.is_none());
+        assert!(fixed[3].reference.is_none());
+    }
+
+    #[test]
+    fn leaves_references_untouched_without_an_opener() {
+        // No leading assistant opener means no shift to undo; passing through
+        // avoids corrupting a correctly-aligned history.
+        let messages = vec![
+            msg("user", "q1", None),
+            msg("assistant", "a1", Some(vec!["r1"])),
+        ];
+
+        let fixed = reassociate_message_references(messages);
+
+        assert_eq!(reference_ids(&fixed[1]), Some(vec!["r1".to_string()]));
     }
 }
