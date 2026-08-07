@@ -66,10 +66,10 @@ export class ChatSession {
 										document_id: ref.document_id,
 										document_name: ref.document_name,
 										dataset_id: ref.dataset_id,
-										// The backend re-attaches passage positions on reload so old
-										// answers can highlight too (issue #783). The generated
-										// api-client type hasn't been regenerated for this field yet.
-										positions: (ref as { positions?: number[][] }).positions
+										// Re-attached from the chunk store on reload so old answers
+										// highlight too (issue #783). Normalise the API's null to
+										// undefined to match ReferenceChunk.
+										positions: ref.positions ?? undefined
 									}))
 								}
 							: null,
