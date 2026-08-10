@@ -2,7 +2,15 @@
 	import { PieChart, Text } from 'layerchart';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import type { ComponentProps } from 'svelte';
-	import type { ChartData } from './types';
+
+	interface Props<K extends string, V> extends Omit<
+		ComponentProps<typeof PieChart>,
+		'data' | 'key' | 'value'
+	> {
+		data: Record<K, V>[];
+		key: keyof (typeof data)[number];
+		value: keyof (typeof data)[number];
+	}
 
 	let {
 		data,
@@ -10,7 +18,7 @@
 		value = 'value',
 		height = 300,
 		...props
-	}: Omit<ComponentProps<typeof PieChart>, 'data'> & { data: ChartData[] } = $props();
+	}: Props<string, number> = $props();
 
 	const colours = [
 		'var(--chart-1)',

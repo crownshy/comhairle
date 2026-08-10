@@ -30,5 +30,5 @@
 
 <!-- Survey -->
 {#if data.survey && step}
-	<SurveyInsights data={data.survey.insights} />
+	<SurveyInsights data={data.survey} />
 {/if}
