@@ -20,6 +20,28 @@ describe('renderRichTextToHtml', () => {
 		);
 	});
 
+	it('renders an embedded report component as its stored frozen HTML (ADR-0012)', () => {
+		const content = JSON.stringify({
+			type: 'doc',
+			content: [
+				{
+					type: 'reportComponentEmbed',
+					attrs: {
+						toolStepId: 'step-1',
+						componentType: 'polis-key-stats',
+						config: {},
+						frozenHtml: '<div class="metric">42 participants</div>'
+					}
+				}
+			]
+		});
+		const html = renderRichTextToHtml(content);
+		// The snapshot HTML is emitted verbatim, wrapped in the embed container — this is the
+		// no-JS public render path, so a regression that drops it fails here.
+		expect(html).toContain('<div class="report-embed">');
+		expect(html).toContain('<div class="metric">42 participants</div>');
+	});
+
 	it('renders marks within JSON', () => {
 		const content = JSON.stringify({
 			type: 'doc',

@@ -35,9 +35,7 @@
 	</div>
 	<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16 overflow-y-auto">
 		{#each conversations as conversation (conversation.id)}
-			<a href={`/admin/conversations/${conversation.id}/configure`}>
-				<ConversationCard {conversation} />
-			</a>
+			<ConversationCard {conversation} />
 		{/each}
 	</div>
 </div>

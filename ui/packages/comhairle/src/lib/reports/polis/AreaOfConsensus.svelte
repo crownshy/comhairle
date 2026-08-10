@@ -22,9 +22,15 @@
 		title: string;
 		comments: ReportComment[];
 		groups: ReportGroup[];
+		/**
+		 * Frozen-snapshot render (ADR-0012): the embed bakes this to static HTML, so the
+		 * interactive controls (filter chips, expand toggle) would be dead. In frozen mode we
+		 * drop them and show every statement — a snapshot, not a broken widget.
+		 */
+		frozen?: boolean;
 	};
 
-	let { title, comments, groups }: Props = $props();
+	let { title, comments, groups, frozen = false }: Props = $props();
 
 	const COLLAPSED_ROWS = 4;
 	let filter = $state<AuthorFilter>('all');
@@ -37,7 +43,7 @@
 				? comments.filter((c) => !c.is_seed)
 				: comments
 	);
-	const visible = $derived(expanded ? filtered : filtered.slice(0, COLLAPSED_ROWS));
+	const visible = $derived(frozen || expanded ? filtered : filtered.slice(0, COLLAPSED_ROWS));
 
 	const chips: { value: AuthorFilter; label: string }[] = [
 		{ value: 'seed', label: 'Seed statement' },
@@ -81,21 +87,23 @@
 		{/each}
 	</div>
 
-	<!-- Author-type filter -->
-	<div class="flex flex-wrap gap-2 px-4 pt-4">
-		{#each chips as c (c.value)}
-			<button
-				type="button"
-				onclick={() => (filter = c.value)}
-				class="rounded-full px-2 py-0.5 text-sm font-normal transition-colors {filter ===
-				c.value
-					? 'bg-primary text-primary-foreground'
-					: 'bg-accent text-accent-foreground hover:bg-accent/70'}"
-			>
-				{c.label}
-			</button>
-		{/each}
-	</div>
+	<!-- Author-type filter (interactive; hidden in a frozen snapshot) -->
+	{#if !frozen}
+		<div class="flex flex-wrap gap-2 px-4 pt-4">
+			{#each chips as c (c.value)}
+				<button
+					type="button"
+					onclick={() => (filter = c.value)}
+					class="rounded-full px-2 py-0.5 text-sm font-normal transition-colors {filter ===
+					c.value
+						? 'bg-primary text-primary-foreground'
+						: 'bg-accent text-accent-foreground hover:bg-accent/70'}"
+				>
+					{c.label}
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	<!-- Statement list -->
 	{#if filtered.length === 0}
@@ -126,7 +134,7 @@
 			{/each}
 		</div>
 
-		{#if filtered.length > COLLAPSED_ROWS}
+		{#if !frozen && filtered.length > COLLAPSED_ROWS}
 			<button
 				type="button"
 				onclick={() => (expanded = !expanded)}

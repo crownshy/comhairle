@@ -36,9 +36,11 @@
 		 * (the block is hidden); Storybook passes it to demo the generated version.
 		 */
 		aiSummary?: { name: string; summary: string };
+		/** Frozen-snapshot render (ADR-0012): show every statement, drop the dead expand toggle. */
+		frozen?: boolean;
 	};
 
-	let { group, comments, groups, aiSummary }: Props = $props();
+	let { group, comments, groups, aiSummary, frozen = false }: Props = $props();
 
 	const totalParticipants = $derived(groups.reduce((sum, g) => sum + g.total_members, 0));
 
@@ -58,7 +60,9 @@
 			.map((r) => byTid.get(r.tid))
 			.filter((c): c is ReportComment => c !== undefined)
 	);
-	const visible = $derived(expanded ? repComments : repComments.slice(0, COLLAPSED_ROWS));
+	const visible = $derived(
+		frozen || expanded ? repComments : repComments.slice(0, COLLAPSED_ROWS)
+	);
 
 	// Legend swatches map to the same tokens VoteBar renders with. `border` flags the
 	// not-voted swatch so its (near-white) fill stays visible on the card.
@@ -143,7 +147,7 @@
 			{/each}
 		</div>
 
-		{#if repComments.length > COLLAPSED_ROWS}
+		{#if !frozen && repComments.length > COLLAPSED_ROWS}
 			<button
 				type="button"
 				onclick={() => (expanded = !expanded)}
