@@ -536,27 +536,80 @@ export const ModerateStatementAuxBatchResponse = z
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
 >;
-export const ChoiceIcon = z
-  .object({ background: z.string(), color: z.string(), name: z.string() })
-  .passthrough();
-export type ChoiceIcon = z.infer<typeof ChoiceIcon>;
-export const Choose = z
+export const FormField = z
   .object({
-    color: z.union([z.string(), z.null()]).optional(),
-    count: z.number().int(),
-    icon: z.union([ChoiceIcon, z.null()]).optional(),
+    description: z.unknown().optional(),
+    frozen: z.union([z.boolean(), z.null()]).optional(),
+    hide: z.union([z.boolean(), z.null()]).optional(),
     id: z.string(),
-    image: z.union([z.string(), z.null()]).optional(),
-    isExpected: z.union([z.boolean(), z.null()]).optional(),
-    label: z.string(),
-    score: z.union([z.number(), z.null()]).optional(),
+    kind: z.string(),
+    layout: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    properties: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    title: z.unknown().optional(),
+    validations: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    width: z.union([z.number(), z.null()]).optional(),
   })
   .passthrough();
-export type Choose = z.infer<typeof Choose>;
+export type FormField = z.infer<typeof FormField>;
+export const FormSettings = z
+  .object({
+    active: z.union([z.boolean(), z.null()]),
+    allowArchive: z.union([z.boolean(), z.null()]),
+    enableQuestionList: z.union([z.boolean(), z.null()]),
+    locale: z.union([z.string(), z.null()]),
+    published: z.union([z.boolean(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type FormSettings = z.infer<typeof FormSettings>;
+export const FormTheme = z
+  .object({
+    answerTextColor: z.union([z.string(), z.null()]),
+    backgroundBrightness: z.union([z.number(), z.null()]),
+    backgroundColor: z.union([z.string(), z.null()]),
+    backgroundImage: z.union([z.string(), z.null()]),
+    buttonBackground: z.union([z.string(), z.null()]),
+    buttonTextColor: z.union([z.string(), z.null()]),
+    customCSS: z.union([z.string(), z.null()]),
+    fontFamily: z.union([z.string(), z.null()]),
+    logo: z.union([z.string(), z.null()]),
+    questionTextColor: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type FormTheme = z.infer<typeof FormTheme>;
+export const ThemeSettings = z
+  .object({ theme: z.union([FormTheme, z.null()]) })
+  .partial()
+  .passthrough();
+export type ThemeSettings = z.infer<typeof ThemeSettings>;
+export const Form = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    draft: z.union([z.boolean(), z.null()]).optional(),
+    fields: z.union([z.array(FormField), z.null()]).optional(),
+    id: z.string(),
+    interactiveMode: z.union([z.number(), z.null()]).optional(),
+    kind: z.union([z.number(), z.null()]).optional(),
+    name: z.union([z.string(), z.null()]).optional(),
+    projectId: z.string(),
+    settings: z.union([FormSettings, z.null()]).optional(),
+    status: z.union([z.number(), z.null()]).optional(),
+    teamId: z.string(),
+    themeSettings: z.union([ThemeSettings, z.null()]).optional(),
+  })
+  .passthrough();
+export type Form = z.infer<typeof Form>;
 export const FormReportResponse = z
   .object({
     average: z.number(),
-    chooses: z.union([z.array(Choose), z.null()]).optional(),
+    chooses: z.union([z.array(z.unknown()), z.null()]).optional(),
     count: z.number().int(),
     id: z.string(),
     kind: z.union([z.string(), z.null()]).optional(),
@@ -616,6 +669,33 @@ export const Submissions = z
   .object({ submissions: z.array(Submission), total: z.number().int() })
   .passthrough();
 export type Submissions = z.infer<typeof Submissions>;
+export const InsightChoice = z
+  .object({ count: z.number().int(), id: z.string(), label: z.string() })
+  .passthrough();
+export type InsightChoice = z.infer<typeof InsightChoice>;
+export const InsightSubmission = z
+  .object({
+    submission_id: z.string(),
+    submitted_at: z.union([z.number(), z.null()]).optional(),
+    value: z.unknown(),
+  })
+  .passthrough();
+export type InsightSubmission = z.infer<typeof InsightSubmission>;
+export const InsightQuestion = z
+  .object({
+    choices: z.union([z.array(InsightChoice), z.null()]).optional(),
+    id: z.string(),
+    kind: z.union([z.string(), z.null()]).optional(),
+    submissions: z.union([z.array(InsightSubmission), z.null()]).optional(),
+    title: z.string(),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type InsightQuestion = z.infer<typeof InsightQuestion>;
+export const SurveyInsights = z
+  .object({ questions: z.array(InsightQuestion) })
+  .passthrough();
+export type SurveyInsights = z.infer<typeof SurveyInsights>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -2549,8 +2629,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
-  ChoiceIcon,
-  Choose,
+  FormField,
+  FormSettings,
+  FormTheme,
+  ThemeSettings,
+  Form,
   FormReportResponse,
   FormReportAnswer,
   FormReportSubmission,
@@ -2559,6 +2642,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   HiddenFieldAnswer,
   Submission,
   Submissions,
+  InsightChoice,
+  InsightSubmission,
+  InsightQuestion,
+  SurveyInsights,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
@@ -5192,17 +5279,33 @@ Create a response for prioritization tool proposal
   },
   {
     method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/form",
+    alias: "HeyFormGetForm",
+    description: `Fetches the form for the HeyForm tool attached to a workflow step`,
+    requestFormat: "json",
+    response: Form,
+  },
+  {
+    method: "get",
     path: "/tools/survey_tool/workflow_step/:workflow_step_id/form_report",
     alias: "HeyFormGetFormReport",
-    description: `Fetches HeyForm report data for the HeyForm tool attached to a workflow step`,
+    description: `Fetches the form report for the HeyForm tool attached to a workflow step`,
     requestFormat: "json",
     response: FormReport,
   },
   {
     method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/insights",
+    alias: "HeyFormGetInsights",
+    description: `Combines the HeyForm form definition with its aggregate report to produce a per-question breakdown with human-readable question titles and choice labels resolved from the form schema.`,
+    requestFormat: "json",
+    response: SurveyInsights,
+  },
+  {
+    method: "get",
     path: "/tools/survey_tool/workflow_step/:workflow_step_id/submissions",
     alias: "HeyFormGetSubmissions",
-    description: `Fetches paginated HeyForm submissions and returns them as a single list`,
+    description: `Fetches the form submissions for the HeyForm tool attached to a workflow step`,
     requestFormat: "json",
     parameters: [
       {

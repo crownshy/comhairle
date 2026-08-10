@@ -62,7 +62,7 @@ pub struct CreateFormInput {
     pub name_schema: Option<Vec<serde_json::Value>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Form {
     pub id: String,
@@ -86,7 +86,7 @@ pub struct Form {
     pub status: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -101,7 +101,7 @@ pub struct FormSettings {
     pub enable_question_list: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormField {
     pub id: String,
@@ -124,14 +124,14 @@ pub struct FormField {
     pub frozen: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ThemeSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<FormTheme>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormTheme {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -215,51 +215,6 @@ pub enum FormKind {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ChoiceIcon {
-    pub name: String,
-    pub color: String,
-    pub background: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct MultipleChoice {
-    pub id: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-
-    // Picture choice
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub image: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub icon: Option<ChoiceIcon>,
-
-    // HeySheet custom columns
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub color: Option<String>,
-
-    // Quiz
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub score: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_expected: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub count: Option<i32>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-#[serde(untagged)]
-pub enum Choose {
-    Null,
-    Int(i64),
-    Str(String),
-    Obj(MultipleChoice),
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub struct FormReportResponse {
     pub id: String,
     pub kind: Option<String>,
@@ -268,7 +223,7 @@ pub struct FormReportResponse {
     pub count: i32,
     pub average: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub chooses: Option<Vec<Option<Choose>>>,
+    pub chooses: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
