@@ -10,8 +10,6 @@ export async function prioritizationInsightsLoader(workflowStepId: string) {
 		})
 	);
 
-	console.log(result);
-
 	if (result.err !== null) {
 		const message = 'Something went wrong retrieving insights data.';
 		if (result.err.status === HttpStatus.UnprocessableContent) {
