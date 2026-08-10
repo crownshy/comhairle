@@ -1,8 +1,8 @@
 use reqwest::{
-    cookie::{CookieStore, Jar},
     Client,
+    cookie::{CookieStore, Jar},
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
@@ -402,7 +402,12 @@ impl HeyFormClient {
         Ok(form_report)
     }
 
-    pub async fn get_form_submissions(&self, form_id: String, category: String, page: i32) -> Result<Submissions> {
+    pub async fn get_form_submissions(
+        &self,
+        form_id: String,
+        category: String,
+        page: i32,
+    ) -> Result<Submissions> {
         let variables = serde_json::json!({
             "input": SubmissionsInput {
                 form_id,

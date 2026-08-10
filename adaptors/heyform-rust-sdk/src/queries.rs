@@ -28,6 +28,8 @@ query formReport($input: FormDetailInput!) {
   formReport(input: $input) {
     responses {
       id
+      kind
+      title
       total
       count
       average

@@ -223,9 +223,11 @@ pub struct ChoiceIcon {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Choose {
+pub struct MultipleChoice {
     pub id: String,
-    pub label: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 
     // Picture choice
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -243,22 +245,30 @@ pub struct Choose {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_expected: Option<bool>,
 
-    pub count: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub count: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(untagged)]
+pub enum Choose {
+    Null,
+    Int(i64),
+    Str(String),
+    Obj(MultipleChoice),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormReportResponse {
     pub id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     pub total: i32,
     pub count: i32,
     pub average: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub chooses: Option<Vec<Choose>>,
+    pub chooses: Option<Vec<Option<Choose>>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
@@ -327,7 +337,6 @@ pub struct Submissions {
     pub total: i32,
     pub submissions: Vec<Submission>,
 }
-
 
 // Project types
 #[derive(Debug, Serialize, Deserialize, Clone)]

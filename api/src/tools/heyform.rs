@@ -415,7 +415,7 @@ mod tests {
     use axum::{Router, extract::State, routing::post};
     use heyform_sdk::{
         ChoiceIcon, Choose, FormReport, FormReportAnswer, FormReportResponse, FormReportSubmission,
-        HiddenFieldAnswer, Submission, SubmissionCategory, Submissions,
+        HiddenFieldAnswer, MultipleChoice, Submission, SubmissionCategory, Submissions,
     };
     use serde_json::json;
     use sqlx::PgPool;
@@ -447,7 +447,7 @@ mod tests {
                 title: Some("Test Form Report".to_string()),
                 count: 42,
                 average: 12f64,
-                chooses: Some(vec![Choose {
+                chooses: Some(vec![Choose::MultipleChoice(MultipleChoice {
                     id: "choose-1".to_string(),
                     label: "Test Choose 1".to_string(),
                     image: Some("https://example.com/image.png".to_string()),
@@ -460,7 +460,7 @@ mod tests {
                     score: Some(10),
                     is_expected: Some(true),
                     count: 5,
-                }]),
+                })]),
             }],
             submissions: vec![FormReportSubmission {
                 r#_id: "submission-1".to_string(),
