@@ -1,21 +1,21 @@
 <script lang="ts">
 	import type { ComponentProps } from 'svelte';
-	import BarChart from './BarChart.svelte';
 	import { scaleBand } from 'd3-scale';
 	import { cubicInOut } from 'svelte/easing';
 	import type { ChartState } from 'layerchart';
+	import VerticalBarChart from './VerticalBarChart.svelte';
 
 	let {
 		x = 'value',
 		y = 'label',
 		props: BarProps,
 		...props
-	}: ComponentProps<typeof BarChart> = $props();
+	}: Omit<ComponentProps<typeof VerticalBarChart>, 'orientation'> = $props();
 
 	let context = $state<ChartState>();
 </script>
 
-<BarChart
+<VerticalBarChart
 	{...props}
 	props={{
 		bars: {

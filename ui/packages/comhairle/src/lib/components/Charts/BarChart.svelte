@@ -1,56 +1,18 @@
 <script lang="ts">
-	import { BarChart } from 'layerchart';
-	import * as Chart from '$lib/components/ui/chart/index.js';
-	import { cubicInOut } from 'svelte/easing';
 	import type { ComponentProps } from 'svelte';
-	import { scaleBand } from 'd3-scale';
+	import HorizontalBarChart from '$lib/components/Charts/HorizontalBarChart.svelte';
+	import VerticalBarChart from '$lib/components/Charts/VerticalBarChart.svelte';
 
-	let {
-		data,
-		x = 'label',
-		y = 'value',
-		height = 300,
-		props: BarProps,
-		context = $bindable(),
-		...props
-	}: ComponentProps<typeof BarChart> = $props();
+	interface Props extends ComponentProps<typeof HorizontalBarChart> {
+		orientation: 'horizontal' | 'vertical';
+	}
 
-	const chartConfig = {
-		desktop: { label: 'label', color: 'var(--chart-1)' },
-		mobile: { label: 'label', color: 'var(--chart-2)' }
-	} satisfies Chart.ChartConfig;
+	let { orientation = 'vertical', x, y, ...props }: Props = $props();
 </script>
 
-<Chart.Container config={chartConfig}>
-	<BarChart
-		bind:context
-		{data}
-		{x}
-		{y}
-		props={{
-			bars: {
-				stroke: 'none',
-				strokeWidth: 0,
-				rounded: 'all',
-				// use the height of the chart to animate the bars
-				initialY: context?.height,
-				initialHeight: 0,
-				motion: {
-					y: { type: 'tween', duration: 500, easing: cubicInOut },
-					height: { type: 'tween', duration: 500, easing: cubicInOut }
-				}
-			},
-			highlight: { area: { fill: 'none' } },
-			...BarProps
-		}}
-		xScale={scaleBand().paddingInner(0.7)}
-		{height}
-		{...props}
-	>
-		{#snippet tooltip()}
-			{#if tooltip !== undefined}
-				<Chart.Tooltip />
-			{/if}
-		{/snippet}
-	</BarChart>
-</Chart.Container>
+{#if orientation === 'vertical'}
+	<VerticalBarChart {x} {y} {...props} />
+{/if}
+{#if orientation === 'horizontal'}
+	<HorizontalBarChart x={y} y={x} {...props} />
+{/if}

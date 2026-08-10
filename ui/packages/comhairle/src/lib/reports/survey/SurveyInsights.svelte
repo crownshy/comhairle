@@ -1,10 +1,9 @@
 <script lang="ts">
-	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
-	import VBarChart from '$lib/components/Charts/VBarChart.svelte';
 	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 	import Responses from './Responses.svelte';
 	import type { InsightQuestion } from '@crownshy/api-client/api';
+	import SurveyBarChart from './SurveyBarChart.svelte';
 
 	type ChartType = 'Bar' | 'Doughnut' | 'KdePlot' | 'Text';
 
@@ -37,11 +36,10 @@
 	<div class="py-10">
 		<h2 class="text-md font-bold">{section.title}</h2>
 		{#if type === 'Bar'}
-			<p>Bar chart</p>
-			<!-- <BarChart data={section.data} /> -->
+			<SurveyBarChart data={section.choices ?? []} x="label" y="count" />
 		{/if}
 		{#if type === 'Doughnut'}
-			<Doughnut data={section.choices ?? []} value="count" />
+			<Doughnut data={section.choices ?? []} key="label" value="count" />
 		{/if}
 		{#if type === 'KdePlot'}
 			<p>KdePlot chart</p>

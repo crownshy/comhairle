@@ -1,16 +1,7 @@
 <script lang="ts">
 	import { PieChart, Text } from 'layerchart';
 	import * as Chart from '$lib/components/ui/chart/index.js';
-	import type { ComponentProps } from 'svelte';
-
-	interface Props<K extends string, V> extends Omit<
-		ComponentProps<typeof PieChart>,
-		'data' | 'key' | 'value'
-	> {
-		data: Record<K, V>[];
-		key: keyof (typeof data)[number];
-		value: keyof (typeof data)[number];
-	}
+	import type { OneAxisChartValues } from './types';
 
 	let {
 		data,
@@ -18,7 +9,7 @@
 		value = 'value',
 		height = 300,
 		...props
-	}: Props<string, number> = $props();
+	}: OneAxisChartValues = $props();
 
 	const colours = [
 		'var(--chart-1)',
@@ -37,7 +28,7 @@
 		let majority = data[0];
 
 		for (let i = 1; i < data.length; i++) {
-			if (data[i].value > majority.value) {
+			if (Number(data[i][value]) > Number(majority[value])) {
 				majority = data[i];
 			}
 		}
@@ -66,14 +57,14 @@
 		{/snippet}
 		{#snippet aboveMarks()}
 			<Text
-				value={majority.value}
+				value={String(majority[value])}
 				textAnchor="middle"
 				verticalAnchor="middle"
 				class="text-4xl! font-bold"
 				dy={-15}
 			/>
 			<Text
-				value={majority.label}
+				value={String(majority[key])}
 				textAnchor="middle"
 				verticalAnchor="middle"
 				class="text-xl!"
