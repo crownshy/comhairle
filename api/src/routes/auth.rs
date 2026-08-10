@@ -29,7 +29,7 @@ pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::us
     // Check if the user has the system admin role
     if has_resource_permission(
         &state,
-        SystemAdminRole::make_system_triplet(),
+        PermissionRole::Admin.system_triplet(),
         &user.id,
         user.organization_id.as_ref(),
     )
@@ -57,8 +57,12 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
+use crate::error::ComhairleError;
 use crate::middleware::request_logging::ClientIp;
-use crate::models::permissions::{ConversationPath, ResourceRole, has_resource_permission};
+use crate::models::permissions::{
+    Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
+    UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
+};
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
     create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
@@ -66,13 +70,6 @@ use crate::models::users::{
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
-use crate::{
-    error::ComhairleError,
-    models::permissions::{
-        ExtractResourceId, GrantRoleRequest, SystemAdminRole, SystemResourceRole,
-        UserOrOrganizationId, grant_role,
-    },
-};
 
 #[cfg(test)]
 use fake::Dummy;
@@ -224,8 +221,8 @@ struct PasswordResetUpdateRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct EmailLinkClaims {
-    email: Option<String>,
+pub(crate) struct EmailLinkClaims {
+    pub(crate) email: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -325,7 +322,7 @@ async fn signup(
                 &state,
                 GrantRoleRequest {
                     actor_id: UserOrOrganizationId::User(user.id),
-                    permission_triplet: SystemAdminRole::make_system_triplet(),
+                    permission_triplet: PermissionRole::Admin.system_triplet(),
                     grant_reason: "Admin signup",
                     granted_by: &user.id,
                 },
@@ -889,57 +886,35 @@ async fn resolve_user_from_request(
             .ok_or(ComhairleError::UserRequired)
     }
 }
-
-/// An extractor to get a required role for the current user and target resource.
-#[derive(OperationIo)]
-pub struct RequiredUserPermission<Role: ResourceRole, Id: ExtractResourceId> {
-    pub user: User,
-    pub _phantom_data: PhantomData<(Role, Id)>,
-}
-
-impl<Role, Id> FromRequestParts<Arc<ComhairleState>> for RequiredUserPermission<Role, Id>
-where
-    Role: ResourceRole,
-    Id: ExtractResourceId,
-{
-    type Rejection = ComhairleError;
-
-    /// Extracts the current user and resource ID from the request, then checks if
-    /// the user has the required role for that resource.
-    ///
-    /// # Errors
-    ///
-    /// * Returns [`ComhairleError::UserRequired`] if no user is logged in.
-    /// * Returns [`ComhairleError::ResourceNotFound`] if the resource ID cannot be
-    ///   extracted from the request.
-    /// * Returns [`ComhairleError::UserNotAuthorized`] if the user does not have
-    ///   the required role.
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        let user = resolve_user_from_request(parts, state).await?;
-
-        let id = Id::from_request_parts(parts, state).await.map_err(|_| {
-            ComhairleError::ResourceNotFound("Path must contain a resource id".to_string())
-        })?;
-
-        if id.owner_id() == Some(user.id)
-            || has_resource_permission(
-                state,
-                Role::make_triplet(&id.resource_id()),
-                &user.id,
-                user.organization_id.as_ref(),
-            )
-            .await?
-        {
-            Ok(RequiredUserPermission {
-                user,
-                _phantom_data: PhantomData,
-            })
-        } else {
-            Err(ComhairleError::UserNotAuthorized)
-        }
+/// Authorizes `user` to perform `action` on `resource`.
+///
+/// Access is granted if the user owns the resource, or if the user (or their
+/// organization) holds a role whose policy permits the action. Super admins are
+/// always permitted (handled by [`can_perform_resource_action`]).
+///
+/// # Errors
+///
+/// * Returns [`ComhairleError::UserNotAuthorized`] if the user is not permitted.
+/// * Propagates [`ComhairleError`] from the underlying permission lookup.
+pub async fn authorize<R: ExtractResourceId>(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    action: Action,
+    resource: &R,
+) -> Result<(), ComhairleError> {
+    if can_perform_resource_action(
+        state,
+        &resource.resource_id(),
+        action,
+        &user.id,
+        user.organization_id.as_ref(),
+        resource.owner_id().as_ref(),
+    )
+    .await?
+    {
+        Ok(())
+    } else {
+        Err(ComhairleError::UserNotAuthorized)
     }
 }
 
@@ -1331,7 +1306,7 @@ mod tests {
     use uuid::Uuid;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1369,7 +1344,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn user_should_receive_signup_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn user_should_receive_signup_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1416,7 +1391,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_signup_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn should_signup_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email";
 
         let mut mailer = MockComhairleMailer::new();
@@ -1449,7 +1424,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn user_should_receive_verification_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn user_should_receive_verification_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut mailer = MockComhairleMailer::new();
         mailer
             .expect_send_welcome_email()
@@ -1485,7 +1460,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn unverified_user_should_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn unverified_user_should_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1537,7 +1512,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1585,7 +1560,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn user_cannot_be_verified_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn user_cannot_be_verified_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1636,7 +1611,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn user_should_not_be_able_to_login_with_wrong_password(
+    fn user_should_not_be_able_to_login_with_wrong_password(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -1662,7 +1637,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn user_should_be_able_to_login_with_email_with_different_case(
+    fn user_should_be_able_to_login_with_email_with_different_case(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -1742,7 +1717,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1774,7 +1749,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn user_should_be_able_to_logout(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn user_should_be_able_to_logout(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1807,7 +1782,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn annon_user_should_by_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn annon_user_should_by_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1841,7 +1816,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn user_should_receive_password_reset_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn user_should_receive_password_reset_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1881,7 +1856,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn unknown_user_returns_not_found(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn unknown_user_returns_not_found(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1913,7 +1888,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn users_password_should_be_updated(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn users_password_should_be_updated(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1979,7 +1954,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn password_and_confirmation_should_match(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn password_and_confirmation_should_match(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_username";
         let email = "test_email";
         let password = crate::test_helpers::TEST_PASSWORD;
@@ -2027,7 +2002,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn annon_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn annon_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let secret = state.config.jwt_secret.clone();
         let app = setup_server(Arc::new(state)).await?;
@@ -2126,7 +2101,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_return_user_from_api_key(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn should_return_user_from_api_key(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session
             .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
@@ -2259,7 +2234,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_signup_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn test_signup_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user_weak_pw";
         let password = "weak"; // Too short
         let email = "test_weak@example.com";
@@ -2280,7 +2255,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_password_reset_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn test_password_reset_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user_reset";
         let password = "ValidPassword123!";
         let email = "test_reset@example.com";
@@ -2329,7 +2304,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_update_user_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn test_update_user_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user_update";
         let password = "ValidPassword123!";
         let email = "test_update@example.com";
@@ -2360,7 +2335,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_send_email_with_otp(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn should_send_email_with_otp(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email@test.com";
         let username = "test_user";
         let password = "qwe321QWE^%$qwe321";
@@ -2395,7 +2370,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_sign_user_in_with_otp(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn should_sign_user_in_with_otp(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email@test.com";
         let username = "test_user";
         let password = "qwe321QWE^%$qwe321";
@@ -2431,7 +2406,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn otp_should_be_invalid_after_single_use(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn otp_should_be_invalid_after_single_use(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email@test.com";
         let username = "test_user";
         let password = "qwe321QWE^%$qwe321";
@@ -2477,7 +2452,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_login_user_from_otp_jwt(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn should_login_user_from_otp_jwt(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email@test.com";
         let username = "test_user";
         let password = "qwe321QWE^%$qwe321";

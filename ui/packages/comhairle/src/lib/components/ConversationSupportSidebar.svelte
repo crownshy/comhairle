@@ -4,18 +4,16 @@
 	import { LucideChevronRight } from 'lucide-svelte';
 	import CircleQuestionMark from '$lib/components/icons/CircleQuestionMark.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import type { LocalizedConversationDto, UserDto } from '@crownshy/api-client/api';
+	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
 	import ComhairleFAQs from './ComhairleFAQs.svelte';
-	import ChatBot from './Chatbot/ChatBot.svelte';
+	import LearningAssistant from './LearningAssistant/LearningAssistant.svelte';
 
 	let {
 		conversation,
-		user,
 		hasKnowledgeBaseDocs = false
 	}: {
 		conversation: LocalizedConversationDto;
-		user: UserDto;
 		hasKnowledgeBaseDocs?: boolean;
 	} = $props();
 
@@ -88,16 +86,7 @@
 				{/each}
 				{#if learningAssistantAvailable}
 					<Tabs.Content value="learningAssistant" class="flex min-h-0 flex-1 flex-col">
-						<div class="flex min-h-0 flex-1 flex-col">
-							<ChatBot
-								chatId={conversation.chatBotId}
-								conversationId={conversation.id}
-								userId={user?.id}
-								botName="Learning assistant"
-								botSubtitle="Ask questions"
-								active={activeTab === 'learningAssistant'}
-							/>
-						</div>
+						<LearningAssistant conversationId={conversation.id} variant="sidebar" />
 					</Tabs.Content>
 				{/if}
 			</div>

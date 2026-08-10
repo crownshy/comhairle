@@ -1,0 +1,10 @@
+{% extends "email_layout.html" %}
+{% block content %}
+  <p>Hello!</p>
+
+  <p>You were added to {{ organization_name }} as a {{ role_label }}.</p>
+
+  <p>You can sign in to Comhairle Admin using the link below.</p>
+
+  <p><a href="{{ admin_sign_in_link }}">Sign in to Comhairle admin</a></p>
+{% endblock %}

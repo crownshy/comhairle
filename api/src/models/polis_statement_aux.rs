@@ -1,4 +1,5 @@
-use crate::models::{self, SqlxResultExt, users::User};
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{
@@ -6,11 +7,16 @@ use sea_query::{
 };
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, wiki_poll_service::ModerationStatus};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::{self, SqlxResultExt, users::User};
+use crate::routes::auth::authorize;
+use crate::wiki_poll_service::ModerationStatus;
 
 impl From<ModerationStatus> for sea_query::Value {
     fn from(val: ModerationStatus) -> Self {
@@ -364,22 +370,30 @@ pub async fn check_is_commentor(
     Ok(())
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(state))]
 pub async fn check_can_moderate(
-    db: &PgPool,
+    state: &Arc<ComhairleState>,
     user: &User,
     workflow_step_id: &Uuid,
 ) -> Result<(), ComhairleError> {
-    let workflow_step = models::workflow_step::get_by_id(db, workflow_step_id).await?;
+    let workflow_step = models::workflow_step::get_by_id(&state.db, workflow_step_id).await?;
 
-    let workflow = models::workflow::get_by_id(db, &workflow_step.workflow_id).await?;
+    let workflow = models::workflow::get_by_id(&state.db, &workflow_step.workflow_id).await?;
     let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
         "workflow is not attached to a conversation".into(),
     ))?;
-    let conversation = models::conversation::get_by_id(db, &conversation_id).await?;
-    if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+    let conversation_resource = models::permissions::ConversationResource {
+        conversation_id: conversation.id,
+        owner_id: conversation.owner_id,
+    };
+    authorize(
+        state,
+        user,
+        models::permissions::Action::ConversationUpdate,
+        &conversation_resource,
+    )
+    .await?;
     Ok(())
 }
 

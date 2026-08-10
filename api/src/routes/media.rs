@@ -17,8 +17,8 @@ use crate::{
     error::ComhairleError,
     models::{
         media::{
-            self, CreateMedia, MediaContentType, MediaEditableFields, MediaFilterOptions,
-            MediaOrderOptions,
+            self, CreateMedia, File, MediaContentType, MediaEditableFields, MediaFilterOptions,
+            MediaOrderOptions, UploadMediaForm,
         },
         pagination::{PageOptions, PaginatedResults},
     },
@@ -55,7 +55,7 @@ async fn upload(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     mut form_data: Multipart,
-) -> Result<(StatusCode, Json<Vec<MediaDto>>), ComhairleError> {
+) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let bulk_storage_config = state
         .config
@@ -63,74 +63,93 @@ async fn upload(
         .as_ref()
         .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
-    let mut files = vec![];
+    let mut upload_media_form = UploadMediaForm::new();
+
     while let Some(field) = form_data.next_field().await? {
-        let content_type = field.content_type().map(|ct| ct.to_string());
+        let content_type = field.content_type().map(|f| f.to_string());
+        let field_name = field.name().map(|n| n.to_string());
+
+        // Check if the field is not a file
+        if content_type.is_none() {
+            let Some(field_name) = field_name else {
+                continue;
+            };
+            let Ok(text) = field.text().await.map(|f| f.to_string()) else {
+                continue;
+            };
+            match field_name.as_str() {
+                "name" => upload_media_form.name = text,
+                "alt" => upload_media_form.alt = text,
+                &_ => (),
+            }
+            continue;
+        };
+
         let filename = field
             .file_name()
             .map(|f| f.to_string())
             .unwrap_or_else(gen_id);
         let bytes = field.bytes().await?.to_vec();
 
-        files.push((filename, bytes, content_type));
-    }
-
-    if files.is_empty() {
-        return Err(ComhairleError::BadRequest("No files to upload".to_string()));
-    }
-
-    let mut media = vec![];
-
-    for (filename, bytes, content_type_header) in files {
-        let content_type = content_type_header
-            .map(|ct| MediaContentType::try_from_mime(&ct))
-            .unwrap_or_else(|| {
-                let extension = std::path::Path::new(&filename)
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("");
-                MediaContentType::try_from_extension(extension)
-            })?;
-
-        let metadata = FileMetadata {
-            is_public: true,
-            content_type: content_type.to_string(),
-        };
-        let prefix = match content_type {
-            MediaContentType::Jpeg
-            | MediaContentType::Png
-            | MediaContentType::Gif
-            | MediaContentType::Webp => "images",
-            MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
-            MediaContentType::Mp3 => "audio",
-        };
-        let storage_key = format!("{prefix}/{filename}");
-        bulk_storage_service
-            .upload_file(&storage_key, bytes, metadata)
-            .await?;
-
-        let mut name = filename.clone();
-
-        if let Some((prefix, _)) = name.rsplit_once('.') {
-            name = prefix.to_string();
-        }
-
-        // TODO: Change name to be able to be set when uploading instead of copied from filename
-        let create_media = CreateMedia {
-            store_name: bulk_storage_config.store_name.to_string(),
-            storage_key,
-            name,
+        upload_media_form.file = File {
             filename,
-            content_type,
+            bytes,
+            content_type: content_type.unwrap_or_default(),
         };
-        let media_record = media::create(&state.db, &create_media, &user.id).await?;
-
-        media.push(media_record);
     }
 
-    let media: Vec<MediaDto> = media.into_iter().map(Into::into).collect();
+    if upload_media_form.name.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "No file name provided".to_string(),
+        ));
+    }
+    if upload_media_form.alt.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "No alt text provided".to_string(),
+        ));
+    }
+    if upload_media_form.file.content_type.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "No content-type set".to_string(),
+        ));
+    }
 
-    Ok((StatusCode::CREATED, Json(media)))
+    // Unsupported content will error out here
+    let content_type = MediaContentType::get_type(&upload_media_form.file)?;
+
+    let prefix = match content_type {
+        MediaContentType::Jpeg
+        | MediaContentType::Png
+        | MediaContentType::Gif
+        | MediaContentType::Webp => "images",
+        MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
+        MediaContentType::Mp3 => "audio",
+    };
+
+    let storage_key = format!("{}/{}", prefix, upload_media_form.file.filename);
+    bulk_storage_service
+        .upload_file(
+            &storage_key,
+            upload_media_form.file.bytes,
+            FileMetadata {
+                is_public: true,
+                content_type: upload_media_form.file.content_type.to_string(),
+            },
+        )
+        .await?;
+
+    let create_media = CreateMedia {
+        store_name: bulk_storage_config.store_name.to_string(),
+        storage_key,
+        filename: upload_media_form.file.filename.to_string(),
+        name: upload_media_form.name,
+        alt: upload_media_form.alt,
+        content_type,
+    };
+
+    let media = media::create(&state.db, &create_media, &user.id).await?;
+
+    Ok((StatusCode::CREATED, Json(media.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -249,7 +268,7 @@ mod tests {
             pagination::PaginatedResults,
         },
         setup_server,
-        test_helpers::{TEST_PASSWORD, UserSession, multipart_body_builder, test_state},
+        test_helpers::{MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_state},
     };
 
     use sqlx::PgPool;
@@ -264,6 +283,7 @@ mod tests {
             storage_key: format!("images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
             name: random_name,
+            alt: "alt text".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -277,6 +297,8 @@ mod tests {
         let boundary = "test-boundary";
         let filename = "test_file.jpg";
         let content_type = "image/jpeg";
+        let name = "test-name";
+        let alt = "test-alt";
 
         let mut bulk_storage_service = MockBulkStorageService::new();
         bulk_storage_service
@@ -297,24 +319,22 @@ mod tests {
         let mut session = UserSession::new_admin();
         session.signup(&app).await?;
 
-        let body = multipart_body_builder()
-            .content("test-content")
-            .boundary(boundary)
-            .filename(filename)
-            .content_type(content_type)
-            .call();
+        let body = MultipartBodyBuilder::new(boundary.to_string())
+            .add_field("name", &name)
+            .add_field("alt", &alt)
+            .add_file(filename, Some(content_type), "test-content")
+            .build();
+
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
-        let media: Vec<MediaDto> = serde_json::from_value(value)?;
+        let media: MediaDto = serde_json::from_value(value)?;
 
+        assert_eq!(media.filename, filename.to_string(), "incorrect filename");
+        assert_eq!(media.name, name.to_string(), "incorrect name");
+        assert_eq!(media.alt, alt.to_string(), "incorrect alt text");
         assert_eq!(
-            media[0].filename,
-            filename.to_string(),
-            "incorrect filename"
-        );
-        assert_eq!(
-            media[0].content_type,
+            media.content_type,
             MediaContentType::Jpeg,
             "incorrect content_type"
         );

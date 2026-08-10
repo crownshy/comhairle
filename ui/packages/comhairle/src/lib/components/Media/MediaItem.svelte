@@ -17,7 +17,7 @@
 </script>
 
 <div
-	class="chequered-background container aspect-video max-w-96 cursor-pointer items-center overflow-hidden rounded-lg"
+	class="chequered-background container aspect-video min-h-48 cursor-pointer items-center overflow-hidden rounded-lg"
 >
 	<div class="justify-self-center overflow-hidden select-none">
 		{#snippet placeholder(Icon: ComponentType<Icon>)}
@@ -53,7 +53,14 @@
 		grid-template-rows: 4fr 1fr;
 		grid-template-columns: 1fr;
 		border: 2px solid var(--selected, 'transparent');
+		transition: translate 150ms ease-out;
+		translate: 0px 0px;
+
+		&:is(:focus, :hover) {
+			translate: 0px -3px;
+		}
 	}
+
 	.grid-auto {
 		grid-template-columns: auto auto;
 	}

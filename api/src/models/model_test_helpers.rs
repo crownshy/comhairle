@@ -1,5 +1,6 @@
 use std::{error::Error, sync::Arc};
 
+use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId, grant_role};
 use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
@@ -16,11 +17,28 @@ use uuid::Uuid;
 pub async fn setup_default_app_and_session(
     pool: &PgPool,
 ) -> Result<(Router, UserSession), Box<dyn Error>> {
-    let state = test_state().db(pool.clone()).call()?;
-    let app = setup_server(Arc::new(state)).await?;
+    let state = Arc::new(test_state().db(pool.clone()).call()?);
+    let app = setup_server(state.clone()).await?;
 
     let mut session = UserSession::new_admin();
-    session.signup(&app).await?;
+    let (_, user, _) = session.signup(&app).await?;
+    let user_id = user
+        .get("id")
+        .and_then(|value| value.as_ref())
+        .and_then(|value| value.as_str())
+        .ok_or("missing signup user id")?;
+    let user_id = Uuid::parse_str(user_id)?;
+
+    let _ = grant_role(
+        &state,
+        GrantRoleRequest {
+            actor_id: UserOrOrganizationId::User(user_id),
+            permission_triplet: Role::Admin.system_triplet(),
+            granted_by: &user_id,
+            grant_reason: "Default admin test setup",
+        },
+    )
+    .await;
 
     Ok((app, session))
 }
@@ -67,8 +85,12 @@ pub async fn get_random_organization_id(
     app: &Router,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
-    let (_, response, _) = session.create_random_organization(app).await?;
-    eprintln!("Organization creation response: {:?}", response);
+    let (status, response, _) = session.create_random_organization(app).await?;
+    if !status.is_success() {
+        return Err(
+            format!("organization creation failed with status {status}: {response}").into(),
+        );
+    }
     let organization: OrganizationDto = serde_json::from_value(response)?;
 
     Ok(organization.id)

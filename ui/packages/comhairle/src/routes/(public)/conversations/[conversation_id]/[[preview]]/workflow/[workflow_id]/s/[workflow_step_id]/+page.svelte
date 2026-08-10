@@ -20,7 +20,7 @@
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
-	import LearningAssistantSkeleton from '$lib/tools/learn/LearningAssistantSkeleton.svelte';
+	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
@@ -296,16 +296,19 @@
 						{/key}
 					{/if}
 					{#if toolConfig?.type === Polis.TOOL_NAME}
-						<Polis.UserUI
-							user_id={user.id}
-							polis_id={toolConfig.poll_id}
-							polis_url={toolConfig.server_url}
-							requiredVotes={toolConfig.required_votes}
-							workflowStepId={workflowStep.id}
-							onDone={stepComplete}
-							onCanContinueChange={handleCanContinueChange}
-							showRemainingStatementCount={toolConfig.show_remaining_statements}
-						/>
+						{#key workflowStep.id}
+							<Polis.UserUI
+								user_id={user.id}
+								polis_id={toolConfig.poll_id}
+								polis_url={toolConfig.server_url}
+								requiredVotes={toolConfig.required_votes}
+								workflowStepId={workflowStep.id}
+								{isPreview}
+								onDone={stepComplete}
+								onCanContinueChange={handleCanContinueChange}
+								showRemainingStatementCount={toolConfig.show_remaining_statements}
+							/>
+						{/key}
 					{/if}
 					{#if toolConfig.type === HeyForm.TOOL_NAME}
 						{#key workflowStep.id}

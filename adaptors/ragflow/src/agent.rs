@@ -1,7 +1,7 @@
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use crate::{client::RagflowClient, error::Result, GetQueryParams};
+use crate::{GetQueryParams, client::RagflowClient, error::Result};
 
 pub mod session;
 
@@ -96,8 +96,8 @@ mod tests {
     use crate::client::RagflowClient;
     use serde_json::json;
     use wiremock::{
-        matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
     };
 
     #[tokio::test]

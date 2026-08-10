@@ -11,7 +11,6 @@ import type {
 	WorkflowStepWithTranslations
 } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
-import type { ConfigureTab } from './configure/tabs';
 
 /**
  * Invalidation keys for this load. Each re-runs this fetch; the names let callers
@@ -67,6 +66,7 @@ export const load: LayoutLoad = async ({
 		const configureTabs: { id: string; label: string }[] = [
 			{ id: 'details', label: 'Details' },
 			{ id: 'content', label: 'Content' },
+			{ id: 'glossary', label: 'Glossary' },
 			{ id: 'access', label: 'Access' }
 		];
 

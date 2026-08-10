@@ -61,6 +61,13 @@ pub trait ComhairleMailer: Send + Sync {
         reset_link: String,
     ) -> Result<(), ComhairleError>;
 
+    fn send_user_account_created_email(
+        &self,
+        to: &Option<String>,
+        username: &Option<String>,
+        set_password_link: String,
+    ) -> Result<(), ComhairleError>;
+
     fn send_verification_email(
         &self,
         username: &Option<String>,
@@ -152,6 +159,9 @@ impl MockComhairleMailer {
             .returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_password_reset_email()
+            .returning(|_, _, _| Ok(()));
+        mailer
+            .expect_send_user_account_created_email()
             .returning(|_, _, _| Ok(()));
         mailer
             .expect_send_event_registration_email()
@@ -402,6 +412,25 @@ impl ComhairleMailer for Mailer {
                 "Reset your Comhairle password",
                 "password_reset.html",
                 context! { username, reset_link },
+                None,
+            )
+        } else {
+            Err(ComhairleError::WrongUserType)
+        }
+    }
+
+    fn send_user_account_created_email(
+        &self,
+        to: &Option<String>,
+        username: &Option<String>,
+        set_password_link: String,
+    ) -> Result<(), ComhairleError> {
+        if let Some(email) = to {
+            self.send_email(
+                email,
+                "A user account has been created for you",
+                "user_account_created.html",
+                context! { username, set_password_link },
                 None,
             )
         } else {

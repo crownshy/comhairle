@@ -1,0 +1,10 @@
+{% extends "email_layout.html" %}
+{% block content %}
+  <p>Hello{% if username %} {{ username }}{% endif %}!</p>
+
+  <p>A Comhairle user account has been created for you.</p>
+
+  <p>To finish setup, please set your password using the secure link below. This link expires in 24 hours.</p>
+
+  <p><a href="{{ set_password_link }}">Set your password</a></p>
+{% endblock %}
