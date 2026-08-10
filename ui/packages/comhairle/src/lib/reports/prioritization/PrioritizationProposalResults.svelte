@@ -85,7 +85,7 @@
 {#snippet questionType(question: Question, proposal: RankedProposal, section?: ProposalSection)}
 	{#if question.type.kind === 'likert'}
 		<BarChart
-			data={extractBarChartData(question, proposal, section) ?? []}
+			data={extractBarChartData(question, proposal, section)}
 			x="category"
 			y="count"
 			axis="x"

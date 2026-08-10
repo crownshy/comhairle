@@ -25,11 +25,11 @@
 	} satisfies Chart.ChartConfig;
 
 	let majority = $derived.by(() => {
-		let majority = data[0];
+		let majority = data?.[0];
 
-		for (let i = 1; i < data.length; i++) {
-			if (Number(data[i][value]) > Number(majority[value])) {
-				majority = data[i];
+		for (let i = 1; i < (data?.length ?? 1); i++) {
+			if (Number(data?.[i][value]) > Number(majority?.[value])) {
+				majority = data?.[i];
 			}
 		}
 
@@ -43,7 +43,6 @@
 		{key}
 		{value}
 		innerRadius={-40}
-		cornerRadius={2}
 		legend
 		range={[-180, 180]}
 		cRange={colours}
@@ -57,14 +56,14 @@
 		{/snippet}
 		{#snippet aboveMarks()}
 			<Text
-				value={String(majority[value])}
+				value={String(majority?.[value] ?? '')}
 				textAnchor="middle"
 				verticalAnchor="middle"
 				class="text-4xl! font-bold"
 				dy={-15}
 			/>
 			<Text
-				value={String(majority[key])}
+				value={String(majority?.[key] ?? '')}
 				textAnchor="middle"
 				verticalAnchor="middle"
 				class="text-xl!"

@@ -36,10 +36,10 @@
 	<div class="py-10">
 		<h2 class="text-md font-bold">{section.title}</h2>
 		{#if type === 'Bar'}
-			<SurveyBarChart data={section.choices ?? []} x="label" y="count" />
+			<SurveyBarChart data={section.choices} x="label" y="count" />
 		{/if}
 		{#if type === 'Doughnut'}
-			<Doughnut data={section.choices ?? []} key="label" value="count" />
+			<Doughnut data={section.choices} key="label" value="count" />
 		{/if}
 		{#if type === 'KdePlot'}
 			<p>KdePlot chart</p>
