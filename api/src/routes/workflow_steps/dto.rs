@@ -6,15 +6,17 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        translations::{ResolveTranslations, TextContentId, TranslationDto},
+        translations::{
+            ResolveTranslations, ResolveWithTranslations, TextContentId, TranslationDto,
+        },
         user_progress::ProgressStatus,
         workflow_step::{
             ActivationRule, LocalizedWorkflowStep, LocalizedWorkflowStepWithProgress, WorkflowStep,
-            WorkflowStepWithTranslations,
+            WorkflowStepTranslations, WorkflowStepWithTranslations,
         },
     },
     schema_helpers::{example_localized_text, example_uuid},
-    tools::{LocalizedToolConfig, ToolConfig},
+    tools::{LocalizedToolConfig, ToolConfig, ToolConfigWithTranslations},
 };
 
 /// Data transfer object (public API representation) for a WorkflowStep.
@@ -128,19 +130,49 @@ pub struct LocalizedWorkflowStepWithProgressDto {
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowStepWithTranslationsDto {
-    #[serde(flatten)]
-    step: WorkflowStepWithTranslations,
-    tool_config_translations: Option<HashMap<String, TranslationDto>>,
+    #[schemars(example = "example_uuid")]
+    pub id: Uuid,
+    #[schemars(example = "example_uuid")]
+    pub workflow_id: Uuid,
+    #[schemars(example = "example_localized_text")]
+    pub name: String,
+    pub step_order: i32,
+    pub activation_rule: ActivationRule,
+    #[schemars(example = "example_localized_text")]
+    pub description: String,
+    pub is_offline: bool,
+    pub required: bool,
+    pub can_revisit: bool,
+    pub request_user_share_permission: bool,
+    pub translations: WorkflowStepTranslations,
+    pub tool_config: Option<ToolConfigWithTranslations>,
+    pub preview_tool_config: ToolConfigWithTranslations,
 }
 
 impl WorkflowStepWithTranslations {
     pub fn into_dto(
         self,
-        tool_config_translations: Option<HashMap<String, TranslationDto>>,
+        tool_config_translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
     ) -> WorkflowStepWithTranslationsDto {
         WorkflowStepWithTranslationsDto {
-            step: self,
-            tool_config_translations,
+            id: self.id,
+            workflow_id: self.workflow_id,
+            name: self.name,
+            step_order: self.step_order,
+            activation_rule: self.activation_rule,
+            description: self.description,
+            is_offline: self.is_offline,
+            required: self.required,
+            can_revisit: self.can_revisit,
+            request_user_share_permission: self.request_user_share_permission,
+            translations: self.translations,
+            tool_config: self
+                .tool_config
+                .map(|tc| tc.resolve_with_translations(tool_config_translations, locale)),
+            preview_tool_config: self
+                .preview_tool_config
+                .resolve_with_translations(tool_config_translations, locale),
         }
     }
 }

@@ -566,6 +566,7 @@ pub fn derive_translatable_json(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
     let resolved_name = format_ident!("Localized{}", name);
+    let with_translations_name = format_ident!("{}WithTranslations", name);
     let serde_attributes = passthrough_serde_attrs(&input.attrs);
     // TODO: perhaps allow configuration via macro or take from original struct
     let derives: Vec<syn::Path> = vec![
@@ -581,16 +582,16 @@ pub fn derive_translatable_json(input: TokenStream) -> TokenStream {
         Data::Struct(data) => derive_translatable_json_struct(
             name,
             &resolved_name,
+            &with_translations_name,
             data,
-            &input.attrs,
             &derives,
             &serde_attributes,
         ),
         Data::Enum(data) => derive_translatable_enum_struct(
             name,
             &resolved_name,
+            &with_translations_name,
             data,
-            &input.attrs,
             &derives,
             &serde_attributes,
         ),
@@ -614,6 +615,9 @@ fn passthrough_serde_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
         .collect()
 }
 
+// TODO: decide whether to remove as no longer in use or keep around in case
+// we need in the future.
+// Probably remove as it clutters this module.
 enum TagMode {
     External,
     Internal,
@@ -729,8 +733,8 @@ fn serialize_name(raw: &str, attrs: &[Attribute], container_case: Option<&str>) 
 fn derive_translatable_json_struct(
     name: &syn::Ident,
     resolved_name: &syn::Ident,
+    with_translations_name: &syn::Ident,
     data: &syn::DataStruct,
-    input_attrs: &[Attribute],
     derives: &[syn::Path],
     serde_attrs: &Vec<Attribute>,
 ) -> proc_macro2::TokenStream {
@@ -740,40 +744,38 @@ fn derive_translatable_json_struct(
     };
 
     let mut resolved_fields = Vec::new();
-    let mut collect_text_content_id_statements = Vec::new();
     let mut resolve_inits = Vec::new();
-    let mut collect_path_statements = Vec::new();
-
-    let container_case = container_rename_all(input_attrs);
+    let mut collect_text_content_id_statements = Vec::new();
+    let mut with_translations_fields = Vec::new();
+    let mut with_translations_inits = Vec::new();
 
     for field in fields {
         let ident = field.ident.as_ref().unwrap();
         let ty = &field.ty;
         let visibility = &field.vis;
 
-        // Field name respecting serde serialization if applicable, used for the
-        // JSON pointer path recorded against each translation.
-        let json_field_name =
-            serialize_name(&ident.to_string(), &field.attrs, container_case.as_deref());
-
         if has_translatable_attr(&field.attrs) {
             resolved_fields.push(quote! {
                 #visibility #ident: <#ty as crate::models::translations::ResolveTranslations>::Resolved
             });
-            collect_text_content_id_statements.push(quote! {
-                self.#ident.collect_text_content_ids(out);
-            });
             resolve_inits.push(quote! {
                 #ident: self.#ident.resolve(map)
             });
-            collect_path_statements.push(quote! {
-                pointer.push_field(#json_field_name);
-                self.#ident.collect_text_content_ids_with_path(pointer, out);
-                pointer.pop();
+            with_translations_fields.push(quote! {
+                #visibility #ident: <#ty as crate::models::translations::ResolveWithTranslations>::WithTranslations
+            });
+            with_translations_inits.push(quote! {
+                #ident: self.#ident.resolve_with_translations(translations, locale)
+            });
+
+            collect_text_content_id_statements.push(quote! {
+                self.#ident.collect_text_content_ids(out);
             });
         } else {
             resolved_fields.push(quote! { #visibility #ident: #ty });
             resolve_inits.push(quote! { #ident: self.#ident });
+            with_translations_fields.push(quote! { #visibility #ident: #ty });
+            with_translations_inits.push(quote! { #ident: self.#ident });
         }
     }
 
@@ -782,6 +784,12 @@ fn derive_translatable_json_struct(
         #(#serde_attrs)*
         pub struct #resolved_name {
             #(#resolved_fields),*
+        }
+
+        #[derive(#(#derives),*)]
+        #(#serde_attrs)*
+        pub struct #with_translations_name {
+            #(#with_translations_fields),*
         }
 
         impl crate::models::translations::CollectTextContentIds for #name {
@@ -800,14 +808,19 @@ fn derive_translatable_json_struct(
             }
         }
 
-        impl crate::models::translations::CollectTextContentIdsWithPath for #name {
-            fn collect_text_content_ids_with_path(
-                &self,
-                pointer: &mut crate::models::translations::JsonPointer,
-                out: &mut Vec<(String, TextContentId)>,
-            ) {
-                #(#collect_path_statements)*
+        impl crate::models::translations::ResolveWithTranslations for #name {
+            type WithTranslations = #with_translations_name;
+
+            fn resolve_with_translations(
+                self,
+                translations: &std::collections::HashMap<TextContentId, crate::models::translations::TranslationDto>,
+                locale: &str,
+            ) -> Self::WithTranslations {
+                #with_translations_name {
+                    #(#with_translations_inits),*
+                }
             }
+
         }
     }
 }
@@ -815,105 +828,82 @@ fn derive_translatable_json_struct(
 fn derive_translatable_enum_struct(
     name: &syn::Ident,
     resolved_name: &syn::Ident,
+    with_translations_name: &syn::Ident,
     data: &syn::DataEnum,
-    input_attrs: &[Attribute],
     derives: &[syn::Path],
     serde_attrs: &Vec<Attribute>,
 ) -> proc_macro2::TokenStream {
-    let container_case = container_rename_all(input_attrs);
-    let tag_mode = detect_tag_mode(input_attrs);
-
     let mut resolved_variants = Vec::new();
-    let mut collect_arms = Vec::new();
     let mut resolve_arms = Vec::new();
-    let mut collect_path_arms = Vec::new();
+    let mut with_translations_variants = Vec::new();
+    let mut with_translations_arms = Vec::new();
+
+    let mut collect_arms = Vec::new();
 
     for variant in &data.variants {
         let variant_ident = &variant.ident;
-
-        // The pointer segment that wraps this variant's fields, if any, depending
-        // on how the enum is tagged:
-        //   External   -> {"VariantName": {fields...}}   => wrap = variant name
-        //   Internal   -> {"tag": "variant_name", fields flattened}  => no wrap
-        //   Adjacent   -> {"tag": "...", "content": {fields...}}     => wrap = content key
-        //   Untagged   -> fields flattened, no discriminator at all  => no wrap
-        let variant_wrap: Option<String> = match &tag_mode {
-            TagMode::External => Some(serialize_name(
-                &variant_ident.to_string(),
-                &variant.attrs,
-                container_case.as_deref(),
-            )),
-            TagMode::Adjacent(content) => Some(content.clone()),
-            TagMode::Internal | TagMode::Untagged => None,
-        };
 
         match &variant.fields {
             Fields::Unit => {
                 // Nothing to resolve so push verbatim
                 resolved_variants.push(quote! { #variant_ident });
-                // No data to collect so use empty block
-                collect_arms.push(quote! { Self::#variant_ident => {} });
-                collect_path_arms.push(quote! { Self::#variant_ident => {} });
                 // Nothing to resolve, `Self::Text => LocalizedType::Text`
                 resolve_arms
                     .push(quote! { Self::#variant_ident => #resolved_name::#variant_ident });
+                with_translations_variants.push(quote! { #variant_ident });
+                with_translations_arms.push(
+                    quote! { Self::#variant_ident => #with_translations_name::#variant_ident },
+                );
+
+                collect_arms.push(quote! { Self::#variant_ident => {} });
             }
             Fields::Named(fields) => {
                 let mut field_idents = Vec::new();
                 let mut resolved_fields = Vec::new();
-                let mut collect_body = Vec::new();
                 let mut resolve_inits = Vec::new();
-                let mut collect_path_body = Vec::new();
+                let mut with_translations_fields = Vec::new();
+                let mut with_translations_inits = Vec::new();
+
+                let mut collect_body = Vec::new();
 
                 for field in &fields.named {
                     let ident = field.ident.as_ref().unwrap();
                     let ty = &field.ty;
                     field_idents.push(quote! { #ident });
 
-                    // NOTE: rename_all on the enum applies to variant names,
-                    // not automatically to fields within a variant, so no
-                    // container_case is threaded through here — only an
-                    // explicit per-field #[serde(rename = "...")] applies.
-                    let json_field_name = serialize_name(&ident.to_string(), &field.attrs, None);
-
                     if has_translatable_attr(&field.attrs) {
                         resolved_fields.push(quote! {
                             #ident: <#ty as crate::models::translations::ResolveTranslations>::Resolved
                         });
+                        resolve_inits.push(quote! { #ident: #ident.resolve(map) });
+                        with_translations_fields.push(quote! {
+                            #ident: <#ty as crate::models::translations::ResolveWithTranslations>::WithTranslations
+                        });
+                        with_translations_inits.push(quote! { #ident: #ident.resolve_with_translations(translations, locale) });
+
                         collect_body.push(quote! {
                             #ident.collect_text_content_ids(out);
-                        });
-                        resolve_inits.push(quote! { #ident: #ident.resolve(map) });
-                        collect_path_body.push(quote! {
-                            pointer.push_field(#json_field_name);
-                            #ident.collect_text_content_ids_with_path(pointer, out);
-                            pointer.pop();
                         });
                     } else {
                         resolved_fields.push(quote! { #ident: #ty });
                         resolve_inits.push(quote! { #ident: #ident });
+                        with_translations_fields.push(quote! { #ident: #ty });
+                        with_translations_inits.push(quote! { #ident: #ident });
                     }
                 }
 
                 resolved_variants.push(quote! { #variant_ident { #(#resolved_fields),* }});
-                collect_arms.push(quote! {
-                    Self::#variant_ident { #(#field_idents),* } => { #(#collect_body)* }
-                });
                 resolve_arms.push(quote! {
                     Self::#variant_ident { #(#field_idents),* } => #resolved_name::#variant_ident { #(#resolve_inits),* }
                 });
-                collect_path_arms.push(if let Some(wrap) = &variant_wrap {
-                    quote! {
-                        Self::#variant_ident { #(#field_idents),* } => {
-                            pointer.push_field(#wrap);
-                            #(#collect_path_body)*
-                            pointer.pop();
-                        }
-                    }
-                } else {
-                    quote! {
-                        Self::#variant_ident { #(#field_idents),* } => { #(#collect_path_body)* }
-                    }
+                with_translations_variants
+                    .push(quote! { #variant_ident { #(#with_translations_fields),* }});
+                with_translations_arms.push(quote! {
+                    Self::#variant_ident { #(#field_idents),* } => #with_translations_name::#variant_ident { #(#with_translations_inits),* }
+                });
+
+                collect_arms.push(quote! {
+                    Self::#variant_ident { #(#field_idents),* } => { #(#collect_body)* }
                 });
             }
             Fields::Unnamed(fields) => {
@@ -930,34 +920,30 @@ fn derive_translatable_enum_struct(
                     resolved_variants.push(quote! {
                         #variant_ident(<#inner_ty as crate::models::translations::ResolveTranslations>::Resolved)
                     });
-                    collect_arms.push(quote! {
-                        Self::#variant_ident(inner) => { inner.collect_text_content_ids(out); }
-                    });
                     resolve_arms.push(quote! {
                         Self::#variant_ident(inner) => #resolved_name::#variant_ident(inner.resolve(map))
                     });
-                    collect_path_arms.push(if let Some(wrap) = &variant_wrap {
-                        quote! {
-                            Self::#variant_ident(inner) => {
-                                pointer.push_field(#wrap);
-                                inner.collect_text_content_ids_with_path(pointer, out);
-                                pointer.pop();
-                            }
-                        }
-                    } else {
-                        quote! {
-                            Self::#variant_ident(inner) => {
-                                inner.collect_text_content_ids_with_path(pointer, out);
-                            }
-                        }
+                    with_translations_variants.push(quote! {
+                        #variant_ident(<#inner_ty as crate::models::translations::ResolveWithTranslations>::WithTranslations)
+                    });
+                    with_translations_arms.push(quote! {
+                        Self::#variant_ident(inner) => #with_translations_name::#variant_ident(inner.resolve_with_translations(translations, locale))
+                    });
+
+                    collect_arms.push(quote! {
+                        Self::#variant_ident(inner) => { inner.collect_text_content_ids(out); }
                     });
                 } else {
-                    resolved_variants.push(quote! { #variant_ident(#inner_ty )});
-                    collect_arms.push(quote! { Self::#variant_ident(_inner ) => {} });
+                    resolved_variants.push(quote! { #variant_ident(#inner_ty) });
                     resolve_arms.push(quote! {
                         Self::#variant_ident(inner) => #resolved_name::#variant_ident(inner)
                     });
-                    collect_path_arms.push(quote! { Self::#variant_ident(_inner) => {} });
+                    with_translations_variants.push(quote! { #variant_ident(#inner_ty) });
+                    with_translations_arms.push(quote! {
+                        Self::#variant_ident(inner) => #with_translations_name::#variant_ident(inner)
+                    });
+
+                    collect_arms.push(quote! { Self::#variant_ident(_inner ) => {} });
                 }
             }
         }
@@ -968,6 +954,12 @@ fn derive_translatable_enum_struct(
         #(#serde_attrs)*
         pub enum #resolved_name {
             #(#resolved_variants),*
+        }
+
+        #[derive(#(#derives),*)]
+        #(#serde_attrs)*
+        pub enum #with_translations_name {
+            #(#with_translations_variants),*
         }
 
         impl crate::models::translations::CollectTextContentIds for #name {
@@ -988,14 +980,16 @@ fn derive_translatable_enum_struct(
             }
         }
 
-        impl crate::models::translations::CollectTextContentIdsWithPath for #name {
-            fn collect_text_content_ids_with_path(
-                &self,
-                pointer: &mut crate::models::translations::JsonPointer,
-                out: &mut Vec<(String, TextContentId)>,
-            ) {
+        impl crate::models::translations::ResolveWithTranslations for #name {
+            type WithTranslations = #with_translations_name;
+
+            fn resolve_with_translations(
+                self,
+                translations: &std::collections::HashMap<TextContentId, crate::models::translations::TranslationDto>,
+                locale: &str,
+            ) -> Self::WithTranslations {
                 match self {
-                    #(#collect_path_arms),*
+                    #(#with_translations_arms),*
                 }
             }
         }

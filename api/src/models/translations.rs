@@ -223,6 +223,100 @@ pub trait ResolveTranslations {
     fn resolve(self, map: &HashMap<TextContentId, String>) -> Self::Resolved;
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct JsonFieldWithTranslations {
+    pub localized: String,
+    pub translations: TranslationDto,
+}
+
+pub trait ResolveWithTranslations {
+    type WithTranslations;
+
+    fn resolve_with_translations(
+        self,
+        translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> Self::WithTranslations;
+}
+
+impl ResolveWithTranslations for TextContentId {
+    type WithTranslations = JsonFieldWithTranslations;
+
+    fn resolve_with_translations(
+        self,
+        translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> Self::WithTranslations {
+        match translations.get(&self) {
+            Some(trans_dto) => {
+                let localized = pick_localized(trans_dto, locale);
+
+                JsonFieldWithTranslations {
+                    localized,
+                    translations: trans_dto.clone(),
+                }
+            }
+            None => {
+                // Genuinely missing: the id was collected but resolve_translations
+                // found no text_content row for it. This indicates a data
+                // integrity issue (orphaned reference), not a normal empty state.
+                tracing::warn!(text_content_id = %self, "missing text_content for translatable field");
+                JsonFieldWithTranslations {
+                    localized: String::new(),
+                    translations: TranslationDto {
+                        text_content: crate::routes::translations::dto::TextContentDto {
+                            id: self,
+                            primary_locale: locale.to_string(),
+                            format: TextFormat::Plain,
+                        },
+                        text_translations: vec![],
+                    },
+                }
+            }
+        }
+    }
+}
+
+impl<T: ResolveWithTranslations> ResolveWithTranslations for Option<T> {
+    type WithTranslations = Option<T::WithTranslations>;
+
+    fn resolve_with_translations(
+        self,
+        translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> Self::WithTranslations {
+        self.map(|v| v.resolve_with_translations(translations, locale))
+    }
+}
+
+impl<T: ResolveWithTranslations> ResolveWithTranslations for Vec<T> {
+    type WithTranslations = Vec<T::WithTranslations>;
+
+    fn resolve_with_translations(
+        self,
+        translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> Self::WithTranslations {
+        self.into_iter()
+            .map(|v| v.resolve_with_translations(translations, locale))
+            .collect()
+    }
+}
+
+fn pick_localized(dto: &TranslationDto, locale: &str) -> String {
+    dto.text_translations
+        .iter()
+        .find(|t| t.locale == locale)
+        .or_else(|| {
+            dto.text_translations
+                .iter()
+                .find(|t| t.locale == dto.text_content.primary_locale)
+        })
+        .map(|t| t.content.clone())
+        .unwrap_or_default()
+}
+
 /// Implemented by types that represent "raw" setup input which needs to be
 /// persisted as translatable text, converting them into their "built" form
 /// backed by a [`TextContentId`].
@@ -282,106 +376,6 @@ impl<T: BuildTextTranslation + Send> BuildTextTranslation for Option<T> {
     }
 }
 
-/// A path to a specific location within a JSON value, built incrementally
-/// during a tree walk and rendered in [RFC 6901](https://www.rfc-editor.org/info/rfc6901/)
-/// JSON Pointer syntax (e.g. `/questions/0/text`).
-///
-/// Used by [`CollectTextContentIdsWithPath`] to record *where* in a
-/// serialized JSON structure each [`TextContentId`] was found, so an admin
-/// UI can look up and edit the translation for a specific nested field
-/// without needing to know the shape of the JSON in advance.
-pub struct JsonPointer {
-    pub segments: Vec<PathSegment>,
-}
-
-/// A single step in a [`JsonPointer`] — either a named object key or an
-/// array index.
-pub enum PathSegment {
-    /// An object key, e.g. the `text` in `.text`. Must match the field's
-    /// *serialized* (post-serde-rename) name, or the resulting pointer
-    /// won't resolve against the real JSON.
-    Field(&'static str),
-    /// An array index, e.g. the `0` in `[0]`.
-    Index(usize),
-}
-
-impl JsonPointer {
-    /// Appends a field/object-key segment. Pair with [`Self::pop`] when
-    /// leaving that field during a recursive walk.
-    pub fn push_field(&mut self, field: &'static str) {
-        self.segments.push(PathSegment::Field(field))
-    }
-
-    /// Appends an array-index segment. Pair with [`Self::pop`] when leaving
-    /// that element during a recursive walk.
-    pub fn push_index(&mut self, index: usize) {
-        self.segments.push(PathSegment::Index(index))
-    }
-
-    /// Removes the last segment, returning the pointer to its state before
-    /// the matching `push_field`/`push_index` call. Used to backtrack after
-    /// recursing into a field or array element, so the same `JsonPointer`
-    /// can be reused across sibling fields without allocating a new one.
-    pub fn pop(&mut self) {
-        self.segments.pop();
-    }
-}
-
-impl std::fmt::Display for PathSegment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PathSegment::Field(field) => {
-                write!(f, "{}", field.replace('~', "~0").replace('/', "~1"))
-            }
-            PathSegment::Index(index) => write!(f, "{}", index),
-        }
-    }
-}
-
-/// Renders this segment as it appears in an RFC 6901 pointer, escaping
-/// `~` and `/` in field names (`~0` and `~1` respectively) since those
-/// characters are structurally significant in the pointer syntax.
-impl std::fmt::Display for JsonPointer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut pointer = String::new();
-        for segment in &self.segments {
-            pointer.push_str(&format!("/{}", segment));
-        }
-        write!(f, "{}", pointer)
-    }
-}
-
-/// Implemented by types that may contain [`TextContentId`] references,
-/// recording the [`JsonPointer`] path to each one alongside its id.
-///
-/// This is the admin-facing counterpart to [`CollectTextContentIds`]: where
-/// that trait gathers ids into a flat, deduplicated `HashSet` for batch
-/// resolution to display text, this trait preserves *where* each id sits
-/// within the JSON structure, so an admin UI can present and edit the
-/// translation for a specific nested field (e.g. `questions/0/text`)
-/// without needing prior knowledge of the JSON's shape.
-///
-/// Implemented directly for [`TextContentId`] (the base case, which records
-/// the current pointer against itself), with blanket implementations for
-/// `Option<T>` and `Vec<T>` that push an index segment per element. Structs
-/// and enums generated by `#[derive(TranslatableJson)]` implement this by
-/// pushing a field (or, for tagged enum variants, a variant/content)
-/// segment before recursing into each `#[translatable]` field, then popping
-/// it afterwards — so the pointer reflects the field's actual serialized
-/// JSON position, respecting `serde` renames and enum tagging mode.
-///
-/// Unlike [`CollectTextContentIds`], results are collected into a `Vec`
-/// rather than a `HashSet`: the same [`TextContentId`] may legitimately
-/// appear at multiple distinct paths (e.g. two questions sharing a label),
-/// and each occurrence needs its own path recorded separately.
-pub trait CollectTextContentIdsWithPath {
-    fn collect_text_content_ids_with_path(
-        &self,
-        pointer: &mut JsonPointer,
-        out: &mut Vec<(String, TextContentId)>,
-    );
-}
-
 // ======================================
 //
 // Implementations for [`TextContentId`]
@@ -431,42 +425,6 @@ impl<T: ResolveTranslations> ResolveTranslations for Vec<T> {
 
     fn resolve(self, map: &HashMap<TextContentId, String>) -> Self::Resolved {
         self.into_iter().map(|v| v.resolve(map)).collect()
-    }
-}
-
-impl CollectTextContentIdsWithPath for TextContentId {
-    fn collect_text_content_ids_with_path(
-        &self,
-        pointer: &mut JsonPointer,
-        out: &mut Vec<(String, TextContentId)>,
-    ) {
-        out.push((pointer.to_string(), *self))
-    }
-}
-
-impl<T: CollectTextContentIdsWithPath> CollectTextContentIdsWithPath for Option<T> {
-    fn collect_text_content_ids_with_path(
-        &self,
-        pointer: &mut JsonPointer,
-        out: &mut Vec<(String, TextContentId)>,
-    ) {
-        if let Some(value) = self {
-            value.collect_text_content_ids_with_path(pointer, out);
-        }
-    }
-}
-
-impl<T: CollectTextContentIdsWithPath> CollectTextContentIdsWithPath for Vec<T> {
-    fn collect_text_content_ids_with_path(
-        &self,
-        pointer: &mut JsonPointer,
-        out: &mut Vec<(String, TextContentId)>,
-    ) {
-        for (index, item) in self.iter().enumerate() {
-            pointer.push_index(index);
-            item.collect_text_content_ids_with_path(pointer, out);
-            pointer.pop();
-        }
     }
 }
 
@@ -1601,785 +1559,6 @@ mod tests {
         assert_eq!(
             resolved.nested_arr[1].text_field, "Nested b",
             "incorrect nested a"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_collect_text_content_ids_with_json_pointer_paths_with_externally_tagged_enum(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Root {
-            #[translatable]
-            title: TextContentId,
-            #[translatable]
-            nested_arr: Vec<Nested>,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Nested {
-            #[translatable]
-            text_field: TextContentId,
-            other_field: String,
-            #[translatable]
-            external: ExternalTaggedEnum,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        enum ExternalTaggedEnum {
-            #[translatable]
-            VarOne(InnerTrans),
-            VarTwo(InnerRaw),
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct InnerTrans {
-            #[translatable]
-            value: TextContentId,
-        }
-
-        #[derive(
-            serde::Serialize, PartialEq, Debug, serde::Deserialize, schemars::JsonSchema, Clone,
-        )]
-        struct InnerRaw {
-            value: String,
-        }
-
-        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
-        let nested_1_text =
-            new_translation(&pool, "en", "Nested 1 text", TextFormat::Plain).await?;
-        let nested_2_text =
-            new_translation(&pool, "en", "Nested 2 text", TextFormat::Plain).await?;
-        let nested_3_text =
-            new_translation(&pool, "en", "Nested 3 text", TextFormat::Plain).await?;
-        let ext_1_value = new_translation(&pool, "en", "Tagged 1 value", TextFormat::Plain).await?;
-        let ext_2_value = new_translation(&pool, "en", "Tagged 2 value", TextFormat::Plain).await?;
-
-        let root_json = Root {
-            title: root_title.id,
-            nested_arr: vec![
-                Nested {
-                    text_field: nested_1_text.id,
-                    other_field: "test".to_string(),
-                    external: ExternalTaggedEnum::VarOne(InnerTrans {
-                        value: ext_1_value.id,
-                    }),
-                },
-                Nested {
-                    text_field: nested_2_text.id,
-                    other_field: "test".to_string(),
-                    external: ExternalTaggedEnum::VarTwo(InnerRaw {
-                        value: "test".to_string(),
-                    }),
-                },
-                Nested {
-                    text_field: nested_3_text.id,
-                    other_field: "test".to_string(),
-                    external: ExternalTaggedEnum::VarOne(InnerTrans {
-                        value: ext_2_value.id,
-                    }),
-                },
-            ],
-        };
-
-        let mut pointer = JsonPointer { segments: vec![] };
-        let mut path_id_pairs = Vec::new();
-        root_json.collect_text_content_ids_with_path(&mut pointer, &mut path_id_pairs);
-
-        assert_eq!(
-            path_id_pairs.len(),
-            6,
-            "incorrect number of translations collected"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/title" && pair.1 == root_title.id),
-            "missing root title tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/text_field" && pair.1 == nested_1_text.id),
-            "missing nested_1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/1/text_field" && pair.1 == nested_2_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/text_field" && pair.1 == nested_3_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/external/VarOne/value"
-                    && pair.1 == ext_1_value.id),
-            "missing ext 1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/external/VarOne/value"
-                    && pair.1 == ext_2_value.id),
-            "missing ext 2 tc_id"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_collect_text_content_ids_with_json_pointer_paths_with_internally_tagged_enum(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Root {
-            #[translatable]
-            title: TextContentId,
-            #[translatable]
-            nested_arr: Vec<Nested>,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Nested {
-            #[translatable]
-            text_field: TextContentId,
-            other_field: String,
-            #[translatable]
-            internal: InternalTaggedEnum,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        #[serde(tag = "type")]
-        enum InternalTaggedEnum {
-            #[translatable]
-            VarOne(InnerTrans),
-            VarTwo(InnerRaw),
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct InnerTrans {
-            #[translatable]
-            value: TextContentId,
-        }
-
-        #[derive(
-            serde::Serialize, PartialEq, Debug, serde::Deserialize, schemars::JsonSchema, Clone,
-        )]
-        struct InnerRaw {
-            value: String,
-        }
-
-        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
-        let nested_1_text =
-            new_translation(&pool, "en", "Nested 1 text", TextFormat::Plain).await?;
-        let nested_2_text =
-            new_translation(&pool, "en", "Nested 2 text", TextFormat::Plain).await?;
-        let nested_3_text =
-            new_translation(&pool, "en", "Nested 3 text", TextFormat::Plain).await?;
-        let int_1_value = new_translation(&pool, "en", "Tagged 1 value", TextFormat::Plain).await?;
-        let int_2_value = new_translation(&pool, "en", "Tagged 2 value", TextFormat::Plain).await?;
-
-        let root_json = Root {
-            title: root_title.id,
-            nested_arr: vec![
-                Nested {
-                    text_field: nested_1_text.id,
-                    other_field: "test".to_string(),
-                    internal: InternalTaggedEnum::VarOne(InnerTrans {
-                        value: int_1_value.id,
-                    }),
-                },
-                Nested {
-                    text_field: nested_2_text.id,
-                    other_field: "test".to_string(),
-                    internal: InternalTaggedEnum::VarTwo(InnerRaw {
-                        value: "test".to_string(),
-                    }),
-                },
-                Nested {
-                    text_field: nested_3_text.id,
-                    other_field: "test".to_string(),
-                    internal: InternalTaggedEnum::VarOne(InnerTrans {
-                        value: int_2_value.id,
-                    }),
-                },
-            ],
-        };
-
-        let mut pointer = JsonPointer { segments: vec![] };
-        let mut path_id_pairs = Vec::new();
-        root_json.collect_text_content_ids_with_path(&mut pointer, &mut path_id_pairs);
-
-        assert_eq!(
-            path_id_pairs.len(),
-            6,
-            "incorrect number of translations collected"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/title" && pair.1 == root_title.id),
-            "missing root title tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/text_field" && pair.1 == nested_1_text.id),
-            "missing nested_1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/1/text_field" && pair.1 == nested_2_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/text_field" && pair.1 == nested_3_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/internal/value" && pair.1 == int_1_value.id),
-            "missing int 1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/internal/value" && pair.1 == int_2_value.id),
-            "missing int 2 tc_id"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_collect_text_content_ids_with_json_pointer_paths_with_adjacent_tagged_enum(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Root {
-            #[translatable]
-            title: TextContentId,
-            #[translatable]
-            nested_arr: Vec<Nested>,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Nested {
-            #[translatable]
-            text_field: TextContentId,
-            other_field: String,
-            #[translatable]
-            adjacent: AdjacentEnum,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        #[serde(tag = "type", content = "body")]
-        enum AdjacentEnum {
-            #[translatable]
-            VarOne(InnerTrans),
-            VarTwo(InnerRaw),
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct InnerTrans {
-            #[translatable]
-            value: TextContentId,
-        }
-
-        #[derive(
-            serde::Serialize, PartialEq, Debug, serde::Deserialize, schemars::JsonSchema, Clone,
-        )]
-        struct InnerRaw {
-            value: String,
-        }
-
-        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
-        let nested_1_text =
-            new_translation(&pool, "en", "Nested 1 text", TextFormat::Plain).await?;
-        let nested_2_text =
-            new_translation(&pool, "en", "Nested 2 text", TextFormat::Plain).await?;
-        let nested_3_text =
-            new_translation(&pool, "en", "Nested 3 text", TextFormat::Plain).await?;
-        let adj_1_value = new_translation(&pool, "en", "Tagged 1 value", TextFormat::Plain).await?;
-        let adj_2_value = new_translation(&pool, "en", "Tagged 2 value", TextFormat::Plain).await?;
-
-        let root_json = Root {
-            title: root_title.id,
-            nested_arr: vec![
-                Nested {
-                    text_field: nested_1_text.id,
-                    other_field: "test".to_string(),
-                    adjacent: AdjacentEnum::VarOne(InnerTrans {
-                        value: adj_1_value.id,
-                    }),
-                },
-                Nested {
-                    text_field: nested_2_text.id,
-                    other_field: "test".to_string(),
-                    adjacent: AdjacentEnum::VarTwo(InnerRaw {
-                        value: "test".to_string(),
-                    }),
-                },
-                Nested {
-                    text_field: nested_3_text.id,
-                    other_field: "test".to_string(),
-                    adjacent: AdjacentEnum::VarOne(InnerTrans {
-                        value: adj_2_value.id,
-                    }),
-                },
-            ],
-        };
-
-        let mut pointer = JsonPointer { segments: vec![] };
-        let mut path_id_pairs = Vec::new();
-        root_json.collect_text_content_ids_with_path(&mut pointer, &mut path_id_pairs);
-
-        assert_eq!(
-            path_id_pairs.len(),
-            6,
-            "incorrect number of translations collected"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/title" && pair.1 == root_title.id),
-            "missing root title tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/text_field" && pair.1 == nested_1_text.id),
-            "missing nested_1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/1/text_field" && pair.1 == nested_2_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/text_field" && pair.1 == nested_3_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/adjacent/body/value"
-                    && pair.1 == adj_1_value.id),
-            "missing adjecent 1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/adjacent/body/value"
-                    && pair.1 == adj_2_value.id),
-            "missing adjecent 2 tc_id"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_collect_text_content_ids_with_json_pointer_paths_with_untagged_enum(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Root {
-            #[translatable]
-            title: TextContentId,
-            #[translatable]
-            nested_arr: Vec<Nested>,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Nested {
-            #[translatable]
-            text_field: TextContentId,
-            other_field: String,
-            #[translatable]
-            untagged: UntaggedEnum,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        #[serde(untagged)]
-        enum UntaggedEnum {
-            #[translatable]
-            VarOne(InnerTrans),
-            VarTwo(InnerRaw),
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct InnerTrans {
-            #[translatable]
-            value: TextContentId,
-        }
-
-        #[derive(
-            serde::Serialize, PartialEq, Debug, serde::Deserialize, schemars::JsonSchema, Clone,
-        )]
-        struct InnerRaw {
-            value: String,
-        }
-
-        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
-        let nested_1_text =
-            new_translation(&pool, "en", "Nested 1 text", TextFormat::Plain).await?;
-        let nested_2_text =
-            new_translation(&pool, "en", "Nested 2 text", TextFormat::Plain).await?;
-        let nested_3_text =
-            new_translation(&pool, "en", "Nested 3 text", TextFormat::Plain).await?;
-        let untagged_1_value =
-            new_translation(&pool, "en", "Tagged 1 value", TextFormat::Plain).await?;
-        let untagged_2_value =
-            new_translation(&pool, "en", "Tagged 2 value", TextFormat::Plain).await?;
-
-        let root_json = Root {
-            title: root_title.id,
-            nested_arr: vec![
-                Nested {
-                    text_field: nested_1_text.id,
-                    other_field: "test".to_string(),
-                    untagged: UntaggedEnum::VarOne(InnerTrans {
-                        value: untagged_1_value.id,
-                    }),
-                },
-                Nested {
-                    text_field: nested_2_text.id,
-                    other_field: "test".to_string(),
-                    untagged: UntaggedEnum::VarTwo(InnerRaw {
-                        value: "test".to_string(),
-                    }),
-                },
-                Nested {
-                    text_field: nested_3_text.id,
-                    other_field: "test".to_string(),
-                    untagged: UntaggedEnum::VarOne(InnerTrans {
-                        value: untagged_2_value.id,
-                    }),
-                },
-            ],
-        };
-
-        let mut pointer = JsonPointer { segments: vec![] };
-        let mut path_id_pairs = Vec::new();
-        root_json.collect_text_content_ids_with_path(&mut pointer, &mut path_id_pairs);
-
-        assert_eq!(
-            path_id_pairs.len(),
-            6,
-            "incorrect number of translations collected"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/title" && pair.1 == root_title.id),
-            "missing root title tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/text_field" && pair.1 == nested_1_text.id),
-            "missing nested_1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/1/text_field" && pair.1 == nested_2_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/text_field" && pair.1 == nested_3_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/untagged/value"
-                    && pair.1 == untagged_1_value.id),
-            "missing untagged 1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/untagged/value"
-                    && pair.1 == untagged_2_value.id),
-            "missing untagged 2 tc_id"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_collect_text_content_ids_with_json_pointer_paths_with_camel_enum(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Root {
-            #[translatable]
-            title: TextContentId,
-            #[translatable]
-            nested_arr: Vec<Nested>,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Nested {
-            #[translatable]
-            text_field: TextContentId,
-            other_field: String,
-            #[translatable]
-            camel: CamelCaseEnum,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        #[serde(rename_all = "snake_case")]
-        enum CamelCaseEnum {
-            #[translatable]
-            VarOne(InnerTrans),
-            VarTwo(InnerRaw),
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct InnerTrans {
-            #[translatable]
-            value: TextContentId,
-        }
-
-        #[derive(
-            serde::Serialize, PartialEq, Debug, serde::Deserialize, schemars::JsonSchema, Clone,
-        )]
-        struct InnerRaw {
-            value: String,
-        }
-
-        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
-        let nested_1_text =
-            new_translation(&pool, "en", "Nested 1 text", TextFormat::Plain).await?;
-        let nested_2_text =
-            new_translation(&pool, "en", "Nested 2 text", TextFormat::Plain).await?;
-        let nested_3_text =
-            new_translation(&pool, "en", "Nested 3 text", TextFormat::Plain).await?;
-        let camel_1_value =
-            new_translation(&pool, "en", "Tagged 1 value", TextFormat::Plain).await?;
-        let camel_2_value =
-            new_translation(&pool, "en", "Tagged 2 value", TextFormat::Plain).await?;
-
-        let root_json = Root {
-            title: root_title.id,
-            nested_arr: vec![
-                Nested {
-                    text_field: nested_1_text.id,
-                    other_field: "test".to_string(),
-                    camel: CamelCaseEnum::VarOne(InnerTrans {
-                        value: camel_1_value.id,
-                    }),
-                },
-                Nested {
-                    text_field: nested_2_text.id,
-                    other_field: "test".to_string(),
-                    camel: CamelCaseEnum::VarTwo(InnerRaw {
-                        value: "test".to_string(),
-                    }),
-                },
-                Nested {
-                    text_field: nested_3_text.id,
-                    other_field: "test".to_string(),
-                    camel: CamelCaseEnum::VarOne(InnerTrans {
-                        value: camel_2_value.id,
-                    }),
-                },
-            ],
-        };
-
-        let mut pointer = JsonPointer { segments: vec![] };
-        let mut path_id_pairs = Vec::new();
-        root_json.collect_text_content_ids_with_path(&mut pointer, &mut path_id_pairs);
-
-        assert_eq!(
-            path_id_pairs.len(),
-            6,
-            "incorrect number of translations collected"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/title" && pair.1 == root_title.id),
-            "missing root title tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/text_field" && pair.1 == nested_1_text.id),
-            "missing nested_1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/1/text_field" && pair.1 == nested_2_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/text_field" && pair.1 == nested_3_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/camel/var_one/value"
-                    && pair.1 == camel_1_value.id),
-            "missing camel 1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/camel/var_one/value"
-                    && pair.1 == camel_2_value.id),
-            "missing camel 2 tc_id"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_collect_text_content_ids_with_json_pointer_paths_for_multiple_serde_attrs(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Root {
-            #[translatable]
-            title: TextContentId,
-            #[translatable]
-            nested_arr: Vec<Nested>,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct Nested {
-            #[translatable]
-            text_field: TextContentId,
-            other_field: String,
-            #[translatable]
-            internal: InternalTaggedEnum,
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        #[serde(rename_all = "lowercase", tag = "type")]
-        enum InternalTaggedEnum {
-            #[translatable]
-            VarOne(InnerTrans),
-            VarTwo(InnerRaw),
-        }
-
-        #[derive(serde::Serialize, TranslatableJson)]
-        struct InnerTrans {
-            #[translatable]
-            value: TextContentId,
-        }
-
-        #[derive(
-            serde::Serialize, PartialEq, Debug, serde::Deserialize, schemars::JsonSchema, Clone,
-        )]
-        struct InnerRaw {
-            value: String,
-        }
-
-        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
-        let nested_1_text =
-            new_translation(&pool, "en", "Nested 1 text", TextFormat::Plain).await?;
-        let nested_2_text =
-            new_translation(&pool, "en", "Nested 2 text", TextFormat::Plain).await?;
-        let nested_3_text =
-            new_translation(&pool, "en", "Nested 3 text", TextFormat::Plain).await?;
-        let int_1_value = new_translation(&pool, "en", "Tagged 1 value", TextFormat::Plain).await?;
-        let int_2_value = new_translation(&pool, "en", "Tagged 2 value", TextFormat::Plain).await?;
-
-        let root_json = Root {
-            title: root_title.id,
-            nested_arr: vec![
-                Nested {
-                    text_field: nested_1_text.id,
-                    other_field: "test".to_string(),
-                    internal: InternalTaggedEnum::VarOne(InnerTrans {
-                        value: int_1_value.id,
-                    }),
-                },
-                Nested {
-                    text_field: nested_2_text.id,
-                    other_field: "test".to_string(),
-                    internal: InternalTaggedEnum::VarTwo(InnerRaw {
-                        value: "test".to_string(),
-                    }),
-                },
-                Nested {
-                    text_field: nested_3_text.id,
-                    other_field: "test".to_string(),
-                    internal: InternalTaggedEnum::VarOne(InnerTrans {
-                        value: int_2_value.id,
-                    }),
-                },
-            ],
-        };
-
-        let mut pointer = JsonPointer { segments: vec![] };
-        let mut path_id_pairs = Vec::new();
-        root_json.collect_text_content_ids_with_path(&mut pointer, &mut path_id_pairs);
-
-        assert_eq!(
-            path_id_pairs.len(),
-            6,
-            "incorrect number of translations collected"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/title" && pair.1 == root_title.id),
-            "missing root title tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/text_field" && pair.1 == nested_1_text.id),
-            "missing nested_1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/1/text_field" && pair.1 == nested_2_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/text_field" && pair.1 == nested_3_text.id),
-            "missing nested_3 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/0/internal/value" && pair.1 == int_1_value.id),
-            "missing int 1 tc_id"
-        );
-        assert!(
-            path_id_pairs
-                .iter()
-                .any(|pair| pair.0 == "/nested_arr/2/internal/value" && pair.1 == int_2_value.id),
-            "missing int 2 tc_id"
         );
 
         Ok(())
