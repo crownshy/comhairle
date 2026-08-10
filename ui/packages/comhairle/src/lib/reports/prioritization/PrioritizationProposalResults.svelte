@@ -26,8 +26,8 @@
 		if (!('categories' in question.type)) return;
 
 		const data = question.type.categories.map((category) => ({
-			label: category.label,
-			value: extractQuestionResponses(proposal, question.id, section?.id).filter(
+			category: category.label,
+			count: extractQuestionResponses(proposal, question.id, section?.id).filter(
 				(response) => response.value === category.value
 			).length
 		}));
@@ -84,7 +84,12 @@
 
 {#snippet questionType(question: Question, proposal: RankedProposal, section?: ProposalSection)}
 	{#if question.type.kind === 'likert'}
-		<BarChart data={extractBarChartData(question, proposal, section)} axis="x" />
+		<BarChart
+			data={extractBarChartData(question, proposal, section) ?? []}
+			x="category"
+			y="count"
+			axis="x"
+		/>
 	{/if}
 	{#if question.type.kind === 'continuous'}
 		<KdePlot

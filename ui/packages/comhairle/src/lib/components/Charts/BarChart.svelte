@@ -4,7 +4,7 @@
 	import VerticalBarChart from '$lib/components/Charts/VerticalBarChart.svelte';
 
 	interface Props extends ComponentProps<typeof HorizontalBarChart> {
-		orientation: 'horizontal' | 'vertical';
+		orientation?: 'horizontal' | 'vertical';
 	}
 
 	let { orientation = 'vertical', x, y, ...props }: Props = $props();
