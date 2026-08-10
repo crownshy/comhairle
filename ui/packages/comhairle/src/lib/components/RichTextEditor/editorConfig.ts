@@ -85,9 +85,10 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 		Iframe,
 		Audio,
 		SourceDocument,
-		// Embedded report component snapshots. In the editor a node view paints the frozen
-		// HTML; on the published page renderRichTextToHtml maps it to its `frozenHtml` (see
-		// ADR-0012). Registered in the shared schema so both paths know the node.
+		// Embedded report components (live, ADR-0012). The editor node view and the published
+		// report both mount the real component from the node's reference; the static renderer
+		// (no-JS paths) emits a placeholder. Registered in the shared schema so all paths know
+		// the node.
 		ReportComponentEmbed,
 		// Applied to matched terms at render time by applyGlossary; lives in the shared
 		// schema so the static renderer can emit it. Harmless in the editor (no input rule).

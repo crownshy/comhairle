@@ -20,26 +20,21 @@ describe('renderRichTextToHtml', () => {
 		);
 	});
 
-	it('renders an embedded report component as its stored frozen HTML (ADR-0012)', () => {
+	it('renders a placeholder for a live report embed on the no-JS path (ADR-0012)', () => {
 		const content = JSON.stringify({
 			type: 'doc',
 			content: [
 				{
 					type: 'reportComponentEmbed',
-					attrs: {
-						toolStepId: 'step-1',
-						componentType: 'polis-key-stats',
-						config: {},
-						frozenHtml: '<div class="metric">42 participants</div>'
-					}
+					attrs: { toolStepId: 'step-1', componentType: 'polis-key-stats', config: {} }
 				}
 			]
 		});
 		const html = renderRichTextToHtml(content);
-		// The snapshot HTML is emitted verbatim, wrapped in the embed container — this is the
-		// no-JS public render path, so a regression that drops it fails here.
-		expect(html).toContain('<div class="report-embed">');
-		expect(html).toContain('<div class="metric">42 participants</div>');
+		// Live embeds mount a component in the browser; this static path (email/print) can't,
+		// so it emits a placeholder rather than the component or an empty node.
+		expect(html).toContain('report-embed--placeholder');
+		expect(html).toContain('online report');
 	});
 
 	it('renders marks within JSON', () => {

@@ -21,14 +21,15 @@
 		componentType,
 		reportData,
 		statementAux,
-		frozen = true
+		frozen = false
 	}: {
 		componentType: PolisEmbeddableComponentType;
 		reportData: PolisReportData | null;
 		statementAux: PolisStatementAux[];
 		/**
-		 * Render the frozen-snapshot variant (default): interactive controls dropped, all rows
-		 * shown. This is the embed's render, so it defaults on; a future live embed passes false.
+		 * When true, render the static variant: interactive controls dropped, all rows shown,
+		 * beeswarm laid out synchronously. Kept for a future no-JS export (ADR-0012). Live
+		 * embeds leave it false (interactive).
 		 */
 		frozen?: boolean;
 	} = $props();
