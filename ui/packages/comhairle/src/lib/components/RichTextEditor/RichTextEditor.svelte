@@ -4,6 +4,7 @@
 	import { Editor } from '@tiptap/core';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import TableInsertControls from './TableInsertControls.svelte';
+	import ReportEmbedControls, { type EmbeddableStep } from './ReportEmbedControls.svelte';
 	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
@@ -23,6 +24,11 @@
 		onChange?: (json: string) => void;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
+		/**
+		 * Report-capable Steps offered by the "Embed report component" control. Passing a
+		 * non-empty list is what turns the control on (used on the conversation report editor).
+		 */
+		reportEmbedSteps?: EmbeddableStep[];
 	};
 
 	let {
@@ -34,7 +40,8 @@
 		width,
 		onChange,
 		availableDocuments = [],
-		conversationId
+		conversationId,
+		reportEmbedSteps = []
 	}: Props = $props();
 
 	let editorElement = $state<HTMLElement>();
@@ -234,6 +241,9 @@
 			onToggleMenu={() => (menuExpanded = !menuExpanded)}
 		/>
 		<TableInsertControls {editor} />
+		{#if reportEmbedSteps.length > 0}
+			<ReportEmbedControls {editor} steps={reportEmbedSteps} />
+		{/if}
 	{/if}
 
 	<div

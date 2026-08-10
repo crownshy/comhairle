@@ -6,12 +6,11 @@
 	import Speech from 'lucide-svelte/icons/speech';
 	import Drama from 'lucide-svelte/icons/drama';
 	import Scroll from 'lucide-svelte/icons/scroll-text';
-	import { marked } from 'marked';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 
 	let { data } = $props();
 	let { conversation, workflowSteps, report } = data;
 
-	let markdown = $derived(marked.parse(report.summary));
 	let pageTitle = $derived(`${conversation.title} Report`);
 
 	let stats = [
@@ -34,7 +33,7 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="pt-10">
+<div class="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
 	<h1 class="mb-4 text-4xl">{conversation.title} report</h1>
 	<Tabs.Root value="Overview" class="space-y-4">
 		<Tabs.List>
@@ -49,9 +48,9 @@
 			<StatsBar {stats} />
 			<h2 class="text-xl font-bold">Key Takeaways</h2>
 
-			<p class="prose mb-4">
-				{@html markdown}
-			</p>
+			<div class="mb-4">
+				<ContentRenderer content={report.summary} conversationId={conversation.id} />
+			</div>
 
 			<h2 class="text-xl font-bold">Impacts</h2>
 			<ul class="flex flex-col gap-4 divide-y-3 divide-solid divide-gray-200">
@@ -68,7 +67,8 @@
 								{/if}
 								<h3 class="font-bold">{impact.title}</h3>
 							</div>
-							<span>{formatDistanceToNow(impact.createdAt, { addSuffix: true })}</span>
+							<span>{formatDistanceToNow(impact.createdAt, { addSuffix: true })}</span
+							>
 						</div>
 						<p>
 							{impact.details}
@@ -103,7 +103,8 @@
 				<article
 					class="relative mb-4 rounded-lg border-l-4 border-blue-500 bg-gray-100 p-6 shadow-md dark:border-blue-400 dark:bg-gray-800"
 				>
-					<span class="absolute top-2 left-3 font-serif text-5xl text-blue-500 dark:text-blue-400"
+					<span
+						class="absolute top-2 left-3 font-serif text-5xl text-blue-500 dark:text-blue-400"
 						>"</span
 					>
 					{feedback.content}
