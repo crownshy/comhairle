@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { HTMLFormAttributes } from 'svelte/elements';
-	import { isSubmitting } from './form.svelte';
+	import { isSubmitting } from './form-state';
 
 	interface Props extends HTMLFormAttributes {
 		ref?: HTMLFormElement | null;

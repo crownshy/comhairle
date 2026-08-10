@@ -476,6 +476,7 @@ export const PolisStatementAux = z
     is_seed: z.boolean(),
     moderation_reason: z.union([z.string(), z.null()]).optional(),
     moderation_status: ModerationStatus,
+    original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
     statement_text: z.string(),
@@ -571,6 +572,17 @@ export const ModerateStatementAuxBatchResponse = z
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
 >;
+export const SplitStatementRequest = z
+  .object({ replacements: z.array(z.string()) })
+  .passthrough();
+export type SplitStatementRequest = z.infer<typeof SplitStatementRequest>;
+export const SplitStatementResponse = z
+  .object({
+    original: PolisStatementAux,
+    replacements: z.array(PolisStatementAux),
+  })
+  .passthrough();
+export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -2585,6 +2597,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
+  SplitStatementRequest,
+  SplitStatementResponse,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
@@ -5078,6 +5092,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisStatementAux,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/:id/split",
+    alias: "PolisSplitStatement",
+    description: `Posts one or more admin-authored replacement statements as non-seed (is_seed: false), auto-accepts them, rejects the original statement, and records lineage (original_statement_id) on each replacement. The replacements are real, votable statements, never host seeds. Returns the now-rejected original and the derived replacements.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SplitStatementRequest,
+      },
+    ],
+    response: SplitStatementResponse,
   },
   {
     method: "post",

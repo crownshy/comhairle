@@ -62,6 +62,19 @@ pub trait WikiPollService: Send + Sync {
         auth_cookies: &str,
     ) -> Result<String, WikiPollServiceError>;
 
+    /// Post a host-authored statement, choosing whether it is a seed.
+    /// `is_seed = true` matches `post_seed_comment` (auto-approved by Polis,
+    /// `mod: 1`); `is_seed = false` posts a genuine non-seed statement, which
+    /// Polis leaves pending (`mod: 0`) until moderated. Returns the new `tid`
+    /// and the `pid` Polis assigned the author (the admin's participant slot).
+    async fn post_statement(
+        &self,
+        comment: &str,
+        poll_id: &str,
+        is_seed: bool,
+        auth_cookies: &str,
+    ) -> Result<PostedStatement, WikiPollServiceError>;
+
     async fn get_comments(
         &self,
         poll_id: &str,
@@ -131,6 +144,14 @@ pub struct WikiPollComment {
     pub moderation: i32,
 }
 
+/// The result of posting a statement to a poll: the new statement id and the
+/// participant id Polis attributed it to.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PostedStatement {
+    pub tid: i32,
+    pub pid: i32,
+}
+
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct WikiPollXid {
     pub pid: u32,
@@ -184,6 +205,11 @@ impl MockWikiPollService {
         wiki_poll_service
             .expect_moderate_comment()
             .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));
+        wiki_poll_service
+            .expect_post_statement()
+            .returning(|_, _, _, _| {
+                Box::pin(async move { Ok(PostedStatement::default()) })
+            });
         wiki_poll_service.expect_delete_poll().returning(|_, _| {
             Box::pin(async move {
                 Ok(WikiPoll {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Check, X } from '@lucide/svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Check, Scissors, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 
 	type Props = {
@@ -10,11 +11,27 @@
 		pending: boolean;
 		// A bulk moderation is running for the whole table.
 		bulkWorking: boolean;
+		// Text of the original this row was derived from (if it is a derived statement).
+		editedFrom?: string;
+		// Texts of the derived statements that replaced this row (if it was split).
+		replacedBy?: string[];
 		onToggle: (checked: boolean) => void;
 		onModerate: (status: 'accepted' | 'rejected') => void;
+		// Open the split/reword dialog for this row.
+		onSplit: () => void;
 	};
 
-	let { row, selected, pending, bulkWorking, onToggle, onModerate }: Props = $props();
+	let {
+		row,
+		selected,
+		pending,
+		bulkWorking,
+		editedFrom,
+		replacedBy,
+		onToggle,
+		onModerate,
+		onSplit
+	}: Props = $props();
 
 	// Left accent bar colour keyed on seed/status. Olive-green primary stands in
 	// for "accepted"; there is no dedicated success token in the theme.
@@ -65,11 +82,39 @@
 		{row.polis_statement_id}
 	</div>
 
-	<!-- Statement text -->
-	<p class="min-w-0 text-base leading-7">{row.statement_text}</p>
+	<!-- Statement text (+ derived-statement badge / lineage) -->
+	<div class="flex min-w-0 flex-col gap-1">
+		<div class="flex items-start gap-2">
+			{#if row.original_statement_id}
+				<Badge variant="secondary" class="mt-1 shrink-0">Edited</Badge>
+			{/if}
+			<p class="min-w-0 text-base leading-7">{row.statement_text}</p>
+		</div>
+		{#if editedFrom}
+			<p class="text-muted-foreground text-sm">
+				Edited from: <span class="italic">{editedFrom}</span>
+			</p>
+		{/if}
+		{#if replacedBy && replacedBy.length}
+			<p class="text-muted-foreground text-sm">
+				Replaced by {replacedBy.length} statement{replacedBy.length === 1 ? '' : 's'}
+			</p>
+		{/if}
+	</div>
 
 	<!-- Actions -->
 	<div class="flex items-center gap-1 self-center pr-2" data-row-control>
+		{#if !row.is_seed}
+			<button
+				type="button"
+				disabled={pending || bulkWorking}
+				onclick={onSplit}
+				title="Split or reword"
+				class="text-muted-foreground hover:bg-muted inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
+			>
+				<Scissors class="size-5" />
+			</button>
+		{/if}
 		<button
 			type="button"
 			disabled={pending || bulkWorking || row.moderation_status === 'accepted'}

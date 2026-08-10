@@ -20,6 +20,9 @@
 		onClear: () => void;
 		onBulkModerate: (status: 'accepted' | 'rejected') => void;
 		onModerate: (row: PolisStatementAux, status: 'accepted' | 'rejected') => void;
+		// Per-row lineage strings for derived statements, keyed by aux row id.
+		lineage: Record<string, { editedFrom?: string; replacedBy?: string[] }>;
+		onSplit: (row: PolisStatementAux) => void;
 	};
 
 	let {
@@ -31,7 +34,9 @@
 		onToggleAll,
 		onClear,
 		onBulkModerate,
-		onModerate
+		onModerate,
+		lineage,
+		onSplit
 	}: Props = $props();
 
 	const bulkWorking = $derived(bulkAction !== null);
@@ -121,8 +126,11 @@
 					selected={!!selected[row.id]}
 					pending={!!pending[row.id]}
 					{bulkWorking}
+					editedFrom={lineage[row.id]?.editedFrom}
+					replacedBy={lineage[row.id]?.replacedBy}
 					onToggle={(checked) => onToggleSelect(row.id, checked)}
 					onModerate={(status) => onModerate(row, status)}
+					onSplit={() => onSplit(row)}
 				/>
 			{/each}
 		{/if}
