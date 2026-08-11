@@ -17,7 +17,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::models::translations::{
-    CollectTextContentIds, get_text_content_with_translations, resolve_translations,
+    CollectTextContentIds, get_text_content_with_translations, localize_translations,
 };
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
@@ -212,7 +212,7 @@ async fn list_workflows_step(
                 .collect_text_content_ids(&mut text_content_ids);
         }
 
-        let config_translations_map = resolve_translations(
+        let config_translations_map = localize_translations(
             &state.db,
             &text_content_ids.into_iter().collect::<Vec<_>>(),
             &locale,
@@ -249,7 +249,7 @@ async fn list_workflows_step(
                 .collect_text_content_ids(&mut text_content_ids);
         }
 
-        let config_translations_map = resolve_translations(
+        let config_translations_map = localize_translations(
             &state.db,
             &text_content_ids.into_iter().collect::<Vec<_>>(),
             &locale,
@@ -303,7 +303,7 @@ async fn get_workflow_step(
         .preview_tool_config
         .collect_text_content_ids(&mut text_content_ids);
 
-    let config_translations_map = resolve_translations(
+    let config_translations_map = localize_translations(
         &state.db,
         &text_content_ids.into_iter().collect::<Vec<_>>(),
         &locale,

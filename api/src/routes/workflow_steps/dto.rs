@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{
     models::{
         translations::{
-            ResolveTranslations, ResolveWithTranslations, TextContentId, TranslationDto,
+            LocalizeTranslations, ResolveWithTranslations, TextContentId, TranslationDto,
         },
         user_progress::ProgressStatus,
         workflow_step::{
@@ -211,8 +211,8 @@ impl LocalizedWorkflowStep {
             is_offline: self.is_offline,
             required: self.required,
             can_revisit: self.can_revisit,
-            tool_config: self.tool_config.map(|tc| tc.resolve(translations_map)),
-            preview_tool_config: self.preview_tool_config.resolve(translations_map),
+            tool_config: self.tool_config.map(|tc| tc.localize(translations_map)),
+            preview_tool_config: self.preview_tool_config.localize(translations_map),
             request_user_share_permission: self.request_user_share_permission,
         }
     }
@@ -233,8 +233,11 @@ impl LocalizedWorkflowStepWithProgress {
             is_offline: self.step.is_offline,
             required: self.step.required,
             can_revisit: self.step.can_revisit,
-            tool_config: self.step.tool_config.map(|tc| tc.resolve(translations_map)),
-            preview_tool_config: self.step.preview_tool_config.resolve(translations_map),
+            tool_config: self
+                .step
+                .tool_config
+                .map(|tc| tc.localize(translations_map)),
+            preview_tool_config: self.step.preview_tool_config.localize(translations_map),
             request_user_share_permission: self.step.request_user_share_permission,
             progress_status: self.status,
         }
