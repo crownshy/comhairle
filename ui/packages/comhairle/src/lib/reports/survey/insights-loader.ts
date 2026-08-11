@@ -1,7 +1,12 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { apiClient } from '@crownshy/api-client/client';
 import { isHeyFormFieldKind } from '$lib/tools/heyform/guards';
-import type { HeyFormChoiceFieldKind, HeyFormNonChoiceFieldKind } from '$lib/tools/heyform/utils';
+import type {
+	HeyFormAddressValue,
+	HeyFormChoiceFieldKind,
+	HeyFormFullNameValue,
+	HeyFormNonChoiceFieldKind
+} from '$lib/tools/heyform/utils';
 import type { InsightQuestion } from '@crownshy/api-client/api';
 import { typedObj } from '$lib/utils/types';
 
@@ -61,6 +66,18 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				kind: insight.kind,
 				answers: insight.submissions?.map((s) => s.value) ?? []
 			});
+		case 'full_name':
+			return typedObj<NonChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				answers:
+					insight.submissions?.map((s) => {
+						const fullName = s.value as HeyFormFullNameValue;
+						return `${fullName.firstName} ${fullName.lastName}`;
+					}) ?? []
+			});
 		case 'date':
 		case 'group':
 		case 'statement':
@@ -69,7 +86,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'time':
 		case 'input_table':
 		case 'payment':
-		case 'full_name':
 		case 'address':
 		case 'signature':
 		case 'legal_terms':

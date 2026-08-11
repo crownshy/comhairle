@@ -43,6 +43,7 @@ export const HEYFORM_OTHER_FIELD_KIND = [
 	'custom_checkbox'
 ] as const;
 
+export type HeyFormFullNameValue = { firstName: string; lastName: string };
 export type HeyFormChoiceFieldKind = (typeof HEYFORM_CHOICE_FIELD_KIND)[number];
 export type HeyFormNonChoiceFieldKind = (typeof HEYFORM_NON_CHOICE_FIELD_KIND)[number];
 export type HeyFormOtherFieldKind = (typeof HEYFORM_OTHER_FIELD_KIND)[number];
