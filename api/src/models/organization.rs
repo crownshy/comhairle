@@ -6,7 +6,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, query_as_with};
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -14,6 +14,7 @@ use uuid::Uuid;
 use fake::Dummy;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         SqlxResultExt,
@@ -38,6 +39,7 @@ pub struct Organization {
     pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Vec<Uuid>,
+    pub metadata: Option<serde_json::Value>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -77,7 +79,7 @@ impl std::fmt::Display for OrganizationType {
     }
 }
 
-const DEFAULT_COLUMNS: [OrganizationIden; 10] = [
+const DEFAULT_COLUMNS: [OrganizationIden; 11] = [
     OrganizationIden::Id,
     OrganizationIden::Name,
     OrganizationIden::Description,
@@ -86,6 +88,7 @@ const DEFAULT_COLUMNS: [OrganizationIden; 10] = [
     OrganizationIden::ContactEmail,
     OrganizationIden::ExternalUrl,
     OrganizationIden::Regions,
+    OrganizationIden::Metadata,
     OrganizationIden::CreatedAt,
     OrganizationIden::UpdatedAt,
 ];
@@ -234,9 +237,8 @@ pub async fn add_member_emails(
     Ok(())
 }
 
-#[instrument]
 pub async fn bootstrap_organization_admin_accounts(
-    db: &PgPool,
+    state: &Arc<ComhairleState>,
     organization_id: &Uuid,
     admin_emails: &[String],
 ) -> Vec<OrganizationAdminBootstrapResult> {
@@ -253,11 +255,11 @@ pub async fn bootstrap_organization_admin_accounts(
         }
 
         let mut created_account = false;
-        let user = match users::get_user_by_email(&trimmed, db).await {
+        let user = match users::get_user_by_email(&trimmed, &state.db).await {
             Ok(user) => user,
             Err(ComhairleError::NoUserFoundForEmail(_)) => {
                 created_account = true;
-                match users::create_organization_admin_user(&trimmed, db).await {
+                match users::create_organization_admin_user(state, &trimmed).await {
                     Ok(user) => user,
                     Err(error) => {
                         tracing::warn!(
@@ -294,7 +296,7 @@ pub async fn bootstrap_organization_admin_accounts(
             ..Default::default()
         };
 
-        if let Err(error) = users::update_user(&user.id, &update_request, db).await {
+        if let Err(error) = users::update_user(&user.id, &update_request, &state.db).await {
             tracing::warn!(
                 "Failed to associate admin user {} with organization {}: {:?}",
                 user.id,
@@ -345,6 +347,9 @@ impl PartialOrganization {
         if let Some(value) = &self.regions {
             values.push((OrganizationIden::Regions, value.clone().into()));
         }
+        if let Some(value) = &self.metadata {
+            values.push((OrganizationIden::Metadata, value.clone().into()));
+        }
 
         values
     }
@@ -370,6 +375,54 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let organization = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(organization)
+}
+
+/// Get the organization's `metadata` jsonb column
+#[instrument(err(Debug), skip(db))]
+pub async fn get_metadata(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<Option<serde_json::Value>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns([OrganizationIden::Metadata])
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let (metadata,) = query_as_with::<_, (Option<serde_json::Value>,), _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(metadata)
+}
+
+/// Merge the supplied object into the organization's `metadata` jsonb column
+/// at the top level. Existing keys are overwritten by the patch.
+pub async fn patch_metadata(
+    db: &PgPool,
+    id: &Uuid,
+    patch: serde_json::Value,
+) -> Result<Organization, ComhairleError> {
+    if !patch.is_object() {
+        return Err(ComhairleError::BadRequest(
+            "metadata patch must be a JSON object".into(),
+        ));
+    }
+
+    let organization = sqlx::query_as::<_, Organization>(
+        "UPDATE organization
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *",
+    )
+    .bind(patch)
+    .bind(id)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Organization")?;
 
     Ok(organization)
 }

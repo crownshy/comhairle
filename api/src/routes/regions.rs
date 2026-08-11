@@ -2,12 +2,14 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
+    routing::{delete_with, get_with, patch_with, post_with, put_with},
 };
 use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use schemars::JsonSchema;
+use serde::Serialize;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -17,6 +19,7 @@ use crate::{
     models::{
         pagination::{PageOptions, PaginatedResults},
         region::{self, CreateRegion, PartialRegion, RegionFilterOptions, RegionOrderOptions},
+        region_area,
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
@@ -26,6 +29,14 @@ use crate::{
 };
 
 pub mod dto;
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct PublicRegionRoutingDto {
+    id: Uuid,
+    slug: String,
+    zip_prefix: Option<String>,
+}
 
 #[instrument(err(Debug), skip(state))]
 async fn list(
@@ -87,6 +98,32 @@ async fn update(
     Ok((StatusCode::OK, Json(region)))
 }
 
+/// Get the region's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn get_region_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(region_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<Option<serde_json::Value>>), ComhairleError> {
+    let metadata = region::get_metadata(&state.db, &region_id).await?;
+
+    Ok((StatusCode::OK, Json(metadata)))
+}
+
+/// Shallow-merge the request body into the region's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn patch_region_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(region_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(patch): Json<serde_json::Value>,
+) -> Result<(StatusCode, Json<RegionDto>), ComhairleError> {
+    let region = region::patch_metadata(&state.db, &region_id, patch).await?;
+    let region: RegionDto = region.into();
+
+    Ok((StatusCode::OK, Json(region)))
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
@@ -140,6 +177,30 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Regions")
                     .summary("Update a region")
                     .description("Update a region")
+                    .security_requirement("JWT")
+                    .response::<200, Json<RegionDto>>()
+            }),
+        )
+        .api_route(
+            "/{region_id}/metadata",
+            get_with(get_region_metadata, |op| {
+                op.id("GetRegionMetadata")
+                    .tag("Regions")
+                    .summary("Get region metadata")
+                    .description("Get region metadata")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Option<serde_json::Value>>>()
+            }),
+        )
+        .api_route(
+            "/{region_id}/metadata",
+            patch_with(patch_region_metadata, |op| {
+                op.id("PatchRegionMetadata")
+                    .tag("Regions")
+                    .summary("Shallow-merge region metadata")
+                    .description(
+                        "Merge a JSON object into region.metadata at the top level using jsonb concatenation",
+                    )
                     .security_requirement("JWT")
                     .response::<200, Json<RegionDto>>()
             }),

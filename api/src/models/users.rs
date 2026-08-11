@@ -1,11 +1,13 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         pagination::{Order, PageOptions, PaginatedResults},
         permissions::{
-            ResourcePermissionIden, ResourceType as PermissionResourceType, Role as PermissionRole,
+            self, GrantRoleRequest, ResourcePermissionIden, ResourceType as PermissionResourceType,
+            Role as PermissionRole, grant_role,
         },
     },
     routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
@@ -283,8 +285,8 @@ fn organization_admin_temporary_password() -> String {
 }
 
 pub async fn create_organization_admin_user(
+    state: &Arc<ComhairleState>,
     email: &str,
-    db: &PgPool,
 ) -> Result<User, ComhairleError> {
     let signup_request = SignupRequest {
         username: organization_admin_username(email),
@@ -293,7 +295,21 @@ pub async fn create_organization_admin_user(
         email: email.to_string(),
     };
 
-    create_user(&signup_request, db).await
+    let user = create_user(&signup_request, &state.db).await?;
+
+    // Grant the user the admin role so that they can use the admin interface
+    let _ = grant_role(
+        state,
+        GrantRoleRequest {
+            actor_id: permissions::UserOrOrganizationId::User(user.id),
+            granted_by: &user.id,
+            grant_reason: "Admin user created for organization",
+            permission_triplet: permissions::Role::Admin.system_triplet(),
+        },
+    )
+    .await?;
+
+    Ok(user)
 }
 
 async fn create_otp_user_with_username(

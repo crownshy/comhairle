@@ -351,7 +351,11 @@ impl Role {
                 Action::RevokePermission,
             ],
             Role::Admin => &[],
-            Role::OrganizationAdmin => &[Action::OrganizationUpdate, Action::OrganizationDelete],
+            Role::OrganizationAdmin => &[
+                Action::OrganizationRead,
+                Action::OrganizationUpdate,
+                Action::OrganizationDelete,
+            ],
             Role::ConversationContentEditor => {
                 &[Action::ConversationRead, Action::ConversationUpdate]
             }
@@ -425,6 +429,7 @@ pub enum Action {
     RevokePermission,
     ConversationRead,
     ConversationUpdate,
+    OrganizationRead,
     OrganizationCreate,
     OrganizationUpdate,
     OrganizationDelete,
@@ -439,7 +444,9 @@ impl Action {
             | Action::RevokePermission
             | Action::OrganizationCreate => ResourceType::System,
             Action::ConversationRead | Action::ConversationUpdate => ResourceType::Conversation,
-            Action::OrganizationUpdate | Action::OrganizationDelete => ResourceType::Organization,
+            Action::OrganizationRead | Action::OrganizationUpdate | Action::OrganizationDelete => {
+                ResourceType::Organization
+            }
         }
     }
 

@@ -28,6 +28,7 @@ pub mod proposal_response;
 pub mod proposal_section;
 pub mod recruitment_target;
 pub mod region;
+pub mod region_area;
 pub mod report;
 pub mod report_impact;
 pub mod resource;

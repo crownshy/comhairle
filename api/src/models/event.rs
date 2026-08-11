@@ -177,6 +177,7 @@ pub struct Event {
     pub format: EventFormat,
     #[partially(transparent)]
     pub location: Option<EventLocation>,
+    pub metadata: Option<serde_json::Value>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -324,7 +325,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 16] = [
+const DEFAULT_COLUMNS: [EventIden; 17] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -338,6 +339,7 @@ const DEFAULT_COLUMNS: [EventIden; 16] = [
     EventIden::BreakoutPlan,
     EventIden::DefaultTimeZone,
     EventIden::Location,
+    EventIden::Metadata,
     EventIden::Format,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
@@ -479,6 +481,9 @@ impl PartialEvent {
         if let Some(value) = &self.default_time_zone {
             values.push((EventIden::DefaultTimeZone, value.into()));
         }
+        if let Some(value) = &self.metadata {
+            values.push((EventIden::Metadata, value.clone().into()));
+        }
 
         values
     }
@@ -506,6 +511,56 @@ pub async fn update(
     let event = sqlx::query_as_with::<_, Event, _>(&sql, values)
         .fetch_one(db)
         .await?;
+
+    Ok(event)
+}
+
+/// Get the event's `metadata` jsonb column.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_metadata(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<Option<serde_json::Value>, ComhairleError> {
+    let query = Query::select()
+        .columns([EventIden::Metadata].map(|col| (EventIden::Table, col)))
+        .from(EventIden::Table)
+        .and_where(Expr::col((EventIden::Table, EventIden::Id)).eq(id.to_owned()))
+        .to_owned();
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let (metadata,) = sqlx::query_as_with::<_, (Option<serde_json::Value>,), _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(metadata)
+}
+
+/// Merge the supplied object into the event's `metadata` jsonb column at the
+/// top level. Existing keys are overwritten by the patch.
+pub async fn patch_metadata(
+    db: &PgPool,
+    id: &Uuid,
+    patch: serde_json::Value,
+) -> Result<Event, ComhairleError> {
+    if !patch.is_object() {
+        return Err(ComhairleError::BadRequest(
+            "metadata patch must be a JSON object".into(),
+        ));
+    }
+
+    let event = sqlx::query_as::<_, Event>(
+        "UPDATE event
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *",
+    )
+    .bind(patch)
+    .bind(id)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Event")?;
 
     Ok(event)
 }

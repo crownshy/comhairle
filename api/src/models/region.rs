@@ -32,9 +32,11 @@ pub struct Region {
     pub name: TextContentId,
     #[partially(omit)]
     pub description: TextContentId,
+    pub region_area_id: Option<Uuid>,
     pub region_type: RegionType,
     #[partially(transparent)]
     pub official_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -71,12 +73,14 @@ impl std::fmt::Display for RegionType {
     }
 }
 
-const DEFAULT_COLUMNS: [RegionIden; 7] = [
+const DEFAULT_COLUMNS: [RegionIden; 9] = [
     RegionIden::Id,
     RegionIden::Name,
     RegionIden::Description,
+    RegionIden::RegionAreaId,
     RegionIden::RegionType,
     RegionIden::OfficialId,
+    RegionIden::Metadata,
     RegionIden::CreatedAt,
     RegionIden::UpdatedAt,
 ];
@@ -143,11 +147,17 @@ pub async fn create(
 impl PartialRegion {
     pub fn to_values(&self) -> Vec<(RegionIden, sea_query::SimpleExpr)> {
         let mut values = vec![];
+        if let Some(value) = &self.region_area_id {
+            values.push((RegionIden::RegionAreaId, (*value).into()));
+        }
         if let Some(value) = &self.region_type {
             values.push((RegionIden::RegionType, value.clone().into()));
         }
         if let Some(value) = &self.official_id {
             values.push((RegionIden::OfficialId, value.into()));
+        }
+        if let Some(value) = &self.metadata {
+            values.push((RegionIden::Metadata, value.clone().into()));
         }
 
         values
@@ -174,6 +184,53 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let region = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(region)
+}
+
+/// Get the metadata for a region by its ID.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_metadata(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<Option<serde_json::Value>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns([RegionIden::Metadata])
+        .from(RegionIden::Table)
+        .and_where(Expr::col(RegionIden::Id).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let (metadata,) = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(metadata)
+}
+
+/// Merge the supplied object into the region's `metadata` jsonb column at
+/// the top level. Existing keys are overwritten by the patch, keys not present
+/// in the patch are left untouched.
+pub async fn patch_metadata(
+    db: &PgPool,
+    id: &Uuid,
+    patch: serde_json::Value,
+) -> Result<Region, ComhairleError> {
+    if !patch.is_object() {
+        return Err(ComhairleError::BadRequest(
+            "metadata patch must be a JSON object".into(),
+        ));
+    }
+
+    let region = sqlx::query_as::<_, Region>(
+        "UPDATE region
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *",
+    )
+    .bind(patch)
+    .bind(id)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Region")?;
 
     Ok(region)
 }
@@ -280,6 +337,22 @@ pub async fn get_localized_by_id(
 }
 
 #[instrument(err(Debug))]
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(RegionIden::Table)
+        .and_where(Expr::col(RegionIden::Id).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let region = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Region")?;
+
+    Ok(region)
+}
+
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RegionIden::Table)
@@ -359,6 +432,7 @@ mod tests {
         let update_region = PartialRegion {
             region_type: Some(RegionType::Custom),
             official_id: Some("G1".to_string()),
+            ..Default::default()
         };
         let updated_region = update(&pool, &region.id, &update_region).await?;
 

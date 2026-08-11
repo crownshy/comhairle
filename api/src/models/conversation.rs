@@ -568,7 +568,7 @@ pub async fn patch_metadata(
 
     let conversation = sqlx::query_as::<_, Conversation>(
         "UPDATE conversation
-            SET metadata = metadata || $1::jsonb,
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
                 updated_at = NOW()
             WHERE id = $2
             RETURNING *",
