@@ -5,6 +5,7 @@
 	import 'pdfjs-dist/web/pdf_viewer.css';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { cn } from '$lib/utils';
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
@@ -74,9 +75,15 @@
 	let resizeTick = $state(0);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	// True once a full render pass has completed, so page wrappers have their real
-	// height and an auto-jump lands on the right place. Reset when `src` changes.
-	let renderedOnce = $state(false);
+	// True once the target page (and everything above it) has rendered, so its
+	// wrapper has its real height and an auto-jump lands on the right place. Reset
+	// when `src` changes. We gate on the target rather than the whole document so a
+	// deep PDF reveals as soon as the cited page is ready.
+	let revealReady = $state(false);
+	// True once the auto-jump has run and the document is positioned on the passage.
+	// The viewport stays behind a loading overlay until this flips, so the reader
+	// never sees the open-then-jump. Reset when `src` changes.
+	let revealed = $state(false);
 	// Guards the one-shot auto-jump, keyed by `src` + target page.
 	let jumpedFor = $state<string | null>(null);
 
@@ -87,6 +94,12 @@
 
 	const canPrev = $derived(currentPage > 1);
 	const canNext = $derived(currentPage < numPages);
+	// The page the viewer auto-jumps to on open (1-based): an explicit `initialPage`,
+	// else the first highlighted page, else null when there's nothing to jump to
+	// (e.g. reloaded history with no positions).
+	const targetPage = $derived(
+		initialPage ?? (highlights.length ? Math.min(...highlights.map((h) => h.page)) : null)
+	);
 	// Per-page CSS aspect-ratio, so a thumbnail holds its true page shape (A4,
 	// Letter, etc.) even before its preview finishes rendering.
 	const thumbAspects = $derived(
@@ -172,6 +185,11 @@
 		const scale = resolveScale();
 		renderedScale = scale;
 
+		// The page we can reveal after: the auto-jump target, or page 1 when there's
+		// nothing to jump to. Rendering is sequential, so once this page is done every
+		// page above it is sized too and the jump lands correctly.
+		const revealTarget = Math.min(Math.max(targetPage ?? 1, 1), pages.length);
+
 		for (let i = 0; i < pages.length; i++) {
 			if (gen !== renderGen) return;
 
@@ -207,9 +225,11 @@
 			if (gen !== renderGen) return;
 
 			if (textDiv) await renderTextLayer(page, textDiv, viewport, scale, gen);
-		}
 
-		if (gen === renderGen) renderedOnce = true;
+			// Reveal as soon as the target page is on screen, without waiting for the
+			// rest of a deep document to finish rendering.
+			if (gen === renderGen && !revealReady && i + 1 >= revealTarget) revealReady = true;
+		}
 	}
 
 	function goToPage(pageNumber: number, behavior: 'smooth' | 'auto' = 'smooth') {
@@ -237,7 +257,9 @@
 		numPages = 0;
 		currentPage = 1;
 		zoom = DEFAULT_ZOOM;
-		renderedOnce = false;
+		revealReady = false;
+		revealed = false;
+		jumpedFor = null;
 
 		let cancelled = false;
 		const task = pdfjsLib.getDocument(url);
@@ -342,19 +364,18 @@
 		};
 	});
 
-	// Auto-scroll to the passage once the document has rendered. Runs once per
-	// src/target (guarded by `jumpedFor`) so it doesn't fight the user's own
-	// scrolling on zoom or resize. Instant jump, not smooth, so a deep target
-	// page doesn't animate through everything above it.
+	// Auto-scroll to the passage once the target page has rendered, then reveal the
+	// viewport already positioned there. Runs once per src/target (guarded by
+	// `jumpedFor`) so it doesn't fight the user's own scrolling on zoom or resize.
+	// Instant jump, not smooth, so a deep target page doesn't animate through
+	// everything above it (and it happens behind the overlay anyway).
 	$effect(() => {
-		if (!renderedOnce || !scrollContainer) return;
-		const target =
-			initialPage ?? (highlights.length ? Math.min(...highlights.map((h) => h.page)) : null);
-		if (!target) return;
-		const key = `${src}:${target}`;
+		if (!revealReady || !scrollContainer) return;
+		const key = `${src}:${targetPage ?? 'none'}`;
 		if (jumpedFor === key) return;
 		jumpedFor = key;
-		goToPage(target, 'auto');
+		if (targetPage) goToPage(targetPage, 'auto');
+		revealed = true;
 	});
 
 	// Track which page is most visible so the toolbar counter and rail stay accurate.
@@ -406,7 +427,7 @@
 				class="max-sm:hidden"
 				aria-label="Previous page"
 				title="Previous page"
-				disabled={!canPrev || loading}
+				disabled={!canPrev || !revealed}
 				onclick={() => goToPage(currentPage - 1)}
 			>
 				<ChevronLeftIcon class="size-4" />
@@ -419,7 +440,7 @@
 				class="max-sm:hidden"
 				aria-label="Next page"
 				title="Next page"
-				disabled={!canNext || loading}
+				disabled={!canNext || !revealed}
 				onclick={() => goToPage(currentPage + 1)}
 			>
 				<ChevronRightIcon class="size-4" />
@@ -432,7 +453,7 @@
 				size="sm"
 				aria-label="Zoom out"
 				title="Zoom out"
-				disabled={loading || renderedScale <= MIN_ZOOM}
+				disabled={!revealed || renderedScale <= MIN_ZOOM}
 				onclick={zoomOut}
 			>
 				<MinusIcon class="size-4" />
@@ -452,7 +473,7 @@
 				size="sm"
 				aria-label="Zoom in"
 				title="Zoom in"
-				disabled={loading || renderedScale >= MAX_ZOOM}
+				disabled={!revealed || renderedScale >= MAX_ZOOM}
 				onclick={zoomIn}
 			>
 				<PlusIcon class="size-4" />
@@ -460,7 +481,7 @@
 		</div>
 	</div>
 
-	<div class="flex min-h-0 flex-1 max-sm:flex-col">
+	<div class="relative flex min-h-0 flex-1 max-sm:flex-col">
 		{#if !loading && !error && pages.length > 0}
 			<div
 				class="border-border bg-background flex w-45 shrink-0 flex-col gap-2 overflow-y-auto border-r p-3 max-sm:order-2 max-sm:w-full max-sm:flex-row max-sm:items-center max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-t max-sm:border-r-0 max-sm:px-3 max-sm:py-2.5"
@@ -506,9 +527,9 @@
 		>
 			{#if error}
 				<p class="text-destructive m-auto p-8 text-sm">Failed to load PDF: {error}</p>
-			{:else if loading}
-				<p class="text-muted-foreground m-auto p-8 text-sm">Loading document…</p>
 			{:else}
+				<!-- Pages mount and render while still hidden behind the overlay below, so
+				the auto-jump lands before the reader ever sees them. -->
 				{#each pages as page, i (page.pageNumber)}
 					<div
 						class="relative mx-auto shrink-0 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.15)]"
@@ -530,5 +551,18 @@
 				{/each}
 			{/if}
 		</div>
+
+		<!-- Covers the viewport (and rail) until the document has rendered and jumped to
+		the cited passage, so the reader never watches it open-then-scroll. -->
+		{#if !error && !revealed}
+			<div
+				class="bg-background absolute inset-0 z-10 flex items-center justify-center gap-3"
+				role="status"
+				aria-live="polite"
+			>
+				<Spinner class="text-muted-foreground size-5" />
+				<span class="text-muted-foreground text-sm">Loading document…</span>
+			</div>
+		{/if}
 	</div>
 </div>
