@@ -23,15 +23,19 @@ Component to show the raw responses to long text questions
 			<li class="mb-4 border-b pb-4 last:border-b-0">{response}</li>
 		{/each}
 	</ul>
-	<Button
-		onclick={() => (show = !show)}
-		class="w-full rounded-t-none rounded-b-xl py-6"
-		variant="secondary"
-	>
-		{#if show}
-			<ChevronUp /> Show less
-		{:else}
-			<ChevronDown /> Show all {rawData.length} responses
-		{/if}</Button
-	>
+	{#if rawData.length <= LIMIT}
+		<div class="bg-secondary w-full rounded-t-none rounded-b-xl py-6"></div>
+	{:else}
+		<Button
+			onclick={() => (show = !show)}
+			class="w-full rounded-t-none rounded-b-xl py-6"
+			variant="secondary"
+		>
+			{#if show}
+				<ChevronUp /> Show less
+			{:else}
+				<ChevronDown /> Show all {rawData.length} responses
+			{/if}</Button
+		>
+	{/if}
 </section>
