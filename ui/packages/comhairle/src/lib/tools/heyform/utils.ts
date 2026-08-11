@@ -44,6 +44,13 @@ export const HEYFORM_OTHER_FIELD_KIND = [
 ] as const;
 
 export type HeyFormFullNameValue = { firstName: string; lastName: string };
+export type HeyFormAddressValue = {
+	address1: string;
+	address2: string;
+	county: string;
+	postcode: string;
+	country: string;
+};
 export type HeyFormChoiceFieldKind = (typeof HEYFORM_CHOICE_FIELD_KIND)[number];
 export type HeyFormNonChoiceFieldKind = (typeof HEYFORM_NON_CHOICE_FIELD_KIND)[number];
 export type HeyFormOtherFieldKind = (typeof HEYFORM_OTHER_FIELD_KIND)[number];

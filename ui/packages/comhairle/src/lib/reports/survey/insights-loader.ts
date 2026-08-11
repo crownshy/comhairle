@@ -78,6 +78,18 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 						return `${fullName.firstName} ${fullName.lastName}`;
 					}) ?? []
 			});
+		case 'address':
+			return typedObj<NonChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				answers:
+					insight.submissions?.map((s) => {
+						const address = s.value as HeyFormAddressValue;
+						return Object.values(address).join(', ');
+					}) ?? []
+			});
 		case 'date':
 		case 'group':
 		case 'statement':
@@ -86,7 +98,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'time':
 		case 'input_table':
 		case 'payment':
-		case 'address':
 		case 'signature':
 		case 'legal_terms':
 		case 'submit_date':
