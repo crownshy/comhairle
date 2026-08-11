@@ -544,13 +544,6 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
 /// above. Fields without the attribute (e.g. `id`) are assumed to contain no
 /// translatable content and are copied through as-is into `LocalizedQuestion`.
 ///
-/// # Not currently supported
-///
-/// - Tuple variants (`Foo::Bar(String)`) — the macro panics at
-///   expansion time if one is encountered.
-/// - Tuple structs and unit structs — only structs with named fields are
-///   supported.
-///
 /// # Requirements on `#[translatable]` field types
 ///
 /// The type of a `#[translatable]` field must implement both

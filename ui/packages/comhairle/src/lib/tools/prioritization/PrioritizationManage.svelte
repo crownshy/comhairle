@@ -16,7 +16,6 @@
 	import * as Select from '$lib/components/ui/select';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
-	import { resolveTranslatableJsonToTextContentIds } from '$lib/components/Translation/translationUtils';
 
 	let {
 		workflowId,
@@ -161,9 +160,8 @@
 		deletingQuestionInFlight = true;
 		try {
 			const next = questions.filter((q) => q.id !== selectedQuestionId);
-			const resolvedToTcIds = resolveTranslatableJsonToTextContentIds(next);
 			await store.saveToolConfig({
-				questions: resolvedToTcIds,
+				questions: next,
 				sectionQuestions,
 				randomizeOrder: toolConfig.randomizeOrder,
 				alignmentQuestionId: toolConfig.alignmentQuestionId
@@ -413,7 +411,7 @@
 								</button>
 								<div class="min-w-0 flex-1 space-y-2">
 									<Card.Title class="text-lg">
-										{q.text || 'Untitled question'}
+										{q.text.localized || 'Untitled question'}
 									</Card.Title>
 									<div
 										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"

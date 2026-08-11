@@ -249,14 +249,9 @@
 					? existing.map((q) => (q.id === editingId ? next : q))
 					: [...existing, next];
 
-			// Strip out translations data as update of toolConfig expects only
-			// `textContentIds` for nested translatable fields.
-			const resolvedToTcIds = resolveTranslatableJsonToTextContentIds(updated);
-
 			await store.saveToolConfig({
-				questions: target === 'section' ? toolConfig.questions : resolvedToTcIds,
-				sectionQuestions:
-					target === 'section' ? resolvedToTcIds : toolConfig.sectionQuestions,
+				questions: target === 'section' ? toolConfig.questions : updated,
+				sectionQuestions: target === 'section' ? updated : toolConfig.sectionQuestions,
 				randomizeOrder: toolConfig.randomizeOrder,
 				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
