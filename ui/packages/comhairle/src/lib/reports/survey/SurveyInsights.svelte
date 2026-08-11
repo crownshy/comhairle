@@ -21,10 +21,11 @@
 		switch (kind) {
 			case 'yes_no':
 				return 'Doughnut';
-			case 'opinion_scale':
 			case 'picture_choice':
 			case 'multiple_choice':
 				return 'Bar';
+			case 'opinion_scale':
+				return 'KdePlot';
 			case 'number':
 			case 'short_text':
 			case 'long_text':
@@ -77,12 +78,10 @@
 				<Doughnut data={section.answers} key="label" value="count" />
 			{/if}
 			{#if type === 'KdePlot'}
-				<p>KdePlot chart</p>
-				<!-- <KdePlot data={section.chart.data} /> -->
+				<KdePlot data={{ answers: section.answers }} />
 			{/if}
 			{#if type === 'Text'}
-				<p>Text chart</p>
-				<!-- <Responses data={section.chart.data} /> -->
+				<Responses data={section.answers} />
 			{/if}
 		</div>
 	{/if}

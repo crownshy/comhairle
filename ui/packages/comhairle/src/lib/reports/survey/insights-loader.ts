@@ -15,10 +15,7 @@ export interface ChoiceQuestion {
 	id: string;
 	title: string;
 	total: number;
-	kind: Extract<
-		HeyFormFieldKind,
-		'opinion_scale' | 'rating' | 'multiple_choice' | 'picture_choice' | 'yes_no'
-	>;
+	kind: Extract<HeyFormFieldKind, 'rating' | 'multiple_choice' | 'picture_choice' | 'yes_no'>;
 	answers: Choice[];
 }
 
@@ -26,7 +23,7 @@ export interface NonChoiceQuestion {
 	id: string;
 	title: string;
 	total: number;
-	kind: Extract<HeyFormFieldKind, 'number' | 'short_text' | 'long_text'>;
+	kind: Extract<HeyFormFieldKind, 'opinion_scale' | 'number' | 'short_text' | 'long_text'>;
 	answers: unknown[];
 }
 
@@ -38,30 +35,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 	}
 
 	switch (insight.kind) {
-		case 'opinion_scale': {
-			const answers: Choice[] = [];
-
-			for (const submission of insight.submissions ?? []) {
-				const index = answers.findIndex((a) => a.label === String(submission.value));
-				if (index > -1) {
-					answers[index].count += 1;
-					continue;
-				}
-				answers.push({
-					id: submission.submission_id,
-					label: String(submission.value),
-					count: 1
-				});
-			}
-
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				answers
-			});
-		}
 		case 'rating':
 		case 'yes_no':
 		case 'multiple_choice':
@@ -73,6 +46,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				kind: insight.kind,
 				answers: insight.choices ?? []
 			});
+		case 'opinion_scale':
 		case 'number':
 		case 'short_text':
 		case 'long_text':
