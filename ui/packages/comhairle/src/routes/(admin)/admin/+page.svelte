@@ -6,7 +6,8 @@
 	import { Home } from 'lucide-svelte';
 
 	let props: PageProps = $props();
-	let conversations = $derived(props.data.conversations?.records ?? []);
+	let ownedConversations = $derived(props.data.ownedConversations?.records ?? []);
+	let permittedConversations = $derived(props.data.permittedConversations?.records ?? []);
 </script>
 
 <svelte:head>
@@ -33,9 +34,25 @@
 		</div>
 		<NewConversationButton class="w-full sm:w-auto" label="Create New Conversation" />
 	</div>
-	<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16 overflow-y-auto">
-		{#each conversations as conversation (conversation.id)}
-			<ConversationCard {conversation} />
-		{/each}
+	<div class="flex w-full flex-col gap-11 overflow-y-auto">
+		<section class="flex flex-col gap-6">
+			<h2 class="text-muted-foreground text-base font-medium">Owned Conversations</h2>
+			<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
+				{#each ownedConversations as conversation (conversation.id)}
+					<ConversationCard {conversation} />
+				{/each}
+			</div>
+		</section>
+
+		{#if permittedConversations.length > 0}
+			<section class="flex flex-col gap-6">
+				<h2 class="text-muted-foreground text-base font-medium">Permitted Conversations</h2>
+				<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
+					{#each permittedConversations as conversation (conversation.id)}
+						<ConversationCard {conversation} />
+					{/each}
+				</div>
+			</section>
+		{/if}
 	</div>
 </div>
