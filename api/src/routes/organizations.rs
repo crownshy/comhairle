@@ -4,7 +4,7 @@ use aide::{
     OperationIo,
     axum::{
         ApiRouter,
-        routing::{delete_with, get_with, post_with, put_with},
+        routing::{delete_with, get_with, patch_with, post_with, put_with},
     },
 };
 use axum::{
@@ -132,6 +132,7 @@ struct UpdateOrganizationBody {
     contact_email: Option<Option<String>>,
     external_url: Option<Option<String>>,
     regions: Option<Vec<Uuid>>,
+    metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, serde::Serialize, JsonSchema)]
@@ -244,7 +245,7 @@ async fn resolve_or_create_user_by_email(
                 return Err(ComhairleError::NoUserFoundForEmail(trimmed));
             }
 
-            let user = users::create_organization_admin_user(&trimmed, &state.db).await?;
+            let user = users::create_organization_admin_user(state, &trimmed).await?;
 
             let token = generate_jwt()
                 .user(&user)
@@ -485,7 +486,7 @@ async fn create(
     let mut admin_bootstrap_results =
         if let Some(admin_emails) = payload.organization_admin_emails.as_deref() {
             organization::bootstrap_organization_admin_accounts(
-                &state.db,
+                &state,
                 &created_organization.id,
                 admin_emails,
             )
@@ -609,6 +610,7 @@ async fn update(
         contact_email: payload.contact_email,
         external_url: payload.external_url,
         regions: payload.regions,
+        metadata: payload.metadata.into(),
     };
 
     let organization = if partial.to_values().is_empty() {
@@ -617,6 +619,40 @@ async fn update(
         organization::update(&state.db, &organization_id, &partial).await?
     }
     .into();
+
+    Ok((StatusCode::OK, Json(organization)))
+}
+
+/// Get the organization's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn get_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(organization_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    resource: OrganizationResource,
+) -> Result<(StatusCode, Json<Option<serde_json::Value>>), ComhairleError> {
+    authorize(&state, &_user, Action::OrganizationRead, &resource).await?;
+
+    let metadata = organization::get_metadata(&state.db, &organization_id).await?;
+
+    Ok((StatusCode::OK, Json(metadata)))
+}
+
+/// Shallow-merge the request body into the organization's `metadata` jsonb
+/// column. The body must be a JSON object.
+#[instrument(err(Debug), skip(state))]
+async fn patch_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(organization_id): Path<Uuid>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    resource: OrganizationResource,
+    Json(patch): Json<serde_json::Value>,
+) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
+    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
+
+    let organization = organization::patch_metadata(&state.db, &organization_id, patch)
+        .await?
+        .into();
 
     Ok((StatusCode::OK, Json(organization)))
 }
@@ -760,6 +796,30 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Organizations")
                     .summary("Update an organization")
                     .description("Update an organization")
+                    .security_requirement("JWT")
+                    .response::<200, Json<OrganizationDto>>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/metadata",
+            get_with(get_metadata, |op| {
+                op.id("GetOrganizationMetadata")
+                    .tag("Organizations")
+                    .summary("Get organization metadata")
+                    .description("Get organization metadata")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Option<serde_json::Value>>>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/metadata",
+            patch_with(patch_metadata, |op| {
+                op.id("PatchOrganizationMetadata")
+                    .tag("Organizations")
+                    .summary("Shallow-merge organization metadata")
+                    .description(
+                        "Merge a JSON object into organization.metadata at the top level using jsonb concatenation",
+                    )
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationDto>>()
             }),

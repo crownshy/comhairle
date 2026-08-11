@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
+    routing::{delete_with, get_with, patch_with, post_with, put_with},
 };
 use axum::{
     extract::{Json, Path, Query, State},
@@ -138,6 +138,31 @@ async fn update(
     Ok((StatusCode::OK, Json(event)))
 }
 
+///  Get an event's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn get_event_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<Option<serde_json::Value>>), ComhairleError> {
+    let metadata = event::get_metadata(&state.db, &event_id).await?;
+    Ok((StatusCode::OK, Json(metadata)))
+}
+
+/// Shallow-merge the request body into the event's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn patch_event_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(patch): Json<serde_json::Value>,
+) -> Result<(StatusCode, Json<EventDto>), ComhairleError> {
+    let event = event::patch_metadata(&state.db, &event_id, patch).await?;
+    let event: EventDto = event.into();
+
+    Ok((StatusCode::OK, Json(event)))
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
@@ -258,6 +283,28 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Events")
                     .summary("Update an event")
                     .description("Update an event")
+                    .security_requirement("JWT")
+                    .response::<200, Json<EventDto>>()
+
+        }))
+        .api_route("/{event_id}/metadata",
+            get_with(get_event_metadata, |op| {
+                op.id("GetEventMetadata")
+                    .tag("Events")
+                    .summary("Get event metadata")
+                    .description("Get event metadata")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Option<serde_json::Value>>>()
+
+        }))
+        .api_route("/{event_id}/metadata",
+            patch_with(patch_event_metadata, |op| {
+                op.id("PatchEventMetadata")
+                    .tag("Events")
+                    .summary("Shallow-merge event metadata")
+                    .description(
+                        "Merge a JSON object into event.metadata at the top level using jsonb concatenation",
+                    )
                     .security_requirement("JWT")
                     .response::<200, Json<EventDto>>()
 

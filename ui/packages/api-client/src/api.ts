@@ -157,6 +157,7 @@ export const LocalizedOrganizationDto = z
     description: z.string(),
     externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     mission: z.string(),
     name: z.string(),
     orgType: OrganizationType,
@@ -1832,6 +1833,7 @@ export const LocalizedEventDto = z
     format: EventFormat,
     id: z.string().uuid(),
     location: z.union([EventLocation, z.null()]).optional(),
+    metadata: z.unknown().optional(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -1870,6 +1872,7 @@ export const EventDto = z
     format: EventFormat,
     id: z.string().uuid(),
     location: z.union([EventLocation, z.null()]).optional(),
+    metadata: z.unknown().optional(),
     name: z.string().uuid(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -1915,6 +1918,7 @@ export const EventWithTranslations = z
     format: EventFormat,
     id: z.string().uuid(),
     location: z.union([EventLocation, z.null()]).optional(),
+    metadata: z.unknown().optional(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -1938,6 +1942,7 @@ export const PartialEvent = z
     end_time: z.union([z.string(), z.null()]),
     format: z.union([EventFormat, z.null()]),
     location: z.union([EventLocation, z.null()]),
+    metadata: z.unknown(),
     name: z.union([z.string(), z.null()]),
     signup_mode: z.union([z.string(), z.null()]),
     start_time: z.union([z.string(), z.null()]),
@@ -2156,6 +2161,7 @@ export const CreateOrganizationResponseDto = z
     description: z.string().uuid(),
     externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     mission: z.string().uuid(),
     name: z.string(),
     orgType: OrganizationType,
@@ -2170,6 +2176,7 @@ export const UpdateOrganizationBody = z
     contact_email: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     external_url: z.union([z.string(), z.null()]),
+    metadata: z.unknown(),
     mission: z.union([z.string(), z.null()]),
     name: z.union([z.string(), z.null()]),
     org_type: z.union([OrganizationType, z.null()]),
@@ -2185,6 +2192,7 @@ export const OrganizationDto = z
     description: z.string().uuid(),
     externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     mission: z.string().uuid(),
     name: z.string(),
     orgType: OrganizationType,
@@ -2242,8 +2250,10 @@ export const LocalizedRegionDto = z
     created_at: z.string().datetime({ offset: true }),
     description: z.string(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     name: z.string(),
     official_id: z.union([z.string(), z.null()]).optional(),
+    region_area_id: z.union([z.string(), z.null()]).optional(),
     region_type: RegionType,
   })
   .passthrough();
@@ -2268,20 +2278,41 @@ export const RegionDto = z
     created_at: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     name: z.string().uuid(),
     official_id: z.union([z.string(), z.null()]).optional(),
+    region_area_id: z.union([z.string(), z.null()]).optional(),
     region_type: RegionType,
   })
   .passthrough();
 export type RegionDto = z.infer<typeof RegionDto>;
 export const PartialRegion = z
   .object({
+    metadata: z.unknown(),
     official_id: z.union([z.string(), z.null()]),
+    region_area_id: z.union([z.string(), z.null()]),
     region_type: z.union([RegionType, z.null()]),
   })
   .partial()
   .passthrough();
 export type PartialRegion = z.infer<typeof PartialRegion>;
+export const RegionAreaDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    zipPrefix: z.string(),
+  })
+  .passthrough();
+export type RegionAreaDto = z.infer<typeof RegionAreaDto>;
+export const CreateRegionArea = z
+  .object({ zip_prefix: z.string() })
+  .passthrough();
+export type CreateRegionArea = z.infer<typeof CreateRegionArea>;
+export const PartialRegionArea = z
+  .object({ zip_prefix: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type PartialRegionArea = z.infer<typeof PartialRegionArea>;
 export const MediaContentType = z.enum([
   "image/jpeg",
   "image/png",
@@ -2773,6 +2804,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateRegion,
   RegionDto,
   PartialRegion,
+  RegionAreaDto,
+  CreateRegionArea,
+  PartialRegionArea,
   MediaContentType,
   content_type,
   MediaDto,
@@ -3569,6 +3603,29 @@ curl -X POST \
     alias: "SeedEventBreakoutPlan",
     requestFormat: "json",
     response: BreakoutPlanDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/metadata",
+    alias: "GetEventMetadata",
+    description: `Get event metadata`,
+    requestFormat: "json",
+    response: z.unknown(),
+  },
+  {
+    method: "patch",
+    path: "/conversation/:conversation_id/events/:event_id/metadata",
+    alias: "PatchEventMetadata",
+    description: `Merge a JSON object into event.metadata at the top level using jsonb concatenation`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
+    response: EventDto,
   },
   {
     method: "get",
@@ -4660,6 +4717,29 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/organizations/:organization_id/metadata",
+    alias: "GetOrganizationMetadata",
+    description: `Get organization metadata`,
+    requestFormat: "json",
+    response: z.unknown(),
+  },
+  {
+    method: "patch",
+    path: "/organizations/:organization_id/metadata",
+    alias: "PatchOrganizationMetadata",
+    description: `Merge a JSON object into organization.metadata at the top level using jsonb concatenation`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
+    response: OrganizationDto,
+  },
+  {
+    method: "get",
     path: "/organizations/:organization_id/team",
     alias: "GetOrganizationTeam",
     description: `Returns members and administrators for an organization`,
@@ -4854,6 +4934,55 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/region_areas",
+    alias: "ListRegionAreas",
+    requestFormat: "json",
+    response: z.array(RegionAreaDto),
+  },
+  {
+    method: "post",
+    path: "/region_areas",
+    alias: "CreateRegionArea",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ zip_prefix: z.string() }).passthrough(),
+      },
+    ],
+    response: RegionAreaDto,
+  },
+  {
+    method: "get",
+    path: "/region_areas/:region_area_id",
+    alias: "GetRegionArea",
+    requestFormat: "json",
+    response: RegionAreaDto,
+  },
+  {
+    method: "put",
+    path: "/region_areas/:region_area_id",
+    alias: "UpdateRegionArea",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PartialRegionArea,
+      },
+    ],
+    response: RegionAreaDto,
+  },
+  {
+    method: "delete",
+    path: "/region_areas/:region_area_id",
+    alias: "DeleteRegionArea",
+    requestFormat: "json",
+    response: RegionAreaDto,
+  },
+  {
+    method: "get",
     path: "/regions",
     alias: "ListRegions",
     description: `Paginated list of regions with optional ordering`,
@@ -4931,6 +5060,29 @@ curl -X POST \
     alias: "DeleteRegion",
     description: `Delete a region`,
     requestFormat: "json",
+    response: RegionDto,
+  },
+  {
+    method: "get",
+    path: "/regions/:region_id/metadata",
+    alias: "GetRegionMetadata",
+    description: `Get region metadata`,
+    requestFormat: "json",
+    response: z.unknown(),
+  },
+  {
+    method: "patch",
+    path: "/regions/:region_id/metadata",
+    alias: "PatchRegionMetadata",
+    description: `Merge a JSON object into region.metadata at the top level using jsonb concatenation`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
     response: RegionDto,
   },
   {
