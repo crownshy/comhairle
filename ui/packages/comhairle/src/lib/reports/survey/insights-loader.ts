@@ -50,6 +50,10 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'number':
 		case 'short_text':
 		case 'long_text':
+		case 'email':
+		case 'url':
+		case 'phone_number':
+		case 'country_selector':
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
@@ -67,10 +71,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'payment':
 		case 'full_name':
 		case 'address':
-		case 'email':
-		case 'url':
-		case 'phone_number':
-		case 'country_selector':
 		case 'signature':
 		case 'legal_terms':
 		case 'submit_date':
