@@ -1,6 +1,4 @@
 import { apiClient } from '@crownshy/api-client/client';
-import { notifications } from '$lib/notifications.svelte';
-import { getLanguageName } from '$lib/config/languages';
 import {
 	extractTextFromTiptap,
 	translateTiptapContent,
@@ -267,4 +265,196 @@ export async function autoTranslateNewLanguage(
 	}
 
 	return results;
+}
+
+/**
+ * Traverses a nested JSON structure with translatable fields, creating translations
+ * for any new translatable fields in draft mode and replacing the value with the
+ * resulting `textContentId`, to allow the JSON to be updated with the correct
+ * `textContentId` reference.
+ *
+ * Translatable fields within a nested JSON structure (e.g. within a `workflowStep`'s
+ * `toolConfig` / `previewToolConfig`) have the translations colocated with the target
+ * field to simplify usage with the [`TranslatableField`] component and the existing
+ * [`createTextContentSource`] adaptor.
+ *
+ * When a new translatable field is added to the existing JSON structure, these
+ * fields will be in a draft mode and contain only the localized text minus the
+ * translations.
+ *
+ * @example
+ * ```ts
+ * {
+ *	name: { localized: 'New field' }
+ * }
+ * ```
+ *
+ * Vs existing fields with translations:
+ *
+ * @example
+ * ```ts
+ * {
+ *	 name: {
+ *		localized: 'Existing field',
+ *		translations: {
+ *			textContent: { ... },
+ *			textTranslations: [ ... ]
+ *		}
+ *	 }
+ * }
+ * ```
+ *
+ * Translations (i.e. `text_content` + `text_translations` database records)
+ * need to be created for these draft fields before the JSON structure can be
+ * saved with the resulting `textContentId`.
+ */
+export async function traverseTranslatableJsonAndCreateTranslations(
+	/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
+	value: any,
+	primaryLocale: string
+	/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
+): Promise<any> {
+	if (Array.isArray(value)) {
+		return Promise.all(
+			value.map((v) => traverseTranslatableJsonAndCreateTranslations(v, primaryLocale))
+		);
+	}
+
+	if (value !== null && typeof value === 'object') {
+		if (isDraftTranslatableField(value)) {
+			console.log('Draft translatable field: ', value);
+			// create new translation and return textContentId
+			const textContentRes = await apiClient.CreateTextContent({
+				content: value.localized,
+				format: 'plain',
+				primary_locale: primaryLocale
+			});
+
+			return textContentRes.id;
+		}
+
+		/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
+		const fields: Record<string, any> = {};
+		for (const [key, val] of Object.entries(value)) {
+			fields[key] = await traverseTranslatableJsonAndCreateTranslations(val, primaryLocale);
+		}
+		return fields;
+	}
+
+	return value;
+}
+
+/**
+ * Determines whether a TranslatableJson field is in a draft mode, eg
+ *
+ * @example
+ * ```ts
+ * {
+ *	name: { localized: 'New field' }
+ * }
+ * ```
+ *
+ * where new translations (text_content + text_translations) need to be created
+ * before updating the JSON object as opposed to an existing TranslatableJson
+ * field:
+ *
+ * @example
+ * ```ts
+ * {
+ *	 name: {
+ *		localized: 'Existing field',
+ *		translations: {
+ *			textContent: { ... },
+ *			textTranslations: [ ... ]
+ *		}
+ *	 }
+ * }
+ * ```
+ *
+ * where updates can occur via the [`TranslatableField`] component.
+ */
+/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
+function isDraftTranslatableField(value: any) {
+	return (
+		value !== null &&
+		typeof value === 'object' &&
+		typeof value.localized === 'string' &&
+		'translations' in (value as object) === false
+	);
+}
+
+/**
+ * Strips translations from nested JSON structures with colocated translatable
+ * fields and replaces value with appropriate `textContentId` to allow updates.
+ *
+ * Read endpoints for translatable JSON structures (e.g. `workflowStep`'s
+ * `toolConfig` / `previewToolConfig`) return JSON with translations colocated
+ * to target field.
+ *
+ * @example
+ * ```ts
+ * {
+ *	 name: {
+ *		localized: 'Translatable field',
+ *		translations: {
+ *			textContent: { ... },
+ *			textTranslations: [ ... ]
+ *		}
+ *	 }
+ * }
+ * ```
+ *
+ * This provides ease with call sites of the [`createTextContentSource`] adaptor
+ * for the [`TranslatableField`] component.
+ *
+ * Update endpoints for resources with nested translatable JSON fields expect
+ * those nested fields to contain only the target `textContentId`.
+ *
+ * ## Usage
+ *
+ * @example
+ * ```ts
+ * const updatePayload = resolveTranslatableJsonToTextContentIds(target);
+ * ```
+ *
+ * Transforms fields to:
+ *
+ * @example
+ * ```ts
+ * {
+ *	 name: 'abcdefgh-1234-1234-1234-abcdefghijkl'
+ * }
+ * ```
+ */
+/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
+export function resolveTranslatableJsonToTextContentIds(value: any): any {
+	if (Array.isArray(value)) {
+		return value.map(resolveTranslatableJsonToTextContentIds);
+	}
+
+	if (value !== null && typeof value === 'object') {
+		if (isExistingTranslatableField(value)) {
+			return value.translations.textContent.id;
+		}
+
+		/* eslint-disable  @typescript-eslint/no-explicit-any */
+		const result: Record<string, any> = {};
+		for (const [key, val] of Object.entries(value)) {
+			result[key] = resolveTranslatableJsonToTextContentIds(val);
+		}
+		return result;
+	}
+
+	// primitives (string, number, boolean, null) pass through unchanged
+	return value;
+}
+
+function isExistingTranslatableField(value: any) {
+	return (
+		typeof value.localized === 'string' &&
+		value.translations &&
+		typeof value.translations === 'object' &&
+		value.translations.textContent &&
+		typeof value.translations.textContent.id === 'string'
+	);
 }

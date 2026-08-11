@@ -12,26 +12,20 @@
 	import ProposalEditorDialog from './components/ProposalEditorDialog.svelte';
 	import ProposalListSkeleton from './components/ProposalListSkeleton.svelte';
 	import QuestionEditorDialog from './components/QuestionEditorDialog.svelte';
-	import type {
-		ConversationInput,
-		Proposal,
-		Question,
-		QuestionType,
-		WorkflowStepInput
-	} from './types';
+	import type { Proposal, Question, QuestionType, WorkflowStepInput } from './types';
 	import * as Select from '$lib/components/ui/select';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
+	import { resolveTranslatableJsonToTextContentIds } from '$lib/components/Translation/translationUtils';
 
 	let {
-		conversationId,
 		workflowId,
 		workflowStep,
 		conversation
 	}: {
-		conversationId: string;
 		workflowId: string;
 		workflowStep: WorkflowStepInput;
-		conversation: ConversationInput;
+		conversation: ConversationWithTranslations;
 	} = $props();
 
 	/** The host page keys this component by step id, so the ids are stable for
@@ -39,7 +33,7 @@
 	// svelte-ignore state_referenced_locally
 	const store = createStore({
 		workflowStepId: workflowStep.id,
-		conversationId,
+		conversationId: conversation.id,
 		workflowId,
 		isLive: conversation.isLive ?? false
 	});
@@ -59,7 +53,10 @@
 
 	let questionEditorOpen = $state(false);
 	let questionDeleteOpen = $state(false);
-	let selectedQuestion = $state<Question | null>(null);
+	let selectedQuestionId = $state<string | null>(null);
+	let selectedQuestion = $derived(
+		toolConfig.questions.find((q) => q.id === selectedQuestionId) ?? null
+	);
 	let deletingQuestionInFlight = $state(false);
 	let randomizeSaving = $state(false);
 
@@ -84,7 +81,8 @@
 			await store.saveToolConfig({
 				questions: next,
 				sectionQuestions,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 		} catch {
 			/** saveToolConfig surfaces an error toast. Revert local view to the upstream order. */
@@ -100,7 +98,8 @@
 			await store.saveToolConfig({
 				questions,
 				sectionQuestions: next,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 		} catch {
 			localSectionQuestions = sectionQuestions;
@@ -143,32 +142,34 @@
 	}
 
 	function openCreateQuestion() {
-		selectedQuestion = null;
+		selectedQuestionId = null;
 		questionEditorOpen = true;
 	}
 
 	function openEditQuestion(q: Question) {
-		selectedQuestion = q;
+		selectedQuestionId = q.id;
 		questionEditorOpen = true;
 	}
 
 	function confirmDeleteQuestion(q: Question) {
-		selectedQuestion = q;
+		selectedQuestionId = q.id;
 		questionDeleteOpen = true;
 	}
 
 	async function runDeleteQuestion() {
-		if (!selectedQuestion) return;
+		if (!selectedQuestionId) return;
 		deletingQuestionInFlight = true;
 		try {
-			const next = questions.filter((q) => q.id !== selectedQuestion!.id);
+			const next = questions.filter((q) => q.id !== selectedQuestionId);
+			const resolvedToTcIds = resolveTranslatableJsonToTextContentIds(next);
 			await store.saveToolConfig({
-				questions: next,
+				questions: resolvedToTcIds,
 				sectionQuestions,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 			questionDeleteOpen = false;
-			selectedQuestion = null;
+			selectedQuestionId = null;
 		} catch {
 			/** store.saveToolConfig surfaces an error toast. */
 		} finally {
@@ -199,7 +200,8 @@
 			await store.saveToolConfig({
 				questions,
 				sectionQuestions: next,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 			sectionQuestionDeleteOpen = false;
 			selectedSectionQuestion = null;
@@ -216,7 +218,8 @@
 			await store.saveToolConfig({
 				questions,
 				sectionQuestions,
-				randomizeOrder: checked
+				randomizeOrder: checked,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 		} catch {
 			/** store.saveToolConfig surfaces an error toast. */
@@ -238,14 +241,14 @@
 
 	function summariseScale(type: QuestionType): string {
 		if (type.kind === 'likert') {
-			const first = type.categories[0]?.label;
-			const last = type.categories[type.categories.length - 1]?.label;
+			const first = type.categories[0]?.label.localized;
+			const last = type.categories[type.categories.length - 1]?.label.localized;
 			return first && last ? `${first} → ${last}` : '';
 		}
 		if (type.kind === 'continuous') {
 			const range = `${type.minValue}–${type.maxValue}`;
-			if (type.minLabel || type.maxLabel) {
-				return `${type.minLabel || type.minValue} → ${type.maxLabel || type.maxValue} (${range})`;
+			if (type.minLabel.localized || type.maxLabel.localized) {
+				return `${type.minLabel.localized || type.minValue} → ${type.maxLabel.localized || type.maxValue} (${range})`;
 			}
 			return range;
 		}
@@ -308,7 +311,7 @@
 								</button>
 								<div class="min-w-0 flex-1 space-y-2">
 									<Card.Title class="text-lg">
-										{q.text || 'Untitled question'}
+										{q.text.localized || 'Untitled question'}
 									</Card.Title>
 									<div
 										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
@@ -353,15 +356,15 @@
 				onValueChange={setAlignmentQuestion}
 			>
 				<Select.Trigger>
-					{questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text ??
-						questions[0].text}
+					{questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text
+						.localized ?? questions[0].text.localized}
 					{#if savingAlignmentQuestion}
 						<Spinner />
 					{/if}
 				</Select.Trigger>
 				<Select.Content>
 					{#each questions as question (question.id)}
-						<Select.Item value={question.id}>{question.text}</Select.Item>
+						<Select.Item value={question.id}>{question.text.localized}</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>
@@ -556,6 +559,8 @@
 		questionEditorOpen = o;
 		if (!o) selectedQuestion = null;
 	}}
+	{primaryLocale}
+	{supportedLocales}
 />
 
 <QuestionEditorDialog
@@ -568,6 +573,8 @@
 		sectionQuestionEditorOpen = o;
 		if (!o) selectedSectionQuestion = null;
 	}}
+	{primaryLocale}
+	{supportedLocales}
 />
 
 <AlertDialog.Root

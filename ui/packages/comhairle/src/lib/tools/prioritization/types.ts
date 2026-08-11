@@ -10,7 +10,9 @@ import type {
 	TextContentDto,
 	TextFormat as ApiTextFormat,
 	TextTranslationDto,
-	Translation
+	Translation,
+	TranslationDto,
+	QuestionTypeWithTranslations
 } from '@crownshy/api-client/api';
 
 export type Locale = string;
@@ -48,6 +50,22 @@ export type LocalizedProposal = LocalizedProposalDto;
 
 export type LikertCategory = Category;
 
+/** Mirror type of the backend JsonFieldWithTranslations with optional `translations`
+ * field to allow creating new translatable fields on questions
+ */
+export type TranslatableJsonField = {
+	localized: string;
+	translations?: TranslationDto;
+};
+
+/** Form state for a question being created or edited.  */
+export type DraftFields = { text: TranslatableJsonField; type: QuestionTypeWithTranslations };
+
+export type DraftLikertCategoryWithTranslations = {
+	value: number;
+	label: TranslatableJsonField;
+};
+
 export type QuestionType =
 	| { kind: 'text' }
 	| { kind: 'likert'; categories: LikertCategory[] }
@@ -62,7 +80,7 @@ export type QuestionType =
 
 export type Question = {
 	id: string;
-	text: string;
+	text: TranslatableJsonField;
 	type: QuestionType;
 };
 
