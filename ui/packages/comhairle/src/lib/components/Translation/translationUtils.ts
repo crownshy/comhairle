@@ -322,7 +322,6 @@ export async function traverseTranslatableJsonAndCreateTranslations(
 
 	if (value !== null && typeof value === 'object') {
 		if (isDraftTranslatableField(value)) {
-			console.log('Draft translatable field: ', value);
 			// create new translation and return textContentId
 			const textContentRes = await apiClient.CreateTextContent({
 				content: value.localized,
