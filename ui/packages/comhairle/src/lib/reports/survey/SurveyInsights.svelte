@@ -2,14 +2,14 @@
 	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
 	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 	import Responses from './Responses.svelte';
-	import type { InsightQuestion } from '@crownshy/api-client/api';
 	import SurveyBarChart from './SurveyBarChart.svelte';
 	import { isHeyFormFieldKind } from '$lib/tools/heyform/utils';
+	import type { SurveyQuestion } from './insights-loader';
 
 	type ChartType = 'Bar' | 'Doughnut' | 'KdePlot' | 'Text';
 
 	interface Props {
-		data: InsightQuestion[];
+		data: SurveyQuestion[];
 	}
 
 	let { data }: Props = $props();
@@ -71,10 +71,10 @@
 		<div class="py-10">
 			<h2 class="text-md font-bold">{section.title}</h2>
 			{#if type === 'Bar'}
-				<SurveyBarChart data={section.choices} x="label" y="count" />
+				<SurveyBarChart data={section.answers} x="label" y="count" />
 			{/if}
 			{#if type === 'Doughnut'}
-				<Doughnut data={section.choices} key="label" value="count" />
+				<Doughnut data={section.answers} key="label" value="count" />
 			{/if}
 			{#if type === 'KdePlot'}
 				<p>KdePlot chart</p>

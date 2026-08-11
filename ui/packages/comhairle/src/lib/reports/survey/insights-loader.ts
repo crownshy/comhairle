@@ -2,37 +2,91 @@ import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { apiClient } from '@crownshy/api-client/client';
 import { isHeyFormFieldKind } from '$lib/tools/heyform/utils';
 import type { InsightQuestion } from '@crownshy/api-client/api';
+import type { HeyFormFieldKind } from '$lib/tools/heyform/types';
+import { typedObj } from '$lib/utils/types';
 
-interface ChoiceQuestion extends Omit<InsightQuestion, 'choices'> {
-	choices: {
-		id: string;
-		label: string;
-		count: number;
-	}[];
+type Choice = {
+	id: string;
+	label: string;
+	count: number;
+};
+
+export interface ChoiceQuestion {
+	id: string;
+	title: string;
+	total: number;
+	kind: Extract<
+		HeyFormFieldKind,
+		'opinion_scale' | 'rating' | 'multiple_choice' | 'picture_choice' | 'yes_no'
+	>;
+	answers: Choice[];
 }
 
-interface NonChoiceQuestion extends Omit<InsightQuestion, 'choices'> {
-	answers: number[] | string[];
+export interface NonChoiceQuestion {
+	id: string;
+	title: string;
+	total: number;
+	kind: Extract<HeyFormFieldKind, 'number' | 'short_text' | 'long_text'>;
+	answers: unknown[];
 }
 
-function transformer(insights: InsightQuestion): ChoiceQuestion | NonChoiceQuestion | undefined {
-	if (!isHeyFormFieldKind(insights.kind)) {
+export type SurveyQuestion = ChoiceQuestion | NonChoiceQuestion;
+
+function transform(insight: InsightQuestion): SurveyQuestion | undefined {
+	if (!insight.kind || !isHeyFormFieldKind(insight.kind)) {
 		return undefined;
 	}
 
-	switch (insights.kind) {
-		case 'number':
-		case 'date':
-		case 'group':
-		case 'statement':
-		case 'short_text':
-		case 'long_text':
+	switch (insight.kind) {
+		case 'opinion_scale': {
+			const answers: Choice[] = [];
+
+			for (const submission of insight.submissions ?? []) {
+				const index = answers.findIndex((a) => a.label === String(submission.value));
+				if (index > -1) {
+					answers[index].count += 1;
+					continue;
+				}
+				answers.push({
+					id: submission.submission_id,
+					label: String(submission.value),
+					count: 1
+				});
+			}
+
+			return typedObj<ChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				answers
+			});
+		}
+		case 'rating':
 		case 'yes_no':
 		case 'multiple_choice':
 		case 'picture_choice':
+			return typedObj<ChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				answers: insight.choices ?? []
+			});
+		case 'number':
+		case 'short_text':
+		case 'long_text':
+			return typedObj<NonChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				answers: insight.submissions?.map((s) => s.value) ?? []
+			});
+		case 'date':
+		case 'group':
+		case 'statement':
 		case 'file_upload':
-		case 'opinion_scale':
-		case 'rating':
 		case 'date_range':
 		case 'time':
 		case 'input_table':
@@ -61,7 +115,9 @@ function transformer(insights: InsightQuestion): ChoiceQuestion | NonChoiceQuest
 	}
 }
 
-export async function surveyInsightsLoader(workflowStepId: string) {
+export async function surveyInsightsLoader(
+	workflowStepId: string
+): Promise<{ survey: SurveyQuestion[] }> {
 	const response = await tryCatchAsync(() =>
 		apiClient.HeyFormGetInsights({
 			params: { workflow_step_id: workflowStepId }
@@ -69,8 +125,8 @@ export async function surveyInsightsLoader(workflowStepId: string) {
 	);
 
 	if (response.err !== null) {
-		return { survey: { insights: [] as InsightQuestion[] } };
+		return { survey: [] as SurveyQuestion[] };
 	}
 
-	return { survey: response.ok.questions };
+	return { survey: response.ok.questions.map(transform).filter((q) => q !== undefined) };
 }

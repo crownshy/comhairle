@@ -3,7 +3,7 @@
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import { cubicInOut } from 'svelte/easing';
 	import { scaleBand } from 'd3-scale';
-	import type { TwoAxisChartValues } from './types';
+	import type { TwoAxisChartValues } from '$lib/components/Charts/types';
 
 	let {
 		data,

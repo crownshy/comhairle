@@ -13,7 +13,7 @@ export interface TwoAxisChartValues<T = Record<string, unknown>> extends Omit<
 	BarChartProps<T>,
 	'data' | 'x' | 'y'
 > {
-	data: T[] | null | undefined;
+	data: T[] | undefined;
 	x: keyof T;
 	y: keyof T;
 }
