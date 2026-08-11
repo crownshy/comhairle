@@ -64,7 +64,10 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
-				answers: insight.submissions?.map((s) => s.value) ?? []
+				answers:
+					insight.submissions
+						?.map((s) => s.value)
+						.filter((s) => (typeof s === 'string' ? !!s.trim() : !!s)) ?? []
 			});
 		case 'full_name':
 			return typedObj<NonChoiceQuestion>({
@@ -73,10 +76,12 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				total: insight.total,
 				kind: insight.kind,
 				answers:
-					insight.submissions?.map((s) => {
-						const fullName = s.value as HeyFormFullNameValue;
-						return `${fullName.firstName} ${fullName.lastName}`;
-					}) ?? []
+					insight.submissions
+						?.map((s) => {
+							const fullName = s.value as HeyFormFullNameValue;
+							return `${fullName.firstName} ${fullName.lastName}`;
+						})
+						.filter((s) => !!s.trim()) ?? []
 			});
 		case 'address':
 			return typedObj<NonChoiceQuestion>({
@@ -85,10 +90,12 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				total: insight.total,
 				kind: insight.kind,
 				answers:
-					insight.submissions?.map((s) => {
-						const address = s.value as HeyFormAddressValue;
-						return Object.values(address).join(', ');
-					}) ?? []
+					insight.submissions
+						?.map((s) => {
+							const address = s.value as HeyFormAddressValue;
+							return Object.values(address).join(', ');
+						})
+						.filter((s) => !!s.trim()) ?? []
 			});
 		case 'date':
 		case 'group':
