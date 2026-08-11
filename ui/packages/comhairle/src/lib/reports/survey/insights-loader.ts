@@ -1,8 +1,8 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { apiClient } from '@crownshy/api-client/client';
-import { isHeyFormFieldKind } from '$lib/tools/heyform/utils';
+import { isHeyFormFieldKind } from '$lib/tools/heyform/guards';
+import type { HeyFormChoiceFieldKind, HeyFormNonChoiceFieldKind } from '$lib/tools/heyform/utils';
 import type { InsightQuestion } from '@crownshy/api-client/api';
-import type { HeyFormFieldKind } from '$lib/tools/heyform/types';
 import { typedObj } from '$lib/utils/types';
 
 type Choice = {
@@ -15,7 +15,7 @@ export interface ChoiceQuestion {
 	id: string;
 	title: string;
 	total: number;
-	kind: Extract<HeyFormFieldKind, 'rating' | 'multiple_choice' | 'picture_choice' | 'yes_no'>;
+	kind: HeyFormChoiceFieldKind;
 	answers: Choice[];
 }
 
@@ -23,7 +23,7 @@ export interface NonChoiceQuestion {
 	id: string;
 	title: string;
 	total: number;
-	kind: Extract<HeyFormFieldKind, 'opinion_scale' | 'number' | 'short_text' | 'long_text'>;
+	kind: HeyFormNonChoiceFieldKind;
 	answers: unknown[];
 }
 

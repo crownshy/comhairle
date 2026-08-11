@@ -3,10 +3,12 @@
 	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 	import Responses from './Responses.svelte';
 	import SurveyBarChart from './SurveyBarChart.svelte';
-	import { isHeyFormFieldKind } from '$lib/tools/heyform/utils';
-	import type { SurveyQuestion } from './insights-loader';
-
-	type ChartType = 'Bar' | 'Doughnut' | 'KdePlot' | 'Text';
+	import type { ChoiceQuestion, NonChoiceQuestion, SurveyQuestion } from './insights-loader';
+	import {
+		isHeyFormChoiceFieldKind,
+		isHeyFormNonChoiceFieldKind,
+		isHeyFormOtherFieldKind
+	} from '$lib/tools/heyform/guards';
 
 	interface Props {
 		data: SurveyQuestion[];
@@ -14,74 +16,40 @@
 
 	let { data }: Props = $props();
 
-	function getType(kind: string | null | undefined): ChartType | undefined {
-		if (!kind || !isHeyFormFieldKind(kind)) {
-			return undefined;
-		}
-		switch (kind) {
-			case 'yes_no':
-				return 'Doughnut';
-			case 'picture_choice':
-			case 'multiple_choice':
-				return 'Bar';
-			case 'opinion_scale':
-				return 'KdePlot';
-			case 'number':
-			case 'short_text':
-			case 'long_text':
-				return 'Text';
-			case 'group':
-			case 'welcome':
-			case 'thank_you':
-			case 'statement':
-			case 'file_upload':
-			case 'rating':
-			case 'date':
-			case 'date_range':
-			case 'time':
-			case 'input_table':
-			case 'payment':
-			case 'full_name':
-			case 'address':
-			case 'email':
-			case 'url':
-			case 'phone_number':
-			case 'country_selector':
-			case 'signature':
-			case 'legal_terms':
-			case 'submit_date':
-			case 'hidden_fields':
-			case 'variable':
-			case 'hidden_checkbox':
-			case 'custom_text':
-			case 'custom_single':
-			case 'custom_multiple':
-			case 'custom_date':
-			case 'custom_number':
-			case 'custom_checkbox':
-				return undefined;
-		}
-	}
+	const isValidQuestion = (section: SurveyQuestion): boolean =>
+		section.kind && !isHeyFormOtherFieldKind(section.kind);
 
-	$inspect(data).with(console.log);
+	const isChoiceQuestion = (section: SurveyQuestion): section is ChoiceQuestion =>
+		isHeyFormChoiceFieldKind(section.kind);
+
+	const isNonChoiceQuestion = (section: SurveyQuestion): section is NonChoiceQuestion =>
+		isHeyFormNonChoiceFieldKind(section.kind);
+
+	const isNumericArray = (arr: unknown[]): arr is number[] =>
+		!!arr[0] && typeof arr[0] === 'number';
+
+	const isStringArray = (arr: unknown[]): arr is string[] =>
+		!!arr[0] && typeof arr[0] === 'string';
 </script>
 
 {#each data as section (section.id)}
-	{@const type = getType(section.kind)}
-	{#if type !== undefined}
+	{#if isValidQuestion(section)}
 		<div class="py-10">
 			<h2 class="text-md font-bold">{section.title}</h2>
-			{#if type === 'Bar'}
-				<SurveyBarChart data={section.answers} x="label" y="count" />
+			{#if isChoiceQuestion(section)}
+				{#if section.answers.length <= 3}
+					<Doughnut data={section.answers} key="label" value="count" />
+				{:else}
+					<SurveyBarChart data={section.answers} x="label" y="count" />
+				{/if}
 			{/if}
-			{#if type === 'Doughnut'}
-				<Doughnut data={section.answers} key="label" value="count" />
-			{/if}
-			{#if type === 'KdePlot'}
-				<KdePlot data={{ answers: section.answers }} />
-			{/if}
-			{#if type === 'Text'}
-				<Responses data={section.answers} />
+			{#if isNonChoiceQuestion(section)}
+				{#if isNumericArray(section.answers)}
+					<KdePlot data={{ answers: section.answers }} />
+				{/if}
+				{#if isStringArray(section.answers)}
+					<Responses data={section.answers} />
+				{/if}
 			{/if}
 		</div>
 	{/if}
