@@ -280,6 +280,45 @@
 	color: white;
 }
 
+/* Embedded report component (ADR-0012). The editor node view adds `--editor` for the
+   frame + remove button; the published render emits a plain `.report-embed` wrapper. */
+.report-embed {
+	margin: 1rem 0;
+}
+
+.report-embed--editor {
+	position: relative;
+	border: 1px solid var(--color-border);
+	border-radius: 0.75rem;
+	padding: 1rem;
+	background: var(--color-card);
+}
+
+.report-embed__remove {
+	position: absolute;
+	top: 0.375rem;
+	right: 0.375rem;
+	width: 1.5rem;
+	height: 1.5rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: none;
+	background: var(--color-muted);
+	color: var(--color-muted-foreground);
+	border-radius: 9999px;
+	font-size: 1rem;
+	line-height: 1;
+	cursor: pointer;
+	z-index: 1;
+}
+
+.report-embed__remove:hover {
+	background: #ef4444;
+	color: white;
+}
+
 /* Source document badge styles (renderer / customer view) */
 .source-document-badge {
 	display: inline-flex;
@@ -411,4 +450,61 @@
 
 .editor-scroll-container::-webkit-scrollbar-thumb:hover {
 	background-color: var(--color-muted-foreground);
+}
+
+/* Glossary term (renderer view).
+ * A defined term carries a dotted underline (the dictionary/definition convention, distinct
+ * from a solid-underline link) plus a help cursor, so it reads as "hover for a definition"
+ * without an inline icon. The tooltip itself is NOT a CSS pseudo-element: ContentRenderer
+ * renders a position:fixed .glossary-tooltip and positions it by JS, so it escapes the
+ * article's overflow clipping (a z-index bump alone can't). See ContentRenderer. */
+.glossary-term {
+	cursor: help;
+	border-radius: 3px;
+	text-decoration-line: underline;
+	text-decoration-style: dotted;
+	text-decoration-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+	text-decoration-thickness: from-font;
+	text-underline-offset: 0.2em;
+}
+
+/* Hover/focus: firm up the underline to full primary and add a faint wash. */
+.glossary-term:hover {
+	text-decoration-color: var(--color-primary);
+	background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.glossary-term:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 1px;
+}
+
+.glossary-tooltip {
+	position: fixed;
+	z-index: 60;
+	max-width: min(20rem, 90vw);
+	padding: 0.5rem 0.75rem;
+	border-radius: 0.5rem;
+	background: var(--color-popover);
+	color: var(--color-popover-foreground);
+	border: 1px solid var(--color-border);
+	box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+	font-size: 0.875rem;
+	line-height: 1.4;
+	text-align: left;
+	/* Anchored at the term's top-centre by JS (left/top); lift it above and centre it. */
+	transform: translate(-50%, calc(-100% - 8px));
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.glossary-tooltip[data-visible='true'] {
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.glossary-tooltip {
+		transition: none;
+	}
 }

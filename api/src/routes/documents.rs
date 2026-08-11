@@ -522,7 +522,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/",
             post_with(upload, |op| {
-                op.tag("Documents")
+                op.id("PostDocuments")
+                    .tag("Documents")
                     .description(
                         "⚠️ This endpoint requires multipart/form-data.\n\n\
                             Generated API clients may not support file uploads.\n\n\

@@ -91,6 +91,7 @@
 				placeholder="Summary to be filled out by the facilitator"
 				editorType="rich"
 				minHeight="100px"
+				reportEmbedSteps={data.reportEmbedSteps}
 			/>
 		</Card.Content>
 	</Card.Root>

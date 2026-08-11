@@ -1,8 +1,15 @@
+<script module lang="ts">
+	// Per-instance counter so each renderer's glossary tooltip gets a unique id for
+	// aria-describedby. Increments deterministically, so SSR and hydration agree.
+	let glossaryInstance = 0;
+</script>
+
 <script lang="ts">
 	import { renderRichTextToHtml } from '$lib/utils/renderRichText';
 	import { EDITOR_HTML_ATTRIBUTES } from '../editorConfig';
 	import { cn } from '$lib/utils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import type { Glossary } from '$lib/glossary/types';
 	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
 	import '../editor-content.css';
 
@@ -13,6 +20,8 @@
 		/** Documents referenced by source-document badges, for filename and download link. */
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
+		/** Glossary terms to auto-tooltip in the rendered content. */
+		glossary?: Glossary;
 	};
 
 	let {
@@ -20,17 +29,23 @@
 		class: className = '',
 		minimal = false,
 		availableDocuments = [],
-		conversationId = ''
+		conversationId = '',
+		glossary = []
 	}: Props = $props();
 
 	// $derived (not onMount + an editor instance) so the content is present in the SSR
 	// markup. This used to mount a headless Tiptap editor on the client, which meant every
 	// call site painted blank until hydration, and blanked again on each remount.
 	let html = $derived(
-		renderRichTextToHtml(content, { documents: availableDocuments, conversationId })
+		renderRichTextToHtml(content, { documents: availableDocuments, conversationId, glossary })
 	);
 
 	let contentElement = $state<HTMLElement>();
+
+	// Glossary tooltip. Rendered as a single position:fixed element (below) and positioned by
+	// JS from the hovered/focused term's rect, so it escapes the article's overflow clipping.
+	let glossaryTooltipEl = $state<HTMLDivElement>();
+	const glossaryTooltipId = `glossary-tooltip-${glossaryInstance++}`;
 
 	let previewDialog = $state<{
 		open: boolean;
@@ -84,6 +99,75 @@
 		el.addEventListener('click', handleContentClick);
 		return () => el.removeEventListener('click', handleContentClick);
 	});
+
+	function showGlossaryTooltip(trigger: HTMLElement) {
+		const el = glossaryTooltipEl;
+		if (!el) return;
+		const text = trigger.getAttribute('data-glossary-tooltip');
+		if (!text) return;
+
+		el.textContent = text;
+		el.setAttribute('data-visible', 'true');
+		el.setAttribute('aria-hidden', 'false');
+		trigger.setAttribute('aria-describedby', glossaryTooltipId);
+
+		// Anchor at the term's top-centre; the CSS transform lifts and centres the box. Clamp
+		// horizontally so a term near an edge doesn't push the tooltip off-screen.
+		const rect = trigger.getBoundingClientRect();
+		const margin = 8;
+		const halfWidth = el.offsetWidth / 2;
+		const centre = rect.left + rect.width / 2;
+		const left = Math.min(
+			Math.max(centre, halfWidth + margin),
+			window.innerWidth - halfWidth - margin
+		);
+		el.style.left = `${left}px`;
+		el.style.top = `${rect.top}px`;
+	}
+
+	function hideGlossaryTooltip(trigger?: HTMLElement | null) {
+		const el = glossaryTooltipEl;
+		if (!el) return;
+		el.setAttribute('data-visible', 'false');
+		el.setAttribute('aria-hidden', 'true');
+		trigger?.removeAttribute('aria-describedby');
+	}
+
+	// Glossary terms come from {@html}, so the tooltip is driven by delegated hover/focus
+	// listeners on the wrapper rather than per-element handlers.
+	$effect(() => {
+		const el = contentElement;
+		if (!el) return;
+
+		const closestTerm = (event: Event) =>
+			(event.target as HTMLElement | null)?.closest<HTMLElement>('.glossary-term') ?? null;
+		const onOver = (event: Event) => {
+			const term = closestTerm(event);
+			if (term) showGlossaryTooltip(term);
+		};
+		const onOut = (event: Event) => {
+			const term = closestTerm(event);
+			if (term) hideGlossaryTooltip(term);
+		};
+		const onScrollResize = () => hideGlossaryTooltip();
+
+		el.addEventListener('mouseover', onOver);
+		el.addEventListener('mouseout', onOut);
+		el.addEventListener('focusin', onOver);
+		el.addEventListener('focusout', onOut);
+		// Capture so a scroll in any ancestor (the article scroll container) dismisses it.
+		window.addEventListener('scroll', onScrollResize, true);
+		window.addEventListener('resize', onScrollResize);
+
+		return () => {
+			el.removeEventListener('mouseover', onOver);
+			el.removeEventListener('mouseout', onOut);
+			el.removeEventListener('focusin', onOver);
+			el.removeEventListener('focusout', onOut);
+			window.removeEventListener('scroll', onScrollResize, true);
+			window.removeEventListener('resize', onScrollResize);
+		};
+	});
 </script>
 
 <div class="content-renderer {className}" class:content-renderer--minimal={minimal}>
@@ -102,6 +186,16 @@
 		{@html html}
 	</div>
 </div>
+
+<!-- Single shared glossary tooltip, positioned by JS. position:fixed so it escapes the
+	article's overflow clipping; text/coords are set imperatively in showGlossaryTooltip. -->
+<div
+	bind:this={glossaryTooltipEl}
+	id={glossaryTooltipId}
+	class="glossary-tooltip"
+	role="tooltip"
+	aria-hidden="true"
+></div>
 
 <PdfDocumentDialog
 	bind:open={previewDialog.open}

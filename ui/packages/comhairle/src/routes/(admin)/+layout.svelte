@@ -11,6 +11,7 @@
 	let { children, data }: LayoutProps = $props();
 	let ownedConversations = $derived(data.ownedConversations);
 	let permittedConversations = $derived(data.permittedConversations);
+	let userOrganizations = $derived(data.userOrganizations);
 
 	if (!data.user) {
 		loginRedirect(page.url.toString(), 'You need to be logged in to access this');
@@ -37,6 +38,10 @@
 		user={data.user}
 		ownedConversations={ownedConversations?.records ?? []}
 		permittedConversations={permittedConversations?.records ?? []}
+		userOrganizations={userOrganizations ?? {
+			organizations: [],
+			canCreateOrganization: false
+		}}
 		path={page.url.pathname}
 	/>
 	<SideBar.Inset class="min-h-0 min-w-0">

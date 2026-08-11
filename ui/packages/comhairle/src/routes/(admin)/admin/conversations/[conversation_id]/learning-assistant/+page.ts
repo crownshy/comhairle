@@ -1,15 +1,26 @@
-import { apiClient } from '@crownshy/api-client/client';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import type { LoadEvent } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
+import { apiClient } from '@crownshy/api-client/client';
 
-export const load: PageLoad = async ({ parent }) => {
-	const { conversation } = await parent();
-	let documents;
-	try {
-		documents = await apiClient.ListDocuments({
-			params: { conversation_id: conversation.id }
-		});
-	} catch (e) {
-		console.error(e);
+export const load: PageLoad = async ({ depends, params }: LoadEvent) => {
+	depends('knowledge-base:documents');
+
+	const { conversation_id } = params;
+	if (!conversation_id) {
+		return;
 	}
-	return { documents, conversation };
+
+	const response = await tryCatchAsync(() =>
+		apiClient.ListDocuments({
+			params: { conversation_id }
+		})
+	);
+
+	if (response.err !== null) {
+		console.error(response.err);
+		return;
+	}
+
+	return { documents: response.ok };
 };

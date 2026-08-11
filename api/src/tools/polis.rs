@@ -325,31 +325,54 @@ pub enum PolisError {
     Serde(#[from] serde_json::Error),
 
     #[error("Failed to create new admin user")]
-    FailedToCreateNewAdminUser,
+    FailedToCreateNewAdminUser(StatusCode),
 
     #[error("Failed to login")]
-    FailedToLogin,
+    FailedToLogin(StatusCode),
 
     #[error("Failed to create new poll")]
-    FailedToCreateNewPoll,
+    FailedToCreateNewPoll(StatusCode),
 
     #[error("Failed to get comments {0}")]
-    FailedToGetComments(String),
+    FailedToGetComments(StatusCode, String),
 
     #[error("Failed to get xids {0}")]
-    FailedToGetXIDs(String),
+    FailedToGetXIDs(StatusCode, String),
 
     #[error("Failed to update poll {0}")]
-    FailedPollUpdate(String),
+    FailedPollUpdate(StatusCode, String),
 
     #[error("Failed to post seed comment {0}")]
-    FailedToPostSeedComment(String),
+    FailedToPostSeedComment(StatusCode, String),
 
     #[error("Failed to moderate comment {0}")]
-    FailedToModerateComment(String),
+    FailedToModerateComment(StatusCode, String),
 
     #[error("Failed to proxy route {from} : {to}")]
     ProxyError { from: String, to: String },
+}
+
+impl Into<StatusCode> for &PolisError {
+    fn into(self) -> StatusCode {
+        match self {
+            PolisError::Http(err) => {
+                if let Some(status) = err.status() {
+                    status
+                } else {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            }
+            PolisError::FailedToCreateNewAdminUser(status) => *status,
+            PolisError::FailedToLogin(status) => *status,
+            PolisError::FailedToCreateNewPoll(status) => *status,
+            PolisError::FailedToGetComments(status, _) => *status,
+            PolisError::FailedToGetXIDs(status, _) => *status,
+            PolisError::FailedPollUpdate(status, _) => *status,
+            PolisError::FailedToPostSeedComment(status, _) => *status,
+            PolisError::FailedToModerateComment(status, _) => *status,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -618,12 +641,45 @@ async fn sync_statement_aux(
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
     models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
 
-    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
-        (Some(ToolConfig::Polis(config)), _) => config,
-        (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    // Fetch from the live poll when the conversation is live, otherwise from
+    // the preview poll. We key off the conversation's live status rather than
+    // the presence of a live tool_config so preview data stays isolated from
+    // live data.
+    let workflow = models::workflow::get_by_id(&state.db, &workflow_step.workflow_id).await?;
+    let is_live = match workflow.conversation_id {
+        Some(conversation_id) => {
+            models::conversation::get_by_id(&state.db, &conversation_id)
+                .await?
+                .is_live
+        }
+        None => false,
     };
 
+    let config = if is_live {
+        match workflow_step.tool_config {
+            Some(ToolConfig::Polis(config)) => config,
+            _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        }
+    } else {
+        match workflow_step.preview_tool_config {
+            ToolConfig::Polis(config) => config,
+            _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        }
+    };
+
+    let response = sync_statement_aux_inner(&state, &workflow_step_id, &config).await?;
+    Ok((StatusCode::OK, Json(response)))
+}
+
+/// Fetch comments and xid mappings from Polis and upsert a `polis_statement_aux`
+/// row per statement. Shared by the HTTP sync endpoint and the workflow-step
+/// launch path (so going live seeds the aux table immediately).
+#[instrument(err(Debug), skip(state))]
+pub async fn sync_statement_aux_inner(
+    state: &Arc<ComhairleState>,
+    workflow_step_id: &Uuid,
+    config: &PolisToolConfig,
+) -> Result<SyncStatementAuxResponse, ComhairleError> {
     let client = &state.wiki_poll_service;
     let auth_cookies = client
         .login(&WikiPollLogin {
@@ -654,7 +710,7 @@ async fn sync_statement_aux(
         let aux = models::polis_statement_aux::upsert_from_polis(
             &state.db,
             &UpsertFromPolis {
-                workflow_step_id,
+                workflow_step_id: *workflow_step_id,
                 user_id,
                 zid: comment.pid as i32,
                 polis_conversation_id: config.poll_id.clone(),
@@ -668,14 +724,11 @@ async fn sync_statement_aux(
         statements.push(aux);
     }
 
-    Ok((
-        StatusCode::OK,
-        Json(SyncStatementAuxResponse {
-            synced: statements.len(),
-            skipped_invalid_xid,
-            statements,
-        }),
-    ))
+    Ok(SyncStatementAuxResponse {
+        synced: statements.len(),
+        skipped_invalid_xid,
+        statements,
+    })
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, Copy)]
@@ -709,7 +762,7 @@ async fn moderate_statement_aux(
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
 
-    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
 
     let workflow_step = models::workflow_step::get_by_id(&state.db, &aux.workflow_step_id).await?;
 
@@ -807,7 +860,7 @@ async fn moderate_statement_aux_batch(
         ));
     }
 
-    polis_statement_aux::check_can_moderate(&state.db, &user, &workflow_step_id).await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &workflow_step_id).await?;
 
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
@@ -881,7 +934,7 @@ async fn add_statement_aux_theme(
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
 
     let updated =
         models::polis_statement_aux::add_theme(&state.db, statement_id, &request.theme).await?;
@@ -896,7 +949,7 @@ async fn remove_statement_aux_theme(
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
 
     let updated =
         models::polis_statement_aux::remove_theme(&state.db, statement_id, &request.theme).await?;

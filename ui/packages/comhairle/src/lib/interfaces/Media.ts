@@ -1,29 +1,34 @@
+import { validate, type ValidationErr } from '$lib/components/EasyForm';
 import { tryFetch, type FetchErr, type Result } from '$lib/utils/errorHandling';
-
-type FileErr = { id: 'MAX_SIZE_EXCEEDED'; message: string };
-type UploadReturn = Result<'ok', Response, FileErr | FetchErr>;
+import type { Schema } from '$lib/components/EasyForm';
 
 type Opts = {
-	maxSizeMB?: number; // in MB
+	maxSize?: number; // in bytes
+	schema?: Schema; // Schema for validation
 	fetchRef?: typeof fetch; // If used on the backend and we need to use the alternate fetch
 };
 
 class Media {
-	async upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn> {
-		const formData = new FormData();
+	async upload(
+		to: string,
+		formData: FormData,
+		opts?: Opts
+	): Promise<Result<'ok', Response, ValidationErr | FetchErr>> {
+		if (opts?.schema) {
+			const form = validate(formData, opts.schema);
 
-		for (const file of files) {
-			if (opts?.maxSizeMB && file.size > opts.maxSizeMB * 1024 * 1024) {
-				return {
-					ok: null,
-					err: {
-						id: 'MAX_SIZE_EXCEEDED',
-						message: `${file.name} exceeds max size ${opts.maxSizeMB}MB`
-					}
-				};
+			if (form.err !== null) {
+				return { ok: null, err: form.err };
 			}
+		}
 
-			formData.append('file', file, file.name);
+		if (opts?.maxSize) {
+			for (const key of formData.keys()) {
+				const field = formData.get(key);
+				if (field instanceof File && field.size > opts.maxSize) {
+					return { ok: null, err: 'MAX_SIZE_EXCEEDED' };
+				}
+			}
 		}
 
 		const response = await tryFetch(
@@ -62,7 +67,7 @@ class Media {
 	 * They're very different types that are difficult to handle and FileList has limited TS support.
 	 * This function is to sanitise these outputs so that it will return a File[] which is predictable and works well with TS
 	 */
-	static sanitiseMulti(files: File | FileList): File[] {
+	static normalise(files: File | FileList): File[] {
 		const filesArray: File[] = [];
 		if (this.#isFileList(files)) {
 			for (const f of files) {
@@ -72,6 +77,46 @@ class Media {
 			filesArray.push(files as File);
 		}
 		return filesArray;
+	}
+
+	static getExtension(filename: string): string | undefined {
+		const index = filename.lastIndexOf('.');
+		if (index < 0) return undefined;
+		return filename.slice(index);
+	}
+
+	static getFilename(filename: string): string {
+		const index = filename.lastIndexOf('.');
+		if (index < 0) return filename;
+		return filename.slice(0, index);
+	}
+
+	static formatBytes(bytes: number, size?: 'B' | 'KB' | 'MB' | 'GB'): string {
+		const denominations = ['B', 'KB', 'MB', 'GB'];
+		const factor = 1_000; // 1_024 for kibibytes
+
+		const calcBytes = (bytes: number, index: number): number =>
+			Math.round((bytes / Math.pow(factor, index)) * 100) / 100;
+
+		if (size) {
+			const index = denominations.indexOf(size);
+			return `${calcBytes(bytes, index)}${denominations[index]}`;
+		}
+
+		for (let i = 0; i < denominations.length; i++) {
+			const value = calcBytes(bytes, i);
+
+			if (value <= 0.7) {
+				const previousSafeIndex = Math.max(i - 1, 0);
+				return `${calcBytes(bytes, previousSafeIndex)}${denominations[previousSafeIndex]}`;
+			}
+
+			if (i === denominations.length - 1) {
+				return `${calcBytes(bytes, i)}${denominations[i]}`;
+			}
+		}
+
+		return `${bytes}B`;
 	}
 }
 

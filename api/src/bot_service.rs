@@ -340,6 +340,11 @@ pub struct ComhairleMessageReference {
     pub dataset_id: String,
     pub document_id: String,
     pub document_name: String,
+    /// Passage bounding boxes in the source PDF (`[page, x0, x1, top, bottom]`).
+    /// Present on live answers; re-attached from the chunk store on reload
+    /// (see issue #783). Absent for non-PDF sources.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub positions: Option<Vec<Vec<f64>>>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]

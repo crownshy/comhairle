@@ -5,7 +5,6 @@
 	import DeleteDialog from './DeleteDialog.svelte';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
-	import { notifications } from '$lib/notifications.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -15,24 +14,12 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { capitalise } from '$lib/utils/casingUtils';
 
-	let deleteForm: HTMLFormElement | undefined;
+	const { data } = $props();
 
+	let deleteForm: HTMLFormElement | undefined;
 	let bulkEdit = $state<boolean>(false);
 	let selected = $state([]);
-
-	const { form, data } = $props();
-
-	$effect(() => {
-		if (form?.error) {
-			notifications.send({
-				message: form.error,
-				priority: 'ERROR'
-			});
-		}
-	});
-
 	let details = $state<MediaDto | null>(null);
-
 	let filter = $state<HTMLMediaElement | null>(null);
 
 	let items = $derived.by(() => {
@@ -72,10 +59,10 @@
 	</label>
 {/snippet}
 
-<div class="mx-auto w-4/5 p-10">
-	<header class="flex flex-row items-baseline justify-between">
+<div class="mx-auto w-11/12 p-10">
+	<header class="flex flex-row items-baseline justify-between lg:w-10/12">
 		<h1 class="text-4xl font-bold">Media library</h1>
-		<div class="flex flex-row gap-4">
+		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
 				<MediaUpload />
 				<Button variant="outline" onclick={() => (bulkEdit = true)}>
@@ -119,15 +106,13 @@
 									bind:group={selected}
 								/>
 								<span>
-									<MediaItem {type} {...media} alt="" />
+									<MediaItem {type} {...media} />
 								</span>
 							</label>
 						{:else}
 							<Dialog.Trigger
-								class="inline h-full w-full"
-								onclick={() => {
-									details = media;
-								}}
+								class="inline aspect-video h-full"
+								onclick={() => (details = media)}
 							>
 								<MediaItem {type} {...media} alt="" />
 							</Dialog.Trigger>
@@ -142,7 +127,7 @@
 					filename={details.filename}
 					name={details.name}
 					src={details.url}
-					alt=""
+					alt={details.alt}
 					close={() => (details = null)}
 				/>
 			{/if}

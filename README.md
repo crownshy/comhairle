@@ -1,6 +1,6 @@
 # Comhairle
 
-Comhairle is a platfrom that allows for consulation and deliberation at scale.
+Comhairle is a platform that allows for consulation and deliberation at scale.
 
 ## Repo Structure 
 
@@ -17,7 +17,7 @@ Comhairle consists of a number of services that work together to deliver the ful
 
 Interactions with the frontend are handled by typical rest responses (though we may explore using gRPC at some point).
 
-**The frontend**  is the web based interface where both citizens and policy makers will interact with the platfrom. is written in SvelteKit and uses Shadnn as a "Component Library" and Tailwind css for styling. Shadcn provides good defaults for accessibility and will allow us to rapidly build while still being able to customize.
+**The frontend**  is the web based interface where both citizens and policy makers will interact with the platform. is written in SvelteKit and uses Shadnn as a "Component Library" and Tailwind css for styling. Shadcn provides good defaults for accessibility and will allow us to rapidly build while still being able to customize.
 
 In the future we may wrap the frontend using Tauri to provide a mobile app experience for the platform.
 

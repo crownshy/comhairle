@@ -1,3 +1,4 @@
+use hyper::StatusCode;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -19,4 +20,10 @@ pub enum BulkStorageError {
 
     #[error("Failed list: {0}")]
     FailedList(String),
+}
+
+impl Into<StatusCode> for &BulkStorageError {
+    fn into(self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
 }

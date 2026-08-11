@@ -1,8 +1,6 @@
-use crate::{
-    models::permissions::{NamedRole, ResourceRole},
-    redis_connection::RedisConnection,
-    websockets::handlers::video_call::VideoCallMessageHandler,
-};
+use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
+use crate::redis_connection::RedisConnection;
+use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 use chrono::Utc;
 use hyper::header::AUTHORIZATION;
 use std::{collections::HashMap, error::Error, sync::Arc};
@@ -144,19 +142,24 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     Ok(config)
 }
 
-pub const TEST_RESOURCE_TYPE: &str = "test_resource_type";
+pub const TEST_RESOURCE_TYPE: &str = "test";
 pub const TEST_ROLE_NAME: &str = "tester";
+
+/// Test-only shim around [`Role::Test`] / [`ResourceType::Test`] so existing
+/// tests can keep using `TestRole::name()` / `resource_type()` / `make_triplet()`.
 pub struct TestRole;
 
-impl NamedRole for TestRole {
-    fn name() -> &'static str {
-        TEST_ROLE_NAME
+impl TestRole {
+    pub fn name() -> &'static str {
+        Role::Tester.as_ref()
     }
-}
 
-impl ResourceRole for TestRole {
-    fn resource_type() -> &'static str {
-        TEST_RESOURCE_TYPE
+    pub fn resource_type() -> &'static str {
+        ResourceType::Test.as_ref()
+    }
+
+    pub fn make_triplet(resource_id: &Uuid) -> PermissionTriplet<'_> {
+        Role::Tester.triplet(resource_id)
     }
 }
 
@@ -239,24 +242,49 @@ pub async fn response_to_json(response: Response) -> Value {
     })
 }
 
-#[builder]
-pub fn multipart_body_builder(
-    content: &str,
-    boundary: Option<&str>,
-    filename: Option<&str>,
-    content_type: Option<&str>,
-) -> String {
-    let boundary = boundary.unwrap_or("test-boundary");
-    let filename = filename.unwrap_or("test-file.txt");
-    let content_type = content_type.unwrap_or("text/plain");
-    format!(
-        "--{boundary}\r\n\
-            Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n\
-            Content-Type: {content_type}\r\n\
-            \r\n\
-            {content}\r\n\
-            --{boundary}--\r\n"
-    )
+pub struct MultipartBodyBuilder {
+    boundary: String,
+    body: String,
+}
+
+impl MultipartBodyBuilder {
+    pub fn new(boundary: String) -> Self {
+        Self {
+            boundary,
+            body: String::new(),
+        }
+    }
+
+    pub fn add_field(mut self, field_name: &str, content: &str) -> Self {
+        self.body.push_str(&format!(
+            "--{}\r\n\
+		Content-Disposition: form-data; name=\"{}\"\r\n\
+		\r\n\
+		{}\r\n",
+            self.boundary, field_name, content
+        ));
+
+        self
+    }
+
+    pub fn add_file(mut self, filename: &str, content_type: Option<&str>, content: &str) -> Self {
+        self.body.push_str(&format!(
+            "--{}\r\n\
+		Content-Disposition: form-data; name=\"file\"; filename=\"{}\"\r\n\
+		Content-Type: {}\r\n\
+		\r\n\
+		{}\r\n",
+            self.boundary,
+            filename,
+            content_type.unwrap_or("text/plain"),
+            content
+        ));
+        self
+    }
+
+    pub fn build(self) -> String {
+        format!("{}--{}--", self.body, self.boundary)
+    }
 }
 
 #[derive(Debug)]
