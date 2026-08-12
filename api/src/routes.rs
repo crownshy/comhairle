@@ -15,6 +15,7 @@ pub mod notifications;
 pub mod organizations;
 pub mod permissions;
 pub mod recruitment_targets;
+pub mod region_areas;
 pub mod regions;
 pub mod report_impacts;
 pub mod reports;

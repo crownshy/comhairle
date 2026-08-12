@@ -11,6 +11,7 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
+	import CohostManager from './CohostManager.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
@@ -26,11 +27,13 @@
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
 	import type {
+		ComhairleDocument,
 		ConversationWithTranslations,
 		MediaDto,
+		OrganizationWithPermissionDto,
 		UserDto,
 		UserWithPermissionDto,
-		WorkflowDto
+		WorkflowDtoa
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { Image as ImageIcon, Info } from 'lucide-svelte';
@@ -45,17 +48,24 @@
 	}: {
 		data: {
 			conversation: ConversationWithTranslations;
+			cohostOrganizations: OrganizationWithPermissionDto[];
 			workflows: WorkflowDto[];
 			media: MediaDto | null;
 			user: UserDto;
 			usersWithPermission: UserWithPermissionDto[];
 			configureTabs: { id: string; label: string }[];
+			availableDocuments: ComhairleDocument[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
+	// Parsed knowledge base documents, for the "Insert Source Document" control in the Content-tab
+	// rich fields (both the picker and, via the same list, the inserted badge's name/size/download).
+	let availableDocuments = $derived(data.availableDocuments);
 	let workflow = $derived(data.workflows[0]);
 	let imageMedia = $derived(data.media);
 	let permittedUsers = $derived(data.usersWithPermission);
+	let cohostOrganizations = $derived(data.cohostOrganizations);
+	let canManageCohosts = $derived(data.user.id === conversation.ownerId);
 
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
@@ -687,6 +697,8 @@
 									placeholder="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
+									{availableDocuments}
+									conversationId={conversation.id}
 									inputProps={props}
 								/>
 								<Form.FieldErrors />
@@ -723,6 +735,8 @@
 									placeholder="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
+									{availableDocuments}
+									conversationId={conversation.id}
 									inputProps={props}
 								/>
 								<Form.FieldErrors />
@@ -758,6 +772,8 @@
 									placeholder="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
+									{availableDocuments}
+									conversationId={conversation.id}
 									inputProps={props}
 								/>
 								<Form.FieldErrors />
@@ -794,6 +810,8 @@
 									placeholder="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
+									{availableDocuments}
+									conversationId={conversation.id}
 									inputProps={props}
 								/>
 								<Form.FieldErrors />
@@ -984,6 +1002,27 @@
 					</Form.Control>
 					<Form.FieldErrors />
 				</Form.Field>
+			</div>
+		</div>
+
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<div class="lg:w-50 lg:shrink-0 lg:pt-2">
+				<div class="flex items-center gap-1.5">
+					<h3 class="text-base font-semibold">Co-hosting organizations</h3>
+					{@render infoPreview(
+						'Additional organizations that should have read access to this conversation. Search by organization name to add one, and remove it here later.'
+					)}
+				</div>
+			</div>
+			<div class="flex-1">
+				<CohostManager
+					conversationId={conversation.id}
+					primaryHostOrganizationId={conversation.organizationId ?? null}
+					{cohostOrganizations}
+					canManage={canManageCohosts}
+				/>
 			</div>
 		</div>
 	{/if}

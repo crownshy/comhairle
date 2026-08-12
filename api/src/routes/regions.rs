@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
+    routing::{delete_with, get_with, patch_with, post_with, put_with},
 };
 use axum::{
     extract::{Json, Path, Query, State},
@@ -17,10 +17,13 @@ use crate::{
     models::{
         pagination::{PageOptions, PaginatedResults},
         region::{self, CreateRegion, PartialRegion, RegionFilterOptions, RegionOrderOptions},
+        region_area,
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
-        regions::dto::{LocalizedRegionDto, RegionDto},
+        regions::dto::{
+            LocalizedRegionDto, RegionAreaLinksDto, RegionAreaLinksRequestDto, RegionDto,
+        },
         translations::LocaleExtractor,
     },
 };
@@ -87,6 +90,32 @@ async fn update(
     Ok((StatusCode::OK, Json(region)))
 }
 
+/// Get the region's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn get_region_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(region_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<Option<serde_json::Value>>), ComhairleError> {
+    let metadata = region::get_metadata(&state.db, &region_id).await?;
+
+    Ok((StatusCode::OK, Json(metadata)))
+}
+
+/// Shallow-merge the request body into the region's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn patch_region_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(region_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(patch): Json<serde_json::Value>,
+) -> Result<(StatusCode, Json<RegionDto>), ComhairleError> {
+    let region = region::patch_metadata(&state.db, &region_id, patch).await?;
+    let region: RegionDto = region.into();
+
+    Ok((StatusCode::OK, Json(region)))
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
@@ -96,6 +125,90 @@ async fn delete(
     let region = region::delete(&state.db, &region_id).await?.into();
 
     Ok((StatusCode::OK, Json(region)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_area_links(
+    State(state): State<Arc<ComhairleState>>,
+    Path(region_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<RegionAreaLinksDto>), ComhairleError> {
+    let _ = region::get_by_id(&state.db, &region_id).await?;
+    let area_ids = region::list_area_ids(&state.db, &region_id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(RegionAreaLinksDto {
+            region_id,
+            area_ids,
+        }),
+    ))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn set_area_links(
+    State(state): State<Arc<ComhairleState>>,
+    Path(region_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(payload): Json<RegionAreaLinksRequestDto>,
+) -> Result<(StatusCode, Json<RegionAreaLinksDto>), ComhairleError> {
+    let _ = region::get_by_id(&state.db, &region_id).await?;
+    for area_id in &payload.area_ids {
+        let _ = region_area::get_by_id(&state.db, area_id).await?;
+    }
+
+    region::set_area_links(&state.db, &region_id, &payload.area_ids).await?;
+    let area_ids = region::list_area_ids(&state.db, &region_id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(RegionAreaLinksDto {
+            region_id,
+            area_ids,
+        }),
+    ))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn add_area_link(
+    State(state): State<Arc<ComhairleState>>,
+    Path((region_id, area_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<RegionAreaLinksDto>), ComhairleError> {
+    let _ = region::get_by_id(&state.db, &region_id).await?;
+    let _ = region_area::get_by_id(&state.db, &area_id).await?;
+
+    region::add_area_link(&state.db, &region_id, &area_id).await?;
+    let area_ids = region::list_area_ids(&state.db, &region_id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(RegionAreaLinksDto {
+            region_id,
+            area_ids,
+        }),
+    ))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn remove_area_link(
+    State(state): State<Arc<ComhairleState>>,
+    Path((region_id, area_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<RegionAreaLinksDto>), ComhairleError> {
+    let _ = region::get_by_id(&state.db, &region_id).await?;
+    let _ = region_area::get_by_id(&state.db, &area_id).await?;
+
+    region::remove_area_link(&state.db, &region_id, &area_id).await?;
+    let area_ids = region::list_area_ids(&state.db, &region_id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(RegionAreaLinksDto {
+            region_id,
+            area_ids,
+        }),
+    ))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -145,6 +258,30 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/{region_id}/metadata",
+            get_with(get_region_metadata, |op| {
+                op.id("GetRegionMetadata")
+                    .tag("Regions")
+                    .summary("Get region metadata")
+                    .description("Get region metadata")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Option<serde_json::Value>>>()
+            }),
+        )
+        .api_route(
+            "/{region_id}/metadata",
+            patch_with(patch_region_metadata, |op| {
+                op.id("PatchRegionMetadata")
+                    .tag("Regions")
+                    .summary("Shallow-merge region metadata")
+                    .description(
+                        "Merge a JSON object into region.metadata at the top level using jsonb concatenation",
+                    )
+                    .security_requirement("JWT")
+                    .response::<200, Json<RegionDto>>()
+            }),
+        )
+        .api_route(
             "/{region_id}",
             delete_with(delete, |op| {
                 op.id("DeleteRegion")
@@ -153,6 +290,50 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Delete a region")
                     .security_requirement("JWT")
                     .response::<200, Json<RegionDto>>()
+            }),
+        )
+        .api_route(
+            "/{region_id}/areas",
+            get_with(get_area_links, |op| {
+                op.id("GetRegionAreaLinks")
+                    .tag("Regions")
+                    .summary("List region area links")
+                    .description("List region area links")
+                    .security_requirement("JWT")
+                    .response::<200, Json<RegionAreaLinksDto>>()
+            }),
+        )
+        .api_route(
+            "/{region_id}/areas",
+            put_with(set_area_links, |op| {
+                op.id("SetRegionAreaLinks")
+                    .tag("Regions")
+                    .summary("Replace region area links")
+                    .description("Replace region area links")
+                    .security_requirement("JWT")
+                    .response::<200, Json<RegionAreaLinksDto>>()
+            }),
+        )
+        .api_route(
+            "/{region_id}/areas/{area_id}",
+            post_with(add_area_link, |op| {
+                op.id("AddRegionAreaLink")
+                    .tag("Regions")
+                    .summary("Add region area link")
+                    .description("Add region area link")
+                    .security_requirement("JWT")
+                    .response::<200, Json<RegionAreaLinksDto>>()
+            }),
+        )
+        .api_route(
+            "/{region_id}/areas/{area_id}",
+            delete_with(remove_area_link, |op| {
+                op.id("RemoveRegionAreaLink")
+                    .tag("Regions")
+                    .summary("Remove region area link")
+                    .description("Remove region area link")
+                    .security_requirement("JWT")
+                    .response::<200, Json<RegionAreaLinksDto>>()
             }),
         )
         .with_state(state)
@@ -164,7 +345,8 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
-    use crate::models::{model_test_helpers::setup_default_app_and_session, region::RegionType};
+    use crate::models::region::RegionType;
+    use crate::models::{model_test_helpers::setup_default_app_and_session, region_area};
 
     use super::*;
 
@@ -366,6 +548,71 @@ mod tests {
             "Region not found",
             "incorrect error message"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_manage_region_area_links(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let (_, region_res, _) = session.create_random_region(&app).await?;
+        let region: RegionDto = serde_json::from_value(region_res)?;
+
+        let (_, area_res_a, _) = session.create_random_region_area(&app).await?;
+        let area_a: crate::routes::region_areas::dto::RegionAreaDto =
+            serde_json::from_value(area_res_a)?;
+
+        let (_, area_res_b, _) = session.create_random_region_area(&app).await?;
+        let area_b: crate::routes::region_areas::dto::RegionAreaDto =
+            serde_json::from_value(area_res_b)?;
+
+        let set_body = serde_json::to_vec(&RegionAreaLinksRequestDto {
+            area_ids: vec![area_a.id, area_b.id],
+        })?;
+        let (status, response, _) = session
+            .put(
+                &app,
+                &format!("/regions/{}/areas", region.id),
+                set_body.into(),
+            )
+            .await?;
+        let links: RegionAreaLinksDto = serde_json::from_value(response)?;
+        assert!(status.is_success(), "error response status");
+        assert_eq!(links.area_ids.len(), 2, "incorrect link count after set");
+
+        let (status, response, _) = session
+            .delete(&app, &format!("/regions/{}/areas/{}", region.id, area_a.id))
+            .await?;
+        let links: RegionAreaLinksDto = serde_json::from_value(response)?;
+        assert!(status.is_success(), "error response status");
+        assert_eq!(links.area_ids.len(), 1, "incorrect link count after remove");
+        assert_eq!(links.area_ids[0], area_b.id, "wrong area remains linked");
+
+        let (status, response, _) = session
+            .post(
+                &app,
+                &format!("/regions/{}/areas/{}", region.id, area_a.id),
+                "{}".to_string().into(),
+            )
+            .await?;
+        let links: RegionAreaLinksDto = serde_json::from_value(response)?;
+        assert!(status.is_success(), "error response status");
+        assert_eq!(links.area_ids.len(), 2, "incorrect link count after add");
+
+        let (status, response, _) = session
+            .get(&app, &format!("/regions/{}/areas", region.id))
+            .await?;
+        let links: RegionAreaLinksDto = serde_json::from_value(response)?;
+        assert!(status.is_success(), "error response status");
+        assert_eq!(links.area_ids.len(), 2, "incorrect link count from get");
+        assert!(links.area_ids.contains(&area_a.id), "missing area_a");
+        assert!(links.area_ids.contains(&area_b.id), "missing area_b");
+
+        let area_ids = region::list_area_ids(&pool, &region.id).await?;
+        assert_eq!(area_ids.len(), 2, "model links not in sync");
+
+        let _ = region_area::get_by_id(&pool, &area_a.id).await?;
 
         Ok(())
     }

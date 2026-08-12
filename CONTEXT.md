@@ -62,6 +62,18 @@ _Avoid_: Org owner, org contact, organization user.
 A user associated with an Organization for membership purposes, without implied administrative permissions.
 _Avoid_: Organization admin (unless they also hold Organization Administrator assignment).
 
+**Primary host organization**:
+The single Organization linked directly on a Conversation as its primary institutional host. This remains distinct from both the Conversation owner (a user) and any co-hosting organizations.
+_Avoid_: Co-host, conversation owner.
+
+**Co-hosting organization**:
+An Organization explicitly associated with a Conversation as an additional host beside the primary host organization. Co-hosting organizations are inferred by ownership of the Conversation co-host role.
+_Avoid_: Primary host organization, member organization.
+
+**Conversation co-host role**:
+A conversation-scoped role intended for organization actors, granting read-only access (`ConversationRead`) by default.
+_Avoid_: Content editor (that role implies update access).
+
 **Organization contact email**:
 A communication address for the Organization entity itself. It is not a permission grant and is distinct from both member emails and Organization Administrator emails.
 _Avoid_: Admin email, owner email.
@@ -139,6 +151,13 @@ A statement the opinion groups split hardest on, ranked by Polis's `divisiveness
 The primitive of the reporting system: a self-contained, configurable widget fed by (usually) one tool's insight data, e.g. an "Areas of Agreement" list, an engagement stat card, a Prioritisation ranking, a beeswarm chart. The unit that gets built once per tool and reused. **Report views are compositions of report components** filtered by audience + timing; the components are the thing you design, the views are arrangements.
 _Avoid_: widget, block, card (too generic).
 _Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components — the Insights set in `lib/reports/polis/**` (`VoteBar`, `StatementVoteBlock`, `AreaOfConsensus`) backed by `tools/polis/report.ts`. A separate set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
+
+**Embeddable section block**:
+The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*) — **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list.
+_Avoid_: report piece (use "section block" for the embeddable unit).
+
+**Report component embed** (a.k.a. the snapshot node):
+A TipTap node in the report's `summary` document that carries an embedded [[#embeddable-section-block]]. It stores both a **reference** (`toolStepId`, `componentType`, `config`) and the **frozen HTML** rendered from that component; the frozen HTML is what renders everywhere, the reference is the recipe for a future re-freeze / refresh (see [ADR-0012](documentation/adr/0012-report-component-embeds-store-reference-plus-frozen-html.md), building on [ADR-0008](documentation/adr/0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md)). Because the HTML is baked in, deleting the source Step does not blank the report — it only disables refresh.
 
 **Report view**:
 A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:

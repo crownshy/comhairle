@@ -31,6 +31,7 @@ pub struct RegionDto {
     pub description: TextContentId,
     pub region_type: RegionType,
     pub official_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -53,6 +54,7 @@ pub struct LocalizedRegionDto {
     pub description: String,
     pub region_type: RegionType,
     pub official_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -64,6 +66,7 @@ impl From<Region> for RegionDto {
             description: o.description,
             region_type: o.region_type,
             official_id: o.official_id,
+            metadata: o.metadata,
             created_at: o.created_at,
         }
     }
@@ -77,6 +80,7 @@ impl From<LocalizedRegion> for LocalizedRegionDto {
             description: o.description,
             region_type: o.region_type,
             official_id: o.official_id,
+            metadata: o.metadata,
             created_at: o.created_at,
         }
     }
@@ -89,4 +93,17 @@ impl From<PaginatedResults<LocalizedRegion>> for PaginatedResults<LocalizedRegio
             records: r.records.into_iter().map(Into::into).collect(),
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct RegionAreaLinksRequestDto {
+    pub area_ids: Vec<Uuid>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct RegionAreaLinksDto {
+    pub region_id: Uuid,
+    pub area_ids: Vec<Uuid>,
 }

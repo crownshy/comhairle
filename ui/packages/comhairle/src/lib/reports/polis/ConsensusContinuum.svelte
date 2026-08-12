@@ -13,7 +13,14 @@
 	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
 	import { scoredComments, mostDivisiveTid } from '$lib/tools/polis/beeswarm';
 	import { scaleSqrt } from 'd3-scale';
-	import { forceX, forceY, forceCollide, type Force, type SimulationNodeDatum } from 'd3-force';
+	import {
+		forceSimulation,
+		forceX,
+		forceY,
+		forceCollide,
+		type Force,
+		type SimulationNodeDatum
+	} from 'd3-force';
 	import { ForceSimulation } from 'layerchart/force';
 	import * as Card from '$lib/components/ui/card';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
@@ -21,18 +28,29 @@
 	type Props = {
 		comments: ReportComment[];
 		groups: ReportGroup[];
+		/**
+		 * Frozen-snapshot render (ADR-0012). The live plot needs a measured width and an
+		 * animated d3-force layout — neither survives being baked to static HTML. In frozen
+		 * mode we run the simulation to completion synchronously at a fixed viewBox width and
+		 * emit plain, settled `<circle>`s, so the snapshot is a finished swarm, not a blank box.
+		 */
+		frozen?: boolean;
 	};
 
-	let { comments, groups }: Props = $props();
+	let { comments, groups, frozen = false }: Props = $props();
 
 	const HEIGHT = 144; // h-36, matches the design's plot box
 	const RADIUS = 5; // w-2.5 dots -> 5px radius
 	const PADDING = 16;
+	// Fixed layout width for the frozen SVG viewBox; it scales to fit the report column.
+	const FROZEN_WIDTH = 800;
 
 	type SwarmNode = SimulationNodeDatum & { tid: number; text: string; divisiveness: number };
 
-	// Measured plot width; the x scale is degenerate until the box has laid out.
+	// Measured plot width; the x scale is degenerate until the box has laid out. In frozen
+	// mode there is nothing to measure, so we lay out against FROZEN_WIDTH.
 	let plotWidth = $state(0);
+	const layoutWidth = $derived(frozen ? FROZEN_WIDTH : plotWidth);
 
 	const scored = $derived(scoredComments(comments));
 	const hasScored = $derived(scored.length > 0);
@@ -42,7 +60,7 @@
 	const xScale = $derived(
 		scaleSqrt()
 			.domain([0, Math.max(...scored.map((c) => c.divisiveness))])
-			.range([PADDING, Math.max(PADDING, plotWidth - PADDING)])
+			.range([PADDING, Math.max(PADDING, layoutWidth - PADDING)])
 	);
 
 	// One d3-force node per scored comment. Fresh objects each time so the
@@ -70,6 +88,27 @@
 	// (resize / new data), not on every hover-driven re-render of the dots.
 	const simData = $derived({ nodes });
 
+	// Frozen layout: run the same forces to a settled state synchronously (no animation,
+	// no measurement) so a snapshot captures the finished swarm. Fresh node objects, since
+	// the simulation mutates x/y onto them.
+	const frozenPlaced = $derived.by<SwarmNode[]>(() => {
+		if (!frozen || !hasScored) return [];
+		const simNodes: SwarmNode[] = scored.map((c) => ({
+			tid: c.tid,
+			text: c.text,
+			divisiveness: c.divisiveness,
+			x: xScale(c.divisiveness),
+			y: HEIGHT / 2
+		}));
+		forceSimulation(simNodes)
+			.force('x', forceX<SwarmNode>((d) => xScale(d.divisiveness)).strength(1))
+			.force('y', forceY<SwarmNode>(HEIGHT / 2).strength(0.2))
+			.force('collide', forceCollide<SwarmNode>(RADIUS + 1).strength(1))
+			.stop()
+			.tick(300);
+		return simNodes;
+	});
+
 	// Default focus = the most divisive statement, so the block below is always
 	// populated. Hover/focus/click a dot to pin a different one; leaving keeps the
 	// last selection (sticky).
@@ -96,7 +135,26 @@
 			class="bg-muted relative h-36 overflow-hidden rounded-[10px]"
 			bind:clientWidth={plotWidth}
 		>
-			{#if plotWidth > 0}
+			{#if frozen}
+				<!-- Settled, non-interactive swarm for the snapshot; viewBox scales to fit. -->
+				<svg
+					class="h-full w-full"
+					viewBox="0 0 {FROZEN_WIDTH} {HEIGHT}"
+					preserveAspectRatio="none"
+					role="presentation"
+				>
+					{#each frozenPlaced as n (n.tid)}
+						{@const isActive = n.tid === activeTid}
+						<circle
+							cx={n.x ?? 0}
+							cy={n.y ?? HEIGHT / 2}
+							r={RADIUS}
+							fill={isActive ? 'var(--primary)' : 'var(--card-foreground)'}
+							opacity={isActive ? 1 : 0.9}
+						/>
+					{/each}
+				</svg>
+			{:else if plotWidth > 0}
 				<svg class="h-full w-full" role="presentation">
 					<ForceSimulation {forces} data={simData} cloneNodes>
 						{#snippet children({ nodes: placed })}

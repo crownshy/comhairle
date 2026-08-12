@@ -4,7 +4,7 @@ use aide::{
     OperationIo,
     axum::{
         ApiRouter,
-        routing::{delete_with, get_with, post_with, put_with},
+        routing::{delete_with, get_with, patch_with, post_with, put_with},
     },
 };
 use axum::{
@@ -13,33 +13,27 @@ use axum::{
 };
 use minijinja::context;
 use schemars::JsonSchema;
-use tracing::{instrument, warn};
+use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        organization::{
-            self, CreateOrganization, OrganizationFilterOptions, OrganizationOrderOptions,
-            PartialOrganization,
-        },
-        pagination::{PageOptions, PaginatedResults},
-        permissions::{
-            Action, ExtractResourceId, GrantRoleRequest, OwnedResource, RevokeRoleRequest, Role,
-            UserOrOrganizationId, grant_role, list_users_with_permission, revoke_role,
-        },
-        translations, users,
-    },
-    routes::{
-        auth::{EmailLinkClaims, RequiredAdminUser, RequiredUser, authorize, generate_jwt},
-        organizations::dto::{
-            CreateOrganizationResponseDto, LocalizedOrganizationDto,
-            OrganizationAdminBootstrapSummaryDto, OrganizationDto,
-        },
-        translations::LocaleExtractor,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::organization::{
+    self, CreateOrganization, OrganizationFilterOptions, OrganizationOrderOptions,
+    PartialOrganization,
 };
+use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::permissions::{
+    Action, ExtractResourceId, GrantRoleRequest, OwnedResource, RevokeRoleRequest, Role,
+    UserOrOrganizationId, grant_role, list_users_with_permission, revoke_role,
+};
+use crate::models::translations;
+use crate::models::users;
+use crate::routes::auth::{
+    EmailLinkClaims, RequiredAdminUser, RequiredUser, authorize, generate_jwt,
+};
+use crate::routes::organizations::dto::{LocalizedOrganizationDto, OrganizationDto};
+use crate::routes::translations::LocaleExtractor;
 
 pub mod dto;
 
@@ -132,6 +126,7 @@ struct UpdateOrganizationBody {
     contact_email: Option<Option<String>>,
     external_url: Option<Option<String>>,
     regions: Option<Vec<Uuid>>,
+    metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, serde::Serialize, JsonSchema)]
@@ -155,6 +150,10 @@ async fn set_member_admin_role(
     granted_by: Uuid,
     role: OrganizationTeamRole,
 ) -> Result<(), ComhairleError> {
+    if user_id == granted_by && role == OrganizationTeamRole::Member {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
     match role {
         OrganizationTeamRole::Admin => {
             let grant_result = grant_role(
@@ -244,7 +243,7 @@ async fn resolve_or_create_user_by_email(
                 return Err(ComhairleError::NoUserFoundForEmail(trimmed));
             }
 
-            let user = users::create_organization_admin_user(&trimmed, &state.db).await?;
+            let user = users::create_organization_admin_user(state, &trimmed).await?;
 
             let token = generate_jwt()
                 .user(&user)
@@ -432,13 +431,6 @@ async fn remove_member(
 
     let target_user = users::get_user_by_id(&user_id, &state.db).await?;
 
-    if target_user
-        .organization_id
-        .is_some_and(|id| id == organization_id)
-    {
-        users::set_user_organization_id(&user_id, None, &state.db).await?;
-    }
-
     set_member_admin_role(
         &state,
         organization_id,
@@ -447,6 +439,13 @@ async fn remove_member(
         OrganizationTeamRole::Member,
     )
     .await?;
+
+    if target_user
+        .organization_id
+        .is_some_and(|id| id == organization_id)
+    {
+        users::set_user_organization_id(&user_id, None, &state.db).await?;
+    }
 
     Ok(StatusCode::OK)
 }
@@ -457,128 +456,10 @@ async fn create(
     RequiredAdminUser(user): RequiredAdminUser,
     LocaleExtractor(locale): LocaleExtractor,
     Json(payload): Json<CreateOrganization>,
-) -> Result<(StatusCode, Json<CreateOrganizationResponseDto>), ComhairleError> {
-    let created_organization = organization::create(&state.db, &payload, &locale).await?;
+) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
+    let organization = organization::create(&state.db, &payload, &locale).await?;
 
-    grant_role(
-        &state,
-        GrantRoleRequest {
-            actor_id: UserOrOrganizationId::User(user.id),
-            permission_triplet: Role::OrganizationAdmin.triplet(&created_organization.id),
-            granted_by: &user.id,
-            grant_reason: "Organization creator bootstrap",
-        },
-    )
-    .await?;
-
-    if let Some(user_emails) = payload.user_emails.as_deref() {
-        if let Err(error) =
-            organization::add_member_emails(&state.db, &created_organization.id, user_emails).await
-        {
-            warn!(
-                "Failed to add organization members for {}: {:?}",
-                created_organization.id, error
-            );
-        }
-    }
-
-    let mut admin_bootstrap_results =
-        if let Some(admin_emails) = payload.organization_admin_emails.as_deref() {
-            organization::bootstrap_organization_admin_accounts(
-                &state.db,
-                &created_organization.id,
-                admin_emails,
-            )
-            .await
-        } else {
-            Vec::new()
-        };
-
-    for result in &mut admin_bootstrap_results {
-        if !result.assigned {
-            continue;
-        }
-
-        let Some(user_id) = result.user_id else {
-            result.assigned = false;
-            result.error = Some("Missing user id for admin assignment".to_string());
-            continue;
-        };
-
-        if let Err(error) = grant_role(
-            &state,
-            GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user_id),
-                permission_triplet: Role::OrganizationAdmin.triplet(&created_organization.id),
-                granted_by: &user.id,
-                grant_reason: "Organization admin bootstrap",
-            },
-        )
-        .await
-        {
-            warn!(
-                "Failed to grant organization admin role for user {} and organization {}: {:?}",
-                user_id, created_organization.id, error
-            );
-            result.assigned = false;
-            result.error = Some(error.to_string());
-            continue;
-        }
-
-        let admin_user = match users::get_user_by_id(&user_id, &state.db).await {
-            Ok(user) => user,
-            Err(error) => {
-                warn!(
-                    "Failed to load organization admin user {} for onboarding email: {:?}",
-                    user_id, error
-                );
-                result.error = Some(error.to_string());
-                continue;
-            }
-        };
-
-        if result.created_account {
-            let token = generate_jwt()
-                .user(&admin_user)
-                .secret(&state.config.jwt_secret)
-                .custom_claims(EmailLinkClaims {
-                    email: admin_user.email.clone(),
-                })
-                .duration(chrono::Duration::hours(24))
-                .call();
-            let reset_link = format!(
-                "{}/auth/password-reset/update?token={}",
-                state.config.domain, token
-            );
-
-            if let Err(error) = state.mailer.send_user_account_created_email(
-                &admin_user.email,
-                &admin_user.username,
-                reset_link,
-            ) {
-                warn!(
-                    "Failed to send organization admin account created email to {}: {:?}",
-                    result.email, error
-                );
-                result.error = Some(error.to_string());
-                continue;
-            }
-
-            result.emailed = true;
-        }
-    }
-
-    let organization = created_organization.into();
-    let admin_bootstrap_summary =
-        OrganizationAdminBootstrapSummaryDto::from_results(&admin_bootstrap_results);
-
-    Ok((
-        StatusCode::CREATED,
-        Json(CreateOrganizationResponseDto {
-            organization,
-            admin_bootstrap_summary,
-        }),
-    ))
+    Ok((StatusCode::CREATED, Json(organization.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -609,6 +490,7 @@ async fn update(
         contact_email: payload.contact_email,
         external_url: payload.external_url,
         regions: payload.regions,
+        metadata: payload.metadata.into(),
     };
 
     let organization = if partial.to_values().is_empty() {
@@ -617,6 +499,40 @@ async fn update(
         organization::update(&state.db, &organization_id, &partial).await?
     }
     .into();
+
+    Ok((StatusCode::OK, Json(organization)))
+}
+
+/// Get the organization's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn get_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(organization_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    resource: OrganizationResource,
+) -> Result<(StatusCode, Json<Option<serde_json::Value>>), ComhairleError> {
+    authorize(&state, &_user, Action::OrganizationRead, &resource).await?;
+
+    let metadata = organization::get_metadata(&state.db, &organization_id).await?;
+
+    Ok((StatusCode::OK, Json(metadata)))
+}
+
+/// Shallow-merge the request body into the organization's `metadata` jsonb
+/// column. The body must be a JSON object.
+#[instrument(err(Debug), skip(state))]
+async fn patch_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(organization_id): Path<Uuid>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    resource: OrganizationResource,
+    Json(patch): Json<serde_json::Value>,
+) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
+    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
+
+    let organization = organization::patch_metadata(&state.db, &organization_id, patch)
+        .await?
+        .into();
 
     Ok((StatusCode::OK, Json(organization)))
 }
@@ -750,7 +666,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Create a new organization")
                     .description("Create a new organization")
                     .security_requirement("JWT")
-                    .response::<201, Json<CreateOrganizationResponseDto>>()
+                    .response::<201, Json<OrganizationDto>>()
             }),
         )
         .api_route(
@@ -760,6 +676,30 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Organizations")
                     .summary("Update an organization")
                     .description("Update an organization")
+                    .security_requirement("JWT")
+                    .response::<200, Json<OrganizationDto>>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/metadata",
+            get_with(get_metadata, |op| {
+                op.id("GetOrganizationMetadata")
+                    .tag("Organizations")
+                    .summary("Get organization metadata")
+                    .description("Get organization metadata")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Option<serde_json::Value>>>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/metadata",
+            patch_with(patch_metadata, |op| {
+                op.id("PatchOrganizationMetadata")
+                    .tag("Organizations")
+                    .summary("Shallow-merge organization metadata")
+                    .description(
+                        "Merge a JSON object into organization.metadata at the top level using jsonb concatenation",
+                    )
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationDto>>()
             }),
@@ -783,21 +723,9 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
     use std::error::Error;
-    use uuid::Uuid;
 
-    use crate::{
-        error::ComhairleError,
-        mailer::MockComhairleMailer,
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            organization::OrganizationType,
-            permissions::{Role, has_resource_permission},
-            users::{create_user, get_user_by_email},
-        },
-        routes::auth::SignupRequest,
-        setup_server,
-        test_helpers::{UserSession, test_state},
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::organization::OrganizationType;
 
     use super::*;
 
@@ -826,156 +754,6 @@ mod tests {
             organization.org_type,
             OrganizationType::NonProfit,
             "incorrect org_type"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_bootstrap_organization_admins_and_return_summary(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut mailer = MockComhairleMailer::new();
-        mailer
-            .expect_send_welcome_email()
-            .once()
-            .returning(|_, _| Ok(()));
-        mailer
-            .expect_send_user_account_created_email()
-            .once()
-            .returning(|_, _, _| Ok(()));
-
-        let state = Arc::new(test_state().db(pool).mailer(Arc::new(mailer)).call()?);
-        let app = setup_server(state.clone()).await?;
-        let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        let existing_admin = create_user(
-            &SignupRequest {
-                username: "existing_org_admin".to_string(),
-                password: "StrongPass123!".to_string(),
-                email: "existing-admin@example.com".to_string(),
-                avatar_url: None,
-            },
-            &state.db,
-        )
-        .await?;
-
-        let (status, response, _) = session
-            .create_organization(
-                &app,
-                json!({
-                    "name": "org_with_admins",
-                    "description": "org_with_admins",
-                    "mission": "org_with_admins",
-                    "org_type": "non_profit",
-                    "organization_admin_emails": [
-                        "existing-admin@example.com",
-                        "new-admin@example.com"
-                    ]
-                }),
-            )
-            .await?;
-
-        assert_eq!(status, StatusCode::CREATED);
-
-        let organization_id = Uuid::parse_str(
-            response
-                .get("id")
-                .and_then(|value| value.as_str())
-                .ok_or("missing id")?,
-        )?;
-
-        let summary = response
-            .get("adminBootstrapSummary")
-            .ok_or("missing adminBootstrapSummary")?;
-
-        assert_eq!(summary.get("attempted").and_then(|v| v.as_u64()), Some(2));
-        assert_eq!(summary.get("assigned").and_then(|v| v.as_u64()), Some(2));
-        assert_eq!(
-            summary.get("createdAccounts").and_then(|v| v.as_u64()),
-            Some(1)
-        );
-        assert_eq!(summary.get("emailed").and_then(|v| v.as_u64()), Some(1));
-
-        let new_admin = get_user_by_email("new-admin@example.com", &state.db).await?;
-        assert_eq!(
-            new_admin.auth_type,
-            crate::models::users::UserAuthType::EmailPassword,
-            "new organization admin should be a full email-password user"
-        );
-
-        let existing_has_permission = has_resource_permission(
-            &state,
-            Role::OrganizationAdmin.triplet(&organization_id),
-            &existing_admin.id,
-            existing_admin.organization_id.as_ref(),
-        )
-        .await?;
-        let new_has_permission = has_resource_permission(
-            &state,
-            Role::OrganizationAdmin.triplet(&organization_id),
-            &new_admin.id,
-            new_admin.organization_id.as_ref(),
-        )
-        .await?;
-
-        assert!(existing_has_permission);
-        assert!(new_has_permission);
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_not_rollback_organization_when_admin_account_created_email_fails(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut mailer = MockComhairleMailer::new();
-        mailer
-            .expect_send_welcome_email()
-            .once()
-            .returning(|_, _| Ok(()));
-        mailer
-            .expect_send_user_account_created_email()
-            .once()
-            .returning(|_, _, _| Err(ComhairleError::WrongUserType));
-
-        let state = Arc::new(test_state().db(pool).mailer(Arc::new(mailer)).call()?);
-        let app = setup_server(state.clone()).await?;
-        let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        let (status, response, _) = session
-            .create_organization(
-                &app,
-                json!({
-                    "name": "org_with_email_failure",
-                    "description": "org_with_email_failure",
-                    "mission": "org_with_email_failure",
-                    "org_type": "non_profit",
-                    "organization_admin_emails": ["new-admin-failure@example.com"]
-                }),
-            )
-            .await?;
-
-        assert_eq!(status, StatusCode::CREATED);
-        assert_eq!(
-            response.get("name").and_then(|value| value.as_str()),
-            Some("org_with_email_failure")
-        );
-
-        let summary = response
-            .get("adminBootstrapSummary")
-            .ok_or("missing adminBootstrapSummary")?;
-        assert_eq!(summary.get("attempted").and_then(|v| v.as_u64()), Some(1));
-        assert_eq!(summary.get("assigned").and_then(|v| v.as_u64()), Some(1));
-        assert_eq!(summary.get("emailed").and_then(|v| v.as_u64()), Some(0));
-        assert_eq!(
-            summary
-                .get("failures")
-                .and_then(|value| value.as_array())
-                .map(|value| !value.is_empty()),
-            Some(true)
         );
 
         Ok(())
