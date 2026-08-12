@@ -506,6 +506,9 @@ pub struct InsightQuestion {
     pub title: String,
     /// Total number of responses recorded for this question.
     pub total: i32,
+    /// Field properties
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub properties: Option<HashMap<String, serde_json::Value>>,
     /// Per-choice breakdown. Present only for choice-based question kinds
     /// (multiple-choice, single-choice, picture-choice, etc.).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -734,11 +737,14 @@ pub fn build_survey_insights(
                 .map(|f| f.kind.clone())
                 .or_else(|| response.kind.clone());
 
+            let properties = field.map(|f| f.properties.clone()).unwrap_or_default();
+
             InsightQuestion {
                 id: response.id.clone(),
                 kind,
                 title,
                 total: response.total,
+                properties,
                 choices,
                 submissions,
             }

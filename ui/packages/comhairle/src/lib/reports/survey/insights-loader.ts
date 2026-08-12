@@ -22,6 +22,7 @@ export interface ChoiceQuestion {
 	title: string;
 	total: number;
 	kind: HeyFormChoiceFieldKind;
+	properties: Record<string, string>;
 	answers: Choice[];
 }
 
@@ -30,6 +31,7 @@ export interface NonChoiceQuestion {
 	title: string;
 	total: number;
 	kind: HeyFormNonChoiceFieldKind;
+	properties: Record<string, string>;
 	answers: unknown[];
 }
 
@@ -50,6 +52,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
+				properties: insight.properties,
 				answers: insight.choices ?? []
 			});
 		case 'opinion_scale':
@@ -66,6 +69,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
+				properties: insight.properties,
 				answers:
 					insight.submissions
 						?.map((s) => s.value)
@@ -77,6 +81,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
+				properties: insight.properties,
 				answers:
 					insight.submissions
 						?.map((s) => {
@@ -91,6 +96,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
+				properties: insight.properties,
 				answers:
 					insight.submissions
 						?.map((s) => {
@@ -105,6 +111,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
+				properties: insight.properties,
 				answers:
 					insight.submissions
 						?.map((s) => {
