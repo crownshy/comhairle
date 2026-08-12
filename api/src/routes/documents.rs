@@ -36,7 +36,7 @@ use crate::{
 ///
 /// A conversation has at most one of these in its knowledge base; a re-sync
 /// replaces it. The frontend builds a text-bearing PDF from the learn steps and
-/// uploads it under this name, so RAGFlow parses it natively (clean text +
+/// uploads it under this name, so the bot service parses it natively (clean text +
 /// per-chunk highlight positions) and the existing PDF viewer displays it. See
 /// the "learn content as PDF" spec and ADR-0014.
 pub const LEARN_CONTENT_DOCUMENT_NAME: &str = "Learning material.pdf";
@@ -178,7 +178,7 @@ async fn download_document(
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
     let download_stream = bot_service
-        .download_document(document_id.clone(), knowledge_base_id)
+        .download_document(&document_id, knowledge_base_id)
         .await?;
 
     let status = download_stream.status();
@@ -335,9 +335,10 @@ pub struct SyncLearningContentResponse {
 ///
 /// The PDF is built client-side from the learn steps (a text-bearing document
 /// with real tables) and posted here as multipart `file`; the backend owns the
-/// RAGFlow dance. The reserved-name document is deleted first (RAGFlow re-chunks
-/// on parse, so we replace rather than update in place), and the same background
-/// parse job as a normal upload connects the chat bot once parsing completes.
+/// upload and re-parse. The reserved-name document is deleted first (the bot
+/// service re-chunks on parse, so we replace rather than update in place), and
+/// the same background parse job as a normal upload connects the chat bot once
+/// parsing completes.
 #[instrument(err(Debug), skip(state, form_data))]
 async fn sync_learning_content(
     State(state): State<Arc<ComhairleState>>,
@@ -350,8 +351,9 @@ async fn sync_learning_content(
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
-    // Read the generated PDF bytes from the request before touching RAGFlow, so a
-    // malformed request fails cleanly without first deleting the existing doc.
+    // Read the generated PDF bytes from the request before touching the bot
+    // service, so a malformed request fails cleanly without first deleting the
+    // existing doc.
     let bytes = match form_data.next_field().await? {
         Some(field) => field.bytes().await?.to_vec(),
         None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),

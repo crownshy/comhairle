@@ -127,7 +127,7 @@ pub trait ComhairleBotService: Send + Sync {
 
     async fn download_document(
         &self,
-        document_id: String,
+        document_id: &str,
         knowledge_base_id: String,
     ) -> Result<reqwest::Response, ComhairleError>;
 
