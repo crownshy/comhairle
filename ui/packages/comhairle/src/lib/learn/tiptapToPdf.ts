@@ -65,13 +65,6 @@ const styles: StyleDictionary = {
 	normal: { fontSize: 11, margin: BODY_MARGIN }
 };
 
-/**
- * Images resolved by the caller for the current build. Set synchronously at the start of
- * `sectionsToPdfDefinition` and read during its (synchronous) walk, so there is no interleaving
- * - this keeps the recursive node mappers from having to thread the map through every call.
- */
-let imageMap: ImageMap = {};
-
 /** Clamp a heading level to 1..6 and map it to a `styles` key (`h1`..`h6`). */
 function headingStyle(level: unknown): string {
 	const n = typeof level === 'number' && Number.isFinite(level) ? Math.trunc(level) : 1;
@@ -119,15 +112,15 @@ function inlineContent(node: ProseMirrorNode): Content {
 }
 
 /** Convert a `listItem`'s block content into a single pdfmake list entry. */
-function listItem(node: ProseMirrorNode): Content {
-	const blocks = blocksFromChildren(node);
+function listItem(node: ProseMirrorNode, images: ImageMap): Content {
+	const blocks = blocksFromChildren(node, images);
 	if (blocks.length === 0) return '';
 	return blocks.length === 1 ? blocks[0] : { stack: blocks };
 }
 
 /** Convert a table cell's block content into a pdfmake `TableCell`. */
-function tableCell(node: ProseMirrorNode, isHeader: boolean): TableCell {
-	const blocks = blocksFromChildren(node);
+function tableCell(node: ProseMirrorNode, isHeader: boolean, images: ImageMap): TableCell {
+	const blocks = blocksFromChildren(node, images);
 	// A header cell is wrapped in a `stack` so it can carry the `bold` style whatever its
 	// block content is (a stack is a single known pdfmake type, which keeps the union happy).
 	if (isHeader) return { stack: blocks.length > 0 ? blocks : [''], bold: true };
@@ -136,9 +129,9 @@ function tableCell(node: ProseMirrorNode, isHeader: boolean): TableCell {
 }
 
 /** Map an `image` node to an embedded pdfmake image, or `null` when it can't be embedded. */
-function imageNode(node: ProseMirrorNode): Content | null {
+function imageNode(node: ProseMirrorNode, images: ImageMap): Content | null {
 	const src = typeof node.attrs?.src === 'string' ? node.attrs.src : null;
-	const data = src ? imageMap[src] : undefined;
+	const data = src ? images[src] : undefined;
 	// No embeddable data (unresolved src, or the fetch/encode failed, e.g. CORS): skip it
 	// rather than dump a raw URL into the text layer.
 	if (!data) return null;
@@ -148,23 +141,29 @@ function imageNode(node: ProseMirrorNode): Content | null {
 }
 
 /** Map a single block node to pdfmake content, or `null` when it produces nothing. */
-function blockNode(node: ProseMirrorNode): Content | null {
+function blockNode(node: ProseMirrorNode, images: ImageMap): Content | null {
 	switch (node.type) {
 		case 'heading':
 			return { text: inlineContent(node), style: headingStyle(node.attrs?.level) };
 		case 'paragraph':
 			return { text: inlineContent(node), style: 'normal' };
 		case 'bulletList':
-			return { ul: (node.content ?? []).map(listItem), margin: BODY_MARGIN };
+			return {
+				ul: (node.content ?? []).map((n) => listItem(n, images)),
+				margin: BODY_MARGIN
+			};
 		case 'orderedList':
-			return { ol: (node.content ?? []).map(listItem), margin: BODY_MARGIN };
+			return {
+				ol: (node.content ?? []).map((n) => listItem(n, images)),
+				margin: BODY_MARGIN
+			};
 		case 'table':
-			return tableNode(node);
+			return tableNode(node, images);
 		case 'image':
-			return imageNode(node);
+			return imageNode(node, images);
 		default: {
 			// Unknown block: recurse into children so their text is not lost.
-			const blocks = blocksFromChildren(node);
+			const blocks = blocksFromChildren(node, images);
 			if (blocks.length === 0) return null;
 			return blocks.length === 1 ? blocks[0] : { stack: blocks };
 		}
@@ -172,11 +171,11 @@ function blockNode(node: ProseMirrorNode): Content | null {
 }
 
 /** Convert a `table` node into a pdfmake table with light horizontal rules. */
-function tableNode(node: ProseMirrorNode): Content {
+function tableNode(node: ProseMirrorNode, images: ImageMap): Content {
 	const body: TableCell[][] = (node.content ?? [])
 		.filter((row) => row?.type === 'tableRow')
 		.map((row) =>
-			(row.content ?? []).map((cell) => tableCell(cell, cell?.type === 'tableHeader'))
+			(row.content ?? []).map((cell) => tableCell(cell, cell?.type === 'tableHeader', images))
 		)
 		.filter((row) => row.length > 0);
 
@@ -185,12 +184,12 @@ function tableNode(node: ProseMirrorNode): Content {
 }
 
 /** Convert every child of a node into a flat list of block-level pdfmake content. */
-function blocksFromChildren(node: ProseMirrorNode): Content[] {
+function blocksFromChildren(node: ProseMirrorNode, images: ImageMap): Content[] {
 	const children = node.content;
 	if (!Array.isArray(children)) return [];
 	const out: Content[] = [];
 	for (const child of children) {
-		const block = blockNode(child);
+		const block = blockNode(child, images);
 		if (block !== null) out.push(block);
 	}
 	return out;
@@ -258,11 +257,11 @@ function markdownToBlocks(md: string): Content[] {
 }
 
 /** Convert one page's raw content into block-level pdfmake content. */
-function pageContent(page: LearnContentPage): Content[] {
+function pageContent(page: LearnContentPage, images: ImageMap): Content[] {
 	const raw = page.content?.trim();
 	if (!raw) return [];
 	const doc = parseProseMirror(page.content);
-	return doc ? blocksFromChildren(doc) : markdownToBlocks(page.content);
+	return doc ? blocksFromChildren(doc, images) : markdownToBlocks(page.content);
 }
 
 /** Walk a ProseMirror node collecting every image `src`. */
@@ -301,17 +300,15 @@ export function sectionsToPdfDefinition(
 	sections: LearnContentSection[],
 	images: ImageMap = {}
 ): TDocumentDefinitions {
-	imageMap = images;
 	const content: Content[] = [];
 	for (const section of sections) {
 		if (section.heading?.trim()) {
 			content.push({ text: section.heading, style: 'h1' });
 		}
 		for (const page of section.pages ?? []) {
-			content.push(...pageContent(page));
+			content.push(...pageContent(page, images));
 		}
 	}
-	imageMap = {};
 
 	return {
 		content,
