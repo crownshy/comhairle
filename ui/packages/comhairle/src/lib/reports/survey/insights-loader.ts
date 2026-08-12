@@ -271,6 +271,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'hidden_checkbox':
 		case 'welcome':
 		case 'thank_you':
+		default:
 			return undefined;
 	}
 }
