@@ -39,7 +39,7 @@ use crate::{
 /// uploads it under this name, so the bot service parses it natively (clean text +
 /// per-chunk highlight positions) and the existing PDF viewer displays it. See
 /// the "learn content as PDF" spec and ADR-0014.
-pub const LEARN_CONTENT_DOCUMENT_NAME: &str = "Learning material.pdf";
+pub const LEARN_CONTENT_DOCUMENT_NAME: &str = "comhairle_learning_step_material.pdf";
 
 /// Not sure if this is the desired behaviour. I made a few assumptions:
 /// - The user owns the conversation

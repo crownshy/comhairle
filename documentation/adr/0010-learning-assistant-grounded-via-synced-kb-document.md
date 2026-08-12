@@ -93,6 +93,13 @@ path.** No per-request page injection.
 - **The synced document is subject to ADR-0007 gating.** Until it parses (`parse_status` is
   `DONE`) the assistant can be hidden or unable to answer from it, and the first sync carries
   parse latency.
+- **Grounding is single-language.** The sync builds one shared document from the conversation's
+  `primary_locale` (`learn_content` resolves content in that locale, not the requester's
+  `LocaleExtractor` cookie), because a single shared knowledge-base artifact needs a stable,
+  deterministic source language rather than one that varies with whichever admin synced last. A
+  participant reading a translated step is therefore grounded in the primary-locale text. True
+  multi-language grounding would need a synced document per locale plus retrieval keyed to the
+  participant's language; deferred as a follow-up until the need is shown.
 - **No live step content is plumbed to the layout-level sidebar** (a simplification versus
   #780's original framing). Both surfaces just query the shared KB; only the lightweight title
   hint is passed to the sidebar.
