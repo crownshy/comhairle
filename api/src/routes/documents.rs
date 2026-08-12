@@ -290,7 +290,7 @@ async fn get_knowledge_base_id(
 
 /// Resolve a learn page entry to its *raw* content in the given locale.
 ///
-/// Returns `(content, is_rich)`: modern `text_content` pages carry TipTap ProseMirror
+/// Returns a [`LearnContentPage`]: modern `text_content` pages carry TipTap ProseMirror
 /// JSON (`is_rich = true`) which the frontend renders through the normal rich-text
 /// renderer (and converts to a PDF at sync time); legacy pages carry inline markdown
 /// (`is_rich = false`). Returns `None` when the page has no text for this locale.
@@ -298,13 +298,16 @@ async fn resolve_page_raw(
     db: &sqlx::PgPool,
     entry: &LearnPageEntry,
     locale: &str,
-) -> Result<Option<(String, bool)>, ComhairleError> {
+) -> Result<Option<LearnContentPage>, ComhairleError> {
     match entry {
         LearnPageEntry::TextContent(page) => {
             Ok(
                 translations::get_text_translation_optional(db, &page.text_content_id, locale)
                     .await?
-                    .map(|translation| (translation.content, true)),
+                    .map(|translation| LearnContentPage {
+                        content: translation.content,
+                        is_rich: true,
+                    }),
             )
         }
         LearnPageEntry::Legacy(localized_pages) => Ok(localized_pages
@@ -312,7 +315,10 @@ async fn resolve_page_raw(
             .find(|page| page.lang == locale)
             .or_else(|| localized_pages.first())
             .map(|page| match &page.content {
-                PageContent::Markdown(markdown) => (markdown.clone(), false),
+                PageContent::Markdown(markdown) => LearnContentPage {
+                    content: markdown.clone(),
+                    is_rich: false,
+                },
             })),
     }
 }
@@ -465,10 +471,9 @@ async fn learn_content(
 
             let mut pages: Vec<LearnContentPage> = Vec::new();
             for entry in &config.pages {
-                if let Some((content, is_rich)) = resolve_page_raw(&state.db, entry, locale).await?
-                {
-                    if !content.trim().is_empty() {
-                        pages.push(LearnContentPage { content, is_rich });
+                if let Some(page) = resolve_page_raw(&state.db, entry, locale).await? {
+                    if !page.content.trim().is_empty() {
+                        pages.push(page);
                     }
                 }
             }
