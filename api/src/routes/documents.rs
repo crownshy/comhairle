@@ -38,7 +38,7 @@ use crate::{
 /// replaces it. The frontend builds a text-bearing PDF from the learn steps and
 /// uploads it under this name, so RAGFlow parses it natively (clean text +
 /// per-chunk highlight positions) and the existing PDF viewer displays it. See
-/// the "learn content as PDF" spec and ADR-0013.
+/// the "learn content as PDF" spec and ADR-0014.
 pub const LEARN_CONTENT_DOCUMENT_NAME: &str = "Learning material.pdf";
 
 /// Not sure if this is the desired behaviour. I made a few assumptions:

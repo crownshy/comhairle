@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import TextViewer from './TextViewer.svelte';
 	import type { PdfHighlight } from './highlights';
+	import type { PreviewKind } from '$lib/utils/previewKind';
 
 	type PdfViewerProps = { src: string; highlights?: PdfHighlight[]; initialPage?: number | null };
 
@@ -14,7 +15,7 @@
 		src: string | null;
 		name?: string;
 		downloadHref?: string | null;
-		kind?: 'pdf' | 'image' | 'docx' | 'text';
+		kind?: PreviewKind;
 		/** Passage rectangles to shade (PDF only). */
 		highlights?: PdfHighlight[];
 		/** Page to open on (1-based, PDF only). */

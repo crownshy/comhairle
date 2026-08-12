@@ -316,7 +316,7 @@
 				questions about them. Changes to learn steps are not picked up automatically, so
 				re-sync after you finish editing.
 			</p>
-			<p class="text-muted-foreground text-sm">
+			<p class="text-muted-foreground text-base">
 				Re-syncing replaces the learning-material document, so sources cited in earlier
 				assistant answers will no longer open for participants.
 			</p>
