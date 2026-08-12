@@ -6,6 +6,7 @@
 	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';
 	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
 	import { highlightsFromPositions } from '$lib/components/PdfViewer/highlights';
+	import { getPreviewKind } from '$lib/utils/previewKind';
 	import LearningAssistantSkeleton from './LearningAssistantSkeleton.svelte';
 
 	type QA = {
@@ -150,17 +151,6 @@
 		tick().then(() => inputRef?.focus());
 	}
 
-	const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif'];
-	const TEXT_EXTENSIONS = ['.md', '.markdown', '.txt'];
-
-	function previewKind(fileName: string): 'pdf' | 'image' | 'docx' | 'text' {
-		const lower = fileName.toLowerCase();
-		if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'docx';
-		if (TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'text';
-		if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'image';
-		return 'pdf';
-	}
-
 	function openSource(chunk: ReferenceChunk) {
 		activeChunk = chunk;
 		viewerOpen = true;
@@ -176,7 +166,9 @@
 	let activeSource = $derived.by(() => {
 		const chunk = activeChunk;
 		if (!chunk) return null;
-		const kind = previewKind(chunk.document_name);
+		// RAGFlow source chunks are only ever PDFs or uploaded docs, so an unrecognised
+		// name still opens in the PDF viewer rather than falling back to a download.
+		const kind = getPreviewKind(chunk.document_name) ?? 'pdf';
 		const href = `/api/conversation/${conversationId}/documents/${chunk.document_id}/download`;
 		const highlights = kind === 'pdf' ? highlightsFromPositions(chunk.positions) : [];
 		return {

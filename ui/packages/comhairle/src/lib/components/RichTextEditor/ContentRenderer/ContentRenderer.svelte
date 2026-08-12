@@ -11,6 +11,7 @@
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import type { Glossary } from '$lib/glossary/types';
 	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
+	import { getPreviewKind, type PreviewKind } from '$lib/utils/previewKind';
 	import '../editor-content.css';
 
 	type Props = {
@@ -49,24 +50,11 @@
 
 	let previewDialog = $state<{
 		open: boolean;
-		kind: 'pdf' | 'image' | 'docx' | 'text';
+		kind: PreviewKind;
 		src: string | null;
 		name: string;
 		downloadHref: string | null;
 	}>({ open: false, kind: 'pdf', src: null, name: '', downloadHref: null });
-
-	const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif'];
-	const DOCX_EXTENSIONS = ['.doc', '.docx'];
-	const TEXT_EXTENSIONS = ['.md', '.markdown', '.txt'];
-
-	function getPreviewKind(fileName: string): 'pdf' | 'image' | 'docx' | 'text' | null {
-		const lower = fileName.toLowerCase();
-		if (lower.endsWith('.pdf')) return 'pdf';
-		if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'image';
-		if (DOCX_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'docx';
-		if (TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'text';
-		return null;
-	}
 
 	/* Intercept source-document badge clicks: open PDFs, images, and Word
 	 * documents in an in-page viewer instead of downloading. Other file types

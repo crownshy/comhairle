@@ -160,13 +160,9 @@
 		isSyncing = true;
 
 		const res = await tryCatchAsync(async () => {
-			const contentRes = await fetch(
-				`/api/conversation/${conversation.id}/documents/learn_content`,
-				{ credentials: 'include' }
-			);
-			if (!contentRes.ok)
-				throw new Error(`Failed to load learn content (${contentRes.status})`);
-			const { sections } = (await contentRes.json()) as { sections: LearnContentSection[] };
+			const { sections } = await apiClient.GetLearnContent({
+				params: { conversation_id: conversation.id }
+			});
 
 			const blob = await generateLearnPdf(sections);
 
