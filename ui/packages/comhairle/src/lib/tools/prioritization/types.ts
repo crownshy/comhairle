@@ -5,14 +5,12 @@
  * module (prioritizationApi.ts) maps between them. */
 
 import type {
-	Category,
 	LocalizedProposalDto,
 	TextContentDto,
 	TextFormat as ApiTextFormat,
 	TextTranslationDto,
 	Translation,
-	TranslationDto,
-	QuestionTypeWithTranslations
+	TranslationDto
 } from '@crownshy/api-client/api';
 
 export type Locale = string;
@@ -46,9 +44,46 @@ export type Proposal = {
 /** Locale-resolved variant shown to participants (title + ordered section bodies). */
 export type LocalizedProposal = LocalizedProposalDto;
 
+/** Form state for a question being created or edited.  */
+export type DraftFields = { text: DraftTranslatableJsonField; type: DraftQuestionType };
+
+export type QuestionType<TText> =
+	| { kind: 'text' }
+	| { kind: 'likert'; categories: LikertCategory<TText>[] }
+	| {
+			kind: 'continuous';
+			subSteps: number;
+			minValue: number;
+			maxValue: number;
+			maxLabel: TText;
+			minLabel: TText;
+	  };
+
+export type Question<TText> = {
+	id: string;
+	text: TText;
+	type: QuestionType<TText>;
+};
+
 /** Question definitions (from the workflow step's tool config) */
 
-export type LikertCategory = Category;
+export type LikertCategory<TText> = {
+	label: TText;
+	value: number;
+};
+
+export type ToolConfig<TText> = {
+	/** Questions asked once about the proposal as a whole. */
+	questions: Question<TText>[];
+	/** Questions asked about each section (same set for every section). */
+	sectionQuestions: Question<TText>[];
+	randomizeOrder: boolean;
+	alignmentQuestionId: string;
+};
+
+/** ---------------------------- **/
+/** WITH TRANSLATIONS PRIORITIZATION TOOL TYPES FOR ADMIN UI **/
+/** ---------------------------- **/
 
 /** Mirror type of the backend JsonFieldWithTranslations with optional `translations`
  * field to allow creating new translatable fields on questions
@@ -58,40 +93,9 @@ export type DraftTranslatableJsonField = {
 	translations?: TranslationDto;
 };
 
-/** Form state for a question being created or edited.  */
-export type DraftFields = { text: DraftTranslatableJsonField; type: QuestionTypeWithTranslations };
-
-export type DraftLikertCategoryWithTranslations = {
-	value: number;
-	label: DraftTranslatableJsonField;
-};
-
-export type QuestionType =
-	| { kind: 'text' }
-	| { kind: 'likert'; categories: LikertCategory[] }
-	| {
-			kind: 'continuous';
-			subSteps: number;
-			minValue: number;
-			maxValue: number;
-			minLabel: string;
-			maxLabel: string;
-	  };
-
-export type Question = {
-	id: string;
-	text: DraftTranslatableJsonField;
-	type: QuestionType;
-};
-
-export type ToolConfig = {
-	/** Questions asked once about the proposal as a whole. */
-	questions: Question[];
-	/** Questions asked about each section (same set for every section). */
-	sectionQuestions: Question[];
-	randomizeOrder: boolean;
-	alignmentQuestionId: string;
-};
+export type DraftQuestion = Question<DraftTranslatableJsonField>;
+export type DraftQuestionType = QuestionType<DraftTranslatableJsonField>;
+export type DraftLikertCategory = LikertCategory<DraftTranslatableJsonField>;
 
 /** Responses */
 

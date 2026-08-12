@@ -3,10 +3,10 @@
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import { Slider } from '$lib/components/ui/slider';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import type { DraftFields } from '../types';
+	import type { Question } from '../types';
 
 	type Props = {
-		question: DraftFields;
+		question: Question<string>;
 		value: number | string | null;
 		disabled?: boolean;
 		/** When true, the question is required but unanswered after a submit attempt. */
@@ -73,7 +73,7 @@
 </script>
 
 <div class="space-y-3" class:opacity-60={disabled}>
-	<p class="text-base font-medium" class:text-destructive={invalid}>{question.text.localized}</p>
+	<p class="text-base font-medium" class:text-destructive={invalid}>{question.text}</p>
 
 	{#if question.type.kind === 'likert'}
 		<RadioGroup.Root
@@ -90,7 +90,7 @@
 				>
 					<RadioGroup.Item value={String(cat.value)} class="sm:sr-only" />
 					<span class="text-sm leading-tight group-data-[state=checked]:font-medium">
-						{cat.label.localized}
+						{cat.label}
 					</span>
 				</Label>
 			{/each}
@@ -112,10 +112,10 @@
 			</div>
 			<div class="text-muted-foreground flex justify-between text-xs">
 				<span class="font-medium" class:text-primary={leaningLabel === 'min'}>
-					{question.type.minLabel.localized ?? ''}
+					{question.type.minLabel ?? ''}
 				</span>
 				<span class="font-medium" class:text-primary={leaningLabel === 'max'}>
-					{question.type.maxLabel.localized ?? ''}
+					{question.type.maxLabel ?? ''}
 				</span>
 			</div>
 		</div>

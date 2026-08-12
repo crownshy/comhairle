@@ -448,6 +448,65 @@ export function resolveTranslatableJsonToTextContentIds(value: any): any {
 	return value;
 }
 
+/**
+ * Strips translations from nested JSON structures with colocated translatable
+ * fields and replaces value with appropriate localized text.
+ *
+ * Allows working with preview components, which expect simple localized text
+ * fields, within the admin system when JSON structures are returned with
+ * colocated translations.
+ *
+ * @example
+ * ```ts
+ * {
+ *	 name: {
+ *		localized: 'Translatable field',
+ *		translations: {
+ *			textContent: { ... },
+ *			textTranslations: [ ... ]
+ *		}
+ *	 }
+ * }
+ * ```
+ *
+ * ## Usage
+ *
+ * @example
+ * ```ts
+ * const updatePayload = localizeTranslatableJson(target);
+ * ```
+ *
+ * Transforms fields to:
+ *
+ * @example
+ * ```ts
+ * {
+ *	 name: 'Translatable field'
+ * }
+ * ```
+ */
+export function localizeTranslatableJson(value: any): any {
+	if (Array.isArray(value)) {
+		return value.map(localizeTranslatableJson);
+	}
+
+	if (value !== null && typeof value === 'object') {
+		if (typeof value.localized === 'string') {
+			return value.localized;
+		}
+
+		/* eslint-disable  @typescript-eslint/no-explicit-any */
+		const result: Record<string, any> = {};
+		for (const [key, val] of Object.entries(value)) {
+			result[key] = localizeTranslatableJson(val);
+		}
+		return result;
+	}
+
+	// primitives (string, number, boolean, null) pass through unchanged
+	return value;
+}
+
 function isExistingTranslatableField(value: any) {
 	return (
 		typeof value.localized === 'string' &&

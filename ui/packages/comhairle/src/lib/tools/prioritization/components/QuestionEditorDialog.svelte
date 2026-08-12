@@ -8,31 +8,26 @@
 	import QuestionField from './QuestionField.svelte';
 	import type { PrioritizationStore } from '../store.svelte';
 	import type {
-		LikertCategory,
-		Question,
-		QuestionType,
-		TranslatableJsonField,
+		DraftTranslatableJsonField,
+		DraftQuestion,
 		ToolConfig,
-		DraftLikertCategoryWithTranslations,
-		DraftFields
+		DraftFields,
+		DraftQuestionType,
+		DraftLikertCategory
 	} from '../types';
-	import type {
-		QuestionTypeWithTranslations,
-		QuestionWithTranslations,
-		TranslationDto
-	} from '@crownshy/api-client/api';
+	import type { TranslationDto } from '@crownshy/api-client/api';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import {
-		resolveTranslatableJsonToTextContentIds,
+		localizeTranslatableJson,
 		traverseTranslatableJsonAndCreateTranslations
 	} from '$lib/components/Translation/translationUtils';
 
 	type Props = {
 		open: boolean;
-		question?: QuestionWithTranslations | null;
+		question?: DraftQuestion | null;
 		store: PrioritizationStore;
-		toolConfig: ToolConfig;
+		toolConfig: ToolConfig<DraftTranslatableJsonField>;
 		/** Which question set this dialog edits. */
 		target?: 'proposal' | 'section';
 		onOpenChange: (open: boolean) => void;
@@ -51,7 +46,7 @@
 		supportedLocales
 	}: Props = $props();
 
-	const defaultLikertCategories: DraftLikertCategoryWithTranslations[] = [
+	const defaultLikertCategories: DraftLikertCategory[] = [
 		{ label: newTranslatableField('Strongly disagree'), value: -2 },
 		{ label: newTranslatableField('Disagree'), value: -1 },
 		{ label: newTranslatableField('Neutral'), value: 0 },
@@ -59,14 +54,14 @@
 		{ label: newTranslatableField('Strongly agree'), value: 2 }
 	];
 
-	function newTranslatableField(seed = ''): TranslatableJsonField {
+	function newTranslatableField(seed = ''): DraftTranslatableJsonField {
 		return { localized: seed };
 	}
 
 	function cloneTranslatableText(source: {
 		localized: string;
-		translations: TranslationDto;
-	}): TranslatableJsonField {
+		translations?: TranslationDto;
+	}): DraftTranslatableJsonField {
 		return {
 			localized: source.localized,
 			translations: source.translations
@@ -80,7 +75,7 @@
 		};
 	}
 
-	function cloneType(t: QuestionTypeWithTranslations): QuestionType {
+	function cloneType(t: DraftQuestionType): DraftQuestionType {
 		if (t.kind === 'likert')
 			return {
 				kind: 'likert',
@@ -172,7 +167,7 @@
 		}
 	});
 
-	function setKind(kind: QuestionType['kind']) {
+	function setKind(kind: DraftQuestionType['kind']) {
 		if (kind === draft.type.kind) return;
 		if (kind === 'likert') {
 			draft.type = {
@@ -211,11 +206,7 @@
 		if (!draft.text.localized.trim()) return 'Question text is required.';
 		if (draft.type.kind === 'likert') {
 			if (draft.type.categories.length < 2) return 'Likert needs at least 2 options.';
-			if (
-				draft.type.categories.some(
-					(c: DraftLikertCategoryWithTranslations) => !c.label.localized.trim()
-				)
-			) {
+			if (draft.type.categories.some((c: DraftLikertCategory) => !c.label.localized.trim())) {
 				return 'Every option needs a label.';
 			}
 		}
@@ -243,7 +234,10 @@
 			const existing =
 				(target === 'section' ? toolConfig.sectionQuestions : toolConfig.questions) ?? [];
 			const id = editingId ?? crypto.randomUUID();
-			const next: Question = { id, ...structuredClone(questionWithNewlyCreatedTranslations) };
+			const next: DraftQuestion = {
+				id,
+				...structuredClone(questionWithNewlyCreatedTranslations)
+			};
 			const updated =
 				editingId !== undefined
 					? existing.map((q) => (q.id === editingId ? next : q))
@@ -263,13 +257,13 @@
 		}
 	}
 
-	const kindOptions: Array<{ value: QuestionType['kind']; label: string }> = [
+	const kindOptions: Array<{ value: DraftQuestionType['kind']; label: string }> = [
 		{ value: 'likert', label: 'Likert scale' },
 		{ value: 'continuous', label: 'Slider' },
 		{ value: 'text', label: 'Free text' }
 	];
 
-	function kindLabel(kind: QuestionType['kind']): string {
+	function kindLabel(kind: DraftQuestionType['kind']): string {
 		return kindOptions.find((k) => k.value === kind)?.label ?? kind;
 	}
 
@@ -307,7 +301,7 @@
 				<Select.Root
 					type="single"
 					value={draft.type.kind}
-					onValueChange={(v) => v && setKind(v as QuestionType['kind'])}
+					onValueChange={(v) => v && setKind(v as DraftQuestionType['kind'])}
 				>
 					<Select.Trigger class="w-full">{kindLabel(draft.type.kind)}</Select.Trigger>
 					<Select.Content>
@@ -341,9 +335,8 @@
 									class="w-20"
 									placeholder="Value"
 									bind:value={
-										(draft.type as { categories: LikertCategory[] }).categories[
-											cIndex
-										].value
+										(draft.type as { categories: DraftLikertCategory[] })
+											.categories[cIndex].value
 									}
 								/>
 								<Button
@@ -423,7 +416,7 @@
 					Preview
 				</p>
 				<QuestionField
-					question={draft}
+					question={localizeTranslatableJson(draft)}
 					value={previewValue}
 					onChange={(v) => (previewValue = v)}
 				/>

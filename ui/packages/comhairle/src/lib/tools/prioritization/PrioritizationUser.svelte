@@ -18,7 +18,6 @@
 		QuestionResponse,
 		WorkflowStepInput
 	} from './types';
-	import Separator from '$lib/components/ui/separator/separator.svelte';
 
 	let {
 		workflowStep,
@@ -33,7 +32,9 @@
 	} = $props();
 
 	const stepId = $derived(workflowStep.id);
-	const toolConfig = $derived(api.resolveToolConfig(workflowStep, conversation.isLive ?? false));
+	const toolConfig = $derived(
+		api.resolveToolConfig<string>(workflowStep, conversation.isLive ?? false)
+	);
 
 	let proposals = $state<LocalizedProposal[]>([]);
 	let answers = $state<Record<string, Record<string, number | string>>>({}); // proposalId → questionId → value

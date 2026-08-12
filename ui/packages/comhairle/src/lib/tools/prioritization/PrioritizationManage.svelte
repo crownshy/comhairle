@@ -12,10 +12,16 @@
 	import ProposalEditorDialog from './components/ProposalEditorDialog.svelte';
 	import ProposalListSkeleton from './components/ProposalListSkeleton.svelte';
 	import QuestionEditorDialog from './components/QuestionEditorDialog.svelte';
-	import type { Proposal, Question, QuestionType, WorkflowStepInput } from './types';
+	import {
+		type DraftTranslatableJsonField,
+		type DraftQuestion,
+		type DraftQuestionType,
+		type Proposal,
+		type WorkflowStepInput
+	} from './types';
 	import * as Select from '$lib/components/ui/select';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
-	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
+	import { type ConversationWithTranslations } from '@crownshy/api-client/api';
 
 	let {
 		workflowId,
@@ -37,7 +43,9 @@
 		isLive: conversation.isLive ?? false
 	});
 
-	let toolConfig = $derived(resolveToolConfig(workflowStep, conversation.isLive ?? false));
+	let toolConfig = $derived(
+		resolveToolConfig<DraftTranslatableJsonField>(workflowStep, conversation.isLive ?? false)
+	);
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLocales = $derived(
 		conversation.supportedLanguages && conversation.supportedLanguages.length > 0
@@ -62,11 +70,11 @@
 	/** Per-section question editor/delete state (mirrors the proposal-question flow). */
 	let sectionQuestionEditorOpen = $state(false);
 	let sectionQuestionDeleteOpen = $state(false);
-	let selectedSectionQuestion = $state<Question | null>(null);
+	let selectedSectionQuestion = $state<DraftQuestion | null>(null);
 	let deletingSectionQuestionInFlight = $state(false);
 
-	const questions = $derived<Question[]>(toolConfig.questions ?? []);
-	const sectionQuestions = $derived<Question[]>(toolConfig.sectionQuestions ?? []);
+	const questions = $derived<DraftQuestion[]>(toolConfig.questions ?? []);
+	const sectionQuestions = $derived<DraftQuestion[]>(toolConfig.sectionQuestions ?? []);
 
 	/** Local mirror of `questions` so svelte-dnd-action can mutate during drag. As a writable $derived it tracks upstream by default but stays at any value we assign until the source changes again — exactly the in-flight-then-snap-back behaviour the dnd lib needs. */
 	let localQuestions = $derived(questions);
@@ -74,7 +82,7 @@
 	let savingOrder = $state(false);
 	let savingSectionOrder = $state(false);
 
-	async function commitQuestionOrder(next: Question[]) {
+	async function commitQuestionOrder(next: DraftQuestion[]) {
 		savingOrder = true;
 		try {
 			await store.saveToolConfig({
@@ -91,7 +99,7 @@
 		}
 	}
 
-	async function commitSectionQuestionOrder(next: Question[]) {
+	async function commitSectionQuestionOrder(next: DraftQuestion[]) {
 		savingSectionOrder = true;
 		try {
 			await store.saveToolConfig({
@@ -145,12 +153,12 @@
 		questionEditorOpen = true;
 	}
 
-	function openEditQuestion(q: Question) {
+	function openEditQuestion(q: DraftQuestion) {
 		selectedQuestionId = q.id;
 		questionEditorOpen = true;
 	}
 
-	function confirmDeleteQuestion(q: Question) {
+	function confirmDeleteQuestion(q: DraftQuestion) {
 		selectedQuestionId = q.id;
 		questionDeleteOpen = true;
 	}
@@ -180,12 +188,12 @@
 		sectionQuestionEditorOpen = true;
 	}
 
-	function openEditSectionQuestion(q: Question) {
+	function openEditSectionQuestion(q: DraftQuestion) {
 		selectedSectionQuestion = q;
 		sectionQuestionEditorOpen = true;
 	}
 
-	function confirmDeleteSectionQuestion(q: Question) {
+	function confirmDeleteSectionQuestion(q: DraftQuestion) {
 		selectedSectionQuestion = q;
 		sectionQuestionDeleteOpen = true;
 	}
@@ -226,7 +234,7 @@
 		}
 	}
 
-	function describeType(type: QuestionType): string {
+	function describeType(type: DraftQuestionType): string {
 		switch (type.kind) {
 			case 'text':
 				return 'Free text';
@@ -237,7 +245,7 @@
 		}
 	}
 
-	function summariseScale(type: QuestionType): string {
+	function summariseScale(type: DraftQuestionType): string {
 		if (type.kind === 'likert') {
 			const first = type.categories[0]?.label.localized;
 			const last = type.categories[type.categories.length - 1]?.label.localized;
@@ -296,7 +304,7 @@
 				dragDisabled={savingOrder}
 				class="space-y-3"
 			>
-				{#snippet children(q: Question)}
+				{#snippet children(q: DraftQuestion)}
 					<Card.Root>
 						<Card.Header class="flex flex-row items-start justify-between gap-4">
 							<div class="flex min-w-0 flex-1 items-start gap-3">
