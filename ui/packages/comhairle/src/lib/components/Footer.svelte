@@ -7,12 +7,9 @@
 
 	let emailValue = $state('');
 
-	const navLinks = [
-		{ href: '/about', label: () => m.about_us() },
-		{ href: '/contact', label: () => m.contact() },
-		{ href: '/support', label: () => m.support() },
-		{ href: '/faq', label: () => m.faq() }
-	];
+	// Contact, Support and FAQ routes don't exist yet and 404 (#845). Hidden until they
+	// exist and are wired to real pages. Follow-up: re-add once the routes are built.
+	const navLinks = [{ href: '/about', label: () => m.about_us() }];
 
 	const legalLinks = [
 		{ href: '/rights/privacy', label: () => m.privacy_policy() },

@@ -13,7 +13,7 @@ use crate::bot_service::{
 };
 use crate::config::ComhairleConfig;
 use crate::error::ComhairleError;
-use crate::models::permissions::ResourcePermissionIden;
+use crate::models::permissions::{Action, ResourcePermissionIden, ResourceType, Role};
 use crate::models::{self, SqlxResultExt};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
@@ -906,38 +906,94 @@ pub async fn list(
 pub async fn list_for_permitted_user(
     db: &PgPool,
     user_id: Uuid,
+    organization_id: Option<Uuid>,
+    is_super_admin: bool,
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
-    role_name: &str,
     locale: Option<String>,
 ) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
-    let query = Query::select()
+    let mut query = Query::select();
+    query
         .from(ConversationIden::Table)
         .columns(DEFAULT_COLUMNS.map(|c| (ConversationIden::Table, c)))
-        .join(
-            JoinType::InnerJoin,
+        .distinct();
+
+    if !is_super_admin {
+        let read_role_names: Vec<String> = Role::all()
+            .filter(|role| {
+                role.resource_type() == ResourceType::Conversation
+                    && role.actions().contains(&Action::ConversationRead)
+            })
+            .map(|role| role.as_ref().to_string())
+            .collect();
+
+        let actor_condition = match organization_id {
+            Some(org_id) => Cond::any()
+                .add(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::UserId,
+                    ))
+                    .eq(user_id),
+                )
+                .add(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::OrganizationId,
+                    ))
+                    .eq(org_id),
+                ),
+            None => Cond::all().add(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::UserId,
+                ))
+                .eq(user_id),
+            ),
+        };
+
+        let join_condition = Cond::all()
+            .add(
+                Expr::col((ConversationIden::Table, ConversationIden::Id)).equals((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::ResourceId,
+                )),
+            )
+            .add(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::ResourceType,
+                ))
+                .eq(ResourceType::Conversation.as_ref()),
+            )
+            .add(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::RoleName,
+                ))
+                .is_in(read_role_names),
+            )
+            .add(actor_condition);
+
+        query.join(
+            JoinType::LeftJoin,
             ResourcePermissionIden::Table,
-            Expr::col((ConversationIden::Table, ConversationIden::Id)).equals((
-                ResourcePermissionIden::Table,
-                ResourcePermissionIden::ResourceId,
-            )),
-        )
-        .and_where(
-            Expr::col((
-                ResourcePermissionIden::Table,
-                ResourcePermissionIden::RoleName,
-            ))
-            .eq(role_name.to_string()),
-        )
-        .and_where(
-            Expr::col((
-                ResourcePermissionIden::Table,
-                ResourcePermissionIden::UserId,
-            ))
-            .eq(user_id),
-        )
-        .to_owned();
+            join_condition,
+        );
+
+        query.and_where(
+            Cond::any()
+                .add(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
+                .add(
+                    Expr::col((ResourcePermissionIden::Table, ResourcePermissionIden::Id))
+                        .is_not_null(),
+                )
+                .into(),
+        );
+    }
+
+    let query = query.to_owned();
 
     let query = LocalizedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
 
@@ -1265,10 +1321,11 @@ mod tests {
         let results_user_a_a = list_for_permitted_user(
             &state.db,
             user_a.id,
+            None,
+            false,
             page_options.clone(),
             order_options,
             filter_options,
-            Role::ConversationContentEditor.as_ref(),
             Some("en".to_string()),
         )
         .await?;
@@ -1282,21 +1339,22 @@ mod tests {
         let results_user_b_a = list_for_permitted_user(
             &state.db,
             user_b.id,
+            None,
+            false,
             page_options.clone(),
             order_options,
             filter_options,
-            Role::ConversationContentEditor.as_ref(),
             Some("en".to_string()),
         )
         .await?;
 
         assert_eq!(
             results_user_a_a.total, 1,
-            "incorrect conversation_editor total for user_a"
+            "incorrect permitted conversation total for user_a"
         );
         assert_eq!(
             results_user_b_a.total, 0,
-            "incorrect conversation_editor total for user_b"
+            "incorrect permitted conversation total for user_b"
         );
 
         let filter_options = ConversationFilterOptions {
@@ -1305,13 +1363,14 @@ mod tests {
         let order_options = ConversationOrderOptions {
             ..Default::default()
         };
-        let results_user_a_b = list_for_permitted_user(
+        let results_owner = list_for_permitted_user(
             &state.db,
-            user_a.id,
+            session.id.unwrap(),
+            None,
+            false,
             page_options.clone(),
             order_options,
             filter_options,
-            Role::Tester.as_ref(),
             Some("en".to_string()),
         )
         .await?;
@@ -1325,21 +1384,22 @@ mod tests {
         let results_user_b_b = list_for_permitted_user(
             &state.db,
             user_b.id,
+            None,
+            false,
             page_options.clone(),
             order_options,
             filter_options,
-            Role::Tester.as_ref(),
             Some("en".to_string()),
         )
         .await?;
 
         assert_eq!(
-            results_user_a_b.total, 1,
-            "incorrect test_role total for user_a"
+            results_owner.total, 1,
+            "incorrect permitted conversation total for owner"
         );
         assert_eq!(
             results_user_b_b.total, 0,
-            "incorrect test_role total for user_b"
+            "incorrect permitted conversation total for user_b"
         );
 
         Ok(())

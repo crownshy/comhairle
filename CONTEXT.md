@@ -62,6 +62,18 @@ _Avoid_: Org owner, org contact, organization user.
 A user associated with an Organization for membership purposes, without implied administrative permissions.
 _Avoid_: Organization admin (unless they also hold Organization Administrator assignment).
 
+**Primary host organization**:
+The single Organization linked directly on a Conversation as its primary institutional host. This remains distinct from both the Conversation owner (a user) and any co-hosting organizations.
+_Avoid_: Co-host, conversation owner.
+
+**Co-hosting organization**:
+An Organization explicitly associated with a Conversation as an additional host beside the primary host organization. Co-hosting organizations are inferred by ownership of the Conversation co-host role.
+_Avoid_: Primary host organization, member organization.
+
+**Conversation co-host role**:
+A conversation-scoped role intended for organization actors, granting read-only access (`ConversationRead`) by default.
+_Avoid_: Content editor (that role implies update access).
+
 **Organization contact email**:
 A communication address for the Organization entity itself. It is not a permission grant and is distinct from both member emails and Organization Administrator emails.
 _Avoid_: Admin email, owner email.

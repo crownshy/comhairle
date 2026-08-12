@@ -340,10 +340,10 @@ impl ComhairleBotService for ComhairleRagBotService {
 
     async fn download_document(
         &self,
-        document_id: String,
+        document_id: &str,
         knowledge_base_id: String,
     ) -> Result<reqwest::Response, ComhairleError> {
-        let response = ragflow::document::download(&self.client, &document_id, &knowledge_base_id)
+        let response = ragflow::document::download(&self.client, document_id, &knowledge_base_id)
             .await
             .map_err(RagflowError::from)?;
 

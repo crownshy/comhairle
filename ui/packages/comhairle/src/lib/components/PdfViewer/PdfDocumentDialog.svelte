@@ -4,7 +4,9 @@
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
+	import TextViewer from './TextViewer.svelte';
 	import type { PdfHighlight } from './highlights';
+	import type { PreviewKind } from '$lib/utils/previewKind';
 
 	type PdfViewerProps = { src: string; highlights?: PdfHighlight[]; initialPage?: number | null };
 
@@ -13,7 +15,7 @@
 		src: string | null;
 		name?: string;
 		downloadHref?: string | null;
-		kind?: 'pdf' | 'image' | 'docx';
+		kind?: PreviewKind;
 		/** Passage rectangles to shade (PDF only). */
 		highlights?: PdfHighlight[];
 		/** Page to open on (1-based, PDF only). */
@@ -79,6 +81,8 @@
 					<div class="flex h-full w-full items-center justify-center overflow-auto p-4">
 						<img {src} alt={name} class="max-h-full max-w-full object-contain" />
 					</div>
+				{:else if kind === 'text'}
+					<TextViewer {src} />
 				{:else if kind === 'docx' && DocxViewer}
 					<DocxViewer {src} />
 				{:else if kind === 'pdf' && PdfViewer}

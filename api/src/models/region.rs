@@ -32,7 +32,6 @@ pub struct Region {
     pub name: TextContentId,
     #[partially(omit)]
     pub description: TextContentId,
-    pub region_area_id: Option<Uuid>,
     pub region_type: RegionType,
     #[partially(transparent)]
     pub official_id: Option<String>,
@@ -73,11 +72,10 @@ impl std::fmt::Display for RegionType {
     }
 }
 
-const DEFAULT_COLUMNS: [RegionIden; 9] = [
+const DEFAULT_COLUMNS: [RegionIden; 8] = [
     RegionIden::Id,
     RegionIden::Name,
     RegionIden::Description,
-    RegionIden::RegionAreaId,
     RegionIden::RegionType,
     RegionIden::OfficialId,
     RegionIden::Metadata,
@@ -144,12 +142,88 @@ pub async fn create(
     Ok(region)
 }
 
+#[instrument(err(Debug), skip(db))]
+pub async fn set_area_links(
+    db: &PgPool,
+    region_id: &Uuid,
+    area_ids: &[Uuid],
+) -> Result<(), ComhairleError> {
+    let mut tx = db.begin().await?;
+
+    sqlx::query("DELETE FROM region_region_area WHERE region_id = $1")
+        .bind(region_id)
+        .execute(&mut *tx)
+        .await?;
+
+    for area_id in area_ids {
+        sqlx::query(
+            "INSERT INTO region_region_area (region_id, region_area_id)
+                VALUES ($1, $2)
+                ON CONFLICT (region_id, region_area_id) DO NOTHING",
+        )
+        .bind(region_id)
+        .bind(area_id)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn list_area_ids(db: &PgPool, region_id: &Uuid) -> Result<Vec<Uuid>, ComhairleError> {
+    let area_ids = sqlx::query_scalar::<_, Uuid>(
+        "SELECT region_area_id
+            FROM region_region_area
+            WHERE region_id = $1
+            ORDER BY region_area_id",
+    )
+    .bind(region_id)
+    .fetch_all(db)
+    .await?;
+
+    Ok(area_ids)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn add_area_link(
+    db: &PgPool,
+    region_id: &Uuid,
+    area_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    sqlx::query(
+        "INSERT INTO region_region_area (region_id, region_area_id)
+            VALUES ($1, $2)
+            ON CONFLICT (region_id, region_area_id) DO NOTHING",
+    )
+    .bind(region_id)
+    .bind(area_id)
+    .execute(db)
+    .await?;
+
+    Ok(())
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn remove_area_link(
+    db: &PgPool,
+    region_id: &Uuid,
+    area_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    sqlx::query("DELETE FROM region_region_area WHERE region_id = $1 AND region_area_id = $2")
+        .bind(region_id)
+        .bind(area_id)
+        .execute(db)
+        .await?;
+
+    Ok(())
+}
+
 impl PartialRegion {
     pub fn to_values(&self) -> Vec<(RegionIden, sea_query::SimpleExpr)> {
         let mut values = vec![];
-        if let Some(value) = &self.region_area_id {
-            values.push((RegionIden::RegionAreaId, (*value).into()));
-        }
         if let Some(value) = &self.region_type {
             values.push((RegionIden::RegionType, value.clone().into()));
         }
@@ -373,7 +447,10 @@ mod tests {
     use serde_json::json;
 
     use crate::{
-        models::model_test_helpers::setup_default_app_and_session,
+        models::{
+            model_test_helpers::setup_default_app_and_session,
+            region_area::{self, CreateRegionArea},
+        },
         routes::organizations::dto::OrganizationDto,
     };
 
@@ -410,6 +487,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_a_region(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
+
         let new_region = CreateRegion {
             name: "Glasgow".to_string(),
             description: "Largest city in Scotland".to_string(),
@@ -561,7 +639,7 @@ mod tests {
 
         let (_, org_res, _) = session.create_random_organization(&app).await?;
         let organization: OrganizationDto = serde_json::from_value(org_res)?;
-        let _ = session
+        let (status, updated_org_res, _) = session
             .put(
                 &app,
                 &format!("/organizations/{}", organization.id),
@@ -572,7 +650,11 @@ mod tests {
                 .into(),
             )
             .await?;
-
+        assert!(
+            status.is_success(),
+            "organization update failed: {}",
+            updated_org_res
+        );
         let page_options = PageOptions {
             limit: None,
             offset: None,
@@ -588,6 +670,47 @@ mod tests {
         assert_eq!(results.total, 2, "incorrect total");
         assert_eq!(results.records[0].id, region_1.id, "incorrect first id");
         assert_eq!(results.records[1].id, region_2.id, "incorrect second id");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_link_region_to_multiple_areas(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let _ = setup_default_app_and_session(&pool).await?;
+
+        let region = create(
+            &pool,
+            &CreateRegion {
+                name: "Glasgow".to_string(),
+                description: "Largest city in Scotland".to_string(),
+                region_type: RegionType::Official,
+                official_id: Some("G".to_string()),
+            },
+            "en",
+        )
+        .await?;
+
+        let area_a = region_area::create(
+            &pool,
+            CreateRegionArea {
+                zip_prefix: "G1".to_string(),
+            },
+        )
+        .await?;
+        let area_b = region_area::create(
+            &pool,
+            CreateRegionArea {
+                zip_prefix: "G2".to_string(),
+            },
+        )
+        .await?;
+
+        set_area_links(&pool, &region.id, &[area_a.id, area_b.id]).await?;
+        let area_ids = list_area_ids(&pool, &region.id).await?;
+
+        assert_eq!(area_ids.len(), 2, "incorrect number of linked areas");
+        assert!(area_ids.contains(&area_a.id), "missing first linked area");
+        assert!(area_ids.contains(&area_b.id), "missing second linked area");
 
         Ok(())
     }
