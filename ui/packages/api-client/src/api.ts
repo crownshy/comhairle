@@ -1771,6 +1771,28 @@ export const UploadFileResponse = z
   })
   .passthrough();
 export type UploadFileResponse = z.infer<typeof UploadFileResponse>;
+export const SyncLearningContentResponse = z
+  .object({
+    document: z.union([ComhairleDocument, z.null()]).optional(),
+    job_id: z.union([z.string(), z.null()]).optional(),
+    message: z.string(),
+  })
+  .passthrough();
+export type SyncLearningContentResponse = z.infer<
+  typeof SyncLearningContentResponse
+>;
+export const LearnContentPage = z
+  .object({ content: z.string(), is_rich: z.boolean() })
+  .passthrough();
+export type LearnContentPage = z.infer<typeof LearnContentPage>;
+export const LearnContentSection = z
+  .object({ heading: z.string(), pages: z.array(LearnContentPage) })
+  .passthrough();
+export type LearnContentSection = z.infer<typeof LearnContentSection>;
+export const LearnContentResponse = z
+  .object({ sections: z.array(LearnContentSection) })
+  .passthrough();
+export type LearnContentResponse = z.infer<typeof LearnContentResponse>;
 export const Order = z.enum(["asc", "desc"]);
 export type Order = z.infer<typeof Order>;
 export const created_at = z.union([Order, z.null()]).optional();
@@ -2738,6 +2760,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   page_size,
   ComhairleDocument,
   UploadFileResponse,
+  SyncLearningContentResponse,
+  LearnContentPage,
+  LearnContentSection,
+  LearnContentResponse,
   Order,
   created_at,
   CapacityStatus,
@@ -3300,6 +3326,28 @@ curl -X POST \
     alias: "StopParsingDocument",
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/documents/learn_content",
+    alias: "GetLearnContent",
+    requestFormat: "json",
+    response: LearnContentResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/documents/sync_learning_content",
+    alias: "SyncLearningContent",
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: SyncLearningContentResponse,
   },
   {
     method: "post",

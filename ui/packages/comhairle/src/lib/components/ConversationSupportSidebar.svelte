@@ -11,10 +11,12 @@
 
 	let {
 		conversation,
-		hasKnowledgeBaseDocs = false
+		hasKnowledgeBaseDocs = false,
+		currentStepTitle
 	}: {
 		conversation: LocalizedConversationDto;
 		hasKnowledgeBaseDocs?: boolean;
+		currentStepTitle?: string;
 	} = $props();
 
 	// The Learning Assistant only answers from parsed knowledge base documents, so it is hidden
@@ -86,7 +88,11 @@
 				{/each}
 				{#if learningAssistantAvailable}
 					<Tabs.Content value="learningAssistant" class="flex min-h-0 flex-1 flex-col">
-						<LearningAssistant conversationId={conversation.id} variant="sidebar" />
+						<LearningAssistant
+							conversationId={conversation.id}
+							variant="sidebar"
+							pageTitle={currentStepTitle}
+						/>
 					</Tabs.Content>
 				{/if}
 			</div>
