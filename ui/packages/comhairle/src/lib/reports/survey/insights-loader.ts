@@ -59,6 +59,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'url':
 		case 'phone_number':
 		case 'country_selector':
+		case 'date':
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
@@ -97,7 +98,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 						})
 						.filter((s) => !!s.trim()) ?? []
 			});
-		case 'date':
 		case 'group':
 		case 'statement':
 		case 'file_upload':

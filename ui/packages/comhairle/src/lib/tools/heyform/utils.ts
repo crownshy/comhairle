@@ -16,7 +16,8 @@ export const HEYFORM_NON_CHOICE_FIELD_KIND = [
 	'email',
 	'url',
 	'phone_number',
-	'country_selector'
+	'country_selector',
+	'date',
 ] as const;
 
 export const HEYFORM_OTHER_FIELD_KIND = [
@@ -24,7 +25,6 @@ export const HEYFORM_OTHER_FIELD_KIND = [
 	'welcome',
 	'thank_you',
 	'statement',
-	'date',
 	'date_range',
 	'time',
 	'input_table',
