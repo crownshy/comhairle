@@ -5,6 +5,7 @@ import type {
 	HeyFormAddressValue,
 	HeyFormChoiceFieldKind,
 	HeyFormDateRangeValue,
+	HeyFormFileUploadValue,
 	HeyFormFullNameValue,
 	HeyFormNonChoiceFieldKind,
 	HeyFormRankedValue,
@@ -165,9 +166,23 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 						})
 						.filter((s) => !!s.trim()) ?? []
 			});
+		case 'file_upload':
+			return typedObj<NonChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				properties: insight.properties ?? undefined,
+				answers:
+					insight.submissions
+						?.map((s) => {
+							const file = s.value as HeyFormFileUploadValue;
+							return `${file.filename} - ${file.url}`;
+						})
+						.filter((s) => !!s.trim()) ?? []
+			});
 		case 'group':
 		case 'statement':
-		case 'file_upload':
 		case 'time':
 		case 'input_table':
 		case 'payment':
