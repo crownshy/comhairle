@@ -4,6 +4,7 @@ import { isHeyFormFieldKind } from '$lib/tools/heyform/guards';
 import type {
 	HeyFormAddressValue,
 	HeyFormChoiceFieldKind,
+	HeyFormDateRangeValue,
 	HeyFormFullNameValue,
 	HeyFormNonChoiceFieldKind
 } from '$lib/tools/heyform/utils';
@@ -98,10 +99,23 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 						})
 						.filter((s) => !!s.trim()) ?? []
 			});
+		case 'date_range':
+			return typedObj<NonChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				answers:
+					insight.submissions
+						?.map((s) => {
+							const dateRange = s.value as HeyFormDateRangeValue;
+							return `${dateRange.start} - ${dateRange.end}`;
+						})
+						.filter((s) => !!s.trim()) ?? []
+			});
 		case 'group':
 		case 'statement':
 		case 'file_upload':
-		case 'date_range':
 		case 'time':
 		case 'input_table':
 		case 'payment':

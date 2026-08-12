@@ -18,6 +18,7 @@ export const HEYFORM_NON_CHOICE_FIELD_KIND = [
 	'phone_number',
 	'country_selector',
 	'date',
+	'date_range'
 ] as const;
 
 export const HEYFORM_OTHER_FIELD_KIND = [
@@ -25,7 +26,6 @@ export const HEYFORM_OTHER_FIELD_KIND = [
 	'welcome',
 	'thank_you',
 	'statement',
-	'date_range',
 	'time',
 	'input_table',
 	'payment',
@@ -50,6 +50,10 @@ export type HeyFormAddressValue = {
 	county: string;
 	postcode: string;
 	country: string;
+};
+export type HeyFormDateRangeValue = {
+	end: string;
+	start: string;
 };
 export type HeyFormChoiceFieldKind = (typeof HEYFORM_CHOICE_FIELD_KIND)[number];
 export type HeyFormNonChoiceFieldKind = (typeof HEYFORM_NON_CHOICE_FIELD_KIND)[number];
