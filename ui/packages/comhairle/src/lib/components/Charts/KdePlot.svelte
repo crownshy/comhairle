@@ -6,6 +6,7 @@
 
 	type Props = {
 		minLabel?: string;
+		centerLabel?: string;
 		maxLabel?: string;
 		data: Record<string, number[]>;
 		maxX?: number;
@@ -19,6 +20,7 @@
 
 	let {
 		minLabel,
+		centerLabel,
 		maxLabel,
 		data,
 		maxX = 10,
@@ -154,6 +156,9 @@
 	{#if minLabel && maxLabel}
 		<div class="text-muted-foreground relative bottom-0 flex justify-between text-xs">
 			<span>{minLabel}</span>
+			{#if centerLabel}
+				<span>{centerLabel}</span>
+			{/if}
 			<span>{maxLabel}</span>
 		</div>
 	{/if}

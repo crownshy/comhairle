@@ -64,6 +64,9 @@
 					<KdePlot
 						data={{ answers: section.answers }}
 						maxX={section.properties?.total ?? Math.max(10, ...section.answers)}
+						minLabel={section.properties?.leftLabel}
+						centerLabel={section.properties?.centerLabel}
+						maxLabel={section.properties?.rightLabel}
 					/>
 				{/if}
 				{#if isStringArray(section.answers)}
