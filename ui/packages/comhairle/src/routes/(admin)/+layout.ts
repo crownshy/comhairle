@@ -11,11 +11,23 @@ export const load: LayoutLoad = async ({ parent, data, depends }) => {
 			.GetOwnedConversations()
 			.catch(() => ({ records: [], total: 0 }));
 
+		const ownedConversationIds = new Set(
+			ownedConversations.records.map((conversation) => conversation.id)
+		);
+
 		const permittedConversations = await api
-			.GetPermittedConversations({
-				queries: { role_name: 'content_editor' }
-			})
+			.GetPermittedConversations()
 			.catch(() => ({ records: [], total: 0 }));
+
+		const nonOwnedPermittedConversationRecords = permittedConversations.records.filter(
+			(conversation) => !ownedConversationIds.has(conversation.id)
+		);
+
+		const nonOwnedPermittedConversations = {
+			...permittedConversations,
+			records: nonOwnedPermittedConversationRecords,
+			total: nonOwnedPermittedConversationRecords.length
+		};
 
 		const userOrganizations = await api.GetUserOrganizations().catch(() => ({
 			organizations: [],
@@ -26,7 +38,7 @@ export const load: LayoutLoad = async ({ parent, data, depends }) => {
 		// with a universal load present, SvelteKit does not auto-merge server data.
 		return {
 			ownedConversations,
-			permittedConversations,
+			permittedConversations: nonOwnedPermittedConversations,
 			userOrganizations,
 			sidebarWidth: data.sidebarWidth
 		};

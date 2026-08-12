@@ -25,9 +25,7 @@ async fn create_region_area(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(create_request): Json<CreateRegionArea>,
 ) -> Result<(StatusCode, Json<RegionAreaDto>), ComhairleError> {
-    let area = region_area::create(&state.db, &create_request)
-        .await?
-        .into();
+    let area = region_area::create(&state.db, create_request).await?.into();
     Ok((StatusCode::CREATED, Json(area)))
 }
 

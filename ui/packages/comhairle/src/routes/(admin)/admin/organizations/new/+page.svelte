@@ -20,8 +20,7 @@
 		contact_email: z.string().optional(),
 		external_url: z.string().optional(),
 		regions: z.array(z.string().uuid()).default([]),
-		user_emails: z.string().optional(),
-		organization_admin_emails: z.string().optional()
+		user_emails: z.string().optional()
 	});
 
 	const organizationForm = superForm(
@@ -33,8 +32,7 @@
 			contact_email: '',
 			external_url: '',
 			regions: [] as string[],
-			user_emails: '',
-			organization_admin_emails: ''
+			user_emails: ''
 		},
 		{
 			validators: zodClient(organizationFormSchema),
@@ -57,11 +55,7 @@
 						org_type: $form.org_type,
 						contact_email: $form.contact_email || undefined,
 						external_url: $form.external_url || undefined,
-						regions: $form.regions,
-						user_emails: parseEmailList($form.user_emails ?? ''),
-						organization_admin_emails: parseEmailList(
-							$form.organization_admin_emails ?? ''
-						)
+						regions: $form.regions
 					})
 				);
 
@@ -194,29 +188,6 @@
 					{/each}
 				{/if}
 			</div>
-		</div>
-
-		<div class="flex flex-col gap-2">
-			<Label for="userEmails">User emails to add</Label>
-			<textarea
-				id="userEmails"
-				bind:value={$form.user_emails}
-				class="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-sm"
-				placeholder="one per line or comma separated"
-			></textarea>
-		</div>
-
-		<div class="flex flex-col gap-2">
-			<Label for="organizationAdminEmails">Initial organization administrators</Label>
-			<p class="text-muted-foreground text-sm">
-				These users can update or delete the organization and add or remove members.
-			</p>
-			<textarea
-				id="organizationAdminEmails"
-				bind:value={$form.organization_admin_emails}
-				class="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-sm"
-				placeholder="one per line or comma separated"
-			></textarea>
 		</div>
 
 		<div class="flex justify-end">

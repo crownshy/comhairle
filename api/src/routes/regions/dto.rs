@@ -29,7 +29,6 @@ pub struct RegionDto {
     pub name: TextContentId,
     #[schemars(example = "example_uuid")]
     pub description: TextContentId,
-    pub region_area_id: Option<Uuid>,
     pub region_type: RegionType,
     pub official_id: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -53,7 +52,6 @@ pub struct LocalizedRegionDto {
     pub name: String,
     #[schemars(example = "example_localized_text")]
     pub description: String,
-    pub region_area_id: Option<Uuid>,
     pub region_type: RegionType,
     pub official_id: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -66,7 +64,6 @@ impl From<Region> for RegionDto {
             id: o.id,
             name: o.name,
             description: o.description,
-            region_area_id: o.region_area_id,
             region_type: o.region_type,
             official_id: o.official_id,
             metadata: o.metadata,
@@ -81,7 +78,6 @@ impl From<LocalizedRegion> for LocalizedRegionDto {
             id: o.id,
             name: o.name,
             description: o.description,
-            region_area_id: o.region_area_id,
             region_type: o.region_type,
             official_id: o.official_id,
             metadata: o.metadata,
@@ -97,4 +93,17 @@ impl From<PaginatedResults<LocalizedRegion>> for PaginatedResults<LocalizedRegio
             records: r.records.into_iter().map(Into::into).collect(),
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct RegionAreaLinksRequestDto {
+    pub area_ids: Vec<Uuid>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct RegionAreaLinksDto {
+    pub region_id: Uuid,
+    pub area_ids: Vec<Uuid>,
 }

@@ -28,6 +28,7 @@
 
 use std::sync::Arc;
 
+use crate::models::organization::OrganizationIden;
 use crate::models::users::UserIden;
 use crate::redis_connection::RedisConnection;
 use aide::OperationIo;
@@ -326,6 +327,7 @@ pub enum Role {
     #[serde(rename = "content_editor")]
     #[strum(serialize = "content_editor")]
     ConversationContentEditor,
+    ConversationCoHost,
     #[cfg(test)]
     Tester,
 }
@@ -336,7 +338,9 @@ impl Role {
         match self {
             Role::SuperAdmin | Role::Admin => ResourceType::System,
             Role::OrganizationAdmin => ResourceType::Organization,
-            Role::ConversationContentEditor => ResourceType::Conversation,
+            Role::ConversationContentEditor | Role::ConversationCoHost => {
+                ResourceType::Conversation
+            }
             #[cfg(test)]
             Role::Tester => ResourceType::Test,
         }
@@ -359,6 +363,7 @@ impl Role {
             Role::ConversationContentEditor => {
                 &[Action::ConversationRead, Action::ConversationUpdate]
             }
+            Role::ConversationCoHost => &[Action::ConversationRead],
             #[cfg(test)]
             Role::Tester => &[],
         }
@@ -427,6 +432,7 @@ pub enum Action {
     ListPermission,
     GrantPermission,
     RevokePermission,
+    ConversationAdmin,
     ConversationRead,
     ConversationUpdate,
     OrganizationRead,
@@ -443,7 +449,9 @@ impl Action {
             | Action::GrantPermission
             | Action::RevokePermission
             | Action::OrganizationCreate => ResourceType::System,
-            Action::ConversationRead | Action::ConversationUpdate => ResourceType::Conversation,
+            Action::ConversationRead | Action::ConversationUpdate | Action::ConversationAdmin => {
+                ResourceType::Conversation
+            }
             Action::OrganizationRead | Action::OrganizationUpdate | Action::OrganizationDelete => {
                 ResourceType::Organization
             }
@@ -936,6 +944,14 @@ pub struct UserWithPermissionDto {
     pub role_name: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationWithPermissionDto {
+    pub id: Uuid,
+    pub name: String,
+    pub role_name: String,
+}
+
 #[instrument(err(Debug))]
 pub async fn list_users_with_permission(
     db: &PgPool,
@@ -995,6 +1011,73 @@ pub async fn list_users_with_permission(
     let users_with_permission = query_as_with(&sql, values).fetch_all(db).await?;
 
     Ok(users_with_permission)
+}
+
+#[instrument(err(Debug))]
+pub async fn list_organizations_with_permission(
+    db: &PgPool,
+    resource_type: &str,
+    resource_id: Uuid,
+    role_name: Option<&str>,
+) -> Result<Vec<OrganizationWithPermissionDto>, ComhairleError> {
+    let mut query = Query::select()
+        .from(ResourcePermissionIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            OrganizationIden::Table,
+            Expr::col((OrganizationIden::Table, OrganizationIden::Id)).equals((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::OrganizationId,
+            )),
+        )
+        .columns([
+            (OrganizationIden::Table, OrganizationIden::Id),
+            (OrganizationIden::Table, OrganizationIden::Name),
+        ])
+        .column((
+            ResourcePermissionIden::Table,
+            ResourcePermissionIden::RoleName,
+        ))
+        .and_where(
+            Expr::col((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::ResourceType,
+            ))
+            .eq(resource_type.to_owned()),
+        )
+        .and_where(
+            Expr::col((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::ResourceId,
+            ))
+            .eq(resource_id.to_owned()),
+        )
+        .to_owned();
+
+    if let Some(role_name) = role_name {
+        query = query
+            .and_where(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::RoleName,
+                ))
+                .eq(role_name.to_owned()),
+            )
+            .to_owned();
+    }
+
+    query = query
+        .order_by(
+            (OrganizationIden::Table, OrganizationIden::Name),
+            sea_query::Order::Asc,
+        )
+        .to_owned();
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let organizations_with_permission = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(organizations_with_permission)
 }
 
 #[cfg(test)]
@@ -1247,18 +1330,6 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
-
-        // Grant the user the super admin role, which should be the only one.
-        grant_role(
-            &state,
-            GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &session.id.unwrap(),
-                grant_reason: "Testing",
-            },
-        )
-        .await?;
 
         // Attempt to revoke the admin role, which should be the only one
         let result = revoke_role(

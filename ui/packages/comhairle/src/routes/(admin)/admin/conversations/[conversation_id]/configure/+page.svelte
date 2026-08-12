@@ -11,6 +11,7 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
+	import CohostManager from './CohostManager.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
@@ -28,9 +29,10 @@
 	import type {
 		ConversationWithTranslations,
 		MediaDto,
+		OrganizationWithPermissionDto,
 		UserDto,
 		UserWithPermissionDto,
-		WorkflowDto
+		WorkflowDtoa
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { Image as ImageIcon, Info } from 'lucide-svelte';
@@ -45,6 +47,7 @@
 	}: {
 		data: {
 			conversation: ConversationWithTranslations;
+			cohostOrganizations: OrganizationWithPermissionDto[];
 			workflows: WorkflowDto[];
 			media: MediaDto | null;
 			user: UserDto;
@@ -56,6 +59,8 @@
 	let workflow = $derived(data.workflows[0]);
 	let imageMedia = $derived(data.media);
 	let permittedUsers = $derived(data.usersWithPermission);
+	let cohostOrganizations = $derived(data.cohostOrganizations);
+	let canManageCohosts = $derived(data.user.id === conversation.ownerId);
 
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
@@ -984,6 +989,27 @@
 					</Form.Control>
 					<Form.FieldErrors />
 				</Form.Field>
+			</div>
+		</div>
+
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<div class="lg:w-50 lg:shrink-0 lg:pt-2">
+				<div class="flex items-center gap-1.5">
+					<h3 class="text-base font-semibold">Co-hosting organizations</h3>
+					{@render infoPreview(
+						'Additional organizations that should have read access to this conversation. Search by organization name to add one, and remove it here later.'
+					)}
+				</div>
+			</div>
+			<div class="flex-1">
+				<CohostManager
+					conversationId={conversation.id}
+					primaryHostOrganizationId={conversation.organizationId ?? null}
+					{cohostOrganizations}
+					canManage={canManageCohosts}
+				/>
 			</div>
 		</div>
 	{/if}
