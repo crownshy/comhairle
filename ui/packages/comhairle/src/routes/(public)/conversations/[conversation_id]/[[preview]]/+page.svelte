@@ -134,7 +134,7 @@
 				{#if user}
 					{#if participation}
 						<Button class="mt-5 w-full md:w-fit" variant="primaryDark" href={returnPath}
-							>{m.jump_back_in()}</Button
+							>{conversation.callToAction || m.jump_back_in()}</Button
 						>
 					{:else}
 						<Button
