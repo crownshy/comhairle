@@ -157,6 +157,7 @@ export const LocalizedOrganizationDto = z
     description: z.string(),
     externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     mission: z.string(),
     name: z.string(),
     orgType: OrganizationType,
@@ -1179,6 +1180,16 @@ export const PartialConversation = z
   .partial()
   .passthrough();
 export type PartialConversation = z.infer<typeof PartialConversation>;
+export const OrganizationWithPermissionDto = z
+  .object({ id: z.string().uuid(), name: z.string(), roleName: z.string() })
+  .passthrough();
+export type OrganizationWithPermissionDto = z.infer<
+  typeof OrganizationWithPermissionDto
+>;
+export const CohostInfo = z
+  .object({ organization_id: z.string().uuid() })
+  .passthrough();
+export type CohostInfo = z.infer<typeof CohostInfo>;
 export const SendNotificationRequest = z
   .object({
     content: z.string(),
@@ -1933,6 +1944,28 @@ export const UploadFileResponse = z
   })
   .passthrough();
 export type UploadFileResponse = z.infer<typeof UploadFileResponse>;
+export const SyncLearningContentResponse = z
+  .object({
+    document: z.union([ComhairleDocument, z.null()]).optional(),
+    job_id: z.union([z.string(), z.null()]).optional(),
+    message: z.string(),
+  })
+  .passthrough();
+export type SyncLearningContentResponse = z.infer<
+  typeof SyncLearningContentResponse
+>;
+export const LearnContentPage = z
+  .object({ content: z.string(), is_rich: z.boolean() })
+  .passthrough();
+export type LearnContentPage = z.infer<typeof LearnContentPage>;
+export const LearnContentSection = z
+  .object({ heading: z.string(), pages: z.array(LearnContentPage) })
+  .passthrough();
+export type LearnContentSection = z.infer<typeof LearnContentSection>;
+export const LearnContentResponse = z
+  .object({ sections: z.array(LearnContentSection) })
+  .passthrough();
+export type LearnContentResponse = z.infer<typeof LearnContentResponse>;
 export const Order = z.enum(["asc", "desc"]);
 export type Order = z.infer<typeof Order>;
 export const created_at = z.union([Order, z.null()]).optional();
@@ -1995,6 +2028,7 @@ export const LocalizedEventDto = z
     format: EventFormat,
     id: z.string().uuid(),
     location: z.union([EventLocation, z.null()]).optional(),
+    metadata: z.unknown().optional(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -2033,6 +2067,7 @@ export const EventDto = z
     format: EventFormat,
     id: z.string().uuid(),
     location: z.union([EventLocation, z.null()]).optional(),
+    metadata: z.unknown().optional(),
     name: z.string().uuid(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -2078,6 +2113,7 @@ export const EventWithTranslations = z
     format: EventFormat,
     id: z.string().uuid(),
     location: z.union([EventLocation, z.null()]).optional(),
+    metadata: z.unknown().optional(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -2101,6 +2137,7 @@ export const PartialEvent = z
     end_time: z.union([z.string(), z.null()]),
     format: z.union([EventFormat, z.null()]),
     location: z.union([EventLocation, z.null()]),
+    metadata: z.unknown(),
     name: z.union([z.string(), z.null()]),
     signup_mode: z.union([z.string(), z.null()]),
     start_time: z.union([z.string(), z.null()]),
@@ -2285,54 +2322,31 @@ export const CreateOrganization = z
     mission: z.string(),
     name: z.string(),
     org_type: OrganizationType,
-    organization_admin_emails: z
-      .union([z.array(z.string()), z.null()])
-      .optional(),
     regions: z.union([z.array(z.string().uuid()), z.null()]).optional(),
-    user_emails: z.union([z.array(z.string()), z.null()]).optional(),
   })
   .passthrough();
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
-export const OrganizationAdminBootstrapFailureDto = z
-  .object({ email: z.string(), message: z.string() })
-  .passthrough();
-export type OrganizationAdminBootstrapFailureDto = z.infer<
-  typeof OrganizationAdminBootstrapFailureDto
->;
-export const OrganizationAdminBootstrapSummaryDto = z
+export const OrganizationDto = z
   .object({
-    assigned: z.number().int().gte(0),
-    attempted: z.number().int().gte(0),
-    createdAccounts: z.number().int().gte(0),
-    emailed: z.number().int().gte(0),
-    failures: z.array(OrganizationAdminBootstrapFailureDto),
-  })
-  .passthrough();
-export type OrganizationAdminBootstrapSummaryDto = z.infer<
-  typeof OrganizationAdminBootstrapSummaryDto
->;
-export const CreateOrganizationResponseDto = z
-  .object({
-    adminBootstrapSummary: OrganizationAdminBootstrapSummaryDto,
     contactEmail: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
     externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     mission: z.string().uuid(),
     name: z.string(),
     orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
   })
   .passthrough();
-export type CreateOrganizationResponseDto = z.infer<
-  typeof CreateOrganizationResponseDto
->;
+export type OrganizationDto = z.infer<typeof OrganizationDto>;
 export const UpdateOrganizationBody = z
   .object({
     contact_email: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     external_url: z.union([z.string(), z.null()]),
+    metadata: z.unknown(),
     mission: z.union([z.string(), z.null()]),
     name: z.union([z.string(), z.null()]),
     org_type: z.union([OrganizationType, z.null()]),
@@ -2341,20 +2355,6 @@ export const UpdateOrganizationBody = z
   .partial()
   .passthrough();
 export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
-export const OrganizationDto = z
-  .object({
-    contactEmail: z.union([z.string(), z.null()]).optional(),
-    createdAt: z.string().datetime({ offset: true }),
-    description: z.string().uuid(),
-    externalUrl: z.union([z.string(), z.null()]).optional(),
-    id: z.string().uuid(),
-    mission: z.string().uuid(),
-    name: z.string(),
-    orgType: OrganizationType,
-    regions: z.array(z.string().uuid()),
-  })
-  .passthrough();
-export type OrganizationDto = z.infer<typeof OrganizationDto>;
 export const OrganizationTeamRole = z.enum(["member", "admin"]);
 export type OrganizationTeamRole = z.infer<typeof OrganizationTeamRole>;
 export const OrganizationTeamUserDto = z
@@ -2405,6 +2405,7 @@ export const LocalizedRegionDto = z
     created_at: z.string().datetime({ offset: true }),
     description: z.string(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     name: z.string(),
     official_id: z.union([z.string(), z.null()]).optional(),
     region_type: RegionType,
@@ -2431,6 +2432,7 @@ export const RegionDto = z
     created_at: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
     id: z.string().uuid(),
+    metadata: z.unknown().optional(),
     name: z.string().uuid(),
     official_id: z.union([z.string(), z.null()]).optional(),
     region_type: RegionType,
@@ -2439,12 +2441,43 @@ export const RegionDto = z
 export type RegionDto = z.infer<typeof RegionDto>;
 export const PartialRegion = z
   .object({
+    metadata: z.unknown(),
     official_id: z.union([z.string(), z.null()]),
     region_type: z.union([RegionType, z.null()]),
   })
   .partial()
   .passthrough();
 export type PartialRegion = z.infer<typeof PartialRegion>;
+export const RegionAreaLinksDto = z
+  .object({
+    area_ids: z.array(z.string().uuid()),
+    region_id: z.string().uuid(),
+  })
+  .passthrough();
+export type RegionAreaLinksDto = z.infer<typeof RegionAreaLinksDto>;
+export const RegionAreaLinksRequestDto = z
+  .object({ area_ids: z.array(z.string().uuid()) })
+  .passthrough();
+export type RegionAreaLinksRequestDto = z.infer<
+  typeof RegionAreaLinksRequestDto
+>;
+export const RegionAreaDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    zipPrefix: z.string(),
+  })
+  .passthrough();
+export type RegionAreaDto = z.infer<typeof RegionAreaDto>;
+export const CreateRegionArea = z
+  .object({ zip_prefix: z.string() })
+  .passthrough();
+export type CreateRegionArea = z.infer<typeof CreateRegionArea>;
+export const PartialRegionArea = z
+  .object({ zip_prefix: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type PartialRegionArea = z.infer<typeof PartialRegionArea>;
 export const MediaContentType = z.enum([
   "image/jpeg",
   "image/png",
@@ -2810,6 +2843,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ConversationWithTranslations,
   ConversationResponse,
   PartialConversation,
+  OrganizationWithPermissionDto,
+  CohostInfo,
   SendNotificationRequest,
   SendEmailNotificationResponse,
   NotificationRecipientsResponse,
@@ -2887,6 +2922,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   page_size,
   ComhairleDocument,
   UploadFileResponse,
+  SyncLearningContentResponse,
+  LearnContentPage,
+  LearnContentSection,
+  LearnContentResponse,
   Order,
   created_at,
   CapacityStatus,
@@ -2936,11 +2975,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SendToUserMessage,
   PaginatedResults_for_LocalizedOrganizationDto,
   CreateOrganization,
-  OrganizationAdminBootstrapFailureDto,
-  OrganizationAdminBootstrapSummaryDto,
-  CreateOrganizationResponseDto,
-  UpdateOrganizationBody,
   OrganizationDto,
+  UpdateOrganizationBody,
   OrganizationTeamRole,
   OrganizationTeamUserDto,
   OrganizationTeamResponseDto,
@@ -2953,6 +2989,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateRegion,
   RegionDto,
   PartialRegion,
+  RegionAreaLinksDto,
+  RegionAreaLinksRequestDto,
+  RegionAreaDto,
+  CreateRegionArea,
+  PartialRegionArea,
   MediaContentType,
   content_type,
   MediaDto,
@@ -3335,6 +3376,37 @@ Use a raw HTTP request and process the response body incrementally.`,
   },
   {
     method: "get",
+    path: "/conversation/:conversation_id/cohosts",
+    alias: "ListConversationCoHostOrganizations",
+    description: `Returns organizations that hold the conversation co-host role for this conversation.`,
+    requestFormat: "json",
+    response: z.array(OrganizationWithPermissionDto),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/cohosts",
+    alias: "AddConversationCoHostOrganization",
+    description: `Grants the conversation co-host role to the specified organization.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ organization_id: z.string().uuid() }).passthrough(),
+      },
+    ],
+    response: OrganizationWithPermissionDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/cohosts/:cohost_id",
+    alias: "RemoveConversationCoHostOrganization",
+    description: `Revokes the conversation co-host role from the specified organization.`,
+    requestFormat: "json",
+    response: OrganizationWithPermissionDto,
+  },
+  {
+    method: "get",
     path: "/conversation/:conversation_id/contacts/export",
     alias: "ExportConversationContacts",
     description: `Exports a CSV file containing all users who have opted in to receive email updates for this conversation`,
@@ -3446,6 +3518,28 @@ curl -X POST \
     alias: "StopParsingDocument",
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/documents/learn_content",
+    alias: "GetLearnContent",
+    requestFormat: "json",
+    response: LearnContentResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/documents/sync_learning_content",
+    alias: "SyncLearningContent",
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: SyncLearningContentResponse,
   },
   {
     method: "post",
@@ -3749,6 +3843,29 @@ curl -X POST \
     alias: "SeedEventBreakoutPlan",
     requestFormat: "json",
     response: BreakoutPlanDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/metadata",
+    alias: "GetEventMetadata",
+    description: `Get event metadata`,
+    requestFormat: "json",
+    response: z.unknown(),
+  },
+  {
+    method: "patch",
+    path: "/conversation/:conversation_id/events/:event_id/metadata",
+    alias: "PatchEventMetadata",
+    description: `Merge a JSON object into event.metadata at the top level using jsonb concatenation`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
+    response: EventDto,
   },
   {
     method: "get",
@@ -4745,7 +4862,7 @@ curl -X POST \
         schema: CreateOrganization,
       },
     ],
-    response: CreateOrganizationResponseDto,
+    response: OrganizationDto,
   },
   {
     method: "get",
@@ -4837,6 +4954,29 @@ curl -X POST \
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/organizations/:organization_id/metadata",
+    alias: "GetOrganizationMetadata",
+    description: `Get organization metadata`,
+    requestFormat: "json",
+    response: z.unknown(),
+  },
+  {
+    method: "patch",
+    path: "/organizations/:organization_id/metadata",
+    alias: "PatchOrganizationMetadata",
+    description: `Merge a JSON object into organization.metadata at the top level using jsonb concatenation`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
+    response: OrganizationDto,
   },
   {
     method: "get",
@@ -5034,6 +5174,55 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/region_areas",
+    alias: "ListRegionAreas",
+    requestFormat: "json",
+    response: z.array(RegionAreaDto),
+  },
+  {
+    method: "post",
+    path: "/region_areas",
+    alias: "CreateRegionArea",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ zip_prefix: z.string() }).passthrough(),
+      },
+    ],
+    response: RegionAreaDto,
+  },
+  {
+    method: "get",
+    path: "/region_areas/:region_area_id",
+    alias: "GetRegionArea",
+    requestFormat: "json",
+    response: RegionAreaDto,
+  },
+  {
+    method: "put",
+    path: "/region_areas/:region_area_id",
+    alias: "UpdateRegionArea",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PartialRegionArea,
+      },
+    ],
+    response: RegionAreaDto,
+  },
+  {
+    method: "delete",
+    path: "/region_areas/:region_area_id",
+    alias: "DeleteRegionArea",
+    requestFormat: "json",
+    response: RegionAreaDto,
+  },
+  {
+    method: "get",
     path: "/regions",
     alias: "ListRegions",
     description: `Paginated list of regions with optional ordering`,
@@ -5111,6 +5300,68 @@ curl -X POST \
     alias: "DeleteRegion",
     description: `Delete a region`,
     requestFormat: "json",
+    response: RegionDto,
+  },
+  {
+    method: "get",
+    path: "/regions/:region_id/areas",
+    alias: "GetRegionAreaLinks",
+    description: `List region area links`,
+    requestFormat: "json",
+    response: RegionAreaLinksDto,
+  },
+  {
+    method: "put",
+    path: "/regions/:region_id/areas",
+    alias: "SetRegionAreaLinks",
+    description: `Replace region area links`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: RegionAreaLinksRequestDto,
+      },
+    ],
+    response: RegionAreaLinksDto,
+  },
+  {
+    method: "post",
+    path: "/regions/:region_id/areas/:area_id",
+    alias: "AddRegionAreaLink",
+    description: `Add region area link`,
+    requestFormat: "json",
+    response: RegionAreaLinksDto,
+  },
+  {
+    method: "delete",
+    path: "/regions/:region_id/areas/:area_id",
+    alias: "RemoveRegionAreaLink",
+    description: `Remove region area link`,
+    requestFormat: "json",
+    response: RegionAreaLinksDto,
+  },
+  {
+    method: "get",
+    path: "/regions/:region_id/metadata",
+    alias: "GetRegionMetadata",
+    description: `Get region metadata`,
+    requestFormat: "json",
+    response: z.unknown(),
+  },
+  {
+    method: "patch",
+    path: "/regions/:region_id/metadata",
+    alias: "PatchRegionMetadata",
+    description: `Merge a JSON object into region.metadata at the top level using jsonb concatenation`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.unknown(),
+      },
+    ],
     response: RegionDto,
   },
   {
@@ -5996,11 +6247,6 @@ This struct contains optional fields that can be updated on a TextTranslation re
         name: "offset",
         type: "Query",
         schema: limit,
-      },
-      {
-        name: "role_name",
-        type: "Query",
-        schema: z.string(),
       },
     ],
     response: PaginatedResults_for_LocalizedConversationDto,

@@ -733,6 +733,12 @@ mod tests {
         use chrono::Utc;
         use std::str::FromStr;
 
+        let mut config = test_config()?;
+        if config.categorization_service.is_none() {
+            // Skip this test if the test config doesn't have a categorization service configured.
+            return Ok(());
+        }
+
         let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
         storage_service
             .expect_upload_file()
@@ -745,7 +751,6 @@ mod tests {
                 })
             });
 
-        let mut config = test_config()?;
         config.bot_service = None;
         let webhook_secret = config
             .categorization_service

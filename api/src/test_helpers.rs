@@ -1,4 +1,5 @@
 use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
+use crate::models::region_area;
 use crate::redis_connection::RedisConnection;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 use chrono::Utc;
@@ -1111,6 +1112,32 @@ impl UserSession {
                 "description": "test_organization_description",
                 "mission": "test_mission",
                 "org_type": "non_profit",
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
+    pub async fn create_region_area(
+        &mut self,
+        app: &Router,
+        region_area: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(app, "/region_areas", region_area.to_string().into())
+            .await
+    }
+
+    pub async fn create_random_region_area(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let zip_prefix = format!("test-{}", Uuid::new_v4());
+        self.post(
+            app,
+            "/region_areas",
+            json!({
+                "zip_prefix": zip_prefix,
             })
             .to_string()
             .into(),

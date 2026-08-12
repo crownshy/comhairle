@@ -35,6 +35,7 @@ pub struct Region {
     pub region_type: RegionType,
     #[partially(transparent)]
     pub official_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -71,12 +72,13 @@ impl std::fmt::Display for RegionType {
     }
 }
 
-const DEFAULT_COLUMNS: [RegionIden; 7] = [
+const DEFAULT_COLUMNS: [RegionIden; 8] = [
     RegionIden::Id,
     RegionIden::Name,
     RegionIden::Description,
     RegionIden::RegionType,
     RegionIden::OfficialId,
+    RegionIden::Metadata,
     RegionIden::CreatedAt,
     RegionIden::UpdatedAt,
 ];
@@ -140,6 +142,85 @@ pub async fn create(
     Ok(region)
 }
 
+#[instrument(err(Debug), skip(db))]
+pub async fn set_area_links(
+    db: &PgPool,
+    region_id: &Uuid,
+    area_ids: &[Uuid],
+) -> Result<(), ComhairleError> {
+    let mut tx = db.begin().await?;
+
+    sqlx::query("DELETE FROM region_region_area WHERE region_id = $1")
+        .bind(region_id)
+        .execute(&mut *tx)
+        .await?;
+
+    for area_id in area_ids {
+        sqlx::query(
+            "INSERT INTO region_region_area (region_id, region_area_id)
+                VALUES ($1, $2)
+                ON CONFLICT (region_id, region_area_id) DO NOTHING",
+        )
+        .bind(region_id)
+        .bind(area_id)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn list_area_ids(db: &PgPool, region_id: &Uuid) -> Result<Vec<Uuid>, ComhairleError> {
+    let area_ids = sqlx::query_scalar::<_, Uuid>(
+        "SELECT region_area_id
+            FROM region_region_area
+            WHERE region_id = $1
+            ORDER BY region_area_id",
+    )
+    .bind(region_id)
+    .fetch_all(db)
+    .await?;
+
+    Ok(area_ids)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn add_area_link(
+    db: &PgPool,
+    region_id: &Uuid,
+    area_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    sqlx::query(
+        "INSERT INTO region_region_area (region_id, region_area_id)
+            VALUES ($1, $2)
+            ON CONFLICT (region_id, region_area_id) DO NOTHING",
+    )
+    .bind(region_id)
+    .bind(area_id)
+    .execute(db)
+    .await?;
+
+    Ok(())
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn remove_area_link(
+    db: &PgPool,
+    region_id: &Uuid,
+    area_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    sqlx::query("DELETE FROM region_region_area WHERE region_id = $1 AND region_area_id = $2")
+        .bind(region_id)
+        .bind(area_id)
+        .execute(db)
+        .await?;
+
+    Ok(())
+}
+
 impl PartialRegion {
     pub fn to_values(&self) -> Vec<(RegionIden, sea_query::SimpleExpr)> {
         let mut values = vec![];
@@ -148,6 +229,9 @@ impl PartialRegion {
         }
         if let Some(value) = &self.official_id {
             values.push((RegionIden::OfficialId, value.into()));
+        }
+        if let Some(value) = &self.metadata {
+            values.push((RegionIden::Metadata, value.clone().into()));
         }
 
         values
@@ -174,6 +258,53 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let region = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(region)
+}
+
+/// Get the metadata for a region by its ID.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_metadata(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<Option<serde_json::Value>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns([RegionIden::Metadata])
+        .from(RegionIden::Table)
+        .and_where(Expr::col(RegionIden::Id).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let (metadata,) = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(metadata)
+}
+
+/// Merge the supplied object into the region's `metadata` jsonb column at
+/// the top level. Existing keys are overwritten by the patch, keys not present
+/// in the patch are left untouched.
+pub async fn patch_metadata(
+    db: &PgPool,
+    id: &Uuid,
+    patch: serde_json::Value,
+) -> Result<Region, ComhairleError> {
+    if !patch.is_object() {
+        return Err(ComhairleError::BadRequest(
+            "metadata patch must be a JSON object".into(),
+        ));
+    }
+
+    let region = sqlx::query_as::<_, Region>(
+        "UPDATE region
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *",
+    )
+    .bind(patch)
+    .bind(id)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Region")?;
 
     Ok(region)
 }
@@ -280,6 +411,22 @@ pub async fn get_localized_by_id(
 }
 
 #[instrument(err(Debug))]
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(RegionIden::Table)
+        .and_where(Expr::col(RegionIden::Id).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let region = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Region")?;
+
+    Ok(region)
+}
+
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RegionIden::Table)
@@ -300,7 +447,10 @@ mod tests {
     use serde_json::json;
 
     use crate::{
-        models::model_test_helpers::setup_default_app_and_session,
+        models::{
+            model_test_helpers::setup_default_app_and_session,
+            region_area::{self, CreateRegionArea},
+        },
         routes::organizations::dto::OrganizationDto,
     };
 
@@ -337,6 +487,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_a_region(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
+
         let new_region = CreateRegion {
             name: "Glasgow".to_string(),
             description: "Largest city in Scotland".to_string(),
@@ -359,6 +510,7 @@ mod tests {
         let update_region = PartialRegion {
             region_type: Some(RegionType::Custom),
             official_id: Some("G1".to_string()),
+            ..Default::default()
         };
         let updated_region = update(&pool, &region.id, &update_region).await?;
 
@@ -487,7 +639,7 @@ mod tests {
 
         let (_, org_res, _) = session.create_random_organization(&app).await?;
         let organization: OrganizationDto = serde_json::from_value(org_res)?;
-        let _ = session
+        let (status, updated_org_res, _) = session
             .put(
                 &app,
                 &format!("/organizations/{}", organization.id),
@@ -498,7 +650,11 @@ mod tests {
                 .into(),
             )
             .await?;
-
+        assert!(
+            status.is_success(),
+            "organization update failed: {}",
+            updated_org_res
+        );
         let page_options = PageOptions {
             limit: None,
             offset: None,
@@ -514,6 +670,47 @@ mod tests {
         assert_eq!(results.total, 2, "incorrect total");
         assert_eq!(results.records[0].id, region_1.id, "incorrect first id");
         assert_eq!(results.records[1].id, region_2.id, "incorrect second id");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_link_region_to_multiple_areas(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let _ = setup_default_app_and_session(&pool).await?;
+
+        let region = create(
+            &pool,
+            &CreateRegion {
+                name: "Glasgow".to_string(),
+                description: "Largest city in Scotland".to_string(),
+                region_type: RegionType::Official,
+                official_id: Some("G".to_string()),
+            },
+            "en",
+        )
+        .await?;
+
+        let area_a = region_area::create(
+            &pool,
+            CreateRegionArea {
+                zip_prefix: "G1".to_string(),
+            },
+        )
+        .await?;
+        let area_b = region_area::create(
+            &pool,
+            CreateRegionArea {
+                zip_prefix: "G2".to_string(),
+            },
+        )
+        .await?;
+
+        set_area_links(&pool, &region.id, &[area_a.id, area_b.id]).await?;
+        let area_ids = list_area_ids(&pool, &region.id).await?;
+
+        assert_eq!(area_ids.len(), 2, "incorrect number of linked areas");
+        assert!(area_ids.contains(&area_a.id), "missing first linked area");
+        assert!(area_ids.contains(&area_b.id), "missing second linked area");
 
         Ok(())
     }

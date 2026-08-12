@@ -23,7 +23,7 @@ use crate::{
         media::{FromWithMedia, MediaResolver},
         organization::{self, OrganizationFilterOptions, OrganizationOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        permissions::{Action, can_perform_resource_action},
+        permissions::{Action, Role, can_perform_resource_action, has_resource_permission},
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{
@@ -75,11 +75,6 @@ pub async fn get_user_owned_conversations(
     Ok((StatusCode::OK, Json(results_with_media)))
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
-pub struct PermittedConversationsQuery {
-    pub role_name: String,
-}
-
 #[instrument(err(Debug), skip(state))]
 pub async fn get_user_permitted_conversations(
     State(state): State<Arc<ComhairleState>>,
@@ -87,15 +82,23 @@ pub async fn get_user_permitted_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-    Query(PermittedConversationsQuery { role_name }): Query<PermittedConversationsQuery>,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
+    let is_super_admin = has_resource_permission(
+        &state,
+        Role::SuperAdmin.system_triplet(),
+        &user.id,
+        user.organization_id.as_ref(),
+    )
+    .await?;
+
     let results = models::conversation::list_for_permitted_user(
         &state.db,
         user.id,
+        user.organization_id,
+        is_super_admin,
         page_options,
         order_options,
         filter_options,
-        &role_name,
         Some("en".to_string()),
     )
     .await?;

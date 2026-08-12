@@ -22,11 +22,24 @@ use crate::{
     models::{
         conversation,
         job::{self, CreateJob},
-        user_participation,
+        translations, user_participation, workflow, workflow_step,
     },
     routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin},
+    tools::{
+        ToolConfig,
+        learn::{LearnPageEntry, PageContent},
+    },
     worker_service::process_documents::DocumentJob,
 };
+
+/// Reserved knowledge-base document name for the auto-synced learn-step content.
+///
+/// A conversation has at most one of these in its knowledge base; a re-sync
+/// replaces it. The frontend builds a text-bearing PDF from the learn steps and
+/// uploads it under this name, so the bot service parses it natively (clean text +
+/// per-chunk highlight positions) and the existing PDF viewer displays it. See
+/// the "learn content as PDF" spec and ADR-0014.
+pub const LEARN_CONTENT_DOCUMENT_NAME: &str = "comhairle_learning_step_material.pdf";
 
 /// Not sure if this is the desired behaviour. I made a few assumptions:
 /// - The user owns the conversation
@@ -165,16 +178,28 @@ async fn download_document(
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
     let download_stream = bot_service
-        .download_document(document_id, knowledge_base_id)
+        .download_document(&document_id, knowledge_base_id)
         .await?;
 
     let status = download_stream.status();
     let headers = download_stream.headers().clone();
 
-    if !status.is_success() {
-        return Err(ComhairleError::DownloadError(
-            "Unable to download document: {document_id}".to_string(),
-        ));
+    // RAGFlow returns 200 with a JSON error envelope (e.g. code 102 "The dataset
+    // not own the document ...") - not an HTTP error - when the document no longer
+    // exists. That happens to source chips in older assistant answers after a
+    // learn-content re-sync replaced the document with a new id. A real file
+    // download is streamed as octet-stream / a file mime, never application/json,
+    // so treat a JSON response body as "source gone" and surface a clean 404
+    // instead of streaming the raw error back as if it were the document.
+    let is_json_error = headers
+        .get(axum::http::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.starts_with("application/json"));
+
+    if !status.is_success() || is_json_error {
+        return Err(ComhairleError::ResourceNotFound(format!(
+            "Document {document_id} is no longer available"
+        )));
     }
 
     let mut response = Response::new(Body::from_stream(download_stream.bytes_stream()));
@@ -263,6 +288,207 @@ async fn get_knowledge_base_id(
     Ok(knowledge_base_id)
 }
 
+/// Resolve a learn page entry to its *raw* content in the given locale.
+///
+/// Returns a [`LearnContentPage`]: modern `text_content` pages carry TipTap ProseMirror
+/// JSON (`is_rich = true`) which the frontend renders through the normal rich-text
+/// renderer (and converts to a PDF at sync time); legacy pages carry inline markdown
+/// (`is_rich = false`). Returns `None` when the page has no text for this locale.
+async fn resolve_page_raw(
+    db: &sqlx::PgPool,
+    entry: &LearnPageEntry,
+    locale: &str,
+) -> Result<Option<LearnContentPage>, ComhairleError> {
+    match entry {
+        LearnPageEntry::TextContent(page) => {
+            Ok(
+                translations::get_text_translation_optional(db, &page.text_content_id, locale)
+                    .await?
+                    .map(|translation| LearnContentPage {
+                        content: translation.content,
+                        is_rich: true,
+                    }),
+            )
+        }
+        LearnPageEntry::Legacy(localized_pages) => Ok(localized_pages
+            .iter()
+            .find(|page| page.lang == locale)
+            .or_else(|| localized_pages.first())
+            .map(|page| match &page.content {
+                PageContent::Markdown(markdown) => LearnContentPage {
+                    content: markdown.clone(),
+                    is_rich: false,
+                },
+            })),
+    }
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+pub struct SyncLearningContentResponse {
+    message: String,
+    job_id: Option<Uuid>,
+    document: Option<ComhairleDocument>,
+}
+
+/// Replace the conversation's learn-content knowledge-base document with a
+/// freshly-generated PDF and kick off a re-parse.
+///
+/// The PDF is built client-side from the learn steps (a text-bearing document
+/// with real tables) and posted here as multipart `file`; the backend owns the
+/// upload and re-parse. The reserved-name document is deleted first (the bot
+/// service re-chunks on parse, so we replace rather than update in place), and
+/// the same background parse job as a normal upload connects the chat bot once
+/// parsing completes.
+#[instrument(err(Debug), skip(state, form_data))]
+async fn sync_learning_content(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    mut form_data: Multipart,
+) -> Result<(StatusCode, Json<SyncLearningContentResponse>), ComhairleError> {
+    let bot_service = state.required_bot_service()?;
+    let worker_service = state.required_worker_service()?;
+
+    let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
+
+    // Read the generated PDF bytes from the request before touching the bot
+    // service, so a malformed request fails cleanly without first deleting the
+    // existing doc.
+    let bytes = match form_data.next_field().await? {
+        Some(field) => field.bytes().await?.to_vec(),
+        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
+    };
+    if form_data.next_field().await?.is_some() {
+        return Err(ComhairleError::BadRequest(
+            "Only one document upload allowed".to_string(),
+        ));
+    }
+
+    // Drop any previously-synced learn-content document so retrieval never
+    // serves stale chunks.
+    //
+    // We deliberately do NOT use RAGFlow's `?name=` document filter: on our
+    // instance it returns `102 "You don't own the document <name>"` for any name
+    // (even one that does not exist), which would fail the sync before it starts.
+    // List the KB's documents and match the reserved name in Rust instead.
+    let (_, existing) = bot_service
+        .list_documents(
+            &knowledge_base_id,
+            Some(GetQueryParams {
+                page_size: Some(1000),
+                ..Default::default()
+            }),
+        )
+        .await?;
+    for document in existing
+        .into_iter()
+        .filter(|document| document.name == LEARN_CONTENT_DOCUMENT_NAME)
+    {
+        bot_service
+            .delete_document(document.id, knowledge_base_id.clone())
+            .await?;
+    }
+
+    let file = UploadFileRequest {
+        filename: LEARN_CONTENT_DOCUMENT_NAME.to_string(),
+        bytes,
+    };
+    let (_, document) = bot_service
+        .upload_document(&knowledge_base_id, file)
+        .await?;
+
+    let create_job = CreateJob {
+        progress: Some(0.0),
+        ..Default::default()
+    };
+    let job = job::create(&state.db, create_job).await?;
+    let worker_job = DocumentJob {
+        job_id: job.id,
+        conversation_id,
+        document_id: document.id.clone(),
+    };
+    worker_service.push_document_job(worker_job).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(SyncLearningContentResponse {
+            message: "Learn content sync started".to_string(),
+            job_id: Some(job.id),
+            document: Some(document),
+        }),
+    ))
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+pub struct LearnContentPage {
+    /// Raw page content: TipTap ProseMirror JSON when `is_rich`, else plain markdown.
+    content: String,
+    is_rich: bool,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+pub struct LearnContentSection {
+    heading: String,
+    pages: Vec<LearnContentPage>,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+pub struct LearnContentResponse {
+    sections: Vec<LearnContentSection>,
+}
+
+/// Return the conversation's learn-step content as raw, renderable pages (grouped by
+/// step), so the assistant's source viewer can show the real learn pages via the
+/// rich-text renderer instead of the flattened knowledge-base document.
+///
+/// Reads the draft (`preview_tool_config`), matching what sync ingests, so the viewer
+/// shows the same content the assistant answers from.
+#[instrument(err(Debug), skip(state))]
+async fn learn_content(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    user: OptionalUser,
+) -> Result<(StatusCode, Json<LearnContentResponse>), ComhairleError> {
+    require_conversation_document_access(&state, &user, &conversation_id).await?;
+
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let locale = &conversation.primary_locale;
+    let workflows = workflow::list(&state.db, conversation_id, None).await?;
+
+    let mut sections: Vec<LearnContentSection> = Vec::new();
+
+    for workflow in workflows {
+        let steps = workflow_step::list(&state.db, &workflow.id).await?;
+        for step in steps {
+            let ToolConfig::Learn(config) = &step.preview_tool_config else {
+                continue;
+            };
+
+            let heading =
+                translations::get_text_translation_optional(&state.db, &step.name, locale)
+                    .await?
+                    .map(|translation| translation.content)
+                    .filter(|content| !content.trim().is_empty())
+                    .unwrap_or_else(|| "Untitled step".to_string());
+
+            let mut pages: Vec<LearnContentPage> = Vec::new();
+            for entry in &config.pages {
+                if let Some(page) = resolve_page_raw(&state.db, entry, locale).await? {
+                    if !page.content.trim().is_empty() {
+                        pages.push(page);
+                    }
+                }
+            }
+
+            if !pages.is_empty() {
+                sections.push(LearnContentSection { heading, pages });
+            }
+        }
+    }
+
+    Ok((StatusCode::OK, Json(LearnContentResponse { sections })))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -326,6 +552,28 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/sync_learning_content",
+            post_with(sync_learning_content, |op| {
+                op.id("SyncLearningContent")
+                    .tag("Documents")
+                    .summary(
+                        "Rebuild the conversation's learn-step content knowledge-base document",
+                    )
+                    .security_requirement("JWT")
+                    .response::<200, Json<SyncLearningContentResponse>>()
+            }),
+        )
+        .api_route(
+            "/learn_content",
+            get_with(learn_content, |op| {
+                op.id("GetLearnContent")
+                    .tag("Documents")
+                    .summary("Get the conversation's learn-step content as renderable pages")
+                    .security_requirement("JWT")
+                    .response::<200, Json<LearnContentResponse>>()
+            }),
+        )
+        .api_route(
             "/",
             post_with(upload, |op| {
                 op.id("PostDocuments")
@@ -358,7 +606,7 @@ mod tests {
     use super::*;
 
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::test_helpers::test_state;
+    use crate::test_helpers::{MultipartBodyBuilder, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{Router, body::Body, http::StatusCode};
     use mockall::predicate::eq;
@@ -611,6 +859,90 @@ mod tests {
         assert!(status.is_success(), "error response status");
         assert_eq!(id, "kb-123".to_string(), "incorrect json response");
         assert_eq!(name, "test_doc".to_string(), "incorrect json response");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn sync_learning_content_replaces_reserved_doc_and_enqueues_parse(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let kb_id = "kb-123".to_string();
+        let (app, mut session, conversation_id) =
+            setup_test_app_with_conversation(pool, kb_id.clone(), |bot_service| {
+                // A stale reserved doc already exists and must be deleted (matched by
+                // name in Rust - we never use RAGFlow's broken `?name=` filter).
+                bot_service
+                    .expect_list_documents()
+                    .once()
+                    .returning(|_, _| {
+                        Box::pin(async move {
+                            Ok((
+                                StatusCode::OK,
+                                vec![ComhairleDocument {
+                                    id: "old-learn-doc".to_string(),
+                                    name: LEARN_CONTENT_DOCUMENT_NAME.to_string(),
+                                    ..Default::default()
+                                }],
+                            ))
+                        })
+                    });
+                bot_service
+                    .expect_delete_document()
+                    .once()
+                    .with(eq("old-learn-doc".to_string()), eq(kb_id.clone()))
+                    .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+                bot_service
+                    .expect_upload_document()
+                    .once()
+                    .returning(|_, file| {
+                        // The reserved name is applied server-side, not taken from the upload.
+                        assert_eq!(file.filename, LEARN_CONTENT_DOCUMENT_NAME);
+                        Box::pin(async move {
+                            Ok((
+                                StatusCode::OK,
+                                ComhairleDocument {
+                                    id: "new-learn-doc".to_string(),
+                                    name: LEARN_CONTENT_DOCUMENT_NAME.to_string(),
+                                    ..Default::default()
+                                },
+                            ))
+                        })
+                    });
+            })
+            .await?;
+
+        let boundary = "test-boundary";
+        let body = MultipartBodyBuilder::new(boundary.to_string())
+            .add_file(
+                "Learning material.pdf",
+                Some("application/pdf"),
+                "%PDF-1.7 fake pdf bytes",
+            )
+            .build();
+
+        let (status, value, _) = session
+            .post_multipart(
+                &app,
+                &format!("/conversation/{conversation_id}/documents/sync_learning_content"),
+                boundary,
+                Body::from(body),
+            )
+            .await?;
+
+        assert!(status.is_success(), "sync should succeed: {status}");
+        assert!(
+            value.get("job_id").map(|v| !v.is_null()).unwrap_or(false),
+            "a parse job should be enqueued: {value}"
+        );
+        assert_eq!(
+            value
+                .get("document")
+                .and_then(|d| d.get("id"))
+                .and_then(|v| v.as_str()),
+            Some("new-learn-doc"),
+            "response should carry the newly uploaded document: {value}"
+        );
 
         Ok(())
     }

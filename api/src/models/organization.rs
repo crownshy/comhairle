@@ -6,7 +6,6 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, query_as_with};
-use std::collections::HashSet;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -14,6 +13,7 @@ use uuid::Uuid;
 use fake::Dummy;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         SqlxResultExt,
@@ -38,6 +38,7 @@ pub struct Organization {
     pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Vec<Uuid>,
+    pub metadata: Option<serde_json::Value>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -77,7 +78,7 @@ impl std::fmt::Display for OrganizationType {
     }
 }
 
-const DEFAULT_COLUMNS: [OrganizationIden; 10] = [
+const DEFAULT_COLUMNS: [OrganizationIden; 11] = [
     OrganizationIden::Id,
     OrganizationIden::Name,
     OrganizationIden::Description,
@@ -86,6 +87,7 @@ const DEFAULT_COLUMNS: [OrganizationIden; 10] = [
     OrganizationIden::ContactEmail,
     OrganizationIden::ExternalUrl,
     OrganizationIden::Regions,
+    OrganizationIden::Metadata,
     OrganizationIden::CreatedAt,
     OrganizationIden::UpdatedAt,
 ];
@@ -99,32 +101,6 @@ pub struct CreateOrganization {
     pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Option<Vec<Uuid>>,
-    pub user_emails: Option<Vec<String>>,
-    pub organization_admin_emails: Option<Vec<String>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct OrganizationAdminBootstrapResult {
-    pub email: String,
-    pub user_id: Option<Uuid>,
-    pub created_account: bool,
-    pub assigned: bool,
-    pub emailed: bool,
-    pub error: Option<String>,
-}
-
-impl OrganizationAdminBootstrapResult {
-    fn failed(email: &str, error: &str) -> Self {
-        Self {
-            email: email.to_string(),
-            user_id: None,
-            created_account: false,
-            assigned: false,
-            emailed: false,
-            error: Some(error.to_string()),
-        }
-    }
 }
 
 impl CreateOrganization {
@@ -234,97 +210,6 @@ pub async fn add_member_emails(
     Ok(())
 }
 
-#[instrument]
-pub async fn bootstrap_organization_admin_accounts(
-    db: &PgPool,
-    organization_id: &Uuid,
-    admin_emails: &[String],
-) -> Vec<OrganizationAdminBootstrapResult> {
-    let mut results = Vec::with_capacity(admin_emails.len());
-    let mut seen_emails = HashSet::new();
-
-    for email in admin_emails {
-        let trimmed = email.trim().to_lowercase();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if !seen_emails.insert(trimmed.clone()) {
-            continue;
-        }
-
-        let mut created_account = false;
-        let user = match users::get_user_by_email(&trimmed, db).await {
-            Ok(user) => user,
-            Err(ComhairleError::NoUserFoundForEmail(_)) => {
-                created_account = true;
-                match users::create_organization_admin_user(&trimmed, db).await {
-                    Ok(user) => user,
-                    Err(error) => {
-                        tracing::warn!(
-                            "Failed to create admin user for email {} on organization {}: {:?}",
-                            trimmed,
-                            organization_id,
-                            error
-                        );
-                        results.push(OrganizationAdminBootstrapResult::failed(
-                            &trimmed,
-                            &error.to_string(),
-                        ));
-                        continue;
-                    }
-                }
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "Failed to resolve admin email {} for organization {}: {:?}",
-                    trimmed,
-                    organization_id,
-                    error
-                );
-                results.push(OrganizationAdminBootstrapResult::failed(
-                    &trimmed,
-                    &error.to_string(),
-                ));
-                continue;
-            }
-        };
-
-        let update_request = users::UpdateUserRequest {
-            organization_id: Some(*organization_id),
-            ..Default::default()
-        };
-
-        if let Err(error) = users::update_user(&user.id, &update_request, db).await {
-            tracing::warn!(
-                "Failed to associate admin user {} with organization {}: {:?}",
-                user.id,
-                organization_id,
-                error
-            );
-            results.push(OrganizationAdminBootstrapResult {
-                email: trimmed,
-                user_id: Some(user.id),
-                created_account,
-                assigned: false,
-                emailed: false,
-                error: Some(error.to_string()),
-            });
-            continue;
-        }
-
-        results.push(OrganizationAdminBootstrapResult {
-            email: trimmed,
-            user_id: Some(user.id),
-            created_account,
-            assigned: true,
-            emailed: false,
-            error: None,
-        });
-    }
-
-    results
-}
-
 impl PartialOrganization {
     pub fn to_values(&self) -> Vec<(OrganizationIden, sea_query::SimpleExpr)> {
         let mut values = vec![];
@@ -344,6 +229,9 @@ impl PartialOrganization {
         // instead of simply overrding the array
         if let Some(value) = &self.regions {
             values.push((OrganizationIden::Regions, value.clone().into()));
+        }
+        if let Some(value) = &self.metadata {
+            values.push((OrganizationIden::Metadata, value.clone().into()));
         }
 
         values
@@ -370,6 +258,54 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let organization = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(organization)
+}
+
+/// Get the organization's `metadata` jsonb column
+#[instrument(err(Debug), skip(db))]
+pub async fn get_metadata(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<Option<serde_json::Value>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns([OrganizationIden::Metadata])
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let (metadata,) = query_as_with::<_, (Option<serde_json::Value>,), _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(metadata)
+}
+
+/// Merge the supplied object into the organization's `metadata` jsonb column
+/// at the top level. Existing keys are overwritten by the patch.
+pub async fn patch_metadata(
+    db: &PgPool,
+    id: &Uuid,
+    patch: serde_json::Value,
+) -> Result<Organization, ComhairleError> {
+    if !patch.is_object() {
+        return Err(ComhairleError::BadRequest(
+            "metadata patch must be a JSON object".into(),
+        ));
+    }
+
+    let organization = sqlx::query_as::<_, Organization>(
+        "UPDATE organization
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *",
+    )
+    .bind(patch)
+    .bind(id)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Organization")?;
 
     Ok(organization)
 }
@@ -583,7 +519,6 @@ mod tests {
             org_type: OrganizationType::NonProfit,
             contact_email: None,
             external_url: None,
-            user_emails: None,
             ..Default::default()
         };
 
@@ -674,7 +609,6 @@ mod tests {
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
             external_url: Some("test.com".to_string()),
-            user_emails: None,
             ..Default::default()
         };
         let new_org_2 = CreateOrganization {
@@ -683,7 +617,6 @@ mod tests {
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
             external_url: Some("test.com".to_string()),
-            user_emails: None,
             ..Default::default()
         };
         let new_org_3 = CreateOrganization {
@@ -692,7 +625,6 @@ mod tests {
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
             external_url: Some("test.com".to_string()),
-            user_emails: None,
             ..Default::default()
         };
 
@@ -738,8 +670,6 @@ mod tests {
             contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_1.id]),
-            user_emails: None,
-            organization_admin_emails: None,
         };
         let new_org_2 = CreateOrganization {
             name: "test_org_2".to_string(),
@@ -749,8 +679,6 @@ mod tests {
             contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_2.id]),
-            user_emails: None,
-            organization_admin_emails: None,
         };
         let new_org_3 = CreateOrganization {
             name: "test_org_3".to_string(),
@@ -760,8 +688,6 @@ mod tests {
             contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_1.id]),
-            user_emails: None,
-            organization_admin_emails: None,
         };
 
         let _ = create(&pool, &new_org_1, "en").await?;

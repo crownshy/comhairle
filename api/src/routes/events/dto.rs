@@ -41,6 +41,7 @@ pub struct EventDto {
     pub video_meeting_id: Option<Uuid>,
     pub agenda: EventAgenda,
     pub location: Option<EventLocation>,
+    pub metadata: Option<serde_json::Value>,
     pub format: EventFormat,
     pub created_at: DateTime<Utc>,
 }
@@ -72,6 +73,7 @@ pub struct LocalizedEventDto {
     pub video_meeting_id: Option<Uuid>,
     pub agenda: EventAgenda,
     pub location: Option<EventLocation>,
+    pub metadata: Option<serde_json::Value>,
     pub format: EventFormat,
     pub created_at: DateTime<Utc>,
 }
@@ -90,6 +92,7 @@ impl From<Event> for EventDto {
             video_meeting_id: e.video_meeting_id,
             agenda: e.agenda,
             location: e.location,
+            metadata: e.metadata,
             format: e.format,
             created_at: e.created_at,
         }
@@ -111,6 +114,7 @@ impl From<LocalizedEventWithAttendance> for LocalizedEventDto {
             video_meeting_id: e.event.video_meeting_id,
             agenda: e.event.agenda,
             location: e.event.location,
+            metadata: e.event.metadata,
             format: e.event.format,
             current_attendance: Some(e.current_attendance),
         }
@@ -132,6 +136,7 @@ impl From<LocalizedEvent> for LocalizedEventDto {
             video_meeting_id: e.video_meeting_id,
             agenda: e.agenda,
             location: e.location,
+            metadata: e.metadata,
             format: e.format,
             current_attendance: None,
         }

@@ -274,6 +274,12 @@ If you copy a block a second time, stop and extract it.
   functions over inline narration.
 - No em dashes (or long dashes) in comments or prose. Use commas, parentheses, or a full
   stop.
+- **Name the abstraction, not the provider.** We stay provider-agnostic, so in comments and
+  prose refer to the "bot service", not the concrete integration (e.g. RAGFlow). The
+  exception is a note about a genuine provider-specific quirk or bug, where naming the
+  provider is the whole point (e.g. "RAGFlow returns 200 with a JSON error envelope ...").
+- **No jokes in comments.** Keep them plain and factual. Cutesy phrasing ("the RAGFlow
+  dance") reads as noise and someone has to strip it in review.
 
 ### Styling
 
