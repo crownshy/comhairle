@@ -81,6 +81,15 @@ path.** No per-request page injection.
   matching the must / good-to-have split agreed with the team.
 - **Staleness is admin-owned until Draft-mode auto-sync lands.** Edits to a learn step are
   invisible to the assistant until someone clicks sync, so the button copy must say so plainly.
+- **Re-syncing breaks the citations in answers that predate it.** A sync deletes the reserved
+  document and re-uploads it under a new id, so source links in older assistant answers point at
+  a document that no longer exists; opening one fails (the API returns 404, and RAGFlow's
+  "document not found" path can surface as 500). We do not rewrite or invalidate prior answers.
+  For now this is handled with messaging rather than prevention: the download endpoint surfaces a
+  clean "no longer available" instead of the raw RAGFlow error, and the PDF viewer shows a
+  plain-language note telling the reader the materials were updated and to ask again for
+  up-to-date sources. A fuller fix (stable ids across syncs, or invalidating stale answers) is
+  deferred until real usage shows it matters.
 - **The synced document is subject to ADR-0007 gating.** Until it parses (`parse_status` is
   `DONE`) the assistant can be hidden or unable to answer from it, and the first sync carries
   parse latency.

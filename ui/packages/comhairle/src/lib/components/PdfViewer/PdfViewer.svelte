@@ -75,6 +75,11 @@
 	let resizeTick = $state(0);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	// Set when the download failed because the underlying document is gone, which
+	// happens to citations in older assistant answers after an admin re-syncs the
+	// learn content (the old document is deleted and replaced with a new id). We show
+	// a plain-language explanation instead of a raw HTTP status. See ADR-0010.
+	let sourceUnavailable = $state(false);
 	// True once the target page (and everything above it) has rendered, so its
 	// wrapper has its real height and an auto-jump lands on the right place. Reset
 	// when `src` changes. We gate on the target rather than the whole document so a
@@ -253,6 +258,7 @@
 		const url = src;
 		loading = true;
 		error = null;
+		sourceUnavailable = false;
 		pages = [];
 		numPages = 0;
 		currentPage = 1;
@@ -284,6 +290,20 @@
 			})
 			.catch((e) => {
 				if (cancelled) return;
+				// A missing document comes back as 404 (pdf.js MissingPDFException); the
+				// RAGFlow-proxied "document not found" path can also surface as 500
+				// (UnexpectedResponseException). Both mean the cited source no longer exists,
+				// typically because the learn content was re-synced after this answer.
+				const status =
+					typeof (e as { status?: unknown })?.status === 'number'
+						? (e as { status: number }).status
+						: undefined;
+				const name = e instanceof Error ? e.name : '';
+				sourceUnavailable =
+					name === 'MissingPDFException' ||
+					name === 'UnexpectedResponseException' ||
+					status === 404 ||
+					status === 500;
 				error = e instanceof Error ? e.message : String(e);
 				loading = false;
 			});
@@ -525,7 +545,13 @@
 			bind:this={scrollContainer}
 			class="bg-muted flex min-h-0 flex-1 flex-col gap-4 overflow-auto py-4 [scrollbar-gutter:stable] max-sm:order-1"
 		>
-			{#if error}
+			{#if sourceUnavailable}
+				<p class="text-muted-foreground m-auto max-w-prose p-8 text-center text-base">
+					This source is no longer available. The learning materials have been updated
+					since this answer was written, so the passage it cited no longer exists. Ask
+					your question again to get an answer with up-to-date sources.
+				</p>
+			{:else if error}
 				<p class="text-destructive m-auto p-8 text-sm">Failed to load PDF: {error}</p>
 			{:else}
 				<!-- Pages mount and render while still hidden behind the overlay below, so
