@@ -12,6 +12,7 @@
 	import MinusIcon from '@lucide/svelte/icons/minus';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import type { PdfHighlight } from './highlights';
+	import { HttpStatus } from '$lib/utils/constants';
 
 	pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 		'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -302,8 +303,8 @@
 				sourceUnavailable =
 					name === 'MissingPDFException' ||
 					name === 'UnexpectedResponseException' ||
-					status === 404 ||
-					status === 500;
+					status === HttpStatus.NotFound ||
+					status === HttpStatus.InternalServerError;
 				error = e instanceof Error ? e.message : String(e);
 				loading = false;
 			});

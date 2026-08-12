@@ -3,6 +3,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 	import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	type Props = {
 		document: ComhairleDocument | undefined;
@@ -29,12 +30,16 @@
 		if (!doc) {
 			return;
 		}
-		try {
-			doc = await apiClient.GetDocument({
-				params: { document_id: doc.id, conversation_id: conversationId }
-			});
-		} catch (e) {
-			console.error(e);
+		const documentId = doc.id;
+		const res = await tryCatchAsync(() =>
+			apiClient.GetDocument({
+				params: { document_id: documentId, conversation_id: conversationId }
+			})
+		);
+		if (res.err !== null) {
+			console.error(res.err);
+		} else {
+			doc = res.ok;
 		}
 		// Once parsing settles, refresh the page data so the rest of the page (e.g. the
 		// "needs parsed docs" gate) reflects the finished sync.

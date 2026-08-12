@@ -1,3 +1,9 @@
+/**
+ * Picks which in-app document viewer (see `PdfDocumentDialog`) should render a file, based on
+ * its name. Used wherever a source document is opened in-page rather than downloaded: the
+ * Learning Assistant's cited sources and the rich-text source-document badges.
+ */
+
 /** How a document should be previewed in the shared viewer, keyed off its filename. */
 export type PreviewKind = 'pdf' | 'image' | 'docx' | 'text';
 

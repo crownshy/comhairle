@@ -604,7 +604,7 @@ mod tests {
     use super::*;
 
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::test_helpers::test_state;
+    use crate::test_helpers::{MultipartBodyBuilder, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{Router, body::Body, http::StatusCode};
     use mockall::predicate::eq;
@@ -911,14 +911,13 @@ mod tests {
             .await?;
 
         let boundary = "test-boundary";
-        let body = format!(
-            "--{boundary}\r\n\
-            Content-Disposition: form-data; name=\"file\"; filename=\"Learning material.pdf\"\r\n\
-            Content-Type: application/pdf\r\n\
-            \r\n\
-            %PDF-1.7 fake pdf bytes\r\n\
-            --{boundary}--\r\n"
-        );
+        let body = MultipartBodyBuilder::new(boundary.to_string())
+            .add_file(
+                "Learning material.pdf",
+                Some("application/pdf"),
+                "%PDF-1.7 fake pdf bytes",
+            )
+            .build();
 
         let (status, value, _) = session
             .post_multipart(

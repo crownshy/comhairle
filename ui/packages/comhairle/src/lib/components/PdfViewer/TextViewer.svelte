@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { tryFetch } from '$lib/utils/errorHandling';
+	import { HttpStatus } from '$lib/utils/constants';
 
 	type Props = { src: string };
 
@@ -15,20 +17,18 @@
 	// Rendered as escaped text (not {@html}) so an uploaded text file can never
 	// inject markup. Synced learn content is markdown, which reads fine this way.
 	onMount(async () => {
-		try {
-			const response = await fetch(src, { credentials: 'include' });
-			if (response.status === 404) {
+		const res = await tryFetch(src);
+		if (res.err !== null) {
+			// A 404 means the source is gone (re-synced), not a transient failure.
+			if (res.err.id === 'HTTP_ERROR' && res.err.status === HttpStatus.NotFound) {
 				gone = true;
 				return;
 			}
-			if (!response.ok) {
-				throw new Error(`Failed to load document (${response.status})`);
-			}
-			text = await response.text();
-		} catch (error) {
-			console.error(error);
+			console.error(res.err);
 			failed = true;
+			return;
 		}
+		text = await res.ok.text();
 	});
 </script>
 
