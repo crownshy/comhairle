@@ -185,6 +185,7 @@
 
 			<PrivacyPolicyDialog
 				{conversation}
+				availableDocuments={data.availableDocuments}
 				bind:open={privacyPolicyOpen}
 				onAccept={handlePrivacyPolicyAccept}
 			/>
