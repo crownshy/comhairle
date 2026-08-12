@@ -90,8 +90,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				}
 			}
 
-			console.log('answers:', answers);
-
 			return typedObj<ChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
