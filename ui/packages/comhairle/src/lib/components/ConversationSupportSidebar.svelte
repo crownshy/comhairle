@@ -4,7 +4,7 @@
 	import { LucideChevronRight } from 'lucide-svelte';
 	import CircleQuestionMark from '$lib/components/icons/CircleQuestionMark.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import type { ComhairleDocument, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
 	import ComhairleFAQs from './ComhairleFAQs.svelte';
 	import LearningAssistant from './LearningAssistant/LearningAssistant.svelte';
@@ -12,10 +12,13 @@
 	let {
 		conversation,
 		hasKnowledgeBaseDocs = false,
+		availableDocuments = [],
 		currentStepTitle
 	}: {
 		conversation: LocalizedConversationDto;
 		hasKnowledgeBaseDocs?: boolean;
+		/** Parsed documents, so source-document badges in the FAQ/privacy tabs resolve + download. */
+		availableDocuments?: ComhairleDocument[];
 		currentStepTitle?: string;
 	} = $props();
 
@@ -77,7 +80,11 @@
 				{#each tabs as tab (tab.value)}
 					<Tabs.Content value={tab.value} class="overflow-y-auto">
 						{#if tab.content}
-							<ContentRenderer content={tab.content} />
+							<ContentRenderer
+								content={tab.content}
+								{availableDocuments}
+								conversationId={conversation.id}
+							/>
 						{:else}
 							{@const Component = tab.fallback}
 							<Component

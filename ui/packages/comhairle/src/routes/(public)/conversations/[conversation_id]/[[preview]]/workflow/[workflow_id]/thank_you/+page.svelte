@@ -14,6 +14,7 @@
 	let workflow = $derived(data.workflow);
 	let revisitableSteps = $derived(data.revisitableSteps);
 	let isPreview = $derived(data.preview);
+	let availableDocuments = $derived(data.availableDocuments);
 </script>
 
 <svelte:head>
@@ -43,7 +44,11 @@
 	{/if}
 
 	{#if conversation.thankYouMessage}
-		<ContentRenderer content={conversation.thankYouMessage} />
+		<ContentRenderer
+			content={conversation.thankYouMessage}
+			{availableDocuments}
+			conversationId={conversation.id}
+		/>
 	{/if}
 
 	{#snippet revisitStepList()}

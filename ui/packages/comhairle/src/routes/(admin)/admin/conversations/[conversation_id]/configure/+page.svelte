@@ -26,6 +26,7 @@
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
 	import type {
+		ComhairleDocument,
 		ConversationWithTranslations,
 		MediaDto,
 		UserDto,
@@ -50,9 +51,13 @@
 			user: UserDto;
 			usersWithPermission: UserWithPermissionDto[];
 			configureTabs: { id: string; label: string }[];
+			availableDocuments: ComhairleDocument[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
+	// Parsed knowledge base documents, for the "Insert Source Document" control in the Content-tab
+	// rich fields (both the picker and, via the same list, the inserted badge's name/size/download).
+	let availableDocuments = $derived(data.availableDocuments);
 	let workflow = $derived(data.workflows[0]);
 	let imageMedia = $derived(data.media);
 	let permittedUsers = $derived(data.usersWithPermission);
@@ -687,6 +692,8 @@
 									placeholder="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
+									{availableDocuments}
+									conversationId={conversation.id}
 									inputProps={props}
 								/>
 								<Form.FieldErrors />
@@ -723,6 +730,8 @@
 									placeholder="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
+									{availableDocuments}
+									conversationId={conversation.id}
 									inputProps={props}
 								/>
 								<Form.FieldErrors />
@@ -758,6 +767,8 @@
 									placeholder="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
+									{availableDocuments}
+									conversationId={conversation.id}
 									inputProps={props}
 								/>
 								<Form.FieldErrors />
@@ -794,6 +805,8 @@
 									placeholder="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
 									primaryLocale={primaryLanguage}
 									{supportedLanguages}
+									{availableDocuments}
+									conversationId={conversation.id}
 									inputProps={props}
 								/>
 								<Form.FieldErrors />

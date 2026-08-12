@@ -4,7 +4,7 @@
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
-	let { conversation, hasKnowledgeBaseDocs, workflowSteps } = $derived(data);
+	let { conversation, hasKnowledgeBaseDocs, availableDocuments, workflowSteps } = $derived(data);
 
 	// The support sidebar sits at the layout, above the per-step route, so it does not otherwise
 	// know which step the participant is on. Derive the active learn step's title from the route
@@ -20,4 +20,9 @@
 
 {@render children()}
 
-<ConversationSupportSidebar {conversation} {hasKnowledgeBaseDocs} {currentStepTitle} />
+<ConversationSupportSidebar
+	{conversation}
+	{hasKnowledgeBaseDocs}
+	{availableDocuments}
+	{currentStepTitle}
+/>
