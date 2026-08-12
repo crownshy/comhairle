@@ -2,7 +2,6 @@ export const HEYFORM_CHOICE_FIELD_KIND = [
 	'yes_no',
 	'multiple_choice',
 	'picture_choice',
-	'rating',
 	'ranking'
 ] as const;
 
@@ -13,6 +12,7 @@ export const HEYFORM_NON_CHOICE_FIELD_KIND = [
 	'file_upload',
 	'opinion_scale',
 	'full_name',
+	'rating',
 	'address',
 	'email',
 	'url',

@@ -46,7 +46,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 	}
 
 	switch (insight.kind) {
-		case 'rating':
 		case 'yes_no':
 		case 'multiple_choice':
 		case 'picture_choice':
@@ -58,7 +57,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				properties: insight.properties,
 				answers: insight.choices ?? []
 			});
-
 		case 'ranking': {
 			const answers: Choice[] = [];
 
@@ -101,6 +99,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				answers
 			});
 		}
+		case 'rating':
 		case 'opinion_scale':
 		case 'number':
 		case 'short_text':
