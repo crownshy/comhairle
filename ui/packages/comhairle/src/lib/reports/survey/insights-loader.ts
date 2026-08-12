@@ -6,7 +6,8 @@ import type {
 	HeyFormChoiceFieldKind,
 	HeyFormDateRangeValue,
 	HeyFormFullNameValue,
-	HeyFormNonChoiceFieldKind
+	HeyFormNonChoiceFieldKind,
+	HeyFormRankedValue
 } from '$lib/tools/heyform/utils';
 import type { InsightQuestion } from '@crownshy/api-client/api';
 import { typedObj } from '$lib/utils/types';
@@ -22,7 +23,7 @@ export interface ChoiceQuestion {
 	title: string;
 	total: number;
 	kind: HeyFormChoiceFieldKind;
-	properties: Record<string, string>;
+	properties?: object | null;
 	answers: Choice[];
 }
 
@@ -31,7 +32,7 @@ export interface NonChoiceQuestion {
 	title: string;
 	total: number;
 	kind: HeyFormNonChoiceFieldKind;
-	properties: Record<string, string>;
+	properties?: object | null;
 	answers: unknown[];
 }
 
@@ -55,6 +56,51 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				properties: insight.properties,
 				answers: insight.choices ?? []
 			});
+
+		case 'ranking': {
+			const answers: Choice[] = [];
+
+			if (!insight.properties || !insight.submissions) {
+				return undefined;
+			}
+
+			for (const submission of insight.submissions) {
+				const s = submission.value as HeyFormRankedValue;
+				for (let i = 0; i < s.value.length; i++) {
+					const choiceId = s.value[i];
+					// Calculate the amount of ranking, so just the length minus the index, e.g. for 5 choices, the top would receieve 5, last would receieve 1
+					const amount = s.value.length - i;
+					const answerIndex = answers.findIndex((a) => a.id === choiceId);
+
+					if (answerIndex > -1) {
+						answers[answerIndex].count += amount;
+						continue;
+					}
+
+					const label =
+						(insight.properties?.choices as Omit<Choice, 'count'>[]).find(
+							(c) => c.id === choiceId
+						)?.label ?? '';
+
+					answers.push({
+						id: choiceId,
+						label,
+						count: amount
+					});
+				}
+			}
+
+			console.log('answers:', answers);
+
+			return typedObj<ChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				properties: insight.properties,
+				answers
+			});
+		}
 		case 'opinion_scale':
 		case 'number':
 		case 'short_text':

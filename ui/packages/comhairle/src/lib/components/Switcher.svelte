@@ -15,11 +15,12 @@
 	interface Props {
 		options: Option[];
 		onswitch: (optionId: Id) => void;
+		initiallySelected?: Id;
 	}
 
-	let { options, onswitch }: Props = $props();
+	let { options, onswitch, initiallySelected }: Props = $props();
 
-	let selectedId = $derived<Id>(options[0].id);
+	let selectedId = $derived<Id>(initiallySelected ?? options[0].id);
 </script>
 
 <section class="bg-muted flex flex-row flex-wrap items-center gap-2 rounded-md p-2">

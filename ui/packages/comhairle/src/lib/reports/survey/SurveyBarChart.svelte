@@ -1,15 +1,20 @@
 <script lang="ts">
 	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import Switcher from '$lib/components/Switcher.svelte';
+	import type { HeyFormFieldKind } from '$lib/tools/heyform/utils';
 	import { type Icon } from 'lucide-svelte';
 	import { ArrowDownWideNarrow, ChartNoAxesColumn } from 'lucide-svelte';
 	import type { ComponentProps, ComponentType } from 'svelte';
 
-	type Props = ComponentProps<typeof BarChart>;
+	type Props = ComponentProps<typeof BarChart> & { kind: HeyFormFieldKind };
 
-	let { orientation: initialOrientation = 'vertical', data, x, y, ...props }: Props = $props();
+	let { orientation: initialOrientation, data, x, y, kind, ...props }: Props = $props();
 
-	let orientation = $derived<Props['orientation']>(initialOrientation);
+	let orientation = $derived.by<Props['orientation']>(() => {
+		if (initialOrientation) return initialOrientation;
+		if (kind === 'ranking') return 'horizontal';
+		return 'vertical';
+	});
 
 	let sortedData = $state<Props['data'] | null>(null);
 </script>
@@ -28,6 +33,7 @@
 
 <div class="flex flex-row justify-end">
 	<Switcher
+		initiallySelected={orientation}
 		options={[
 			{
 				id: 'vertical',

@@ -3,7 +3,8 @@ export const HEYFORM_CHOICE_FIELD_KIND = [
 	'multiple_choice',
 	'picture_choice',
 	'file_upload',
-	'rating'
+	'rating',
+	'ranking'
 ] as const;
 
 export const HEYFORM_NON_CHOICE_FIELD_KIND = [
@@ -54,6 +55,9 @@ export type HeyFormAddressValue = {
 export type HeyFormDateRangeValue = {
 	end: string;
 	start: string;
+};
+export type HeyFormRankedValue = {
+	value: string;
 };
 export type HeyFormChoiceFieldKind = (typeof HEYFORM_CHOICE_FIELD_KIND)[number];
 export type HeyFormNonChoiceFieldKind = (typeof HEYFORM_NON_CHOICE_FIELD_KIND)[number];
