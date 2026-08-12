@@ -57,6 +57,9 @@
 				{/if}
 			{/if}
 			{#if isNonChoiceQuestion(section)}
+				{#if section.answers.length <= 0}
+					<div class="text-muted-foreground">No responses yet</div>
+				{/if}
 				{#if isNumericArray(section.answers)}
 					<KdePlot
 						data={{ answers: section.answers }}
