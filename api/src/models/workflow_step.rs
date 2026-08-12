@@ -55,6 +55,49 @@ pub struct WorkflowStep {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Helper trait to simplify working with workflow_step tool_configs across
+/// methods and endpoints that return differing types of workflow_steps.
+pub trait WithToolConfig {
+    fn tool_config(&self) -> Option<&ToolConfig>;
+    fn preview_tool_config(&self) -> &ToolConfig;
+}
+
+impl WithToolConfig for WorkflowStep {
+    fn tool_config(&self) -> Option<&ToolConfig> {
+        self.tool_config.as_ref()
+    }
+    fn preview_tool_config(&self) -> &ToolConfig {
+        &self.preview_tool_config
+    }
+}
+
+impl WithToolConfig for LocalizedWorkflowStep {
+    fn tool_config(&self) -> Option<&ToolConfig> {
+        self.tool_config.as_ref()
+    }
+    fn preview_tool_config(&self) -> &ToolConfig {
+        &self.preview_tool_config
+    }
+}
+
+impl WithToolConfig for WorkflowStepWithTranslations {
+    fn tool_config(&self) -> Option<&ToolConfig> {
+        self.tool_config.as_ref()
+    }
+    fn preview_tool_config(&self) -> &ToolConfig {
+        &self.preview_tool_config
+    }
+}
+
+impl WithToolConfig for LocalizedWorkflowStepWithProgress {
+    fn tool_config(&self) -> Option<&ToolConfig> {
+        self.step.tool_config.as_ref()
+    }
+    fn preview_tool_config(&self) -> &ToolConfig {
+        &self.step.preview_tool_config
+    }
+}
+
 const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
