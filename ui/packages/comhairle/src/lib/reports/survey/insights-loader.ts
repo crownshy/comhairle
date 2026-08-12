@@ -7,7 +7,8 @@ import type {
 	HeyFormDateRangeValue,
 	HeyFormFullNameValue,
 	HeyFormNonChoiceFieldKind,
-	HeyFormRankedValue
+	HeyFormRankedValue,
+	Properties
 } from '$lib/tools/heyform/utils';
 import type { InsightQuestion } from '@crownshy/api-client/api';
 import { typedObj } from '$lib/utils/types';
@@ -22,8 +23,8 @@ export interface ChoiceQuestion {
 	id: string;
 	title: string;
 	total: number;
+	properties?: Properties | null;
 	kind: HeyFormChoiceFieldKind;
-	properties?: object | null;
 	answers: Choice[];
 }
 
@@ -31,8 +32,8 @@ export interface NonChoiceQuestion {
 	id: string;
 	title: string;
 	total: number;
+	properties?: Properties;
 	kind: HeyFormNonChoiceFieldKind;
-	properties?: object | null;
 	answers: unknown[];
 }
 
@@ -113,7 +114,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
-				properties: insight.properties,
+				properties: insight.properties ?? undefined,
 				answers:
 					insight.submissions
 						?.map((s) => s.value)
@@ -125,7 +126,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
-				properties: insight.properties,
+				properties: insight.properties ?? undefined,
 				answers:
 					insight.submissions
 						?.map((s) => {
@@ -140,7 +141,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
-				properties: insight.properties,
+				properties: insight.properties ?? undefined,
 				answers:
 					insight.submissions
 						?.map((s) => {
@@ -155,7 +156,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
-				properties: insight.properties,
+				properties: insight.properties ?? undefined,
 				answers:
 					insight.submissions
 						?.map((s) => {

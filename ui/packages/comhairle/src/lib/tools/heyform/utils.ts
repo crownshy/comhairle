@@ -44,6 +44,140 @@ export const HEYFORM_OTHER_FIELD_KIND = [
 	'custom_checkbox'
 ] as const;
 
+// Taken from: https://github.com/heyform/heyform/blob/main/packages/shared-types-enums/src/form.ts
+export interface Choice {
+	id: string;
+	label: string;
+
+	// Picture choice
+	image?: string;
+	icon?: {
+		name: string;
+		color: string;
+		background: string;
+	};
+
+	// HeySheet custom columns
+	color?: string;
+
+	// Quiz
+	score?: number;
+	isExpected?: boolean;
+}
+
+export interface Column {
+	id: string;
+	label: string;
+	type?: string;
+}
+
+export interface NumberPrice {
+	type: 'number';
+	value: number;
+}
+
+export interface VariablePrice {
+	type: 'variable';
+	ref: string;
+}
+
+export interface Properties {
+	// Statement
+	showButton?: boolean;
+	buttonText?: string;
+	hideMarks?: boolean;
+
+	// Choice
+	allowOther?: boolean;
+	allowMultiple?: boolean;
+	choices?: Choice[];
+	randomize?: boolean;
+	other?: string;
+	badge?: 'letter' | 'number'; // default is ChoiceBadgeEnum.LETTER
+	verticalAlignment?: boolean;
+
+	// Only for group
+	fields?: FormField[];
+
+	// Rating
+	shape?: string;
+	total?: number;
+	start?: number;
+
+	// Opinion Scale
+	leftLabel?: string;
+	centerLabel?: string;
+	rightLabel?: string;
+
+	// PhoneNumber
+	defaultCountryCode?: string;
+
+	// Payment
+	currency?: string;
+	price?: NumberPrice | VariablePrice;
+
+	// Date
+	format?: string;
+	// Allow input time
+	allowTime?: boolean;
+	// Time
+	timeFormat?: string;
+	use12Hours?: boolean;
+
+	// Data
+	tableColumns?: Column[];
+
+	// Score
+	score?: number;
+
+	// HeyForm Form Builder v2.0
+	// Embed & Image
+	sourceUrl?: string;
+
+	// Screen
+	enableShareIcon?: boolean;
+	enableCompleteTime?: boolean;
+
+	// Thank You
+	buttonLinkUrl?: string;
+	redirectUrl?: string;
+	redirectOnCompletion?: boolean;
+	redirectDelay?: number;
+}
+
+export interface Validation {
+	required?: boolean;
+	min?: number;
+	max?: number;
+	matchExpected?: boolean;
+}
+
+export interface FormField {
+	id: string;
+	title?: string;
+	description?: string;
+	kind: HeyFormFieldKind;
+	validations?: Validation;
+	properties?: Properties;
+
+	// Label for short title
+	label?: string;
+
+	// layout?: Layout;
+
+	// HeyForm question number
+	number?: number;
+
+	index?: number;
+
+	// HeySheet custom columns or embed blocks
+	width?: number;
+	frozen?: boolean;
+	visible?: boolean;
+
+	hide?: boolean;
+}
+
 export type HeyFormFullNameValue = { firstName: string; lastName: string };
 export type HeyFormAddressValue = {
 	address1: string;

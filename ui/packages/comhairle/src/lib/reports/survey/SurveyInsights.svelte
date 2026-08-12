@@ -58,7 +58,10 @@
 			{/if}
 			{#if isNonChoiceQuestion(section)}
 				{#if isNumericArray(section.answers)}
-					<KdePlot data={{ answers: section.answers }} />
+					<KdePlot
+						data={{ answers: section.answers }}
+						maxX={section.properties?.total ?? 10}
+					/>
 				{/if}
 				{#if isStringArray(section.answers)}
 					<Responses data={section.answers} />
