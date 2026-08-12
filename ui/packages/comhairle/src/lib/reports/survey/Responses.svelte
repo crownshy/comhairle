@@ -23,9 +23,7 @@ Component to show the raw responses to long text questions
 			<li class="mb-4 border-b pb-4 last:border-b-0">{response}</li>
 		{/each}
 	</ul>
-	{#if rawData.length <= LIMIT}
-		<div class="bg-secondary w-full rounded-t-none rounded-b-xl py-6"></div>
-	{:else}
+	{#if rawData.length > LIMIT}
 		<Button
 			onclick={() => (show = !show)}
 			class="w-full rounded-t-none rounded-b-xl py-6"
