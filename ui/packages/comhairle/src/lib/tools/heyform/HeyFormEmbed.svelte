@@ -24,7 +24,47 @@
 	let ready = $state(false);
 	let firstLoad = $state(true);
 
+	let iframeEl = $state<HTMLIFrameElement>();
+
+	/**
+	 * The fork's initial FORM_RESIZE is a one-shot emit. On a hard refresh a cached iframe can boot and
+	 * emit it before this component's message listener is attached during hydration, so the height is
+	 * missed and the frame stays stuck at its fallback size. To recover, we ping the fork for its
+	 * height once the iframe has loaded and keep pinging until one comes back (see the fork's
+	 * REQUEST_RESIZE handler). Deterministic, and a no-op the moment a height arrives.
+	 */
+	const RESIZE_PING_INTERVAL_MS = 300;
+	const RESIZE_PING_TIMEOUT_MS = 5000;
+	let pingTimer: ReturnType<typeof setInterval> | undefined;
+
+	function stopResizePing() {
+		clearInterval(pingTimer);
+		pingTimer = undefined;
+	}
+
+	function requestResizeUntilAnswered() {
+		stopResizePing();
+		let elapsed = 0;
+		// '*' rather than base_url: this is a benign height request and the fork gates on
+		// `source: 'COMHAIRLE'`, so a redirected survey origin can't silently drop it.
+		const ping = () =>
+			iframeEl?.contentWindow?.postMessage(
+				{ source: 'COMHAIRLE', eventName: 'REQUEST_RESIZE' },
+				'*'
+			);
+		ping();
+		pingTimer = setInterval(() => {
+			elapsed += RESIZE_PING_INTERVAL_MS;
+			if (measuredHeight !== null || elapsed >= RESIZE_PING_TIMEOUT_MS) {
+				stopResizePing();
+				return;
+			}
+			ping();
+		}, RESIZE_PING_INTERVAL_MS);
+	}
+
 	function handleLoad() {
+		requestResizeUntilAnswered();
 		if (!firstLoad) return;
 		firstLoad = false;
 		setTimeout(() => (ready = true), RENDERER_BOOT_GRACE_MS);
@@ -37,10 +77,14 @@
 	 * questions exactly the room they need (no footer overlapping the answers) without leaving a big
 	 * empty card on short ones.
 	 *
-	 * Contract with the fork (see its `sendMessageToParent`):
-	 *   { source: 'HEYFORM', eventName: 'FORM_RESIZE', height: <content height in px> }
+	 * Contract with the fork (see its `sendMessageToParent`), all tagged `source: 'HEYFORM'`:
+	 *   FORM_RESIZE      { height: <content height in px> }  active question's height
+	 *   FORM_STEP_CHANGE {}                                  a new question became active
+	 *   HIDE_EMBED_MODAL {}                                  the form finished
+	 * And the one message we send back, tagged `source: 'COMHAIRLE'`:
+	 *   REQUEST_RESIZE   {}                                  asks the fork to re-emit FORM_RESIZE now
 	 *
-	 * `measuredHeight` stays null until that message arrives, so the iframe falls back to the bounded
+	 * `measuredHeight` stays null until FORM_RESIZE arrives, so the iframe falls back to the bounded
 	 * viewport height in the markup. That keeps this correct against a fork that hasn't shipped the
 	 * emit yet: it just behaves like the fixed-height version until the messages start coming.
 	 */
@@ -48,6 +92,21 @@
 	const MAX_FRAME_PX = 2000;
 
 	let measuredHeight = $state<number | null>(null);
+
+	// The iframe auto-sizes to each question, so the window (not the iframe) is what scrolls; after
+	// clicking Next the page would otherwise stay at the previous question's offset. FORM_STEP_CHANGE
+	// is the exact "new question" signal and always wins. Until a webapp build that emits it is
+	// deployed, we fall back to FORM_RESIZE: that build already re-emits on every question change, and
+	// a resize while the user is scrolled down almost always means a new question replaced the one they
+	// finished at the bottom of. The moment a FORM_STEP_CHANGE arrives we drop the fallback, since the
+	// exact signal avoids the fallback's false positives (textarea growth or validation reflow while
+	// scrolled down).
+	const SCROLL_TOP_THRESHOLD_PX = 80;
+	let stepChangeSupported = false;
+
+	function scrollPageToTop() {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 
 	function onFrameMessage(e: MessageEvent) {
 		const data = e.data;
@@ -61,7 +120,14 @@
 			case 'FORM_RESIZE':
 				if (typeof data.height === 'number' && Number.isFinite(data.height)) {
 					measuredHeight = Math.min(Math.max(data.height, MIN_FRAME_PX), MAX_FRAME_PX);
+					if (!stepChangeSupported && window.scrollY > SCROLL_TOP_THRESHOLD_PX) {
+						scrollPageToTop();
+					}
 				}
+				break;
+			case 'FORM_STEP_CHANGE':
+				stepChangeSupported = true;
+				scrollPageToTop();
 				break;
 		}
 	}
@@ -71,6 +137,7 @@
 
 		return () => {
 			window.removeEventListener('message', onFrameMessage);
+			stopResizePing();
 		};
 	});
 
@@ -112,6 +179,7 @@
 	{/if}
 	<div class="mx-auto mt-1 w-full max-w-2xl overflow-hidden rounded-xl [grid-area:1/1]">
 		<iframe
+			bind:this={iframeEl}
 			src={fullUrl}
 			title="survey"
 			onload={handleLoad}
