@@ -804,7 +804,10 @@ mod tests {
             record_split(&pool, original.id, &derived, "Reworded/split by moderator").await?;
 
         assert_eq!(rejected_original.id, original.id);
-        assert_eq!(rejected_original.moderation_status, ModerationStatus::Rejected);
+        assert_eq!(
+            rejected_original.moderation_status,
+            ModerationStatus::Rejected
+        );
         assert_eq!(
             rejected_original.moderation_reason.as_deref(),
             Some("Reworded/split by moderator")
@@ -823,7 +826,10 @@ mod tests {
                 Some(original.id),
                 "derived statements point back at the original"
             );
-            assert_eq!(row.user_id, None, "derived statements are not attributed to a participant");
+            assert_eq!(
+                row.user_id, None,
+                "derived statements are not attributed to a participant"
+            );
         }
         Ok(())
     }

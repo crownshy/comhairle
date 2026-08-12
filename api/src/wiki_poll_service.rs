@@ -207,9 +207,7 @@ impl MockWikiPollService {
             .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));
         wiki_poll_service
             .expect_post_statement()
-            .returning(|_, _, _, _| {
-                Box::pin(async move { Ok(PostedStatement::default()) })
-            });
+            .returning(|_, _, _, _| Box::pin(async move { Ok(PostedStatement::default()) }));
         wiki_poll_service.expect_delete_poll().returning(|_, _| {
             Box::pin(async move {
                 Ok(WikiPoll {

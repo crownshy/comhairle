@@ -11,6 +11,7 @@
 	import type { ComponentProps } from 'svelte';
 	import type { TranslationSource, TranslationEntry } from './translationUtils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 
 	type BaseProps = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
@@ -31,6 +32,8 @@
 		canSave?: (value: string) => boolean;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
+		/** Forwarded to the inline rich editor to enable the "Embed report component" control. */
+		reportEmbedSteps?: EmbeddableStep[];
 	};
 
 	// `inputProps` is typed against whichever underlying element `inputType` selects, so callers
@@ -56,7 +59,8 @@
 		inputProps = {},
 		canSave,
 		availableDocuments = [],
-		conversationId
+		conversationId,
+		reportEmbedSteps = []
 	}: Props = $props();
 
 	let dialogOpen = $state(false);
@@ -114,6 +118,7 @@
 				{maxHeight}
 				{availableDocuments}
 				{conversationId}
+				{reportEmbedSteps}
 			/>
 			{#if hasTranslations}
 				<Button

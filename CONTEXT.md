@@ -147,6 +147,13 @@ The primitive of the reporting system: a self-contained, configurable widget fed
 _Avoid_: widget, block, card (too generic).
 _Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components — the Insights set in `lib/reports/polis/**` (`VoteBar`, `StatementVoteBlock`, `AreaOfConsensus`) backed by `tools/polis/report.ts`. A separate set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
 
+**Embeddable section block**:
+The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*) — **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list.
+_Avoid_: report piece (use "section block" for the embeddable unit).
+
+**Report component embed** (a.k.a. the snapshot node):
+A TipTap node in the report's `summary` document that carries an embedded [[#embeddable-section-block]]. It stores both a **reference** (`toolStepId`, `componentType`, `config`) and the **frozen HTML** rendered from that component; the frozen HTML is what renders everywhere, the reference is the recipe for a future re-freeze / refresh (see [ADR-0012](documentation/adr/0012-report-component-embeds-store-reference-plus-frozen-html.md), building on [ADR-0008](documentation/adr/0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md)). Because the HTML is baked in, deleting the source Step does not blank the report — it only disables refresh.
+
 **Report view**:
 A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:
 1. **Insights** — admin, live, per-tool/Step. A "summary of raw data": current responses + realtime insights; helps spot missing voices. (Already exists for Polis.)

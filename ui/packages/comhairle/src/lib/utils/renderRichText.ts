@@ -74,7 +74,20 @@ export function renderRichTextToHtml(
 
 		const document = glossary.length > 0 ? applyGlossary(parsed, glossary) : parsed;
 
-		return renderToHTMLString({ content: document, extensions });
+		return renderToHTMLString({
+			content: document,
+			extensions,
+			options: {
+				// Embedded report components render as their stored frozen HTML (ADR-0012).
+				// This injects our own trusted, component-generated markup straight into the
+				// output string — it is NOT author-typed content. Keep it that way: never map
+				// a node here to arbitrary user input.
+				nodeMapping: {
+					reportComponentEmbed: ({ node }) =>
+						`<div class="report-embed">${(node.attrs.frozenHtml as string) ?? ''}</div>`
+				}
+			}
+		});
 	} catch (error) {
 		console.error('[renderRichTextToHtml] Failed to render content:', error);
 		return '';

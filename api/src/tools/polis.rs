@@ -927,7 +927,8 @@ async fn split_statement(
     );
 
     let (original, replacements) =
-        models::polis_statement_aux::record_split(&state.db, original.id, &derived, &reason).await?;
+        models::polis_statement_aux::record_split(&state.db, original.id, &derived, &reason)
+            .await?;
 
     Ok((
         StatusCode::CREATED,

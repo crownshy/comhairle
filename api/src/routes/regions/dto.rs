@@ -29,8 +29,10 @@ pub struct RegionDto {
     pub name: TextContentId,
     #[schemars(example = "example_uuid")]
     pub description: TextContentId,
+    pub region_area_id: Option<Uuid>,
     pub region_type: RegionType,
     pub official_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -51,8 +53,10 @@ pub struct LocalizedRegionDto {
     pub name: String,
     #[schemars(example = "example_localized_text")]
     pub description: String,
+    pub region_area_id: Option<Uuid>,
     pub region_type: RegionType,
     pub official_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -62,8 +66,10 @@ impl From<Region> for RegionDto {
             id: o.id,
             name: o.name,
             description: o.description,
+            region_area_id: o.region_area_id,
             region_type: o.region_type,
             official_id: o.official_id,
+            metadata: o.metadata,
             created_at: o.created_at,
         }
     }
@@ -75,8 +81,10 @@ impl From<LocalizedRegion> for LocalizedRegionDto {
             id: o.id,
             name: o.name,
             description: o.description,
+            region_area_id: o.region_area_id,
             region_type: o.region_type,
             official_id: o.official_id,
+            metadata: o.metadata,
             created_at: o.created_at,
         }
     }

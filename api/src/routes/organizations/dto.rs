@@ -36,6 +36,7 @@ pub struct OrganizationDto {
     pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Vec<Uuid>,
+    pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -86,6 +87,7 @@ pub struct LocalizedOrganizationDto {
     pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Vec<Uuid>,
+    pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -100,6 +102,7 @@ impl From<Organization> for OrganizationDto {
             contact_email: o.contact_email,
             external_url: o.external_url,
             regions: o.regions,
+            metadata: o.metadata,
             created_at: o.created_at,
         }
     }
@@ -148,6 +151,7 @@ impl From<LocalizedOrganization> for LocalizedOrganizationDto {
             contact_email: o.contact_email,
             external_url: o.external_url,
             regions: o.regions,
+            metadata: o.metadata,
             created_at: o.created_at,
         }
     }
