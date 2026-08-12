@@ -63,7 +63,7 @@
 				{#if isNumericArray(section.answers)}
 					<KdePlot
 						data={{ answers: section.answers }}
-						maxX={section.properties?.total ?? 10}
+						maxX={section.properties?.total ?? Math.max(10, ...section.answers)}
 					/>
 				{/if}
 				{#if isStringArray(section.answers)}
