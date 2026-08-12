@@ -3,7 +3,8 @@ export const HEYFORM_CHOICE_FIELD_KIND = [
 	'multiple_choice',
 	'picture_choice',
 	'ranking',
-	'matrix'
+	'matrix',
+	'legal_terms'
 ] as const;
 
 export const HEYFORM_NON_CHOICE_FIELD_KIND = [
@@ -32,7 +33,6 @@ export const HEYFORM_OTHER_FIELD_KIND = [
 	'input_table',
 	'payment',
 	'signature',
-	'legal_terms',
 	'submit_date',
 	'hidden_fields',
 	'variable',
@@ -195,7 +195,7 @@ export type HeyFormRankedValue = {
 	value: string[];
 };
 export type HeyFormMatrixValue = Record<string, number>;
-
+export type HeyFormLegalTermsValue = boolean;
 export type HeyFormFileUploadValue = {
 	filename: string;
 	size: number;

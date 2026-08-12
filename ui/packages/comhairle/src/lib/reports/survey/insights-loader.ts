@@ -7,6 +7,7 @@ import type {
 	HeyFormDateRangeValue,
 	HeyFormFileUploadValue,
 	HeyFormFullNameValue,
+	HeyFormLegalTermsValue,
 	HeyFormMatrixValue,
 	HeyFormNonChoiceFieldKind,
 	HeyFormRankedValue,
@@ -139,6 +140,38 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				answers
 			});
 		}
+		case 'legal_terms': {
+			if (!insight.submissions) {
+				return undefined;
+			}
+
+			const answers: Choice[] = [
+				{
+					id: 'yes',
+					label: 'Yes',
+					count: 0
+				},
+				{
+					id: 'no',
+					label: 'No',
+					count: 0
+				}
+			];
+
+			for (const submission of insight.submissions) {
+				const value = submission.value as HeyFormLegalTermsValue;
+				answers[Number(value)].count += 1;
+			}
+
+			return typedObj<ChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				properties: insight.properties ?? undefined,
+				answers
+			});
+		}
 		case 'rating':
 		case 'opinion_scale':
 		case 'number':
@@ -220,7 +253,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 						})
 						.filter((s) => !!s.trim()) ?? []
 			});
-		case 'legal_terms':
 		case 'group':
 		case 'statement':
 		case 'time':
