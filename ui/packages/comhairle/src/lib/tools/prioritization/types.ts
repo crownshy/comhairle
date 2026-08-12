@@ -53,17 +53,17 @@ export type LikertCategory = Category;
 /** Mirror type of the backend JsonFieldWithTranslations with optional `translations`
  * field to allow creating new translatable fields on questions
  */
-export type TranslatableJsonField = {
+export type DraftTranslatableJsonField = {
 	localized: string;
 	translations?: TranslationDto;
 };
 
 /** Form state for a question being created or edited.  */
-export type DraftFields = { text: TranslatableJsonField; type: QuestionTypeWithTranslations };
+export type DraftFields = { text: DraftTranslatableJsonField; type: QuestionTypeWithTranslations };
 
 export type DraftLikertCategoryWithTranslations = {
 	value: number;
-	label: TranslatableJsonField;
+	label: DraftTranslatableJsonField;
 };
 
 export type QuestionType =
@@ -80,7 +80,7 @@ export type QuestionType =
 
 export type Question = {
 	id: string;
-	text: TranslatableJsonField;
+	text: DraftTranslatableJsonField;
 	type: QuestionType;
 };
 

@@ -14,6 +14,7 @@ import type {
 	QuestionResponse,
 	QuestionType,
 	ToolConfig,
+	DraftTranslatableJsonField,
 	WorkflowStepInput
 } from './types';
 
@@ -54,11 +55,11 @@ function normaliseQuestionType(raw: unknown): QuestionType {
 }
 
 function normaliseQuestion(raw: unknown): Question {
-	const r = (raw ?? {}) as { id?: string; text?: string; type?: unknown };
+	const r = (raw ?? {}) as { id?: string; text?: DraftTranslatableJsonField; type?: unknown };
 	if (!r.id) throw new Error('Question loaded from backend is missing an id.');
 	return {
 		id: r.id,
-		text: r.text ?? '',
+		text: r.text ?? { localized: '' },
 		type: normaliseQuestionType(r.type)
 	};
 }
@@ -94,11 +95,21 @@ function denormaliseQuestion(q: Question): ApiQuestion {
  * conversations read `toolConfig`; design/preview reads `previewToolConfig`. */
 export function resolveToolConfig(workflowStep: WorkflowStepInput, isLive: boolean): ToolConfig {
 	const raw = (isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as
-		| { type?: string; questions?: unknown[]; randomize_order?: boolean }
+		| {
+				type?: string;
+				questions?: unknown[];
+				randomize_order?: boolean;
+				alignment_question_id?: string;
+		  }
 		| null
 		| undefined;
 	if (raw?.type !== 'prioritization')
-		return { questions: [], sectionQuestions: [], randomizeOrder: false };
+		return {
+			questions: [],
+			sectionQuestions: [],
+			randomizeOrder: false,
+			alignmentQuestionId: ''
+		};
 	const withSections = raw as typeof raw & { section_questions?: unknown[] };
 	return {
 		questions: (raw.questions ?? []).map(normaliseQuestion),
