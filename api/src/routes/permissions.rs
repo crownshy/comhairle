@@ -23,7 +23,6 @@ use crate::models::{
     pagination::{PageOptions, PaginatedResults},
     users,
 };
-use crate::routes::auth::RequiredAdminUser;
 use crate::routes::auth::{RequiredUser, authorize};
 use crate::{
     ComhairleState,
@@ -104,12 +103,12 @@ async fn resolve_actor(
 #[instrument(err(Debug), skip(state))]
 async fn grant(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(caller): RequiredAdminUser,
-    // resource: PermissionTargetResource,
+    RequiredUser(caller): RequiredUser,
+    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Json(body): Json<GrantPermissionBody>,
 ) -> Result<(StatusCode, Json<permissions::ResourcePermission>), ComhairleError> {
-    // authorize(&state, &caller, Action::GrantPermission, &resource).await?;
+    authorize(&state, &caller, Action::GrantPermission, &resource).await?;
 
     let actor_id = resolve_actor(
         &state.db,
