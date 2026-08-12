@@ -151,10 +151,12 @@
 	}
 
 	const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif'];
+	const TEXT_EXTENSIONS = ['.md', '.markdown', '.txt'];
 
-	function previewKind(fileName: string): 'pdf' | 'image' | 'docx' {
+	function previewKind(fileName: string): 'pdf' | 'image' | 'docx' | 'text' {
 		const lower = fileName.toLowerCase();
 		if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'docx';
+		if (TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'text';
 		if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'image';
 		return 'pdf';
 	}
@@ -443,8 +445,9 @@
 	</div>
 {/if}
 
-<!-- Source document: opens the real PDF (or Word/image) in the shared viewer,
-     with the retrieved passage highlighted when position data is available. -->
+<!-- Source document. Every source (uploaded files and the synced learn-content PDF) opens in
+     the shared document viewer, with the retrieved passage highlighted when position data is
+     available. Learn content is now a real PDF, so it needs no special-casing. -->
 <PdfDocumentDialog
 	bind:open={viewerOpen}
 	kind={activeSource?.kind ?? 'pdf'}

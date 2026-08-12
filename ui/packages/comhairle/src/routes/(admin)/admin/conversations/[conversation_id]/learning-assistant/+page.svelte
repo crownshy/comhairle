@@ -15,6 +15,14 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import Media from '$lib/interfaces/Media';
 	import { MB } from '$lib/utils/units';
+	import { LEARN_CONTENT_DOCUMENT_NAME } from '$lib/utils/constants';
+	import {
+		sectionsToPdfDefinition,
+		collectImageSources,
+		type LearnContentSection,
+		type ImageMap
+	} from '$lib/learn/tiptapToPdf';
+	import LearnSyncStatus from './LearnSyncStatus.svelte';
 
 	const MAX_SIZE = 50 * MB;
 
@@ -29,11 +37,19 @@
 	let conversation = $derived(data.conversation);
 	let documents = $derived(data.documents);
 
+	// The synced learn-step content is a knowledge-base document like any other, but it is
+	// managed via Sync (not the uploader), so keep it out of the uploaded-files lists and
+	// surface its own status instead.
+	const learnDoc = $derived(documents?.find((doc) => doc.name === LEARN_CONTENT_DOCUMENT_NAME));
+	const uploadedDocuments = $derived(
+		documents?.filter((doc) => doc.name !== LEARN_CONTENT_DOCUMENT_NAME) ?? []
+	);
+
 	const parsingDocuments = $derived(
-		documents?.filter((doc) => doc.parse_progress < 1 && doc.parse_progress > 0)
+		uploadedDocuments.filter((doc) => doc.parse_progress < 1 && doc.parse_progress > 0)
 	);
 	const parsedDocuments = $derived(
-		documents?.filter(
+		uploadedDocuments.filter(
 			(doc) =>
 				doc.parse_progress >= 1 ||
 				(doc.parse_progress === 0 && doc.parse_status === 'CANCEL')
@@ -69,26 +85,107 @@
 
 	let isSyncing = $state(false);
 
+	// Largest dimension we rasterise learn-content images to. Caps the embedded PNG size so the
+	// generated PDF stays reasonable while staying sharp at the ~500pt content width.
+	const MAX_IMAGE_DIMENSION = 1200;
+
+	// Fetch an image URL and rasterise it to a PNG data URL via a canvas. Going through a canvas
+	// (rather than embedding the bytes directly) normalises any source format - including webp /
+	// avif that pdfmake can't embed - to PNG, and lets us downscale huge images. Returns null on
+	// any failure (network, or a CORS-tainted canvas): a missing image is skipped, never fatal.
+	function imageUrlToPngDataUrl(url: string): Promise<string | null> {
+		return new Promise((resolve) => {
+			const img = new Image();
+			img.crossOrigin = 'anonymous';
+			img.onload = () => {
+				try {
+					const scale = Math.min(
+						1,
+						MAX_IMAGE_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight)
+					);
+					const canvas = document.createElement('canvas');
+					canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+					canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+					const ctx = canvas.getContext('2d');
+					if (!ctx) return resolve(null);
+					ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+					resolve(canvas.toDataURL('image/png'));
+				} catch (error) {
+					console.error('Could not embed learn image', url, error);
+					resolve(null);
+				}
+			};
+			img.onerror = () => resolve(null);
+			img.src = url;
+		});
+	}
+
+	// Resolve every referenced image to an embeddable data URL. Fetched concurrently; failures
+	// drop out of the map (their nodes are then skipped in the PDF).
+	async function resolveImages(sources: string[]): Promise<ImageMap> {
+		const entries = await Promise.all(
+			sources.map(async (src) => [src, await imageUrlToPngDataUrl(src)] as const)
+		);
+		const map: ImageMap = {};
+		for (const [src, data] of entries) {
+			if (data) map[src] = data;
+		}
+		return map;
+	}
+
+	// Build a text-bearing PDF from the learn steps in the browser and upload it. pdfmake is
+	// heavy (~1MB) and browser-only, so it (and its bundled fonts) is loaded lazily here rather
+	// than in the SSR/initial bundle. Vite's CJS interop may surface the module as `default`
+	// or spread its named exports, so accept either shape.
+	async function generateLearnPdf(sections: LearnContentSection[]): Promise<Blob> {
+		const pdfmakeModule =
+			(await import('pdfmake/build/pdfmake')) as typeof import('pdfmake/build/pdfmake') & {
+				default?: typeof import('pdfmake/build/pdfmake');
+			};
+		const pdfMake = pdfmakeModule.default ?? pdfmakeModule;
+		const fontsModule = await import('pdfmake/build/vfs_fonts');
+		pdfMake.addVirtualFileSystem(fontsModule.default);
+
+		const images = await resolveImages(collectImageSources(sections));
+		const definition = sectionsToPdfDefinition(sections, images);
+		return pdfMake.createPdf(definition).getBlob();
+	}
+
 	// Rebuilds the reserved learn-content document in the knowledge base from the current
 	// learn-step content (see ADR-0010). Content is not synced automatically, so this is the
-	// admin's manual trigger after editing learn steps.
+	// admin's manual trigger after editing learn steps. The frontend fetches the raw learn
+	// content, renders it to a text-bearing PDF, and uploads that; the backend owns the
+	// RAGFlow dedup + parse dance.
 	async function syncLearnContent() {
 		isSyncing = true;
-		const res = await tryCatchAsync(() =>
-			fetch(`/api/conversation/${conversation.id}/documents/sync_learning_content`, {
-				method: 'POST',
-				credentials: 'include'
-			})
-		);
+
+		const res = await tryCatchAsync(async () => {
+			const contentRes = await fetch(
+				`/api/conversation/${conversation.id}/documents/learn_content`,
+				{ credentials: 'include' }
+			);
+			if (!contentRes.ok)
+				throw new Error(`Failed to load learn content (${contentRes.status})`);
+			const { sections } = (await contentRes.json()) as { sections: LearnContentSection[] };
+
+			const blob = await generateLearnPdf(sections);
+
+			const media = new Media();
+			const formData = new FormData();
+			formData.append('file', blob, LEARN_CONTENT_DOCUMENT_NAME);
+			const uploadRes = await media.upload(
+				`/api/conversation/${conversation.id}/documents/sync_learning_content`,
+				formData,
+				{ maxSize: MAX_SIZE }
+			);
+			if (uploadRes.err !== null) throw new Error('Failed to upload learn content');
+			return uploadRes.ok;
+		});
+
 		isSyncing = false;
 
 		if (res.err !== null) {
 			console.error(res.err);
-			notifications.send({ message: 'Failed to sync learn content', priority: 'ERROR' });
-			return;
-		}
-		if (!res.ok.ok) {
-			console.error(res.ok.statusText);
 			notifications.send({ message: 'Failed to sync learn content', priority: 'ERROR' });
 			return;
 		}
@@ -223,10 +320,22 @@
 				questions about them. Changes to learn steps are not picked up automatically, so
 				re-sync after you finish editing.
 			</p>
-			<Button variant="outline" onclick={syncLearnContent} disabled={isSyncing}>
-				<RefreshCw class={isSyncing ? 'animate-spin' : ''} />
-				{isSyncing ? 'Syncing...' : 'Sync learn content'}
-			</Button>
+			<p class="text-muted-foreground text-sm">
+				Re-syncing replaces the learning-material document, so sources cited in earlier
+				assistant answers will no longer open for participants.
+			</p>
+			<div class="flex flex-col gap-3">
+				<Button
+					variant="outline"
+					class="self-start"
+					onclick={syncLearnContent}
+					disabled={isSyncing}
+				>
+					<RefreshCw class={isSyncing ? 'animate-spin' : ''} />
+					{isSyncing ? 'Syncing...' : 'Sync learn content'}
+				</Button>
+				<LearnSyncStatus document={learnDoc} conversationId={conversation.id} />
+			</div>
 		</div>
 	</div>
 
