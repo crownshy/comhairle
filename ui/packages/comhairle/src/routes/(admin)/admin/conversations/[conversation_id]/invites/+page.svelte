@@ -75,66 +75,89 @@
 	<EmailInviteForm conversationId={conversation.id} onDone={emailInvitesSubmitted} />
 	<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 {:else if activeTab === 'open-links'}
-	<p>Create Invites for sharing on social media or sending as a links</p>
-	<Button onclick={createInviteLink}>New Invite Link</Button>
+	<div class="space-y-4">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+			<p class="text-muted-foreground max-w-prose">
+				Create invite links to share on social media or send directly to people.
+			</p>
+			<Button onclick={createInviteLink}>New Invite Link</Button>
+		</div>
 
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head class="w-[150px]">Label</Table.Head>
-				<Table.Head class="w-[100px]">Link</Table.Head>
-				<Table.Head class="w-[100px]">Created At</Table.Head>
-				<Table.Head class="w-[100px]">Expires</Table.Head>
-				<Table.Head class="w-[100px]">Stats</Table.Head>
-				<Table.Head class="w-[100px]">Accepted</Table.Head>
-				<Table.Head class="w-[100px]">QRCode</Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each openInvites as invite (invite.id)}
-				<Table.Row>
-					<Table.Cell>
-						<Button
-							variant="ghost"
-							size="sm"
-							onclick={() => editInviteLabel(invite)}
-							class="h-auto p-1 font-normal"
-						>
-							{invite.label || '(click to add label)'}
-						</Button>
-					</Table.Cell>
+		{#if openInvites.length === 0}
+			<div class="text-muted-foreground rounded-lg border border-dashed p-8 text-center">
+				No invite links yet. Create one to start recruiting participants.
+			</div>
+		{:else}
+			<div class="overflow-x-auto">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head class="min-w-[160px]">Label</Table.Head>
+							<Table.Head class="w-[72px]">Link</Table.Head>
+							<Table.Head class="w-[130px]">Created</Table.Head>
+							<Table.Head class="w-[130px]">Expires</Table.Head>
+							<Table.Head class="min-w-[260px]">Stats</Table.Head>
+							<Table.Head class="w-[90px] text-center">Accepted</Table.Head>
+							<Table.Head class="w-[150px] text-center">QR code</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each openInvites as invite (invite.id)}
+							<Table.Row>
+								<Table.Cell class="font-medium">
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={() => editInviteLabel(invite)}
+										class="h-auto p-1 font-normal"
+									>
+										{invite.label || '(click to add label)'}
+									</Button>
+								</Table.Cell>
 
-					<Table.Cell>
-						{@render InviteLink(invite, 'Link')}
-					</Table.Cell>
+								<Table.Cell>
+									{@render InviteLink(invite, 'Link')}
+								</Table.Cell>
 
-					<Table.Cell>
-						{formatDistanceToNow(invite.createdAt, { addSuffix: true })}
-					</Table.Cell>
+								<Table.Cell class="text-muted-foreground">
+									{formatDistanceToNow(invite.createdAt, { addSuffix: true })}
+								</Table.Cell>
 
-					<Table.Cell>
-						{invite.expiresAt
-							? formatDistanceToNow(invite.expiresAt, { addSuffix: true })
-							: 'Never'}
-					</Table.Cell>
-					<Table.Cell>
-						<OpenInviteStatsBarChart
-							conversation_id={conversation.id}
-							invite_id={invite.id}
-						/>
-					</Table.Cell>
+								<Table.Cell class="text-muted-foreground">
+									{invite.expiresAt
+										? formatDistanceToNow(invite.expiresAt, { addSuffix: true })
+										: 'Never'}
+								</Table.Cell>
 
-					<Table.Cell>
-						{invite.acceptCount}
-					</Table.Cell>
+								<Table.Cell>
+									<OpenInviteStatsBarChart
+										conversation_id={conversation.id}
+										invite_id={invite.id}
+									/>
+								</Table.Cell>
 
-					<Table.Cell>
-						<QrCode value={inviteUrl(url, invite, conversation)} />
-					</Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
+								<Table.Cell class="text-center font-medium tabular-nums">
+									{invite.acceptCount}
+								</Table.Cell>
+
+								<Table.Cell>
+									<div class="flex justify-center">
+										<QrCode
+											value={inviteUrl(url, invite, conversation)}
+											size="512"
+											padding={null}
+											errorCorrection="M"
+											className="h-28 w-28"
+										/>
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</div>
+		{/if}
+	</div>
 {:else if activeTab === 'physical'}
 	<h2>Generate physical QR Codes for an inperson event</h2>
 {/if}
