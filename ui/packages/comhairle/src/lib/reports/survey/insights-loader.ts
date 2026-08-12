@@ -7,6 +7,7 @@ import type {
 	HeyFormDateRangeValue,
 	HeyFormFileUploadValue,
 	HeyFormFullNameValue,
+	HeyFormMatrixValue,
 	HeyFormNonChoiceFieldKind,
 	HeyFormRankedValue,
 	Properties
@@ -70,6 +71,45 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 					const choiceId = s.value[i];
 					// Calculate the amount of ranking, so just the length minus the index, e.g. for 5 choices, the top would receieve 5, last would receieve 1
 					const amount = s.value.length - i;
+					const answerIndex = answers.findIndex((a) => a.id === choiceId);
+
+					if (answerIndex > -1) {
+						answers[answerIndex].count += amount;
+						continue;
+					}
+
+					const label =
+						(insight.properties?.choices as Omit<Choice, 'count'>[]).find(
+							(c) => c.id === choiceId
+						)?.label ?? '';
+
+					answers.push({
+						id: choiceId,
+						label,
+						count: amount
+					});
+				}
+			}
+
+			return typedObj<ChoiceQuestion>({
+				id: insight.id,
+				title: insight.title,
+				total: insight.total,
+				kind: insight.kind,
+				properties: insight.properties,
+				answers
+			});
+		}
+		case 'matrix': {
+			const answers: Choice[] = [];
+
+			if (!insight.properties || !insight.submissions) {
+				return undefined;
+			}
+
+			for (const submission of insight.submissions) {
+				const s = submission.value as HeyFormMatrixValue;
+				for (const [choiceId, amount] of Object.entries(s)) {
 					const answerIndex = answers.findIndex((a) => a.id === choiceId);
 
 					if (answerIndex > -1) {
@@ -180,13 +220,13 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 						})
 						.filter((s) => !!s.trim()) ?? []
 			});
+		case 'legal_terms':
 		case 'group':
 		case 'statement':
 		case 'time':
 		case 'input_table':
 		case 'payment':
 		case 'signature':
-		case 'legal_terms':
 		case 'submit_date':
 		case 'custom_text':
 		case 'custom_single':

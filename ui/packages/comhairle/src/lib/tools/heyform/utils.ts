@@ -2,7 +2,8 @@ export const HEYFORM_CHOICE_FIELD_KIND = [
 	'yes_no',
 	'multiple_choice',
 	'picture_choice',
-	'ranking'
+	'ranking',
+	'matrix'
 ] as const;
 
 export const HEYFORM_NON_CHOICE_FIELD_KIND = [
@@ -191,8 +192,10 @@ export type HeyFormDateRangeValue = {
 	start: string;
 };
 export type HeyFormRankedValue = {
-	value: string;
+	value: string[];
 };
+export type HeyFormMatrixValue = Record<string, number>;
+
 export type HeyFormFileUploadValue = {
 	filename: string;
 	size: number;
