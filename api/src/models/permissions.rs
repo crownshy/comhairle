@@ -1331,18 +1331,6 @@ mod tests {
 
         let (_, user, _) = session.current_user(&app).await?;
 
-        // Grant the user the super admin role, which should be the only one.
-        grant_role(
-            &state,
-            GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &session.id.unwrap(),
-                grant_reason: "Testing",
-            },
-        )
-        .await?;
-
         // Attempt to revoke the admin role, which should be the only one
         let result = revoke_role(
             &state,

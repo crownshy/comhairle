@@ -36,12 +36,14 @@ const DEFAULT_COLUMNS: [RegionAreaIden; 4] = [
 
 pub async fn create(
     db: &PgPool,
-    create_request: &CreateRegionArea,
+    create_request: CreateRegionArea,
 ) -> Result<RegionArea, ComhairleError> {
+    let CreateRegionArea { zip_prefix } = create_request;
+
     let (sql, values) = Query::insert()
         .into_table(RegionAreaIden::Table)
         .columns([RegionAreaIden::ZipPrefix])
-        .values([create_request.zip_prefix.clone().into()])
+        .values([zip_prefix.into()])
         .expect("region_area create values should be valid")
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
@@ -87,6 +89,8 @@ pub async fn update(
     id: &Uuid,
     update_request: &PartialRegionArea,
 ) -> Result<RegionArea, ComhairleError> {
+    let mut tx = db.begin().await?;
+
     let mut query = Query::update()
         .table(RegionAreaIden::Table)
         .and_where(Expr::col(RegionAreaIden::Id).eq(*id))
@@ -101,6 +105,7 @@ pub async fn update(
     }
 
     if !has_updates {
+        tx.rollback().await?;
         return get_by_id(db, id).await;
     }
 
@@ -113,9 +118,11 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let area = sqlx::query_as_with::<_, RegionArea, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *tx)
         .await
         .resolve_db_err("Region Area")?;
+
+    tx.commit().await?;
 
     Ok(area)
 }

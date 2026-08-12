@@ -5,9 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        organization::{
-            LocalizedOrganization, Organization, OrganizationAdminBootstrapResult, OrganizationType,
-        },
+        organization::{LocalizedOrganization, Organization, OrganizationType},
         pagination::PaginatedResults,
         translations::TextContentId,
     },

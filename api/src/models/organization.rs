@@ -6,7 +6,6 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, query_as_with};
-use std::{collections::HashSet, sync::Arc};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -102,30 +101,6 @@ pub struct CreateOrganization {
     pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Option<Vec<Uuid>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct OrganizationAdminBootstrapResult {
-    pub email: String,
-    pub user_id: Option<Uuid>,
-    pub created_account: bool,
-    pub assigned: bool,
-    pub emailed: bool,
-    pub error: Option<String>,
-}
-
-impl OrganizationAdminBootstrapResult {
-    fn failed(email: &str, error: &str) -> Self {
-        Self {
-            email: email.to_string(),
-            user_id: None,
-            created_account: false,
-            assigned: false,
-            emailed: false,
-            error: Some(error.to_string()),
-        }
-    }
 }
 
 impl CreateOrganization {
@@ -233,96 +208,6 @@ pub async fn add_member_emails(
     }
 
     Ok(())
-}
-
-pub async fn bootstrap_organization_admin_accounts(
-    state: &Arc<ComhairleState>,
-    organization_id: &Uuid,
-    admin_emails: &[String],
-) -> Vec<OrganizationAdminBootstrapResult> {
-    let mut results = Vec::with_capacity(admin_emails.len());
-    let mut seen_emails = HashSet::new();
-
-    for email in admin_emails {
-        let trimmed = email.trim().to_lowercase();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if !seen_emails.insert(trimmed.clone()) {
-            continue;
-        }
-
-        let mut created_account = false;
-        let user = match users::get_user_by_email(&trimmed, &state.db).await {
-            Ok(user) => user,
-            Err(ComhairleError::NoUserFoundForEmail(_)) => {
-                created_account = true;
-                match users::create_organization_admin_user(state, &trimmed).await {
-                    Ok(user) => user,
-                    Err(error) => {
-                        tracing::warn!(
-                            "Failed to create admin user for email {} on organization {}: {:?}",
-                            trimmed,
-                            organization_id,
-                            error
-                        );
-                        results.push(OrganizationAdminBootstrapResult::failed(
-                            &trimmed,
-                            &error.to_string(),
-                        ));
-                        continue;
-                    }
-                }
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "Failed to resolve admin email {} for organization {}: {:?}",
-                    trimmed,
-                    organization_id,
-                    error
-                );
-                results.push(OrganizationAdminBootstrapResult::failed(
-                    &trimmed,
-                    &error.to_string(),
-                ));
-                continue;
-            }
-        };
-
-        let update_request = users::UpdateUserRequest {
-            organization_id: Some(*organization_id),
-            ..Default::default()
-        };
-
-        if let Err(error) = users::update_user(&user.id, &update_request, &state.db).await {
-            tracing::warn!(
-                "Failed to associate admin user {} with organization {}: {:?}",
-                user.id,
-                organization_id,
-                error
-            );
-            results.push(OrganizationAdminBootstrapResult {
-                email: trimmed,
-                user_id: Some(user.id),
-                created_account,
-                assigned: false,
-                emailed: false,
-                error: Some(error.to_string()),
-            });
-            continue;
-        }
-
-        results.push(OrganizationAdminBootstrapResult {
-            email: trimmed,
-            user_id: Some(user.id),
-            created_account,
-            assigned: true,
-            emailed: false,
-            error: None,
-        });
-    }
-
-    results
 }
 
 impl PartialOrganization {

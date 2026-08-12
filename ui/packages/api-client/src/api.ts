@@ -2141,20 +2141,6 @@ export const CreateOrganization = z
   })
   .passthrough();
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
-export const UpdateOrganizationBody = z
-  .object({
-    contact_email: z.union([z.string(), z.null()]),
-    description: z.union([z.string(), z.null()]),
-    external_url: z.union([z.string(), z.null()]),
-    metadata: z.unknown(),
-    mission: z.union([z.string(), z.null()]),
-    name: z.union([z.string(), z.null()]),
-    org_type: z.union([OrganizationType, z.null()]),
-    regions: z.union([z.array(z.string().uuid()), z.null()]),
-  })
-  .partial()
-  .passthrough();
-export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
 export const OrganizationDto = z
   .object({
     contactEmail: z.union([z.string(), z.null()]).optional(),
@@ -2170,6 +2156,20 @@ export const OrganizationDto = z
   })
   .passthrough();
 export type OrganizationDto = z.infer<typeof OrganizationDto>;
+export const UpdateOrganizationBody = z
+  .object({
+    contact_email: z.union([z.string(), z.null()]),
+    description: z.union([z.string(), z.null()]),
+    external_url: z.union([z.string(), z.null()]),
+    metadata: z.unknown(),
+    mission: z.union([z.string(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+    org_type: z.union([OrganizationType, z.null()]),
+    regions: z.union([z.array(z.string().uuid()), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
 export const OrganizationTeamRole = z.enum(["member", "admin"]);
 export type OrganizationTeamRole = z.infer<typeof OrganizationTeamRole>;
 export const OrganizationTeamUserDto = z
@@ -2223,7 +2223,6 @@ export const LocalizedRegionDto = z
     metadata: z.unknown().optional(),
     name: z.string(),
     official_id: z.union([z.string(), z.null()]).optional(),
-    region_area_id: z.union([z.string(), z.null()]).optional(),
     region_type: RegionType,
   })
   .passthrough();
@@ -2251,7 +2250,6 @@ export const RegionDto = z
     metadata: z.unknown().optional(),
     name: z.string().uuid(),
     official_id: z.union([z.string(), z.null()]).optional(),
-    region_area_id: z.union([z.string(), z.null()]).optional(),
     region_type: RegionType,
   })
   .passthrough();
@@ -2260,12 +2258,24 @@ export const PartialRegion = z
   .object({
     metadata: z.unknown(),
     official_id: z.union([z.string(), z.null()]),
-    region_area_id: z.union([z.string(), z.null()]),
     region_type: z.union([RegionType, z.null()]),
   })
   .partial()
   .passthrough();
 export type PartialRegion = z.infer<typeof PartialRegion>;
+export const RegionAreaLinksDto = z
+  .object({
+    area_ids: z.array(z.string().uuid()),
+    region_id: z.string().uuid(),
+  })
+  .passthrough();
+export type RegionAreaLinksDto = z.infer<typeof RegionAreaLinksDto>;
+export const RegionAreaLinksRequestDto = z
+  .object({ area_ids: z.array(z.string().uuid()) })
+  .passthrough();
+export type RegionAreaLinksRequestDto = z.infer<
+  typeof RegionAreaLinksRequestDto
+>;
 export const RegionAreaDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -2759,8 +2769,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SendToUserMessage,
   PaginatedResults_for_LocalizedOrganizationDto,
   CreateOrganization,
-  UpdateOrganizationBody,
   OrganizationDto,
+  UpdateOrganizationBody,
   OrganizationTeamRole,
   OrganizationTeamUserDto,
   OrganizationTeamResponseDto,
@@ -2773,6 +2783,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateRegion,
   RegionDto,
   PartialRegion,
+  RegionAreaLinksDto,
+  RegionAreaLinksRequestDto,
   RegionAreaDto,
   CreateRegionArea,
   PartialRegionArea,
@@ -5061,6 +5073,45 @@ curl -X POST \
     description: `Delete a region`,
     requestFormat: "json",
     response: RegionDto,
+  },
+  {
+    method: "get",
+    path: "/regions/:region_id/areas",
+    alias: "GetRegionAreaLinks",
+    description: `List region area links`,
+    requestFormat: "json",
+    response: RegionAreaLinksDto,
+  },
+  {
+    method: "put",
+    path: "/regions/:region_id/areas",
+    alias: "SetRegionAreaLinks",
+    description: `Replace region area links`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: RegionAreaLinksRequestDto,
+      },
+    ],
+    response: RegionAreaLinksDto,
+  },
+  {
+    method: "post",
+    path: "/regions/:region_id/areas/:area_id",
+    alias: "AddRegionAreaLink",
+    description: `Add region area link`,
+    requestFormat: "json",
+    response: RegionAreaLinksDto,
+  },
+  {
+    method: "delete",
+    path: "/regions/:region_id/areas/:area_id",
+    alias: "RemoveRegionAreaLink",
+    description: `Remove region area link`,
+    requestFormat: "json",
+    response: RegionAreaLinksDto,
   },
   {
     method: "get",

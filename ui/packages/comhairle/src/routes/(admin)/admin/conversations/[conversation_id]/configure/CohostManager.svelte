@@ -50,7 +50,6 @@
 			return;
 		}
 
-		console.log('Organizations response:', response); // Debugging line
 		organizations = response.ok.records;
 	});
 
