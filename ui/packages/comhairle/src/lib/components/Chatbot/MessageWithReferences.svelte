@@ -1,8 +1,17 @@
 <script lang="ts">
 	import { Info } from 'lucide-svelte';
+	import { marked } from 'marked';
+	import DOMPurify from 'isomorphic-dompurify';
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import type { ReferenceChunk, ChatReference } from '$lib/api/chatClient.svelte';
 	import ReferencePopoverContent from '$lib/components/Chatbot/ReferencePopoverContent.svelte';
+
+	// Inline-only markdown (bold, italic, code, links, strikethrough).
+	// Block markdown is intentionally not parsed so citation circles keep
+	// interleaving cleanly between text segments.
+	function renderInline(text: string): string {
+		return DOMPurify.sanitize(marked.parseInline(text) as string);
+	}
 
 	interface Props {
 		content: string;
@@ -56,7 +65,8 @@
 <span class="message-with-refs">
 	{#each parsedContent as part, i (i)}
 		{#if part.type === 'text'}
-			{part.value}
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via DOMPurify -->
+			<span>{@html renderInline(part.value)}</span>
 		{:else}
 			{@const chunk = getChunkById(part.value)}
 			{#if chunk}
