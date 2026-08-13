@@ -8,7 +8,7 @@ import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { HttpStatus } from '$lib/utils/constants';
 
 export const load: PageLoad = async (event) => {
-	const { toolConfig } = await event.parent();
+	const { api, toolConfig } = await event.parent();
 	const { step_id } = event.params;
 
 	// TODO: change to tool-agnostic
@@ -18,13 +18,13 @@ export const load: PageLoad = async (event) => {
 	const response = await tryCatchAsync(async () => {
 		switch (toolConfig?.type) {
 			case 'polis':
-				return await polisInsightsLoader(step_id);
+				return await polisInsightsLoader(api, step_id);
 			case 'prioritization':
-				return await prioritizationInsightsLoader(step_id);
+				return await prioritizationInsightsLoader(api, step_id);
 			case 'thinkingspace':
-				return await thinkingSpaceInsightsLoader(step_id);
+				return await thinkingSpaceInsightsLoader(api, step_id);
 			case 'heyform':
-				return await surveyInsightsLoader(step_id);
+				return await surveyInsightsLoader(api, step_id);
 			case 'learn':
 			case 'stories':
 			case 'elicitationbot':

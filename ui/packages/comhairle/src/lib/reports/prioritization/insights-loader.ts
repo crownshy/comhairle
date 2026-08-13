@@ -1,9 +1,9 @@
 import { HttpStatus } from '$lib/utils/constants';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import type { PrioritizationInsightsResponse } from '@crownshy/api-client/api';
-import { apiClient, type ApiError } from '@crownshy/api-client/client';
+import type { ApiClient, PrioritizationInsightsResponse } from '@crownshy/api-client/api';
+import type { ApiError } from '@crownshy/api-client/client';
 
-export async function prioritizationInsightsLoader(workflowStepId: string) {
+export async function prioritizationInsightsLoader(apiClient: ApiClient, workflowStepId: string) {
 	const result = await tryCatchAsync<PrioritizationInsightsResponse, ApiError>(() =>
 		apiClient.GetPrioritizationInsights({
 			queries: { workflow_step_id: workflowStepId }

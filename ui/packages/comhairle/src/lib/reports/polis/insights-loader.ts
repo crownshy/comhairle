@@ -1,6 +1,6 @@
-import { apiClient } from '@crownshy/api-client/client';
+import type { ApiClient } from '@crownshy/api-client/api';
 
-export async function polisInsightsLoader(workflowStepId: string) {
+export async function polisInsightsLoader(apiClient: ApiClient, workflowStepId: string) {
 	const statementAux = await apiClient.PolisListStatementAux({
 		queries: { workflow_step_id: workflowStepId }
 	});

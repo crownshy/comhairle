@@ -1,5 +1,4 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import { apiClient } from '@crownshy/api-client/client';
 import { isHeyFormFieldKind } from '$lib/tools/heyform/guards';
 import type {
 	HeyFormAddressValue,
@@ -13,7 +12,7 @@ import type {
 	HeyFormRankedValue,
 	Properties
 } from '$lib/tools/heyform/utils';
-import type { InsightQuestion } from '@crownshy/api-client/api';
+import type { ApiClient, InsightQuestion } from '@crownshy/api-client/api';
 import { typedObj } from '$lib/utils/types';
 
 type Choice = {
@@ -277,6 +276,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 }
 
 export async function surveyInsightsLoader(
+	apiClient: ApiClient,
 	workflowStepId: string
 ): Promise<{ survey: SurveyQuestion[] }> {
 	const response = await tryCatchAsync(() =>
