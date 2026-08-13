@@ -103,17 +103,25 @@
 
 	const isEditing = $derived(editingId !== undefined);
 
-	const textTransSource = createTextContentSource({
-		getTranslation: () => draft.text.translations,
-		getPrimaryLocale: () => primaryLocale,
-		getSupportedLanguages: () => supportedLocales,
-		getPrimaryFallback: () => draft.text.localized,
-		onEdit: async (content) => {
-			draft.text.localized = content;
-		}
+	const textTransSource = $derived.by(() => {
+		// Force re-evaluation on toggle open as component isn't unmounted
+		// when new questions are created
+		void open;
+		return createTextContentSource({
+			getTranslation: () => draft.text.translations,
+			getPrimaryLocale: () => primaryLocale,
+			getSupportedLanguages: () => supportedLocales,
+			getPrimaryFallback: () => draft.text.localized,
+			onEdit: async (content) => {
+				draft.text.localized = content;
+			}
+		});
 	});
 
 	const likertCategoryTransSources = $derived.by(() => {
+		// Force re-evaluation on toggle open as component isn't unmounted
+		// when new questions are created
+		void open;
 		if ('kind' in draft.type && draft.type.kind !== 'likert') return [];
 
 		return draft.type.categories.map((category, index) => {
@@ -375,20 +383,22 @@
 					</div>
 					<div class="flex items-center gap-3">
 						<Label for="q-min-label" class="w-20 shrink-0">End labels</Label>
-						{#if continuousTransSources.minLabel}
-							<TranslatableField
-								source={continuousTransSources.minLabel}
-								{primaryLocale}
-								supportedLanguages={supportedLocales}
-							/>
-						{/if}
-						{#if continuousTransSources.maxLabel}
-							<TranslatableField
-								source={continuousTransSources.maxLabel}
-								{primaryLocale}
-								supportedLanguages={supportedLocales}
-							/>
-						{/if}
+						<div class="flex items-start gap-3">
+							{#if continuousTransSources.minLabel}
+								<TranslatableField
+									source={continuousTransSources.minLabel}
+									{primaryLocale}
+									supportedLanguages={supportedLocales}
+								/>
+							{/if}
+							{#if continuousTransSources.maxLabel}
+								<TranslatableField
+									source={continuousTransSources.maxLabel}
+									{primaryLocale}
+									supportedLanguages={supportedLocales}
+								/>
+							{/if}
+						</div>
 					</div>
 					<div class="flex items-center gap-3">
 						<Label for="q-steps" class="w-20 shrink-0">Steps</Label>

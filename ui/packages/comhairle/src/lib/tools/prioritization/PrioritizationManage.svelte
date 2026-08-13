@@ -70,7 +70,10 @@
 	/** Per-section question editor/delete state (mirrors the proposal-question flow). */
 	let sectionQuestionEditorOpen = $state(false);
 	let sectionQuestionDeleteOpen = $state(false);
-	let selectedSectionQuestion = $state<DraftQuestion | null>(null);
+	let selectedSectionQuestionId = $state<string | null>(null);
+	let selectedSectionQuestion = $derived(
+		toolConfig.sectionQuestions.find((sq) => sq.id === selectedSectionQuestionId) ?? null
+	);
 	let deletingSectionQuestionInFlight = $state(false);
 
 	const questions = $derived<DraftQuestion[]>(toolConfig.questions ?? []);
@@ -184,25 +187,25 @@
 	}
 
 	function openCreateSectionQuestion() {
-		selectedSectionQuestion = null;
+		selectedSectionQuestionId = null;
 		sectionQuestionEditorOpen = true;
 	}
 
 	function openEditSectionQuestion(q: DraftQuestion) {
-		selectedSectionQuestion = q;
+		selectedSectionQuestionId = q.id;
 		sectionQuestionEditorOpen = true;
 	}
 
 	function confirmDeleteSectionQuestion(q: DraftQuestion) {
-		selectedSectionQuestion = q;
+		selectedSectionQuestionId = q.id;
 		sectionQuestionDeleteOpen = true;
 	}
 
 	async function runDeleteSectionQuestion() {
-		if (!selectedSectionQuestion) return;
+		if (!selectedSectionQuestionId) return;
 		deletingSectionQuestionInFlight = true;
 		try {
-			const next = sectionQuestions.filter((q) => q.id !== selectedSectionQuestion!.id);
+			const next = sectionQuestions.filter((q) => q.id !== selectedSectionQuestionId);
 			await store.saveToolConfig({
 				questions,
 				sectionQuestions: next,
@@ -210,7 +213,7 @@
 				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 			sectionQuestionDeleteOpen = false;
-			selectedSectionQuestion = null;
+			selectedSectionQuestionId = null;
 		} catch {
 			/** store.saveToolConfig surfaces an error toast. */
 		} finally {
@@ -563,7 +566,7 @@
 	target="proposal"
 	onOpenChange={(o) => {
 		questionEditorOpen = o;
-		if (!o) selectedQuestion = null;
+		if (!o) selectedQuestionId = null;
 	}}
 	{primaryLocale}
 	{supportedLocales}
@@ -577,7 +580,7 @@
 	target="section"
 	onOpenChange={(o) => {
 		sectionQuestionEditorOpen = o;
-		if (!o) selectedSectionQuestion = null;
+		if (!o) selectedSectionQuestionId = null;
 	}}
 	{primaryLocale}
 	{supportedLocales}
