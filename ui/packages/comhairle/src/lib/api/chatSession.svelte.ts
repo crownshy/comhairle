@@ -1,4 +1,4 @@
-import { ChatClient, type ChatReference } from './chatClient.svelte';
+import { ChatClient, stripThinking, type ChatReference } from './chatClient.svelte';
 
 /**
  * Unified chat message shape shared across all chat surfaces (ChatBot, LearningAssistant, etc.).
@@ -56,7 +56,11 @@ export class ChatSession {
 					this.messages = session.messages.map((msg, idx) => ({
 						id: msg.id ? `${msg.id}-${msg.role}` : `msg-${idx}`,
 						role: msg.role === 'assistant' ? 'assistant' : 'user',
-						content: msg.content,
+						// History comes straight from RAGFlow with reasoning still
+						// wrapped in <think>…</think>; the live-stream path strips it in
+						// ChatClient, so strip here too or reloaded answers leak it.
+						content:
+							msg.role === 'assistant' ? stripThinking(msg.content) : msg.content,
 						reference: msg.reference?.length
 							? {
 									total: msg.reference.length,
