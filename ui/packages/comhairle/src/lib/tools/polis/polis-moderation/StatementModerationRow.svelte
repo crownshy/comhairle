@@ -3,6 +3,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Check, Pencil, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import RejectReasonPopover from './RejectReasonPopover.svelte';
 
 	type Props = {
 		row: PolisStatementAux;
@@ -16,7 +17,7 @@
 		/** Texts of the derived statements that replaced this row (if it was split). */
 		replacedBy?: string[];
 		onToggle: (checked: boolean) => void;
-		onModerate: (status: 'accepted' | 'rejected') => void;
+		onModerate: (status: 'accepted' | 'rejected', reason?: string) => void;
 		/** Open the split/reword dialog for this row. */
 		onSplit: () => void;
 	};
@@ -100,6 +101,11 @@
 				Replaced by {replacedBy.length} statement{replacedBy.length === 1 ? '' : 's'}
 			</p>
 		{/if}
+		{#if row.moderation_status === 'rejected' && row.moderation_reason}
+			<p class="text-muted-foreground text-sm">
+				Reason: <span class="italic">{row.moderation_reason}</span>
+			</p>
+		{/if}
 	</div>
 
 	<!-- Actions -->
@@ -124,14 +130,20 @@
 		>
 			<Check class="size-6" />
 		</button>
-		<button
-			type="button"
+		<RejectReasonPopover
 			disabled={pending || bulkWorking || row.moderation_status === 'rejected'}
-			onclick={() => onModerate('rejected')}
-			title="Reject"
-			class="text-destructive hover:bg-destructive/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
+			onConfirm={(reason) => onModerate('rejected', reason)}
 		>
-			<X class="size-6" />
-		</button>
+			{#snippet trigger()}
+				<button
+					type="button"
+					disabled={pending || bulkWorking || row.moderation_status === 'rejected'}
+					title="Reject"
+					class="text-destructive hover:bg-destructive/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
+				>
+					<X class="size-6" />
+				</button>
+			{/snippet}
+		</RejectReasonPopover>
 	</div>
 </div>
