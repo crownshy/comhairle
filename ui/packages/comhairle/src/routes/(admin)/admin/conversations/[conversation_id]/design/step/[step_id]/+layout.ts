@@ -30,7 +30,11 @@ export const load: LayoutLoad = async (event) => {
 			{ label: 'Insights', value: 'insights' }
 		);
 	}
-	if (toolConfig?.type === 'thinkingspace' || toolConfig?.type === 'prioritization') {
+	if (
+		toolConfig?.type === 'thinkingspace' ||
+		toolConfig?.type === 'prioritization' ||
+		toolConfig?.type === 'heyform'
+	) {
 		subtabItems.push({ label: 'Insights', value: 'insights' });
 	}
 

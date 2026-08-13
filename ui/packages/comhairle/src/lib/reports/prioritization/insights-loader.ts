@@ -1,8 +1,9 @@
+import { HttpStatus } from '$lib/utils/constants';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import type { ApiClient } from '@crownshy/api-client/api';
+import type { ApiClient, ApiError, PrioritizationInsightsResponse } from '@crownshy/api-client/api';
 
 export async function prioritizationInsightsLoader(apiClient: ApiClient, workflowStepId: string) {
-	const result = await tryCatchAsync(() =>
+	const result = await tryCatchAsync<PrioritizationInsightsResponse, ApiError>(() =>
 		apiClient.GetPrioritizationInsights({
 			queries: { workflow_step_id: workflowStepId }
 		})
@@ -10,7 +11,7 @@ export async function prioritizationInsightsLoader(apiClient: ApiClient, workflo
 
 	if (result.err !== null) {
 		const message = 'Something went wrong retrieving insights data.';
-		if (result.err.response?.status === 422) {
+		if (result.err.status === HttpStatus.UnprocessableContent) {
 			return {
 				prioritization: {
 					insights: null,

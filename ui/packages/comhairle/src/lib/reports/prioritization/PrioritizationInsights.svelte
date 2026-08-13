@@ -10,7 +10,7 @@
 	type Props = {
 		insights: PrioritizationInsightsResponse | null;
 		step: WorkflowStepDto;
-		error?: string;
+		error: string | null;
 	};
 
 	let { insights, step, error }: Props = $props();
