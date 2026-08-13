@@ -10,12 +10,14 @@
 
 	type Props = {
 		open: boolean;
-		// The participant statement being split or reworded. Null while closed.
+		/** The participant statement being split or reworded. Null while closed. */
 		original: PolisStatementAux | null;
-		// Text of the statement the participant was viewing when they submitted
-		// `original`, if we could resolve it. Shown as context; omitted when absent.
+		/**
+		 * Text of the statement the participant was viewing when they submitted
+		 * `original`, if we could resolve it. Shown as context; omitted when absent.
+		 */
 		viewedContext?: string;
-		// Called after a successful split so the parent can refresh.
+		/** Called after a successful split so the parent can refresh. */
 		onDone: () => void | Promise<void>;
 	};
 
@@ -49,7 +51,6 @@
 		submitting = false;
 
 		if (res.err !== null) {
-			console.error('PolisSplitStatement failed', res.err);
 			notifications.send({ priority: 'ERROR', message: 'Failed to split statement' });
 			return;
 		}
@@ -70,7 +71,7 @@
 		if (v) replacements = [''];
 	}}
 >
-	<Dialog.Content class="sm:max-w-xl">
+	<Dialog.Content class="sm:max-w-4xl">
 		<Dialog.Header>
 			<Dialog.Title>Split or reword statement</Dialog.Title>
 			<Dialog.Description>
@@ -82,7 +83,7 @@
 		<div class="flex flex-col gap-4">
 			<!-- Original statement (read-only) + the context it was submitted against. -->
 			<div class="bg-muted/40 flex flex-col gap-2 rounded-lg p-3">
-				<span class="text-muted-foreground text-xs font-semibold uppercase">Original</span>
+				<span class="text-muted-foreground text-sm font-semibold uppercase">Original</span>
 				<p class="text-base leading-7">{original?.statement_text}</p>
 				{#if viewedContext}
 					<p class="text-muted-foreground text-sm">

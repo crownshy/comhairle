@@ -1,23 +1,23 @@
 <script lang="ts">
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Check, Scissors, X } from '@lucide/svelte';
+	import { Check, Pencil, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 
 	type Props = {
 		row: PolisStatementAux;
 		selected: boolean;
-		// This row has an accept/reject request in flight.
+		/** This row has an accept/reject request in flight. */
 		pending: boolean;
-		// A bulk moderation is running for the whole table.
+		/** A bulk moderation is running for the whole table. */
 		bulkWorking: boolean;
-		// Text of the original this row was derived from (if it is a derived statement).
+		/** Text of the original this row was derived from (if it is a derived statement). */
 		editedFrom?: string;
-		// Texts of the derived statements that replaced this row (if it was split).
+		/** Texts of the derived statements that replaced this row (if it was split). */
 		replacedBy?: string[];
 		onToggle: (checked: boolean) => void;
 		onModerate: (status: 'accepted' | 'rejected') => void;
-		// Open the split/reword dialog for this row.
+		/** Open the split/reword dialog for this row. */
 		onSplit: () => void;
 	};
 
@@ -112,7 +112,7 @@
 				title="Split or reword"
 				class="text-muted-foreground hover:bg-muted inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
 			>
-				<Scissors class="size-5" />
+				<Pencil class="size-5" />
 			</button>
 		{/if}
 		<button

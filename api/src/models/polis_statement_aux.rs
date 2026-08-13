@@ -150,6 +150,35 @@ pub struct CreateDerivedStatement {
     pub original_statement_id: Uuid,
 }
 
+impl CreateDerivedStatement {
+    fn columns(&self) -> Vec<PolisStatementAuxIden> {
+        vec![
+            PolisStatementAuxIden::WorkflowStepId,
+            PolisStatementAuxIden::Zid,
+            PolisStatementAuxIden::PolisConversationId,
+            PolisStatementAuxIden::PolisStatementId,
+            PolisStatementAuxIden::StatementText,
+            PolisStatementAuxIden::ModerationStatus,
+            PolisStatementAuxIden::IsSeed,
+            PolisStatementAuxIden::OriginalStatementId,
+        ]
+    }
+
+    fn values(&self) -> Vec<SimpleExpr> {
+        vec![
+            self.workflow_step_id.into(),
+            self.zid.into(),
+            self.polis_conversation_id.clone().into(),
+            self.polis_statement_id.into(),
+            self.statement_text.clone().into(),
+            // Admin-authored replacements are auto-accepted and never seeds.
+            ModerationStatus::Accepted.into(),
+            false.into(),
+            self.original_statement_id.into(),
+        ]
+    }
+}
+
 /// Persist a split atomically: insert each derived replacement row (with lineage
 /// and `moderation_status = accepted`) and mark the original statement rejected
 /// with `reason`, all in one transaction. The Polis side (posting the
@@ -170,31 +199,10 @@ pub async fn record_split(
 
     let mut derived_rows = Vec::with_capacity(derived.len());
     for record in derived {
-        let columns = [
-            PolisStatementAuxIden::WorkflowStepId,
-            PolisStatementAuxIden::Zid,
-            PolisStatementAuxIden::PolisConversationId,
-            PolisStatementAuxIden::PolisStatementId,
-            PolisStatementAuxIden::StatementText,
-            PolisStatementAuxIden::ModerationStatus,
-            PolisStatementAuxIden::IsSeed,
-            PolisStatementAuxIden::OriginalStatementId,
-        ];
-        let values: Vec<SimpleExpr> = vec![
-            record.workflow_step_id.into(),
-            record.zid.into(),
-            record.polis_conversation_id.clone().into(),
-            record.polis_statement_id.into(),
-            record.statement_text.clone().into(),
-            ModerationStatus::Accepted.into(),
-            false.into(),
-            record.original_statement_id.into(),
-        ];
-
         let (sql, values) = Query::insert()
             .into_table(PolisStatementAuxIden::Table)
-            .columns(columns)
-            .values(values)?
+            .columns(record.columns())
+            .values(record.values())?
             .on_conflict(
                 OnConflict::columns([
                     PolisStatementAuxIden::WorkflowStepId,

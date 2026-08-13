@@ -8,19 +8,19 @@
 	import StatementModerationRow from './StatementModerationRow.svelte';
 
 	type Props = {
-		// The visible (filtered + searched) statements, already ordered.
+		/** The visible (filtered + searched) statements, already ordered. */
 		rows: PolisStatementAux[];
-		// Selection + per-row in-flight state, keyed by aux row id.
+		/** Selection + per-row in-flight state, keyed by aux row id. */
 		selected: Record<string, boolean>;
 		pending: Record<string, boolean>;
-		// Which bulk action is in flight, or null when idle.
+		/** Which bulk action is in flight, or null when idle. */
 		bulkAction: 'accepted' | 'rejected' | null;
 		onToggleSelect: (id: string, checked: boolean) => void;
 		onToggleAll: (checked: boolean) => void;
 		onClear: () => void;
 		onBulkModerate: (status: 'accepted' | 'rejected') => void;
 		onModerate: (row: PolisStatementAux, status: 'accepted' | 'rejected') => void;
-		// Per-row lineage strings for derived statements, keyed by aux row id.
+		/** Per-row lineage strings for derived statements, keyed by aux row id. */
 		lineage: Record<string, { editedFrom?: string; replacedBy?: string[] }>;
 		onSplit: (row: PolisStatementAux) => void;
 	};

@@ -71,11 +71,16 @@ correct: it is a real statement now, not a host seed, and it carries no "convers
 
 ## Consequences
 
-- **The split is not atomic** (Pol.is has no transactions). We sequence to fail safe: post and accept
-  all replacements first, reject the original **last**, so we never destroy the source before its
-  replacements exist. On partial failure we surface what completed rather than fake a rollback;
-  reject is idempotent, so retry is safe. Worst residual case is an orphan accepted replacement plus
-  a still-live original, both visible and fixable, never a lost statement.
+- **The end-to-end split is not atomic** (Pol.is has no transactions), even though the local
+  bookkeeping is. Two distinct scopes:
+  - **Local aux writes are atomic.** `record_split` inserts every derived row and rejects the
+    original in a single DB transaction, so comhairle's own store never ends up half-written.
+  - **The cross-system sequence is not.** The Pol.is calls (post, accept, reject) plus that local
+    transaction cannot be wrapped in one transaction. We sequence to fail safe: post and accept all
+    replacements first, reject the original **last**, so we never destroy the source before its
+    replacements exist. On partial failure we surface what completed rather than fake a rollback;
+    reject is idempotent, so retry is safe. Worst residual case is an orphan accepted replacement
+    plus a still-live original, both visible and fixable, never a lost statement.
 - **One migration** adds `original_statement_id`; the model plumbing (`to_values`,
   `upsert_from_polis` preservation) follows the existing partial-update convention.
 - **Provisional.** This is an exploratory PR off the spike (#806) to give the team something
