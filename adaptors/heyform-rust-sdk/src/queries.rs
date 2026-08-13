@@ -23,6 +23,51 @@ mutation createForm($input: CreateFormInput!) {
 }
 "#;
 
+pub const FORM_REPORT_QUERY: &str = r#"
+query formReport($input: FormDetailInput!) {
+  formReport(input: $input) {
+    responses {
+      id
+      kind
+      title
+      total
+      count
+      average
+      chooses
+    }
+    submissions {
+      _id
+      answers {
+        submissionId
+        kind
+        value
+        endAt
+      }
+    }
+  }
+}
+"#;
+
+pub const SUBMISSIONS_QUERY: &str = r#"
+query submissions($input: SubmissionsInput!) {
+  submissions(input: $input) {
+    total
+    submissions {
+      id
+      category
+      title
+      answers
+      hiddenFields {
+        id
+        name
+        value
+      }
+      endAt
+    }
+  }
+}
+"#;
+
 pub const UPDATE_FORM_MUTATION: &str = r#"
 mutation updateForm($input: UpdateFormInput!) {
   updateForm(input: $input)

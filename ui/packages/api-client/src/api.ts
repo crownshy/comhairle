@@ -572,6 +572,169 @@ export const ModerateStatementAuxBatchResponse = z
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
 >;
+export const FormField = z
+  .object({
+    description: z.unknown().optional(),
+    frozen: z.union([z.boolean(), z.null()]).optional(),
+    hide: z.union([z.boolean(), z.null()]).optional(),
+    id: z.string(),
+    kind: z.string(),
+    layout: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    properties: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    title: z.unknown().optional(),
+    validations: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    width: z.union([z.number(), z.null()]).optional(),
+  })
+  .passthrough();
+export type FormField = z.infer<typeof FormField>;
+export const FormSettings = z
+  .object({
+    active: z.union([z.boolean(), z.null()]),
+    allowArchive: z.union([z.boolean(), z.null()]),
+    enableQuestionList: z.union([z.boolean(), z.null()]),
+    locale: z.union([z.string(), z.null()]),
+    published: z.union([z.boolean(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type FormSettings = z.infer<typeof FormSettings>;
+export const FormTheme = z
+  .object({
+    answerTextColor: z.union([z.string(), z.null()]),
+    backgroundBrightness: z.union([z.number(), z.null()]),
+    backgroundColor: z.union([z.string(), z.null()]),
+    backgroundImage: z.union([z.string(), z.null()]),
+    buttonBackground: z.union([z.string(), z.null()]),
+    buttonTextColor: z.union([z.string(), z.null()]),
+    customCSS: z.union([z.string(), z.null()]),
+    fontFamily: z.union([z.string(), z.null()]),
+    logo: z.union([z.string(), z.null()]),
+    questionTextColor: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type FormTheme = z.infer<typeof FormTheme>;
+export const ThemeSettings = z
+  .object({ theme: z.union([FormTheme, z.null()]) })
+  .partial()
+  .passthrough();
+export type ThemeSettings = z.infer<typeof ThemeSettings>;
+export const Form = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    draft: z.union([z.boolean(), z.null()]).optional(),
+    fields: z.union([z.array(FormField), z.null()]).optional(),
+    id: z.string(),
+    interactiveMode: z.union([z.number(), z.null()]).optional(),
+    kind: z.union([z.number(), z.null()]).optional(),
+    name: z.union([z.string(), z.null()]).optional(),
+    projectId: z.string(),
+    settings: z.union([FormSettings, z.null()]).optional(),
+    status: z.union([z.number(), z.null()]).optional(),
+    teamId: z.string(),
+    themeSettings: z.union([ThemeSettings, z.null()]).optional(),
+  })
+  .passthrough();
+export type Form = z.infer<typeof Form>;
+export const FormReportResponse = z
+  .object({
+    average: z.number(),
+    chooses: z.union([z.array(z.unknown()), z.null()]).optional(),
+    count: z.number().int(),
+    id: z.string(),
+    kind: z.union([z.string(), z.null()]).optional(),
+    title: z.union([z.string(), z.null()]).optional(),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type FormReportResponse = z.infer<typeof FormReportResponse>;
+export const FormReportAnswer = z
+  .object({
+    endAt: z.number().int(),
+    kind: z.string(),
+    submissionId: z.string(),
+    value: z.unknown().optional(),
+  })
+  .passthrough();
+export type FormReportAnswer = z.infer<typeof FormReportAnswer>;
+export const FormReportSubmission = z
+  .object({ _id: z.string(), answers: z.array(FormReportAnswer) })
+  .passthrough();
+export type FormReportSubmission = z.infer<typeof FormReportSubmission>;
+export const FormReport = z
+  .object({
+    responses: z.array(FormReportResponse),
+    submissions: z.array(FormReportSubmission),
+  })
+  .passthrough();
+export type FormReport = z.infer<typeof FormReport>;
+export const SubmissionCategory = z.enum([
+  "inbox",
+  "spam",
+  "starred",
+  "archive",
+]);
+export type SubmissionCategory = z.infer<typeof SubmissionCategory>;
+export const HiddenFieldAnswer = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    value: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type HiddenFieldAnswer = z.infer<typeof HiddenFieldAnswer>;
+export const Submission = z
+  .object({
+    answers: z.array(z.object({}).partial().passthrough()),
+    category: z.union([SubmissionCategory, z.null()]).optional(),
+    endAt: z.number().int(),
+    hiddenFields: z.union([z.array(HiddenFieldAnswer), z.null()]).optional(),
+    id: z.string(),
+    title: z.union([z.string(), z.null()]).optional(),
+    variables: z.union([z.array(z.unknown()), z.null()]).optional(),
+  })
+  .passthrough();
+export type Submission = z.infer<typeof Submission>;
+export const Submissions = z
+  .object({ submissions: z.array(Submission), total: z.number().int() })
+  .passthrough();
+export type Submissions = z.infer<typeof Submissions>;
+export const InsightChoice = z
+  .object({ count: z.number().int(), id: z.string(), label: z.string() })
+  .passthrough();
+export type InsightChoice = z.infer<typeof InsightChoice>;
+export const InsightSubmission = z
+  .object({
+    submission_id: z.string(),
+    submitted_at: z.union([z.number(), z.null()]).optional(),
+    value: z.unknown(),
+  })
+  .passthrough();
+export type InsightSubmission = z.infer<typeof InsightSubmission>;
+export const InsightQuestion = z
+  .object({
+    choices: z.union([z.array(InsightChoice), z.null()]).optional(),
+    id: z.string(),
+    kind: z.union([z.string(), z.null()]).optional(),
+    properties: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    submissions: z.union([z.array(InsightSubmission), z.null()]).optional(),
+    title: z.string(),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type InsightQuestion = z.infer<typeof InsightQuestion>;
+export const SurveyInsights = z
+  .object({ questions: z.array(InsightQuestion) })
+  .passthrough();
+export type SurveyInsights = z.infer<typeof SurveyInsights>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -2618,6 +2781,23 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
+  FormField,
+  FormSettings,
+  FormTheme,
+  ThemeSettings,
+  Form,
+  FormReportResponse,
+  FormReportAnswer,
+  FormReportSubmission,
+  FormReport,
+  SubmissionCategory,
+  HiddenFieldAnswer,
+  Submission,
+  Submissions,
+  InsightChoice,
+  InsightSubmission,
+  InsightQuestion,
+  SurveyInsights,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
@@ -5543,6 +5723,45 @@ Create a response for prioritization tool proposal
     response: z.void(),
   },
   {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/form",
+    alias: "HeyFormGetForm",
+    description: `Fetches the form for the HeyForm tool attached to a workflow step`,
+    requestFormat: "json",
+    response: Form,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/form_report",
+    alias: "HeyFormGetFormReport",
+    description: `Fetches the form report for the HeyForm tool attached to a workflow step`,
+    requestFormat: "json",
+    response: FormReport,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/insights",
+    alias: "HeyFormGetInsights",
+    description: `Combines the HeyForm form definition with its aggregate report to produce a per-question breakdown with human-readable question titles and choice labels resolved from the form schema.`,
+    requestFormat: "json",
+    response: SurveyInsights,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/submissions",
+    alias: "HeyFormGetSubmissions",
+    description: `Fetches the form submissions for the HeyForm tool attached to a workflow step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "category",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: Submissions,
+  },
+  {
     method: "post",
     path: "/tools/thinking_space",
     alias: "postToolsthinking_space",
@@ -6159,6 +6378,47 @@ This struct contains optional fields that can be updated on a TextTranslation re
     response: WebSocketStats,
   },
 ] as const satisfies ZodiosEndpointDefinitions);
+
+// Axios error for failing request
+export interface ApiError {
+	// Standard
+	message: string;
+	name: string;
+	// Microsoft
+	description: string;
+	number: number;
+	// Mozilla
+	fileName: string;
+	lineNumber: number;
+	columnNumber: number;
+	stack: string;
+	// Axios
+	config: {
+		adapter: string[];
+		allowAbsoluteUrls: boolean;
+		baseURL:string;
+		data: undefined
+		env: object;
+		headers: object;
+		maxBodyLength: number;
+		maxContentLength: number;
+		method: string;
+		params: object;
+		timeout: number;
+		transformRequest: string[]
+		transformResponse: string[]
+		transitional: { silentJSONParsing: boolean, forcedJSONParsing: boolean, clarifyTimeoutError: boolean  }
+		url: string;
+		validateStatus: (status: string) => void;
+		withCredentials: true
+		xsrfCookieName: string;
+		xsrfHeaderName: string;
+	}
+	code: string;
+	status: number;
+	response: Response;
+	request: Request;
+}
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
 export type ApiClient = typeof api;

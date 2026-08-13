@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ProposalResponseDto, RankedProposal } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
-	import ScatterPlot, { type ScatterPoint } from '../ScatterPlot.svelte';
+	import ScatterPlot, { type ScatterPoint } from '$lib/components/Charts/ScatterPlot.svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { extractAxisDomain } from './utils';
 	import type { ToolConfig } from '$lib/tools/prioritization';
