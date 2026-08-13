@@ -159,7 +159,10 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 
 			for (const submission of insight.submissions) {
 				const value = submission.value as HeyFormLegalTermsValue;
-				answers[Number(value)].count += 1;
+				// value `true` = 1
+				// 1 + 1 % 2 = 0
+				// index 0 of answers = "yes"
+				answers[(Number(value) + 1) % 2].count += 1;
 			}
 
 			return typedObj<ChoiceQuestion>({
