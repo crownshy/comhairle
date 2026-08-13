@@ -195,11 +195,9 @@ export type HeyFormDateRangeValue =
 			start: string;
 	  }
 	| '';
-export type HeyFormRankedValue =
-	| {
-			value: string[];
-	  }
-	| '';
+export type HeyFormRankedValue = {
+	value: string[];
+};
 export type HeyFormMatrixValue = Record<string, number> | { value: [] };
 export type HeyFormLegalTermsValue = boolean;
 export type HeyFormFileUploadValue =

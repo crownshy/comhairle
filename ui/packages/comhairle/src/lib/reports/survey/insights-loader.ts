@@ -26,7 +26,7 @@ export interface ChoiceQuestion {
 	title: string;
 	total: number;
 	properties?: Properties | null;
-	submissionsCount: number;
+	submissionsCount: number | undefined;
 	kind: HeyFormChoiceFieldKind;
 	answers: Choice[];
 }
@@ -36,7 +36,7 @@ export interface NonChoiceQuestion {
 	title: string;
 	total: number;
 	properties?: Properties;
-	submissionsCount: number;
+	submissionsCount: number | undefined;
 	kind: HeyFormNonChoiceFieldKind;
 	answers: unknown[];
 }
@@ -51,16 +51,22 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 	switch (insight.kind) {
 		case 'yes_no':
 		case 'multiple_choice':
-		case 'picture_choice':
+		case 'picture_choice': {
+			const submissionsCount =
+				insight.choices?.reduce((total, choice) => total + choice.count, 0) ?? 0;
+
 			return typedObj<ChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
 				properties: insight.properties,
-				submissionsCount: insight.choices?.length ?? 0,
+				submissionsCount: !(insight.properties as Properties)?.allowMultiple
+					? submissionsCount
+					: undefined,
 				kind: insight.kind,
 				answers: insight.choices ?? []
 			});
+		}
 		case 'ranking': {
 			const answers: Choice[] = [];
 			let submissionsCount = 0;
@@ -71,7 +77,7 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 
 			for (const submission of insight.submissions) {
 				const s = submission.value as HeyFormRankedValue;
-				if (s === '') {
+				if (s.value.length === 0) {
 					continue;
 				}
 
