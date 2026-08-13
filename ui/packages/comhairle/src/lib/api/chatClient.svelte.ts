@@ -2,6 +2,15 @@ import { browser } from '$app/environment';
 import type { ComhairleChatSession } from '@crownshy/api-client/api';
 import { apiClient } from '@crownshy/api-client/client';
 
+function stripThinking(text: string): string {
+	// drop completed <think>…</think> blocks
+	let out = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+	// mid-stream: unclosed <think> still open — hide everything from it on
+	const open = out.search(/<think>/i);
+	if (open !== -1) out = out.slice(0, open);
+	return out.replace(/^\s+/, '');
+}
+
 export interface ReferenceChunk {
 	id: string;
 	content: string;
@@ -64,7 +73,7 @@ export class ChatClient {
 			const json = JSON.parse(jsonStr);
 
 			if (json.data?.answer) {
-				this.currentAnswer = json.data.answer;
+				this.currentAnswer = stripThinking(json.data.answer);
 			}
 			if (json.data?.reference) {
 				this.currentReference = json.data.reference;
