@@ -41,16 +41,10 @@
 				<h2 class="text-md font-bold">{section.title}</h2>
 				<div class="flex flex-row">
 					<h3 class="text-muted-foreground mr-10 text-sm">
-						{#if !section.submissionsCount}
-							{section.total}
-							total {section.total === 1 ? 'response' : 'responses'}
-						{:else}
-							{section.submissionsCount}
-							{section.submissionsCount === 1 ? 'response' : 'responses'}
-							·
-							{Math.round((section.submissionsCount / section.total) * 100)}%
-							Completion
-						{/if}
+						{section.count}
+						{section.count === 1 ? 'response' : 'responses'}
+						·
+						{Math.round((section.count / section.total) * 100)}% Completion
 					</h3>
 				</div>
 				{#if isChoiceQuestion(section)}

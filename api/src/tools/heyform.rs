@@ -504,6 +504,8 @@ pub struct InsightQuestion {
     /// Human-readable question title extracted from the form schema.
     /// Falls back to the field ID when the schema contains no plain-text title.
     pub title: String,
+    /// Number of submissions that have been sent through.
+    pub count: u64,
     /// Total number of responses recorded for this question.
     pub total: i32,
     /// Field properties
@@ -642,6 +644,7 @@ pub fn build_survey_insights(
             if let Some(field_id) = answer.get("id").and_then(|v| v.as_str()) {
                 if let Some(val) = answer.get("value") {
                     if !val.is_null() {
+                        let str_val = &val.to_string();
                         let key = (field_id.to_string(), sub_id.clone());
                         if seen_answers.insert(key) {
                             submissions_by_field
@@ -723,11 +726,29 @@ pub fn build_survey_insights(
 
             let choices = resolve_choices(response, &field_choices_by_id);
 
+            let count = submissions_by_field
+                .get(&response.id)
+                .unwrap_or(&Vec::new())
+                .iter()
+                .fold(0u64, |acc, submission| {
+                    let val = submission.value.to_string();
+                    // Empty values from HeyForm
+                    if val != "\"\"" && val != "{\"value\":[]}" {
+                        return acc + 1;
+                    }
+
+                    acc
+                });
+
             // Attach individual submission answers for non-choice questions.
             // Choice-based questions already have a full aggregate breakdown
             // via `choices`; for everything else (short_text, opinion_scale,
             // etc.) the per-answer values are the only meaningful content.
-            let submissions = submissions_by_field.get(&response.id).cloned();
+            let submissions = if choices.is_none() {
+                submissions_by_field.get(&response.id).cloned()
+            } else {
+                None
+            };
 
             let kind = field
                 .map(|f| f.kind.clone())
@@ -739,6 +760,7 @@ pub fn build_survey_insights(
                 id: response.id.clone(),
                 kind,
                 title,
+                count,
                 total: response.total,
                 properties,
                 choices,

@@ -720,6 +720,7 @@ export type InsightSubmission = z.infer<typeof InsightSubmission>;
 export const InsightQuestion = z
   .object({
     choices: z.union([z.array(InsightChoice), z.null()]).optional(),
+    count: z.number().int().gte(0),
     id: z.string(),
     kind: z.union([z.string(), z.null()]).optional(),
     properties: z
@@ -6381,43 +6382,47 @@ This struct contains optional fields that can be updated on a TextTranslation re
 
 // Axios error for failing request
 export interface ApiError {
-	// Standard
-	message: string;
-	name: string;
-	// Microsoft
-	description: string;
-	number: number;
-	// Mozilla
-	fileName: string;
-	lineNumber: number;
-	columnNumber: number;
-	stack: string;
-	// Axios
-	config: {
-		adapter: string[];
-		allowAbsoluteUrls: boolean;
-		baseURL:string;
-		data: undefined
-		env: object;
-		headers: object;
-		maxBodyLength: number;
-		maxContentLength: number;
-		method: string;
-		params: object;
-		timeout: number;
-		transformRequest: string[]
-		transformResponse: string[]
-		transitional: { silentJSONParsing: boolean, forcedJSONParsing: boolean, clarifyTimeoutError: boolean  }
-		url: string;
-		validateStatus: (status: string) => void;
-		withCredentials: true
-		xsrfCookieName: string;
-		xsrfHeaderName: string;
-	}
-	code: string;
-	status: number;
-	response: Response;
-	request: Request;
+  // Standard
+  message: string;
+  name: string;
+  // Microsoft
+  description: string;
+  number: number;
+  // Mozilla
+  fileName: string;
+  lineNumber: number;
+  columnNumber: number;
+  stack: string;
+  // Axios
+  config: {
+    adapter: string[];
+    allowAbsoluteUrls: boolean;
+    baseURL: string;
+    data: undefined;
+    env: object;
+    headers: object;
+    maxBodyLength: number;
+    maxContentLength: number;
+    method: string;
+    params: object;
+    timeout: number;
+    transformRequest: string[];
+    transformResponse: string[];
+    transitional: {
+      silentJSONParsing: boolean;
+      forcedJSONParsing: boolean;
+      clarifyTimeoutError: boolean;
+    };
+    url: string;
+    validateStatus: (status: string) => void;
+    withCredentials: true;
+    xsrfCookieName: string;
+    xsrfHeaderName: string;
+  };
+  code: string;
+  status: number;
+  response: Response;
+  request: Request;
 }
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);

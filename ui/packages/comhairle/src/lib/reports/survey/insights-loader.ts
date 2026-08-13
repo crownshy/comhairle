@@ -24,9 +24,9 @@ type Choice = {
 export interface ChoiceQuestion {
 	id: string;
 	title: string;
+	count: number;
 	total: number;
 	properties?: Properties | null;
-	submissionsCount: number | undefined;
 	kind: HeyFormChoiceFieldKind;
 	answers: Choice[];
 }
@@ -34,9 +34,9 @@ export interface ChoiceQuestion {
 export interface NonChoiceQuestion {
 	id: string;
 	title: string;
+	count: number;
 	total: number;
 	properties?: Properties;
-	submissionsCount: number | undefined;
 	kind: HeyFormNonChoiceFieldKind;
 	answers: unknown[];
 }
@@ -55,19 +55,15 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<ChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				properties: insight.properties,
-				submissionsCount:
-					insight.submissions?.filter(
-						(s) => (s.value as { value: string[] }).value?.length !== 0
-					)?.length ?? 0,
 				kind: insight.kind,
 				answers: insight.choices ?? []
 			});
 		}
 		case 'ranking': {
 			const answers: Choice[] = [];
-			let submissionsCount = 0;
 
 			if (!insight.properties || !insight.submissions) {
 				return undefined;
@@ -78,8 +74,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				if (s.value.length === 0) {
 					continue;
 				}
-
-				submissionsCount += 1;
 
 				for (let i = 0; i < s.value.length; i++) {
 					const choiceId = s.value[i];
@@ -108,16 +102,15 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<ChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				kind: insight.kind,
-				submissionsCount,
 				properties: insight.properties,
 				answers
 			});
 		}
 		case 'matrix': {
 			const answers: Choice[] = [];
-			let submissionsCount = 0;
 
 			if (!insight.properties || !insight.submissions) {
 				return undefined;
@@ -125,12 +118,6 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 
 			for (const submission of insight.submissions) {
 				const s = submission.value as HeyFormMatrixValue;
-				if (Array.isArray(s.value) && s.value?.length === 0) {
-					continue;
-				}
-
-				submissionsCount += 1;
-
 				for (const [choiceId, amount] of Object.entries(s)) {
 					const answerIndex = answers.findIndex((a) => a.id === choiceId);
 
@@ -155,9 +142,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<ChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				properties: insight.properties,
-				submissionsCount,
 				kind: insight.kind,
 				answers
 			});
@@ -191,9 +178,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<ChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				properties: insight.properties ?? undefined,
-				submissionsCount: insight.submissions.length,
 				kind: insight.kind,
 				answers
 			});
@@ -216,9 +203,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				properties: insight.properties ?? undefined,
-				submissionsCount: answers.length,
 				kind: insight.kind,
 				answers
 			});
@@ -236,9 +223,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				properties: insight.properties ?? undefined,
-				submissionsCount: answers.length,
 				kind: insight.kind,
 				answers
 			});
@@ -256,9 +243,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				properties: insight.properties ?? undefined,
-				submissionsCount: answers.length,
 				kind: insight.kind,
 				answers
 			});
@@ -276,9 +263,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				properties: insight.properties ?? undefined,
-				submissionsCount: answers.length,
 				kind: insight.kind,
 				answers
 			});
@@ -297,9 +284,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
+				count: insight.count,
 				total: insight.total,
 				properties: insight.properties ?? undefined,
-				submissionsCount: answers.length,
 				kind: insight.kind,
 				answers
 			});
