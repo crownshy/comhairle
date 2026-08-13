@@ -19,6 +19,7 @@
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import {
+		isDraftTranslatableField,
 		localizeTranslatableJson,
 		traverseTranslatableJsonAndCreateTranslations
 	} from '$lib/components/Translation/translationUtils';
@@ -138,6 +139,9 @@
 	});
 
 	const continuousTransSources = $derived.by(() => {
+		// Force re-evaluation on toggle open as component isn't unmounted
+		// when new questions are created
+		void open;
 		if ('kind' in draft.type && draft.type.kind !== 'continuous') return {};
 
 		return {
@@ -297,11 +301,19 @@
 		<div class="space-y-4 py-2">
 			<div class="space-y-2">
 				<Label for="q-text">Question</Label>
-				<TranslatableField
-					source={textTransSource}
-					{primaryLocale}
-					supportedLanguages={supportedLocales}
-				/>
+				{#if isDraftTranslatableField(draft.text)}
+					<Input
+						id="q-text"
+						bind:value={draft.text.localized}
+						placeholder="e.g. How strongly do you support this proposal?"
+					/>
+				{:else}
+					<TranslatableField
+						source={textTransSource}
+						{primaryLocale}
+						supportedLanguages={supportedLocales}
+					/>
+				{/if}
 			</div>
 
 			<div class="space-y-2">
@@ -329,14 +341,28 @@
 						</Button>
 					</div>
 					<div class="flex flex-col gap-4">
-						{#each draft.type.categories as _, cIndex (cIndex)}
+						{#each draft.type.categories as category, cIndex (cIndex)}
 							<div class="flex items-start gap-2">
 								<div class="flex-1">
-									<TranslatableField
-										source={likertCategoryTransSources[cIndex]}
-										{primaryLocale}
-										supportedLanguages={supportedLocales}
-									/>
+									{#if isDraftTranslatableField(category.label)}
+										<Input
+											class="flex-1"
+											placeholder="Label"
+											bind:value={
+												(
+													draft.type as {
+														categories: DraftLikertCategory[];
+													}
+												).categories[cIndex].label.localized
+											}
+										/>
+									{:else}
+										<TranslatableField
+											source={likertCategoryTransSources[cIndex]}
+											{primaryLocale}
+											supportedLanguages={supportedLocales}
+										/>
+									{/if}
 								</div>
 								<Input
 									type="number"
@@ -384,14 +410,28 @@
 					<div class="flex items-center gap-3">
 						<Label for="q-min-label" class="w-20 shrink-0">End labels</Label>
 						<div class="flex items-start gap-3">
-							{#if continuousTransSources.minLabel}
+							{#if isDraftTranslatableField(ctype.minLabel)}
+								<Input
+									id="q-min-label"
+									class="flex-1"
+									bind:value={ctype.minLabel.localized}
+									placeholder="Low end"
+								/>
+							{:else if continuousTransSources.minLabel}
 								<TranslatableField
 									source={continuousTransSources.minLabel}
 									{primaryLocale}
 									supportedLanguages={supportedLocales}
 								/>
 							{/if}
-							{#if continuousTransSources.maxLabel}
+							{#if isDraftTranslatableField(ctype.minLabel)}
+								<Input
+									class="flex-1"
+									bind:value={ctype.maxLabel.localized}
+									placeholder="High end"
+									aria-label="High-end label"
+								/>
+							{:else if continuousTransSources.maxLabel}
 								<TranslatableField
 									source={continuousTransSources.maxLabel}
 									{primaryLocale}

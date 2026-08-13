@@ -373,7 +373,7 @@ export async function traverseTranslatableJsonAndCreateTranslations(
  * where updates can occur via the [`TranslatableField`] component.
  */
 /* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
-function isDraftTranslatableField(value: any) {
+export function isDraftTranslatableField(value: any) {
 	return (
 		value !== null &&
 		typeof value === 'object' &&
