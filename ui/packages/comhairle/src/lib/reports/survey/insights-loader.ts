@@ -1,5 +1,10 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import { isHeyFormFieldKind } from '$lib/tools/heyform/guards';
+import {
+	isHeyFormChoiceFieldKind,
+	isHeyFormFieldKind,
+	isHeyFormNonChoiceFieldKind,
+	isHeyFormOtherFieldKind
+} from '$lib/tools/heyform/guards';
 import type {
 	HeyFormAddressValue,
 	HeyFormChoiceFieldKind,
@@ -21,21 +26,20 @@ type Choice = {
 	count: number;
 };
 
-export interface ChoiceQuestion {
+interface Question {
 	id: string;
 	title: string;
 	count: number;
 	total: number;
+}
+
+export interface ChoiceQuestion extends Question {
 	properties?: Properties | null;
 	kind: HeyFormChoiceFieldKind;
 	answers: Choice[];
 }
 
-export interface NonChoiceQuestion {
-	id: string;
-	title: string;
-	count: number;
-	total: number;
+export interface NonChoiceQuestion extends Question {
 	properties?: Properties;
 	kind: HeyFormNonChoiceFieldKind;
 	answers: unknown[];
@@ -43,30 +47,18 @@ export interface NonChoiceQuestion {
 
 export type SurveyQuestion = ChoiceQuestion | NonChoiceQuestion;
 
-function transform(insight: InsightQuestion): SurveyQuestion | undefined {
-	if (!insight.kind || !isHeyFormFieldKind(insight.kind)) {
-		return undefined;
-	}
-
+function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'] {
 	switch (insight.kind) {
 		case 'yes_no':
 		case 'multiple_choice':
-		case 'picture_choice': {
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				properties: insight.properties,
-				kind: insight.kind,
-				answers: insight.choices ?? []
-			});
-		}
+		case 'picture_choice':
+			return insight.choices ?? [];
+
 		case 'ranking': {
 			const answers: Choice[] = [];
 
 			if (!insight.properties || !insight.submissions) {
-				return undefined;
+				return [];
 			}
 
 			for (const submission of insight.submissions) {
@@ -99,21 +91,14 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				}
 			}
 
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties,
-				answers
-			});
+			return answers;
 		}
+
 		case 'matrix': {
 			const answers: Choice[] = [];
 
 			if (!insight.properties || !insight.submissions) {
-				return undefined;
+				return [];
 			}
 
 			for (const submission of insight.submissions) {
@@ -139,19 +124,12 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				}
 			}
 
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				properties: insight.properties,
-				kind: insight.kind,
-				answers
-			});
+			return answers;
 		}
+
 		case 'legal_terms': {
 			if (!insight.submissions) {
-				return undefined;
+				return [];
 			}
 
 			const answers: Choice[] = [
@@ -175,16 +153,16 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				answers[(Number(value) + 1) % 2].count += 1;
 			}
 
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				properties: insight.properties ?? undefined,
-				kind: insight.kind,
-				answers
-			});
+			return answers;
 		}
+
+		default:
+			return [];
+	}
+}
+
+function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['answers'] {
+	switch (insight.kind) {
 		case 'rating':
 		case 'opinion_scale':
 		case 'number':
@@ -194,124 +172,97 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'url':
 		case 'phone_number':
 		case 'country_selector':
-		case 'date': {
-			const answers =
+		case 'date':
+			return (
 				insight.submissions
 					?.map((s) => s.value)
-					.filter((s) => (typeof s === 'string' ? !!s.trim() : !!s)) ?? [];
+					.filter((s) => (typeof s === 'string' ? !!s.trim() : !!s)) ?? []
+			);
 
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				properties: insight.properties ?? undefined,
-				kind: insight.kind,
-				answers
-			});
-		}
-		case 'full_name': {
-			const answers =
+		case 'full_name':
+			return (
 				insight.submissions
 					?.map((s) => {
 						const fullName = s.value as HeyFormFullNameValue;
 						if (fullName === '') return '';
 						return `${fullName.firstName} ${fullName.lastName}`;
 					})
-					.filter((s) => !!s.trim()) ?? [];
+					.filter((s) => !!s.trim()) ?? []
+			);
 
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				properties: insight.properties ?? undefined,
-				kind: insight.kind,
-				answers
-			});
-		}
-		case 'address': {
-			const answers =
+		case 'address':
+			return (
 				insight.submissions
 					?.map((s) => {
 						const address = s.value as HeyFormAddressValue;
 						if (address === '') return '';
 						return Object.values(address).join(', ');
 					})
-					.filter((s) => !!s.trim()) ?? [];
+					.filter((s) => !!s.trim()) ?? []
+			);
 
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				properties: insight.properties ?? undefined,
-				kind: insight.kind,
-				answers
-			});
-		}
-		case 'date_range': {
-			const answers =
+		case 'date_range':
+			return (
 				insight.submissions
 					?.map((s) => {
 						const dateRange = s.value as HeyFormDateRangeValue;
 						if (dateRange === '') return '';
 						return `${dateRange.start} - ${dateRange.end}`;
 					})
-					.filter((s) => !!s.trim()) ?? [];
+					.filter((s) => !!s.trim()) ?? []
+			);
 
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				properties: insight.properties ?? undefined,
-				kind: insight.kind,
-				answers
-			});
-		}
-
-		case 'file_upload': {
-			const answers =
+		case 'file_upload':
+			return (
 				insight.submissions
 					?.map((s) => {
 						const file = s.value as HeyFormFileUploadValue;
 						if (file === '') return '';
 						return `${file.filename} - ${file.url}`;
 					})
-					.filter((s) => !!s.trim()) ?? [];
+					.filter((s) => !!s.trim()) ?? []
+			);
 
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				count: insight.count,
-				total: insight.total,
-				properties: insight.properties ?? undefined,
-				kind: insight.kind,
-				answers
-			});
-		}
-		case 'group':
-		case 'statement':
-		case 'time':
-		case 'input_table':
-		case 'payment':
-		case 'signature':
-		case 'submit_date':
-		case 'custom_text':
-		case 'custom_single':
-		case 'custom_multiple':
-		case 'custom_date':
-		case 'custom_number':
-		case 'custom_checkbox':
-		case 'hidden_fields':
-		case 'variable':
-		case 'hidden_checkbox':
-		case 'welcome':
-		case 'thank_you':
 		default:
-			return undefined;
+			return [];
 	}
+}
+
+function normalise(insight: InsightQuestion): SurveyQuestion | undefined {
+	if (
+		!insight.kind ||
+		!isHeyFormFieldKind(insight.kind) ||
+		isHeyFormOtherFieldKind(insight.kind)
+	) {
+		return undefined;
+	}
+
+	const question: Question = {
+		id: insight.id,
+		title: insight.title,
+		count: insight.count,
+		total: insight.total
+	};
+
+	if (isHeyFormChoiceFieldKind(insight.kind)) {
+		return typedObj<ChoiceQuestion>({
+			...question,
+			properties: insight.properties ?? undefined,
+			kind: insight.kind,
+			answers: transformChoiceData(insight)
+		});
+	}
+
+	if (isHeyFormNonChoiceFieldKind(insight.kind)) {
+		return typedObj<NonChoiceQuestion>({
+			...question,
+			properties: insight.properties ?? undefined,
+			kind: insight.kind,
+			answers: transformNonChoiceData(insight)
+		});
+	}
+
+	return undefined;
 }
 
 export async function surveyInsightsLoader(
@@ -328,5 +279,5 @@ export async function surveyInsightsLoader(
 		return { survey: [] as SurveyQuestion[] };
 	}
 
-	return { survey: response.ok.questions.map(transform).filter((q) => q !== undefined) };
+	return { survey: response.ok.questions.map(normalise).filter((q) => q !== undefined) };
 }
