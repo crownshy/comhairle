@@ -644,7 +644,6 @@ pub fn build_survey_insights(
             if let Some(field_id) = answer.get("id").and_then(|v| v.as_str()) {
                 if let Some(val) = answer.get("value") {
                     if !val.is_null() {
-                        let str_val = &val.to_string();
                         let key = (field_id.to_string(), sub_id.clone());
                         if seen_answers.insert(key) {
                             submissions_by_field
