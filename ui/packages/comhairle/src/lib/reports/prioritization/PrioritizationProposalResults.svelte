@@ -1,15 +1,14 @@
 <script lang="ts">
-	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { RankedProposal } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
 	import { cn } from '$lib/utils';
-	import KdePlot from '../KdePlot.svelte';
+	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 	import Button, { buttonVariants } from '$lib/components/ui/button/button.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import { BarChart, type ChartState } from 'layerchart';
-	import { cubicInOut } from 'svelte/easing';
+	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import type { ToolConfig, Question, ProposalSection } from '$lib/tools/prioritization';
+	import type { ComponentProps } from 'svelte';
 
 	type Props = {
 		proposals: RankedProposal[];
@@ -22,7 +21,7 @@
 		question: Question,
 		proposal: RankedProposal,
 		section?: ProposalSection
-	) {
+	): ComponentProps<typeof BarChart>['data'] | undefined {
 		if (question.type.kind !== 'likert') return;
 		if (!('categories' in question.type)) return;
 
@@ -70,11 +69,6 @@
 	let showProposalSections = $state<{ [proposalId: string]: boolean }>(
 		Object.fromEntries(proposals.map((proposal) => [proposal.id, false]))
 	);
-
-	const chartConfig = {
-		categories: { label: 'Categories', color: 'var(--primary)' }
-	} satisfies Chart.ChartConfig;
-	let context = $state<ChartState>();
 </script>
 
 {#snippet sectionToggleButton(label: string, value: boolean, proposalId: string)}
@@ -90,40 +84,18 @@
 
 {#snippet questionType(question: Question, proposal: RankedProposal, section?: ProposalSection)}
 	{#if question.type.kind === 'likert'}
-		<Chart.Container config={chartConfig} class="aspect-auto h-62 w-full">
-			<BarChart
-				bind:context
-				data={extractBarChartData(question, proposal, section)}
-				x="category"
-				axis="x"
-				y="count"
-				props={{
-					bars: {
-						stroke: 'none',
-						radius: 8,
-						rounded: 'all',
-						motion: {
-							x: { type: 'tween', duration: 500, easing: cubicInOut },
-							width: { type: 'tween', duration: 500, easing: cubicInOut },
-							height: { type: 'tween', duration: 500, easing: cubicInOut },
-							y: { type: 'tween', duration: 500, easing: cubicInOut }
-						}
-					},
-					highlight: { area: { fill: 'none' } }
-				}}
-			>
-				{#snippet tooltip()}
-					<Chart.Tooltip />
-				{/snippet}
-			</BarChart>
-		</Chart.Container>
+		<BarChart
+			data={extractBarChartData(question, proposal, section)}
+			x="category"
+			y="count"
+			axis="x"
+		/>
 	{/if}
 	{#if question.type.kind === 'continuous'}
 		<KdePlot
 			minLabel={question.type.minLabel}
 			maxLabel={question.type.maxLabel}
-			category={question.text}
-			rawData={{
+			data={{
 				[question.text]: extractQuestionResponses(proposal, question.id, section?.id).map(
 					(entry) => entry.value
 				)

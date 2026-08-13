@@ -380,4 +380,53 @@ impl HeyFormClient {
             .copied()
             .unwrap_or(false))
     }
+
+    pub async fn get_form_report(&self, form_id: String) -> Result<FormReport> {
+        let variables = serde_json::json!({
+            "input": FormDetailInput {
+                form_id: form_id,
+            }
+        });
+
+        let response: HashMap<String, serde_json::Value> = self
+            .execute_graphql(FORM_REPORT_QUERY, variables, Some("formReport"))
+            .await?;
+
+        let form_report = serde_json::from_value::<FormReport>(
+            response
+                .get("formReport")
+                .cloned()
+                .ok_or_else(|| HeyFormError::NotFound("Form report not found".to_string()))?,
+        )?;
+
+        Ok(form_report)
+    }
+
+    pub async fn get_form_submissions(
+        &self,
+        form_id: String,
+        category: String,
+        page: i32,
+    ) -> Result<Submissions> {
+        let variables = serde_json::json!({
+            "input": SubmissionsInput {
+                form_id,
+                page,
+                category,
+            }
+        });
+
+        let response: HashMap<String, serde_json::Value> = self
+            .execute_graphql(SUBMISSIONS_QUERY, variables, Some("submissions"))
+            .await?;
+
+        let submissions: Submissions = serde_json::from_value(
+            response
+                .get("submissions")
+                .cloned()
+                .ok_or_else(|| HeyFormError::NotFound("Submissions not found".to_string()))?,
+        )?;
+
+        Ok(submissions)
+    }
 }
