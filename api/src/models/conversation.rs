@@ -59,7 +59,6 @@ pub struct Conversation {
     pub is_complete: bool,
     #[partially(omit)]
     pub owner_id: Uuid,
-    #[partially(omit)]
     pub organization_id: Option<Uuid>,
     pub is_invite_only: bool,
     #[partially(transparent)]
@@ -159,6 +158,9 @@ impl PartialConversation {
         };
         if let Some(value) = self.is_complete {
             values.push((ConversationIden::IsComplete, value.into()))
+        };
+        if let Some(value) = &self.organization_id {
+            values.push((ConversationIden::OrganizationId, (*value).into()))
         };
         if let Some(value) = self.is_invite_only {
             values.push((ConversationIden::IsInviteOnly, value.into()))
