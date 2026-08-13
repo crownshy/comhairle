@@ -110,24 +110,31 @@
 	let bulkAction = $state<'accepted' | 'rejected' | null>(null);
 	const bulkWorking = $derived(bulkAction !== null);
 
-	async function bulkModerate(status: 'accepted' | 'rejected') {
+	async function bulkModerate(status: 'accepted' | 'rejected', reason?: string) {
 		const decision = status === 'accepted' ? 'accept' : 'reject';
 		// Skip rows already in the target status.
 		const targets = selectedVisible.filter((r) => r.moderation_status !== status);
 		if (!targets.length || bulkWorking) return;
 		bulkAction = status;
 
-		// Optimistic: flip all targets at once.
+		// Optimistic: flip all targets at once, applying the shared reason (accept
+		// clears it, matching the backend, ADR-0015).
 		const ids = targets.map((t) => t.id);
 		const idSet = new Set(ids);
 		statements = statements.map((s) =>
-			idSet.has(s.id) ? { ...s, moderation_status: status } : s
+			idSet.has(s.id)
+				? { ...s, moderation_status: status, moderation_reason: reason ?? null }
+				: s
 		);
 
 		// One request: the backend logs in to Polis once, moderates every id, and
 		// reports per-row failures rather than failing the whole batch.
 		const result = await tryCatchAsync(() =>
-			apiClient.PolisModerateStatementAuxBatch({ ids, decision })
+			apiClient.PolisModerateStatementAuxBatch({
+				ids,
+				decision,
+				moderation_reason: reason ?? null
+			})
 		);
 
 		bulkAction = null;
@@ -154,27 +161,35 @@
 	// Track in-flight requests per aux row so the buttons can disable mid-call.
 	let pending = $state<Record<string, boolean>>({});
 
-	async function setStatus(row: PolisStatementAux, status: 'accepted' | 'rejected') {
+	async function setStatus(
+		row: PolisStatementAux,
+		status: 'accepted' | 'rejected',
+		reason?: string
+	) {
 		if (pending[row.id] || row.moderation_status === status) return;
 		const decision = status === 'accepted' ? 'accept' : 'reject';
 		pending = { ...pending, [row.id]: true };
 
-		// Optimistic update; roll back on failure.
-		const prevStatus = row.moderation_status;
+		// Optimistic update; roll back on failure. Accept clears any prior reason
+		// (matches the backend, ADR-0015); reject shows the new one immediately.
+		const prev = row;
 		statements = statements.map((s) =>
-			s.id === row.id ? { ...s, moderation_status: status } : s
+			s.id === row.id
+				? { ...s, moderation_status: status, moderation_reason: reason ?? null }
+				: s
 		);
 
 		const res = await tryCatchAsync(() =>
-			apiClient.PolisModerateStatementAux({ decision }, { params: { id: row.id } })
+			apiClient.PolisModerateStatementAux(
+				{ decision, moderation_reason: reason ?? null },
+				{ params: { id: row.id } }
+			)
 		);
 		pending = { ...pending, [row.id]: false };
 
 		if (res.err !== null) {
 			console.error('PolisModerateStatementAux failed', res.err);
-			statements = statements.map((s) =>
-				s.id === row.id ? { ...s, moderation_status: prevStatus } : s
-			);
+			statements = statements.map((s) => (s.id === row.id ? prev : s));
 			notifications.send({ priority: 'ERROR', message: 'Failed to update statement' });
 			return;
 		}

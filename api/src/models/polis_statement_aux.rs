@@ -426,6 +426,70 @@ pub async fn update_many(
     Ok(aux)
 }
 
+/// The `(column, value)` pairs a moderation decision writes. Both single
+/// [`moderate`] and bulk [`moderate_many`] use this so they apply identical
+/// semantics: unlike the partial-update path, `moderation_reason` is *always*
+/// written (NULL when `reason` is `None`), so accepting a statement clears any
+/// prior rejection reason (ADR-0015).
+fn moderation_values(
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> [(PolisStatementAuxIden, SimpleExpr); 2] {
+    [
+        (PolisStatementAuxIden::ModerationStatus, status.into()),
+        (
+            PolisStatementAuxIden::ModerationReason,
+            reason.map(|s| s.to_string()).into(),
+        ),
+    ]
+}
+
+/// Apply a moderation decision to a single row, setting `moderation_status`
+/// and `moderation_reason` together (see [`moderation_values`]).
+#[instrument(err(Debug))]
+pub async fn moderate(
+    db: &PgPool,
+    id: Uuid,
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> Result<PolisStatementAux, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(moderation_values(status, reason))
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(aux)
+}
+
+/// Apply a moderation decision to many rows in one statement, returning the
+/// updated rows (see [`moderation_values`]). An empty id slice is a no-op.
+#[instrument(err(Debug))]
+pub async fn moderate_many(
+    db: &PgPool,
+    ids: &[Uuid],
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> Result<Vec<PolisStatementAux>, ComhairleError> {
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(moderation_values(status, reason))
+        .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(aux)
+}
+
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct PolisStatementAuxFilterOptions {
     ids: Option<Vec<Uuid>>,
