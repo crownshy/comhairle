@@ -186,9 +186,14 @@
 	// linked back to its replacements. Both directions are resolved here from the
 	// full (unfiltered) list so the row can show "Edited from" / "Replaced by".
 	const lineage = $derived.by(() => {
-		const byId = new Map(statements.map((s) => [s.id, s]));
+		// First pass builds both indexes. The result pass below has to stay
+		// separate: it reads `replacementsByOriginal[s.id]`, which isn't complete
+		// until every statement has been seen (a replacement may sit before or
+		// after its original in the list).
+		const byId = new Map<string, PolisStatementAux>();
 		const replacementsByOriginal: Record<string, string[]> = {};
 		for (const s of statements) {
+			byId.set(s.id, s);
 			if (s.original_statement_id) {
 				(replacementsByOriginal[s.original_statement_id] ??= []).push(s.statement_text);
 			}

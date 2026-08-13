@@ -63,10 +63,11 @@ pub trait WikiPollService: Send + Sync {
     ) -> Result<String, WikiPollServiceError>;
 
     /// Post a host-authored statement, choosing whether it is a seed.
-    /// `is_seed = true` matches `post_seed_comment` (auto-approved by Polis,
-    /// `mod: 1`); `is_seed = false` posts a genuine non-seed statement, which
-    /// Polis leaves pending (`mod: 0`) until moderated. Returns the new `tid`
-    /// and the `pid` Polis assigned the author (the admin's participant slot).
+    /// `is_seed = true` matches `post_seed_comment`: the poll service
+    /// auto-approves the statement. `is_seed = false` posts a genuine non-seed
+    /// statement, which the poll service leaves pending until moderated. Returns
+    /// the new statement id (`tid`) and the participant id (`pid`) the service
+    /// assigned the author (the admin's participant slot).
     async fn post_statement(
         &self,
         comment: &str,
