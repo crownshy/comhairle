@@ -302,6 +302,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             routes::organizations::router(state.clone()),
         )
         .nest_api_service("/regions", routes::regions::router(state.clone()))
+        .nest_api_service("/region_areas", routes::region_areas::router(state.clone()))
         .nest_api_service("/media", routes::media::router(state.clone()))
         .nest_api_service("/jobs", routes::jobs::router(state.clone()))
         .nest_api_service("/services", routes::services::router(state.clone()))

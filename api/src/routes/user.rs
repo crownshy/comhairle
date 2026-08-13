@@ -21,10 +21,15 @@ use crate::{
         self,
         conversation::{ConversationFilterOptions, ConversationOrderOptions},
         media::{FromWithMedia, MediaResolver},
+        organization::{self, OrganizationFilterOptions, OrganizationOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
+        permissions::{Action, Role, can_perform_resource_action, has_resource_permission},
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
-    routes::{conversations::dto::LocalizedConversationDto, user::dto::UserDto},
+    routes::{
+        conversations::dto::LocalizedConversationDto, organizations::dto::LocalizedOrganizationDto,
+        user::dto::UserDto,
+    },
 };
 
 pub mod dto;
@@ -70,11 +75,6 @@ pub async fn get_user_owned_conversations(
     Ok((StatusCode::OK, Json(results_with_media)))
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
-pub struct PermittedConversationsQuery {
-    pub role_name: String,
-}
-
 #[instrument(err(Debug), skip(state))]
 pub async fn get_user_permitted_conversations(
     State(state): State<Arc<ComhairleState>>,
@@ -82,15 +82,23 @@ pub async fn get_user_permitted_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-    Query(PermittedConversationsQuery { role_name }): Query<PermittedConversationsQuery>,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
+    let is_super_admin = has_resource_permission(
+        &state,
+        Role::SuperAdmin.system_triplet(),
+        &user.id,
+        user.organization_id.as_ref(),
+    )
+    .await?;
+
     let results = models::conversation::list_for_permitted_user(
         &state.db,
         user.id,
+        user.organization_id,
+        is_super_admin,
         page_options,
         order_options,
         filter_options,
-        &role_name,
         Some("en".to_string()),
     )
     .await?;
@@ -178,6 +186,101 @@ pub async fn get_user_roles(
     Ok((StatusCode::OK, Json(roles)))
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserOrganizationAccess {
+    pub organization: LocalizedOrganizationDto,
+    pub is_associated: bool,
+    pub can_update: bool,
+    pub can_delete: bool,
+    pub can_manage_team: bool,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserOrganizationsResponse {
+    pub organizations: Vec<UserOrganizationAccess>,
+    pub can_create_organization: bool,
+}
+
+#[instrument(err(Debug), skip(state))]
+pub async fn get_user_organizations(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<UserOrganizationsResponse>), ComhairleError> {
+    let results = organization::list(
+        &state.db,
+        PageOptions {
+            offset: None,
+            limit: Some(500),
+        },
+        OrganizationFilterOptions::default(),
+        OrganizationOrderOptions::default(),
+        &locale,
+    )
+    .await?;
+
+    let all_organizations = results
+        .records
+        .into_iter()
+        .map(LocalizedOrganizationDto::from)
+        .collect::<Vec<_>>();
+
+    let mut organizations = Vec::with_capacity(all_organizations.len());
+    for organization in &all_organizations {
+        let is_associated = user
+            .organization_id
+            .is_some_and(|organization_id| organization_id == organization.id);
+
+        let can_update = can_perform_resource_action(
+            &state,
+            &organization.id,
+            Action::OrganizationUpdate,
+            &user.id,
+            user.organization_id.as_ref(),
+            None,
+        )
+        .await?;
+
+        let can_delete = can_perform_resource_action(
+            &state,
+            &organization.id,
+            Action::OrganizationDelete,
+            &user.id,
+            user.organization_id.as_ref(),
+            None,
+        )
+        .await?;
+
+        organizations.push(UserOrganizationAccess {
+            organization: organization.clone(),
+            is_associated,
+            can_update,
+            can_delete,
+            can_manage_team: can_update,
+        });
+    }
+
+    let can_create_organization = can_perform_resource_action(
+        &state,
+        &Uuid::nil(),
+        Action::OrganizationCreate,
+        &user.id,
+        user.organization_id.as_ref(),
+        None,
+    )
+    .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(UserOrganizationsResponse {
+            organizations,
+            can_create_organization,
+        }),
+    ))
+}
+
 #[instrument(err(Debug), skip(state))]
 pub async fn update_user_details(
     State(state): State<Arc<ComhairleState>>,
@@ -243,6 +346,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Gets a list of the conversations a user is permitted access to")
                     .security_requirement("JWT")
                     .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
+            }),
+        )
+        .api_route(
+            "/organizations",
+            get_with(get_user_organizations, |op| {
+                op.id("GetUserOrganizations")
+                    .tag("User")
+                    .description("Gets the organizations associated with the current user and those they can manage")
+                    .security_requirement("JWT")
+                    .response::<200, Json<UserOrganizationsResponse>>()
             }),
         )
         .api_route(

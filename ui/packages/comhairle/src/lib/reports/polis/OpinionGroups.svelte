@@ -23,9 +23,14 @@
 	type Props = {
 		comments: ReportComment[];
 		groups: ReportGroup[];
+		/**
+		 * Frozen-snapshot render (ADR-0012): the group nav chips are interactive, so a static
+		 * snapshot drops them (every group is already shown by default) and freezes each card.
+		 */
+		frozen?: boolean;
 	};
 
-	let { comments, groups }: Props = $props();
+	let { comments, groups, frozen = false }: Props = $props();
 
 	// null = show every group; a group_id = focus that one.
 	let selectedGroupId = $state<number | null>(null);
@@ -46,24 +51,26 @@
 		</p>
 	</header>
 
-	<!-- Group nav chips -->
-	<div class="flex flex-wrap gap-2">
-		{#each groups as g (g.group_id)}
-			<button
-				type="button"
-				onclick={() => toggle(g.group_id)}
-				aria-pressed={selectedGroupId === g.group_id}
-				class="rounded-full px-2 py-0.5 text-xs font-medium transition-colors {selectedGroupId ===
-					null || selectedGroupId === g.group_id
-					? 'bg-primary text-primary-foreground'
-					: 'bg-accent text-accent-foreground hover:bg-accent/70'}"
-			>
-				Group {groupLabel(g.group_id)}
-			</button>
-		{/each}
-	</div>
+	<!-- Group nav chips (interactive; hidden in a frozen snapshot) -->
+	{#if !frozen}
+		<div class="flex flex-wrap gap-2">
+			{#each groups as g (g.group_id)}
+				<button
+					type="button"
+					onclick={() => toggle(g.group_id)}
+					aria-pressed={selectedGroupId === g.group_id}
+					class="rounded-full px-2 py-0.5 text-xs font-medium transition-colors {selectedGroupId ===
+						null || selectedGroupId === g.group_id
+						? 'bg-primary text-primary-foreground'
+						: 'bg-accent text-accent-foreground hover:bg-accent/70'}"
+				>
+					Group {groupLabel(g.group_id)}
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	{#each shownGroups as g (g.group_id)}
-		<OpinionGroupCard group={g} {comments} {groups} />
+		<OpinionGroupCard group={g} {comments} {groups} {frozen} />
 	{/each}
 </section>

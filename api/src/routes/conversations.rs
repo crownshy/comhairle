@@ -31,23 +31,24 @@ use crate::{
         notification_delivery::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
         },
+        organization,
         pagination::{OrderParams, PageOptions, PaginatedResults},
         permissions::{
-            ConversationContentEditorRole, ConversationResource, ResourceRole,
-            has_resource_permission,
+            self, Action, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
+            RevokeRoleRequest, Role, UserOrOrganizationId, can_perform_resource_action, grant_role,
         },
         user_conversation_preferences,
         user_participation::{self},
         user_profile,
     },
     routes::{
-        auth::RequiredUserPermission,
+        auth::authorize,
         conversations::dto::{ConversationDto, LocalizedConversationDto},
         translations::LocaleExtractor,
     },
 };
 
-use super::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
+use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 
 pub mod dto;
 
@@ -74,15 +75,14 @@ async fn create_conversation(
 /// Update conversation handler
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    RequiredUserPermission { .. }: RequiredUserPermission<
-        ConversationContentEditorRole,
-        ConversationResource,
-    >,
-    Path(id): Path<Uuid>,
+    RequiredUser(user): RequiredUser,
+    resource: ConversationResource,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    let conversation = conversation::update(&state.db, &id, &conversation).await?;
+    authorize(&state, &user, Action::ConversationUpdate, &resource).await?;
+
+    let conversation =
+        conversation::update(&state.db, &resource.conversation_id, &conversation).await?;
     let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
@@ -192,11 +192,13 @@ async fn get_conversation(
     if !original_conversation.is_live {
         if let Some(user) = &user {
             if user.id != original_conversation.owner_id
-                && !has_resource_permission(
+                && !can_perform_resource_action(
                     &state,
-                    ConversationContentEditorRole::make_triplet(&original_conversation.id),
+                    &original_conversation.id,
+                    Action::ConversationRead,
                     &user.id,
-                    None,
+                    user.organization_id.as_ref(),
+                    Some(&original_conversation.owner_id),
                 )
                 .await?
             {
@@ -248,6 +250,104 @@ async fn get_conversation(
             Json(ConversationResponse::Localized(conversation)),
         ))
     }
+}
+
+/// List organizations that are co-hosts of a conversation, inferred from permissions.
+#[instrument(err(Debug), skip(state))]
+async fn list_conversation_cohosts(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    resource: ConversationResource,
+) -> Result<(StatusCode, Json<Vec<OrganizationWithPermissionDto>>), ComhairleError> {
+    authorize(&state, &user, Action::ConversationRead, &resource).await?;
+
+    let organizations = permissions::list_organizations_with_permission(
+        &state.db,
+        Action::ConversationRead.resource_type().as_ref(),
+        resource.conversation_id,
+        Some(Role::ConversationCoHost.as_ref()),
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(organizations)))
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct CohostInfo {
+    pub organization_id: Uuid,
+}
+
+/// Add an organization as a co-host of a conversation.
+#[instrument(err(Debug), skip(state))]
+async fn add_conversation_cohost(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Path(conversation_id): Path<Uuid>,
+    Json(cohost_info): Json<CohostInfo>,
+) -> Result<(StatusCode, Json<OrganizationWithPermissionDto>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let resource = ConversationResource {
+        conversation_id,
+        owner_id: conversation.owner_id,
+    };
+
+    authorize(&state, &user, Action::ConversationAdmin, &resource).await?;
+
+    let organization = organization::get_by_id(&state.db, &cohost_info.organization_id).await?;
+
+    let _ = grant_role(
+        &state,
+        GrantRoleRequest {
+            actor_id: UserOrOrganizationId::Org(cohost_info.organization_id),
+            permission_triplet: Role::ConversationCoHost.triplet(&conversation_id),
+            granted_by: &user.id,
+            grant_reason: "Added as co-host",
+        },
+    )
+    .await?;
+
+    let result = OrganizationWithPermissionDto {
+        id: cohost_info.organization_id,
+        name: organization.name,
+        role_name: Role::ConversationCoHost.as_ref().into(),
+    };
+
+    Ok((StatusCode::CREATED, Json(result)))
+}
+
+/// Remove an organization as a co-host of a conversation.
+#[instrument(err(Debug), skip(state))]
+async fn remove_conversation_cohost(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Path((conversation_id, cohost_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<OrganizationWithPermissionDto>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let resource = ConversationResource {
+        conversation_id,
+        owner_id: conversation.owner_id,
+    };
+
+    authorize(&state, &user, Action::ConversationAdmin, &resource).await?;
+
+    let organization = organization::get_by_id(&state.db, &cohost_id).await?;
+
+    permissions::revoke_role(
+        &state,
+        RevokeRoleRequest {
+            actor_id: UserOrOrganizationId::Org(cohost_id),
+            permission_triplet: Role::ConversationCoHost.triplet(&conversation_id),
+        },
+    )
+    .await?;
+
+    let result = OrganizationWithPermissionDto {
+        id: cohost_id,
+        name: organization.name,
+        role_name: Role::ConversationCoHost.as_ref().into(),
+    };
+
+    Ok((StatusCode::OK, Json(result)))
 }
 
 /// Delete a specific conversation
@@ -848,6 +948,42 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/{conversation_id}/cohosts",
+            get_with(list_conversation_cohosts, |op| {
+                op.id("ListConversationCoHostOrganizations")
+                    .summary("List co-host organizations for a conversation")
+                    .tag("Conversation")
+                    .description(
+                        "Returns organizations that hold the conversation co-host role for this conversation.",
+                    )
+                    .response::<200, Json<Vec<OrganizationWithPermissionDto>>>()
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/cohosts",
+            post_with(add_conversation_cohost, |op| {
+                op.id("AddConversationCoHostOrganization")
+                    .summary("Add an organization as a co-host for a conversation")
+                    .tag("Conversation")
+                    .description(
+                        "Grants the conversation co-host role to the specified organization.",
+                    )
+                    .response::<201, Json<OrganizationWithPermissionDto>>()
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/cohosts/{cohost_id}",
+            delete_with(remove_conversation_cohost, |op| {
+                op.id("RemoveConversationCoHostOrganization")
+                    .summary("Remove an organization as a co-host for a conversation")
+                    .tag("Conversation")
+                    .description(
+                        "Revokes the conversation co-host role from the specified organization.",
+                    )
+                    .response::<200, Json<OrganizationWithPermissionDto>>()
+            }),
+        )
+        .api_route(
             "/{conversation_id}/notifications",
             post_with(send_notification_to_participants, |op| {
                 op.id("SendNotificationToParticipants")
@@ -905,8 +1041,11 @@ mod tests {
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
     use crate::models::conversation::PartialConversation;
-    use crate::routes::conversations::ConversationResponse;
+    use crate::models::permissions::{
+        GrantRoleRequest, OrganizationWithPermissionDto, Role, UserOrOrganizationId, grant_role,
+    };
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
+    use crate::routes::conversations::{CohostInfo, ConversationResponse};
     use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
@@ -919,8 +1058,109 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
-
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_add_and_list_conversation_cohost_organizations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner_session = UserSession::new_admin();
+        owner_session.signup(&app).await?;
+
+        let (_, response, _) = owner_session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+
+        let (_, response, _) = owner_session.create_random_organization(&app).await?;
+        let organization: crate::routes::organizations::dto::OrganizationDto =
+            serde_json::from_value(response)?;
+
+        let (status, _, _) = owner_session
+            .post(
+                &app,
+                &format!("/conversation/{}/cohosts", conversation.id),
+                Body::from(serde_json::to_string(&CohostInfo {
+                    organization_id: organization.id,
+                })?),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::CREATED);
+
+        let (status, response, _) = owner_session
+            .get(&app, &format!("/conversation/{}/cohosts", conversation.id))
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let organizations: Vec<OrganizationWithPermissionDto> = serde_json::from_value(response)?;
+
+        assert_eq!(organizations.len(), 1);
+        assert_eq!(organizations[0].id, organization.id);
+        assert_eq!(
+            organizations[0].role_name,
+            Role::ConversationCoHost.as_ref()
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_revoke_conversation_cohost_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner_session = UserSession::new_admin();
+        owner_session.signup(&app).await?;
+
+        let (_, response, _) = owner_session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+
+        let (_, response, _) = owner_session.create_random_organization(&app).await?;
+        let organization: crate::routes::organizations::dto::OrganizationDto =
+            serde_json::from_value(response)?;
+
+        // Add co-host
+        let (status, _, _) = owner_session
+            .post(
+                &app,
+                &format!("/conversation/{}/cohosts", conversation.id),
+                Body::from(serde_json::to_string(&CohostInfo {
+                    organization_id: organization.id,
+                })?),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::CREATED);
+
+        // Remove co-host
+        let (status, _, _) = owner_session
+            .delete(
+                &app,
+                &format!(
+                    "/conversation/{}/cohosts/{}",
+                    conversation.id, organization.id
+                ),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        // Verify co-host is removed
+        let (status, response, _) = owner_session
+            .get(&app, &format!("/conversation/{}/cohosts", conversation.id))
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let organizations: Vec<OrganizationWithPermissionDto> = serde_json::from_value(response)?;
+
+        assert_eq!(organizations.len(), 0);
+
+        Ok(())
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_create_conversation_without_bot_service_resources(
@@ -1506,7 +1746,7 @@ mod tests {
         let privacy_policy: TextContentDto = serde_json::from_value(privacy_policy_res)?;
         let faqs: TextContentDto = serde_json::from_value(faqs_res)?;
 
-        let (_, update_res, _) = session
+        let (_, _update_res, _) = session
             .put(
                 &app,
                 &format!("/conversation/{}", conversation.id),
@@ -2036,7 +2276,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn broadcast_email_only_sent_to_opted_in_authenticated_users(
+    fn broadcast_email_only_sent_to_opted_in_authenticated_users(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
         use crate::models::user_conversation_preferences::{
@@ -2155,7 +2395,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn broadcast_email_respects_anonymous_opt_in_flag(
+    fn broadcast_email_respects_anonymous_opt_in_flag(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
         use crate::models::conversation_email_notification_recipients::{
@@ -2228,7 +2468,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn broadcast_email_returns_zero_when_nobody_is_opted_in(
+    fn broadcast_email_returns_zero_when_nobody_is_opted_in(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
         use std::sync::{Arc, Mutex};
@@ -2275,7 +2515,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn recipients_endpoint_lists_only_opted_in_emails(
+    fn recipients_endpoint_lists_only_opted_in_emails(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
         use crate::models::conversation_email_notification_recipients::{
@@ -2404,9 +2644,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn recipients_endpoint_denies_non_owner(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn Error>> {
+    fn recipients_endpoint_denies_non_owner(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -2430,7 +2668,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_allow_permitted_user_to_update_conversation(
+    fn should_allow_permitted_user_to_update_conversation(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -2446,7 +2684,9 @@ mod tests {
         editor_session.signup(&app).await?;
         let (_, editor, _) = editor_session.current_user(&app).await?;
 
-        let (_, value, _) = owner_session.create_random_conversation(&app).await?;
+        let (_, value, _) = owner_session
+            .create_random_unlaunched_conversation(&app)
+            .await?;
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
         // Grant editor user `content_editor` permission
@@ -2454,7 +2694,7 @@ mod tests {
             user_id: Some(editor.id),
             organization_id: None,
             user_email: None,
-            role_name: "content_editor".into(),
+            role_name: Role::ConversationContentEditor.as_ref().into(),
             grant_reason: "Testing".into(),
         };
 
@@ -2507,11 +2747,11 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_not_allow_non_permitted_admin_users_to_update_conversation(
+    fn should_allow_non_permitted_super_admin_users_to_update_conversation(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
-        let app = setup_server(Arc::new(state)).await?;
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(Arc::clone(&state)).await?;
 
         let mut owner_session = UserSession::new_admin();
         owner_session.signup(&app).await?;
@@ -2523,10 +2763,24 @@ mod tests {
             UserSession::new("editor", other_user_password, other_user_email);
         other_user_session.signup(&app).await?;
 
-        let (_, value, _) = owner_session.create_random_conversation(&app).await?;
+        // Grant other user super admin role
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(other_user_session.id.unwrap()),
+                permission_triplet: Role::SuperAdmin.system_triplet(),
+                granted_by: &owner_session.id.unwrap(),
+                grant_reason: "Testing".into(),
+            },
+        )
+        .await?;
+
+        let (_, value, _) = owner_session
+            .create_random_unlaunched_conversation(&app)
+            .await?;
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
-        // Update by editor
+        // Update by other super admin user. Super admins are globally authorized.
         let other_user_update = PartialConversation {
             is_public: Some(true),
             ..Default::default()
@@ -2535,11 +2789,11 @@ mod tests {
         let (_, other_user_response, _) = other_user_session
             .put(&app, &format!("/conversation/{}", conversation.id), body)
             .await?;
-
-        assert_eq!(
-            other_user_response.get("err").unwrap(),
-            "User is not authorized to perform this action",
-            "incorrect error message"
+        let other_user_updated_conversation: ConversationDto =
+            serde_json::from_value(other_user_response)?;
+        assert!(
+            other_user_updated_conversation.is_public,
+            "is_public incorrect after other admin update"
         );
 
         // Update by owner
@@ -2557,6 +2811,152 @@ mod tests {
             owner_updated_conversation.is_public,
             "is_public incorrect after owner update"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_allow_content_editor_to_read_draft_conversation(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner_session = UserSession::new_admin();
+        owner_session.signup(&app).await?;
+
+        let mut editor_session = UserSession::new(
+            "content_editor_user",
+            "Password_123(*&)",
+            "content_editor@example.com",
+        );
+        editor_session.signup(&app).await?;
+        let (_, editor, _) = editor_session.current_user(&app).await?;
+
+        let (_, value, _) = owner_session
+            .create_random_unlaunched_conversation(&app)
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+
+        // Non-owner without role should be denied draft access.
+        let (status, _, _) = editor_session
+            .get_conversation(&app, &conversation.id.to_string())
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        // Grant read permission via content editor role.
+        let grant_body = GrantPermissionBody {
+            user_id: Some(editor.id),
+            organization_id: None,
+            user_email: None,
+            role_name: Role::ConversationContentEditor.as_ref().into(),
+            grant_reason: "Testing draft read permission".into(),
+        };
+        let body = Body::from(serde_json::to_string(&grant_body)?);
+
+        let (status, _, _) = owner_session
+            .post(
+                &app,
+                &format!(
+                    "/permissions/{}/{}",
+                    CONVERSATION_RESOURCE_TYPE, conversation.id
+                ),
+                body,
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED);
+
+        // Non-owner with content_editor should now be allowed to read draft.
+        let (status, value, _) = editor_session
+            .get_conversation(&app, &conversation.id.to_string())
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let response_id = value
+            .get("id")
+            .cloned()
+            .ok_or("missing conversation response payload")?;
+        let id: uuid::Uuid = serde_json::from_value(response_id)?;
+        assert_eq!(id, conversation.id);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_allow_org_cohost_to_read_draft_conversation(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner_session = UserSession::new_admin();
+        owner_session.signup(&app).await?;
+
+        let mut org_member_session = UserSession::new(
+            "org_member_user",
+            "Password_123(*&)",
+            "org_member@example.com",
+        );
+        org_member_session.signup(&app).await?;
+
+        let (_, org_response, _) = owner_session.create_random_organization(&app).await?;
+        let organization: crate::routes::organizations::dto::OrganizationDto =
+            serde_json::from_value(org_response)?;
+
+        let (_, member_user, _) = org_member_session.current_user(&app).await?;
+
+        let (_, _, _) = org_member_session
+            .put(
+                &app,
+                "/user/details",
+                serde_json::to_string(&json!({ "organization_id": organization.id }))?.into(),
+            )
+            .await?;
+
+        let (_, value, _) = owner_session
+            .create_random_unlaunched_conversation(&app)
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+
+        let (status, _, _) = org_member_session
+            .get_conversation(&app, &conversation.id.to_string())
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let grant_body = GrantPermissionBody {
+            user_id: None,
+            organization_id: Some(organization.id),
+            user_email: None,
+            role_name: Role::ConversationCoHost.as_ref().into(),
+            grant_reason: "Testing org co-host draft read permission".into(),
+        };
+
+        let (status, _, _) = owner_session
+            .post(
+                &app,
+                &format!(
+                    "/permissions/{}/{}",
+                    CONVERSATION_RESOURCE_TYPE, conversation.id
+                ),
+                Body::from(serde_json::to_string(&grant_body)?),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED);
+
+        let (status, value, _) = org_member_session
+            .get_conversation(&app, &conversation.id.to_string())
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let response_id = value
+            .get("id")
+            .cloned()
+            .ok_or("missing conversation response payload")?;
+        let id: uuid::Uuid = serde_json::from_value(response_id)?;
+        assert_eq!(id, conversation.id);
+
+        // Keep this variable used to avoid accidental changes to the test setup where user lookup fails.
+        assert_eq!(member_user.email.as_deref(), Some("org_member@example.com"));
 
         Ok(())
     }

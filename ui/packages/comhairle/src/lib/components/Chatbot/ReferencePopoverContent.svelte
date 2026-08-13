@@ -1,12 +1,17 @@
 <script lang="ts">
-	import { ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp, FileText } from 'lucide-svelte';
 	import type { ReferenceChunk } from '$lib/api/chatClient.svelte';
 
 	interface Props {
 		chunk: ReferenceChunk;
+		/**
+		 * When provided, the footer action opens this chunk in the document viewer
+		 * instead of expanding the (raw, often messy) extracted text inline.
+		 */
+		onOpenSource?: (chunk: ReferenceChunk) => void;
 	}
 
-	let { chunk }: Props = $props();
+	let { chunk, onOpenSource }: Props = $props();
 	let isExpanded = $state(false);
 
 	function stripHtml(text: string): string {
@@ -18,8 +23,12 @@
 
 	const strippedContent = $derived(stripHtml(chunk.content));
 	const isTruncatable = $derived(strippedContent.length > 300);
+	// With a viewer available we always keep the preview short; "Open in document"
+	// is the way to read the full passage, so the inline expand is only a fallback.
 	const displayContent = $derived(
-		isExpanded || !isTruncatable ? strippedContent : strippedContent.slice(0, 300) + '...'
+		(isExpanded && !onOpenSource) || !isTruncatable
+			? strippedContent
+			: strippedContent.slice(0, 300) + '...'
 	);
 </script>
 
@@ -55,9 +64,19 @@
 		{displayContent}
 	</div>
 
-	<!-- See more/less button -->
-	{#if isTruncatable}
+	<!-- Footer action: open the real document, or (fallback) expand the text inline. -->
+	{#if onOpenSource}
 		<button
+			type="button"
+			onclick={() => onOpenSource?.(chunk)}
+			class="text-chat-primary hover:text-chat-primary-dark mt-2 inline-flex items-center gap-1 text-xs font-medium transition-colors"
+		>
+			<FileText class="h-3 w-3" />
+			Open in document
+		</button>
+	{:else if isTruncatable}
+		<button
+			type="button"
 			onclick={() => (isExpanded = !isExpanded)}
 			class="text-chat-primary hover:text-chat-primary-dark mt-2 inline-flex items-center gap-1 text-xs font-medium transition-colors"
 		>

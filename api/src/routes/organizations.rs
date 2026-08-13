@@ -1,34 +1,273 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
+use aide::{
+    OperationIo,
+    axum::{
+        ApiRouter,
+        routing::{delete_with, get_with, patch_with, post_with, put_with},
+    },
 };
 use axum::{
-    extract::{Json, Path, Query, State},
+    extract::{FromRequestParts, Json, Path, Query, State},
     http::StatusCode,
 };
+use minijinja::context;
+use schemars::JsonSchema;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        organization::{
-            self, CreateOrganization, OrganizationFilterOptions, OrganizationOrderOptions,
-            PartialOrganization,
-        },
-        pagination::{PageOptions, PaginatedResults},
-    },
-    routes::{
-        auth::{RequiredAdminUser, RequiredUser},
-        organizations::dto::{LocalizedOrganizationDto, OrganizationDto},
-        translations::LocaleExtractor,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::organization::{
+    self, CreateOrganization, OrganizationFilterOptions, OrganizationOrderOptions,
+    PartialOrganization,
 };
+use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::permissions::{
+    Action, ExtractResourceId, GrantRoleRequest, OwnedResource, RevokeRoleRequest, Role,
+    UserOrOrganizationId, grant_role, list_users_with_permission, revoke_role,
+};
+use crate::models::translations;
+use crate::models::users;
+use crate::routes::auth::{
+    EmailLinkClaims, RequiredAdminUser, RequiredUser, authorize, generate_jwt,
+};
+use crate::routes::organizations::dto::{LocalizedOrganizationDto, OrganizationDto};
+use crate::routes::translations::LocaleExtractor;
 
 pub mod dto;
+
+#[derive(Debug, serde::Deserialize)]
+struct OrganizationPath {
+    organization_id: Uuid,
+}
+
+#[derive(Debug, OperationIo)]
+struct OrganizationResource {
+    resource_id: Uuid,
+    owner_id: Option<Uuid>,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for OrganizationResource {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(OrganizationPath { organization_id }) =
+            Path::<OrganizationPath>::from_request_parts(parts, state)
+                .await
+                .map_err(|_| {
+                    ComhairleError::ResourceNotFound(
+                        "Path must contain an organization_id".to_string(),
+                    )
+                })?;
+
+        Ok(Self {
+            resource_id: organization_id,
+            owner_id: None,
+        })
+    }
+}
+
+impl ExtractResourceId for OrganizationResource {
+    fn resource_id(&self) -> Uuid {
+        self.resource_id
+    }
+}
+
+impl OwnedResource for OrganizationResource {
+    fn owner_id(&self) -> Option<Uuid> {
+        self.owner_id
+    }
+}
+
+#[derive(Debug, serde::Deserialize, JsonSchema)]
+struct OrganizationMemberPath {
+    organization_id: Uuid,
+    user_id: Uuid,
+}
+
+#[derive(Debug, serde::Deserialize, JsonSchema)]
+struct UpsertOrganizationUserBody {
+    email: String,
+    role: Option<OrganizationTeamRole>,
+    allow_create_user: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum OrganizationTeamRole {
+    Member,
+    Admin,
+}
+
+#[derive(Debug, serde::Deserialize, JsonSchema)]
+struct UpdateOrganizationMemberRoleBody {
+    role: OrganizationTeamRole,
+}
+
+#[derive(Debug, serde::Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct OrganizationTeamUserDto {
+    id: Uuid,
+    username: Option<String>,
+    email: Option<String>,
+    role: OrganizationTeamRole,
+}
+
+#[derive(Debug, serde::Deserialize, JsonSchema)]
+struct UpdateOrganizationBody {
+    name: Option<String>,
+    description: Option<String>,
+    mission: Option<String>,
+    org_type: Option<organization::OrganizationType>,
+    contact_email: Option<Option<String>>,
+    external_url: Option<Option<String>>,
+    regions: Option<Vec<Uuid>>,
+    metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, serde::Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct UpsertOrganizationUserResponseDto {
+    user: OrganizationTeamUserDto,
+    created_account: bool,
+    emailed: bool,
+}
+
+#[derive(Debug, serde::Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct OrganizationTeamResponseDto {
+    members: Vec<OrganizationTeamUserDto>,
+}
+
+async fn set_member_admin_role(
+    state: &Arc<ComhairleState>,
+    organization_id: Uuid,
+    user_id: Uuid,
+    granted_by: Uuid,
+    role: OrganizationTeamRole,
+) -> Result<(), ComhairleError> {
+    if user_id == granted_by && role == OrganizationTeamRole::Member {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
+    match role {
+        OrganizationTeamRole::Admin => {
+            let grant_result = grant_role(
+                state,
+                GrantRoleRequest {
+                    actor_id: UserOrOrganizationId::User(user_id),
+                    permission_triplet: Role::OrganizationAdmin.triplet(&organization_id),
+                    granted_by: &granted_by,
+                    grant_reason: "Organization team management",
+                },
+            )
+            .await;
+
+            if let Err(error) = grant_result
+                && !matches!(error, ComhairleError::RoleAlreadyGranted(_))
+            {
+                return Err(error);
+            }
+        }
+        OrganizationTeamRole::Member => {
+            let revoke_result = revoke_role(
+                state,
+                RevokeRoleRequest {
+                    actor_id: UserOrOrganizationId::User(user_id),
+                    permission_triplet: Role::OrganizationAdmin.triplet(&organization_id),
+                },
+            )
+            .await;
+
+            if let Err(error) = revoke_result
+                && !matches!(error, ComhairleError::RoleNotFound(_))
+            {
+                return Err(error);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn role_label(role: OrganizationTeamRole) -> &'static str {
+    match role {
+        OrganizationTeamRole::Member => "member",
+        OrganizationTeamRole::Admin => "administrator",
+    }
+}
+
+fn notify_team_addition(
+    state: &Arc<ComhairleState>,
+    recipient_email: &str,
+    organization_name: &str,
+    role: OrganizationTeamRole,
+) {
+    let subject = "You were added to an organization on Comhairle";
+    let admin_sign_in_link = format!("{}/auth/login?backTo=/admin", state.config.domain);
+
+    let _ = state.mailer.send_email(
+        recipient_email,
+        subject,
+        "organization_team_onboarding.html",
+        context! {
+            subject,
+            organization_name,
+            role_label => role_label(role),
+            admin_sign_in_link,
+        },
+        None,
+    );
+}
+
+async fn resolve_or_create_user_by_email(
+    state: &Arc<ComhairleState>,
+    email: &str,
+    allow_create_user: bool,
+) -> Result<(users::User, bool, bool), ComhairleError> {
+    let trimmed = email.trim().to_lowercase();
+    if trimmed.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "Email cannot be empty".to_string(),
+        ));
+    }
+
+    match users::get_user_by_email(&trimmed, &state.db).await {
+        Ok(user) => Ok((user, false, false)),
+        Err(ComhairleError::NoUserFoundForEmail(_)) => {
+            if !allow_create_user {
+                return Err(ComhairleError::NoUserFoundForEmail(trimmed));
+            }
+
+            let user = users::create_organization_admin_user(state, &trimmed).await?;
+
+            let token = generate_jwt()
+                .user(&user)
+                .secret(&state.config.jwt_secret)
+                .custom_claims(EmailLinkClaims {
+                    email: user.email.clone(),
+                })
+                .duration(chrono::Duration::hours(24))
+                .call();
+            let reset_link = format!(
+                "{}/auth/password-reset/update?token={}",
+                state.config.domain, token
+            );
+
+            let emailed = state
+                .mailer
+                .send_user_account_created_email(&user.email, &user.username, reset_link)
+                .is_ok();
+
+            Ok((user, true, emailed))
+        }
+        Err(error) => Err(error),
+    }
+}
 
 #[instrument(err(Debug), skip(state))]
 async fn list(
@@ -56,7 +295,7 @@ async fn list(
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
-    RequiredUser(user): RequiredUser,
+    RequiredUser(_user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<LocalizedOrganizationDto>), ComhairleError> {
     let organization = organization::get_localized_by_id(&state.db, &organization_id, &locale)
@@ -67,39 +306,283 @@ async fn get(
 }
 
 #[instrument(err(Debug), skip(state))]
+async fn get_team(
+    State(state): State<Arc<ComhairleState>>,
+    Path(organization_id): Path<Uuid>,
+    RequiredUser(user): RequiredUser,
+    resource: OrganizationResource,
+) -> Result<(StatusCode, Json<OrganizationTeamResponseDto>), ComhairleError> {
+    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
+
+    let admins = list_users_with_permission(
+        &state.db,
+        Role::OrganizationAdmin.resource_type().as_ref(),
+        organization_id,
+        Some(Role::OrganizationAdmin.as_ref()),
+    )
+    .await?;
+
+    let admin_ids = admins
+        .into_iter()
+        .map(|admin| admin.id)
+        .collect::<std::collections::HashSet<_>>();
+
+    let members = users::list_by_organization_id(&organization_id, &state.db)
+        .await?
+        .into_iter()
+        .map(|member| OrganizationTeamUserDto {
+            role: if admin_ids.contains(&member.id) {
+                OrganizationTeamRole::Admin
+            } else {
+                OrganizationTeamRole::Member
+            },
+            id: member.id,
+            username: member.username,
+            email: member.email,
+        })
+        .collect();
+
+    Ok((
+        StatusCode::OK,
+        Json(OrganizationTeamResponseDto { members }),
+    ))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn add_member(
+    State(state): State<Arc<ComhairleState>>,
+    Path(organization_id): Path<Uuid>,
+    RequiredUser(user): RequiredUser,
+    resource: OrganizationResource,
+    Json(payload): Json<UpsertOrganizationUserBody>,
+) -> Result<(StatusCode, Json<UpsertOrganizationUserResponseDto>), ComhairleError> {
+    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
+
+    let allow_create_user = payload.allow_create_user.unwrap_or(false);
+    let (resolved_user, created_account, emailed) =
+        resolve_or_create_user_by_email(&state, &payload.email, allow_create_user).await?;
+    let role = payload.role.unwrap_or(OrganizationTeamRole::Member);
+
+    let updated_user =
+        users::set_user_organization_id(&resolved_user.id, Some(organization_id), &state.db)
+            .await?;
+
+    set_member_admin_role(&state, organization_id, updated_user.id, user.id, role).await?;
+
+    if let Some(email) = updated_user.email.as_deref() {
+        let organization = organization::get_by_id(&state.db, &organization_id).await?;
+        notify_team_addition(&state, email, &organization.name, role);
+    }
+
+    Ok((
+        StatusCode::OK,
+        Json(UpsertOrganizationUserResponseDto {
+            user: OrganizationTeamUserDto {
+                id: updated_user.id,
+                username: updated_user.username,
+                email: updated_user.email,
+                role,
+            },
+            created_account,
+            emailed,
+        }),
+    ))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn update_member_role(
+    State(state): State<Arc<ComhairleState>>,
+    Path(OrganizationMemberPath {
+        organization_id,
+        user_id,
+    }): Path<OrganizationMemberPath>,
+    RequiredUser(user): RequiredUser,
+    resource: OrganizationResource,
+    Json(payload): Json<UpdateOrganizationMemberRoleBody>,
+) -> Result<StatusCode, ComhairleError> {
+    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
+
+    let target_user = users::get_user_by_id(&user_id, &state.db).await?;
+    if !target_user
+        .organization_id
+        .is_some_and(|member_org_id| member_org_id == organization_id)
+    {
+        return Err(ComhairleError::BadRequest(
+            "User is not a member of this organization".to_string(),
+        ));
+    }
+
+    set_member_admin_role(&state, organization_id, user_id, user.id, payload.role).await?;
+
+    Ok(StatusCode::OK)
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn remove_member(
+    State(state): State<Arc<ComhairleState>>,
+    Path(OrganizationMemberPath {
+        organization_id,
+        user_id,
+    }): Path<OrganizationMemberPath>,
+    RequiredUser(user): RequiredUser,
+    resource: OrganizationResource,
+) -> Result<StatusCode, ComhairleError> {
+    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
+
+    let target_user = users::get_user_by_id(&user_id, &state.db).await?;
+
+    set_member_admin_role(
+        &state,
+        organization_id,
+        user_id,
+        user.id,
+        OrganizationTeamRole::Member,
+    )
+    .await?;
+
+    if target_user
+        .organization_id
+        .is_some_and(|id| id == organization_id)
+    {
+        users::set_user_organization_id(&user_id, None, &state.db).await?;
+    }
+
+    Ok(StatusCode::OK)
+}
+
+#[instrument(err(Debug), skip(state))]
 async fn create(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     LocaleExtractor(locale): LocaleExtractor,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
-    let organization = organization::create(&state.db, &payload, &locale)
-        .await?
-        .into();
+    let organization = organization::create(&state.db, &payload, &locale).await?;
 
-    Ok((StatusCode::CREATED, Json(organization)))
+    Ok((StatusCode::CREATED, Json(organization.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
 async fn update(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Json(organization): Json<PartialOrganization>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    resource: OrganizationResource,
+    LocaleExtractor(locale): LocaleExtractor,
+    Json(payload): Json<UpdateOrganizationBody>,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
-    let organization = organization::update(&state.db, &organization_id, &organization)
+    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
+
+    let existing = organization::get_by_id(&state.db, &organization_id).await?;
+
+    if let Some(description) = payload.description.as_ref() {
+        update_localized_text_content(&state.db, &existing.description, &locale, description)
+            .await?;
+    }
+
+    if let Some(mission) = payload.mission.as_ref() {
+        update_localized_text_content(&state.db, &existing.mission, &locale, mission).await?;
+    }
+
+    let partial = PartialOrganization {
+        name: payload.name,
+        org_type: payload.org_type,
+        contact_email: payload.contact_email,
+        external_url: payload.external_url,
+        regions: payload.regions,
+        metadata: payload.metadata.into(),
+    };
+
+    let organization = if partial.to_values().is_empty() {
+        existing
+    } else {
+        organization::update(&state.db, &organization_id, &partial).await?
+    }
+    .into();
+
+    Ok((StatusCode::OK, Json(organization)))
+}
+
+/// Get the organization's `metadata` jsonb column.
+#[instrument(err(Debug), skip(state))]
+async fn get_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(organization_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    resource: OrganizationResource,
+) -> Result<(StatusCode, Json<Option<serde_json::Value>>), ComhairleError> {
+    authorize(&state, &_user, Action::OrganizationRead, &resource).await?;
+
+    let metadata = organization::get_metadata(&state.db, &organization_id).await?;
+
+    Ok((StatusCode::OK, Json(metadata)))
+}
+
+/// Shallow-merge the request body into the organization's `metadata` jsonb
+/// column. The body must be a JSON object.
+#[instrument(err(Debug), skip(state))]
+async fn patch_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    Path(organization_id): Path<Uuid>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    resource: OrganizationResource,
+    Json(patch): Json<serde_json::Value>,
+) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
+    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
+
+    let organization = organization::patch_metadata(&state.db, &organization_id, patch)
         .await?
         .into();
 
     Ok((StatusCode::OK, Json(organization)))
 }
 
+async fn update_localized_text_content(
+    db: &sqlx::PgPool,
+    content_id: &translations::TextContentId,
+    locale: &str,
+    content: &str,
+) -> Result<(), ComhairleError> {
+    match translations::get_text_translation_by_content_and_locale(db, content_id, locale).await {
+        Ok(existing_translation) => {
+            translations::update_text_translation(
+                db,
+                &existing_translation.id,
+                &translations::UpdateTextTranslation {
+                    content: Some(content.to_string()),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        }
+        Err(ComhairleError::ResourceNotFound(_)) => {
+            translations::create_text_translation(
+                db,
+                &translations::CreateTextTranslation {
+                    content_id: *content_id,
+                    locale: locale.to_string(),
+                    content: content.to_string(),
+                    ai_generated: Some(false),
+                    requires_validation: Some(false),
+                },
+            )
+            .await?;
+        }
+        Err(error) => return Err(error),
+    }
+
+    Ok(())
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
+    resource: OrganizationResource,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
+    authorize(&state, &user, Action::OrganizationDelete, &resource).await?;
+
     let organization = organization::delete(&state.db, &organization_id)
         .await?
         .into();
@@ -132,6 +615,50 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/{organization_id}/team",
+            get_with(get_team, |op| {
+                op.id("GetOrganizationTeam")
+                    .tag("Organizations")
+                    .summary("Get organization team")
+                    .description("Returns members and administrators for an organization")
+                    .security_requirement("JWT")
+                    .response::<200, Json<OrganizationTeamResponseDto>>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/members",
+            post_with(add_member, |op| {
+                op.id("AddOrganizationMember")
+                    .tag("Organizations")
+                    .summary("Add organization member")
+                    .description("Adds a member by email and bootstraps an account when needed")
+                    .security_requirement("JWT")
+                    .response::<200, Json<UpsertOrganizationUserResponseDto>>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/members/{user_id}",
+            delete_with(remove_member, |op| {
+                op.id("RemoveOrganizationMember")
+                    .tag("Organizations")
+                    .summary("Remove organization member")
+                    .description("Removes a user's organization membership")
+                    .security_requirement("JWT")
+                    .response::<200, ()>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/members/{user_id}/role",
+            put_with(update_member_role, |op| {
+                op.id("UpdateOrganizationMemberRole")
+                    .tag("Organizations")
+                    .summary("Update organization member role")
+                    .description("Updates organization member role between member and admin")
+                    .security_requirement("JWT")
+                    .response::<200, ()>()
+            }),
+        )
+        .api_route(
             "/",
             post_with(create, |op| {
                 op.id("CreateOrganization")
@@ -149,6 +676,30 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Organizations")
                     .summary("Update an organization")
                     .description("Update an organization")
+                    .security_requirement("JWT")
+                    .response::<200, Json<OrganizationDto>>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/metadata",
+            get_with(get_metadata, |op| {
+                op.id("GetOrganizationMetadata")
+                    .tag("Organizations")
+                    .summary("Get organization metadata")
+                    .description("Get organization metadata")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Option<serde_json::Value>>>()
+            }),
+        )
+        .api_route(
+            "/{organization_id}/metadata",
+            patch_with(patch_metadata, |op| {
+                op.id("PatchOrganizationMetadata")
+                    .tag("Organizations")
+                    .summary("Shallow-merge organization metadata")
+                    .description(
+                        "Merge a JSON object into organization.metadata at the top level using jsonb concatenation",
+                    )
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationDto>>()
             }),
@@ -173,9 +724,8 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
-    use crate::models::{
-        model_test_helpers::setup_default_app_and_session, organization::OrganizationType,
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::organization::OrganizationType;
 
     use super::*;
 
@@ -194,9 +744,12 @@ mod tests {
         let body = serde_json::to_vec(&new_organization)?;
         let (status, response, _) = session.post(&app, "/organizations", body.into()).await?;
 
-        let organization: OrganizationDto = serde_json::from_value(response)?;
+        assert!(
+            status.is_success(),
+            "error response status: {status}, body: {response}"
+        );
 
-        assert!(status.is_success(), "error response status");
+        let organization: OrganizationDto = serde_json::from_value(response)?;
         assert_eq!(
             organization.org_type,
             OrganizationType::NonProfit,

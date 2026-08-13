@@ -30,7 +30,7 @@
 
 	async function handleSubmission(formData: FormData) {
 		const response = await media.upload('/api/media', formData, {
-			maxSize: MediaSchema.media.maxSize
+			schema: MediaSchema
 		});
 
 		if (response.err !== null) {
@@ -125,7 +125,12 @@
 					</div>
 				{/if}
 				<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" type="text" />
-				<Input {...MediaSchema.alt} label="Alt" type="text" />
+				<Input
+					{...MediaSchema.alt}
+					label="Alt"
+					type="text"
+					placeholder="e.g. Company logo"
+				/>
 				<Submit class="mt-7 self-end" text="Upload" />
 			</Form>
 		</Dialog.Content>

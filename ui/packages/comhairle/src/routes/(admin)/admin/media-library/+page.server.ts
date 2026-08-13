@@ -2,7 +2,6 @@ import { tryFetch, tryCatchAsync } from '$lib/utils/errorHandling';
 import { fail, type LoadEvent } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import type { MediaDto } from '@crownshy/api-client/api';
-import { validate } from '$lib/components/EasyForm';
 import MediaSchema from '$lib/schemas/MediaSchema';
 import Media from '$lib/interfaces/Media';
 import { HttpStatus } from '$lib/utils/constants';
@@ -32,19 +31,14 @@ export async function load({ fetch, depends }: LoadEvent) {
 export const actions = {
 	upload: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
-		const form = validate(data, MediaSchema);
-
-		if (form.err !== null) {
-			return fail(HttpStatus.UnprocessableContent);
-		}
 
 		const media = new Media();
 		const response = await tryCatchAsync(() =>
-			media.upload('/api/media', data, { fetchRef: fetch })
+			media.upload('/api/media', data, { fetchRef: fetch, schema: MediaSchema })
 		);
 
 		if (response.err !== null) {
-			return fail(HttpStatus.InternalServerError);
+			return fail(HttpStatus.UnprocessableContent);
 		}
 	},
 	delete: async ({ request, fetch }: RequestEvent) => {

@@ -26,6 +26,7 @@
 		onDone: () => void | Promise<void>;
 		requiredVotes?: number;
 		workflowStepId?: string;
+		isPreview?: boolean;
 		showRemainingStatementCount?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
 	};
@@ -37,11 +38,16 @@
 		onDone,
 		requiredVotes = 10,
 		workflowStepId = polis_id,
+		isPreview = false,
 		onCanContinueChange,
 		showRemainingStatementCount
 	}: Props = $props();
 
 	const stepId = workflowStepId;
+
+	// Vote progress is stored per step (and separately for preview vs live) so two
+	// Polis steps, even ones sharing a poll, never share their threshold state.
+	const voteScopeKey = `${isPreview ? 'preview' : 'live'}-${stepId}`;
 
 	let polisCurrentStatement = $state<PolisStatement | undefined>(undefined);
 	let polisLoading = $state(false);
@@ -74,7 +80,7 @@
 
 	type Screen = 'voting' | 'add-opinion' | 'continue-prompt' | 'completed';
 
-	const initialData = getVoteData(user_id, polis_id);
+	const initialData = getVoteData(user_id, voteScopeKey);
 	let totalVotes = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
@@ -166,7 +172,7 @@
 			anchoredRemaining--;
 		}
 
-		const data = incrementVotes(user_id, polis_id, safeRequiredVotes);
+		const data = incrementVotes(user_id, voteScopeKey, safeRequiredVotes);
 		hasMetThreshold = data.hasMetThreshold;
 
 		if (data.totalVotes === safeRequiredVotes) {
@@ -184,7 +190,7 @@
 	}
 
 	function resumeVoting() {
-		resetVoteCount(user_id, polis_id);
+		resetVoteCount(user_id, voteScopeKey);
 		totalVotes = 0;
 		screen = 'voting';
 	}

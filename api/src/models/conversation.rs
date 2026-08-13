@@ -6,16 +6,15 @@ use super::{
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
-use crate::{
-    ComhairleState,
-    bot_service::{
-        ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
-        DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
-    },
-    config::ComhairleConfig,
-    error::ComhairleError,
-    models::{self, SqlxResultExt, permissions::ResourcePermissionIden},
+use crate::ComhairleState;
+use crate::bot_service::{
+    ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
+    DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
 };
+use crate::config::ComhairleConfig;
+use crate::error::ComhairleError;
+use crate::models::permissions::{Action, ResourcePermissionIden, ResourceType, Role};
+use crate::models::{self, SqlxResultExt};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -569,7 +568,7 @@ pub async fn patch_metadata(
 
     let conversation = sqlx::query_as::<_, Conversation>(
         "UPDATE conversation
-            SET metadata = metadata || $1::jsonb,
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
                 updated_at = NOW()
             WHERE id = $2
             RETURNING *",
@@ -907,38 +906,94 @@ pub async fn list(
 pub async fn list_for_permitted_user(
     db: &PgPool,
     user_id: Uuid,
+    organization_id: Option<Uuid>,
+    is_super_admin: bool,
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
-    role_name: &str,
     locale: Option<String>,
 ) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
-    let query = Query::select()
+    let mut query = Query::select();
+    query
         .from(ConversationIden::Table)
         .columns(DEFAULT_COLUMNS.map(|c| (ConversationIden::Table, c)))
-        .join(
-            JoinType::InnerJoin,
+        .distinct();
+
+    if !is_super_admin {
+        let read_role_names: Vec<String> = Role::all()
+            .filter(|role| {
+                role.resource_type() == ResourceType::Conversation
+                    && role.actions().contains(&Action::ConversationRead)
+            })
+            .map(|role| role.as_ref().to_string())
+            .collect();
+
+        let actor_condition = match organization_id {
+            Some(org_id) => Cond::any()
+                .add(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::UserId,
+                    ))
+                    .eq(user_id),
+                )
+                .add(
+                    Expr::col((
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::OrganizationId,
+                    ))
+                    .eq(org_id),
+                ),
+            None => Cond::all().add(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::UserId,
+                ))
+                .eq(user_id),
+            ),
+        };
+
+        let join_condition = Cond::all()
+            .add(
+                Expr::col((ConversationIden::Table, ConversationIden::Id)).equals((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::ResourceId,
+                )),
+            )
+            .add(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::ResourceType,
+                ))
+                .eq(ResourceType::Conversation.as_ref()),
+            )
+            .add(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::RoleName,
+                ))
+                .is_in(read_role_names),
+            )
+            .add(actor_condition);
+
+        query.join(
+            JoinType::LeftJoin,
             ResourcePermissionIden::Table,
-            Expr::col((ConversationIden::Table, ConversationIden::Id)).equals((
-                ResourcePermissionIden::Table,
-                ResourcePermissionIden::ResourceId,
-            )),
-        )
-        .and_where(
-            Expr::col((
-                ResourcePermissionIden::Table,
-                ResourcePermissionIden::RoleName,
-            ))
-            .eq(role_name.to_string()),
-        )
-        .and_where(
-            Expr::col((
-                ResourcePermissionIden::Table,
-                ResourcePermissionIden::UserId,
-            ))
-            .eq(user_id),
-        )
-        .to_owned();
+            join_condition,
+        );
+
+        query.and_where(
+            Cond::any()
+                .add(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
+                .add(
+                    Expr::col((ResourcePermissionIden::Table, ResourcePermissionIden::Id))
+                        .is_not_null(),
+                )
+                .into(),
+        );
+    }
+
+    let query = query.to_owned();
 
     let query = LocalizedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
 
@@ -955,22 +1010,14 @@ mod tests {
     use fake::{Fake, Faker};
     use serde_json::json;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            permissions::{
-                ConversationContentEditorRole, GrantRoleRequest, NamedRole, ResourceRole,
-                UserOrOrganizationId, grant_role,
-            },
-            users::{self, UpdateUserRequest, create_user, update_user},
-        },
-        routes::{
-            auth::SignupRequest, conversations::dto::ConversationDto,
-            organizations::dto::OrganizationDto,
-        },
-        setup_server,
-        test_helpers::{TestRole, UserSession, test_state},
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId, grant_role};
+    use crate::models::users::{self, UpdateUserRequest, create_user, update_user};
+    use crate::routes::auth::SignupRequest;
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::routes::organizations::dto::OrganizationDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
 
     use super::*;
     use std::error::Error;
@@ -1246,7 +1293,7 @@ mod tests {
 
         let grant_request_a_a = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: ConversationContentEditorRole::make_triplet(&conversation.id),
+            permission_triplet: Role::ConversationContentEditor.triplet(&conversation.id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
         };
@@ -1254,7 +1301,7 @@ mod tests {
 
         let grant_request_a_b = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: TestRole::make_triplet(&conversation.id),
+            permission_triplet: Role::Tester.triplet(&conversation.id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
         };
@@ -1274,10 +1321,11 @@ mod tests {
         let results_user_a_a = list_for_permitted_user(
             &state.db,
             user_a.id,
+            None,
+            false,
             page_options.clone(),
             order_options,
             filter_options,
-            ConversationContentEditorRole::name(),
             Some("en".to_string()),
         )
         .await?;
@@ -1291,21 +1339,22 @@ mod tests {
         let results_user_b_a = list_for_permitted_user(
             &state.db,
             user_b.id,
+            None,
+            false,
             page_options.clone(),
             order_options,
             filter_options,
-            ConversationContentEditorRole::name(),
             Some("en".to_string()),
         )
         .await?;
 
         assert_eq!(
             results_user_a_a.total, 1,
-            "incorrect conversation_editor total for user_a"
+            "incorrect permitted conversation total for user_a"
         );
         assert_eq!(
             results_user_b_a.total, 0,
-            "incorrect conversation_editor total for user_b"
+            "incorrect permitted conversation total for user_b"
         );
 
         let filter_options = ConversationFilterOptions {
@@ -1314,13 +1363,14 @@ mod tests {
         let order_options = ConversationOrderOptions {
             ..Default::default()
         };
-        let results_user_a_b = list_for_permitted_user(
+        let results_owner = list_for_permitted_user(
             &state.db,
-            user_a.id,
+            session.id.unwrap(),
+            None,
+            false,
             page_options.clone(),
             order_options,
             filter_options,
-            TestRole::name(),
             Some("en".to_string()),
         )
         .await?;
@@ -1334,21 +1384,22 @@ mod tests {
         let results_user_b_b = list_for_permitted_user(
             &state.db,
             user_b.id,
+            None,
+            false,
             page_options.clone(),
             order_options,
             filter_options,
-            TestRole::name(),
             Some("en".to_string()),
         )
         .await?;
 
         assert_eq!(
-            results_user_a_b.total, 1,
-            "incorrect test_role total for user_a"
+            results_owner.total, 1,
+            "incorrect permitted conversation total for owner"
         );
         assert_eq!(
             results_user_b_b.total, 0,
-            "incorrect test_role total for user_b"
+            "incorrect permitted conversation total for user_b"
         );
 
         Ok(())

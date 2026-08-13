@@ -6,6 +6,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, 
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use std::path::Path;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -46,13 +47,6 @@ impl UploadMediaForm {
             },
             name: "".to_string(),
             alt: "".to_string(),
-        }
-    }
-    pub fn update_field(&mut self, field: &str, value: String) {
-        match field {
-            "name" => self.name = value,
-            "alt" => self.alt = value,
-            &_ => (),
         }
     }
 }
@@ -172,8 +166,13 @@ impl MediaContentType {
             return mime;
         }
 
-        let extension: Vec<&str> = file.filename.rsplit('.').collect();
-        let Some(extension) = extension.get(0) else {
+        let extension = Path::new(&file.filename).extension();
+        let Some(extension) = extension else {
+            return Err(ComhairleError::UnsupportedContentType(
+                file.filename.clone(),
+            ));
+        };
+        let Some(extension) = extension.to_str() else {
             return Err(ComhairleError::UnsupportedContentType(
                 file.filename.clone(),
             ));

@@ -349,7 +349,7 @@ pub enum ComhairleError {
     RoleNotFound(String),
 
     #[error("Cannot revoke the last system admin role")]
-    CannotRevokeLastAdmin,
+    CannotRevokeLastSuperAdmin,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -392,12 +392,20 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WorkflowStepHasWrongType(_) => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
-            | ComhairleError::CannotRevokeLastAdmin
+            | ComhairleError::CannotRevokeLastSuperAdmin
             | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
             | ComhairleError::UnsupportedContentType(_)
             | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            ComhairleError::PolisError(ref err) => Into::<StatusCode>::into(err),
+            ComhairleError::WikiPollServiceError(ref err) => Into::<StatusCode>::into(err),
+            ComhairleError::TranslationError(ref err) => Into::<StatusCode>::into(err),
+            ComhairleError::BulkStorageError(ref err) => Into::<StatusCode>::into(err),
+            ComhairleError::TranscriptionError(ref err) => Into::<StatusCode>::into(err),
+            ComhairleError::WorkerError(ref err) => Into::<StatusCode>::into(err),
+            ComhairleError::HeyFormError(ref err) => Into::<StatusCode>::into(err),
+            ComhairleError::RagflowError(ref err) => Into::<StatusCode>::into(err),
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

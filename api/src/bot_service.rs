@@ -42,6 +42,8 @@ Structure your answer as follows:
 
 If multiple viewpoints or pieces of information appear in the dataset, summarize them in a balanced and neutral way.
 
+If the question does not make clear what it refers to (for example "explain this" or "summarise this page" with no indication of which part of the material is meant), ask a short clarifying question about which part they mean instead of guessing.
+
 If ALL of the dataset content is irrelevant to the question, include this exact sentence:
 "The answer you are looking for is not found in the dataset!"
 
@@ -125,7 +127,7 @@ pub trait ComhairleBotService: Send + Sync {
 
     async fn download_document(
         &self,
-        document_id: String,
+        document_id: &str,
         knowledge_base_id: String,
     ) -> Result<reqwest::Response, ComhairleError>;
 
@@ -338,6 +340,11 @@ pub struct ComhairleMessageReference {
     pub dataset_id: String,
     pub document_id: String,
     pub document_name: String,
+    /// Passage bounding boxes in the source PDF (`[page, x0, x1, top, bottom]`).
+    /// Present on live answers; re-attached from the chunk store on reload
+    /// (see issue #783). Absent for non-PDF sources.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub positions: Option<Vec<Vec<f64>>>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]

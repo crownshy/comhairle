@@ -4,13 +4,22 @@
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
+	import TextViewer from './TextViewer.svelte';
+	import type { PdfHighlight } from './highlights';
+	import type { PreviewKind } from '$lib/utils/previewKind';
+
+	type PdfViewerProps = { src: string; highlights?: PdfHighlight[]; initialPage?: number | null };
 
 	type Props = {
 		open: boolean;
 		src: string | null;
 		name?: string;
 		downloadHref?: string | null;
-		kind?: 'pdf' | 'image' | 'docx';
+		kind?: PreviewKind;
+		/** Passage rectangles to shade (PDF only). */
+		highlights?: PdfHighlight[];
+		/** Page to open on (1-based, PDF only). */
+		page?: number | null;
 	};
 
 	let {
@@ -18,19 +27,21 @@
 		src,
 		name = 'Document',
 		downloadHref = null,
-		kind = 'pdf'
+		kind = 'pdf',
+		highlights = [],
+		page = null
 	}: Props = $props();
 
 	// pdfjs-dist (~1MB) and mammoth (~500KB) are heavy and not SSR-safe, so the
 	// viewers are loaded lazily in the browser the first time a document is opened.
-	let PdfViewer = $state<Component<{ src: string }> | null>(null);
+	let PdfViewer = $state<Component<PdfViewerProps> | null>(null);
 	let DocxViewer = $state<Component<{ src: string }> | null>(null);
 
 	$effect(() => {
 		if (!browser || !open) return;
 		if (kind === 'pdf' && !PdfViewer) {
 			import('./PdfViewer.svelte').then((m) => {
-				PdfViewer = m.default as unknown as Component<{ src: string }>;
+				PdfViewer = m.default as unknown as Component<PdfViewerProps>;
 			});
 		} else if (kind === 'docx' && !DocxViewer) {
 			import('./DocxViewer.svelte').then((m) => {
@@ -42,7 +53,7 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Content
-		class="flex h-[95vh] max-h-screen w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:w-[90vw] sm:max-w-[95vw]"
+		class="flex h-[95vh] max-h-screen w-[98vw] max-w-270 flex-col gap-0 overflow-hidden p-0 sm:w-[92vw] sm:max-w-270"
 	>
 		<Dialog.Header
 			class="flex-row items-center justify-between gap-4 border-b px-4 py-3 pe-12 text-left"
@@ -70,10 +81,12 @@
 					<div class="flex h-full w-full items-center justify-center overflow-auto p-4">
 						<img {src} alt={name} class="max-h-full max-w-full object-contain" />
 					</div>
+				{:else if kind === 'text'}
+					<TextViewer {src} />
 				{:else if kind === 'docx' && DocxViewer}
 					<DocxViewer {src} />
 				{:else if kind === 'pdf' && PdfViewer}
-					<PdfViewer {src} />
+					<PdfViewer {src} {highlights} initialPage={page} />
 				{:else}
 					<div
 						class="text-muted-foreground flex h-full items-center justify-center text-sm"

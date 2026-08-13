@@ -13,11 +13,13 @@ use uuid::Uuid;
 use fake::Dummy;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         SqlxResultExt,
         pagination::{Order, PageOptions, PaginatedResults},
         translations::{TextContentId, TextFormat, new_translation},
+        users,
     },
 };
 
@@ -33,8 +35,10 @@ pub struct Organization {
     #[partially(omit)]
     pub mission: TextContentId,
     pub org_type: OrganizationType,
+    pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Vec<Uuid>,
+    pub metadata: Option<serde_json::Value>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -74,14 +78,16 @@ impl std::fmt::Display for OrganizationType {
     }
 }
 
-const DEFAULT_COLUMNS: [OrganizationIden; 9] = [
+const DEFAULT_COLUMNS: [OrganizationIden; 11] = [
     OrganizationIden::Id,
     OrganizationIden::Name,
     OrganizationIden::Description,
     OrganizationIden::Mission,
     OrganizationIden::OrgType,
+    OrganizationIden::ContactEmail,
     OrganizationIden::ExternalUrl,
     OrganizationIden::Regions,
+    OrganizationIden::Metadata,
     OrganizationIden::CreatedAt,
     OrganizationIden::UpdatedAt,
 ];
@@ -92,6 +98,7 @@ pub struct CreateOrganization {
     pub description: String,
     pub mission: String,
     pub org_type: OrganizationType,
+    pub contact_email: Option<String>,
     pub external_url: Option<String>,
     pub regions: Option<Vec<Uuid>>,
 }
@@ -100,6 +107,9 @@ impl CreateOrganization {
     fn columns(&self) -> Vec<OrganizationIden> {
         let mut columns = vec![OrganizationIden::Name, OrganizationIden::OrgType];
 
+        if self.contact_email.is_some() {
+            columns.push(OrganizationIden::ContactEmail);
+        }
         if self.external_url.is_some() {
             columns.push(OrganizationIden::ExternalUrl);
         }
@@ -113,6 +123,9 @@ impl CreateOrganization {
     fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let mut values = vec![(*self.name).into(), self.org_type.clone().into()];
 
+        if let Some(value) = &self.contact_email {
+            values.push(value.clone().into());
+        }
         if let Some(value) = &self.external_url {
             values.push(value.clone().into());
         }
@@ -156,6 +169,47 @@ pub async fn create(
     Ok(organization)
 }
 
+#[instrument(err(Debug))]
+pub async fn add_member_emails(
+    db: &PgPool,
+    organization_id: &Uuid,
+    user_emails: &[String],
+) -> Result<(), ComhairleError> {
+    for user_email in user_emails {
+        let trimmed = user_email.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        match users::get_user_by_email(trimmed, db).await {
+            Ok(user) => {
+                let update_request = users::UpdateUserRequest {
+                    organization_id: Some(*organization_id),
+                    ..Default::default()
+                };
+                if let Err(error) = users::update_user(&user.id, &update_request, db).await {
+                    tracing::warn!(
+                        "Failed to add user {} to organization {}: {:?}",
+                        user.id,
+                        organization_id,
+                        error
+                    );
+                }
+            }
+            Err(error) => {
+                tracing::warn!(
+                    "Failed to resolve user email {} for organization {}: {:?}",
+                    trimmed,
+                    organization_id,
+                    error
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
 impl PartialOrganization {
     pub fn to_values(&self) -> Vec<(OrganizationIden, sea_query::SimpleExpr)> {
         let mut values = vec![];
@@ -165,6 +219,9 @@ impl PartialOrganization {
         if let Some(value) = &self.org_type {
             values.push((OrganizationIden::OrgType, value.clone().into()));
         }
+        if let Some(value) = &self.contact_email {
+            values.push((OrganizationIden::ContactEmail, value.clone().into()));
+        }
         if let Some(value) = &self.external_url {
             values.push((OrganizationIden::ExternalUrl, value.clone().into()));
         }
@@ -172,6 +229,9 @@ impl PartialOrganization {
         // instead of simply overrding the array
         if let Some(value) = &self.regions {
             values.push((OrganizationIden::Regions, value.clone().into()));
+        }
+        if let Some(value) = &self.metadata {
+            values.push((OrganizationIden::Metadata, value.clone().into()));
         }
 
         values
@@ -198,6 +258,54 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let organization = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(organization)
+}
+
+/// Get the organization's `metadata` jsonb column
+#[instrument(err(Debug), skip(db))]
+pub async fn get_metadata(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<Option<serde_json::Value>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns([OrganizationIden::Metadata])
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let (metadata,) = query_as_with::<_, (Option<serde_json::Value>,), _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(metadata)
+}
+
+/// Merge the supplied object into the organization's `metadata` jsonb column
+/// at the top level. Existing keys are overwritten by the patch.
+pub async fn patch_metadata(
+    db: &PgPool,
+    id: &Uuid,
+    patch: serde_json::Value,
+) -> Result<Organization, ComhairleError> {
+    if !patch.is_object() {
+        return Err(ComhairleError::BadRequest(
+            "metadata patch must be a JSON object".into(),
+        ));
+    }
+
+    let organization = sqlx::query_as::<_, Organization>(
+        "UPDATE organization
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *",
+    )
+    .bind(patch)
+    .bind(id)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Organization")?;
 
     Ok(organization)
 }
@@ -314,6 +422,25 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Organization, Comhairle
 
 #[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
+    let mut tx = db.begin().await?;
+
+    sqlx::query("UPDATE comhairle_user SET organization_id = NULL WHERE organization_id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
+    sqlx::query("UPDATE conversation SET organization_id = NULL WHERE organization_id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
+    sqlx::query(
+        "UPDATE email_template_config SET organization_id = NULL WHERE organization_id = $1",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+
     let (sql, values) = Query::delete()
         .from_table(OrganizationIden::Table)
         .and_where(Expr::col(OrganizationIden::Id).eq(id.to_owned()))
@@ -321,9 +448,11 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
         .build_sqlx(PostgresQueryBuilder);
 
     let organization = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *tx)
         .await
         .resolve_db_err("Organization")?;
+
+    tx.commit().await?;
 
     Ok(organization)
 }
@@ -331,7 +460,11 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
 #[cfg(test)]
 mod tests {
     use crate::{
-        models::model_test_helpers::setup_default_app_and_session, routes::regions::dto::RegionDto,
+        models::{
+            model_test_helpers::setup_default_app_and_session,
+            users::{self, create_user},
+        },
+        routes::{auth::SignupRequest, regions::dto::RegionDto},
     };
 
     use super::*;
@@ -346,11 +479,13 @@ mod tests {
             description: "test_org".to_string(),
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
+            contact_email: Some("test@org.com".to_string()),
             external_url: Some("test.com".to_string()),
             ..Default::default()
         };
 
         let org = create(&pool, &new_org, "en").await?;
+        let fetched_org = get_by_id(&pool, &org.id).await?;
 
         assert_eq!(org.name, "test_org".to_string(), "incorrect name");
         assert_eq!(
@@ -362,6 +497,60 @@ mod tests {
             org.regions.is_empty(),
             "regions not initialized as empty vec"
         );
+        assert_eq!(
+            fetched_org.contact_email,
+            Some("test@org.com".to_string()),
+            "contact_email not persisted"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_delete_organization_when_related_users_exist(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let _ = setup_default_app_and_session(&pool).await?;
+
+        let new_org = CreateOrganization {
+            name: "test_org".to_string(),
+            description: "test_org".to_string(),
+            mission: "to_pass_test".to_string(),
+            org_type: OrganizationType::NonProfit,
+            contact_email: None,
+            external_url: None,
+            ..Default::default()
+        };
+
+        let organization = create(&pool, &new_org, "en").await?;
+
+        let user = create_user(
+            &SignupRequest {
+                username: "test_org_user".to_string(),
+                password: "StrongPass123!".to_string(),
+                email: "test_org_user@example.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        users::update_user(
+            &user.id,
+            &users::UpdateUserRequest {
+                organization_id: Some(organization.id),
+                ..Default::default()
+            },
+            &pool,
+        )
+        .await?;
+
+        let deleted_organization = delete(&pool, &organization.id).await?;
+
+        assert_eq!(deleted_organization.id, organization.id);
+
+        let updated_user = users::get_user_by_id(&user.id, &pool).await?;
+        assert_eq!(updated_user.organization_id, None);
 
         Ok(())
     }
@@ -478,6 +667,7 @@ mod tests {
             description: "test_org_1".to_string(),
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
+            contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_1.id]),
         };
@@ -486,6 +676,7 @@ mod tests {
             description: "test_org_2".to_string(),
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
+            contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_2.id]),
         };
@@ -494,6 +685,7 @@ mod tests {
             description: "test_org_3".to_string(),
             mission: "to_pass_test".to_string(),
             org_type: OrganizationType::NonProfit,
+            contact_email: None,
             external_url: Some("test.com".to_string()),
             regions: Some(vec![region_1.id]),
         };

@@ -15,6 +15,7 @@
 	import LearningAssistant from '$lib/components/LearningAssistant/LearningAssistant.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
+	import { resolveGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 
 	let {
 		pages,
@@ -52,6 +53,16 @@
 		(currentPage ?? []).filter((p) => p.lang === getLocale())
 	);
 	let content = $derived(currentPageTranslation[0]?.content);
+	// Glossary is stored on the conversation's metadata jsonb (edited in the admin Configure ->
+	// Glossary tab); terms get an auto tooltip in the rendered article, resolved to the
+	// participant's current locale (falling back to the conversation's primary locale).
+	let glossary = $derived(
+		resolveGlossaryFromMetadata(
+			conversation?.metadata,
+			getLocale(),
+			conversation?.primaryLocale ?? 'en'
+		)
+	);
 	let isLastPage = $derived(currentPageNo === pages.length - 1);
 	let pageHeading = $derived(
 		(currentPageTranslation[0] as { title?: string } | undefined)?.title ?? ''
@@ -112,7 +123,12 @@
 		<LearnArticleSkeleton />
 	{:else if content}
 		<article class="prose mx-auto w-full grow overflow-y-auto">
-			<ContentRenderer {content} {availableDocuments} conversationId={conversation?.id} />
+			<ContentRenderer
+				{content}
+				{availableDocuments}
+				conversationId={conversation?.id}
+				{glossary}
+			/>
 		</article>
 	{:else}
 		<h1>Sorry this page is currently not avaliable in this language</h1>

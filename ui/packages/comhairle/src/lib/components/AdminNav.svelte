@@ -6,12 +6,14 @@
 	import {
 		Info,
 		LayoutDashboard,
+		Building2,
 		Settings,
 		Home,
 		Mail,
 		Images,
 		PanelLeftClose,
-		PanelLeftOpen
+		PanelLeftOpen,
+		Plus
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
 	import NewConversationButton from './NewConversationButton.svelte';
@@ -21,12 +23,20 @@
 	import SidebarResizeHandle from './SidebarResizeHandle.svelte';
 	import { useSidebarWidth } from './sidebarWidthContext.svelte.js';
 	import { EXPAND_WIDTH } from './sidebarWidth.js';
-	import type { LocalizedConversationDto, UserDto } from '@crownshy/api-client/api';
+	import type {
+		LocalizedConversationDto,
+		UserOrganizationsResponse,
+		UserDto
+	} from '@crownshy/api-client/api';
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
 
 	type Props = {
 		ownedConversations: LocalizedConversationDto[];
 		permittedConversations: LocalizedConversationDto[];
+		userOrganizations: {
+			organizations: UserOrganizationsResponse['organizations'];
+			canCreateOrganization: boolean;
+		};
 		user: UserDto;
 		path: string;
 	};
@@ -44,6 +54,7 @@
 	let user = $derived(props.user);
 	let ownedConversations = $derived(props.ownedConversations);
 	let permittedConversations = $derived(props.permittedConversations);
+	let userOrganizations = $derived(props.userOrganizations);
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
 	function isConversationActive(conversationId: string): boolean {
@@ -106,6 +117,16 @@
 								<a {...btnProps} href="/admin/">
 									<LayoutDashboard class="size-4" />
 									Workspace
+								</a>
+							{/snippet}
+						</SideBar.MenuButton>
+					</SideBar.MenuItem>
+					<SideBar.MenuItem>
+						<SideBar.MenuButton>
+							{#snippet child({ props: btnProps })}
+								<a {...btnProps} href="/admin/organizations">
+									<Building2 class="size-4" />
+									Organisations
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>
@@ -302,7 +323,7 @@
 		{/if}
 	</SideBar.Content>
 
-	<div class="shrink-0 px-7 group-data-[collapsible=icon]:px-2">
+	<div class="flex shrink-0 flex-col gap-2 px-7 group-data-[collapsible=icon]:px-2">
 		<NewConversationButton
 			class="w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0"
 			labelClass="group-data-[collapsible=icon]:hidden"

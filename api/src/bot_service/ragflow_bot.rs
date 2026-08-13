@@ -1,4 +1,8 @@
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    pin::Pin,
+    sync::Arc,
+};
 
 use async_trait::async_trait;
 use axum::body::Bytes;
@@ -41,6 +45,83 @@ impl ComhairleRagBotService {
                 base_url.to_string(),
                 api_key.to_string(),
             )),
+        }
+    }
+
+    /// Re-attach passage highlight `positions` to a reloaded session's
+    /// references.
+    ///
+    /// RAGFlow's stored session history omits `positions`, but its chunk store
+    /// keeps them: they describe where a chunk sits in the document, not the
+    /// query, so the same chunk id always maps to the same boxes. We fetch each
+    /// cited document's chunks once and fill in positions by chunk id, which
+    /// fixes reloaded answers (old and new) the same way live answers already
+    /// work. Best-effort: any RAGFlow failure just leaves those references
+    /// without positions (no highlight), never a failed history load. See issue
+    /// #783.
+    async fn enrich_reference_positions(&self, session: &mut ComhairleChatSession) {
+        // Chunk-list pagination bounds. A page size this large usually means one
+        // request per document; the page cap is a runaway guard.
+        const CHUNK_PAGE_SIZE: i32 = 512;
+        const MAX_CHUNK_PAGES: i32 = 20;
+
+        let mut documents: HashSet<(String, String)> = HashSet::new();
+        for message in &session.messages {
+            let Some(refs) = &message.reference else {
+                continue;
+            };
+            for reference in refs {
+                if reference.positions.is_none() {
+                    documents.insert((reference.dataset_id.clone(), reference.document_id.clone()));
+                }
+            }
+        }
+        if documents.is_empty() {
+            return;
+        }
+
+        let mut positions_by_chunk: HashMap<String, Vec<Vec<f64>>> = HashMap::new();
+        for (dataset_id, document_id) in documents {
+            for page in 1..=MAX_CHUNK_PAGES {
+                let query = GetQueryParams {
+                    page: Some(page),
+                    page_size: Some(CHUNK_PAGE_SIZE),
+                    ..Default::default()
+                };
+                let chunks = match ragflow::document::list_chunks(
+                    &self.client,
+                    &dataset_id,
+                    &document_id,
+                    Some(query),
+                )
+                .await
+                {
+                    Ok((_, chunk_list)) => chunk_list.chunks,
+                    Err(_) => break,
+                };
+                let page_len = chunks.len();
+                for chunk in chunks {
+                    if let Some(positions) = chunk.positions {
+                        positions_by_chunk.insert(chunk.id, positions);
+                    }
+                }
+                if page_len < CHUNK_PAGE_SIZE as usize {
+                    break;
+                }
+            }
+        }
+
+        for message in &mut session.messages {
+            let Some(refs) = &mut message.reference else {
+                continue;
+            };
+            for reference in refs {
+                if reference.positions.is_none() {
+                    if let Some(positions) = positions_by_chunk.get(&reference.id) {
+                        reference.positions = Some(positions.clone());
+                    }
+                }
+            }
         }
     }
 }
@@ -259,10 +340,10 @@ impl ComhairleBotService for ComhairleRagBotService {
 
     async fn download_document(
         &self,
-        document_id: String,
+        document_id: &str,
         knowledge_base_id: String,
     ) -> Result<reqwest::Response, ComhairleError> {
-        let response = ragflow::document::download(&self.client, &document_id, &knowledge_base_id)
+        let response = ragflow::document::download(&self.client, document_id, &knowledge_base_id)
             .await
             .map_err(RagflowError::from)?;
 
@@ -363,7 +444,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         let (status, chat_sessions) =
             ragflow::chat::session::list(&self.client, chat_id, Some(params)).await?;
 
-        let chat_session: ComhairleChatSession = (&chat_sessions[0]).into();
+        let mut chat_session: ComhairleChatSession = (&chat_sessions[0]).into();
+        self.enrich_reference_positions(&mut chat_session).await;
 
         Ok((status, chat_session))
     }
@@ -909,7 +991,9 @@ impl From<ChatSession> for ComhairleChatSession {
             id: session.id,
             chat_id: session.chat_id,
             name: session.name,
-            messages: session.messages.into_iter().map(Into::into).collect(),
+            messages: reassociate_message_references(
+                session.messages.into_iter().map(Into::into).collect(),
+            ),
         }
     }
 }
@@ -920,14 +1004,52 @@ impl From<&ChatSession> for ComhairleChatSession {
             id: session.id.clone(),
             chat_id: session.chat_id.clone(),
             name: session.name.clone(),
-            messages: session
-                .messages
-                .clone()
-                .into_iter()
-                .map(Into::into)
-                .collect(),
+            messages: reassociate_message_references(
+                session.messages.iter().map(Into::into).collect(),
+            ),
         }
     }
+}
+
+/// Fix RAGFlow's off-by-one association between an answer and its retrieval
+/// references in stored session history
+///
+/// The session always opens with a canned greeting assistant message that never
+/// ran a retrieval, but it still occupies the first assistant slot. RAGFlow's
+/// reference list has one entry per *answered* question, and the history payload
+/// zips those entries onto assistant messages starting from that opener. The net
+/// effect is a one-turn shift: the opener carries answer 1's chunks, answer 1
+/// carries answer 2's chunks, and the most recent answer comes back with no
+/// reference at all. The `[ID:N]` markers in each answer index positionally into
+/// its reference list, so this shift makes citations resolve against the wrong
+/// chunks (or, for the latest answer, against nothing).
+///
+/// We undo it by shifting references forward one assistant turn: each assistant
+/// message takes the reference that was parked on the previous assistant
+/// message, and the opener is left with none. This is only valid when the
+/// session actually starts with that opener, which is why we bail out unless the
+/// first message is an assistant one.
+fn reassociate_message_references(
+    mut messages: Vec<ComhairleSessionMessage>,
+) -> Vec<ComhairleSessionMessage> {
+    if messages
+        .first()
+        .map(|m| m.role != "assistant")
+        .unwrap_or(true)
+    {
+        return messages;
+    }
+
+    let mut carry: Option<Vec<ComhairleMessageReference>> = None;
+    for message in messages.iter_mut() {
+        if message.role != "assistant" {
+            continue;
+        }
+        let stored = message.reference.take();
+        message.reference = carry;
+        carry = stored;
+    }
+    messages
 }
 
 impl From<SessionMessage> for ComhairleSessionMessage {
@@ -965,6 +1087,8 @@ impl From<MessageReference> for ComhairleMessageReference {
             dataset_id: r.dataset_id,
             document_id: r.document_id,
             document_name: r.document_name,
+            // History omits positions; enriched from the chunk store on reload.
+            positions: None,
         }
     }
 }
@@ -977,6 +1101,7 @@ impl From<&MessageReference> for ComhairleMessageReference {
             dataset_id: r.dataset_id.clone(),
             document_id: r.document_id.clone(),
             document_name: r.document_name.clone(),
+            positions: None,
         }
     }
 }
@@ -1177,5 +1302,66 @@ mod tests {
         let _results: Vec<BotServiceSseEvent> = results.into_iter().map(Into::into).collect();
 
         Ok(())
+    }
+
+    fn msg(role: &str, id: &str, ref_ids: Option<Vec<&str>>) -> ComhairleSessionMessage {
+        ComhairleSessionMessage {
+            id: id.to_string(),
+            content: String::new(),
+            role: role.to_string(),
+            reference: ref_ids.map(|ids| {
+                ids.into_iter()
+                    .map(|rid| ComhairleMessageReference {
+                        id: rid.to_string(),
+                        ..Default::default()
+                    })
+                    .collect()
+            }),
+        }
+    }
+
+    fn reference_ids(message: &ComhairleSessionMessage) -> Option<Vec<String>> {
+        message
+            .reference
+            .as_ref()
+            .map(|refs| refs.iter().map(|r| r.id.clone()).collect())
+    }
+
+    #[test]
+    fn reassociates_shifted_history_references() {
+        // Mirrors RAGFlow's stored session (issue #791): the opener carries
+        // answer 1's chunks, answer 1 carries answer 2's chunks, and the latest
+        // answer comes back with none.
+        let messages = vec![
+            msg("assistant", "", Some(vec!["r1"])),
+            msg("user", "q1", None),
+            msg("assistant", "a1", Some(vec!["r2"])),
+            msg("user", "q2", None),
+            msg("assistant", "a2", None),
+        ];
+
+        let fixed = reassociate_message_references(messages);
+
+        // Opener drops its (bogus) reference; each answer recovers its own.
+        assert!(fixed[0].reference.is_none());
+        assert_eq!(reference_ids(&fixed[2]), Some(vec!["r1".to_string()]));
+        assert_eq!(reference_ids(&fixed[4]), Some(vec!["r2".to_string()]));
+        // User turns are never touched.
+        assert!(fixed[1].reference.is_none());
+        assert!(fixed[3].reference.is_none());
+    }
+
+    #[test]
+    fn leaves_references_untouched_without_an_opener() {
+        // No leading assistant opener means no shift to undo; passing through
+        // avoids corrupting a correctly-aligned history.
+        let messages = vec![
+            msg("user", "q1", None),
+            msg("assistant", "a1", Some(vec!["r1"])),
+        ];
+
+        let fixed = reassociate_message_references(messages);
+
+        assert_eq!(reference_ids(&fixed[1]), Some(vec!["r1".to_string()]));
     }
 }

@@ -20,6 +20,28 @@ describe('renderRichTextToHtml', () => {
 		);
 	});
 
+	it('renders an embedded report component as its stored frozen HTML (ADR-0012)', () => {
+		const content = JSON.stringify({
+			type: 'doc',
+			content: [
+				{
+					type: 'reportComponentEmbed',
+					attrs: {
+						toolStepId: 'step-1',
+						componentType: 'polis-key-stats',
+						config: {},
+						frozenHtml: '<div class="metric">42 participants</div>'
+					}
+				}
+			]
+		});
+		const html = renderRichTextToHtml(content);
+		// The snapshot HTML is emitted verbatim, wrapped in the embed container — this is the
+		// no-JS public render path, so a regression that drops it fails here.
+		expect(html).toContain('<div class="report-embed">');
+		expect(html).toContain('<div class="metric">42 participants</div>');
+	});
+
 	it('renders marks within JSON', () => {
 		const content = JSON.stringify({
 			type: 'doc',
@@ -90,6 +112,21 @@ describe('renderRichTextToHtml', () => {
 
 	it('returns empty string for malformed content instead of throwing', () => {
 		expect(renderRichTextToHtml('{"type":"doc","content":[{"type":"nope"}]}')).toBe('');
+	});
+
+	it('wraps glossary terms in a tooltip span when a glossary is passed', () => {
+		const html = renderRichTextToHtml(paragraph('Take the bus home'), {
+			glossary: [{ text: ['bus'], tooltip: 'A vehicle that carries people' }]
+		});
+		expect(html).toContain('data-glossary-term');
+		expect(html).toContain('data-glossary-tooltip="A vehicle that carries people"');
+		expect(html).toContain('>bus</span>');
+	});
+
+	it('leaves content unchanged when no glossary is passed', () => {
+		expect(renderRichTextToHtml(paragraph('Take the bus home'))).toBe(
+			'<p>Take the bus home</p>'
+		);
 	});
 
 	it('renders a table with header and body cells (SSR path)', () => {

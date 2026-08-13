@@ -1,7 +1,9 @@
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {
-	let { ownedConversations } = await parent();
+	const parentData = await parent();
+	const ownedConversations = parentData?.ownedConversations ?? { records: [] };
+	const permittedConversations = parentData?.permittedConversations ?? { records: [] };
 
-	return { conversations: ownedConversations };
+	return { ownedConversations, permittedConversations };
 };

@@ -1,10 +1,14 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         pagination::{Order, PageOptions, PaginatedResults},
-        permissions::{NamedRole, ResourcePermissionIden, SYSTEM_RESOURCE_TYPE, SystemAdminRole},
+        permissions::{
+            self, GrantRoleRequest, ResourcePermissionIden, ResourceType as PermissionResourceType,
+            Role as PermissionRole, grant_role,
+        },
     },
     routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
     tools::id::gen_id,
@@ -256,6 +260,58 @@ pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<Use
     }
 }
 
+fn organization_admin_username(email: &str) -> String {
+    let local_part = email
+        .split('@')
+        .next()
+        .unwrap_or("org_admin")
+        .chars()
+        .filter(|character| {
+            character.is_ascii_alphanumeric() || *character == '_' || *character == '-'
+        })
+        .collect::<String>();
+
+    let base = if local_part.is_empty() {
+        "org_admin".to_string()
+    } else {
+        local_part.to_lowercase()
+    };
+
+    format!("{}_{}", base, gen_id())
+}
+
+fn organization_admin_temporary_password() -> String {
+    format!("TempAdmin#{}Aa1", gen_id())
+}
+
+pub async fn create_organization_admin_user(
+    state: &Arc<ComhairleState>,
+    email: &str,
+) -> Result<User, ComhairleError> {
+    let signup_request = SignupRequest {
+        username: organization_admin_username(email),
+        password: organization_admin_temporary_password(),
+        avatar_url: None,
+        email: email.to_string(),
+    };
+
+    let user = create_user(&signup_request, &state.db).await?;
+
+    // Grant the user the admin role so that they can use the admin interface
+    let _ = grant_role(
+        state,
+        GrantRoleRequest {
+            actor_id: permissions::UserOrOrganizationId::User(user.id),
+            granted_by: &user.id,
+            grant_reason: "Admin user created for organization",
+            permission_triplet: permissions::Role::Admin.system_triplet(),
+        },
+    )
+    .await?;
+
+    Ok(user)
+}
+
 async fn create_otp_user_with_username(
     email: &str,
     username: &str,
@@ -453,6 +509,42 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .map_err(|_| ComhairleError::NoUserFound)
 }
 
+/// Return all users associated with an organization.
+pub async fn list_by_organization_id(
+    organization_id: &Uuid,
+    db: &PgPool,
+) -> Result<Vec<User>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(UserIden::Table)
+        .and_where(Expr::col(UserIden::OrganizationId).eq(*organization_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_all(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)
+}
+
+/// Set or clear the organization membership for a user.
+pub async fn set_user_organization_id(
+    user_id: &Uuid,
+    organization_id: Option<Uuid>,
+    db: &PgPool,
+) -> Result<User, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(UserIden::Table)
+        .value(UserIden::OrganizationId, organization_id)
+        .and_where(Expr::col(UserIden::Id).eq(*user_id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)
+}
+
 #[derive(Debug, Deserialize, Default, Serialize, JsonSchema)]
 pub struct UpdateUserRequest {
     pub username: Option<String>,
@@ -610,14 +702,14 @@ impl UserFilterOptions {
                         ResourcePermissionIden::Table,
                         ResourcePermissionIden::ResourceType,
                     ))
-                    .eq(SYSTEM_RESOURCE_TYPE),
+                    .eq(PermissionResourceType::System.as_ref()),
                 )
                 .and_where(
                     Expr::col((
                         ResourcePermissionIden::Table,
                         ResourcePermissionIden::RoleName,
                     ))
-                    .eq(SystemAdminRole::name()),
+                    .eq(PermissionRole::Admin.as_ref()),
                 )
                 .to_owned();
 

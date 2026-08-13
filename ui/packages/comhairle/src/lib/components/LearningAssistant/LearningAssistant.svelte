@@ -4,7 +4,9 @@
 	import { getChatSession, type ChatMessage } from '$lib/api/chatSession.svelte';
 	import type { ChatReference, ReferenceChunk } from '$lib/api/chatClient.svelte';
 	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';
-	import * as Dialog from '$lib/components/ui/dialog';
+	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
+	import { highlightsFromPositions } from '$lib/components/PdfViewer/highlights';
+	import { getPreviewKind } from '$lib/utils/previewKind';
 	import LearningAssistantSkeleton from './LearningAssistantSkeleton.svelte';
 
 	type QA = {
@@ -37,6 +39,7 @@
 	let focused = $state(false);
 	let inputRef = $state<HTMLInputElement | null>(null);
 	let activeChunk = $state<ReferenceChunk | null>(null);
+	let viewerOpen = $state(false);
 	let initStartedFor = $state<string | null>(null);
 	/** Manual overrides for collapsed state, keyed by QA id. Unset → use default. */
 	let expandedOverrides = $state<Record<string, boolean>>({});
@@ -147,6 +150,36 @@
 		focused = true;
 		tick().then(() => inputRef?.focus());
 	}
+
+	function openSource(chunk: ReferenceChunk) {
+		activeChunk = chunk;
+		viewerOpen = true;
+	}
+
+	/**
+	 * Turn the selected source chunk into props for the document viewer: the
+	 * download URL doubles as the viewer src, and RAGFlow `positions` (present on
+	 * freshly-asked answers) become passage highlights on the right page. Reloaded
+	 * answers carry no positions, so those just open the document with no
+	 * highlight.
+	 */
+	let activeSource = $derived.by(() => {
+		const chunk = activeChunk;
+		if (!chunk) return null;
+		// RAGFlow source chunks are only ever PDFs or uploaded docs, so an unrecognised
+		// name still opens in the PDF viewer rather than falling back to a download.
+		const kind = getPreviewKind(chunk.document_name) ?? 'pdf';
+		const href = `/api/conversation/${conversationId}/documents/${chunk.document_id}/download`;
+		const highlights = kind === 'pdf' ? highlightsFromPositions(chunk.positions) : [];
+		return {
+			kind,
+			src: href,
+			downloadHref: href,
+			name: chunk.document_name,
+			highlights,
+			page: highlights[0]?.page ?? null
+		};
+	});
 
 	function uniqueDocsFromReference(ref: ChatReference | null): ReferenceChunk[] {
 		if (!ref?.chunks?.length) return [];
@@ -332,6 +365,7 @@
 												<MessageWithReferences
 													content={qa.answer}
 													reference={qa.reference}
+													onOpenSource={openSource}
 												/>
 												{#if qa.streaming}
 													<span
@@ -372,8 +406,7 @@
 															<button
 																type="button"
 																class="border-border bg-muted/40 hover:bg-primary hover:text-primary-foreground hover:border-primary text-foreground inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors"
-																onclick={() =>
-																	(activeChunk = chunk)}
+																onclick={() => openSource(chunk)}
 															>
 																<FileText
 																	class="h-3 w-3 shrink-0"
@@ -404,28 +437,15 @@
 	</div>
 {/if}
 
-<!-- Source chunk modal -->
-<Dialog.Root open={!!activeChunk} onOpenChange={(o) => !o && (activeChunk = null)}>
-	<Dialog.Content class="max-w-xl">
-		{#if activeChunk}
-			<Dialog.Header>
-				<Dialog.Title class="flex items-start gap-2">
-					<FileText class="text-primary mt-1 h-4 w-4 shrink-0" />
-					<span>{activeChunk.document_name}</span>
-				</Dialog.Title>
-			</Dialog.Header>
-			<div
-				class="text-foreground/90 max-h-[55vh] overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap"
-			>
-				{activeChunk.content
-					.replace(/<[^>]*>/g, ' ')
-					.replace(/\s+/g, ' ')
-					.trim()}
-			</div>
-			<p class="text-muted-foreground border-border border-t pt-3 text-xs">
-				This excerpt was retrieved from the document above and may not reflect its full
-				content.
-			</p>
-		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+<!-- Source document. Every source (uploaded files and the synced learn-content PDF) opens in
+     the shared document viewer, with the retrieved passage highlighted when position data is
+     available. Learn content is now a real PDF, so it needs no special-casing. -->
+<PdfDocumentDialog
+	bind:open={viewerOpen}
+	kind={activeSource?.kind ?? 'pdf'}
+	src={activeSource?.src ?? null}
+	name={activeSource?.name ?? 'Document'}
+	downloadHref={activeSource?.downloadHref ?? null}
+	highlights={activeSource?.highlights ?? []}
+	page={activeSource?.page ?? null}
+/>

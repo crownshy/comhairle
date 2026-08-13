@@ -3,15 +3,17 @@
 	import { Button } from '$lib/components/ui/button';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
-	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import type { ComhairleDocument, LocalizedConversationDto } from '@crownshy/api-client/api';
 
 	type Props = {
 		conversation: LocalizedConversationDto;
 		open: boolean;
 		onAccept: () => void;
+		/** Parsed documents, so source-document badges in the short privacy policy resolve + download. */
+		availableDocuments?: ComhairleDocument[];
 	};
 
-	let { conversation, open = $bindable(), onAccept }: Props = $props();
+	let { conversation, open = $bindable(), onAccept, availableDocuments = [] }: Props = $props();
 
 	function handleAccept() {
 		open = false;
@@ -41,7 +43,11 @@
 
 		<div class="overflow-y-auto px-6 py-4">
 			{#if conversation.shortPrivacyPolicy}
-				<ContentRenderer content={conversation.shortPrivacyPolicy} />
+				<ContentRenderer
+					content={conversation.shortPrivacyPolicy}
+					{availableDocuments}
+					conversationId={conversation.id}
+				/>
 			{:else}
 				<ComhairlePrivacyPolicy
 					class="[&_h1]:text-primary [&_h2]:text-primary flex flex-col gap-4 [&_h1,&_h2,&_h3,&_h4,&_h5,&_h6]:font-bold [&_ul]:list-inside [&_ul]:list-[square]!"
