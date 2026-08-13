@@ -32,47 +32,51 @@
 		!!arr[0] && typeof arr[0] === 'string';
 </script>
 
-{#each data as section (section.id)}
-	{#if isValidQuestion(section)}
-		<div class="py-10">
-			<h2 class="text-md font-bold">{section.title}</h2>
-			<!-- <div class="flex flex-row"> -->
-			<!-- 	<h3 class="text-muted-foreground mr-10 text-sm"> -->
-			<!-- 		{section.answers.length} -->
-			<!-- 		{section.answers.length === 1 ? 'response' : 'responses'} -->
-			<!-- 		· -->
-			<!-- 		{Math.round(section.answers.length / section.total) * 100}% Completion -->
-			<!-- 	</h3> -->
-			<!-- </div> -->
-			{#if isChoiceQuestion(section)}
-				{#if section.answers.length <= 3}
-					<Doughnut data={section.answers} key="label" value="count" />
-				{:else}
-					<SurveyBarChart
-						data={section.answers}
-						x="label"
-						y="count"
-						kind={section.kind}
-					/>
+{#if data.length <= 0}
+	<span class="text-muted-foreground">No responses yet</span>
+{:else}
+	{#each data as section (section.id)}
+		{#if isValidQuestion(section)}
+			<div class="py-10">
+				<h2 class="text-md font-bold">{section.title}</h2>
+				<!-- <div class="flex flex-row"> -->
+				<!-- 	<h3 class="text-muted-foreground mr-10 text-sm"> -->
+				<!-- 		{section.answers.length} -->
+				<!-- 		{section.answers.length === 1 ? 'response' : 'responses'} -->
+				<!-- 		· -->
+				<!-- 		{Math.round(section.answers.length / section.total) * 100}% Completion -->
+				<!-- 	</h3> -->
+				<!-- </div> -->
+				{#if isChoiceQuestion(section)}
+					{#if section.answers.length <= 3}
+						<Doughnut data={section.answers} key="label" value="count" />
+					{:else}
+						<SurveyBarChart
+							data={section.answers}
+							x="label"
+							y="count"
+							kind={section.kind}
+						/>
+					{/if}
 				{/if}
-			{/if}
-			{#if isNonChoiceQuestion(section)}
-				{#if section.answers.length <= 0}
-					<div class="text-muted-foreground">No responses yet</div>
+				{#if isNonChoiceQuestion(section)}
+					{#if section.answers.length <= 0}
+						<div class="text-muted-foreground">No responses yet</div>
+					{/if}
+					{#if isNumericArray(section.answers)}
+						<KdePlot
+							data={{ answers: section.answers }}
+							maxX={section.properties?.total ?? Math.max(10, ...section.answers)}
+							minLabel={section.properties?.leftLabel}
+							centerLabel={section.properties?.centerLabel}
+							maxLabel={section.properties?.rightLabel}
+						/>
+					{/if}
+					{#if isStringArray(section.answers)}
+						<Responses data={section.answers} />
+					{/if}
 				{/if}
-				{#if isNumericArray(section.answers)}
-					<KdePlot
-						data={{ answers: section.answers }}
-						maxX={section.properties?.total ?? Math.max(10, ...section.answers)}
-						minLabel={section.properties?.leftLabel}
-						centerLabel={section.properties?.centerLabel}
-						maxLabel={section.properties?.rightLabel}
-					/>
-				{/if}
-				{#if isStringArray(section.answers)}
-					<Responses data={section.answers} />
-				{/if}
-			{/if}
-		</div>
-	{/if}
-{/each}
+			</div>
+		{/if}
+	{/each}
+{/if}
