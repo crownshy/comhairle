@@ -52,17 +52,15 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'yes_no':
 		case 'multiple_choice':
 		case 'picture_choice': {
-			const submissionsCount =
-				insight.choices?.reduce((total, choice) => total + choice.count, 0) ?? 0;
-
 			return typedObj<ChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
 				properties: insight.properties,
-				submissionsCount: !(insight.properties as Properties)?.allowMultiple
-					? submissionsCount
-					: undefined,
+				submissionsCount:
+					insight.submissions?.filter(
+						(s) => (s.value as { value: string[] }).value?.length !== 0
+					)?.length ?? 0,
 				kind: insight.kind,
 				answers: insight.choices ?? []
 			});

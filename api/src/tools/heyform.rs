@@ -727,11 +727,7 @@ pub fn build_survey_insights(
             // Choice-based questions already have a full aggregate breakdown
             // via `choices`; for everything else (short_text, opinion_scale,
             // etc.) the per-answer values are the only meaningful content.
-            let submissions = if choices.is_none() {
-                submissions_by_field.get(&response.id).cloned()
-            } else {
-                None
-            };
+            let submissions = submissions_by_field.get(&response.id).cloned();
 
             let kind = field
                 .map(|f| f.kind.clone())
