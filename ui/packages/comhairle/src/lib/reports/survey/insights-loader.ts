@@ -26,6 +26,7 @@ export interface ChoiceQuestion {
 	title: string;
 	total: number;
 	properties?: Properties | null;
+	submissionsCount: number;
 	kind: HeyFormChoiceFieldKind;
 	answers: Choice[];
 }
@@ -35,6 +36,7 @@ export interface NonChoiceQuestion {
 	title: string;
 	total: number;
 	properties?: Properties;
+	submissionsCount: number;
 	kind: HeyFormNonChoiceFieldKind;
 	answers: unknown[];
 }
@@ -54,12 +56,14 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
-				kind: insight.kind,
 				properties: insight.properties,
+				submissionsCount: insight.choices?.length ?? 0,
+				kind: insight.kind,
 				answers: insight.choices ?? []
 			});
 		case 'ranking': {
 			const answers: Choice[] = [];
+			let submissionsCount = 0;
 
 			if (!insight.properties || !insight.submissions) {
 				return undefined;
@@ -67,6 +71,12 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 
 			for (const submission of insight.submissions) {
 				const s = submission.value as HeyFormRankedValue;
+				if (s === '') {
+					continue;
+				}
+
+				submissionsCount += 1;
+
 				for (let i = 0; i < s.value.length; i++) {
 					const choiceId = s.value[i];
 					// Calculate the amount of ranking, so just the length minus the index, e.g. for 5 choices, the top would receieve 5, last would receieve 1
@@ -96,12 +106,14 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				title: insight.title,
 				total: insight.total,
 				kind: insight.kind,
+				submissionsCount,
 				properties: insight.properties,
 				answers
 			});
 		}
 		case 'matrix': {
 			const answers: Choice[] = [];
+			let submissionsCount = 0;
 
 			if (!insight.properties || !insight.submissions) {
 				return undefined;
@@ -109,6 +121,12 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 
 			for (const submission of insight.submissions) {
 				const s = submission.value as HeyFormMatrixValue;
+				if (Array.isArray(s.value) && s.value?.length === 0) {
+					continue;
+				}
+
+				submissionsCount += 1;
+
 				for (const [choiceId, amount] of Object.entries(s)) {
 					const answerIndex = answers.findIndex((a) => a.id === choiceId);
 
@@ -134,8 +152,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
-				kind: insight.kind,
 				properties: insight.properties,
+				submissionsCount,
+				kind: insight.kind,
 				answers
 			});
 		}
@@ -169,8 +188,9 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
-				kind: insight.kind,
 				properties: insight.properties ?? undefined,
+				submissionsCount: insight.submissions.length,
+				kind: insight.kind,
 				answers
 			});
 		}
@@ -183,78 +203,103 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'url':
 		case 'phone_number':
 		case 'country_selector':
-		case 'date':
+		case 'date': {
+			const answers =
+				insight.submissions
+					?.map((s) => s.value)
+					.filter((s) => (typeof s === 'string' ? !!s.trim() : !!s)) ?? [];
+
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
-				kind: insight.kind,
 				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => s.value)
-						.filter((s) => (typeof s === 'string' ? !!s.trim() : !!s)) ?? []
+				submissionsCount: answers.length,
+				kind: insight.kind,
+				answers
 			});
-		case 'full_name':
+		}
+		case 'full_name': {
+			const answers =
+				insight.submissions
+					?.map((s) => {
+						const fullName = s.value as HeyFormFullNameValue;
+						if (fullName === '') return '';
+						return `${fullName.firstName} ${fullName.lastName}`;
+					})
+					.filter((s) => !!s.trim()) ?? [];
+
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
-				kind: insight.kind,
 				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => {
-							const fullName = s.value as HeyFormFullNameValue;
-							return `${fullName.firstName} ${fullName.lastName}`;
-						})
-						.filter((s) => !!s.trim()) ?? []
+				submissionsCount: answers.length,
+				kind: insight.kind,
+				answers
 			});
-		case 'address':
+		}
+		case 'address': {
+			const answers =
+				insight.submissions
+					?.map((s) => {
+						const address = s.value as HeyFormAddressValue;
+						if (address === '') return '';
+						return Object.values(address).join(', ');
+					})
+					.filter((s) => !!s.trim()) ?? [];
+
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
-				kind: insight.kind,
 				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => {
-							const address = s.value as HeyFormAddressValue;
-							return Object.values(address).join(', ');
-						})
-						.filter((s) => !!s.trim()) ?? []
+				submissionsCount: answers.length,
+				kind: insight.kind,
+				answers
 			});
-		case 'date_range':
+		}
+		case 'date_range': {
+			const answers =
+				insight.submissions
+					?.map((s) => {
+						const dateRange = s.value as HeyFormDateRangeValue;
+						if (dateRange === '') return '';
+						return `${dateRange.start} - ${dateRange.end}`;
+					})
+					.filter((s) => !!s.trim()) ?? [];
+
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
-				kind: insight.kind,
 				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => {
-							const dateRange = s.value as HeyFormDateRangeValue;
-							return `${dateRange.start} - ${dateRange.end}`;
-						})
-						.filter((s) => !!s.trim()) ?? []
+				submissionsCount: answers.length,
+				kind: insight.kind,
+				answers
 			});
-		case 'file_upload':
+		}
+
+		case 'file_upload': {
+			const answers =
+				insight.submissions
+					?.map((s) => {
+						const file = s.value as HeyFormFileUploadValue;
+						if (file === '') return '';
+						return `${file.filename} - ${file.url}`;
+					})
+					.filter((s) => !!s.trim()) ?? [];
+
 			return typedObj<NonChoiceQuestion>({
 				id: insight.id,
 				title: insight.title,
 				total: insight.total,
-				kind: insight.kind,
 				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => {
-							const file = s.value as HeyFormFileUploadValue;
-							return `${file.filename} - ${file.url}`;
-						})
-						.filter((s) => !!s.trim()) ?? []
+				submissionsCount: answers.length,
+				kind: insight.kind,
+				answers
 			});
+		}
 		case 'group':
 		case 'statement':
 		case 'time':
