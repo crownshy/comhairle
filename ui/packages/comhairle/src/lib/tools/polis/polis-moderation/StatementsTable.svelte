@@ -136,6 +136,7 @@
 				<StatementModerationRow
 					{row}
 					selected={!!selected[row.id]}
+					selectionCount={selectedCount}
 					pending={!!pending[row.id]}
 					{bulkWorking}
 					editedFrom={lineage[row.id]?.editedFrom}

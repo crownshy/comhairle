@@ -166,6 +166,11 @@
 		status: 'accepted' | 'rejected',
 		reason?: string
 	) {
+		// If the clicked row is part of an active selection, the per-row accept/reject
+		// applies to the whole selection (same as the bulk bar). Clicking a row that
+		// isn't selected stays a single-row action.
+		if (selected[row.id]) return bulkModerate(status, reason);
+
 		if (pending[row.id] || row.moderation_status === status) return;
 		const decision = status === 'accepted' ? 'accept' : 'reject';
 		pending = { ...pending, [row.id]: true };

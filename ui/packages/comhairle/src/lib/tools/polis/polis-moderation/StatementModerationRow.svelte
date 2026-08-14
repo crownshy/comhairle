@@ -8,6 +8,9 @@
 	type Props = {
 		row: PolisStatementAux;
 		selected: boolean;
+		/** How many rows are selected overall; drives whether this row's accept/reject
+		 * acts on the whole selection and how the reject popover is labelled. */
+		selectionCount: number;
 		/** This row has an accept/reject request in flight. */
 		pending: boolean;
 		/** A bulk moderation is running for the whole table. */
@@ -25,6 +28,7 @@
 	let {
 		row,
 		selected,
+		selectionCount,
 		pending,
 		bulkWorking,
 		editedFrom,
@@ -33,6 +37,16 @@
 		onModerate,
 		onSplit
 	}: Props = $props();
+
+	// When this row is part of a multi-selection, its accept/reject applies to the
+	// whole selection (the parent routes it through the bulk path), so label the
+	// controls accordingly instead of implying a single-statement action.
+	const actsOnSelection = $derived(selected && selectionCount > 1);
+	const acceptTitle = $derived(actsOnSelection ? `Accept ${selectionCount} selected` : 'Accept');
+	const rejectTitle = $derived(actsOnSelection ? `Reject ${selectionCount} selected` : 'Reject');
+	const rejectHeading = $derived(
+		actsOnSelection ? `Reject ${selectionCount} statements` : 'Reject statement'
+	);
 
 	// Left accent bar colour keyed on seed/status. Olive-green primary stands in
 	// for "accepted"; there is no dedicated success token in the theme.
@@ -123,22 +137,29 @@
 		{/if}
 		<button
 			type="button"
-			disabled={pending || bulkWorking || row.moderation_status === 'accepted'}
+			disabled={pending ||
+				bulkWorking ||
+				(!actsOnSelection && row.moderation_status === 'accepted')}
 			onclick={() => onModerate('accepted')}
-			title="Accept"
+			title={acceptTitle}
 			class="text-primary hover:bg-primary/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
 		>
 			<Check class="size-6" />
 		</button>
 		<RejectReasonPopover
-			disabled={pending || bulkWorking || row.moderation_status === 'rejected'}
+			heading={rejectHeading}
+			disabled={pending ||
+				bulkWorking ||
+				(!actsOnSelection && row.moderation_status === 'rejected')}
 			onConfirm={(reason) => onModerate('rejected', reason)}
 		>
 			{#snippet trigger()}
 				<button
 					type="button"
-					disabled={pending || bulkWorking || row.moderation_status === 'rejected'}
-					title="Reject"
+					disabled={pending ||
+						bulkWorking ||
+						(!actsOnSelection && row.moderation_status === 'rejected')}
+					title={rejectTitle}
 					class="text-destructive hover:bg-destructive/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
 				>
 					<X class="size-6" />
