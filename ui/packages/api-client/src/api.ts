@@ -477,6 +477,7 @@ export const PolisStatementAux = z
     is_seed: z.boolean(),
     moderation_reason: z.union([z.string(), z.null()]).optional(),
     moderation_status: ModerationStatus,
+    original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
     statement_text: z.string(),
@@ -554,6 +555,7 @@ export const ModerateStatementAuxBatchRequest = z
   .object({
     decision: ModerationDecisionRequest,
     ids: z.array(z.string().uuid()),
+    moderation_reason: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type ModerateStatementAuxBatchRequest = z.infer<
@@ -572,6 +574,17 @@ export const ModerateStatementAuxBatchResponse = z
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
 >;
+export const SplitStatementRequest = z
+  .object({ replacements: z.array(z.string()) })
+  .passthrough();
+export type SplitStatementRequest = z.infer<typeof SplitStatementRequest>;
+export const SplitStatementResponse = z
+  .object({
+    original: PolisStatementAux,
+    replacements: z.array(PolisStatementAux),
+  })
+  .passthrough();
+export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
 export const FormField = z
   .object({
     description: z.unknown().optional(),
@@ -1166,6 +1179,7 @@ export const PartialConversation = z
     is_public: z.union([z.boolean(), z.null()]),
     knowledge_base_id: z.union([z.string(), z.null()]),
     metadata: z.unknown(),
+    organization_id: z.union([z.string(), z.null()]),
     primary_locale: z.union([z.string(), z.null()]),
     privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
@@ -2782,6 +2796,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
+  SplitStatementRequest,
+  SplitStatementResponse,
   FormField,
   FormSettings,
   FormTheme,
@@ -5510,6 +5526,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisStatementAux,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/:id/split",
+    alias: "PolisSplitStatement",
+    description: `Posts one or more admin-authored replacement statements as non-seed (is_seed: false), auto-accepts them, rejects the original statement, and records lineage (original_statement_id) on each replacement. The replacements are real, votable statements, never host seeds. Returns the now-rejected original and the derived replacements.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SplitStatementRequest,
+      },
+    ],
+    response: SplitStatementResponse,
   },
   {
     method: "post",
