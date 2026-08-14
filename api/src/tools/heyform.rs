@@ -572,6 +572,7 @@ fn extract_field_title(title: &serde_json::Value) -> Option<String> {
     if text.is_empty() { None } else { Some(text) }
 }
 
+/// Checks if the HeyForm value is empty (the user skipped the question)
 fn is_empty_value(value: &serde_json::Value) -> bool {
     let val = value.to_string();
 
