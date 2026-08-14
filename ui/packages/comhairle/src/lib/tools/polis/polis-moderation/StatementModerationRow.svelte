@@ -19,7 +19,8 @@
 		editedFrom?: string;
 		/** Texts of the derived statements that replaced this row (if it was split). */
 		replacedBy?: string[];
-		onToggle: (checked: boolean) => void;
+		/** `range` is true when shift was held, requesting a range select. */
+		onToggle: (checked: boolean, range: boolean) => void;
 		onModerate: (status: 'accepted' | 'rejected', reason?: string) => void;
 		/** Open the split/reword dialog for this row. */
 		onSplit: () => void;
@@ -56,21 +57,32 @@
 		if (r.moderation_status === 'rejected') return 'bg-destructive';
 		return 'bg-muted-foreground/40';
 	}
+
+	// The checkbox reports toggles via `onCheckedChange`, which carries no event, so
+	// we snapshot whether shift was held on the preceding mousedown (fires before
+	// the change) to know if this should start a range select.
+	let shiftHeld = false;
 </script>
 
 <div
 	role="button"
 	tabindex="0"
 	aria-pressed={selected}
+	onmousedown={(e) => {
+		// Snapshot shift for the checkbox's event-less onCheckedChange (mousedown
+		// fires first), and suppress the browser's text selection on shift-click.
+		shiftHeld = e.shiftKey;
+		if (e.shiftKey) e.preventDefault();
+	}}
 	onclick={(e) => {
 		// Ignore clicks that land on the checkbox or the accept/reject controls.
 		if (bulkWorking || (e.target as HTMLElement).closest('[data-row-control]')) return;
-		onToggle(!selected);
+		onToggle(!selected, e.shiftKey);
 	}}
 	onkeydown={(e) => {
 		if (e.key === 'Enter' || e.key === ' ') {
 			e.preventDefault();
-			if (!bulkWorking) onToggle(!selected);
+			if (!bulkWorking) onToggle(!selected, e.shiftKey);
 		}
 	}}
 	class={`border-border group relative grid cursor-pointer grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 border-b py-4 pl-4 transition-colors last:border-b-0 ${
@@ -87,7 +99,7 @@
 		<Checkbox
 			checked={selected}
 			disabled={bulkWorking}
-			onCheckedChange={(v) => onToggle(v === true)}
+			onCheckedChange={(v) => onToggle(v === true, shiftHeld)}
 			aria-label="Select statement"
 		/>
 	</div>
