@@ -145,7 +145,7 @@
 					<Spinner class="text-muted-foreground size-6" />
 					{#if totalCount > 1}
 						<p class="text-muted-foreground text-sm">
-							Posting {postedCount} / {totalCount}
+							Posting {Math.min(postedCount + 1, totalCount)} / {totalCount}
 						</p>
 					{/if}
 				</div>
