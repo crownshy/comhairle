@@ -58,32 +58,39 @@
 		return 'bg-muted-foreground/40';
 	}
 
-	// The checkbox reports toggles via `onCheckedChange`, which carries no event, so
-	// we snapshot whether shift was held on the preceding mousedown (fires before
-	// the change) to know if this should start a range select.
+	// Whether shift was held, for range-select. Every toggle path reads this one
+	// snapshot: we capture it in the capture phase, which runs before the checkbox's
+	// event-less `onCheckedChange` and also covers a keyboard toggle of the checkbox
+	// (Space fires no mousedown). Deliberately a plain `let`, not `$state`: it is a
+	// transient input snapshot and must not drive reactivity.
 	let shiftHeld = false;
+	const snapshotShift = (e: MouseEvent | KeyboardEvent) => {
+		shiftHeld = e.shiftKey;
+	};
 </script>
 
 <div
 	role="button"
 	tabindex="0"
 	aria-pressed={selected}
-	onmousedown={(e) => {
-		// Snapshot shift for the checkbox's event-less onCheckedChange (mousedown
-		// fires first), and suppress the browser's text selection on shift-click.
-		shiftHeld = e.shiftKey;
+	onmousedowncapture={(e) => {
+		snapshotShift(e);
+		// Suppress the browser's text selection on shift-click.
 		if (e.shiftKey) e.preventDefault();
 	}}
+	onkeydowncapture={snapshotShift}
 	onclick={(e) => {
 		// Ignore clicks that land on the checkbox or the accept/reject controls.
 		if (bulkWorking || (e.target as HTMLElement).closest('[data-row-control]')) return;
-		onToggle(!selected, e.shiftKey);
+		onToggle(!selected, shiftHeld);
 	}}
 	onkeydown={(e) => {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			if (!bulkWorking) onToggle(!selected, e.shiftKey);
-		}
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		// Ignore keys aimed at the checkbox / accept-reject controls; those toggle
+		// themselves (the checkbox via onCheckedChange).
+		if ((e.target as HTMLElement).closest('[data-row-control]')) return;
+		e.preventDefault();
+		if (!bulkWorking) onToggle(!selected, shiftHeld);
 	}}
 	class={`border-border group relative grid cursor-pointer grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 border-b py-4 pl-4 transition-colors last:border-b-0 ${
 		selected ? 'bg-primary/5' : 'hover:bg-muted/40'
