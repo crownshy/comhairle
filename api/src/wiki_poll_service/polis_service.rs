@@ -16,8 +16,8 @@ use tracing::{info, instrument, warn};
 use crate::tools::polis::PolisError;
 use crate::wiki_poll_service::error::WikiPollServiceError;
 use crate::wiki_poll_service::{
-    ModerationStatus, WikiPoll, WikiPollComment, WikiPollConfigUpdate, WikiPollLogin,
-    WikiPollService, WikiPollXid,
+    ModerationStatus, PostedStatement, WikiPoll, WikiPollComment, WikiPollConfigUpdate,
+    WikiPollLogin, WikiPollService, WikiPollXid,
 };
 
 // Raw Polis API response structures
@@ -648,11 +648,25 @@ impl WikiPollService for PolisClient {
         poll_id: &str,
         auth_cookies: &str,
     ) -> Result<String, WikiPollServiceError> {
+        let posted = self
+            .post_statement(comment, poll_id, true, auth_cookies)
+            .await?;
+        Ok(posted.tid.to_string())
+    }
+
+    #[instrument(err(Debug), skip(self))]
+    async fn post_statement(
+        &self,
+        comment: &str,
+        poll_id: &str,
+        is_seed: bool,
+        auth_cookies: &str,
+    ) -> Result<PostedStatement, WikiPollServiceError> {
         let post_json = json!({
             "txt": comment,
             "pid": "mypid",
             "conversation_id": poll_id,
-            "is_seed": true
+            "is_seed": is_seed,
         });
 
         let resp = self
@@ -677,7 +691,10 @@ impl WikiPollService for PolisClient {
                 )
             })?;
 
-        Ok(resp.tid.to_string())
+        Ok(PostedStatement {
+            tid: resp.tid,
+            pid: resp.current_pid,
+        })
     }
 
     async fn get_comments(
@@ -807,8 +824,8 @@ struct NewPollResp {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PolisCommentCreateResponse {
-    tid: u8,
-    current_pid: u8,
+    tid: i32,
+    current_pid: i32,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

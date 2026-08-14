@@ -6,20 +6,28 @@
 	import { Check, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import StatementModerationRow from './StatementModerationRow.svelte';
+	import RejectReasonPopover from './RejectReasonPopover.svelte';
 
 	type Props = {
-		// The visible (filtered + searched) statements, already ordered.
+		/** The visible (filtered + searched) statements, already ordered. */
 		rows: PolisStatementAux[];
-		// Selection + per-row in-flight state, keyed by aux row id.
+		/** Selection + per-row in-flight state, keyed by aux row id. */
 		selected: Record<string, boolean>;
 		pending: Record<string, boolean>;
-		// Which bulk action is in flight, or null when idle.
+		/** Which bulk action is in flight, or null when idle. */
 		bulkAction: 'accepted' | 'rejected' | null;
 		onToggleSelect: (id: string, checked: boolean) => void;
 		onToggleAll: (checked: boolean) => void;
 		onClear: () => void;
-		onBulkModerate: (status: 'accepted' | 'rejected') => void;
-		onModerate: (row: PolisStatementAux, status: 'accepted' | 'rejected') => void;
+		onBulkModerate: (status: 'accepted' | 'rejected', reason?: string) => void;
+		onModerate: (
+			row: PolisStatementAux,
+			status: 'accepted' | 'rejected',
+			reason?: string
+		) => void;
+		/** Per-row lineage strings for derived statements, keyed by aux row id. */
+		lineage: Record<string, { editedFrom?: string; replacedBy?: string[] }>;
+		onSplit: (row: PolisStatementAux) => void;
 	};
 
 	let {
@@ -31,7 +39,9 @@
 		onToggleAll,
 		onClear,
 		onBulkModerate,
-		onModerate
+		onModerate,
+		lineage,
+		onSplit
 	}: Props = $props();
 
 	const bulkWorking = $derived(bulkAction !== null);
@@ -66,16 +76,23 @@
 						<Check class="size-4" />
 						Approve
 					</LoadingButton>
-					<LoadingButton
-						size="sm"
-						variant="destructive"
-						loading={bulkAction === 'rejected'}
+					<RejectReasonPopover
+						heading={`Reject ${selectedCount} statement${selectedCount === 1 ? '' : 's'}`}
 						disabled={bulkWorking}
-						onclick={() => onBulkModerate('rejected')}
+						onConfirm={(reason) => onBulkModerate('rejected', reason)}
 					>
-						<X class="size-4" />
-						Reject
-					</LoadingButton>
+						{#snippet trigger()}
+							<LoadingButton
+								size="sm"
+								variant="destructive"
+								loading={bulkAction === 'rejected'}
+								disabled={bulkWorking}
+							>
+								<X class="size-4" />
+								Reject
+							</LoadingButton>
+						{/snippet}
+					</RejectReasonPopover>
 					<Button size="sm" variant="ghost" disabled={bulkWorking} onclick={onClear}>
 						Clear
 					</Button>
@@ -119,10 +136,14 @@
 				<StatementModerationRow
 					{row}
 					selected={!!selected[row.id]}
+					selectionCount={selectedCount}
 					pending={!!pending[row.id]}
 					{bulkWorking}
+					editedFrom={lineage[row.id]?.editedFrom}
+					replacedBy={lineage[row.id]?.replacedBy}
 					onToggle={(checked) => onToggleSelect(row.id, checked)}
-					onModerate={(status) => onModerate(row, status)}
+					onModerate={(status, reason) => onModerate(row, status, reason)}
+					onSplit={() => onSplit(row)}
 				/>
 			{/each}
 		{/if}

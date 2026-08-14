@@ -22,8 +22,9 @@ use crate::{
     models::{
         self,
         polis_statement_aux::{
-            CreatePolisStatementAux, PolisStatementAux, PolisStatementAuxFilterOptions,
-            ThemeStatistic, UpdatePolisStatementAux, UpsertFromPolis,
+            CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
+            PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux,
+            UpsertFromPolis,
         },
     },
     routes::auth::{RequiredAdminUser, RequiredUser},
@@ -310,6 +311,23 @@ impl ToolImpl for PolisTool {
                              step. Returns the updated rows plus any per-row failures.",
                         )
                         .response::<200, Json<ModerateStatementAuxBatchResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/statement_aux/{id}/split",
+                post_with(split_statement, |op| {
+                    op.id("PolisSplitStatement")
+                        .tag("Tools")
+                        .summary("Split or reword a Polis statement")
+                        .description(
+                            "Posts one or more admin-authored replacement statements as \
+                             non-seed (is_seed: false), auto-accepts them, rejects the \
+                             original statement, and records lineage \
+                             (original_statement_id) on each replacement. The replacements \
+                             are real, votable statements, never host seeds. Returns the \
+                             now-rejected original and the derived replacements.",
+                        )
+                        .response::<201, Json<SplitStatementResponse>>()
                 }),
             )
             .with_state(state.clone())
@@ -753,6 +771,20 @@ pub struct ModerateStatementAuxRequest {
     pub moderation_reason: Option<String>,
 }
 
+/// The reason to persist for a moderation decision. Reject keeps the supplied
+/// reason; accept clears it (returns `None`) so a stored reason never describes
+/// a statement that is no longer rejected (ADR-0015). Shared by the single and
+/// batch handlers so the invariant lives in one place.
+fn reason_for_decision<'a>(
+    status: &ModerationStatus,
+    reason: &'a Option<String>,
+) -> Option<&'a str> {
+    match status {
+        ModerationStatus::Accepted => None,
+        _ => reason.as_deref(),
+    }
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn moderate_statement_aux(
     State(state): State<Arc<ComhairleState>>,
@@ -780,29 +812,140 @@ async fn moderate_statement_aux(
         })
         .await?;
 
+    let status: ModerationStatus = request.decision.into();
+
     client
         .moderate_comment(
             &config.poll_id,
             aux.polis_statement_id,
-            request.decision.into(),
+            status.clone(),
             &auth_cookies,
         )
         .await?;
 
-    let updated = models::polis_statement_aux::update(
-        &state.db,
-        statement_id,
-        &UpdatePolisStatementAux {
-            statement_text: None,
-            moderation_status: Some(request.decision.into()),
-            themes: None,
-            visible_statement_when_submitted: None,
-            moderation_reason: request.moderation_reason,
-        },
-    )
-    .await?;
+    let reason = reason_for_decision(&status, &request.moderation_reason);
+
+    let updated =
+        models::polis_statement_aux::moderate(&state.db, statement_id, status.clone(), reason)
+            .await?;
 
     Ok((StatusCode::OK, Json(updated)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct SplitStatementRequest {
+    /// Replacement statement texts. Each becomes a derived, non-seed,
+    /// auto-accepted statement linked to the original. Blank entries are
+    /// ignored; at least one non-blank entry is required.
+    pub replacements: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct SplitStatementResponse {
+    /// The original statement, now rejected.
+    pub original: PolisStatementAux,
+    /// The derived replacement statements, in the order posted.
+    pub replacements: Vec<PolisStatementAux>,
+}
+
+/// Split or reword a participant statement (see ADR-0011). Fails safe:
+/// replacements are posted and accepted first, and the original is only rejected
+/// once every replacement has landed, so a partial failure never destroys the
+/// source statement before its replacements exist. On failure the error is
+/// returned as-is (no fake rollback); any already-posted replacement will surface
+/// on the next sync and can be rejected by hand.
+#[instrument(err(Debug), skip(state))]
+async fn split_statement(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(statement_id): Path<Uuid>,
+    Json(request): Json<SplitStatementRequest>,
+) -> Result<(StatusCode, Json<SplitStatementResponse>), ComhairleError> {
+    let original = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
+
+    polis_statement_aux::check_can_moderate(&state, &user, &original.workflow_step_id).await?;
+
+    let replacements: Vec<String> = request
+        .replacements
+        .into_iter()
+        .map(|text| text.trim().to_string())
+        .filter(|text| !text.is_empty())
+        .collect();
+
+    if replacements.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "a split needs at least one non-empty replacement statement".into(),
+        ));
+    }
+
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &original.workflow_step_id).await?;
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    // Post and accept every replacement first. If any step fails we return before
+    // rejecting the original, leaving the source statement intact.
+    let mut derived = Vec::with_capacity(replacements.len());
+    for text in &replacements {
+        let posted = client
+            .post_statement(text, &config.poll_id, false, &auth_cookies)
+            .await?;
+        client
+            .moderate_comment(
+                &config.poll_id,
+                posted.tid,
+                ModerationStatus::Accepted,
+                &auth_cookies,
+            )
+            .await?;
+        derived.push(CreateDerivedStatement {
+            workflow_step_id: original.workflow_step_id,
+            zid: posted.pid,
+            polis_conversation_id: config.poll_id.clone(),
+            polis_statement_id: posted.tid,
+            statement_text: text.clone(),
+            original_statement_id: original.id,
+        });
+    }
+
+    // Every replacement is live; now reject the original in Polis.
+    client
+        .moderate_comment(
+            &config.poll_id,
+            original.polis_statement_id,
+            ModerationStatus::Rejected,
+            &auth_cookies,
+        )
+        .await?;
+
+    let reason = format!(
+        "Reworded/split by moderator into {} statement(s)",
+        derived.len()
+    );
+
+    let (original, replacements) =
+        models::polis_statement_aux::record_split(&state.db, original.id, &derived, &reason)
+            .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(SplitStatementResponse {
+            original,
+            replacements,
+        }),
+    ))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -810,6 +953,9 @@ pub struct ModerateStatementAuxBatchRequest {
     /// polis_statement_aux ids to moderate. All must belong to the same workflow step.
     pub ids: Vec<Uuid>,
     pub decision: ModerationDecisionRequest,
+    /// Optional shared reason applied to every rejected row. Ignored on accept,
+    /// which always clears the reason (ADR-0015).
+    pub moderation_reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -904,16 +1050,12 @@ async fn moderate_statement_aux_batch(
         }
     }
 
-    // Persist moderation_status for the rows Polis accepted, in one statement.
-    let succeeded = models::polis_statement_aux::update_many(
-        &state.db,
-        &succeeded_ids,
-        &UpdatePolisStatementAux {
-            moderation_status: Some(status),
-            ..Default::default()
-        },
-    )
-    .await?;
+    let reason = reason_for_decision(&status, &request.moderation_reason);
+
+    // Persist status + reason for the rows that succeeded in Polis, in one statement.
+    let succeeded =
+        models::polis_statement_aux::moderate_many(&state.db, &succeeded_ids, status, reason)
+            .await?;
 
     Ok((
         StatusCode::OK,

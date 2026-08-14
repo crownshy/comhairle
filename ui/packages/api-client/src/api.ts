@@ -2798,6 +2798,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   InsightChoice,
   InsightSubmission,
   InsightQuestion,
+  SurveyInsights,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
