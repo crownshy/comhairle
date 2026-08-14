@@ -1,5 +1,11 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import { isHeyFormFieldKind } from '$lib/tools/heyform/guards';
+import {
+	isHeyFormChoiceFieldKind,
+	isHeyFormEmptyValue,
+	isHeyFormFieldKind,
+	isHeyFormNonChoiceFieldKind,
+	isHeyFormOtherFieldKind
+} from '$lib/tools/heyform/guards';
 import type {
 	HeyFormAddressValue,
 	HeyFormChoiceFieldKind,
@@ -21,19 +27,20 @@ type Choice = {
 	count: number;
 };
 
-export interface ChoiceQuestion {
+interface Question {
 	id: string;
 	title: string;
+	answered: number;
 	total: number;
+}
+
+export interface ChoiceQuestion extends Question {
 	properties?: Properties | null;
 	kind: HeyFormChoiceFieldKind;
 	answers: Choice[];
 }
 
-export interface NonChoiceQuestion {
-	id: string;
-	title: string;
-	total: number;
+export interface NonChoiceQuestion extends Question {
 	properties?: Properties;
 	kind: HeyFormNonChoiceFieldKind;
 	answers: unknown[];
@@ -41,32 +48,26 @@ export interface NonChoiceQuestion {
 
 export type SurveyQuestion = ChoiceQuestion | NonChoiceQuestion;
 
-function transform(insight: InsightQuestion): SurveyQuestion | undefined {
-	if (!insight.kind || !isHeyFormFieldKind(insight.kind)) {
-		return undefined;
-	}
-
+function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'] {
 	switch (insight.kind) {
 		case 'yes_no':
 		case 'multiple_choice':
 		case 'picture_choice':
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties,
-				answers: insight.choices ?? []
-			});
+			return insight.choices ?? [];
+
 		case 'ranking': {
 			const answers: Choice[] = [];
 
 			if (!insight.properties || !insight.submissions) {
-				return undefined;
+				return [];
 			}
 
 			for (const submission of insight.submissions) {
 				const s = submission.value as HeyFormRankedValue;
+				if (isHeyFormEmptyValue(s)) {
+					continue;
+				}
+
 				for (let i = 0; i < s.value.length; i++) {
 					const choiceId = s.value[i];
 					// Calculate the amount of ranking, so just the length minus the index, e.g. for 5 choices, the top would receieve 5, last would receieve 1
@@ -91,24 +92,22 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				}
 			}
 
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties,
-				answers
-			});
+			return answers;
 		}
+
 		case 'matrix': {
 			const answers: Choice[] = [];
 
 			if (!insight.properties || !insight.submissions) {
-				return undefined;
+				return [];
 			}
 
 			for (const submission of insight.submissions) {
 				const s = submission.value as HeyFormMatrixValue;
+				if (isHeyFormEmptyValue(s)) {
+					continue;
+				}
+
 				for (const [choiceId, amount] of Object.entries(s)) {
 					const answerIndex = answers.findIndex((a) => a.id === choiceId);
 
@@ -130,18 +129,12 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 				}
 			}
 
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties,
-				answers
-			});
+			return answers;
 		}
+
 		case 'legal_terms': {
 			if (!insight.submissions) {
-				return undefined;
+				return [];
 			}
 
 			const answers: Choice[] = [
@@ -159,18 +152,19 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 
 			for (const submission of insight.submissions) {
 				const value = submission.value as HeyFormLegalTermsValue;
-				answers[Number(value)].count += 1;
+				answers[Number(!value)].count += 1;
 			}
 
-			return typedObj<ChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties ?? undefined,
-				answers
-			});
+			return answers;
 		}
+
+		default:
+			return [];
+	}
+}
+
+function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['answers'] {
+	switch (insight.kind) {
 		case 'rating':
 		case 'opinion_scale':
 		case 'number':
@@ -181,98 +175,96 @@ function transform(insight: InsightQuestion): SurveyQuestion | undefined {
 		case 'phone_number':
 		case 'country_selector':
 		case 'date':
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => s.value)
-						.filter((s) => (typeof s === 'string' ? !!s.trim() : !!s)) ?? []
-			});
+			return (
+				insight.submissions
+					?.map((s) => s.value)
+					.filter((s) => (typeof s === 'string' ? !!s.trim() : true)) ?? []
+			);
+
 		case 'full_name':
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => {
-							const fullName = s.value as HeyFormFullNameValue;
-							return `${fullName.firstName} ${fullName.lastName}`;
-						})
-						.filter((s) => !!s.trim()) ?? []
-			});
+			return (
+				insight.submissions
+					?.map((s) => {
+						const fullName = s.value as HeyFormFullNameValue;
+						if (isHeyFormEmptyValue(fullName)) return '';
+						return `${fullName.firstName} ${fullName.lastName}`;
+					})
+					.filter((s) => !!s.trim()) ?? []
+			);
+
 		case 'address':
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => {
-							const address = s.value as HeyFormAddressValue;
-							return Object.values(address).join(', ');
-						})
-						.filter((s) => !!s.trim()) ?? []
-			});
+			return (
+				insight.submissions
+					?.map((s) => {
+						const address = s.value as HeyFormAddressValue;
+						if (isHeyFormEmptyValue(address)) return '';
+						return Object.values(address).join(', ');
+					})
+					.filter((s) => !!s.trim()) ?? []
+			);
+
 		case 'date_range':
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => {
-							const dateRange = s.value as HeyFormDateRangeValue;
-							return `${dateRange.start} - ${dateRange.end}`;
-						})
-						.filter((s) => !!s.trim()) ?? []
-			});
+			return (
+				insight.submissions
+					?.map((s) => {
+						const dateRange = s.value as HeyFormDateRangeValue;
+						if (isHeyFormEmptyValue(dateRange)) return '';
+						return `${dateRange.start} - ${dateRange.end}`;
+					})
+					.filter((s) => !!s.trim()) ?? []
+			);
+
 		case 'file_upload':
-			return typedObj<NonChoiceQuestion>({
-				id: insight.id,
-				title: insight.title,
-				total: insight.total,
-				kind: insight.kind,
-				properties: insight.properties ?? undefined,
-				answers:
-					insight.submissions
-						?.map((s) => {
-							const file = s.value as HeyFormFileUploadValue;
-							return `${file.filename} - ${file.url}`;
-						})
-						.filter((s) => !!s.trim()) ?? []
-			});
-		case 'group':
-		case 'statement':
-		case 'time':
-		case 'input_table':
-		case 'payment':
-		case 'signature':
-		case 'submit_date':
-		case 'custom_text':
-		case 'custom_single':
-		case 'custom_multiple':
-		case 'custom_date':
-		case 'custom_number':
-		case 'custom_checkbox':
-		case 'hidden_fields':
-		case 'variable':
-		case 'hidden_checkbox':
-		case 'welcome':
-		case 'thank_you':
+			return (
+				insight.submissions
+					?.map((s) => {
+						const file = s.value as HeyFormFileUploadValue;
+						if (isHeyFormEmptyValue(file)) return '';
+						return `${file.filename} - ${file.url}`;
+					})
+					.filter((s) => !!s.trim()) ?? []
+			);
+
 		default:
-			return undefined;
+			return [];
 	}
+}
+
+function normalise(insight: InsightQuestion): SurveyQuestion | undefined {
+	if (
+		!insight.kind ||
+		!isHeyFormFieldKind(insight.kind) ||
+		isHeyFormOtherFieldKind(insight.kind)
+	) {
+		return undefined;
+	}
+
+	const question: Question = {
+		id: insight.id,
+		title: insight.title,
+		answered: insight.answered,
+		total: insight.total
+	};
+
+	if (isHeyFormChoiceFieldKind(insight.kind)) {
+		return typedObj<ChoiceQuestion>({
+			...question,
+			properties: insight.properties ?? undefined,
+			kind: insight.kind,
+			answers: transformChoiceData(insight)
+		});
+	}
+
+	if (isHeyFormNonChoiceFieldKind(insight.kind)) {
+		return typedObj<NonChoiceQuestion>({
+			...question,
+			properties: insight.properties ?? undefined,
+			kind: insight.kind,
+			answers: transformNonChoiceData(insight)
+		});
+	}
+
+	return undefined;
 }
 
 export async function surveyInsightsLoader(
@@ -289,5 +281,5 @@ export async function surveyInsightsLoader(
 		return { survey: [] as SurveyQuestion[] };
 	}
 
-	return { survey: response.ok.questions.map(transform).filter((q) => q !== undefined) };
+	return { survey: response.ok.questions.map(normalise).filter((q) => q !== undefined) };
 }

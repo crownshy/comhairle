@@ -4,6 +4,7 @@ import {
 	HEYFORM_NON_CHOICE_FIELD_KIND,
 	HEYFORM_OTHER_FIELD_KIND,
 	type HeyFormChoiceFieldKind,
+	type HeyFormEmptyValue,
 	type HeyFormFieldKind,
 	type HeyFormNonChoiceFieldKind,
 	type HeyFormOtherFieldKind
@@ -25,3 +26,20 @@ export const isHeyFormNonChoiceFieldKind = (
 export const isHeyFormOtherFieldKind = (
 	str: string | HeyFormOtherFieldKind
 ): str is HeyFormOtherFieldKind => HEYFORM_OTHER_FIELD_KIND.includes(str as HeyFormOtherFieldKind);
+
+export const isHeyFormEmptyValue = (value: unknown): value is HeyFormEmptyValue => {
+	if (typeof value === 'string') {
+		return value === '';
+	}
+
+	if (
+		typeof value === 'object' &&
+		value !== null &&
+		'value' in value &&
+		Array.isArray(value.value)
+	) {
+		return value?.value?.length === 0;
+	}
+
+	return false;
+};

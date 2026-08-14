@@ -39,14 +39,14 @@
 		{#if isValidQuestion(section)}
 			<div class="py-10">
 				<h2 class="text-md font-bold">{section.title}</h2>
-				<!-- <div class="flex flex-row"> -->
-				<!-- 	<h3 class="text-muted-foreground mr-10 text-sm"> -->
-				<!-- 		{section.answers.length} -->
-				<!-- 		{section.answers.length === 1 ? 'response' : 'responses'} -->
-				<!-- 		· -->
-				<!-- 		{Math.round(section.answers.length / section.total) * 100}% Completion -->
-				<!-- 	</h3> -->
-				<!-- </div> -->
+				<div class="flex flex-row">
+					<h3 class="text-muted-foreground mr-10 text-sm">
+						{section.answered}
+						{section.answered === 1 ? 'response' : 'responses'}
+						·
+						{Math.round((section.answered / section.total) * 100)}% Completion
+					</h3>
+				</div>
 				{#if isChoiceQuestion(section)}
 					{#if section.answers.length <= 3}
 						<Doughnut data={section.answers} key="label" value="count" />

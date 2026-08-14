@@ -452,7 +452,7 @@ pub async fn submissions(
     Ok((
         StatusCode::OK,
         Json(Submissions {
-            total: submissions.len() as i32,
+            total: submissions.len() as u32,
             submissions,
         }),
     ))
@@ -504,8 +504,10 @@ pub struct InsightQuestion {
     /// Human-readable question title extracted from the form schema.
     /// Falls back to the field ID when the schema contains no plain-text title.
     pub title: String,
+    /// Number of times this question was answered.
+    pub answered: u32,
     /// Total number of responses recorded for this question.
-    pub total: i32,
+    pub total: u32,
     /// Field properties
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, serde_json::Value>>,
@@ -723,6 +725,20 @@ pub fn build_survey_insights(
 
             let choices = resolve_choices(response, &field_choices_by_id);
 
+            let answered = submissions_by_field
+                .get(&response.id)
+                .unwrap_or(&Vec::new())
+                .iter()
+                .fold(0u32, |acc, submission| {
+                    let val = submission.value.to_string();
+                    // Empty values from HeyForm
+                    if val != "\"\"" && val != "{\"value\":[]}" {
+                        return acc + 1;
+                    }
+
+                    acc
+                });
+
             // Attach individual submission answers for non-choice questions.
             // Choice-based questions already have a full aggregate breakdown
             // via `choices`; for everything else (short_text, opinion_scale,
@@ -743,6 +759,7 @@ pub fn build_survey_insights(
                 id: response.id.clone(),
                 kind,
                 title,
+                answered,
                 total: response.total,
                 properties,
                 choices,
