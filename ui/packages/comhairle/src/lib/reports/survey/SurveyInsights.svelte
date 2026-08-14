@@ -41,10 +41,10 @@
 				<h2 class="text-md font-bold">{section.title}</h2>
 				<div class="flex flex-row">
 					<h3 class="text-muted-foreground mr-10 text-sm">
-						{section.count}
-						{section.count === 1 ? 'response' : 'responses'}
+						{section.answered}
+						{section.answered === 1 ? 'response' : 'responses'}
 						·
-						{Math.round((section.count / section.total) * 100)}% Completion
+						{Math.round((section.answered / section.total) * 100)}% Completion
 					</h3>
 				</div>
 				{#if isChoiceQuestion(section)}

@@ -29,7 +29,7 @@ type Choice = {
 interface Question {
 	id: string;
 	title: string;
-	count: number;
+	answered: number;
 	total: number;
 }
 
@@ -240,7 +240,7 @@ function normalise(insight: InsightQuestion): SurveyQuestion | undefined {
 	const question: Question = {
 		id: insight.id,
 		title: insight.title,
-		count: insight.count,
+		answered: insight.answered,
 		total: insight.total
 	};
 

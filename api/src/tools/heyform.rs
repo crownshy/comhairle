@@ -504,8 +504,8 @@ pub struct InsightQuestion {
     /// Human-readable question title extracted from the form schema.
     /// Falls back to the field ID when the schema contains no plain-text title.
     pub title: String,
-    /// Number of submissions that have been sent through.
-    pub count: u32,
+    /// Number of times this question was answered.
+    pub answered: u32,
     /// Total number of responses recorded for this question.
     pub total: u32,
     /// Field properties
@@ -725,7 +725,7 @@ pub fn build_survey_insights(
 
             let choices = resolve_choices(response, &field_choices_by_id);
 
-            let count = submissions_by_field
+            let answered = submissions_by_field
                 .get(&response.id)
                 .unwrap_or(&Vec::new())
                 .iter()
@@ -759,7 +759,7 @@ pub fn build_survey_insights(
                 id: response.id.clone(),
                 kind,
                 title,
-                count,
+                answered,
                 total: response.total,
                 properties,
                 choices,

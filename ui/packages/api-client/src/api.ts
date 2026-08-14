@@ -659,11 +659,11 @@ export const FormReportResponse = z
   .object({
     average: z.number(),
     chooses: z.union([z.array(z.unknown()), z.null()]).optional(),
-    count: z.number().int(),
+    count: z.number().int().gte(0),
     id: z.string(),
     kind: z.union([z.string(), z.null()]).optional(),
     title: z.union([z.string(), z.null()]).optional(),
-    total: z.number().int(),
+    total: z.number().int().gte(0),
   })
   .passthrough();
 export type FormReportResponse = z.infer<typeof FormReportResponse>;
@@ -715,7 +715,7 @@ export const Submission = z
   .passthrough();
 export type Submission = z.infer<typeof Submission>;
 export const Submissions = z
-  .object({ submissions: z.array(Submission), total: z.number().int() })
+  .object({ submissions: z.array(Submission), total: z.number().int().gte(0) })
   .passthrough();
 export type Submissions = z.infer<typeof Submissions>;
 export const InsightChoice = z
@@ -732,8 +732,8 @@ export const InsightSubmission = z
 export type InsightSubmission = z.infer<typeof InsightSubmission>;
 export const InsightQuestion = z
   .object({
+    answered: z.number().int().gte(0),
     choices: z.union([z.array(InsightChoice), z.null()]).optional(),
-    count: z.number().int().gte(0),
     id: z.string(),
     kind: z.union([z.string(), z.null()]).optional(),
     properties: z
@@ -741,7 +741,7 @@ export const InsightQuestion = z
       .optional(),
     submissions: z.union([z.array(InsightSubmission), z.null()]).optional(),
     title: z.string(),
-    total: z.number().int(),
+    total: z.number().int().gte(0),
   })
   .passthrough();
 export type InsightQuestion = z.infer<typeof InsightQuestion>;
