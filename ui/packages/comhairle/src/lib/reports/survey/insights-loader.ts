@@ -1,6 +1,7 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import {
 	isHeyFormChoiceFieldKind,
+	isHeyFormEmptyValue,
 	isHeyFormFieldKind,
 	isHeyFormNonChoiceFieldKind,
 	isHeyFormOtherFieldKind
@@ -63,7 +64,7 @@ function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'
 
 			for (const submission of insight.submissions) {
 				const s = submission.value as HeyFormRankedValue;
-				if (s.value.length === 0) {
+				if (isHeyFormEmptyValue(s)) {
 					continue;
 				}
 
@@ -103,6 +104,10 @@ function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'
 
 			for (const submission of insight.submissions) {
 				const s = submission.value as HeyFormMatrixValue;
+				if (isHeyFormEmptyValue(s)) {
+					continue;
+				}
+
 				for (const [choiceId, amount] of Object.entries(s)) {
 					const answerIndex = answers.findIndex((a) => a.id === choiceId);
 
@@ -147,8 +152,8 @@ function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'
 
 			for (const submission of insight.submissions) {
 				const value = submission.value as HeyFormLegalTermsValue;
-				// First choice gets primary colour, so "yes" should be index 0, but
-				// "true" parses to 1, so this inverts it, so (value) 1 = yes and (value) 0 = no
+				// First choice gets primary colour, so "yes" should be index 0, but "true"
+				// parses to 1, so we need to invert it, so (value) 1 = yes and (value) 0 = no
 				answers[(Number(value) + 1) % 2].count += 1;
 			}
 
@@ -183,7 +188,7 @@ function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['an
 				insight.submissions
 					?.map((s) => {
 						const fullName = s.value as HeyFormFullNameValue;
-						if (fullName === '') return '';
+						if (isHeyFormEmptyValue(fullName)) return '';
 						return `${fullName.firstName} ${fullName.lastName}`;
 					})
 					.filter((s) => !!s.trim()) ?? []
@@ -194,7 +199,7 @@ function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['an
 				insight.submissions
 					?.map((s) => {
 						const address = s.value as HeyFormAddressValue;
-						if (address === '') return '';
+						if (isHeyFormEmptyValue(address)) return '';
 						return Object.values(address).join(', ');
 					})
 					.filter((s) => !!s.trim()) ?? []
@@ -205,7 +210,7 @@ function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['an
 				insight.submissions
 					?.map((s) => {
 						const dateRange = s.value as HeyFormDateRangeValue;
-						if (dateRange === '') return '';
+						if (isHeyFormEmptyValue(dateRange)) return '';
 						return `${dateRange.start} - ${dateRange.end}`;
 					})
 					.filter((s) => !!s.trim()) ?? []
@@ -216,7 +221,7 @@ function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['an
 				insight.submissions
 					?.map((s) => {
 						const file = s.value as HeyFormFileUploadValue;
-						if (file === '') return '';
+						if (isHeyFormEmptyValue(file)) return '';
 						return `${file.filename} - ${file.url}`;
 					})
 					.filter((s) => !!s.trim()) ?? []

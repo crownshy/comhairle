@@ -179,6 +179,7 @@ export interface FormField {
 	hide?: boolean;
 }
 
+export type HeyFormEmptyValue = '' | { value: [] };
 export type HeyFormFullNameValue = { firstName: string; lastName: string } | '';
 export type HeyFormAddressValue =
 	| {
