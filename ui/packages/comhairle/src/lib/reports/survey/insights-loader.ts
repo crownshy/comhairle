@@ -176,7 +176,7 @@ function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['an
 			return (
 				insight.submissions
 					?.map((s) => s.value)
-					.filter((s) => (typeof s === 'string' ? !!s.trim() : !!s)) ?? []
+					.filter((s) => (typeof s === 'string' ? !!s.trim() : true)) ?? []
 			);
 
 		case 'full_name':
