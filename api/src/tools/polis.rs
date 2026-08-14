@@ -771,6 +771,20 @@ pub struct ModerateStatementAuxRequest {
     pub moderation_reason: Option<String>,
 }
 
+/// The reason to persist for a moderation decision. Reject keeps the supplied
+/// reason; accept clears it (returns `None`) so a stored reason never describes
+/// a statement that is no longer rejected (ADR-0015). Shared by the single and
+/// batch handlers so the invariant lives in one place.
+fn reason_for_decision<'a>(
+    status: &ModerationStatus,
+    reason: &'a Option<String>,
+) -> Option<&'a str> {
+    match status {
+        ModerationStatus::Accepted => None,
+        _ => reason.as_deref(),
+    }
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn moderate_statement_aux(
     State(state): State<Arc<ComhairleState>>,
@@ -809,12 +823,7 @@ async fn moderate_statement_aux(
         )
         .await?;
 
-    // Reject records the optional reason; accept clears any prior reason so it
-    // never describes a statement that is no longer rejected (ADR-0015).
-    let reason = match status {
-        ModerationStatus::Accepted => None,
-        _ => request.moderation_reason.as_deref(),
-    };
+    let reason = reason_for_decision(&status, &request.moderation_reason);
 
     let updated =
         models::polis_statement_aux::moderate(&state.db, statement_id, status.clone(), reason)
@@ -1041,13 +1050,9 @@ async fn moderate_statement_aux_batch(
         }
     }
 
-    // Reject applies the shared reason to every row; accept clears it (ADR-0015).
-    let reason = match status {
-        ModerationStatus::Accepted => None,
-        _ => request.moderation_reason.as_deref(),
-    };
+    let reason = reason_for_decision(&status, &request.moderation_reason);
 
-    // Persist status + reason for the rows Polis accepted, in one statement.
+    // Persist status + reason for the rows that succeeded in Polis, in one statement.
     let succeeded =
         models::polis_statement_aux::moderate_many(&state.db, &succeeded_ids, status, reason)
             .await?;
