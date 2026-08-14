@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Button } from '$lib/components/ui/button';
+	import { Toggle } from '$lib/components/ui/toggle';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { REJECT_REASONS, composeReason } from './rejectReasons';
 
@@ -54,18 +55,14 @@
 
 			<div class="flex flex-wrap gap-2">
 				{#each REJECT_REASONS as reason (reason)}
-					<button
-						type="button"
-						aria-pressed={selected === reason}
-						onclick={() => (selected = selected === reason ? null : reason)}
-						class={`inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-sm transition-colors ${
-							selected === reason
-								? 'border-primary bg-primary text-primary-foreground'
-								: 'border-border bg-secondary text-secondary-foreground hover:bg-secondary/80'
-						}`}
+					<Toggle
+						size="sm"
+						pressed={selected === reason}
+						onPressedChange={(on) => (selected = on ? reason : null)}
+						class="border-border bg-secondary text-secondary-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground rounded-full border px-3"
 					>
 						{reason}
-					</button>
+					</Toggle>
 				{/each}
 			</div>
 
