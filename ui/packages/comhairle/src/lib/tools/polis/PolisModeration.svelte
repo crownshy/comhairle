@@ -8,6 +8,7 @@
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { RefreshCw, Search } from '@lucide/svelte';
 	import AddSeedStatementsDialog from './polis-moderation/AddSeedStatementsDialog.svelte';
+	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 
 	let {
@@ -179,6 +180,51 @@
 		}
 		statements = statements.map((s) => (s.id === row.id ? res.ok : s));
 	}
+
+	// --- Split / reword ---
+	// A derived statement carries `original_statement_id`; the rejected original is
+	// linked back to its replacements. Both directions are resolved here from the
+	// full (unfiltered) list so the row can show "Edited from" / "Replaced by".
+	const lineage = $derived.by(() => {
+		// First pass builds both indexes. The result pass below has to stay
+		// separate: it reads `replacementsByOriginal[s.id]`, which isn't complete
+		// until every statement has been seen (a replacement may sit before or
+		// after its original in the list).
+		const byId = new Map<string, PolisStatementAux>();
+		const replacementsByOriginal: Record<string, string[]> = {};
+		for (const s of statements) {
+			byId.set(s.id, s);
+			if (s.original_statement_id) {
+				(replacementsByOriginal[s.original_statement_id] ??= []).push(s.statement_text);
+			}
+		}
+		const result: Record<string, { editedFrom?: string; replacedBy?: string[] }> = {};
+		for (const s of statements) {
+			const editedFrom = s.original_statement_id
+				? byId.get(s.original_statement_id)?.statement_text
+				: undefined;
+			const replacedBy = replacementsByOriginal[s.id];
+			if (editedFrom || replacedBy) result[s.id] = { editedFrom, replacedBy };
+		}
+		return result;
+	});
+
+	let splitTarget = $state<PolisStatementAux | null>(null);
+	let splitOpen = $state(false);
+
+	// The statement the participant was viewing when they submitted the target, if we
+	// can resolve it. `visible_statement_when_submitted` stores the Polis tid.
+	const splitContext = $derived.by(() => {
+		const tid = splitTarget?.visible_statement_when_submitted;
+		if (!tid) return undefined;
+		const n = Number(tid);
+		return statements.find((s) => s.polis_statement_id === n)?.statement_text;
+	});
+
+	function openSplit(row: PolisStatementAux) {
+		splitTarget = row;
+		splitOpen = true;
+	}
 </script>
 
 <div class="flex flex-col gap-6 rounded-xl">
@@ -236,10 +282,19 @@
 		{selected}
 		{pending}
 		{bulkAction}
+		{lineage}
 		onToggleSelect={toggleSelect}
 		onToggleAll={toggleSelectAll}
 		onClear={clearSelection}
 		onBulkModerate={bulkModerate}
 		onModerate={setStatus}
+		onSplit={openSplit}
 	/>
 </div>
+
+<SplitStatementDialog
+	bind:open={splitOpen}
+	original={splitTarget}
+	viewedContext={splitContext}
+	onDone={() => invalidate('polis:statement-aux')}
+/>

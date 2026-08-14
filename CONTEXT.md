@@ -120,11 +120,18 @@ A Polis Step is backed by **two** separate Pol.is conversations: a **preview** p
 _Status_: `launch` creates a fresh live poll and migrates only seed **text** (`post_seed_comment`) — it does **not** carry over aux metadata (`moderation_status`, `themes`), so pre-launch moderation/theming does not survive launch. It also does not yet filter rejected seeds (`// TODO: filter seed statements`). Both are follow-up backend fixes, not part of the tab UI work.
 
 **Seed statement**:
-A statement authored by the moderator (not a participant) to spark discussion, `is_seed: true`. Posted server-side to the active Polis poll (preview while draft, live after launch) via a new backend seed route wrapping `post_seed_comment`, then surfaced locally after sync. Distinct from `moderation_status`.
+A statement authored by the moderator (not a participant) to spark discussion, `is_seed: true`. Posted server-side to the active Polis poll (preview while draft, live after launch) via a new backend seed route wrapping `post_seed_comment`, then surfaced locally after sync. Distinct from `moderation_status` and from a [[#derived-statement]] (which is `is_seed: false`). Polis auto-approves a seed on post (`mod: 1`); a non-seed host post lands `mod: 0` (pending).
 _Avoid_: Seeded status (it's a boolean flag, not a moderation status).
 
+**Derived statement**:
+A statement an admin authors while moderating, as a split or reword of an existing participant statement (see [[#split]]). Posted to Polis as `is_seed: false` (a real, votable, non-seed statement, not a host seed) and carries `original_statement_id` pointing at the aux row it was derived from. The discriminator: `is_seed: false` **and** `original_statement_id` set = derived; `is_seed: true` = seed; neither = raw participant statement. Never rendered as a host seed.
+_Avoid_: calling it a seed; "edited statement" (Polis has no in-place edit — a derived statement is always a *new* statement).
+
+**Split**:
+The moderation act of replacing one participant statement with one or more clean, separately-votable [[#derived-statement]]s. A single-replacement split is a **reword** (disambiguating one statement); a multi-replacement split breaks a composite statement into parts. One operation either way: post each replacement `is_seed: false`, auto-accept it (`mod: 1`), reject the original (`mod: -1`), and record lineage. No automatic text-splitting: the admin types every replacement by hand.
+
 **Polis statement aux**:
-Comhairle's `polis_statement_aux` sidecar table, one row per Polis statement, holding admin-only metadata Polis doesn't store: `moderation_status`, human-authored `themes`, `is_seed`, `moderation_reason`, `visible_statement_when_submitted`. Populated by sync.
+Comhairle's `polis_statement_aux` sidecar table, one row per Polis statement, holding admin-only metadata Polis doesn't store: `moderation_status`, human-authored `themes`, `is_seed`, `moderation_reason`, `visible_statement_when_submitted`, and `original_statement_id` (self-referential lineage for [[#derived-statement]]s). Populated by sync; comhairle-only fields (including `original_statement_id`) are preserved across re-sync, not overwritten from Polis.
 
 **Moderation status**:
 The three-value review state of a statement: `accepted · pending · rejected` (enum `ModerationStatus`). Not the same as `is_seed`.
