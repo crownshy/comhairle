@@ -152,9 +152,7 @@ function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'
 
 			for (const submission of insight.submissions) {
 				const value = submission.value as HeyFormLegalTermsValue;
-				// First choice gets primary colour, so "yes" should be index 0, but "true"
-				// parses to 1, so we need to invert it, so (value) 1 = yes and (value) 0 = no
-				answers[(Number(value) + 1) % 2].count += 1;
+				answers[Number(!value)].count += 1;
 			}
 
 			return answers;
