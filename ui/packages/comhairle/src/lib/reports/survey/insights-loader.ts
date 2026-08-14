@@ -148,7 +148,7 @@ function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'
 			for (const submission of insight.submissions) {
 				const value = submission.value as HeyFormLegalTermsValue;
 				// value `true` = 1
-				// 1 + 1 % 2 = 0
+				// (1 + 1) % 2 = 0
 				// index 0 of answers = "yes"
 				answers[(Number(value) + 1) % 2].count += 1;
 			}
