@@ -452,7 +452,7 @@ pub async fn submissions(
     Ok((
         StatusCode::OK,
         Json(Submissions {
-            total: submissions.len() as i32,
+            total: submissions.len() as u32,
             submissions,
         }),
     ))
@@ -505,9 +505,9 @@ pub struct InsightQuestion {
     /// Falls back to the field ID when the schema contains no plain-text title.
     pub title: String,
     /// Number of submissions that have been sent through.
-    pub count: u64,
+    pub count: u32,
     /// Total number of responses recorded for this question.
-    pub total: i32,
+    pub total: u32,
     /// Field properties
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, serde_json::Value>>,
@@ -729,7 +729,7 @@ pub fn build_survey_insights(
                 .get(&response.id)
                 .unwrap_or(&Vec::new())
                 .iter()
-                .fold(0u64, |acc, submission| {
+                .fold(0u32, |acc, submission| {
                     let val = submission.value.to_string();
                     // Empty values from HeyForm
                     if val != "\"\"" && val != "{\"value\":[]}" {
