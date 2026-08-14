@@ -21,11 +21,11 @@ export const HEYFORM_NON_CHOICE_FIELD_KIND = [
 	'phone_number',
 	'country_selector',
 	'date',
-	'date_range'
+	'date_range',
+	'group'
 ] as const;
 
 export const HEYFORM_OTHER_FIELD_KIND = [
-	'group',
 	'welcome',
 	'thank_you',
 	'statement',

@@ -572,6 +572,12 @@ fn extract_field_title(title: &serde_json::Value) -> Option<String> {
     if text.is_empty() { None } else { Some(text) }
 }
 
+fn is_empty_value(value: &serde_json::Value) -> bool {
+    let val = value.to_string();
+
+    val == "\"\"" || val == "{\"value\":[]}"
+}
+
 /// Resolves the list of [`InsightChoice`]s for one question.
 ///
 /// The report's `chooses` array already carries `id`, `label`, and `count`
@@ -643,7 +649,7 @@ pub fn build_survey_insights(
         for answer in &submission.answers {
             if let Some(field_id) = answer.get("id").and_then(|v| v.as_str()) {
                 if let Some(val) = answer.get("value") {
-                    if !val.is_null() {
+                    if !val.is_null() && !is_empty_value(val) {
                         let key = (field_id.to_string(), sub_id.clone());
                         if seen_answers.insert(key) {
                             submissions_by_field
@@ -666,7 +672,7 @@ pub fn build_survey_insights(
         let field_id = &report_sub.id;
         for answer in &report_sub.answers {
             if let Some(val) = &answer.value {
-                if !val.is_null() {
+                if !val.is_null() && !is_empty_value(val) {
                     let key = (field_id.clone(), answer.submission_id.clone());
                     if seen_answers.insert(key) {
                         let submitted_at = if answer.end_at != 0 {
@@ -728,16 +734,7 @@ pub fn build_survey_insights(
             let answered = submissions_by_field
                 .get(&response.id)
                 .unwrap_or(&Vec::new())
-                .iter()
-                .fold(0u32, |acc, submission| {
-                    let val = submission.value.to_string();
-                    // Empty values from HeyForm
-                    if val != "\"\"" && val != "{\"value\":[]}" {
-                        return acc + 1;
-                    }
-
-                    acc
-                });
+                .len() as u32;
 
             // Attach individual submission answers for non-choice questions.
             // Choice-based questions already have a full aggregate breakdown
