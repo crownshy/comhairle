@@ -771,6 +771,20 @@ pub struct ModerateStatementAuxRequest {
     pub moderation_reason: Option<String>,
 }
 
+/// The reason to persist for a moderation decision. Reject keeps the supplied
+/// reason; accept clears it (returns `None`) so a stored reason never describes
+/// a statement that is no longer rejected (ADR-0015). Shared by the single and
+/// batch handlers so the invariant lives in one place.
+fn reason_for_decision<'a>(
+    status: &ModerationStatus,
+    reason: &'a Option<String>,
+) -> Option<&'a str> {
+    match status {
+        ModerationStatus::Accepted => None,
+        _ => reason.as_deref(),
+    }
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn moderate_statement_aux(
     State(state): State<Arc<ComhairleState>>,
@@ -798,27 +812,22 @@ async fn moderate_statement_aux(
         })
         .await?;
 
+    let status: ModerationStatus = request.decision.into();
+
     client
         .moderate_comment(
             &config.poll_id,
             aux.polis_statement_id,
-            request.decision.into(),
+            status.clone(),
             &auth_cookies,
         )
         .await?;
 
-    let updated = models::polis_statement_aux::update(
-        &state.db,
-        statement_id,
-        &UpdatePolisStatementAux {
-            statement_text: None,
-            moderation_status: Some(request.decision.into()),
-            themes: None,
-            visible_statement_when_submitted: None,
-            moderation_reason: request.moderation_reason,
-        },
-    )
-    .await?;
+    let reason = reason_for_decision(&status, &request.moderation_reason);
+
+    let updated =
+        models::polis_statement_aux::moderate(&state.db, statement_id, status.clone(), reason)
+            .await?;
 
     Ok((StatusCode::OK, Json(updated)))
 }
@@ -944,6 +953,9 @@ pub struct ModerateStatementAuxBatchRequest {
     /// polis_statement_aux ids to moderate. All must belong to the same workflow step.
     pub ids: Vec<Uuid>,
     pub decision: ModerationDecisionRequest,
+    /// Optional shared reason applied to every rejected row. Ignored on accept,
+    /// which always clears the reason (ADR-0015).
+    pub moderation_reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -1038,16 +1050,12 @@ async fn moderate_statement_aux_batch(
         }
     }
 
-    // Persist moderation_status for the rows Polis accepted, in one statement.
-    let succeeded = models::polis_statement_aux::update_many(
-        &state.db,
-        &succeeded_ids,
-        &UpdatePolisStatementAux {
-            moderation_status: Some(status),
-            ..Default::default()
-        },
-    )
-    .await?;
+    let reason = reason_for_decision(&status, &request.moderation_reason);
+
+    // Persist status + reason for the rows that succeeded in Polis, in one statement.
+    let succeeded =
+        models::polis_statement_aux::moderate_many(&state.db, &succeeded_ids, status, reason)
+            .await?;
 
     Ok((
         StatusCode::OK,

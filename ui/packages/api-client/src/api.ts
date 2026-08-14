@@ -555,6 +555,7 @@ export const ModerateStatementAuxBatchRequest = z
   .object({
     decision: ModerationDecisionRequest,
     ids: z.array(z.string().uuid()),
+    moderation_reason: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type ModerateStatementAuxBatchRequest = z.infer<
