@@ -15,7 +15,7 @@
 
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
@@ -188,10 +188,15 @@
 					}
 				);
 
-				await invalidate('app:workflow-steps');
-
-				goto(
-					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString
+				/** Deliberately no invalidate() in place. Marking the step done changes
+				 * what this page's own load does: a completed, non-revisitable step
+				 * redirects to /next. Invalidating here re-runs that load, the redirect
+				 * rejects the invalidate, and the catch below fires a spurious error
+				 * toast while the redirect navigates anyway. Navigating with
+				 * invalidateAll refreshes the step list at the destination instead. */
+				await goto(
+					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
+					{ invalidateAll: true }
 				);
 			} else {
 				let next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
