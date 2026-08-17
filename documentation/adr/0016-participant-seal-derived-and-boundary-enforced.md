@@ -52,17 +52,21 @@ a step and several hundred sealed participants can never see it, and because it 
 change to zero schema. Revisit if adding steps to live workflows becomes routine.
 
 **2. The backend decides; the frontend obeys.** `is_sealed` backs both a write gate on the
-API and a `sealed` flag on `LocalizedWorkflowStepWithProgressDto`, the steps list the
-workflow layout already fetches with `withUserProgress=true`. The participant-facing
-redirect is the UX expression of a backend decision, not the enforcement itself. No
-sealed-ness is computed client side.
+API and a `sealed` flag on `UserParticipationDto`, returned by
+`GET /conversation/{id}/workflow/{id}/participation`. The participant-facing redirect is
+the UX expression of a backend decision, not the enforcement itself. No sealed-ness is
+computed client side. Deriving it in the frontend would have meant a second definition that
+could drift from the one the write gates enforce, which is the failure this decision exists
+to prevent.
 
-Sealed is a property of a participant's relationship to the *workflow*, so it carries the
-same value on every step in that response. `WorkflowDto` would have been the tidier home,
-but the workflow list route takes no authenticated user, so there is nobody to compute it
-for; the steps route already requires one. Deriving it in the frontend instead would have
-avoided the redundancy at the cost of a second definition that could drift from the one the
-write gates enforce, which is the failure this decision exists to prevent.
+Sealed is a property of a participant's relationship to a *workflow*, so it belongs on a
+response that is keyed by both. The participation endpoint already is, already requires a
+user, and is already fetched once in the conversation layout. Two homes were considered and
+rejected. `LocalizedWorkflowStepWithProgressDto` (the steps list the workflow layout fetches
+with `withUserProgress=true`) would repeat one workflow-level fact on every step and leave
+the frontend reading it back off an arbitrary element of the list. `WorkflowDto` is also
+what the admin create, get, update and delete handlers return, none of which have a
+participant, so every one of them would have to serialize a `sealed` that means nothing.
 
 **3. Enforcement stops at comhairle's boundary.** The write gate covers `SetUserProgress`
 and `CreateProposalResponse`. HeyForm and Polis writes are out of reach without changing a
@@ -103,6 +107,10 @@ backfill.
   `thank_you/+page.ts` and `return/+page.ts` each filter on `canRevisit` independently
   today, and `/return` is the magic link emailed to participants, so a disagreement there
   is the visible one.
+- The workflow layout reuses the participation row the conversation layout already fetched,
+  which is the row for the conversation's first workflow. A conversation that ever runs a
+  second workflow costs one extra request there rather than reading a seal for the wrong
+  workflow.
 - The write gate is scoped to step contribution writes, not to the participant. Thank You
   page writes (feedback, email registration, conversation preferences, account upgrade) and
   the public report route stay open to sealed participants, and the Waves prize-draw

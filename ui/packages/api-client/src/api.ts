@@ -1481,6 +1481,17 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
+export const UserParticipationDto = z
+  .object({
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    sealed: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+    user_id: z.string().uuid(),
+    workflow_id: z.string().uuid(),
+  })
+  .passthrough();
+export type UserParticipationDto = z.infer<typeof UserParticipationDto>;
 export const TranslationDto = z
   .object({
     textContent: TextContentDto,
@@ -1741,7 +1752,6 @@ export const LocalizedWorkflowStepWithProgressDto = z
     progressStatus: ProgressStatus,
     requestUserSharePermission: z.boolean(),
     required: z.boolean(),
-    sealed: z.boolean(),
     stepOrder: z.number().int(),
     toolConfig: z.union([LocalizedToolConfig, z.null()]).optional(),
     workflowId: z.string().uuid(),
@@ -3128,6 +3138,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicCategory,
   DemographicReport,
   UserParticipation,
+  UserParticipationDto,
   TranslationDto,
   JsonFieldWithTranslations,
   CategoryWithTranslations,
@@ -4572,7 +4583,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
     alias: "GetUserConversationParticipation",
     requestFormat: "json",
-    response: z.union([UserParticipation, z.null()]),
+    response: z.union([UserParticipationDto, z.null()]),
   },
   {
     method: "get",
