@@ -224,7 +224,9 @@
 	 * can continue. Blank (or invalid) input means "all proposals", the default, and
 	 * is stored as undefined so clearing the field restores it. A set value floors at
 	 * 1; the participant gate clamps to the proposal count, so there is no upper bound
-	 * to enforce here. Debounced on input, matching PolisManage's identical field. */
+	 * to enforce here. Debounced on input. PolisManage's field looks identical but
+	 * handles blank input differently: it returns early and keeps the previous value,
+	 * where clearing this one deliberately restores the default. */
 	const saveRequiredReviews = useDebounce(async (raw: string) => {
 		const parsed = Number.parseInt(raw.trim(), 10);
 		const next = Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined;
@@ -483,7 +485,8 @@
 				<Label for="requiredReviews" class="font-medium">Minimum proposals to review</Label>
 				<p class="text-muted-foreground text-sm">
 					How many proposals a participant must review before they can continue to the
-					next step. Leave blank to require all proposals.
+					next step. Leave blank to require all proposals.{#if store.proposals.length > 0}
+						A number above {store.proposals.length} counts as all of them.{/if}
 				</p>
 			</div>
 			<Input
@@ -491,6 +494,7 @@
 				name="requiredReviews"
 				type="number"
 				min="1"
+				max={store.proposals.length > 0 ? store.proposals.length : undefined}
 				step="1"
 				placeholder="All"
 				class="w-24"
