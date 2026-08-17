@@ -335,12 +335,13 @@
 		submitAttempted = false;
 		/** Confirm the submission with a short interstitial before revealing what's next. */
 		await flashSubmittedInterstitial();
-		/** If anything is left, move on and scroll back to the top of the page so the
-		 * jump to the next proposal is unmistakable. Otherwise let allDone surface the summary. */
+		/** Move on if any proposals remain; the last submit instead flips to the
+		 * "Your answers" summary (which takes template precedence). Either way scroll
+		 * back to the top of the page so the transition is unmistakable. */
 		if (currentIndex < proposals.length - 1) {
 			currentIndex += 1;
-			await scrollToTop();
 		}
+		await scrollToTop();
 	}
 
 	function goBack() {
