@@ -81,10 +81,10 @@
 	}
 
 	/** Text answers are optional — completeness only requires likert / continuous. */
-	const requiredQuestions = $derived<Question[]>(
+	const requiredQuestions = $derived<Question<string>[]>(
 		toolConfig.questions.filter((q) => q.type.kind !== 'text')
 	);
-	const requiredSectionQuestions = $derived<Question[]>(
+	const requiredSectionQuestions = $derived<Question<string>[]>(
 		toolConfig.sectionQuestions.filter((q) => q.type.kind !== 'text')
 	);
 
@@ -401,11 +401,11 @@
 							{#each proposal.sections as section (section.id)}
 								{#if toolConfig.sectionQuestions.length > 0}
 									<div class="grid gap-6 lg:grid-cols-2">
-										<div class="text-muted-foreground">
-											{#if section.body}
+										{#if section.body}
+											<div class="text-muted-foreground">
 												<ContentRenderer content={section.body} />
-											{/if}
-										</div>
+											</div>
+										{/if}
 										<div class="space-y-6">
 											{#each toolConfig.sectionQuestions as question (question.id)}
 												<QuestionField
@@ -475,10 +475,14 @@
 
 		<Card.Root>
 			<Card.Header>
-				<div class="flex items-start justify-between gap-3">
-					<Card.Title class="text-xl">{current.title || 'Untitled proposal'}</Card.Title>
+				<div class="pile">
+					<div class="prose">
+						<Card.Title class="text-xl"
+							>{current.title || 'Untitled proposal'}</Card.Title
+						>
+					</div>
 					{#if currentSubmitted}
-						<div class="flex shrink-0 items-center gap-1.5">
+						<div class="flex shrink-0 items-center gap-1.5 justify-self-end">
 							<Badge variant="secondary">
 								<CheckCircle2 class="mr-1 h-3 w-3" /> Submitted
 							</Badge>
@@ -502,12 +506,18 @@
 			</Card.Header>
 			<Card.Content class="space-y-8">
 				{#each current.sections as section (section.id)}
-					<div class="grid gap-6 lg:grid-cols-2">
-						<div class="text-muted-foreground">
-							{#if section.body}
+					{@const numColumns =
+						Number(!!section.body) + Number(toolConfig.sectionQuestions.length > 0)}
+					<div class="grid gap-6 lg:grid-cols-{numColumns}">
+						{#if section.body}
+							<div
+								class="text-muted-foreground prose {numColumns === 1
+									? 'place-self-center'
+									: ''}"
+							>
 								<ContentRenderer content={section.body} />
-							{/if}
-						</div>
+							</div>
+						{/if}
 						{#if toolConfig.sectionQuestions.length > 0}
 							<div class="space-y-6">
 								{#each toolConfig.sectionQuestions as question (question.id)}
