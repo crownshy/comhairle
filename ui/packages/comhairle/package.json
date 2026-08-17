@@ -60,6 +60,7 @@
 		"joi": "^17.13.1",
 		"jsdom": "^29.1.1",
 		"mode-watcher": "^1.1.0",
+		"msw": "^2.15.0",
 		"openapi-zod-client": "^1.18.3",
 		"paneforge": "1.0.0-next.6",
 		"prettier": "^3.4.2",

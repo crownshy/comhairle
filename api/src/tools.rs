@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use async_trait::async_trait;
-use comhairle_macros::DbJsonBEnum;
+use comhairle_macros::{DbJsonBEnum, TranslatableJson};
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
+use crate::models::translations::TextContentId;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -49,6 +50,7 @@ pub trait ToolImpl: Send + Sync + 'static {
     async fn setup(
         setup: &Self::Setup,
         state: &Arc<ComhairleState>,
+        locale: &str,
     ) -> Result<Self::Config, ComhairleError>;
 
     /// Sync data from tool to common data pool
@@ -105,7 +107,9 @@ pub trait ToolConfigSanitize {
     fn sanitize(&self) -> Self;
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum, PartialEq)]
+#[derive(
+    Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum, PartialEq, TranslatableJson,
+)]
 #[serde(rename_all = "lowercase", tag = "type")]
 #[enum_dispatch(ToolConfigSanitize)]
 pub enum ToolConfig {
@@ -114,6 +118,7 @@ pub enum ToolConfig {
     HeyForm(HeyFormToolConfig),
     Stories(StoriesToolConfig),
     ElicitationBot(ElicitationBotToolConfig),
+    #[translatable]
     Prioritization(PrioritizationToolConfig),
     ThinkingSpace(ThinkingSpaceToolConfig),
 }
@@ -237,28 +242,32 @@ pub enum ToolSetup {
 
 impl ToolSetup {
     /// Setup a new tool from setup configuration
-    pub async fn setup(&self, state: &Arc<ComhairleState>) -> Result<ToolConfig, ComhairleError> {
+    pub async fn setup(
+        &self,
+        state: &Arc<ComhairleState>,
+        locale: &str,
+    ) -> Result<ToolConfig, ComhairleError> {
         match self {
             ToolSetup::Polis(setup) => Ok(ToolConfig::Polis(
-                polis::PolisTool::setup(setup, state).await?,
+                polis::PolisTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::Learn(setup) => Ok(ToolConfig::Learn(
-                learn::LearnTool::setup(setup, state).await?,
+                learn::LearnTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::HeyForm(setup) => Ok(ToolConfig::HeyForm(
-                heyform::HeyFormTool::setup(setup, state).await?,
+                heyform::HeyFormTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::Stories(setup) => Ok(ToolConfig::Stories(
-                stories::StoriesTool::setup(setup, state).await?,
+                stories::StoriesTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::ElicitationBot(setup) => Ok(ToolConfig::ElicitationBot(
-                elicitation_bot::ElicitationBotTool::setup(setup, state).await?,
+                elicitation_bot::ElicitationBotTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::Prioritization(setup) => Ok(ToolConfig::Prioritization(
-                prioritization::PrioritizationTool::setup(setup, state).await?,
+                prioritization::PrioritizationTool::setup(setup, state, locale).await?,
             )),
             ToolSetup::ThinkingSpace(setup) => Ok(ToolConfig::ThinkingSpace(
-                thinking_space::ThinkingSpaceTool::setup(setup, state).await?,
+                thinking_space::ThinkingSpaceTool::setup(setup, state, locale).await?,
             )),
         }
     }

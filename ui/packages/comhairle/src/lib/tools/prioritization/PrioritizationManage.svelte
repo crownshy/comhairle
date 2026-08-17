@@ -12,26 +12,25 @@
 	import ProposalEditorDialog from './components/ProposalEditorDialog.svelte';
 	import ProposalListSkeleton from './components/ProposalListSkeleton.svelte';
 	import QuestionEditorDialog from './components/QuestionEditorDialog.svelte';
-	import type {
-		ConversationInput,
-		Proposal,
-		Question,
-		QuestionType,
-		WorkflowStepInput
+	import {
+		type DraftTranslatableJsonField,
+		type DraftQuestion,
+		type DraftQuestionType,
+		type Proposal,
+		type WorkflowStepInput
 	} from './types';
 	import * as Select from '$lib/components/ui/select';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import { type ConversationWithTranslations } from '@crownshy/api-client/api';
 
 	let {
-		conversationId,
 		workflowId,
 		workflowStep,
 		conversation
 	}: {
-		conversationId: string;
 		workflowId: string;
 		workflowStep: WorkflowStepInput;
-		conversation: ConversationInput;
+		conversation: ConversationWithTranslations;
 	} = $props();
 
 	/** The host page keys this component by step id, so the ids are stable for
@@ -39,12 +38,14 @@
 	// svelte-ignore state_referenced_locally
 	const store = createStore({
 		workflowStepId: workflowStep.id,
-		conversationId,
+		conversationId: conversation.id,
 		workflowId,
 		isLive: conversation.isLive ?? false
 	});
 
-	let toolConfig = $derived(resolveToolConfig(workflowStep, conversation.isLive ?? false));
+	let toolConfig = $derived(
+		resolveToolConfig<DraftTranslatableJsonField>(workflowStep, conversation.isLive ?? false)
+	);
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLocales = $derived(
 		conversation.supportedLanguages && conversation.supportedLanguages.length > 0
@@ -59,18 +60,24 @@
 
 	let questionEditorOpen = $state(false);
 	let questionDeleteOpen = $state(false);
-	let selectedQuestion = $state<Question | null>(null);
+	let selectedQuestionId = $state<string | null>(null);
+	let selectedQuestion = $derived(
+		toolConfig.questions.find((q) => q.id === selectedQuestionId) ?? null
+	);
 	let deletingQuestionInFlight = $state(false);
 	let randomizeSaving = $state(false);
 
 	/** Per-section question editor/delete state (mirrors the proposal-question flow). */
 	let sectionQuestionEditorOpen = $state(false);
 	let sectionQuestionDeleteOpen = $state(false);
-	let selectedSectionQuestion = $state<Question | null>(null);
+	let selectedSectionQuestionId = $state<string | null>(null);
+	let selectedSectionQuestion = $derived(
+		toolConfig.sectionQuestions.find((sq) => sq.id === selectedSectionQuestionId) ?? null
+	);
 	let deletingSectionQuestionInFlight = $state(false);
 
-	const questions = $derived<Question[]>(toolConfig.questions ?? []);
-	const sectionQuestions = $derived<Question[]>(toolConfig.sectionQuestions ?? []);
+	const questions = $derived<DraftQuestion[]>(toolConfig.questions ?? []);
+	const sectionQuestions = $derived<DraftQuestion[]>(toolConfig.sectionQuestions ?? []);
 
 	/** Local mirror of `questions` so svelte-dnd-action can mutate during drag. As a writable $derived it tracks upstream by default but stays at any value we assign until the source changes again — exactly the in-flight-then-snap-back behaviour the dnd lib needs. */
 	let localQuestions = $derived(questions);
@@ -78,13 +85,14 @@
 	let savingOrder = $state(false);
 	let savingSectionOrder = $state(false);
 
-	async function commitQuestionOrder(next: Question[]) {
+	async function commitQuestionOrder(next: DraftQuestion[]) {
 		savingOrder = true;
 		try {
 			await store.saveToolConfig({
 				questions: next,
 				sectionQuestions,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 		} catch {
 			/** saveToolConfig surfaces an error toast. Revert local view to the upstream order. */
@@ -94,13 +102,14 @@
 		}
 	}
 
-	async function commitSectionQuestionOrder(next: Question[]) {
+	async function commitSectionQuestionOrder(next: DraftQuestion[]) {
 		savingSectionOrder = true;
 		try {
 			await store.saveToolConfig({
 				questions,
 				sectionQuestions: next,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 		} catch {
 			localSectionQuestions = sectionQuestions;
@@ -143,32 +152,33 @@
 	}
 
 	function openCreateQuestion() {
-		selectedQuestion = null;
+		selectedQuestionId = null;
 		questionEditorOpen = true;
 	}
 
-	function openEditQuestion(q: Question) {
-		selectedQuestion = q;
+	function openEditQuestion(q: DraftQuestion) {
+		selectedQuestionId = q.id;
 		questionEditorOpen = true;
 	}
 
-	function confirmDeleteQuestion(q: Question) {
-		selectedQuestion = q;
+	function confirmDeleteQuestion(q: DraftQuestion) {
+		selectedQuestionId = q.id;
 		questionDeleteOpen = true;
 	}
 
 	async function runDeleteQuestion() {
-		if (!selectedQuestion) return;
+		if (!selectedQuestionId) return;
 		deletingQuestionInFlight = true;
 		try {
-			const next = questions.filter((q) => q.id !== selectedQuestion!.id);
+			const next = questions.filter((q) => q.id !== selectedQuestionId);
 			await store.saveToolConfig({
 				questions: next,
 				sectionQuestions,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 			questionDeleteOpen = false;
-			selectedQuestion = null;
+			selectedQuestionId = null;
 		} catch {
 			/** store.saveToolConfig surfaces an error toast. */
 		} finally {
@@ -177,32 +187,33 @@
 	}
 
 	function openCreateSectionQuestion() {
-		selectedSectionQuestion = null;
+		selectedSectionQuestionId = null;
 		sectionQuestionEditorOpen = true;
 	}
 
-	function openEditSectionQuestion(q: Question) {
-		selectedSectionQuestion = q;
+	function openEditSectionQuestion(q: DraftQuestion) {
+		selectedSectionQuestionId = q.id;
 		sectionQuestionEditorOpen = true;
 	}
 
-	function confirmDeleteSectionQuestion(q: Question) {
-		selectedSectionQuestion = q;
+	function confirmDeleteSectionQuestion(q: DraftQuestion) {
+		selectedSectionQuestionId = q.id;
 		sectionQuestionDeleteOpen = true;
 	}
 
 	async function runDeleteSectionQuestion() {
-		if (!selectedSectionQuestion) return;
+		if (!selectedSectionQuestionId) return;
 		deletingSectionQuestionInFlight = true;
 		try {
-			const next = sectionQuestions.filter((q) => q.id !== selectedSectionQuestion!.id);
+			const next = sectionQuestions.filter((q) => q.id !== selectedSectionQuestionId);
 			await store.saveToolConfig({
 				questions,
 				sectionQuestions: next,
-				randomizeOrder: toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 			sectionQuestionDeleteOpen = false;
-			selectedSectionQuestion = null;
+			selectedSectionQuestionId = null;
 		} catch {
 			/** store.saveToolConfig surfaces an error toast. */
 		} finally {
@@ -216,7 +227,8 @@
 			await store.saveToolConfig({
 				questions,
 				sectionQuestions,
-				randomizeOrder: checked
+				randomizeOrder: checked,
+				alignmentQuestionId: toolConfig.alignmentQuestionId
 			});
 		} catch {
 			/** store.saveToolConfig surfaces an error toast. */
@@ -225,7 +237,7 @@
 		}
 	}
 
-	function describeType(type: QuestionType): string {
+	function describeType(type: DraftQuestionType): string {
 		switch (type.kind) {
 			case 'text':
 				return 'Free text';
@@ -236,16 +248,16 @@
 		}
 	}
 
-	function summariseScale(type: QuestionType): string {
+	function summariseScale(type: DraftQuestionType): string {
 		if (type.kind === 'likert') {
-			const first = type.categories[0]?.label;
-			const last = type.categories[type.categories.length - 1]?.label;
+			const first = type.categories[0]?.label.localized;
+			const last = type.categories[type.categories.length - 1]?.label.localized;
 			return first && last ? `${first} → ${last}` : '';
 		}
 		if (type.kind === 'continuous') {
 			const range = `${type.minValue}–${type.maxValue}`;
-			if (type.minLabel || type.maxLabel) {
-				return `${type.minLabel || type.minValue} → ${type.maxLabel || type.maxValue} (${range})`;
+			if (type.minLabel.localized || type.maxLabel.localized) {
+				return `${type.minLabel.localized || type.minValue} → ${type.maxLabel.localized || type.maxValue} (${range})`;
 			}
 			return range;
 		}
@@ -295,7 +307,7 @@
 				dragDisabled={savingOrder}
 				class="space-y-3"
 			>
-				{#snippet children(q: Question)}
+				{#snippet children(q: DraftQuestion)}
 					<Card.Root>
 						<Card.Header class="flex flex-row items-start justify-between gap-4">
 							<div class="flex min-w-0 flex-1 items-start gap-3">
@@ -308,7 +320,7 @@
 								</button>
 								<div class="min-w-0 flex-1 space-y-2">
 									<Card.Title class="text-lg">
-										{q.text || 'Untitled question'}
+										{q.text.localized || 'Untitled question'}
 									</Card.Title>
 									<div
 										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
@@ -353,15 +365,15 @@
 				onValueChange={setAlignmentQuestion}
 			>
 				<Select.Trigger>
-					{questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text ??
-						questions[0].text}
+					{questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text
+						.localized ?? questions[0].text.localized}
 					{#if savingAlignmentQuestion}
 						<Spinner />
 					{/if}
 				</Select.Trigger>
 				<Select.Content>
 					{#each questions as question (question.id)}
-						<Select.Item value={question.id}>{question.text}</Select.Item>
+						<Select.Item value={question.id}>{question.text.localized}</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>
@@ -410,7 +422,7 @@
 								</button>
 								<div class="min-w-0 flex-1 space-y-2">
 									<Card.Title class="text-lg">
-										{q.text || 'Untitled question'}
+										{q.text.localized || 'Untitled question'}
 									</Card.Title>
 									<div
 										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
@@ -554,8 +566,10 @@
 	target="proposal"
 	onOpenChange={(o) => {
 		questionEditorOpen = o;
-		if (!o) selectedQuestion = null;
+		if (!o) selectedQuestionId = null;
 	}}
+	{primaryLocale}
+	{supportedLocales}
 />
 
 <QuestionEditorDialog
@@ -566,8 +580,10 @@
 	target="section"
 	onOpenChange={(o) => {
 		sectionQuestionEditorOpen = o;
-		if (!o) selectedSectionQuestion = null;
+		if (!o) selectedSectionQuestionId = null;
 	}}
+	{primaryLocale}
+	{supportedLocales}
 />
 
 <AlertDialog.Root

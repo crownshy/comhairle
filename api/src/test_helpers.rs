@@ -1232,7 +1232,11 @@ impl UserSession {
                                 "type": {
                                     "continuous": {
                                         "label": "Care?",
-                                        "sub_steps": 10
+                                        "sub_steps": 10,
+                                        "min_value": 0,
+                                        "max_value": 10,
+                                        "min_label": "Not at all",
+                                        "max_label": "Care a lot"
                                     }
                                 }
                             },

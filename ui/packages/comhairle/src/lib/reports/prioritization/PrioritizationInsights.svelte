@@ -6,6 +6,7 @@
 	import PrioritizationScatterPlot from './PrioritizationScatterPlot.svelte';
 	import PrioritizationProposalResults from './PrioritizationProposalResults.svelte';
 	import { resolveToolConfig } from '$lib/tools/prioritization/prioritizationApi';
+	import { localizeTranslatableJson } from '$lib/components/Translation/translationUtils';
 
 	type Props = {
 		insights: PrioritizationInsightsResponse | null;
@@ -14,7 +15,7 @@
 	};
 
 	let { insights, step, error }: Props = $props();
-	let toolConfig = $derived(resolveToolConfig(step, !!step.toolConfig));
+	let toolConfig = $derived(localizeTranslatableJson(resolveToolConfig(step, !!step.toolConfig)));
 
 	// Use average incase some steps weren't completed and a proposal has less
 	// responses than others
