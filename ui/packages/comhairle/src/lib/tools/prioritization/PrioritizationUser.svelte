@@ -18,6 +18,7 @@
 		QuestionResponse,
 		WorkflowStepInput
 	} from './types';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let {
 		workflowStep,
@@ -138,7 +139,7 @@
 			const responseLists = await Promise.all(
 				ordered.map((p) => api.listResponses(p.id).catch(() => []))
 			);
-			const submitted = new Set<string>();
+			const submitted = new SvelteSet<string>();
 			const restoredAnswers: Record<string, Record<string, number | string>> = {};
 			const restoredSectionAnswers: Record<
 				string,
@@ -198,7 +199,7 @@
 	}
 
 	let missingKeys = $derived.by(() => {
-		const keys = new Set<string>();
+		const keys = new SvelteSet<string>();
 		if (!current) return keys;
 		for (const q of requiredQuestions) {
 			if (!isAnswered(currentAnswers[q.id])) keys.add(q.id);
@@ -328,7 +329,7 @@
 		proposals.length === 0 ? 0 : Math.round((submittedIds.size / proposals.length) * 100)
 	);
 
-	function formatAnswer(question: Question, value: number | string | undefined): string {
+	function formatAnswer(question: Question<string>, value: number | string | undefined): string {
 		if (value === undefined || value === null || value === '') return '—';
 		if (question.type.kind === 'likert' && typeof value === 'number') {
 			const cat = question.type.categories.find((c) => c.value === value);
