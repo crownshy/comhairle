@@ -206,7 +206,7 @@
 					Learning assistant
 				</p>
 			{/if}
-			<div class="text-muted-foreground mb-3 space-y-2 text-sm leading-relaxed">
+			<div class="text-foreground mb-3 space-y-2 text-sm leading-relaxed">
 				<p>Use this this space to answer questions you might have about the topic.</p>
 				<p>
 					It is best to ask questions that help you learn things. We will try to answer
