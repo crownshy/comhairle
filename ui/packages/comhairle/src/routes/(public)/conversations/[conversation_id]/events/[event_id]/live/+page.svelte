@@ -231,10 +231,10 @@
 	});
 
 	let preassignedBreakoutRooms = $derived.by(() => {
-		return renderPreassignedRooms(allParticipants, videoCallService.breakoutRooms);
+		return transformPreassignedRooms(allParticipants, videoCallService.breakoutRooms);
 	});
 
-	function renderPreassignedRooms(
+	function transformPreassignedRooms(
 		participants: VideoCallParticipant[],
 		preassignedRooms: { participants: string[] }[]
 	): VideoCallParticipant[][] {

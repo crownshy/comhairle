@@ -4,14 +4,14 @@
 	import { Button } from '$lib/components/ui/button';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import type { BreakoutPlanDto, EventAttendanceDto } from '@crownshy/api-client/api';
+	import type { BreakoutPlanDto, EventAttendanceEtx } from '@crownshy/api-client/api';
 	import CreateBreakoutDialog from '$lib/components/LiveEvent/CreateBreakoutDialog.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
 
 	type Props = {
 		conversation_id: string;
 		event_id: string;
-		attendees: (EventAttendanceDto & { email?: string })[];
+		attendees: EventAttendanceEtx[];
 	};
 
 	let { conversation_id, event_id, attendees }: Props = $props();
