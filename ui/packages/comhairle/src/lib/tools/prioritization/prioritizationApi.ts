@@ -105,6 +105,7 @@ export function resolveToolConfig<TText>(
 				questions?: unknown[];
 				randomize_order?: boolean;
 				alignment_question_id?: string;
+				required_reviews?: number | null;
 		  }
 		| null
 		| undefined;
@@ -120,7 +121,8 @@ export function resolveToolConfig<TText>(
 		questions: (raw.questions ?? []).map(normaliseQuestion<TText>),
 		sectionQuestions: (withSections.section_questions ?? []).map(normaliseQuestion<TText>),
 		randomizeOrder: Boolean(raw.randomize_order),
-		alignmentQuestionId: raw.alignment_question_id
+		alignmentQuestionId: raw.alignment_question_id,
+		requiredReviews: raw.required_reviews ?? undefined
 	};
 }
 
@@ -238,7 +240,8 @@ export async function updateToolConfig(opts: {
 		questions: opts.toolConfig.questions.map(denormaliseQuestion),
 		sectionQuestions: opts.toolConfig.sectionQuestions.map(denormaliseQuestion),
 		randomizeOrder: opts.toolConfig.randomizeOrder,
-		alignmentQuestionId: opts.toolConfig.alignmentQuestionId
+		alignmentQuestionId: opts.toolConfig.alignmentQuestionId,
+		requiredReviews: opts.toolConfig.requiredReviews
 	});
 }
 
@@ -251,13 +254,15 @@ async function putToolConfig(opts: {
 	sectionQuestions: ApiQuestion[];
 	randomizeOrder: boolean;
 	alignmentQuestionId?: string;
+	requiredReviews?: number;
 }): Promise<void> {
 	const payload = {
 		type: 'prioritization' as const,
 		questions: opts.questions,
 		section_questions: opts.sectionQuestions,
 		randomize_order: opts.randomizeOrder,
-		...(opts.alignmentQuestionId && { alignment_question_id: opts.alignmentQuestionId })
+		...(opts.alignmentQuestionId && { alignment_question_id: opts.alignmentQuestionId }),
+		...(opts.requiredReviews != null && { required_reviews: opts.requiredReviews })
 	};
 	const body: PartialWorkflowStep = opts.isLive
 		? { tool_config: payload }

@@ -46,6 +46,13 @@ pub struct PrioritizationToolConfig {
     pub section_questions: Vec<Question>,
     pub randomize_order: bool,
     pub alignment_question_id: Option<Uuid>,
+    /// Minimum proposals a participant must review before they can continue to
+    /// the next step. `None` means every proposal must be reviewed, which is the
+    /// default; an admin sets a number only to loosen that. Non-positive values
+    /// are normalised back to `None` on read, and the participant UI clamps the
+    /// value to the proposal count, so the gate is always satisfiable.
+    #[serde(default)]
+    pub required_reviews: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
@@ -207,6 +214,9 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
             section_questions: self.section_questions.clone(),
             randomize_order: self.randomize_order,
             alignment_question_id: self.alignment_question_id,
+            // A stored zero or negative would make the gate meaningless, so treat
+            // it as unset (every proposal must be reviewed).
+            required_reviews: self.required_reviews.filter(|v| *v >= 1),
         }
     }
 }
@@ -365,6 +375,7 @@ async fn prioritization_setup(
         section_questions: vec![],
         randomize_order: false,
         alignment_question_id,
+        required_reviews: None,
     })
 }
 

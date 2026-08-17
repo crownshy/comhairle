@@ -370,6 +370,7 @@
 								}}
 								participantId={user.id}
 								onDone={stepComplete}
+								onCanContinueChange={handleCanContinueChange}
 							/>
 						{/key}
 					{/if}
