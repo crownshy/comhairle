@@ -230,6 +230,32 @@
 		return mockBreakoutRooms;
 	});
 
+	let preassignedBreakoutRooms = $derived.by(() => {
+		return renderPreassignedRooms(allParticipants, videoCallService.breakoutRooms);
+	});
+
+	function renderPreassignedRooms(
+		participants: VideoCallParticipant[],
+		preassignedRooms: { participants: string[] }[]
+	): VideoCallParticipant[][] {
+		const roomIndexByUserId = new Map<string, number>();
+		preassignedRooms.forEach((room, index) => {
+			room.participants.forEach((userId) => roomIndexByUserId.set(userId, index));
+		});
+
+		const roomAssignments: VideoCallParticipant[][] = preassignedRooms.map(() => []);
+
+		participants.forEach((p) => {
+			const roomIndex = roomIndexByUserId.get(p.user_id);
+
+			if (roomIndex !== undefined) {
+				roomAssignments[roomIndex].push(p);
+			}
+		});
+
+		return roomAssignments;
+	}
+
 	$effect(() => {
 		const session = breakoutSession;
 		if (session) {
@@ -1083,7 +1109,7 @@
 <CreateBreakoutDialog
 	bind:open={showCreateBreakout}
 	participants={allParticipants}
-	breakoutRoomPlan={videoCallService.breakoutRooms}
+	initialAssignments={preassignedBreakoutRooms}
 	defaultDuration={breakoutDialogItem?.durationMinutes}
 	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
 	onClose={() => (showCreateBreakout = false)}

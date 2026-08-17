@@ -7,7 +7,6 @@
 	interface Props {
 		open: boolean;
 		participants: VideoCallParticipant[];
-		breakoutRoomPlan?: { participants: string[] }[];
 		defaultMaxPerRoom?: number;
 		defaultDuration?: number;
 		/** When provided, the dialog opens with this layout instead of auto-distributing. */
@@ -32,7 +31,6 @@
 	let {
 		open = $bindable(),
 		participants,
-		breakoutRoomPlan,
 		defaultMaxPerRoom = 4,
 		defaultDuration = 10,
 		initialAssignments,
@@ -68,8 +66,6 @@
 			if (initialAssignments && initialAssignments.length > 0) {
 				// Preserve a pre-existing plan rather than reshuffling it away.
 				roomAssignments = initialAssignments.map((room) => [...room]);
-			} else if (participants.length > 0 && breakoutRoomPlan && breakoutRoomPlan.length > 0) {
-				roomAssignments = renderPreassignedRooms(participants, breakoutRoomPlan);
 			} else if (participants.length > 0) {
 				distributeParticipants();
 			} else {
@@ -110,28 +106,6 @@
 			[result[i], result[j]] = [result[j], result[i]];
 		}
 		return result;
-	}
-
-	function renderPreassignedRooms(
-		participants: VideoCallParticipant[],
-		preassignedRooms: { participants: string[] }[]
-	): VideoCallParticipant[][] {
-		const roomIndexByUserId = new Map<string, number>();
-		preassignedRooms.forEach((room, index) => {
-			room.participants.forEach((userId) => roomIndexByUserId.set(userId, index));
-		});
-
-		const roomAssignments: VideoCallParticipant[][] = preassignedRooms.map(() => []);
-
-		participants.forEach((p) => {
-			const roomIndex = roomIndexByUserId.get(p.user_id);
-
-			if (roomIndex !== undefined) {
-				roomAssignments[roomIndex].push(p);
-			}
-		});
-
-		return roomAssignments;
 	}
 
 	function distributeParticipants() {
