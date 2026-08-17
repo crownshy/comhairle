@@ -48,6 +48,20 @@ a {
 	cursor: pointer;
 }
 
+/**
+* Class used to position objects in relation to each other
+* grid-based alternative to "relative" and "absolute"
+*/
+.pile {
+	display: grid;
+	grid-template-areas: 'pile';
+	place-items: center;
+
+	> * {
+		grid-area: pile;
+	}
+}
+
 [data-sonner-toast] [data-close-button] {
 	position: absolute !important;
 	top: 0.5rem !important;
