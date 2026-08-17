@@ -51,10 +51,35 @@
 		onModeratorStatusChanged
 	}: JitsiMeetProps = $props();
 
+	$inspect('');
+	$inspect('JWT Raw: >>>>>>>>>>', jwt);
+	$inspect('JWT parsed: >>>>>>>>>>', parseJwt(jwt));
+	$inspect('');
+
+	function parseJwt(token) {
+		var base64Url = token.split('.')[1];
+		var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+		var jsonPayload = decodeURIComponent(
+			window
+				.atob(base64)
+				.split('')
+				.map(function (c) {
+					return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+				})
+				.join('')
+		);
+
+		return JSON.parse(jsonPayload);
+	}
+
 	let containerEl: HTMLDivElement;
 	let api: any = $state(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+
+	$effect(() => {
+		api?.getRoomsInfo().then((rooms) => console.log('ROOMS: >>>>>>>>>', rooms));
+	});
 
 	function loadExternalApi(): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -187,6 +212,17 @@
 		return api;
 	}
 
+	function log() {
+		console.log();
+		console.log('    >>>>    JWT: ', parseJwt(jwt));
+		console.log();
+		api?.getRoomsInfo().then((rooms) => {
+			console.log('            =================');
+			console.log('ROOMS: >>>>>>>>>', rooms);
+			console.log('            =================');
+		});
+	}
+
 	export function executeCommand(command: string, ...args: any[]) {
 		if (api) {
 			api.executeCommand(command, ...args);
@@ -225,6 +261,8 @@
 			</div>
 		</div>
 	{/if}
+
+	<button class="rounded-full bg-red-200 p-5 text-black" type="button" onclick={log}>LOG</button>
 
 	{#if error}
 		<div class="bg-destructive/10 absolute inset-0 z-10 flex items-center justify-center">

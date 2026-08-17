@@ -200,6 +200,7 @@ struct VideoEventJwtUser<'a> {
     name: Option<&'a str>,
     id: &'a str,
     moderator: bool,
+    affiliation: &'a str,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -232,6 +233,7 @@ async fn get_jwt(
                 name: user.username.as_deref(),
                 id: &user.id.to_string(),
                 moderator: is_moderator,
+                affiliation: if is_moderator { "owner" } else { "member" },
             },
         },
     };
