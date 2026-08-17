@@ -11,6 +11,7 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import QuestionField from './components/QuestionField.svelte';
 	import * as api from './prioritizationApi';
+	import { requiredReviewCount, canLeaveStep } from './reviewGate';
 	import type {
 		ConversationInput,
 		LocalizedProposal,
@@ -20,13 +21,7 @@
 	} from './types';
 	import { SvelteSet } from 'svelte/reactivity';
 
-	let {
-		workflowStep,
-		conversation,
-		participantId = '',
-		onDone,
-		onCanContinueChange
-	}: {
+	type Props = {
 		workflowStep: WorkflowStepInput;
 		conversation: ConversationInput;
 		participantId?: string;
@@ -34,13 +29,21 @@
 		/** Drives the host step's top-nav "Next": true once the participant has
 		 * reviewed the minimum number of proposals. Mirrors Polis / Thinking Space. */
 		onCanContinueChange?: (canContinue: boolean) => void;
-	} = $props();
+	};
+
+	let {
+		workflowStep,
+		conversation,
+		participantId = '',
+		onDone,
+		onCanContinueChange
+	}: Props = $props();
 
 	const stepId = $derived(workflowStep.id);
 	const toolConfig = $derived(
 		api.resolveToolConfig<string>(workflowStep, conversation.isLive ?? false)
 	);
-	/** Whether the participant can return to this step later — drives the "come
+	/** Whether the participant can return to this step later. Drives the "come
 	 * back to review more" reassurance when they move on before finishing. */
 	const canRevisit = $derived(workflowStep.canRevisit ?? false);
 
@@ -228,19 +231,18 @@
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
 
-	/** Minimum proposals a participant must review before they can continue. Unset
-	 * means "all proposals", which is the default; an admin sets a number only to
-	 * loosen that. A set value is clamped to the number of proposals that exist, so
-	 * an over-set minimum can never leave the participant unable to advance. */
 	let requiredReviews = $derived(
-		proposals.length === 0
-			? 0
-			: toolConfig.requiredReviews == null
-				? proposals.length
-				: Math.min(Math.max(toolConfig.requiredReviews, 1), proposals.length)
+		requiredReviewCount(toolConfig.requiredReviews, proposals.length)
 	);
-	/** The gate: has the participant reviewed at least the minimum? */
-	let canContinue = $derived(submittedIds.size >= requiredReviews);
+	/** The gate. Closed until proposals load, so a fast participant cannot click
+	 * past the step before there is anything to review. */
+	let canContinue = $derived(
+		canLeaveStep({
+			reviewedCount: submittedIds.size,
+			requiredReviews,
+			proposalsLoaded: loadState.kind === 'ready'
+		})
+	);
 	let reviewsRemaining = $derived(Math.max(requiredReviews - submittedIds.size, 0));
 
 	/** Drive the host step's top-nav "Next". Runs on load too, so a returning
@@ -630,7 +632,7 @@
 			<div
 				class="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
 			>
-				<p class="text-muted-foreground text-sm">
+				<p class="text-muted-foreground text-base">
 					You've reviewed enough to move on. Continue to the next step, or keep reviewing.{#if canRevisit}
 						You can always come back to review more later.{/if}
 				</p>
@@ -639,7 +641,7 @@
 				</Button>
 			</div>
 		{:else if requiredReviews > 0}
-			<p class="text-muted-foreground text-right text-sm">
+			<p class="text-muted-foreground text-right text-base">
 				Reviewed {submittedIds.size} of {requiredReviews}. Review {reviewsRemaining} more proposal{reviewsRemaining >
 				1
 					? 's'

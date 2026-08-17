@@ -49,8 +49,9 @@ pub struct PrioritizationToolConfig {
     /// Minimum proposals a participant must review before they can continue to
     /// the next step. `None` means every proposal must be reviewed, which is the
     /// default; an admin sets a number only to loosen that. Non-positive values
-    /// are normalised back to `None` on read, and the participant UI clamps the
-    /// value to the proposal count, so the gate is always satisfiable.
+    /// are normalised back to `None` by `ToolConfigSanitize` on save, not on
+    /// every read, and the participant UI clamps the value to the proposal
+    /// count, so the gate is always satisfiable.
     #[serde(default)]
     pub required_reviews: Option<i32>,
 }
