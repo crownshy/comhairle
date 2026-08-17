@@ -403,7 +403,7 @@
 								{#if toolConfig.sectionQuestions.length > 0}
 									<div class="grid gap-6 lg:grid-cols-2">
 										{#if section.body}
-											<div class="text-muted-foreground">
+											<div class="text-base">
 												<ContentRenderer content={section.body} />
 											</div>
 										{/if}
@@ -512,7 +512,7 @@
 					<div class="grid gap-6 lg:grid-cols-{numColumns}">
 						{#if section.body}
 							<div
-								class="text-muted-foreground prose {numColumns === 1
+								class="prose text-base {numColumns === 1
 									? 'place-self-center'
 									: ''}"
 							>
