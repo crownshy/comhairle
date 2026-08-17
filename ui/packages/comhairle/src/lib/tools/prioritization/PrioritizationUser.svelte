@@ -18,6 +18,7 @@
 		QuestionResponse,
 		WorkflowStepInput
 	} from './types';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let {
 		workflowStep,
@@ -81,10 +82,10 @@
 	}
 
 	/** Text answers are optional — completeness only requires likert / continuous. */
-	const requiredQuestions = $derived<Question[]>(
+	const requiredQuestions = $derived<Question<string>[]>(
 		toolConfig.questions.filter((q) => q.type.kind !== 'text')
 	);
-	const requiredSectionQuestions = $derived<Question[]>(
+	const requiredSectionQuestions = $derived<Question<string>[]>(
 		toolConfig.sectionQuestions.filter((q) => q.type.kind !== 'text')
 	);
 
@@ -138,7 +139,7 @@
 			const responseLists = await Promise.all(
 				ordered.map((p) => api.listResponses(p.id).catch(() => []))
 			);
-			const submitted = new Set<string>();
+			const submitted = new SvelteSet<string>();
 			const restoredAnswers: Record<string, Record<string, number | string>> = {};
 			const restoredSectionAnswers: Record<
 				string,
@@ -198,7 +199,7 @@
 	}
 
 	let missingKeys = $derived.by(() => {
-		const keys = new Set<string>();
+		const keys = new SvelteSet<string>();
 		if (!current) return keys;
 		for (const q of requiredQuestions) {
 			if (!isAnswered(currentAnswers[q.id])) keys.add(q.id);
@@ -328,7 +329,7 @@
 		proposals.length === 0 ? 0 : Math.round((submittedIds.size / proposals.length) * 100)
 	);
 
-	function formatAnswer(question: Question, value: number | string | undefined): string {
+	function formatAnswer(question: Question<string>, value: number | string | undefined): string {
 		if (value === undefined || value === null || value === '') return '—';
 		if (question.type.kind === 'likert' && typeof value === 'number') {
 			const cat = question.type.categories.find((c) => c.value === value);
@@ -401,11 +402,11 @@
 							{#each proposal.sections as section (section.id)}
 								{#if toolConfig.sectionQuestions.length > 0}
 									<div class="grid gap-6 lg:grid-cols-2">
-										<div class="text-muted-foreground">
-											{#if section.body}
+										{#if section.body}
+											<div class="text-base">
 												<ContentRenderer content={section.body} />
-											{/if}
-										</div>
+											</div>
+										{/if}
 										<div class="space-y-6">
 											{#each toolConfig.sectionQuestions as question (question.id)}
 												<QuestionField
@@ -475,10 +476,14 @@
 
 		<Card.Root>
 			<Card.Header>
-				<div class="flex items-start justify-between gap-3">
-					<Card.Title class="text-xl">{current.title || 'Untitled proposal'}</Card.Title>
+				<div class="pile">
+					<div class="prose">
+						<Card.Title class="text-xl"
+							>{current.title || 'Untitled proposal'}</Card.Title
+						>
+					</div>
 					{#if currentSubmitted}
-						<div class="flex shrink-0 items-center gap-1.5">
+						<div class="flex shrink-0 items-center gap-1.5 justify-self-end">
 							<Badge variant="secondary">
 								<CheckCircle2 class="mr-1 h-3 w-3" /> Submitted
 							</Badge>
@@ -502,12 +507,18 @@
 			</Card.Header>
 			<Card.Content class="space-y-8">
 				{#each current.sections as section (section.id)}
-					<div class="grid gap-6 lg:grid-cols-2">
-						<div class="text-muted-foreground">
-							{#if section.body}
+					{@const numColumns =
+						Number(!!section.body) + Number(toolConfig.sectionQuestions.length > 0)}
+					<div class="grid gap-6 lg:grid-cols-{numColumns}">
+						{#if section.body}
+							<div
+								class="prose text-base {numColumns === 1
+									? 'place-self-center'
+									: ''}"
+							>
 								<ContentRenderer content={section.body} />
-							{/if}
-						</div>
+							</div>
+						{/if}
 						{#if toolConfig.sectionQuestions.length > 0}
 							<div class="space-y-6">
 								{#each toolConfig.sectionQuestions as question (question.id)}
