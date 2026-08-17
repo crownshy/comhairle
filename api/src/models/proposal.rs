@@ -157,6 +157,8 @@ pub async fn get_localized_by_id(
     Ok(proposal)
 }
 
+/// Get a proposal by ID (original struct, not localized). Used by the sealed gate on
+/// proposal responses to find the step, and from it the workflow, the seal is evaluated for.
 #[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> {
     let (sql, values) = Query::select()

@@ -212,6 +212,33 @@ pub async fn update(
     Ok(result)
 }
 
+/// A single participant's progress row for one step, if they have one at all. A step added
+/// after they registered leaves them with no row, hence the `Option`.
+#[instrument(err(Debug))]
+pub async fn get(
+    db: &PgPool,
+    user_id: &Uuid,
+    workflow_step_id: &Uuid,
+) -> Result<Option<UserProgress>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(UserProgressIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col((UserProgressIden::Table, UserProgressIden::UserId)).eq(user_id.to_owned()),
+        )
+        .and_where(
+            Expr::col((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                .eq(workflow_step_id.to_owned()),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let result = sqlx::query_as_with::<_, UserProgress, _>(&sql, values)
+        .fetch_optional(db)
+        .await?;
+
+    Ok(result)
+}
+
 #[instrument(err(Debug))]
 pub async fn list_for_user_on_workflow(
     db: &PgPool,
@@ -326,73 +353,124 @@ mod tests {
 
     use super::*;
 
+    use crate::models::conversation::{self, PartialConversation};
+    use crate::models::users::User;
+    use axum::Router;
     use std::error::Error;
+
+    /// A conversation with one workflow of `step_count` steps and one participant. The app and
+    /// session are kept so a test can add more steps afterwards.
+    struct Fixture {
+        app: Router,
+        session: crate::test_helpers::UserSession,
+        conversation_id: Uuid,
+        workflow: WorkflowDto,
+        steps: Vec<WorkflowStepDto>,
+        user: User,
+    }
+
+    impl Fixture {
+        async fn new(pool: &PgPool, step_count: i32) -> Result<Self, Box<dyn Error>> {
+            let (app, mut session) = setup_default_app_and_session(pool).await?;
+            let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+            let (_, value, _) = session
+                .create_random_workflow(&app, &conversation_id.to_string())
+                .await?;
+            let workflow: WorkflowDto = serde_json::from_value(value)?;
+
+            let steps =
+                add_steps(&app, &mut session, &conversation_id, &workflow, step_count).await?;
+            let user = users::create_annon_user(pool).await?;
+
+            Ok(Self {
+                app,
+                session,
+                conversation_id,
+                workflow,
+                steps,
+                user,
+            })
+        }
+
+        /// Turn off `allow_revisit_after_finishing`, the only configuration under which
+        /// finishing seals anyone.
+        async fn disallow_revisits(&self, pool: &PgPool) -> Result<(), Box<dyn Error>> {
+            conversation::update(
+                pool,
+                &self.conversation_id,
+                &PartialConversation {
+                    allow_revisit_after_finishing: Some(false),
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+            Ok(())
+        }
+
+        async fn add_steps(&mut self, count: i32) -> Result<Vec<WorkflowStepDto>, Box<dyn Error>> {
+            add_steps(
+                &self.app,
+                &mut self.session,
+                &self.conversation_id,
+                &self.workflow,
+                count,
+            )
+            .await
+        }
+
+        async fn is_sealed(&self, pool: &PgPool) -> Result<bool, Box<dyn Error>> {
+            Ok(is_sealed(pool, &self.user.id, &self.workflow.id).await?)
+        }
+    }
+
+    async fn add_steps(
+        app: &Router,
+        session: &mut crate::test_helpers::UserSession,
+        conversation_id: &Uuid,
+        workflow: &WorkflowDto,
+        count: i32,
+    ) -> Result<Vec<WorkflowStepDto>, Box<dyn Error>> {
+        let values = session
+            .create_random_workflow_steps(
+                app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                count,
+            )
+            .await?;
+
+        Ok(values
+            .into_iter()
+            .map(serde_json::from_value)
+            .collect::<Result<_, _>>()?)
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_user_progress(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let (_, value, _) = session
-            .create_random_workflow(&app, &conversation_id.to_string())
-            .await?;
-        let workflow: WorkflowDto = serde_json::from_value(value)?;
-
-        let values = session
-            .create_random_workflow_steps(
-                &app,
-                &conversation_id.to_string(),
-                &workflow.id.to_string(),
-                2,
-            )
-            .await?;
-        let steps: Vec<WorkflowStepDto> = values
-            .into_iter()
-            .map(|v| serde_json::from_value(v).unwrap())
-            .collect();
-
-        let user = users::create_annon_user(&pool).await?;
+        let f = Fixture::new(&pool, 2).await?;
 
         let user_progress = create(
             &pool,
-            &user.id,
-            &steps.first().unwrap().id,
+            &f.user.id,
+            &f.steps[0].id,
             ProgressStatus::InProgress,
         )
         .await?;
 
-        assert_eq!(user_progress.user_id, user.id, "user_ids don't match");
+        assert_eq!(user_progress.user_id, f.user.id, "user_ids don't match");
 
         Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_user_progress(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let (_, value, _) = session
-            .create_random_workflow(&app, &conversation_id.to_string())
-            .await?;
-        let workflow: WorkflowDto = serde_json::from_value(value)?;
-
-        let values = session
-            .create_random_workflow_steps(
-                &app,
-                &conversation_id.to_string(),
-                &workflow.id.to_string(),
-                2,
-            )
-            .await?;
-        let steps: Vec<WorkflowStepDto> = values
-            .into_iter()
-            .map(|v| serde_json::from_value(v).unwrap())
-            .collect();
-
-        let user = users::create_annon_user(&pool).await?;
+        let f = Fixture::new(&pool, 2).await?;
 
         let user_progress = create(
             &pool,
-            &user.id,
-            &steps.first().unwrap().id,
+            &f.user.id,
+            &f.steps[0].id,
             ProgressStatus::NotStarted,
         )
         .await?;
@@ -413,8 +491,7 @@ mod tests {
             ..Default::default()
         };
 
-        let user_progress =
-            update(&pool, &user.id, &steps.first().unwrap().id, &update_params).await?;
+        let user_progress = update(&pool, &f.user.id, &f.steps[0].id, &update_params).await?;
 
         assert_eq!(
             user_progress.status,
@@ -436,44 +513,15 @@ mod tests {
     async fn should_seal_a_participant_only_once_every_step_is_done(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let (_, value, _) = session
-            .create_random_workflow(&app, &conversation_id.to_string())
-            .await?;
-        let workflow: WorkflowDto = serde_json::from_value(value)?;
+        let f = Fixture::new(&pool, 2).await?;
+        f.disallow_revisits(&pool).await?;
 
-        let values = session
-            .create_random_workflow_steps(
-                &app,
-                &conversation_id.to_string(),
-                &workflow.id.to_string(),
-                2,
-            )
-            .await?;
-        let steps: Vec<WorkflowStepDto> = values
-            .into_iter()
-            .map(|v| serde_json::from_value(v).unwrap())
-            .collect();
-
-        let user = users::create_annon_user(&pool).await?;
-
-        crate::models::conversation::update(
-            &pool,
-            &conversation_id,
-            &crate::models::conversation::PartialConversation {
-                allow_revisit_after_finishing: Some(false),
-                ..Default::default()
-            },
-        )
-        .await?;
-
-        for step in &steps {
-            create(&pool, &user.id, &step.id, ProgressStatus::NotStarted).await?;
+        for step in &f.steps {
+            create(&pool, &f.user.id, &step.id, ProgressStatus::NotStarted).await?;
         }
 
         assert!(
-            !is_sealed(&pool, &user.id, &workflow.id).await?,
+            !f.is_sealed(&pool).await?,
             "a participant who has done nothing must not be sealed"
         );
 
@@ -481,17 +529,17 @@ mod tests {
             status: Some(ProgressStatus::Done),
             ..Default::default()
         };
-        update(&pool, &user.id, &steps[0].id, &done).await?;
+        update(&pool, &f.user.id, &f.steps[0].id, &done).await?;
 
         assert!(
-            !is_sealed(&pool, &user.id, &workflow.id).await?,
+            !f.is_sealed(&pool).await?,
             "a participant part-way through must not be sealed"
         );
 
-        update(&pool, &user.id, &steps[1].id, &done).await?;
+        update(&pool, &f.user.id, &f.steps[1].id, &done).await?;
 
         assert!(
-            is_sealed(&pool, &user.id, &workflow.id).await?,
+            f.is_sealed(&pool).await?,
             "a participant who has finished every step must be sealed"
         );
 
@@ -504,35 +552,16 @@ mod tests {
     async fn should_never_seal_when_revisits_are_allowed(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let (_, value, _) = session
-            .create_random_workflow(&app, &conversation_id.to_string())
-            .await?;
-        let workflow: WorkflowDto = serde_json::from_value(value)?;
+        let f = Fixture::new(&pool, 1).await?;
 
-        let values = session
-            .create_random_workflow_steps(
-                &app,
-                &conversation_id.to_string(),
-                &workflow.id.to_string(),
-                1,
-            )
-            .await?;
-        let steps: Vec<WorkflowStepDto> = values
-            .into_iter()
-            .map(|v| serde_json::from_value(v).unwrap())
-            .collect();
-
-        let user = users::create_annon_user(&pool).await?;
-        create(&pool, &user.id, &steps[0].id, ProgressStatus::Done).await?;
+        create(&pool, &f.user.id, &f.steps[0].id, ProgressStatus::Done).await?;
 
         assert!(
-            has_finished(&pool, &user.id, &workflow.id).await?,
+            has_finished(&pool, &f.user.id, &f.workflow.id).await?,
             "every step is done, so they have finished"
         );
         assert!(
-            !is_sealed(&pool, &user.id, &workflow.id).await?,
+            !f.is_sealed(&pool).await?,
             "finishing must not seal while the conversation allows revisits"
         );
 
@@ -545,17 +574,10 @@ mod tests {
     async fn should_not_treat_an_empty_workflow_as_finished(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let (_, value, _) = session
-            .create_random_workflow(&app, &conversation_id.to_string())
-            .await?;
-        let workflow: WorkflowDto = serde_json::from_value(value)?;
-
-        let user = users::create_annon_user(&pool).await?;
+        let f = Fixture::new(&pool, 0).await?;
 
         assert!(
-            !has_finished(&pool, &user.id, &workflow.id).await?,
+            !has_finished(&pool, &f.user.id, &f.workflow.id).await?,
             "an empty workflow must never count as finished"
         );
 
@@ -568,55 +590,19 @@ mod tests {
     async fn should_unseal_when_a_step_is_added_after_finishing(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let (_, value, _) = session
-            .create_random_workflow(&app, &conversation_id.to_string())
-            .await?;
-        let workflow: WorkflowDto = serde_json::from_value(value)?;
+        let mut f = Fixture::new(&pool, 1).await?;
+        f.disallow_revisits(&pool).await?;
 
-        let values = session
-            .create_random_workflow_steps(
-                &app,
-                &conversation_id.to_string(),
-                &workflow.id.to_string(),
-                1,
-            )
-            .await?;
-        let steps: Vec<WorkflowStepDto> = values
-            .into_iter()
-            .map(|v| serde_json::from_value(v).unwrap())
-            .collect();
-
-        let user = users::create_annon_user(&pool).await?;
-
-        crate::models::conversation::update(
-            &pool,
-            &conversation_id,
-            &crate::models::conversation::PartialConversation {
-                allow_revisit_after_finishing: Some(false),
-                ..Default::default()
-            },
-        )
-        .await?;
-
-        create(&pool, &user.id, &steps[0].id, ProgressStatus::Done).await?;
+        create(&pool, &f.user.id, &f.steps[0].id, ProgressStatus::Done).await?;
         assert!(
-            is_sealed(&pool, &user.id, &workflow.id).await?,
+            f.is_sealed(&pool).await?,
             "sealed after finishing the only step"
         );
 
-        session
-            .create_random_workflow_steps(
-                &app,
-                &conversation_id.to_string(),
-                &workflow.id.to_string(),
-                1,
-            )
-            .await?;
+        f.add_steps(1).await?;
 
         assert!(
-            !is_sealed(&pool, &user.id, &workflow.id).await?,
+            !f.is_sealed(&pool).await?,
             "adding a step un-seals a participant who had already finished"
         );
 

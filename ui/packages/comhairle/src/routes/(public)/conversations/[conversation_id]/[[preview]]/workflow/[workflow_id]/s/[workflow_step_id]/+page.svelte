@@ -188,7 +188,12 @@
 					}
 				);
 
-				await invalidate('app:workflow-steps');
+				// Participation too: this write may have been the one that finished the flow,
+				// and the seal is read off the participation row.
+				await Promise.all([
+					invalidate('app:workflow-steps'),
+					invalidate('app:participation')
+				]);
 
 				goto(
 					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString

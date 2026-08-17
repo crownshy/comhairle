@@ -15,6 +15,7 @@ use crate::ComhairleState;
 use crate::{
     error::ComhairleError,
     models::user_progress::{self, UpdateUserProgress},
+    models::workflow_step,
     routes::user_progress::dto::UserProgressDto,
 };
 
@@ -51,15 +52,22 @@ pub async fn update_user_progress(
     Path((_, workflow_id, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<UpdateUserProgress>,
 ) -> Result<(StatusCode, Json<UserProgressDto>), ComhairleError> {
+    // The seal is evaluated for the workflow in the path, but the write below is keyed on the
+    // step alone. Left unchecked, a sealed participant could send the id of some other
+    // workflow they have not finished and have the gate wave the write through.
+    let step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+    if step.workflow_id != workflow_id {
+        return Err(ComhairleError::BadRequest(format!(
+            "workflow step {workflow_step_id} does not belong to workflow {workflow_id}"
+        )));
+    }
+
     if user_progress::is_sealed(&state.db, &user.id, &workflow_id).await? {
         // Already sealed going in. A write that changes nothing is still allowed through as a
         // no-op: the client retrying the `done` write that completed the flow (a double
         // submit, a flaky connection) has in fact succeeded, and answering it with an error
         // would show a failure to someone who finished.
-        let existing = user_progress::list_for_user_on_workflow(&state.db, &user.id, &workflow_id)
-            .await?
-            .into_iter()
-            .find(|p| p.workflow_step_id == workflow_step_id);
+        let existing = user_progress::get(&state.db, &user.id, &workflow_step_id).await?;
 
         return match existing {
             Some(row) if payload.is_noop_for(&row) => Ok((StatusCode::OK, Json(row.into()))),
@@ -159,6 +167,67 @@ mod tests {
         let new_status: String = extract("status", &progress);
         assert_eq!(status, StatusCode::OK, "should respone with created");
         assert_eq!(new_status, "done", "should have the correct status");
+
+        Ok(())
+    }
+
+    /// The seal is evaluated for the workflow in the path while the write is keyed on the step,
+    /// so the two have to be checked against each other. Otherwise a sealed participant could
+    /// name a workflow they have not finished and get their write through anyway.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_reject_progress_for_a_step_in_another_workflow(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_user_session = UserSession::new_admin();
+        admin_user_session.signup(&app).await?;
+
+        let (_, conversation, _) = admin_user_session.create_random_conversation(&app).await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = admin_user_session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        let (_, other_workflow, _) = admin_user_session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let other_workflow_id: String = extract("id", &other_workflow);
+
+        let other_steps = admin_user_session
+            .create_random_workflow_steps(&app, &conversation_id, &other_workflow_id, 1)
+            .await?;
+        let other_step_id: String = extract("id", other_steps.first().unwrap());
+
+        let mut user_session = UserSession::new(
+            "regular_user",
+            crate::test_helpers::TEST_PASSWORD,
+            "regular_user@gmail.com",
+        );
+        user_session.signup(&app).await?;
+
+        for id in [&workflow_id, &other_workflow_id] {
+            let url = format!("/conversation/{conversation_id}/workflow/{id}/register");
+            user_session.post(&app, &url, Body::empty()).await?;
+        }
+
+        // The step belongs to `other_workflow_id`, but the path names `workflow_id`.
+        let url = format!(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/progress/{other_step_id}"
+        );
+
+        let (status, _, _) = user_session
+            .put(&app, &url, json!({"status": "done"}).to_string().into())
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "a step from another workflow must be refused"
+        );
 
         Ok(())
     }
