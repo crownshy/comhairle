@@ -181,8 +181,8 @@
 			<HeyFormEmbedSkeleton />
 		</div>
 	{/if}
-	<div class="mx-auto mt-1 w-full max-w-2xl overflow-hidden rounded-xl [grid-area:1/1]">
-		{#if browser}
+	{#if browser}
+		<div class="mx-auto mt-1 w-full max-w-2xl overflow-hidden rounded-xl [grid-area:1/1]">
 			<iframe
 				bind:this={iframeEl}
 				src={fullUrl}
@@ -196,6 +196,6 @@
 					? 'opacity-100'
 					: 'opacity-0'}"
 			></iframe>
-		{/if}
-	</div>
+		</div>
+	{/if}
 </div>
