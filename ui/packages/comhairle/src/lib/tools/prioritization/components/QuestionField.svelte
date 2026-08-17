@@ -6,7 +6,7 @@
 	import type { Question } from '../types';
 
 	type Props = {
-		question: Question;
+		question: Question<string>;
 		value: number | string | null;
 		disabled?: boolean;
 		/** When true, the question is required but unanswered after a submit attempt. */

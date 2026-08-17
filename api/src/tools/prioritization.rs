@@ -9,58 +9,60 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        proposal::{self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations},
-        proposal_response::{
-            self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
-            ProposalResponseOrderOptions, QuestionResponses, ResponseValue,
-        },
-        proposal_section::{
-            self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
-        },
-        translations::TextContentId,
-        workflow_step,
-    },
-    routes::{
-        auth::{RequiredAdminUser, RequiredUser, is_user_admin},
-        translations::LocaleExtractor,
-    },
-    schema_helpers::{example_localized_text, example_uuid},
-    tools::{ToolConfig, ToolConfigSanitize, ToolImpl},
+use crate::models::proposal::{
+    self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations,
 };
+use crate::models::proposal_response::{
+    self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
+    ProposalResponseOrderOptions, QuestionResponses, ResponseValue,
+};
+use crate::models::proposal_section::{
+    self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
+};
+use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
+use crate::models::workflow_step;
+use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::routes::translations::LocaleExtractor;
+use crate::schema_helpers::{example_localized_text, example_uuid};
+use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};
+use crate::{ComhairleError, ComhairleState};
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct PrioritizationToolConfig {
     /// Questions asked once about the proposal as a whole.
+    #[translatable]
     pub questions: Vec<Question>,
     /// Questions asked about each section individually. The same set is used
     /// for every section; participants answer them once per section.
     #[serde(default)]
+    #[translatable]
     pub section_questions: Vec<Question>,
     pub randomize_order: bool,
     pub alignment_question_id: Option<Uuid>,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct Question {
     pub id: Uuid,
-    pub text: String,
+    #[translatable]
+    pub text: TextContentId,
+    #[translatable]
     pub r#type: QuestionType,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 #[serde(rename_all = "snake_case")]
 pub enum QuestionType {
     Text,
     LikertScale {
+        #[translatable]
         categories: Vec<Category>,
     },
     Continuous {
@@ -70,10 +72,10 @@ pub enum QuestionType {
         min_value: f64,
         #[serde(default = "default_max_value")]
         max_value: f64,
-        #[serde(default)]
-        min_label: String,
-        #[serde(default)]
-        max_label: String,
+        #[translatable]
+        min_label: TextContentId,
+        #[translatable]
+        max_label: TextContentId,
     },
 }
 
@@ -85,10 +87,117 @@ fn default_max_value() -> f64 {
     10.0
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct Category {
     value: f64,
+    #[translatable]
+    label: TextContentId,
+}
+
+// =================
+// Setup structs
+// =================
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct SetupQuestion {
+    pub text: String,
+    pub r#type: SetupQuestionType,
+}
+
+impl SetupQuestion {
+    async fn build_with_translations(
+        self,
+        db: &PgPool,
+        locale: &str,
+    ) -> Result<Question, ComhairleError> {
+        Ok(Question {
+            id: Uuid::new_v4(),
+            text: self
+                .text
+                .build_text_translation(db, locale, TextFormat::Plain)
+                .await?,
+            r#type: self.r#type.build_with_translations(db, locale).await?,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SetupQuestionType {
+    Text,
+    LikertScale {
+        categories: Vec<SetupCategory>,
+    },
+    Continuous {
+        sub_steps: i32,
+        min_value: f64,
+        max_value: f64,
+        min_label: String,
+        max_label: String,
+    },
+}
+
+impl SetupQuestionType {
+    async fn build_with_translations(
+        self,
+        db: &PgPool,
+        locale: &str,
+    ) -> Result<QuestionType, ComhairleError> {
+        Ok(match self {
+            SetupQuestionType::Text => QuestionType::Text,
+            SetupQuestionType::LikertScale { categories } => {
+                let mut built = Vec::with_capacity(categories.len());
+                for category in categories {
+                    built.push(category.build_with_translations(db, locale).await?);
+                }
+                QuestionType::LikertScale { categories: built }
+            }
+            SetupQuestionType::Continuous {
+                sub_steps,
+                min_value,
+                max_value,
+                min_label,
+                max_label,
+            } => QuestionType::Continuous {
+                sub_steps,
+                min_value,
+                max_value,
+                min_label: min_label
+                    .build_text_translation(db, locale, TextFormat::Plain)
+                    .await?,
+                max_label: max_label
+                    .build_text_translation(db, locale, TextFormat::Plain)
+                    .await?,
+            },
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct SetupCategory {
+    value: f64,
     label: String,
+}
+
+impl SetupCategory {
+    async fn build_with_translations(
+        self,
+        db: &PgPool,
+        locale: &str,
+    ) -> Result<Category, ComhairleError> {
+        Ok(Category {
+            value: self.value,
+            label: self
+                .label
+                .build_text_translation(db, locale, TextFormat::Plain)
+                .await?,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct PrioritizationToolSetup {
+    pub questions: Vec<SetupQuestion>,
 }
 
 impl ToolConfigSanitize for PrioritizationToolConfig {
@@ -100,31 +209,6 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
             alignment_question_id: self.alignment_question_id,
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
-pub struct SetupQuestion {
-    pub text: String,
-    pub r#type: QuestionType,
-}
-
-impl From<SetupQuestion> for Question {
-    fn from(q: SetupQuestion) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            text: q.text,
-            r#type: q.r#type,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-pub struct PrioritizationToolSetup {
-    pub questions: Vec<SetupQuestion>,
-    #[serde(default)]
-    pub section_questions: Vec<SetupQuestion>,
-    pub randomize_order: bool,
-    pub alignment_question_id: Option<Uuid>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
@@ -140,9 +224,10 @@ impl ToolImpl for PrioritizationTool {
 
     async fn setup(
         setup: &Self::Setup,
-        _state: &Arc<ComhairleState>,
+        state: &Arc<ComhairleState>,
+        locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
-        prioritization_setup(setup)
+        prioritization_setup(&state.db, setup, locale).await
     }
 
     async fn clone_tool(
@@ -263,31 +348,22 @@ Create a response for prioritization tool proposal
     }
 }
 
-fn prioritization_setup(
+async fn prioritization_setup(
+    db: &PgPool,
     setup_config: &PrioritizationToolSetup,
+    locale: &str,
 ) -> Result<PrioritizationToolConfig, ComhairleError> {
-    let questions: Vec<Question> = setup_config
-        .questions
-        .clone()
-        .into_iter()
-        .map(Into::into)
-        .collect();
+    let mut questions = Vec::with_capacity(setup_config.questions.len());
+    for question in setup_config.questions.clone() {
+        questions.push(question.build_with_translations(db, locale).await?);
+    }
 
-    let alignment_question_id = if questions.is_empty() {
-        None
-    } else {
-        Some(questions[0].id)
-    };
+    let alignment_question_id = questions.first().map(|q| q.id);
 
     Ok(PrioritizationToolConfig {
         questions,
-        section_questions: setup_config
-            .section_questions
-            .clone()
-            .into_iter()
-            .map(Into::into)
-            .collect(),
-        randomize_order: setup_config.randomize_order,
+        section_questions: vec![],
+        randomize_order: false,
         alignment_question_id,
     })
 }

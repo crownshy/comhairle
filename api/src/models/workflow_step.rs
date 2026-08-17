@@ -55,6 +55,49 @@ pub struct WorkflowStep {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Helper trait to simplify working with workflow_step tool_configs across
+/// methods and endpoints that return differing types of workflow_steps.
+pub trait WithToolConfig {
+    fn tool_config(&self) -> Option<&ToolConfig>;
+    fn preview_tool_config(&self) -> &ToolConfig;
+}
+
+impl WithToolConfig for WorkflowStep {
+    fn tool_config(&self) -> Option<&ToolConfig> {
+        self.tool_config.as_ref()
+    }
+    fn preview_tool_config(&self) -> &ToolConfig {
+        &self.preview_tool_config
+    }
+}
+
+impl WithToolConfig for LocalizedWorkflowStep {
+    fn tool_config(&self) -> Option<&ToolConfig> {
+        self.tool_config.as_ref()
+    }
+    fn preview_tool_config(&self) -> &ToolConfig {
+        &self.preview_tool_config
+    }
+}
+
+impl WithToolConfig for WorkflowStepWithTranslations {
+    fn tool_config(&self) -> Option<&ToolConfig> {
+        self.tool_config.as_ref()
+    }
+    fn preview_tool_config(&self) -> &ToolConfig {
+        &self.preview_tool_config
+    }
+}
+
+impl WithToolConfig for LocalizedWorkflowStepWithProgress {
+    fn tool_config(&self) -> Option<&ToolConfig> {
+        self.step.tool_config.as_ref()
+    }
+    fn preview_tool_config(&self) -> &ToolConfig {
+        &self.step.preview_tool_config
+    }
+}
+
 const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
@@ -495,9 +538,10 @@ pub async fn list_with_translations(
 pub async fn setup_tool(
     setup: &ToolSetup,
     state: &Arc<ComhairleState>,
+    locale: &str,
 ) -> Result<ToolConfig, ComhairleError> {
     // Use the new trait method for setup
-    setup.setup(state).await.map_err(|err| {
+    setup.setup(state, locale).await.map_err(|err| {
         warn!("Tool setup error {err:#?}");
         err
     })
@@ -537,7 +581,8 @@ pub async fn create(
     columns.push(WorkflowStepIden::Description);
     values.push(description_translation.id.into());
 
-    let preview_tool_config = setup_tool(&new_workflow_step.tool_setup, state).await?;
+    let preview_tool_config =
+        setup_tool(&new_workflow_step.tool_setup, state, primary_locale).await?;
 
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());

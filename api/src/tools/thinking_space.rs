@@ -106,6 +106,7 @@ impl ToolImpl for ThinkingSpaceTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         thinking_space_setup(setup).await
     }

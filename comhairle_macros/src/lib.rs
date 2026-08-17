@@ -1,6 +1,14 @@
+mod translation_helpers;
+
+use translation_helpers::{
+    derive_translatable_enum_struct, derive_translatable_json_struct,
+    is_optional_text_content_id_type, is_text_content_id_type, passthrough_serde_attrs,
+    snake_case_to_pascal,
+};
+
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{Data, DeriveInput, Fields, GenericArgument, PathArguments, Type, parse_macro_input};
+use quote::{format_ident, quote};
+use syn::{Data, DeriveInput, Fields, parse_macro_input};
 
 /// Macro used to allow an enum to be
 /// saved as jsonb in the database
@@ -495,50 +503,100 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Helper function to check if a type is TextContentId
-fn is_text_content_id_type(ty: &Type) -> bool {
-    match ty {
-        Type::Path(type_path) => {
-            if let Some(segment) = type_path.path.segments.last() {
-                segment.ident == "TextContentId"
-            } else {
-                false
-            }
-        }
-        _ => false,
-    }
-}
+/// Derives translation-resolution support for a type whose fields (or, for
+/// enums, whose variants' fields) may reference translatable text via
+/// [`TextContentId`].
+///
+/// Allows translation resolution for nested JSON structures with translatable
+/// text fields at different levels of nesting.
+///
+/// For a type `Foo`, `#[derive(TranslatableJson)]` generates:
+///
+/// - A mirror type `LocalizedFoo`, identical to `Foo` except every
+///   `#[translatable]` field's type is replaced by that type's
+///   [`LocalizeTranslations::Localized`] associated type (e.g. a
+///   `TextContentId` field becomes `String`; a `Vec<Question>` field becomes
+///   `Vec<LocalizedQuestion>`). Fields without `#[translatable]` are copied
+///   through unchanged.
+/// - `impl CollectTextContentIds for Foo`, which walks every
+///   `#[translatable]` field (recursing into nested translatable types,
+///   `Option`, and `Vec`) and collects every [`TextContentId`] found.
+/// - `impl LocalizeTranslations for Foo`, with `type Localized = LocalizedFoo`,
+///   which consumes `self` and a `&HashMap<TextContentId, String>` and
+///   produces a `LocalizedFoo` by resolving each `#[translatable]` field
+///   through the map and passing other fields through unchanged.
+/// - `impl ResolveWithTranslations for Foo`, with `type WithTranslations =
+///   FooWithTranslations`, which consumes `self` and a
+///   `&HashMap<TextContentId, TranslationDto>` and produces a
+///   `FooWithTranslations` calling `resolve_with_translations` at each
+///   `#[translatable]` leaf.
+///
+/// # Field attribute
+///
+/// Mark any field whose type is [`TextContentId`], or whose type itself
+/// derives `TranslatableJson` (directly, or wrapped in `Option<_>`/`Vec<_>`),
+/// with `#[translatable]`:
+///
+/// ```ignore
+/// #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
+/// pub struct Question {
+///     pub id: Uuid,
+///     #[translatable]
+///     pub text: TextContentId,
+///     #[translatable]
+///     pub r#type: QuestionType,
+/// }
+/// ```
+///
+/// expands (informally) to a `LocalizedQuestion { id: Uuid, text: String,
+/// r#type: LocalizedQuestionType }` plus the two trait impls described
+/// above. Fields without the attribute (e.g. `id`) are assumed to contain no
+/// translatable content and are copied through as-is into `LocalizedQuestion`.
+///
+/// # Requirements on `#[translatable]` field types
+///
+/// The type of a `#[translatable]` field must implement both
+/// `CollectTextContentIds`, `LocalizeTranslations` and `ResolveWithTranslations`
+/// (directly, or via the `Option`/`Vec` blanket impls). [`TextContentId`]
+/// implements all three directly; any other type used in a `#[translatable]`
+/// field should itself derive `TranslatableJson`. Marking a field
+/// `#[translatable]` when its type doesn't satisfy this produces a trait-bound
+/// compile error at the use site.
+#[proc_macro_derive(TranslatableJson, attributes(translatable))]
+pub fn derive_translatable_json(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    let localized_name = format_ident!("Localized{}", name);
+    let with_translations_name = format_ident!("{}WithTranslations", name);
+    let serde_attributes = passthrough_serde_attrs(&input.attrs);
+    let derives: Vec<syn::Path> = vec![
+        syn::parse_quote!(Debug),
+        syn::parse_quote!(Clone),
+        syn::parse_quote!(serde::Serialize),
+        syn::parse_quote!(serde::Deserialize),
+        syn::parse_quote!(JsonSchema),
+        syn::parse_quote!(PartialEq),
+    ];
 
-/// Helper function to check if a type is <TextContentId>
-fn is_optional_text_content_id_type(ty: &Type) -> bool {
-    match ty {
-        Type::Path(type_path) => {
-            if let Some(segment) = type_path.path.segments.last() {
-                if segment.ident != "Option" {
-                    return false;
-                }
+    let expanded = match &input.data {
+        Data::Struct(data) => derive_translatable_json_struct(
+            name,
+            &localized_name,
+            &with_translations_name,
+            data,
+            &derives,
+            &serde_attributes,
+        ),
+        Data::Enum(data) => derive_translatable_enum_struct(
+            name,
+            &localized_name,
+            &with_translations_name,
+            data,
+            &derives,
+            &serde_attributes,
+        ),
+        _ => panic!("TranslatableJson can only be derived for structs and enums"),
+    };
 
-                if let PathArguments::AngleBracketed(args) = &segment.arguments
-                    && let Some(GenericArgument::Type(inner_type)) = args.args.first()
-                {
-                    return is_text_content_id_type(inner_type);
-                }
-            }
-            false
-        }
-        _ => false,
-    }
-}
-
-fn snake_case_to_pascal(snake_word: String) -> String {
-    snake_word
-        .split('_')
-        .map(|word| {
-            let mut chars: Vec<char> = word.chars().collect();
-            if !chars.is_empty() {
-                chars[0] = chars[0].to_uppercase().next().unwrap();
-            }
-            chars.into_iter().collect::<String>()
-        })
-        .collect::<String>()
+    expanded.into()
 }

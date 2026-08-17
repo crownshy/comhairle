@@ -7,19 +7,33 @@
 	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
 	import QuestionField from './QuestionField.svelte';
 	import type { PrioritizationStore } from '../store.svelte';
-	import type { LikertCategory, Question, QuestionType, ToolConfig } from '../types';
-
-	/** Form state for a question being created or edited.  */
-	type DraftFields = { text: string; type: QuestionType };
+	import type {
+		DraftTranslatableJsonField,
+		DraftQuestion,
+		ToolConfig,
+		DraftFields,
+		DraftQuestionType,
+		DraftLikertCategory
+	} from '../types';
+	import type { TranslationDto } from '@crownshy/api-client/api';
+	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
+	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import {
+		isDraftTranslatableField,
+		localizeTranslatableJson,
+		traverseTranslatableJsonAndCreateTranslations
+	} from '$lib/components/Translation/translationUtils';
 
 	type Props = {
 		open: boolean;
-		question?: Question | null;
+		question?: DraftQuestion | null;
 		store: PrioritizationStore;
-		toolConfig: ToolConfig;
+		toolConfig: ToolConfig<DraftTranslatableJsonField>;
 		/** Which question set this dialog edits. */
 		target?: 'proposal' | 'section';
 		onOpenChange: (open: boolean) => void;
+		primaryLocale: string;
+		supportedLocales: string[];
 	};
 
 	let {
@@ -28,35 +42,57 @@
 		store,
 		toolConfig,
 		target = 'proposal',
-		onOpenChange
+		onOpenChange,
+		primaryLocale,
+		supportedLocales
 	}: Props = $props();
 
-	const defaultLikertCategories: LikertCategory[] = [
-		{ label: 'Strongly disagree', value: -2 },
-		{ label: 'Disagree', value: -1 },
-		{ label: 'Neutral', value: 0 },
-		{ label: 'Agree', value: 1 },
-		{ label: 'Strongly agree', value: 2 }
+	const defaultLikertCategories: DraftLikertCategory[] = [
+		{ label: newTranslatableField('Strongly disagree'), value: -2 },
+		{ label: newTranslatableField('Disagree'), value: -1 },
+		{ label: newTranslatableField('Neutral'), value: 0 },
+		{ label: newTranslatableField('Agree'), value: 1 },
+		{ label: newTranslatableField('Strongly agree'), value: 2 }
 	];
+
+	function newTranslatableField(seed = ''): DraftTranslatableJsonField {
+		return { localized: seed };
+	}
+
+	function cloneTranslatableText(source: {
+		localized: string;
+		translations?: TranslationDto;
+	}): DraftTranslatableJsonField {
+		return {
+			localized: source.localized,
+			translations: source.translations
+		};
+	}
 
 	function emptyDraft(): DraftFields {
 		return {
-			text: '',
+			text: newTranslatableField(),
 			type: { kind: 'likert', categories: defaultLikertCategories.map((c) => ({ ...c })) }
 		};
 	}
 
-	function cloneType(t: QuestionType): QuestionType {
+	function cloneType(t: DraftQuestionType): DraftQuestionType {
 		if (t.kind === 'likert')
-			return { kind: 'likert', categories: t.categories.map((c) => ({ ...c })) };
+			return {
+				kind: 'likert',
+				categories: t.categories.map((c) => ({
+					value: c.value,
+					label: cloneTranslatableText(c.label)
+				}))
+			};
 		if (t.kind === 'continuous')
 			return {
 				kind: 'continuous',
 				subSteps: t.subSteps,
 				minValue: t.minValue,
 				maxValue: t.maxValue,
-				minLabel: t.minLabel,
-				maxLabel: t.maxLabel
+				minLabel: cloneTranslatableText(t.minLabel),
+				maxLabel: cloneTranslatableText(t.maxLabel)
 			};
 		return { kind: 'text' };
 	}
@@ -67,6 +103,68 @@
 	let errorMessage = $state<string | null>(null);
 
 	const isEditing = $derived(editingId !== undefined);
+
+	const textTransSource = $derived.by(() => {
+		// Force re-evaluation on toggle open as component isn't unmounted
+		// when new questions are created
+		void open;
+		return createTextContentSource({
+			getTranslation: () => draft.text.translations,
+			getPrimaryLocale: () => primaryLocale,
+			getSupportedLanguages: () => supportedLocales,
+			getPrimaryFallback: () => draft.text.localized,
+			onEdit: async (content) => {
+				draft.text.localized = content;
+			}
+		});
+	});
+
+	const likertCategoryTransSources = $derived.by(() => {
+		// Force re-evaluation on toggle open as component isn't unmounted
+		// when new questions are created
+		void open;
+		if ('kind' in draft.type && draft.type.kind !== 'likert') return [];
+
+		return draft.type.categories.map((category, index) => {
+			return createTextContentSource({
+				getTranslation: () => category.label.translations ?? undefined,
+				getPrimaryLocale: () => primaryLocale,
+				getSupportedLanguages: () => supportedLocales,
+				getPrimaryFallback: () => category.label.localized ?? '',
+				onEdit: async (content) => {
+					draft.type.categories[index].label.localized = content;
+				}
+			});
+		});
+	});
+
+	const continuousTransSources = $derived.by(() => {
+		// Force re-evaluation on toggle open as component isn't unmounted
+		// when new questions are created
+		void open;
+		if ('kind' in draft.type && draft.type.kind !== 'continuous') return {};
+
+		return {
+			minLabel: createTextContentSource({
+				getTranslation: () => draft.type.minLabel.translations ?? undefined,
+				getPrimaryLocale: () => primaryLocale,
+				getSupportedLanguages: () => supportedLocales,
+				getPrimaryFallback: () => draft.type.minLabel.localized ?? '',
+				onEdit: async (content) => {
+					draft.type.minLabel.localized = content;
+				}
+			}),
+			maxLabel: createTextContentSource({
+				getTranslation: () => draft.type.maxLabel.translations ?? undefined,
+				getPrimaryLocale: () => primaryLocale,
+				getSupportedLanguages: () => supportedLocales,
+				getPrimaryFallback: () => draft.type.maxLabel.localized ?? '',
+				onEdit: async (content) => {
+					draft.type.maxLabel.localized = content;
+				}
+			})
+		};
+	});
 
 	$effect(() => {
 		if (open) {
@@ -81,7 +179,7 @@
 		}
 	});
 
-	function setKind(kind: QuestionType['kind']) {
+	function setKind(kind: DraftQuestionType['kind']) {
 		if (kind === draft.type.kind) return;
 		if (kind === 'likert') {
 			draft.type = {
@@ -94,8 +192,8 @@
 				subSteps: 10,
 				minValue: 0,
 				maxValue: 10,
-				minLabel: '',
-				maxLabel: ''
+				minLabel: newTranslatableField(''),
+				maxLabel: newTranslatableField('')
 			};
 		} else {
 			draft.type = { kind: 'text' };
@@ -105,7 +203,10 @@
 	function addCategory() {
 		if (draft.type.kind !== 'likert') return;
 		const nextValue = (draft.type.categories.at(-1)?.value ?? 0) + 1;
-		draft.type.categories = [...draft.type.categories, { label: '', value: nextValue }];
+		draft.type.categories = [
+			...draft.type.categories,
+			{ label: newTranslatableField(''), value: nextValue }
+		];
 	}
 
 	function removeCategory(cIndex: number) {
@@ -114,10 +215,10 @@
 	}
 
 	function validate(): string | null {
-		if (!draft.text.trim()) return 'Question text is required.';
+		if (!draft.text.localized.trim()) return 'Question text is required.';
 		if (draft.type.kind === 'likert') {
 			if (draft.type.categories.length < 2) return 'Likert needs at least 2 options.';
-			if (draft.type.categories.some((c) => !c.label.trim())) {
+			if (draft.type.categories.some((c: DraftLikertCategory) => !c.label.localized.trim())) {
 				return 'Every option needs a label.';
 			}
 		}
@@ -138,14 +239,22 @@
 		saving = true;
 		errorMessage = null;
 		try {
+			// Create translations for any new translatable fields in draft
+			const questionWithNewlyCreatedTranslations =
+				await traverseTranslatableJsonAndCreateTranslations(draft, primaryLocale);
+
 			const existing =
 				(target === 'section' ? toolConfig.sectionQuestions : toolConfig.questions) ?? [];
 			const id = editingId ?? crypto.randomUUID();
-			const next: Question = { id, text: draft.text, type: cloneType(draft.type) };
+			const next: DraftQuestion = {
+				id,
+				...structuredClone(questionWithNewlyCreatedTranslations)
+			};
 			const updated =
 				editingId !== undefined
 					? existing.map((q) => (q.id === editingId ? next : q))
 					: [...existing, next];
+
 			await store.saveToolConfig({
 				questions: target === 'section' ? toolConfig.questions : updated,
 				sectionQuestions: target === 'section' ? updated : toolConfig.sectionQuestions,
@@ -160,13 +269,13 @@
 		}
 	}
 
-	const kindOptions: Array<{ value: QuestionType['kind']; label: string }> = [
+	const kindOptions: Array<{ value: DraftQuestionType['kind']; label: string }> = [
 		{ value: 'likert', label: 'Likert scale' },
 		{ value: 'continuous', label: 'Slider' },
 		{ value: 'text', label: 'Free text' }
 	];
 
-	function kindLabel(kind: QuestionType['kind']): string {
+	function kindLabel(kind: DraftQuestionType['kind']): string {
 		return kindOptions.find((k) => k.value === kind)?.label ?? kind;
 	}
 
@@ -192,11 +301,19 @@
 		<div class="space-y-4 py-2">
 			<div class="space-y-2">
 				<Label for="q-text">Question</Label>
-				<Input
-					id="q-text"
-					bind:value={draft.text}
-					placeholder="e.g. How strongly do you support this proposal?"
-				/>
+				{#if isDraftTranslatableField(draft.text)}
+					<Input
+						id="q-text"
+						bind:value={draft.text.localized}
+						placeholder="e.g. How strongly do you support this proposal?"
+					/>
+				{:else}
+					<TranslatableField
+						source={textTransSource}
+						{primaryLocale}
+						supportedLanguages={supportedLocales}
+					/>
+				{/if}
 			</div>
 
 			<div class="space-y-2">
@@ -204,7 +321,7 @@
 				<Select.Root
 					type="single"
 					value={draft.type.kind}
-					onValueChange={(v) => v && setKind(v as QuestionType['kind'])}
+					onValueChange={(v) => v && setKind(v as DraftQuestionType['kind'])}
 				>
 					<Select.Trigger class="w-full">{kindLabel(draft.type.kind)}</Select.Trigger>
 					<Select.Content>
@@ -223,40 +340,53 @@
 							<Plus class="mr-1 h-3 w-3" /> Add option
 						</Button>
 					</div>
-					{#each draft.type.categories as _, cIndex (cIndex)}
-						<div class="flex items-center gap-2">
-							<Input
-								class="flex-1"
-								placeholder="Label"
-								bind:value={
-									(draft.type as { categories: LikertCategory[] }).categories[
-										cIndex
-									].label
-								}
-							/>
-							<Input
-								type="number"
-								class="w-20"
-								placeholder="Value"
-								bind:value={
-									(draft.type as { categories: LikertCategory[] }).categories[
-										cIndex
-									].value
-								}
-							/>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon"
-								onclick={() => removeCategory(cIndex)}
-								disabled={draft.type.kind === 'likert' &&
-									draft.type.categories.length <= 2}
-								aria-label="Remove option"
-							>
-								<Trash2 class="h-4 w-4" />
-							</Button>
-						</div>
-					{/each}
+					<div class="flex flex-col gap-4">
+						{#each draft.type.categories as category, cIndex (cIndex)}
+							<div class="flex items-start gap-2">
+								<div class="flex-1">
+									{#if isDraftTranslatableField(category.label)}
+										<Input
+											class="flex-1"
+											placeholder="Label"
+											bind:value={
+												(
+													draft.type as {
+														categories: DraftLikertCategory[];
+													}
+												).categories[cIndex].label.localized
+											}
+										/>
+									{:else}
+										<TranslatableField
+											source={likertCategoryTransSources[cIndex]}
+											{primaryLocale}
+											supportedLanguages={supportedLocales}
+										/>
+									{/if}
+								</div>
+								<Input
+									type="number"
+									class="w-20"
+									placeholder="Value"
+									bind:value={
+										(draft.type as { categories: DraftLikertCategory[] })
+											.categories[cIndex].value
+									}
+								/>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									onclick={() => removeCategory(cIndex)}
+									disabled={draft.type.kind === 'likert' &&
+										draft.type.categories.length <= 2}
+									aria-label="Remove option"
+								>
+									<Trash2 class="h-4 w-4" />
+								</Button>
+							</div>
+						{/each}
+					</div>
 				</div>
 			{:else if draft.type.kind === 'continuous'}
 				{@const ctype = draft.type}
@@ -279,18 +409,36 @@
 					</div>
 					<div class="flex items-center gap-3">
 						<Label for="q-min-label" class="w-20 shrink-0">End labels</Label>
-						<Input
-							id="q-min-label"
-							class="flex-1"
-							bind:value={ctype.minLabel}
-							placeholder="Low end"
-						/>
-						<Input
-							class="flex-1"
-							bind:value={ctype.maxLabel}
-							placeholder="High end"
-							aria-label="High-end label"
-						/>
+						<div class="flex items-start gap-3">
+							{#if isDraftTranslatableField(ctype.minLabel)}
+								<Input
+									id="q-min-label"
+									class="flex-1"
+									bind:value={ctype.minLabel.localized}
+									placeholder="Low end"
+								/>
+							{:else if continuousTransSources.minLabel}
+								<TranslatableField
+									source={continuousTransSources.minLabel}
+									{primaryLocale}
+									supportedLanguages={supportedLocales}
+								/>
+							{/if}
+							{#if isDraftTranslatableField(ctype.minLabel)}
+								<Input
+									class="flex-1"
+									bind:value={ctype.maxLabel.localized}
+									placeholder="High end"
+									aria-label="High-end label"
+								/>
+							{:else if continuousTransSources.maxLabel}
+								<TranslatableField
+									source={continuousTransSources.maxLabel}
+									{primaryLocale}
+									supportedLanguages={supportedLocales}
+								/>
+							{/if}
+						</div>
 					</div>
 					<div class="flex items-center gap-3">
 						<Label for="q-steps" class="w-20 shrink-0">Steps</Label>
@@ -312,17 +460,13 @@
 			{/if}
 		</div>
 
-		{#if draft.text.trim() || draft.type.kind !== 'text'}
+		{#if draft.text.localized.trim() || draft.type.kind !== 'text'}
 			<div class="bg-muted/30 mt-4 space-y-2 rounded-lg border p-4">
 				<p class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
 					Preview
 				</p>
 				<QuestionField
-					question={{
-						id: 'preview',
-						text: draft.text || 'Your question will appear here',
-						type: draft.type
-					}}
+					question={localizeTranslatableJson(draft)}
 					value={previewValue}
 					onChange={(v) => (previewValue = v)}
 				/>

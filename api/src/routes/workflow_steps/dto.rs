@@ -1,17 +1,22 @@
+use std::collections::HashMap;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
     models::{
-        translations::TextContentId,
+        translations::{
+            LocalizeTranslations, ResolveWithTranslations, TextContentId, TranslationDto,
+        },
         user_progress::ProgressStatus,
         workflow_step::{
             ActivationRule, LocalizedWorkflowStep, LocalizedWorkflowStepWithProgress, WorkflowStep,
+            WorkflowStepTranslations, WorkflowStepWithTranslations,
         },
     },
     schema_helpers::{example_localized_text, example_uuid},
-    tools::ToolConfig,
+    tools::{LocalizedToolConfig, ToolConfig, ToolConfigWithTranslations},
 };
 
 /// Data transfer object (public API representation) for a WorkflowStep.
@@ -79,8 +84,8 @@ pub struct LocalizedWorkflowStepDto {
     pub is_offline: bool,
     pub required: bool,
     pub can_revisit: bool,
-    pub tool_config: Option<ToolConfig>,
-    pub preview_tool_config: ToolConfig,
+    pub tool_config: Option<LocalizedToolConfig>,
+    pub preview_tool_config: LocalizedToolConfig,
     pub request_user_share_permission: bool,
 }
 
@@ -116,10 +121,60 @@ pub struct LocalizedWorkflowStepWithProgressDto {
     pub is_offline: bool,
     pub required: bool,
     pub can_revisit: bool,
-    pub tool_config: Option<ToolConfig>,
-    pub preview_tool_config: ToolConfig,
+    pub tool_config: Option<LocalizedToolConfig>,
+    pub preview_tool_config: LocalizedToolConfig,
     pub progress_status: ProgressStatus,
     pub request_user_share_permission: bool,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowStepWithTranslationsDto {
+    #[schemars(example = "example_uuid")]
+    pub id: Uuid,
+    #[schemars(example = "example_uuid")]
+    pub workflow_id: Uuid,
+    #[schemars(example = "example_localized_text")]
+    pub name: String,
+    pub step_order: i32,
+    pub activation_rule: ActivationRule,
+    #[schemars(example = "example_localized_text")]
+    pub description: String,
+    pub is_offline: bool,
+    pub required: bool,
+    pub can_revisit: bool,
+    pub request_user_share_permission: bool,
+    pub translations: WorkflowStepTranslations,
+    pub tool_config: Option<ToolConfigWithTranslations>,
+    pub preview_tool_config: ToolConfigWithTranslations,
+}
+
+impl WorkflowStepWithTranslations {
+    pub fn into_dto(
+        self,
+        tool_config_translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> WorkflowStepWithTranslationsDto {
+        WorkflowStepWithTranslationsDto {
+            id: self.id,
+            workflow_id: self.workflow_id,
+            name: self.name,
+            step_order: self.step_order,
+            activation_rule: self.activation_rule,
+            description: self.description,
+            is_offline: self.is_offline,
+            required: self.required,
+            can_revisit: self.can_revisit,
+            request_user_share_permission: self.request_user_share_permission,
+            translations: self.translations,
+            tool_config: self
+                .tool_config
+                .map(|tc| tc.resolve_with_translations(tool_config_translations, locale)),
+            preview_tool_config: self
+                .preview_tool_config
+                .resolve_with_translations(tool_config_translations, locale),
+        }
+    }
 }
 
 impl From<WorkflowStep> for WorkflowStepDto {
@@ -141,41 +196,50 @@ impl From<WorkflowStep> for WorkflowStepDto {
     }
 }
 
-impl From<LocalizedWorkflowStep> for LocalizedWorkflowStepDto {
-    fn from(w: LocalizedWorkflowStep) -> Self {
-        Self {
-            id: w.id,
-            workflow_id: w.workflow_id,
-            name: w.name,
-            step_order: w.step_order,
-            activation_rule: w.activation_rule,
-            description: w.description,
-            is_offline: w.is_offline,
-            required: w.required,
-            can_revisit: w.can_revisit,
-            tool_config: w.tool_config,
-            preview_tool_config: w.preview_tool_config,
-            request_user_share_permission: w.request_user_share_permission,
+impl LocalizedWorkflowStep {
+    pub fn into_dto(
+        self,
+        translations_map: &HashMap<TextContentId, String>,
+    ) -> LocalizedWorkflowStepDto {
+        LocalizedWorkflowStepDto {
+            id: self.id,
+            workflow_id: self.workflow_id,
+            name: self.name,
+            step_order: self.step_order,
+            activation_rule: self.activation_rule,
+            description: self.description,
+            is_offline: self.is_offline,
+            required: self.required,
+            can_revisit: self.can_revisit,
+            tool_config: self.tool_config.map(|tc| tc.localize(translations_map)),
+            preview_tool_config: self.preview_tool_config.localize(translations_map),
+            request_user_share_permission: self.request_user_share_permission,
         }
     }
 }
 
-impl From<LocalizedWorkflowStepWithProgress> for LocalizedWorkflowStepWithProgressDto {
-    fn from(w: LocalizedWorkflowStepWithProgress) -> Self {
-        Self {
-            id: w.step.id,
-            workflow_id: w.step.workflow_id,
-            name: w.step.name,
-            step_order: w.step.step_order,
-            activation_rule: w.step.activation_rule,
-            description: w.step.description,
-            is_offline: w.step.is_offline,
-            required: w.step.required,
-            can_revisit: w.step.can_revisit,
-            tool_config: w.step.tool_config,
-            preview_tool_config: w.step.preview_tool_config,
-            request_user_share_permission: w.step.request_user_share_permission,
-            progress_status: w.status,
+impl LocalizedWorkflowStepWithProgress {
+    pub fn into_dto(
+        self,
+        translations_map: &HashMap<TextContentId, String>,
+    ) -> LocalizedWorkflowStepWithProgressDto {
+        LocalizedWorkflowStepWithProgressDto {
+            id: self.step.id,
+            workflow_id: self.step.workflow_id,
+            name: self.step.name,
+            step_order: self.step.step_order,
+            activation_rule: self.step.activation_rule,
+            description: self.step.description,
+            is_offline: self.step.is_offline,
+            required: self.step.required,
+            can_revisit: self.step.can_revisit,
+            tool_config: self
+                .step
+                .tool_config
+                .map(|tc| tc.localize(translations_map)),
+            preview_tool_config: self.step.preview_tool_config.localize(translations_map),
+            request_user_share_permission: self.step.request_user_share_permission,
+            progress_status: self.status,
         }
     }
 }
