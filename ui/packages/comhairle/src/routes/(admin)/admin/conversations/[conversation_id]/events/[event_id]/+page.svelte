@@ -645,7 +645,7 @@
 		<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 	</div>
 {:else if activeTab === 'breakout'}
-	<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} />
+	<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} {attendees} />
 {:else if activeTab === 'recordings'}
 	<EventRecordings conversation_id={conversation.id} event_id={event.id} {recordings} />
 {/if}
