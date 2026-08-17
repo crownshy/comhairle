@@ -122,6 +122,9 @@ export type WorkflowStepInput = {
 	id: string;
 	toolConfig?: unknown;
 	previewToolConfig?: unknown;
+	/** Whether participants may return to this step after completing it. Used to
+	 * reassure them they can review the remaining proposals later. */
+	canRevisit?: boolean;
 };
 
 export type ConversationInput = {
