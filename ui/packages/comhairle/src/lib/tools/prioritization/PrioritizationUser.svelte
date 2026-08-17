@@ -24,12 +24,16 @@
 		workflowStep,
 		conversation,
 		participantId = '',
-		onDone
+		onDone,
+		onCanContinueChange
 	}: {
 		workflowStep: WorkflowStepInput;
 		conversation: ConversationInput;
 		participantId?: string;
 		onDone: () => void;
+		/** Drives the host step's top-nav "Next": true once the participant has
+		 * reviewed the minimum number of proposals. Mirrors Polis / Thinking Space. */
+		onCanContinueChange?: (canContinue: boolean) => void;
 	} = $props();
 
 	const stepId = $derived(workflowStep.id);
@@ -220,6 +224,27 @@
 	let showRequiredErrors = $derived(submitAttempted && missingKeys.size > 0);
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
+
+	/** Minimum proposals a participant must review before they can continue. Unset
+	 * means "all proposals", which is the default; an admin sets a number only to
+	 * loosen that. A set value is clamped to the number of proposals that exist, so
+	 * an over-set minimum can never leave the participant unable to advance. */
+	let requiredReviews = $derived(
+		proposals.length === 0
+			? 0
+			: toolConfig.requiredReviews == null
+				? proposals.length
+				: Math.min(Math.max(toolConfig.requiredReviews, 1), proposals.length)
+	);
+	/** The gate: has the participant reviewed at least the minimum? */
+	let canContinue = $derived(submittedIds.size >= requiredReviews);
+	let reviewsRemaining = $derived(Math.max(requiredReviews - submittedIds.size, 0));
+
+	/** Drive the host step's top-nav "Next". Runs on load too, so a returning
+	 * participant who already met the minimum can continue immediately. */
+	$effect(() => {
+		onCanContinueChange?.(canContinue);
+	});
 
 	function setAnswer(proposalId: string, questionId: string, value: number | string) {
 		const next = { ...(answers[proposalId] ?? {}), [questionId]: value };
@@ -598,6 +623,14 @@
 				</Button>
 			{/if}
 		</div>
+		{#if !canContinue && requiredReviews > 0}
+			<p class="text-muted-foreground text-right text-sm">
+				Reviewed {submittedIds.size} of {requiredReviews}. Review {reviewsRemaining} more proposal{reviewsRemaining >
+				1
+					? 's'
+					: ''} to continue to the next step.
+			</p>
+		{/if}
 		{#if showRequiredErrors}
 			<p class="text-destructive text-right text-sm">
 				Please answer the highlighted question{missingKeys.size > 1 ? 's' : ''} before continuing.

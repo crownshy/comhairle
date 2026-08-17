@@ -79,6 +79,11 @@ export type ToolConfig<TText> = {
 	sectionQuestions: Question<TText>[];
 	randomizeOrder: boolean;
 	alignmentQuestionId: string;
+	/** Minimum proposals a participant must review before they can continue to the
+	 * next step. Unset means every proposal must be reviewed, which is the default;
+	 * an admin sets a number only to loosen that. Clamped to the proposal count at
+	 * gate time so the bar is never impossible. */
+	requiredReviews?: number;
 };
 
 /** ---------------------------- **/
