@@ -1,5 +1,5 @@
 # ---- Chef Stage ----
-FROM rust:1.92-bookworm AS chef
+FROM rust:1.95-slim-trixie AS chef
 WORKDIR /workspace
 
 # Install cargo-chef for dependency caching
