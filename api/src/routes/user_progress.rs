@@ -40,12 +40,33 @@ async fn get_user_progress_for_workflow(
 }
 
 /// Set the progress for the current user on a workflow step
+///
+/// Refuses to record progress for a sealed participant. The seal is evaluated against the
+/// state *before* this write, which matters: the write that marks the final step done is the
+/// one that brings the seal into existence, so checking afterwards would reject the very
+/// request that completes the flow and nobody could ever finish. See ADR-0016.
 pub async fn update_user_progress(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+    Path((_, workflow_id, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(payload): Json<UpdateUserProgress>,
 ) -> Result<(StatusCode, Json<UserProgressDto>), ComhairleError> {
+    if user_progress::is_sealed(&state.db, &user.id, &workflow_id).await? {
+        // Already sealed going in. A write that changes nothing is still allowed through as a
+        // no-op: the client retrying the `done` write that completed the flow (a double
+        // submit, a flaky connection) has in fact succeeded, and answering it with an error
+        // would show a failure to someone who finished.
+        let existing = user_progress::list_for_user_on_workflow(&state.db, &user.id, &workflow_id)
+            .await?
+            .into_iter()
+            .find(|p| p.workflow_step_id == workflow_step_id);
+
+        return match existing {
+            Some(row) if payload.is_noop_for(&row) => Ok((StatusCode::OK, Json(row.into()))),
+            _ => Err(ComhairleError::ParticipantSealed),
+        };
+    }
+
     let user_progress =
         user_progress::update(&state.db, &user.id, &workflow_step_id, &payload).await?;
 

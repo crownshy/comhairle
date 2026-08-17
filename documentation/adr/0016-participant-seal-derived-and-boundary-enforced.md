@@ -1,4 +1,4 @@
-# ADR-0015: The participant seal is derived, and enforced only at comhairle's boundary
+# ADR-0016: The participant seal is derived, and enforced only at comhairle's boundary
 
 **Status:** proposed
 **Date:** 2026-08-17
@@ -25,13 +25,19 @@ Prioritisation is the only tool whose participant writes reach our API. So "bloc
 the system level" is not uniformly available: for surveys and polls there is no comhairle
 request to block.
 
-See [CONTEXT.md](../../CONTEXT.md) for **Submission**, **Sealed**, **Post-submission
-revisit** and **Revisitable step**.
+See [CONTEXT.md](../../CONTEXT.md) for **Finished**, **Sealed**, **Revisit after
+finishing** and **Revisitable step**.
+
+A note on the name: "submission" was the first choice and was rejected, because
+`tools/heyform.rs` already uses `Submission` for a single survey response. "Completion"
+was rejected too, because `Conversation.is_complete` already means an admin closed the
+whole conversation. "Finished" collides with neither, and matches the button participants
+press on the last step.
 
 ## Decision
 
 **1. Sealed is derived, never stored.** A participant is sealed when
-`Conversation.allow_post_submission_revisit` is false and every step in the workflow has a
+`Conversation.allow_revisit_after_finishing` is false and every step in the workflow has a
 `done` progress row for them. One Rust helper, `is_sealed(db, user_id, workflow_id)`, is
 the only definition in the system. It is recomputed per check rather than stamped onto
 `user_participation` as a `completed_at`.
@@ -39,16 +45,24 @@ the only definition in the system. It is recomputed per check rather than stampe
 Trade-off, accepted: the seal is not stable under workflow edits. Adding a step to a live
 workflow creates `not_started` rows for existing participants
 (`user_progress::create_for_workflow_participants`), which un-seals everyone who had
-already submitted and re-opens their earlier answers until they finish again. This fails
+already finished and re-opens their earlier answers until they finish again. This fails
 **open** on the guarantee Waves asked for, and it fails silently. We accepted it because
 recording the seal buys stability at the cost of the opposite failure, where an admin adds
 a step and several hundred sealed participants can never see it, and because it keeps this
 change to zero schema. Revisit if adding steps to live workflows becomes routine.
 
-**2. The backend decides; the frontend obeys.** `is_sealed` backs both a flag shipped on
-an existing DTO and a write gate on the API. The participant-facing redirect is the UX
-expression of a backend decision, not the enforcement itself. No sealed-ness is computed
-client side.
+**2. The backend decides; the frontend obeys.** `is_sealed` backs both a write gate on the
+API and a `sealed` flag on `LocalizedWorkflowStepWithProgressDto`, the steps list the
+workflow layout already fetches with `withUserProgress=true`. The participant-facing
+redirect is the UX expression of a backend decision, not the enforcement itself. No
+sealed-ness is computed client side.
+
+Sealed is a property of a participant's relationship to the *workflow*, so it carries the
+same value on every step in that response. `WorkflowDto` would have been the tidier home,
+but the workflow list route takes no authenticated user, so there is nobody to compute it
+for; the steps route already requires one. Deriving it in the frontend instead would have
+avoided the redundancy at the cost of a second definition that could drift from the one the
+write gates enforce, which is the failure this decision exists to prevent.
 
 **3. Enforcement stops at comhairle's boundary.** The write gate covers `SetUserProgress`
 and `CreateProposalResponse`. HeyForm and Polis writes are out of reach without changing a
@@ -72,19 +86,19 @@ who clears cookies returns as a new identity with a clean seal, and their second
 lands as a separate participant in the data. Hardening that is an identity question, not a
 revisit question, and is out of scope.
 
-**6. `allow_post_submission_revisit` defaults to `true`.** Today the seal does not exist
+**6. `allow_revisit_after_finishing` defaults to `true`.** Today the seal does not exist
 and a `can_revisit` step stays reachable forever, so defaulting to `true` makes `is_sealed`
 always false for existing conversations and reproduces current behaviour exactly. No
 backfill.
 
 ## Consequences
 
-- Post-submission revisit (conversation-level) and `can_revisit` (per-step) are orthogonal
-  and both stay. The per-step flag governs navigation before submission; the conversation
+- Revisit after finishing (conversation-level) and `can_revisit` (per-step) are orthogonal
+  and both stay. The per-step flag governs navigation before they finish; the conversation
   setting overrides it after. Free navigation across steps 1-5, which the issue lists as an
   acceptance criterion, is therefore admin configuration rather than new code.
 - The seal is recomputed from live state, so an admin toggling the setting takes effect
-  immediately for participants who have already submitted, in both directions.
+  immediately for participants who have already finished, in both directions.
 - Every read site must consult the same flag. `s/[workflow_step_id]/+page.ts`,
   `thank_you/+page.ts` and `return/+page.ts` each filter on `canRevisit` independently
   today, and `/return` is the magic link emailed to participants, so a disagreement there

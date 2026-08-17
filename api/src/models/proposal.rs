@@ -158,6 +158,22 @@ pub async fn get_localized_by_id(
 }
 
 #[instrument(err(Debug))]
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (ProposalIden::Table, col)))
+        .from(ProposalIden::Table)
+        .and_where(Expr::col((ProposalIden::Table, ProposalIden::Id)).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let proposal = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Proposal")?;
+
+    Ok(proposal)
+}
+
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ProposalIden::Table)

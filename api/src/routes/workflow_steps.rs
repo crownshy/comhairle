@@ -29,7 +29,7 @@ use crate::{
 };
 
 use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
-use crate::models::{self, conversation, user_participation};
+use crate::models::{self, conversation, user_participation, user_progress};
 use axum::extract::{FromRequestParts, Query};
 
 #[derive(Deserialize, JsonSchema, Debug, Default)]
@@ -178,11 +178,12 @@ async fn list_workflows_step(
             )),
         ))
     } else if query.with_user_progress {
+        let sealed = user_progress::is_sealed(&state.db, &user.id, &workflow_id).await?;
         let steps_with_progress =
             workflow_step::list_localized_with_progress(&state.db, &workflow_id, &locale, &user.id)
                 .await?
                 .into_iter()
-                .map(Into::into)
+                .map(|step| LocalizedWorkflowStepWithProgressDto::from_with_seal(step, sealed))
                 .collect();
 
         Ok((

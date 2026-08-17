@@ -256,6 +256,12 @@ pub enum ComhairleError {
     #[error("User is not authorized to perform this action")]
     UserNotAuthorized,
 
+    /// The participant has already finished and the conversation does not allow revisits
+    /// afterwards. Distinct from `UserNotAuthorized` so the frontend can send
+    /// them to the thank-you page rather than surfacing a generic permission error.
+    #[error("Participant has already finished this conversation")]
+    ParticipantSealed,
+
     #[error("Failed to generate stats for invite {0}")]
     InviteStatsAggregationError(sqlx::Error),
 
@@ -392,6 +398,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WorkflowStepHasWrongType(_) => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
+            | ComhairleError::ParticipantSealed
             | ComhairleError::CannotRevokeLastSuperAdmin
             | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch

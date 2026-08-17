@@ -120,6 +120,15 @@ pub struct LocalizedWorkflowStepWithProgressDto {
     pub preview_tool_config: ToolConfig,
     pub progress_status: ProgressStatus,
     pub request_user_share_permission: bool,
+    /// Is this participant sealed out of the workflow: have they finished (every step done)
+    /// in a conversation whose `allow_revisit_after_finishing` is off? See ADR-0016.
+    ///
+    /// A property of the participant's relationship to the *workflow*, so it carries the same
+    /// value on every step in the response. It rides here rather than on `WorkflowDto` because
+    /// the workflow list route has no authenticated user to compute it for, and here rather
+    /// than being derived in the frontend so that the seal has exactly one definition, shared
+    /// with the write gates that enforce it.
+    pub sealed: bool,
 }
 
 impl From<WorkflowStep> for WorkflowStepDto {
@@ -160,9 +169,13 @@ impl From<LocalizedWorkflowStep> for LocalizedWorkflowStepDto {
     }
 }
 
-impl From<LocalizedWorkflowStepWithProgress> for LocalizedWorkflowStepWithProgressDto {
-    fn from(w: LocalizedWorkflowStepWithProgress) -> Self {
+impl LocalizedWorkflowStepWithProgressDto {
+    /// Deliberately a named constructor rather than a `From` impl: `sealed` cannot be derived
+    /// from the step alone, and a `From` would let a caller build one of these without ever
+    /// considering the seal.
+    pub fn from_with_seal(w: LocalizedWorkflowStepWithProgress, sealed: bool) -> Self {
         Self {
+            sealed,
             id: w.step.id,
             workflow_id: w.step.workflow_id,
             name: w.step.name,

@@ -592,6 +592,25 @@ pub async fn create(
     Ok(workflow_step_result)
 }
 
+/// How many steps does this workflow have?
+///
+/// Used by the seal to tell "finished every step" apart from "there are no steps", which
+/// otherwise look identical to `get_current_active_step_for_user`.
+#[instrument(err(Debug))]
+pub async fn count_for_workflow(db: &PgPool, workflow_id: &Uuid) -> Result<i64, ComhairleError> {
+    let (sql, values) = Query::select()
+        .expr(Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id)).count())
+        .from(WorkflowStepIden::Table)
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(*workflow_id),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let (count,): (i64,) = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(count)
+}
+
 pub async fn get_current_active_step_for_user(
     db: &PgPool,
     user_id: &Uuid,

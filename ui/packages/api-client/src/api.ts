@@ -104,6 +104,7 @@ export const UserRoles = z
 export type UserRoles = z.infer<typeof UserRoles>;
 export const LocalizedConversationDto = z
   .object({
+    allowPostSubmissionRevisit: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
@@ -1071,6 +1072,7 @@ export const CreateConversation = z
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const ConversationDto = z
   .object({
+    allowPostSubmissionRevisit: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
@@ -1122,6 +1124,7 @@ export const ConversationTranslations = z
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
 export const ConversationWithTranslations = z
   .object({
+    allowPostSubmissionRevisit: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
@@ -1165,6 +1168,7 @@ export const ConversationResponse = z.union([
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
 export const PartialConversation = z
   .object({
+    allow_post_submission_revisit: z.union([z.boolean(), z.null()]),
     call_to_action: z.union([z.string(), z.null()]),
     chat_bot_id: z.union([z.string(), z.null()]),
     default_workflow_id: z.union([z.string(), z.null()]),
@@ -1521,6 +1525,7 @@ export const LocalizedWorkflowStepWithProgressDto = z
     progressStatus: ProgressStatus,
     requestUserSharePermission: z.boolean(),
     required: z.boolean(),
+    sealed: z.boolean(),
     stepOrder: z.number().int(),
     toolConfig: z.union([ToolConfig, z.null()]).optional(),
     workflowId: z.string().uuid(),
