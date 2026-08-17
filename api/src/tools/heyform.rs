@@ -492,6 +492,8 @@ pub struct InsightSubmission {
     pub submitted_at: Option<i64>,
 }
 
+pub struct InsightProperties {}
+
 /// Per-question insight data: the question title resolved from the form schema
 /// alongside the aggregate response breakdown from the form report.
 #[derive(Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -627,12 +629,23 @@ pub fn build_survey_insights(
     submissions: &[Submission],
 ) -> SurveyInsights {
     // Index form fields by ID so look-ups are O(1).
-    let fields_by_id: HashMap<String, &FormField> = form
+    let fields_by_id: HashMap<String, FormField> = form
         .fields
         .as_deref()
         .unwrap_or_default()
         .iter()
-        .map(|field| (field.id.clone(), field))
+        .filter_map(|field| {
+            if matches!(
+                field.kind.as_str(),
+                "statement" | "payment" | "welcome" | "thank_you"
+            ) {
+                return None;
+            }
+
+            // let field_choices_by_id: HashMap<String, String> = field.properties.clone();
+
+            Some((field.id.clone(), field.clone()))
+        })
         .collect();
 
     let mut submissions_by_field: HashMap<String, Vec<InsightSubmission>> = HashMap::new();

@@ -102,6 +102,97 @@ pub struct FormSettings {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct Icon {
+    name: String,
+    color: String,
+    background: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Choice {
+    id: String,
+    label: String,
+
+    // Picture choice
+    image: Option<String>,
+    icon: Option<Icon>,
+
+    // HeySheet custom columns
+    color: Option<String>,
+
+    // Quiz
+    score: Option<i32>,
+    is_expected: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Properties {
+    // Statement
+    show_button: Option<bool>,
+    button_text: Option<String>,
+    hide_marks: Option<bool>,
+
+    // Choice
+    allow_other: Option<bool>,
+    allow_multiple: Option<bool>,
+    choices: Option<Vec<Choice>>,
+    randomize: Option<bool>,
+    other: Option<String>,
+    badge: Option<String>,
+    vertical_alignment: Option<bool>,
+
+    // Only for group
+    fields: Option<Vec<FormField>>,
+
+    // Rating
+    shape: Option<String>,
+    total: Option<i32>,
+    start: Option<i32>,
+
+    // Opinion Scale
+    left_label: Option<String>,
+    center_label: Option<String>,
+    right_label: Option<String>,
+
+    // PhoneNumber
+    default_country_code: Option<String>,
+
+    // Payment - Not used
+    // currency?: string
+    // price?: NumberPrice | VariablePrice
+
+    // Date
+    format: Option<String>,
+    // Allow input time
+    allow_time: Option<bool>,
+    // Time
+    time_format: Option<String>,
+    use12_hours: Option<bool>,
+
+    // Data - Not used
+    // tableColumns: Column[]
+
+    // Score
+    score: Option<i32>,
+
+    // HeyForm Form Builder v2.0
+    // Embed & Image
+    source_url: Option<String>,
+
+    // Screen
+    enable_share_icon: Option<bool>,
+    enable_complete_time: Option<bool>,
+
+    // Thank You
+    button_link_url: Option<String>,
+    redirect_url: Option<String>,
+    redirect_on_completion: Option<bool>,
+    redirect_delay: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormField {
     pub id: String,
