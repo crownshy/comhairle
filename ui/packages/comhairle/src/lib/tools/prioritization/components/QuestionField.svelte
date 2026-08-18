@@ -73,7 +73,12 @@
 </script>
 
 <div class="space-y-3" class:opacity-60={disabled}>
-	<p class="text-base font-medium" class:text-destructive={invalid}>{question.text}</p>
+	<p class="text-base font-medium" class:text-destructive={invalid}>
+		{question.text}
+		{#if question.type.kind === 'text'}
+			<span class="text-muted-foreground font-normal">(optional)</span>
+		{/if}
+	</p>
 
 	{#if question.type.kind === 'likert'}
 		<RadioGroup.Root
