@@ -366,7 +366,7 @@
 		<div class="space-y-1 text-center">
 			<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
 			<h2 class="text-l mt-5 font-semibold">Your answers</h2>
-			<p class="text-muted-foreground text-sm">
+			<p class="text-foreground text-sm">
 				Tap a proposal to review or adjust your answers. Changes are saved when you
 				continue.
 			</p>
