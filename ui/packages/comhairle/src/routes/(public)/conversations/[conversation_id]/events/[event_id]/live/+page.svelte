@@ -354,7 +354,6 @@
 	$effect(() => {
 		// Show countdown dialog to participants at 5 seconds
 		if (
-			!isModerator &&
 			breakoutTimeRemaining !== null &&
 			breakoutTimeRemaining <= 5000 &&
 			breakoutTimeRemaining > 0 &&
