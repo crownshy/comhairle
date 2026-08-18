@@ -21,19 +21,6 @@
 	} from './types';
 	import { SvelteSet } from 'svelte/reactivity';
 
-	// PROTOTYPE (#930) — Continue-button placement variants. Delete with the
-	// {#if variant} branches below once one wins.
-	import { page } from '$app/state';
-	import PrototypeSwitcher from './PrototypeSwitcher.svelte';
-
-	const PROTOTYPE_VARIANTS = [
-		{ key: 'A', name: 'Right-aligned above list' },
-		{ key: 'B', name: 'Header row' },
-		{ key: 'C', name: 'Full-width under header' },
-		{ key: 'D', name: 'Sticky bottom bar' }
-	];
-	const variant = $derived(page.url.searchParams.get('variant') ?? 'A');
-
 	type Props = {
 		workflowStep: WorkflowStepInput;
 		conversation: ConversationInput;
@@ -239,6 +226,17 @@
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
 
+	/** The "Your answers" list is opt-in. Once every proposal is answered we ask
+	 * first, so a participant with nothing to change moves on without scrolling
+	 * past the whole list to reach a Continue button. */
+	let reviewingAnswers = $state(false);
+
+	let answeredCountLine = $derived(
+		proposals.length === 1
+			? "You've answered the proposal."
+			: `You've answered all ${proposals.length} proposals.`
+	);
+
 	let requiredReviews = $derived(
 		requiredReviewCount(toolConfig.requiredReviews, proposals.length)
 	);
@@ -401,6 +399,31 @@
 				<p class="text-muted-foreground">There are no proposals to rate yet.</p>
 			</Card.Content>
 		</Card.Root>
+	{:else if allDone && !reviewingAnswers}
+		<Card.Root>
+			<Card.Content class="flex flex-col items-center gap-5 py-10 text-center">
+				<CheckCircle2 class="text-primary size-10" />
+				<div class="space-y-1">
+					<h2 class="text-lg font-semibold">Thanks for your answers</h2>
+					<p class="text-muted-foreground text-base">
+						{answeredCountLine} Look back over them if you want to change anything, or move
+						on to the next step.
+					</p>
+				</div>
+				<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+					<Button
+						variant="outline"
+						class="w-full sm:w-auto"
+						onclick={() => (reviewingAnswers = true)}
+					>
+						Review my answers
+					</Button>
+					<Button class="w-full sm:w-auto" onclick={onDone}>
+						Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
+					</Button>
+				</div>
+			</Card.Content>
+		</Card.Root>
 	{:else if allDone}
 		{#snippet continueButton(extraClass: string)}
 			<Button
@@ -414,39 +437,14 @@
 				{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
 			</Button>
 		{/snippet}
-		{#snippet reviewBlurb()}
-			<p class="text-foreground text-sm">
-				Tap a proposal to review or adjust your answers. Changes are saved when you
-				continue.
-			</p>
-		{/snippet}
 		<div class="space-y-6">
-			{#if variant === 'B'}
-				<div class="mt-5 flex flex-wrap items-end justify-between gap-3 border-b pb-4">
-					<div class="space-y-1 text-left">
-						<h2 class="text-l font-semibold">Your answers</h2>
-						{@render reviewBlurb()}
-					</div>
-					{@render continueButton('')}
-				</div>
-			{:else if variant === 'C'}
-				<div class="space-y-3 text-center">
-					<h2 class="text-l mt-5 font-semibold">Your answers</h2>
-					{@render reviewBlurb()}
-					{@render continueButton('w-full')}
-				</div>
-			{:else}
-				<div class="space-y-1 text-center">
-					<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
-					<h2 class="text-l mt-5 font-semibold">Your answers</h2>
-					{@render reviewBlurb()}
-				</div>
-				{#if variant === 'A'}
-					<div class="flex justify-end">
-						{@render continueButton('')}
-					</div>
-				{/if}
-			{/if}
+			<div class="space-y-1 text-center">
+				<h2 class="mt-5 text-lg font-semibold">Your answers</h2>
+				<p class="text-foreground text-sm">
+					Tap a proposal to review or adjust your answers. Changes are saved when you
+					continue.
+				</p>
+			</div>
 
 			<Accordion.Root type="multiple" class="space-y-3">
 				{#each proposals as proposal (proposal.id)}
@@ -531,15 +529,11 @@
 			{#if reviewError}
 				<p class="text-destructive text-right text-sm">{reviewError}</p>
 			{/if}
-			{#if variant === 'D'}
-				<div class="bg-background/90 sticky bottom-0 z-10 border-t py-3 backdrop-blur">
-					{@render continueButton('w-full')}
-				</div>
-			{:else}
-				<div class="flex justify-end">
-					{@render continueButton('')}
-				</div>
-			{/if}
+			<div
+				class="bg-background/90 sticky bottom-0 z-10 flex justify-end border-t py-3 backdrop-blur"
+			>
+				{@render continueButton('w-full sm:w-auto')}
+			</div>
 		</div>
 	{:else if current}
 		<div class="space-y-6">
@@ -729,5 +723,3 @@
 		</div>
 	</Portal>
 {/if}
-
-<PrototypeSwitcher variants={PROTOTYPE_VARIANTS} current={variant} />
