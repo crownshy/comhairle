@@ -380,6 +380,9 @@
 </script>
 
 <div class="mx-auto w-full max-w-200">
+	{#snippet continueToNextStepLabel()}
+		Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
+	{/snippet}
 	{#if loadState.kind === 'loading'}
 		<div class="text-muted-foreground flex items-center justify-center gap-2 py-12">
 			<LoaderCircle class="h-5 w-5 animate-spin" /> Loading proposals…
@@ -419,24 +422,12 @@
 						Review my answers
 					</Button>
 					<Button class="w-full sm:w-auto" onclick={onDone}>
-						Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
+						{@render continueToNextStepLabel()}
 					</Button>
 				</div>
 			</Card.Content>
 		</Card.Root>
 	{:else if allDone}
-		{#snippet continueButton(extraClass: string)}
-			<Button
-				onclick={() => void saveReviewEditsAndContinue()}
-				disabled={savingReview}
-				class={extraClass}
-			>
-				{#if savingReview}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				{/if}
-				{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
-			</Button>
-		{/snippet}
 		<div class="space-y-6">
 			<div class="space-y-1 text-center">
 				<h2 class="mt-5 text-lg font-semibold">Your answers</h2>
@@ -526,13 +517,22 @@
 				{/each}
 			</Accordion.Root>
 
-			{#if reviewError}
-				<p class="text-destructive text-right text-sm">{reviewError}</p>
-			{/if}
 			<div
-				class="bg-background/90 sticky bottom-0 z-10 flex justify-end border-t py-3 backdrop-blur"
+				class="bg-background/90 sticky bottom-0 z-10 flex flex-col gap-2 border-t py-3 backdrop-blur"
 			>
-				{@render continueButton('w-full sm:w-auto')}
+				{#if reviewError}
+					<p class="text-destructive text-right text-sm">{reviewError}</p>
+				{/if}
+				<Button
+					onclick={() => void saveReviewEditsAndContinue()}
+					disabled={savingReview}
+					class="w-full sm:w-auto sm:self-end"
+				>
+					{#if savingReview}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					{/if}
+					{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
+				</Button>
 			</div>
 		</div>
 	{:else if current}
@@ -686,7 +686,7 @@
 						onclick={onDone}
 						disabled={submitting}
 					>
-						Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
+						{@render continueToNextStepLabel()}
 					</Button>
 				</div>
 			{:else if requiredReviews > 0}
