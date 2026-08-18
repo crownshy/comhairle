@@ -251,7 +251,6 @@
 					onNext={currentNextAction ?? stepComplete}
 					nextDisabled={!canProceed}
 					nextLoading={isSubmitting}
-					boldDescription={toolConfig.type === Polis.TOOL_NAME}
 					{availableDocuments}
 					conversationId={conversation.id}
 				/>
