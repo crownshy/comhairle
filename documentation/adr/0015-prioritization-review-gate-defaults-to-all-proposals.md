@@ -18,7 +18,7 @@ Taking the issue's default literally would have **silently loosened every priori
 already exists**. A step configured before this feature landed carries no `required_reviews` value,
 so on deploy every one of them would drop from "review all 9 proposals" to "review 1", with no
 admin action and no signal in the Manage UI that anything had changed. The only partner asking for
-the feature (Waves) wants the value set to 1 on their own steps, which they can do explicitly.
+the feature wants the value set to 1 on their own steps, which they can do explicitly.
 
 ## Decision
 
@@ -44,7 +44,7 @@ for is delivered in full; only the value you get when you configure nothing diff
 
 - Existing prioritization steps are unaffected by the deploy. No conversation changes behaviour
   until an admin types a number.
-- Waves gets what they asked for by setting the field to 1 on their steps, which is one input away.
+- The partner who asked for it sets the field to 1 on their steps, which is one input away.
 - The tri-state (blank = all, N = minimum, and the floor/clamp) has to be explained in the Manage
   UI copy, since "leave blank for the stricter behaviour" is not guessable. The field's description
   says so directly.

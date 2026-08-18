@@ -21,10 +21,9 @@ page is currently derived on the fly in the frontend as "every `user_progress` r
 **Most participant data never passes through comhairle.** In the five-step flow that
 prompted this, three steps are HeyForm surveys rendered as a cross-origin iframe posting
 straight to `forms.crown-shy.com`, and Polis steps talk to the Polis server from the
-browser.
-Prioritisation is the only tool whose participant writes reach our API. So "block it at
-the system level" is not uniformly available: for surveys and polls there is no comhairle
-request to block.
+browser. Prioritisation is the only tool whose participant writes reach our API. So "block
+it at the system level" is not uniformly available: for surveys and polls there is no
+comhairle request to block.
 
 See [CONTEXT.md](../../CONTEXT.md) for **Finished**, **Sealed**, **Revisit after
 finishing** and **Revisitable step**.
@@ -47,10 +46,10 @@ Trade-off, accepted: the seal is not stable under workflow edits. Adding a step 
 workflow creates `not_started` rows for existing participants
 (`user_progress::create_for_workflow_participants`), which un-seals everyone who had
 already finished and re-opens their earlier answers until they finish again. This fails
-**open** on the guarantee the option promises, and it fails silently. We accepted it because
-recording the seal buys stability at the cost of the opposite failure, where an admin adds
-a step and several hundred sealed participants can never see it, and because it keeps this
-change to zero schema. Revisit if adding steps to live workflows becomes routine.
+**open** on the guarantee the option promises, and it fails silently. We accepted it
+because recording the seal buys stability at the cost of the opposite failure, where an
+admin adds a step and several hundred sealed participants can never see it, and because it
+keeps this change to zero schema. Revisit if adding steps to live workflows becomes routine.
 
 **2. The backend decides; the frontend obeys.** `is_sealed` backs both a write gate on the
 API and a `sealed` flag on `UserParticipationDto`, returned by

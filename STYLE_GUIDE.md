@@ -279,10 +279,10 @@ If you copy a block a second time, stop and extract it.
   The same goes for the client a feature was built for: describe the behaviour and the
   setting that drives it, not whose deployment asked for it. "The <client> flow" is wrong the
   moment a second deployment runs the same code, and it leaks the client list into a repo
-  other clients read. The exception is a note about a genuine provider-specific quirk or bug,
-  where naming the provider is the whole point (e.g. "RAGFlow returns 200 with a JSON error
-  envelope ..."). Client names belong in ADRs and issues, where recording who asked for a
-  decision is the point, not in the code that implements it.
+  other clients read. This one holds in ADRs too: say "a partner asked for", and let the
+  linked issue carry who. The exception is a note about a genuine provider-specific quirk or
+  bug, where naming the provider is the whole point (e.g. "RAGFlow returns 200 with a JSON
+  error envelope ...").
 - **No jokes in comments.** Keep them plain and factual. Cutesy phrasing ("the RAGFlow
   dance") reads as noise and someone has to strip it in review.
 
