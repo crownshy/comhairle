@@ -368,292 +368,300 @@
 	}
 </script>
 
-{#if loadState.kind === 'loading'}
-	<div class="text-muted-foreground flex items-center justify-center gap-2 py-12">
-		<LoaderCircle class="h-5 w-5 animate-spin" /> Loading proposals…
-	</div>
-{:else if loadState.kind === 'error'}
-	<Card.Root>
-		<Card.Content class="space-y-3 py-8 text-center">
-			<p class="text-destructive">{loadState.message}</p>
-			<Button variant="outline" onclick={() => void loadProposalsAndProgress()}
-				>Try again</Button
-			>
-		</Card.Content>
-	</Card.Root>
-{:else if proposals.length === 0}
-	<Card.Root>
-		<Card.Content class="py-10 text-center">
-			<p class="text-muted-foreground">There are no proposals to rate yet.</p>
-		</Card.Content>
-	</Card.Root>
-{:else if allDone}
-	<div class="space-y-6">
-		<div class="space-y-1 text-center">
-			<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
-			<h2 class="text-l mt-5 font-semibold">Your answers</h2>
-			<p class="text-foreground text-sm">
-				Tap a proposal to review or adjust your answers. Changes are saved when you
-				continue.
-			</p>
+<div class="mx-auto w-full max-w-200">
+	{#if loadState.kind === 'loading'}
+		<div class="text-muted-foreground flex items-center justify-center gap-2 py-12">
+			<LoaderCircle class="h-5 w-5 animate-spin" /> Loading proposals…
 		</div>
+	{:else if loadState.kind === 'error'}
+		<Card.Root>
+			<Card.Content class="space-y-3 py-8 text-center">
+				<p class="text-destructive">{loadState.message}</p>
+				<Button variant="outline" onclick={() => void loadProposalsAndProgress()}
+					>Try again</Button
+				>
+			</Card.Content>
+		</Card.Root>
+	{:else if proposals.length === 0}
+		<Card.Root>
+			<Card.Content class="py-10 text-center">
+				<p class="text-muted-foreground">There are no proposals to rate yet.</p>
+			</Card.Content>
+		</Card.Root>
+	{:else if allDone}
+		<div class="space-y-6">
+			<div class="space-y-1 text-center">
+				<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
+				<h2 class="text-l mt-5 font-semibold">Your answers</h2>
+				<p class="text-foreground text-sm">
+					Tap a proposal to review or adjust your answers. Changes are saved when you
+					continue.
+				</p>
+			</div>
 
-		<Accordion.Root type="multiple" class="space-y-3">
-			{#each proposals as proposal (proposal.id)}
-				{@const proposalAnswers = answers[proposal.id] ?? {}}
-				{@const proposalSectionAnswers = sectionAnswers[proposal.id] ?? {}}
-				{@const firstRequired = requiredQuestions[0]}
-				{@const summary = firstRequired
-					? formatAnswer(firstRequired, proposalAnswers[firstRequired.id])
-					: ''}
-				<Card.Root class="gap-0 overflow-hidden py-0">
-					<Accordion.Item value={proposal.id} class="border-b-0">
-						<Accordion.Trigger class="px-4 py-3 hover:no-underline">
-							<div class="flex w-full items-center justify-between gap-3 text-left">
-								<span class="font-medium"
-									>{proposal.title || 'Untitled proposal'}</span
+			<Accordion.Root type="multiple" class="space-y-3">
+				{#each proposals as proposal (proposal.id)}
+					{@const proposalAnswers = answers[proposal.id] ?? {}}
+					{@const proposalSectionAnswers = sectionAnswers[proposal.id] ?? {}}
+					{@const firstRequired = requiredQuestions[0]}
+					{@const summary = firstRequired
+						? formatAnswer(firstRequired, proposalAnswers[firstRequired.id])
+						: ''}
+					<Card.Root class="gap-0 overflow-hidden py-0">
+						<Accordion.Item value={proposal.id} class="border-b-0">
+							<Accordion.Trigger class="px-4 py-3 hover:no-underline">
+								<div
+									class="flex w-full items-center justify-between gap-3 text-left"
 								>
-								<div class="flex shrink-0 items-center gap-1.5">
-									{#if dirtyIds.has(proposal.id)}
-										<Badge variant="outline" class="shrink-0">Edited</Badge>
-									{/if}
-									{#if summary}
-										<Badge variant="secondary" class="shrink-0">{summary}</Badge
-										>
-									{/if}
-								</div>
-							</div>
-						</Accordion.Trigger>
-						<Accordion.Content class="bg-primary/10 space-y-8 px-4 py-4">
-							{#each proposal.sections as section (section.id)}
-								{#if toolConfig.sectionQuestions.length > 0}
-									<div class="grid gap-6 lg:grid-cols-2">
-										{#if section.body}
-											<div class="text-base">
-												<ContentRenderer content={section.body} />
-											</div>
+									<span class="font-medium"
+										>{proposal.title || 'Untitled proposal'}</span
+									>
+									<div class="flex shrink-0 items-center gap-1.5">
+										{#if dirtyIds.has(proposal.id)}
+											<Badge variant="outline" class="shrink-0">Edited</Badge>
 										{/if}
+										{#if summary}
+											<Badge variant="secondary" class="shrink-0"
+												>{summary}</Badge
+											>
+										{/if}
+									</div>
+								</div>
+							</Accordion.Trigger>
+							<Accordion.Content class="bg-primary/10 space-y-8 px-4 py-4">
+								{#each proposal.sections as section (section.id)}
+									{#if toolConfig.sectionQuestions.length > 0}
 										<div class="space-y-6">
-											{#each toolConfig.sectionQuestions as question (question.id)}
-												<QuestionField
-													{question}
-													value={(proposalSectionAnswers[section.id] ??
-														{})[question.id] ?? null}
-													onChange={(v) =>
-														setSectionReviewAnswer(
-															proposal.id,
-															section.id,
-															question.id,
-															v
-														)}
-												/>
-											{/each}
+											{#if section.body}
+												<div class="prose text-base">
+													<ContentRenderer content={section.body} />
+												</div>
+											{/if}
+											<div class="space-y-6">
+												{#each toolConfig.sectionQuestions as question (question.id)}
+													<QuestionField
+														{question}
+														value={(proposalSectionAnswers[
+															section.id
+														] ?? {})[question.id] ?? null}
+														onChange={(v) =>
+															setSectionReviewAnswer(
+																proposal.id,
+																section.id,
+																question.id,
+																v
+															)}
+													/>
+												{/each}
+											</div>
 										</div>
+									{/if}
+								{/each}
+								{#if toolConfig.questions.length > 0}
+									<div
+										class="space-y-6 {toolConfig.sectionQuestions.length > 0
+											? 'border-t pt-6'
+											: ''}"
+									>
+										{#each toolConfig.questions as question (question.id)}
+											<QuestionField
+												{question}
+												value={proposalAnswers[question.id] ?? null}
+												onChange={(v) =>
+													setReviewAnswer(proposal.id, question.id, v)}
+											/>
+										{/each}
 									</div>
 								{/if}
-							{/each}
-							{#if toolConfig.questions.length > 0}
-								<div
-									class="space-y-6 {toolConfig.sectionQuestions.length > 0
-										? 'border-t pt-6'
-										: ''}"
-								>
-									{#each toolConfig.questions as question (question.id)}
+							</Accordion.Content>
+						</Accordion.Item>
+					</Card.Root>
+				{/each}
+			</Accordion.Root>
+
+			{#if reviewError}
+				<p class="text-destructive text-right text-sm">{reviewError}</p>
+			{/if}
+			<div class="flex justify-end">
+				<Button onclick={() => void saveReviewEditsAndContinue()} disabled={savingReview}>
+					{#if savingReview}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					{/if}
+					{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
+				</Button>
+			</div>
+		</div>
+	{:else if current}
+		<div class="space-y-6">
+			<div class="space-y-2">
+				<div class="flex items-center justify-between gap-3 text-sm">
+					<span class="text-muted-foreground">
+						Proposal {currentIndex + 1} of {proposals.length}
+					</span>
+					<span class="text-muted-foreground">
+						{submittedIds.size} of {proposals.length} done
+					</span>
+				</div>
+				<Progress value={progressPercent} />
+			</div>
+
+			<Card.Root>
+				<Card.Header>
+					<div class="pile">
+						<Card.Title class="justify-self-start text-left text-xl"
+							>{current.title || 'Untitled proposal'}</Card.Title
+						>
+						{#if currentSubmitted}
+							<div class="flex shrink-0 items-center gap-1.5 justify-self-end">
+								<Badge variant="secondary">
+									<CheckCircle2 class="mr-1 h-3 w-3" /> Submitted
+								</Badge>
+								<Tooltip.Provider delayDuration={150}>
+									<Tooltip.Root>
+										<Tooltip.Trigger
+											class="text-muted-foreground hover:text-foreground"
+											aria-label="What does Submitted mean?"
+										>
+											<Info class="size-4" />
+										</Tooltip.Trigger>
+										<Tooltip.Content class="max-w-xs text-sm">
+											You've already submitted your answers for this proposal.
+											They can't be changed, but you can review them here.
+										</Tooltip.Content>
+									</Tooltip.Root>
+								</Tooltip.Provider>
+							</div>
+						{/if}
+					</div>
+				</Card.Header>
+				<Card.Content class="space-y-8">
+					{#each current.sections as section (section.id)}
+						<div class="space-y-6">
+							{#if section.body}
+								<div class="prose text-base">
+									<ContentRenderer content={section.body} />
+								</div>
+							{/if}
+							{#if toolConfig.sectionQuestions.length > 0}
+								<div class="space-y-6">
+									{#each toolConfig.sectionQuestions as question (question.id)}
 										<QuestionField
 											{question}
-											value={proposalAnswers[question.id] ?? null}
+											value={(currentSectionAnswers[section.id] ?? {})[
+												question.id
+											] ?? null}
+											disabled={currentSubmitted}
+											invalid={showRequiredErrors &&
+												missingKeys.has(
+													sectionKey(section.id, question.id)
+												)}
 											onChange={(v) =>
-												setReviewAnswer(proposal.id, question.id, v)}
+												setSectionAnswer(
+													current.id,
+													section.id,
+													question.id,
+													v
+												)}
 										/>
 									{/each}
 								</div>
 							{/if}
-						</Accordion.Content>
-					</Accordion.Item>
-				</Card.Root>
-			{/each}
-		</Accordion.Root>
+						</div>
+					{/each}
 
-		{#if reviewError}
-			<p class="text-destructive text-right text-sm">{reviewError}</p>
-		{/if}
-		<div class="flex justify-end">
-			<Button onclick={() => void saveReviewEditsAndContinue()} disabled={savingReview}>
-				{#if savingReview}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				{/if}
-				{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
-			</Button>
-		</div>
-	</div>
-{:else if current}
-	<div class="space-y-6">
-		<div class="space-y-2">
-			<div class="flex items-center justify-between gap-3 text-sm">
-				<span class="text-muted-foreground">
-					Proposal {currentIndex + 1} of {proposals.length}
-				</span>
-				<span class="text-muted-foreground">
-					{submittedIds.size} of {proposals.length} done
-				</span>
-			</div>
-			<Progress value={progressPercent} />
-		</div>
-
-		<Card.Root>
-			<Card.Header>
-				<div class="pile">
-					<div class="prose">
-						<Card.Title class="text-xl"
-							>{current.title || 'Untitled proposal'}</Card.Title
-						>
-					</div>
-					{#if currentSubmitted}
-						<div class="flex shrink-0 items-center gap-1.5 justify-self-end">
-							<Badge variant="secondary">
-								<CheckCircle2 class="mr-1 h-3 w-3" /> Submitted
-							</Badge>
-							<Tooltip.Provider delayDuration={150}>
-								<Tooltip.Root>
-									<Tooltip.Trigger
-										class="text-muted-foreground hover:text-foreground"
-										aria-label="What does Submitted mean?"
-									>
-										<Info class="size-4" />
-									</Tooltip.Trigger>
-									<Tooltip.Content class="max-w-xs text-sm">
-										You've already submitted your answers for this proposal.
-										They can't be changed, but you can review them here.
-									</Tooltip.Content>
-								</Tooltip.Root>
-							</Tooltip.Provider>
+					{#if toolConfig.questions.length > 0}
+						<div class="space-y-6 border-t pt-6">
+							{#each toolConfig.questions as question (question.id)}
+								<QuestionField
+									{question}
+									value={currentAnswers[question.id] ?? null}
+									disabled={currentSubmitted}
+									invalid={showRequiredErrors && missingKeys.has(question.id)}
+									onChange={(v) => setAnswer(current.id, question.id, v)}
+								/>
+							{/each}
 						</div>
 					{/if}
-				</div>
-			</Card.Header>
-			<Card.Content class="space-y-8">
-				{#each current.sections as section (section.id)}
-					{@const numColumns =
-						Number(!!section.body) + Number(toolConfig.sectionQuestions.length > 0)}
-					<div class="grid gap-6 lg:grid-cols-{numColumns}">
-						{#if section.body}
-							<div
-								class="prose text-base {numColumns === 1
-									? 'place-self-center'
-									: ''}"
-							>
-								<ContentRenderer content={section.body} />
-							</div>
-						{/if}
-						{#if toolConfig.sectionQuestions.length > 0}
-							<div class="space-y-6">
-								{#each toolConfig.sectionQuestions as question (question.id)}
-									<QuestionField
-										{question}
-										value={(currentSectionAnswers[section.id] ?? {})[
-											question.id
-										] ?? null}
-										disabled={currentSubmitted}
-										invalid={showRequiredErrors &&
-											missingKeys.has(sectionKey(section.id, question.id))}
-										onChange={(v) =>
-											setSectionAnswer(
-												current.id,
-												section.id,
-												question.id,
-												v
-											)}
-									/>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				{/each}
 
-				{#if toolConfig.questions.length > 0}
-					<div class="space-y-6 border-t pt-6">
-						{#each toolConfig.questions as question (question.id)}
-							<QuestionField
-								{question}
-								value={currentAnswers[question.id] ?? null}
-								disabled={currentSubmitted}
-								invalid={showRequiredErrors && missingKeys.has(question.id)}
-								onChange={(v) => setAnswer(current.id, question.id, v)}
-							/>
-						{/each}
-					</div>
-				{/if}
-
-				{#if toolConfig.questions.length === 0 && toolConfig.sectionQuestions.length === 0}
-					<p class="text-muted-foreground text-sm">
-						No questions configured for this step yet.
-					</p>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-
-		<div class="flex items-center justify-between">
-			<Button variant="ghost" onclick={goBack} disabled={currentIndex === 0 || submitting}>
-				<ArrowLeft class="mr-2 h-4 w-4" /> Previous
-			</Button>
-
-			{#if currentSubmitted}
-				{#if currentIndex < proposals.length - 1}
-					<Button
-						onclick={() => {
-							submitAttempted = false;
-							currentIndex += 1;
-						}}
-					>
-						Next <ArrowRight class="ml-2 h-4 w-4" />
-					</Button>
-				{:else}
-					<Button onclick={onDone}>Finish</Button>
-				{/if}
-			{:else}
-				<Button
-					variant={isComplete ? 'default' : 'secondary'}
-					onclick={submitAndAdvance}
-					disabled={submitting}
-				>
-					{#if submitting}
-						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					{#if toolConfig.questions.length === 0 && toolConfig.sectionQuestions.length === 0}
+						<p class="text-muted-foreground text-sm">
+							No questions configured for this step yet.
+						</p>
 					{/if}
-					{currentIndex < proposals.length - 1 ? 'Submit & continue' : 'Submit'}
-					{#if !submitting}<ArrowRight class="ml-2 h-4 w-4" />{/if}
+				</Card.Content>
+			</Card.Root>
+
+			<div class="flex items-center justify-between">
+				<Button
+					variant="ghost"
+					onclick={goBack}
+					disabled={currentIndex === 0 || submitting}
+				>
+					<ArrowLeft class="mr-2 h-4 w-4" /> Previous
 				</Button>
+
+				{#if currentSubmitted}
+					{#if currentIndex < proposals.length - 1}
+						<Button
+							onclick={() => {
+								submitAttempted = false;
+								currentIndex += 1;
+							}}
+						>
+							Next <ArrowRight class="ml-2 h-4 w-4" />
+						</Button>
+					{:else}
+						<Button onclick={onDone}>Finish</Button>
+					{/if}
+				{:else}
+					<Button
+						variant={isComplete ? 'default' : 'secondary'}
+						onclick={submitAndAdvance}
+						disabled={submitting}
+					>
+						{#if submitting}
+							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						{/if}
+						{currentIndex < proposals.length - 1 ? 'Submit & continue' : 'Submit'}
+						{#if !submitting}<ArrowRight class="ml-2 h-4 w-4" />{/if}
+					</Button>
+				{/if}
+			</div>
+			{#if canContinue}
+				<div
+					class="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
+				>
+					<p class="text-muted-foreground text-base">
+						You've reviewed enough to move on. Continue to the next step, or keep
+						reviewing.{#if canRevisit}
+							You can always come back to review more later.{/if}
+					</p>
+					<Button
+						variant="outline"
+						class="shrink-0"
+						onclick={onDone}
+						disabled={submitting}
+					>
+						Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
+					</Button>
+				</div>
+			{:else if requiredReviews > 0}
+				<p class="text-muted-foreground text-right text-base">
+					Reviewed {submittedIds.size} of {requiredReviews}. Review {reviewsRemaining} more
+					proposal{reviewsRemaining > 1 ? 's' : ''} to continue to the next step.
+				</p>
+			{/if}
+			{#if showRequiredErrors}
+				<p class="text-destructive text-right text-sm">
+					Please answer the highlighted question{missingKeys.size > 1 ? 's' : ''} before continuing.
+				</p>
+			{/if}
+			{#if submitError}
+				<p class="text-destructive text-right text-sm">{submitError}</p>
 			{/if}
 		</div>
-		{#if canContinue}
-			<div
-				class="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
-			>
-				<p class="text-muted-foreground text-base">
-					You've reviewed enough to move on. Continue to the next step, or keep reviewing.{#if canRevisit}
-						You can always come back to review more later.{/if}
-				</p>
-				<Button variant="outline" class="shrink-0" onclick={onDone} disabled={submitting}>
-					Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
-				</Button>
-			</div>
-		{:else if requiredReviews > 0}
-			<p class="text-muted-foreground text-right text-base">
-				Reviewed {submittedIds.size} of {requiredReviews}. Review {reviewsRemaining} more proposal{reviewsRemaining >
-				1
-					? 's'
-					: ''} to continue to the next step.
-			</p>
-		{/if}
-		{#if showRequiredErrors}
-			<p class="text-destructive text-right text-sm">
-				Please answer the highlighted question{missingKeys.size > 1 ? 's' : ''} before continuing.
-			</p>
-		{/if}
-		{#if submitError}
-			<p class="text-destructive text-right text-sm">{submitError}</p>
-		{/if}
-	</div>
-{/if}
+	{/if}
+</div>
 
 {#if showSubmitted}
 	<Portal>
