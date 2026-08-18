@@ -627,26 +627,29 @@ pub fn build_survey_insights(
     submissions: &[Submission],
 ) -> SurveyInsights {
     // Index form fields by ID so look-ups are O(1).
-    let fields_by_id: HashMap<String, FormField> = form
-        .fields
-        .as_deref()
-        .unwrap_or_default()
-        .iter()
-        .filter_map(|field| {
-            if matches!(
-                field.kind.as_str(),
-                "statement" | "payment" | "welcome" | "thank_you"
-            ) {
-                return None;
-            }
+    let mut fields_by_id: HashMap<String, FormField> = HashMap::new();
+    for field in form.fields.as_deref().unwrap_or_default().iter() {
+        if matches!(
+            field.kind.as_str(),
+            "statement" | "payment" | "welcome" | "thank_you"
+        ) {
+            continue;
+        }
 
-            if field.kind.as_str() == "group" {
-                dbg!(&field.properties);
-            }
+        fields_by_id.insert(field.id.clone(), field.clone());
 
-            Some((field.id.clone(), field.clone()))
-        })
-        .collect();
+        if field.kind == "group" {
+            if let Some(properties) = field.properties.as_ref() {
+                if let Some(fields) = properties.fields.as_ref() {
+                    for subfield in fields.iter() {
+                        fields_by_id.insert(subfield.id.clone(), subfield.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    // dbg!(&fields_by_id);
 
     let mut submissions_by_field: HashMap<String, Vec<InsightSubmission>> = HashMap::new();
     let mut seen_answers: std::collections::HashSet<(String, String)> =
@@ -711,20 +714,24 @@ pub fn build_survey_insights(
     let questions = report
         .responses
         .iter()
-        .map(|response| {
-            let field = fields_by_id.get(&response.id);
+        .filter_map(|response| {
+            let Some(field) = fields_by_id.get(&response.id) else {
+                return None;
+            };
 
             // Resolve the question title from the form field, falling back to
             // the field ID when no plain-text title is available.
             let title = field
-                .and_then(|f| f.title.as_ref())
+                .title
+                .as_ref()
                 .and_then(extract_field_title)
                 .unwrap_or_else(|| response.id.clone());
 
             // Build a choice-ID-to-label index from the form field properties
             // so that we can fill gaps left by the report.
             let field_choices_by_id: HashMap<String, String> = field
-                .and_then(|f| f.properties.as_ref())
+                .properties
+                .as_ref()
                 .and_then(|properties| properties.choices.as_ref())
                 .map(|choices| {
                     choices
@@ -746,27 +753,21 @@ pub fn build_survey_insights(
             // via `choices`; for everything else (short_text, opinion_scale,
             // etc.) the per-answer values are the only meaningful content.
             let submissions = if choices.is_none() {
-                submissions_by_field.get(&response.id).cloned()
+                submissions_by_field.get(response.id.as_str()).cloned()
             } else {
                 None
             };
 
-            let kind = field
-                .map(|f| f.kind.clone())
-                .or_else(|| response.kind.clone());
-
-            let properties = field.map(|f| f.properties.clone()).unwrap_or_default();
-
-            InsightQuestion {
+            Some(InsightQuestion {
                 id: response.id.clone(),
-                kind,
+                kind: Some(String::from(field.kind.clone())),
                 title,
                 answered,
                 total: response.total,
-                properties,
+                properties: field.properties.clone(),
                 choices,
                 submissions,
-            }
+            })
         })
         .collect();
 

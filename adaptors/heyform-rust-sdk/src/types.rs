@@ -129,6 +129,9 @@ pub struct Choice {
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Properties {
+    // When the field is a nested field, this will be the parent field ID
+    pub parent: Option<String>,
+
     // Statement
     pub show_button: Option<bool>,
     pub button_text: Option<String>,
