@@ -256,10 +256,9 @@
 					: [...existing, next];
 
 			await store.saveToolConfig({
+				...toolConfig,
 				questions: target === 'section' ? toolConfig.questions : updated,
-				sectionQuestions: target === 'section' ? updated : toolConfig.sectionQuestions,
-				randomizeOrder: toolConfig.randomizeOrder,
-				alignmentQuestionId: toolConfig.alignmentQuestionId
+				sectionQuestions: target === 'section' ? updated : toolConfig.sectionQuestions
 			});
 			onOpenChange(false);
 		} catch (e) {

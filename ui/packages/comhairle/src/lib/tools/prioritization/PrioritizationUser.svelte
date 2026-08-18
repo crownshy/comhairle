@@ -11,6 +11,7 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import QuestionField from './components/QuestionField.svelte';
 	import * as api from './prioritizationApi';
+	import { requiredReviewCount, canLeaveStep } from './reviewGate';
 	import type {
 		ConversationInput,
 		LocalizedProposal,
@@ -20,22 +21,31 @@
 	} from './types';
 	import { SvelteSet } from 'svelte/reactivity';
 
-	let {
-		workflowStep,
-		conversation,
-		participantId = '',
-		onDone
-	}: {
+	type Props = {
 		workflowStep: WorkflowStepInput;
 		conversation: ConversationInput;
 		participantId?: string;
 		onDone: () => void;
-	} = $props();
+		/** Drives the host step's top-nav "Next": true once the participant has
+		 * reviewed the minimum number of proposals. Mirrors Polis / Thinking Space. */
+		onCanContinueChange?: (canContinue: boolean) => void;
+	};
+
+	let {
+		workflowStep,
+		conversation,
+		participantId = '',
+		onDone,
+		onCanContinueChange
+	}: Props = $props();
 
 	const stepId = $derived(workflowStep.id);
 	const toolConfig = $derived(
 		api.resolveToolConfig<string>(workflowStep, conversation.isLive ?? false)
 	);
+	/** Whether the participant can return to this step later. Drives the "come
+	 * back to review more" reassurance when they move on before finishing. */
+	const canRevisit = $derived(workflowStep.canRevisit ?? false);
 
 	let proposals = $state<LocalizedProposal[]>([]);
 	let answers = $state<Record<string, Record<string, number | string>>>({}); // proposalId → questionId → value
@@ -220,6 +230,26 @@
 	let showRequiredErrors = $derived(submitAttempted && missingKeys.size > 0);
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
+
+	let requiredReviews = $derived(
+		requiredReviewCount(toolConfig.requiredReviews, proposals.length)
+	);
+	/** The gate. Closed until proposals load, so a fast participant cannot click
+	 * past the step before there is anything to review. */
+	let canContinue = $derived(
+		canLeaveStep({
+			reviewedCount: submittedIds.size,
+			requiredReviews,
+			proposalsLoaded: loadState.kind === 'ready'
+		})
+	);
+	let reviewsRemaining = $derived(Math.max(requiredReviews - submittedIds.size, 0));
+
+	/** Drive the host step's top-nav "Next". Runs on load too, so a returning
+	 * participant who already met the minimum can continue immediately. */
+	$effect(() => {
+		onCanContinueChange?.(canContinue);
+	});
 
 	function setAnswer(proposalId: string, questionId: string, value: number | string) {
 		const next = { ...(answers[proposalId] ?? {}), [questionId]: value };
@@ -598,6 +628,26 @@
 				</Button>
 			{/if}
 		</div>
+		{#if canContinue}
+			<div
+				class="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
+			>
+				<p class="text-muted-foreground text-base">
+					You've reviewed enough to move on. Continue to the next step, or keep reviewing.{#if canRevisit}
+						You can always come back to review more later.{/if}
+				</p>
+				<Button variant="outline" class="shrink-0" onclick={onDone} disabled={submitting}>
+					Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
+				</Button>
+			</div>
+		{:else if requiredReviews > 0}
+			<p class="text-muted-foreground text-right text-base">
+				Reviewed {submittedIds.size} of {requiredReviews}. Review {reviewsRemaining} more proposal{reviewsRemaining >
+				1
+					? 's'
+					: ''} to continue to the next step.
+			</p>
+		{/if}
 		{#if showRequiredErrors}
 			<p class="text-destructive text-right text-sm">
 				Please answer the highlighted question{missingKeys.size > 1 ? 's' : ''} before continuing.
