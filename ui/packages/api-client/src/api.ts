@@ -104,6 +104,7 @@ export const UserRoles = z
 export type UserRoles = z.infer<typeof UserRoles>;
 export const LocalizedConversationDto = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
@@ -1071,6 +1072,7 @@ export const CreateConversation = z
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const ConversationDto = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
@@ -1122,6 +1124,7 @@ export const ConversationTranslations = z
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
 export const ConversationWithTranslations = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
@@ -1165,6 +1168,7 @@ export const ConversationResponse = z.union([
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
 export const PartialConversation = z
   .object({
+    allow_revisit_after_finishing: z.union([z.boolean(), z.null()]),
     call_to_action: z.union([z.string(), z.null()]),
     chat_bot_id: z.union([z.string(), z.null()]),
     default_workflow_id: z.union([z.string(), z.null()]),
@@ -1477,6 +1481,17 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
+export const UserParticipationDto = z
+  .object({
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    sealed: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+    user_id: z.string().uuid(),
+    workflow_id: z.string().uuid(),
+  })
+  .passthrough();
+export type UserParticipationDto = z.infer<typeof UserParticipationDto>;
 export const TranslationDto = z
   .object({
     textContent: TextContentDto,
@@ -3123,6 +3138,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicCategory,
   DemographicReport,
   UserParticipation,
+  UserParticipationDto,
   TranslationDto,
   JsonFieldWithTranslations,
   CategoryWithTranslations,
@@ -4567,7 +4583,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
     alias: "GetUserConversationParticipation",
     requestFormat: "json",
-    response: z.union([UserParticipation, z.null()]),
+    response: z.union([UserParticipationDto, z.null()]),
   },
   {
     method: "get",

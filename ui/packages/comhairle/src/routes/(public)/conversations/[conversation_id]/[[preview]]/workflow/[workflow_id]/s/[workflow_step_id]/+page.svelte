@@ -193,7 +193,8 @@
 				 * redirects to /next. Invalidating here re-runs that load, the redirect
 				 * rejects the invalidate, and the catch below fires a spurious error
 				 * toast while the redirect navigates anyway. Navigating with
-				 * invalidateAll refreshes the step list at the destination instead. */
+				 * invalidateAll refreshes the step list and the participation seal at
+				 * the destination instead. */
 				await goto(
 					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
 					{ invalidateAll: true }
