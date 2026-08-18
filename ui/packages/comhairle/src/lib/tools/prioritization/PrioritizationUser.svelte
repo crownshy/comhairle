@@ -433,7 +433,7 @@
 									{#if toolConfig.sectionQuestions.length > 0}
 										<div class="space-y-6">
 											{#if section.body}
-												<div class="prose max-w-none text-base">
+												<div class="prose text-base">
 													<ContentRenderer content={section.body} />
 												</div>
 											{/if}
@@ -538,7 +538,7 @@
 					{#each current.sections as section (section.id)}
 						<div class="space-y-6">
 							{#if section.body}
-								<div class="prose max-w-none text-base">
+								<div class="prose text-base">
 									<ContentRenderer content={section.body} />
 								</div>
 							{/if}
