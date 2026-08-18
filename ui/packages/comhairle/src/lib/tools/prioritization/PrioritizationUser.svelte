@@ -63,17 +63,12 @@
 	let submitError = $state<string | null>(null);
 	let savingReview = $state(false);
 	let reviewError = $state<string | null>(null);
-	/** Top of the current-proposal view; scrolled into view after advancing so it's
-	 * clear the participant has moved on to the next proposal. */
-	let proposalTopEl = $state<HTMLDivElement | null>(null);
-
-	async function scrollToProposalTop() {
+	/** After advancing to the next proposal, return the participant to the top of
+	 * the page so the step header and progress are back in view. */
+	async function scrollToTop() {
 		await tick();
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		proposalTopEl?.scrollIntoView({
-			behavior: reduceMotion ? 'auto' : 'smooth',
-			block: 'start'
-		});
+		window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
 	}
 
 	/** Brief success interstitial shown between proposals so a submit registers as a
@@ -340,12 +335,13 @@
 		submitAttempted = false;
 		/** Confirm the submission with a short interstitial before revealing what's next. */
 		await flashSubmittedInterstitial();
-		/** If anything is left, move on and scroll the fresh proposal to the top so the
-		 * jump to the next one is unmistakable. Otherwise let allDone surface the summary. */
+		/** Move on if any proposals remain; the last submit instead flips to the
+		 * "Your answers" summary (which takes template precedence). Either way scroll
+		 * back to the top of the page so the transition is unmistakable. */
 		if (currentIndex < proposals.length - 1) {
 			currentIndex += 1;
-			await scrollToProposalTop();
 		}
+		await scrollToTop();
 	}
 
 	function goBack() {
@@ -491,7 +487,7 @@
 		</div>
 	</div>
 {:else if current}
-	<div class="space-y-6" bind:this={proposalTopEl}>
+	<div class="space-y-6">
 		<div class="space-y-2">
 			<div class="flex items-center justify-between gap-3 text-sm">
 				<span class="text-muted-foreground">
