@@ -10,8 +10,8 @@ use axum::http::StatusCode;
 use heyform_sdk::client::HeyFormClient;
 use heyform_sdk::{
     CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, Form, FormField, FormKind,
-    FormReport, FormReportResponse, InteractiveMode, LoginInput, SignUpInput, Submission,
-    Submissions,
+    FormReport, FormReportResponse, InteractiveMode, LoginInput, Properties, SignUpInput,
+    Submission, Submissions,
 };
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -492,11 +492,9 @@ pub struct InsightSubmission {
     pub submitted_at: Option<i64>,
 }
 
-pub struct InsightProperties {}
-
 /// Per-question insight data: the question title resolved from the form schema
 /// alongside the aggregate response breakdown from the form report.
-#[derive(Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct InsightQuestion {
     /// The field identifier as stored by HeyForm.
     pub id: String,
@@ -512,7 +510,7 @@ pub struct InsightQuestion {
     pub total: u32,
     /// Field properties
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<HashMap<String, serde_json::Value>>,
+    pub properties: Option<Properties>,
     /// Per-choice breakdown. Present only for choice-based question kinds
     /// (multiple-choice, single-choice, picture-choice, etc.).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -526,7 +524,7 @@ pub struct InsightQuestion {
 
 /// The fully labelled survey insights for a workflow step, combining the
 /// form schema with its aggregate report data.
-#[derive(Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SurveyInsights {
     pub questions: Vec<InsightQuestion>,
 }
@@ -642,7 +640,9 @@ pub fn build_survey_insights(
                 return None;
             }
 
-            // let field_choices_by_id: HashMap<String, String> = field.properties.clone();
+            if field.kind.as_str() == "group" {
+                dbg!(&field.properties);
+            }
 
             Some((field.id.clone(), field.clone()))
         })
@@ -725,20 +725,11 @@ pub fn build_survey_insights(
             // so that we can fill gaps left by the report.
             let field_choices_by_id: HashMap<String, String> = field
                 .and_then(|f| f.properties.as_ref())
-                .and_then(|properties| properties.get("choices"))
-                .and_then(|choices| choices.as_array())
+                .and_then(|properties| properties.choices.as_ref())
                 .map(|choices| {
                     choices
                         .iter()
-                        .filter_map(|choice| {
-                            let id = choice.get("id")?.as_str()?.to_owned();
-                            let label = choice
-                                .get("label")
-                                .and_then(|l| l.as_str())
-                                .unwrap_or_default()
-                                .to_owned();
-                            Some((id, label))
-                        })
+                        .map(|choice| (choice.id.clone(), choice.label.clone()))
                         .collect()
                 })
                 .unwrap_or_default();
@@ -821,8 +812,9 @@ mod tests {
 
     use axum::{Router, extract::State, routing::post};
     use heyform_sdk::{
-        Form, FormField, FormReport, FormReportAnswer, FormReportResponse, FormReportSubmission,
-        HiddenFieldAnswer, Submission, SubmissionCategory, Submissions,
+        Choice, Form, FormField, FormReport, FormReportAnswer, FormReportResponse,
+        FormReportSubmission, HiddenFieldAnswer, Properties, Submission, SubmissionCategory,
+        Submissions,
     };
     use serde_json::json;
     use sqlx::PgPool;
@@ -1212,13 +1204,21 @@ mod tests {
                 description: None,
                 kind: "multiple_choice".to_string(),
                 validations: None,
-                properties: Some(HashMap::from([(
-                    "choices".to_string(),
-                    json!([
-                        {"id": "c-red",  "label": "Red"},
-                        {"id": "c-blue", "label": "Blue"}
+                properties: Some(Properties {
+                    choices: Some(vec![
+                        Choice {
+                            id: "c-red".to_string(),
+                            label: "Red".to_string(),
+                            ..Default::default()
+                        },
+                        Choice {
+                            id: "c-blue".to_string(),
+                            label: "Blue".to_string(),
+                            ..Default::default()
+                        },
                     ]),
-                )])),
+                    ..Default::default()
+                }),
                 layout: None,
                 width: None,
                 hide: None,

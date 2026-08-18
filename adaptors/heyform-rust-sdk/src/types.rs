@@ -103,93 +103,93 @@ pub struct FormSettings {
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct Icon {
-    name: String,
-    color: String,
-    background: String,
+    pub name: String,
+    pub color: String,
+    pub background: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Choice {
-    id: String,
-    label: String,
+    pub id: String,
+    pub label: String,
 
     // Picture choice
-    image: Option<String>,
-    icon: Option<Icon>,
+    pub image: Option<String>,
+    pub icon: Option<Icon>,
 
     // HeySheet custom columns
-    color: Option<String>,
+    pub color: Option<String>,
 
     // Quiz
-    score: Option<i32>,
-    is_expected: Option<bool>,
+    pub score: Option<i32>,
+    pub is_expected: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Properties {
     // Statement
-    show_button: Option<bool>,
-    button_text: Option<String>,
-    hide_marks: Option<bool>,
+    pub show_button: Option<bool>,
+    pub button_text: Option<String>,
+    pub hide_marks: Option<bool>,
 
     // Choice
-    allow_other: Option<bool>,
-    allow_multiple: Option<bool>,
-    choices: Option<Vec<Choice>>,
-    randomize: Option<bool>,
-    other: Option<String>,
-    badge: Option<String>,
-    vertical_alignment: Option<bool>,
+    pub allow_other: Option<bool>,
+    pub allow_multiple: Option<bool>,
+    pub choices: Option<Vec<Choice>>,
+    pub randomize: Option<bool>,
+    pub other: Option<String>,
+    pub badge: Option<String>,
+    pub vertical_alignment: Option<bool>,
 
     // Only for group
-    fields: Option<Vec<FormField>>,
+    pub fields: Option<Vec<FormField>>,
 
     // Rating
-    shape: Option<String>,
-    total: Option<i32>,
-    start: Option<i32>,
+    pub shape: Option<String>,
+    pub total: Option<i32>,
+    pub start: Option<i32>,
 
     // Opinion Scale
-    left_label: Option<String>,
-    center_label: Option<String>,
-    right_label: Option<String>,
+    pub left_label: Option<String>,
+    pub center_label: Option<String>,
+    pub right_label: Option<String>,
 
     // PhoneNumber
-    default_country_code: Option<String>,
+    pub default_country_code: Option<String>,
 
     // Payment - Not used
     // currency?: string
     // price?: NumberPrice | VariablePrice
 
     // Date
-    format: Option<String>,
+    pub format: Option<String>,
     // Allow input time
-    allow_time: Option<bool>,
+    pub allow_time: Option<bool>,
     // Time
-    time_format: Option<String>,
-    use12_hours: Option<bool>,
+    pub time_format: Option<String>,
+    pub use12_hours: Option<bool>,
 
     // Data - Not used
     // tableColumns: Column[]
 
     // Score
-    score: Option<i32>,
+    pub score: Option<i32>,
 
     // HeyForm Form Builder v2.0
     // Embed & Image
-    source_url: Option<String>,
+    pub source_url: Option<String>,
 
     // Screen
-    enable_share_icon: Option<bool>,
-    enable_complete_time: Option<bool>,
+    pub enable_share_icon: Option<bool>,
+    pub enable_complete_time: Option<bool>,
 
     // Thank You
-    button_link_url: Option<String>,
-    redirect_url: Option<String>,
-    redirect_on_completion: Option<bool>,
-    redirect_delay: Option<i32>,
+    pub button_link_url: Option<String>,
+    pub redirect_url: Option<String>,
+    pub redirect_on_completion: Option<bool>,
+    pub redirect_delay: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -204,7 +204,7 @@ pub struct FormField {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validations: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<HashMap<String, serde_json::Value>>,
+    pub properties: Option<Properties>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
