@@ -127,10 +127,16 @@ pub struct Choice {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
+pub struct Parent {
+    pub id: String,
+    pub title: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Properties {
     // When the field is a nested field, this will be the parent field ID
-    pub parent: Option<String>,
+    pub parent: Option<Parent>,
 
     // Statement
     pub show_button: Option<bool>,

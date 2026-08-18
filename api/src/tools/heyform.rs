@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use heyform_sdk::client::HeyFormClient;
 use heyform_sdk::{
     CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, Form, FormField, FormKind,
-    FormReport, FormReportResponse, InteractiveMode, LoginInput, Properties, SignUpInput,
+    FormReport, FormReportResponse, InteractiveMode, LoginInput, Parent, Properties, SignUpInput,
     Submission, Submissions,
 };
 use rand::seq::SliceRandom;
@@ -639,17 +639,25 @@ pub fn build_survey_insights(
         fields_by_id.insert(field.id.clone(), field.clone());
 
         if field.kind == "group" {
-            if let Some(properties) = field.properties.as_ref() {
-                if let Some(fields) = properties.fields.as_ref() {
-                    for subfield in fields.iter() {
-                        fields_by_id.insert(subfield.id.clone(), subfield.clone());
-                    }
+            let Some(fields) = field.properties.as_ref().and_then(|p| p.fields.as_ref()) else {
+                continue;
+            };
+            let parent = Some(Parent {
+                id: field.id.clone(),
+                title: extract_field_title(field.title.as_ref().unwrap_or_default())
+                    .unwrap_or_default(),
+            });
+            for subfield in fields.iter() {
+                let mut subfield = subfield.clone();
+
+                if let Some(properties) = &mut subfield.properties {
+                    properties.parent = parent.clone();
                 }
+
+                fields_by_id.insert(subfield.id.clone(), subfield);
             }
         }
     }
-
-    // dbg!(&fields_by_id);
 
     let mut submissions_by_field: HashMap<String, Vec<InsightSubmission>> = HashMap::new();
     let mut seen_answers: std::collections::HashSet<(String, String)> =
