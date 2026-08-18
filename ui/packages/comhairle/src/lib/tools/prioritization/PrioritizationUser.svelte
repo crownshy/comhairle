@@ -21,6 +21,19 @@
 	} from './types';
 	import { SvelteSet } from 'svelte/reactivity';
 
+	// PROTOTYPE (#930) — Continue-button placement variants. Delete with the
+	// {#if variant} branches below once one wins.
+	import { page } from '$app/state';
+	import PrototypeSwitcher from './PrototypeSwitcher.svelte';
+
+	const PROTOTYPE_VARIANTS = [
+		{ key: 'A', name: 'Right-aligned above list' },
+		{ key: 'B', name: 'Header row' },
+		{ key: 'C', name: 'Full-width under header' },
+		{ key: 'D', name: 'Sticky bottom bar' }
+	];
+	const variant = $derived(page.url.searchParams.get('variant') ?? 'A');
+
 	type Props = {
 		workflowStep: WorkflowStepInput;
 		conversation: ConversationInput;
@@ -389,15 +402,51 @@
 			</Card.Content>
 		</Card.Root>
 	{:else if allDone}
+		{#snippet continueButton(extraClass: string)}
+			<Button
+				onclick={() => void saveReviewEditsAndContinue()}
+				disabled={savingReview}
+				class={extraClass}
+			>
+				{#if savingReview}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				{/if}
+				{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
+			</Button>
+		{/snippet}
+		{#snippet reviewBlurb()}
+			<p class="text-foreground text-sm">
+				Tap a proposal to review or adjust your answers. Changes are saved when you
+				continue.
+			</p>
+		{/snippet}
 		<div class="space-y-6">
-			<div class="space-y-1 text-center">
-				<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
-				<h2 class="text-l mt-5 font-semibold">Your answers</h2>
-				<p class="text-foreground text-sm">
-					Tap a proposal to review or adjust your answers. Changes are saved when you
-					continue.
-				</p>
-			</div>
+			{#if variant === 'B'}
+				<div class="mt-5 flex flex-wrap items-end justify-between gap-3 border-b pb-4">
+					<div class="space-y-1 text-left">
+						<h2 class="text-l font-semibold">Your answers</h2>
+						{@render reviewBlurb()}
+					</div>
+					{@render continueButton('')}
+				</div>
+			{:else if variant === 'C'}
+				<div class="space-y-3 text-center">
+					<h2 class="text-l mt-5 font-semibold">Your answers</h2>
+					{@render reviewBlurb()}
+					{@render continueButton('w-full')}
+				</div>
+			{:else}
+				<div class="space-y-1 text-center">
+					<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
+					<h2 class="text-l mt-5 font-semibold">Your answers</h2>
+					{@render reviewBlurb()}
+				</div>
+				{#if variant === 'A'}
+					<div class="flex justify-end">
+						{@render continueButton('')}
+					</div>
+				{/if}
+			{/if}
 
 			<Accordion.Root type="multiple" class="space-y-3">
 				{#each proposals as proposal (proposal.id)}
@@ -482,14 +531,15 @@
 			{#if reviewError}
 				<p class="text-destructive text-right text-sm">{reviewError}</p>
 			{/if}
-			<div class="flex justify-end">
-				<Button onclick={() => void saveReviewEditsAndContinue()} disabled={savingReview}>
-					{#if savingReview}
-						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					{/if}
-					{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
-				</Button>
-			</div>
+			{#if variant === 'D'}
+				<div class="bg-background/90 sticky bottom-0 z-10 border-t py-3 backdrop-blur">
+					{@render continueButton('w-full')}
+				</div>
+			{:else}
+				<div class="flex justify-end">
+					{@render continueButton('')}
+				</div>
+			{/if}
 		</div>
 	{:else if current}
 		<div class="space-y-6">
@@ -679,3 +729,5 @@
 		</div>
 	</Portal>
 {/if}
+
+<PrototypeSwitcher variants={PROTOTYPE_VARIANTS} current={variant} />
