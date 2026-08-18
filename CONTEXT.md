@@ -52,6 +52,23 @@ A single allowed operation (for example list, grant, revoke, read, update) that 
 **Authorization precedence**:
 Permission checks resolve in this order: resource ownership allows, then system admin grant allows globally, then role-action mapping on the target resource is evaluated. There are currently no explicit deny rules.
 
+### Participant journey
+
+**Finished** (a participant is finished):
+The point at which a participant has a `done` progress row for **every** Step in a Workflow. Reaching it is what lands them on the Thank You page. Distinct from a Conversation being **complete** (`is_complete`), which is an admin closing the whole Conversation, and from a single Step's `progressStatus: 'done'`. Matches what participants see: the last step's button is labelled "Finish".
+_Avoid_: Submission (already means one HeyForm survey response - see `tools/heyform.rs`), completion (collides with `Conversation.is_complete`).
+_Note_: Skipping an optional Step still writes `done`, so a participant who skips everything has still finished.
+
+**Sealed**:
+A participant who has [[#finished-a-participant-is-finished]] in a Conversation with [[#revisit-after-finishing]] turned off. A sealed participant can reach no Step and comhairle rejects their writes. Sealed is **derived**, never stored: it is recomputed from the Workflow's Steps and that participant's progress rows. One consequence of deriving it: adding a Step to a live Workflow un-seals everyone who had already finished.
+_Avoid_: Locked, closed (closed reads as the Conversation being closed).
+
+**Revisit after finishing**:
+The per-Conversation setting (`allow_revisit_after_finishing`, default `true`) governing whether a participant may return to Steps once they are [[#finished-a-participant-is-finished]]. Off means sealed. Orthogonal to the per-Step [[#revisitable-step]] flag, which governs navigation *before* they finish; the Conversation setting overrides it afterwards.
+
+**Revisitable step**:
+The per-Step `can_revisit` flag (default `false`), controlling whether a participant may navigate back to that Step once they have completed it. Governs mid-flow navigation only. Once a participant is [[#finished-a-participant-is-finished]] it is subordinate to [[#revisit-after-finishing]].
+
 ### Organizations and access
 
 **Organization Administrator**:

@@ -27,6 +27,7 @@ use crate::models::proposal_section::{
     self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
 };
 use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
+use crate::models::user_progress;
 use crate::models::workflow_step;
 use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::routes::translations::LocaleExtractor;
@@ -674,6 +675,13 @@ async fn delete_proposal_section(
     Ok((StatusCode::OK, Json(section.into())))
 }
 
+/// Record a participant's response to a proposal.
+///
+/// Refused for a sealed participant: once they have finished a conversation that does not
+/// allow revisits afterwards, their contributions are closed. This is the backend half of the
+/// seal, and it only covers the tools whose participant writes reach us at all. Steps backed
+/// by an external tool post straight to that tool's own server, so we cannot gate them here.
+/// See ADR-0016.
 #[instrument(err(Debug), skip(state))]
 async fn create_proposal_response(
     State(state): State<Arc<ComhairleState>>,
@@ -681,6 +689,13 @@ async fn create_proposal_response(
     Path(proposal_id): Path<Uuid>,
     Json(payload): Json<CreateResponse>,
 ) -> Result<(StatusCode, Json<ProposalResponseDto>), ComhairleError> {
+    let proposal = proposal::get_by_id(&state.db, &proposal_id).await?;
+    let step = workflow_step::get_by_id(&state.db, &proposal.workflow_step_id).await?;
+
+    if user_progress::is_sealed(&state.db, &user.id, &step.workflow_id).await? {
+        return Err(ComhairleError::ParticipantSealed);
+    }
+
     let response = proposal_response::create(&state.db, &proposal_id, &user.id, &payload).await?;
 
     Ok((StatusCode::CREATED, Json(response.into())))
