@@ -678,9 +678,10 @@ async fn delete_proposal_section(
 /// Record a participant's response to a proposal.
 ///
 /// Refused for a sealed participant: once they have finished a conversation that does not
-/// allow revisits afterwards, their contributions are closed. This is the backend half
-/// of the seal, and the only one of the Waves tools whose participant writes reach us at all
-/// (surveys and Polis post directly to their own servers). See ADR-0016.
+/// allow revisits afterwards, their contributions are closed. This is the backend half of the
+/// seal, and it only covers the tools whose participant writes reach us at all. Steps backed
+/// by an external tool post straight to that tool's own server, so we cannot gate them here.
+/// See ADR-0016.
 #[instrument(err(Debug), skip(state))]
 async fn create_proposal_response(
     State(state): State<Arc<ComhairleState>>,

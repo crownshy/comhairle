@@ -163,13 +163,7 @@ async fn get_user_participation(
 
     let sealed = user_progress::is_sealed(&state.db, &user.id, &workflow_id).await?;
 
-    Ok((
-        StatusCode::OK,
-        Json(Some(UserParticipationDto::from_participation(
-            participation,
-            sealed,
-        ))),
-    ))
+    Ok((StatusCode::OK, Json(Some(participation.into_dto(sealed)))))
 }
 
 /// Create workflow handler

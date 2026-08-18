@@ -54,18 +54,18 @@ pub struct UserParticipationDto {
     pub sealed: bool,
 }
 
-impl UserParticipationDto {
+impl UserParticipation {
     /// `sealed` is taken as an argument rather than derived here, so that the one definition
     /// of the seal stays in `user_progress::is_sealed` alongside the write gates that enforce
     /// it. A required parameter also means a caller cannot build one of these without
     /// deciding what the seal is.
-    pub fn from_participation(p: UserParticipation, sealed: bool) -> Self {
-        Self {
-            id: p.id,
-            user_id: p.user_id,
-            workflow_id: p.workflow_id,
-            created_at: p.created_at,
-            updated_at: p.updated_at,
+    pub fn into_dto(self, sealed: bool) -> UserParticipationDto {
+        UserParticipationDto {
+            id: self.id,
+            user_id: self.user_id,
+            workflow_id: self.workflow_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
             sealed,
         }
     }

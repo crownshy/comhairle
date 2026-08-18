@@ -6,7 +6,7 @@
 
 ## Context
 
-Waves asked for a conversation-level option: once a participant reaches the Thank You
+A partner asked for a conversation-level option: once a participant reaches the Thank You
 page, they can no longer return to any engagement step. The issue's acceptance criteria
 require this to be "enforced at the backend/system level, not only through frontend UI",
 and to survive browser Back and direct URL entry.
@@ -18,9 +18,10 @@ closed the whole conversation, not that a participant finished. Reaching the Tha
 page is currently derived on the fly in the frontend as "every `user_progress` row is
 `done`" (`return/+page.ts`). Nothing is recorded when a participant lands there.
 
-**Most participant data never passes through comhairle.** Of the five steps in the Waves
-flow, three are HeyForm surveys rendered as a cross-origin iframe posting straight to
-`forms.crown-shy.com`, and Polis steps talk to the Polis server from the browser.
+**Most participant data never passes through comhairle.** In the five-step flow that
+prompted this, three steps are HeyForm surveys rendered as a cross-origin iframe posting
+straight to `forms.crown-shy.com`, and Polis steps talk to the Polis server from the
+browser.
 Prioritisation is the only tool whose participant writes reach our API. So "block it at
 the system level" is not uniformly available: for surveys and polls there is no comhairle
 request to block.
@@ -46,7 +47,7 @@ Trade-off, accepted: the seal is not stable under workflow edits. Adding a step 
 workflow creates `not_started` rows for existing participants
 (`user_progress::create_for_workflow_participants`), which un-seals everyone who had
 already finished and re-opens their earlier answers until they finish again. This fails
-**open** on the guarantee Waves asked for, and it fails silently. We accepted it because
+**open** on the guarantee the option promises, and it fails silently. We accepted it because
 recording the seal buys stability at the cost of the opposite failure, where an admin adds
 a step and several hundred sealed participants can never see it, and because it keeps this
 change to zero schema. Revisit if adding steps to live workflows becomes routine.
@@ -113,8 +114,8 @@ backfill.
   workflow.
 - The write gate is scoped to step contribution writes, not to the participant. Thank You
   page writes (feedback, email registration, conversation preferences, account upgrade) and
-  the public report route stay open to sealed participants, and the Waves prize-draw
-  follow-up depends on that.
+  the public report route stay open to sealed participants, and the prize-draw follow-up
+  depends on that.
 - The gate is `!preview` guarded, so an admin previewing a live conversation they have
   participated in is not sealed out of their own preview.
 - Three gaps are known and deliberate: survey and Polis writes, ungated thinking space and
