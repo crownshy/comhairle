@@ -1,5 +1,6 @@
 /** The subset of Jitsi's breakout room payload we read. */
 export interface JitsiBreakoutRoom {
+	// jid: the XMPP address Jitsi identifies a room by, and what you pass to join it.
 	jid?: string;
 	name?: string;
 	isMainRoom?: boolean;

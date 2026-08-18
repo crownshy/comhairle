@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { groupParticipantsByRoom } from './breakoutRoomAssignments';
 import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
+import { groupParticipantsByRoom } from './breakoutRoomAssignments';
 
 const participant = (user_id: string, role = 'participant'): VideoCallParticipant => ({
 	user_id,
