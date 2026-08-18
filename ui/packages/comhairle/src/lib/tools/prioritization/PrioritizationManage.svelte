@@ -2,6 +2,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
+	import Input from '$lib/components/ui/input/input.svelte';
+	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Plus, Pencil, Trash2, LoaderCircle, GripVertical } from 'lucide-svelte';
@@ -21,6 +23,7 @@
 	} from './types';
 	import * as Select from '$lib/components/ui/select';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import { useDebounce } from 'runed';
 	import { type ConversationWithTranslations } from '@crownshy/api-client/api';
 
 	let {
@@ -67,6 +70,11 @@
 	let deletingQuestionInFlight = $state(false);
 	let randomizeSaving = $state(false);
 
+	/** Local mirror of the required-review count. Writable $derived: tracks the
+	 * saved config but holds the admin's in-progress edit until the source changes.
+	 * Undefined (blank input) means "all proposals", the default. */
+	let requiredReviewsInput = $derived(toolConfig.requiredReviews);
+
 	/** Per-section question editor/delete state (mirrors the proposal-question flow). */
 	let sectionQuestionEditorOpen = $state(false);
 	let sectionQuestionDeleteOpen = $state(false);
@@ -88,12 +96,7 @@
 	async function commitQuestionOrder(next: DraftQuestion[]) {
 		savingOrder = true;
 		try {
-			await store.saveToolConfig({
-				questions: next,
-				sectionQuestions,
-				randomizeOrder: toolConfig.randomizeOrder,
-				alignmentQuestionId: toolConfig.alignmentQuestionId
-			});
+			await store.saveToolConfig({ ...toolConfig, questions: next });
 		} catch {
 			/** saveToolConfig surfaces an error toast. Revert local view to the upstream order. */
 			localQuestions = questions;
@@ -105,12 +108,7 @@
 	async function commitSectionQuestionOrder(next: DraftQuestion[]) {
 		savingSectionOrder = true;
 		try {
-			await store.saveToolConfig({
-				questions,
-				sectionQuestions: next,
-				randomizeOrder: toolConfig.randomizeOrder,
-				alignmentQuestionId: toolConfig.alignmentQuestionId
-			});
+			await store.saveToolConfig({ ...toolConfig, sectionQuestions: next });
 		} catch {
 			localSectionQuestions = sectionQuestions;
 		} finally {
@@ -171,12 +169,7 @@
 		deletingQuestionInFlight = true;
 		try {
 			const next = questions.filter((q) => q.id !== selectedQuestionId);
-			await store.saveToolConfig({
-				questions: next,
-				sectionQuestions,
-				randomizeOrder: toolConfig.randomizeOrder,
-				alignmentQuestionId: toolConfig.alignmentQuestionId
-			});
+			await store.saveToolConfig({ ...toolConfig, questions: next });
 			questionDeleteOpen = false;
 			selectedQuestionId = null;
 		} catch {
@@ -206,12 +199,7 @@
 		deletingSectionQuestionInFlight = true;
 		try {
 			const next = sectionQuestions.filter((q) => q.id !== selectedSectionQuestionId);
-			await store.saveToolConfig({
-				questions,
-				sectionQuestions: next,
-				randomizeOrder: toolConfig.randomizeOrder,
-				alignmentQuestionId: toolConfig.alignmentQuestionId
-			});
+			await store.saveToolConfig({ ...toolConfig, sectionQuestions: next });
 			sectionQuestionDeleteOpen = false;
 			selectedSectionQuestionId = null;
 		} catch {
@@ -224,18 +212,30 @@
 	async function toggleRandomize(checked: boolean) {
 		randomizeSaving = true;
 		try {
-			await store.saveToolConfig({
-				questions,
-				sectionQuestions,
-				randomizeOrder: checked,
-				alignmentQuestionId: toolConfig.alignmentQuestionId
-			});
+			await store.saveToolConfig({ ...toolConfig, randomizeOrder: checked });
 		} catch {
 			/** store.saveToolConfig surfaces an error toast. */
 		} finally {
 			randomizeSaving = false;
 		}
 	}
+
+	/** Persist the minimum number of proposals a participant must review before they
+	 * can continue. Blank (or invalid) input means "all proposals", the default, and
+	 * is stored as undefined so clearing the field restores it. A set value floors at
+	 * 1; the participant gate clamps to the proposal count, so there is no upper bound
+	 * to enforce here. Debounced on input. PolisManage's field looks identical but
+	 * handles blank input differently: it returns early and keeps the previous value,
+	 * where clearing this one deliberately restores the default. */
+	const saveRequiredReviews = useDebounce(async (raw: string) => {
+		const parsed = Number.parseInt(raw.trim(), 10);
+		const next = Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined;
+		try {
+			await store.saveToolConfig({ ...toolConfig, requiredReviews: next });
+		} catch {
+			/** store.saveToolConfig surfaces an error toast. */
+		}
+	}, 500);
 
 	function describeType(type: DraftQuestionType): string {
 		switch (type.kind) {
@@ -267,12 +267,7 @@
 	let savingAlignmentQuestion = $state(false);
 	async function setAlignmentQuestion(value: string) {
 		savingAlignmentQuestion = true;
-		await store.saveToolConfig({
-			questions,
-			sectionQuestions,
-			randomizeOrder: toolConfig.randomizeOrder,
-			alignmentQuestionId: value
-		});
+		await store.saveToolConfig({ ...toolConfig, alignmentQuestionId: value });
 		savingAlignmentQuestion = false;
 	}
 </script>
@@ -482,6 +477,29 @@
 				checked={toolConfig.randomizeOrder}
 				disabled={randomizeSaving}
 				onCheckedChange={toggleRandomize}
+			/>
+		</div>
+
+		<div class="bg-card flex items-center justify-between gap-4 rounded-md border p-3">
+			<div>
+				<Label for="requiredReviews" class="font-medium">Minimum proposals to review</Label>
+				<p class="text-muted-foreground text-sm">
+					How many proposals a participant must review before they can continue to the
+					next step. Leave blank to require all proposals.{#if store.proposals.length > 0}
+						A number above {store.proposals.length} counts as all of them.{/if}
+				</p>
+			</div>
+			<Input
+				id="requiredReviews"
+				name="requiredReviews"
+				type="number"
+				min="1"
+				max={store.proposals.length > 0 ? store.proposals.length : undefined}
+				step="1"
+				placeholder="All"
+				class="w-24"
+				bind:value={requiredReviewsInput}
+				oninput={(e) => saveRequiredReviews((e.currentTarget as HTMLInputElement).value)}
 			/>
 		</div>
 
