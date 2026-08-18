@@ -88,7 +88,6 @@
 	let hasJoinedCall = $state(false);
 	let jitsiApi: any = $state(null);
 	let roomContext = $state<RoomContext>('plenary');
-	let activePanel = $state<PanelTab>('agenda');
 	let jitsiModeratorStatus = $state<boolean>(false);
 	let currentJitsiRoomName = $state<string>('');
 	/** This client's own Jitsi participant id, used to detect our own rename events. */
@@ -102,7 +101,6 @@
 	let showBroadcast = $state(false);
 	let showEndMeeting = $state(false);
 	let mobileRoomIndex = $state(0);
-	let mobileAgendaViewIndex = $state(0);
 	/** Whether the mobile bottom sheet is collapsed (peek) or expanded */
 	let mobileSheetCollapsed = $state(false);
 	let seenAssistanceRequests = $state<Set<string>>(new Set());
@@ -188,6 +186,18 @@
 
 	let isBreakoutActive = $derived(breakoutSession !== null);
 	let inBreakoutRoom = $derived(typeof roomContext !== 'string');
+
+	/** Which side panel tab is showing. Moderators land on the rooms list as soon as a
+	 *  breakout starts, everyone else on the agenda. Writable, because the tab buttons and
+	 *  the join and return paths set it directly; those writes hold until the next
+	 *  breakout starts or ends. */
+	let activePanel: PanelTab = $derived(
+		isBreakoutActive && isModerator ? 'breakoutRooms' : 'agenda'
+	);
+
+	/** The agenda item the mobile strip is showing. Follows the live step, and holds
+	 *  wherever the arrows leave it until the step changes. */
+	let mobileAgendaViewIndex = $derived(currentStep);
 
 	let currentAgendaItem = $derived(
 		currentStep >= 0 && currentStep < agendaItems.length ? agendaItems[currentStep] : null
@@ -340,20 +350,6 @@
 		if (callStatus === 'InProgress' && !hasJoinedCall) {
 			hasJoinedCall = true;
 		}
-	});
-
-	$effect(() => {
-		if (isBreakoutActive && isModerator) {
-			activePanel = 'breakoutRooms';
-		}
-		if (!isBreakoutActive && activePanel === 'breakoutRooms') {
-			activePanel = 'agenda';
-		}
-	});
-
-	// Sync mobile agenda view with current step
-	$effect(() => {
-		mobileAgendaViewIndex = currentStep;
 	});
 
 	// Reset mobile sheet collapse state when a participant enters a breakout room (peek)
