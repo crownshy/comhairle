@@ -406,8 +406,8 @@
 				<div class="space-y-1">
 					<h2 class="text-lg font-semibold">Thanks for your answers</h2>
 					<p class="text-muted-foreground text-base">
-						{answeredCountLine} Look back over them if you want to change anything, or move
-						on to the next step.
+						{answeredCountLine} Review your answers if you'd like to make any changes, or
+						continue to the next step.
 					</p>
 				</div>
 				<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
