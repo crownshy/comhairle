@@ -494,7 +494,7 @@ pub struct InsightSubmission {
 
 /// Per-question insight data: the question title resolved from the form schema
 /// alongside the aggregate response breakdown from the form report.
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct InsightQuestion {
     /// The field identifier as stored by HeyForm.
     pub id: String,
@@ -524,7 +524,7 @@ pub struct InsightQuestion {
 
 /// The fully labelled survey insights for a workflow step, combining the
 /// form schema with its aggregate report data.
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct SurveyInsights {
     pub questions: Vec<InsightQuestion>,
 }
@@ -772,8 +772,8 @@ pub fn build_survey_insights(
                                 .unwrap_or_default();
                             let label = choice
                                 .get("label")
-                                .and_then(|id| id.as_str())
-                                .map(|id| id.to_string())
+                                .and_then(|l| l.as_str())
+                                .map(|l| l.to_string())
                                 .unwrap_or_default();
                             Some((id, label))
                         })
@@ -793,7 +793,7 @@ pub fn build_survey_insights(
             // via `choices`; for everything else (short_text, opinion_scale,
             // etc.) the per-answer values are the only meaningful content.
             let submissions = if choices.is_none() {
-                submissions_by_field.get(response.id.as_str()).cloned()
+                submissions_by_field.get(&response.id).cloned()
             } else {
                 None
             };
