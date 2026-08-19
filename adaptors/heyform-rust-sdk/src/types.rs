@@ -101,104 +101,10 @@ pub struct FormSettings {
     pub enable_question_list: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
-pub struct Icon {
-    pub name: String,
-    pub color: String,
-    pub background: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct Choice {
-    pub id: String,
-    pub label: String,
-
-    // Picture choice
-    pub image: Option<String>,
-    pub icon: Option<Icon>,
-
-    // HeySheet custom columns
-    pub color: Option<String>,
-
-    // Quiz
-    pub score: Option<i32>,
-    pub is_expected: Option<bool>,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
 pub struct Parent {
     pub id: String,
     pub title: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct Properties {
-    // When the field is a nested field, this will be the parent field ID
-    pub parent: Option<Parent>,
-
-    // Statement
-    pub show_button: Option<bool>,
-    pub button_text: Option<String>,
-    pub hide_marks: Option<bool>,
-
-    // Choice
-    pub allow_other: Option<bool>,
-    pub allow_multiple: Option<bool>,
-    pub choices: Option<Vec<Choice>>,
-    pub randomize: Option<bool>,
-    pub other: Option<String>,
-    pub badge: Option<String>,
-    pub vertical_alignment: Option<bool>,
-
-    // Only for group
-    pub fields: Option<Vec<FormField>>,
-
-    // Rating
-    pub shape: Option<String>,
-    pub total: Option<i32>,
-    pub start: Option<i32>,
-
-    // Opinion Scale
-    pub left_label: Option<String>,
-    pub center_label: Option<String>,
-    pub right_label: Option<String>,
-
-    // PhoneNumber
-    pub default_country_code: Option<String>,
-
-    // Payment - Not used
-    // currency?: string
-    // price?: NumberPrice | VariablePrice
-
-    // Date
-    pub format: Option<String>,
-    // Allow input time
-    pub allow_time: Option<bool>,
-    // Time
-    pub time_format: Option<String>,
-    pub use12_hours: Option<bool>,
-
-    // Data - Not used
-    // tableColumns: Column[]
-
-    // Score
-    pub score: Option<i32>,
-
-    // HeyForm Form Builder v2.0
-    // Embed & Image
-    pub source_url: Option<String>,
-
-    // Screen
-    pub enable_share_icon: Option<bool>,
-    pub enable_complete_time: Option<bool>,
-
-    // Thank You
-    pub button_link_url: Option<String>,
-    pub redirect_url: Option<String>,
-    pub redirect_on_completion: Option<bool>,
-    pub redirect_delay: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -213,7 +119,7 @@ pub struct FormField {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validations: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<Properties>,
+    pub properties: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]

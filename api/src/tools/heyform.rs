@@ -10,8 +10,8 @@ use axum::http::StatusCode;
 use heyform_sdk::client::HeyFormClient;
 use heyform_sdk::{
     CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, Form, FormField, FormKind,
-    FormReport, FormReportResponse, InteractiveMode, LoginInput, Parent, Properties, SignUpInput,
-    Submission, Submissions,
+    FormReport, FormReportResponse, InteractiveMode, LoginInput, Parent, SignUpInput, Submission,
+    Submissions,
 };
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -510,7 +510,7 @@ pub struct InsightQuestion {
     pub total: u32,
     /// Field properties
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<Properties>,
+    pub properties: Option<serde_json::Value>,
     /// Per-choice breakdown. Present only for choice-based question kinds
     /// (multiple-choice, single-choice, picture-choice, etc.).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -639,19 +639,36 @@ pub fn build_survey_insights(
         fields_by_id.insert(field.id.clone(), field.clone());
 
         if field.kind == "group" {
-            let Some(fields) = field.properties.as_ref().and_then(|p| p.fields.as_ref()) else {
+            let fields = field
+                .properties
+                .as_ref()
+                .and_then(|p| p.as_object())
+                .and_then(|p| p.get("fields"))
+                .and_then(|p| p.as_array());
+
+            let Some(fields) = fields else {
                 continue;
             };
-            let parent = Some(Parent {
+
+            let parent = Parent {
                 id: field.id.clone(),
                 title: extract_field_title(field.title.as_ref().unwrap_or_default())
                     .unwrap_or_default(),
-            });
-            for subfield in fields.iter() {
-                let mut subfield = subfield.clone();
+            };
 
-                if let Some(properties) = &mut subfield.properties {
-                    properties.parent = parent.clone();
+            for subfield in fields.iter() {
+                let subfield: Result<FormField, serde_json::Error> =
+                    serde_json::from_value(subfield.clone());
+                let Ok(mut subfield) = subfield else {
+                    continue;
+                };
+
+                let properties = subfield.properties.as_mut().and_then(|p| p.as_object_mut());
+                if let Some(properties) = properties {
+                    properties.insert(
+                        "parent".to_string(),
+                        serde_json::to_value(parent.clone()).unwrap_or_default(),
+                    );
                 }
 
                 fields_by_id.insert(subfield.id.clone(), subfield);
@@ -740,11 +757,28 @@ pub fn build_survey_insights(
             let field_choices_by_id: HashMap<String, String> = field
                 .properties
                 .as_ref()
-                .and_then(|properties| properties.choices.as_ref())
+                .and_then(|properties| properties.as_object())
+                .and_then(|properties| properties.get("choices"))
+                .and_then(|choices| choices.as_array())
                 .map(|choices| {
                     choices
                         .iter()
-                        .map(|choice| (choice.id.clone(), choice.label.clone()))
+                        .filter_map(|choice| {
+                            let Some(choice) = choice.as_object() else {
+                                return None;
+                            };
+                            let id = choice
+                                .get("id")
+                                .and_then(|id| id.as_str())
+                                .map(|id| id.to_string())
+                                .unwrap_or_default();
+                            let label = choice
+                                .get("label")
+                                .and_then(|id| id.as_str())
+                                .map(|id| id.to_string())
+                                .unwrap_or_default();
+                            Some((id, label))
+                        })
                         .collect()
                 })
                 .unwrap_or_default();
@@ -821,9 +855,8 @@ mod tests {
 
     use axum::{Router, extract::State, routing::post};
     use heyform_sdk::{
-        Choice, Form, FormField, FormReport, FormReportAnswer, FormReportResponse,
-        FormReportSubmission, HiddenFieldAnswer, Properties, Submission, SubmissionCategory,
-        Submissions,
+        Form, FormField, FormReport, FormReportAnswer, FormReportResponse, FormReportSubmission,
+        HiddenFieldAnswer, Submission, SubmissionCategory, Submissions,
     };
     use serde_json::json;
     use sqlx::PgPool;
@@ -1213,21 +1246,9 @@ mod tests {
                 description: None,
                 kind: "multiple_choice".to_string(),
                 validations: None,
-                properties: Some(Properties {
-                    choices: Some(vec![
-                        Choice {
-                            id: "c-red".to_string(),
-                            label: "Red".to_string(),
-                            ..Default::default()
-                        },
-                        Choice {
-                            id: "c-blue".to_string(),
-                            label: "Blue".to_string(),
-                            ..Default::default()
-                        },
-                    ]),
-                    ..Default::default()
-                }),
+                properties: Some(
+                    json!({ "choices": [{ "id": "c-red", "label": "Red" }, { "id": "c-blue", "label": "Blue" }] }),
+                ),
                 layout: None,
                 width: None,
                 hide: None,
