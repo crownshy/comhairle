@@ -101,6 +101,7 @@ pub struct FormSettings {
     pub enable_question_list: Option<bool>,
 }
 
+/// Parent property for the parent field of a nested field
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
 pub struct Parent {
     pub id: String,
