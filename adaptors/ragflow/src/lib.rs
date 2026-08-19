@@ -58,7 +58,7 @@ pub struct MessageReference {
     pub document_name: String,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ChunkMethod {
     #[default]

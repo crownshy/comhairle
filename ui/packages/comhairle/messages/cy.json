@@ -264,5 +264,19 @@
 	"a11y_prep_line1": "Paratowyd y datganiad hwn ar 5 Mawrth 2026. Fe'i hadolygwyd ddiwethaf ar 5 Mawrth 2026.",
 	"a11y_prep_line2": "Profwyd y wefan hon ddiwethaf ar 5 Mawrth 2026 yn erbyn safon WCAG 2.2 AA.",
 	"a11y_prep_line3": "Cynhaliwyd y prawf gan dîm datblygu CrownShy. Profwyd y tudalennau a welwyd fwyaf gan ddefnyddio offer profi awtomataidd. Cynhaliwyd adolygiad mewnol pellach o'r wefan yn erbyn safon WCAG 2.2 AA.",
-	"tos_s10_email_label": "E-bost:"
+	"tos_s10_email_label": "E-bost:",
+	"page": "tudalen",
+	"of": "o",
+	"ask": "Gofyn",
+	"try_again": "Ceisiwch eto",
+	"you_asked": "Gofynnoch chi",
+	"finding_answer": "Wrthi'n dod o hyd i ateb...",
+	"sources": "Ffynonellau",
+	"learning_assistant": "Cynorthwyydd dysgu",
+	"learning_assistant_summary": "Defnyddiwch y gofod hwn i ateb cwestiynau sydd gennych am y pwnc.",
+	"learning_assistant_description": "Mae'n well gofyn cwestiynau sy'n eich helpu i ddysgu. Byddwn yn ceisio ateb y cwestiynau hyn gan ddefnyddio deunyddiau ategol sydd wedi'u darparu ar gyfer y sgwrs hon.",
+	"learning_assistant_load_fail": "Methwyd â llwytho'r cynorthwyydd dysgu",
+	"learning_assistant_input_placeholder": "Teipiwch gwestiwn yma",
+	"learning_assistant_no_answer": "Methwyd â chael ateb",
+	"learning_assistant_enable_statement": "Galluogwch y cynorthwyydd dysgu uchod i ofyn cwestiynau am y dudalen hon."
 }

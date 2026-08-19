@@ -263,5 +263,19 @@
 	"a11y_prep_line1": "本声明编制于 2026 年 3 月 5 日。最后审查日期为 2026 年 3 月 5 日。",
 	"a11y_prep_line2": "本网站最后一次依据 WCAG 2.2 AA 标准进行测试的日期为 2026 年 3 月 5 日。",
 	"a11y_prep_line3": "测试由 CrownShy 开发团队进行。浏览量最高的页面使用自动化测试工具进行了测试。此外，还依据 WCAG 2.2 AA 标准对网站进行了一次内部审查。",
-	"tos_s10_email_label": "电子邮件："
+	"tos_s10_email_label": "电子邮件：",
+	"page": "页面",
+	"of": "共",
+	"ask": "提问",
+	"try_again": "再试一次",
+	"you_asked": "你问了",
+	"finding_answer": "正在查找答案...",
+	"sources": "来源",
+	"learning_assistant": "学习助手",
+	"learning_assistant_summary": "使用此空间回答你可能对该主题有的疑问。",
+	"learning_assistant_description": "最好提出有助于你学习的问题。我们会尝试使用为本次对话提供的支持材料来回答这些问题。",
+	"learning_assistant_load_fail": "无法加载学习助手",
+	"learning_assistant_input_placeholder": "在此输入问题",
+	"learning_assistant_no_answer": "无法获取答案",
+	"learning_assistant_enable_statement": "启用上方的学习助手，即可针对本页面提问。"
 }
