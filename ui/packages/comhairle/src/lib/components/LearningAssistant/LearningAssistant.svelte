@@ -210,6 +210,7 @@
 			<div class="text-foreground mb-3 space-y-2 text-sm leading-relaxed">
 				<p>{m.learning_assistant_summary()}</p>
 				<p>{m.learning_assistant_description()}</p>
+				<p>{m.learning_assistant_privacy_notice()}</p>
 			</div>
 			<div
 				class="bg-primary/10 rounded-lg p-4 {variant === 'sidebar'
