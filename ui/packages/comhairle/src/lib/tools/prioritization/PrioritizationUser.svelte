@@ -226,6 +226,17 @@
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
 
+	/** The "Your answers" list is opt-in. Once every proposal is answered we ask
+	 * first, so a participant with nothing to change moves on without scrolling
+	 * past the whole list to reach a Continue button. */
+	let reviewingAnswers = $state(false);
+
+	let answeredCountLine = $derived(
+		proposals.length === 1
+			? "You've answered the proposal."
+			: `You've answered all ${proposals.length} proposals.`
+	);
+
 	let requiredReviews = $derived(
 		requiredReviewCount(toolConfig.requiredReviews, proposals.length)
 	);
@@ -369,6 +380,9 @@
 </script>
 
 <div class="mx-auto w-full max-w-200">
+	{#snippet continueToNextStepLabel()}
+		Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
+	{/snippet}
 	{#if loadState.kind === 'loading'}
 		<div class="text-muted-foreground flex items-center justify-center gap-2 py-12">
 			<LoaderCircle class="h-5 w-5 animate-spin" /> Loading proposals…
@@ -388,11 +402,35 @@
 				<p class="text-muted-foreground">There are no proposals to rate yet.</p>
 			</Card.Content>
 		</Card.Root>
+	{:else if allDone && !reviewingAnswers}
+		<Card.Root>
+			<Card.Content class="flex flex-col items-center gap-5 py-10 text-center">
+				<CheckCircle2 class="text-primary size-10" />
+				<div class="space-y-1">
+					<h2 class="text-lg font-semibold">Thanks for your answers</h2>
+					<p class="text-muted-foreground text-base">
+						{answeredCountLine} Review your answers if you'd like to make any changes, or
+						continue to the next step.
+					</p>
+				</div>
+				<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+					<Button
+						variant="outline"
+						class="w-full sm:w-auto"
+						onclick={() => (reviewingAnswers = true)}
+					>
+						Review my answers
+					</Button>
+					<Button class="w-full sm:w-auto" onclick={onDone}>
+						{@render continueToNextStepLabel()}
+					</Button>
+				</div>
+			</Card.Content>
+		</Card.Root>
 	{:else if allDone}
 		<div class="space-y-6">
 			<div class="space-y-1 text-center">
-				<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
-				<h2 class="text-l mt-5 font-semibold">Your answers</h2>
+				<h2 class="mt-5 text-lg font-semibold">Your answers</h2>
 				<p class="text-foreground text-sm">
 					Tap a proposal to review or adjust your answers. Changes are saved when you
 					continue.
@@ -479,11 +517,17 @@
 				{/each}
 			</Accordion.Root>
 
-			{#if reviewError}
-				<p class="text-destructive text-right text-sm">{reviewError}</p>
-			{/if}
-			<div class="flex justify-end">
-				<Button onclick={() => void saveReviewEditsAndContinue()} disabled={savingReview}>
+			<div
+				class="bg-background/90 sticky bottom-0 z-10 flex flex-col gap-2 border-t py-3 backdrop-blur"
+			>
+				{#if reviewError}
+					<p class="text-destructive text-right text-sm">{reviewError}</p>
+				{/if}
+				<Button
+					onclick={() => void saveReviewEditsAndContinue()}
+					disabled={savingReview}
+					class="w-full sm:w-auto sm:self-end"
+				>
 					{#if savingReview}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
@@ -642,7 +686,7 @@
 						onclick={onDone}
 						disabled={submitting}
 					>
-						Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
+						{@render continueToNextStepLabel()}
 					</Button>
 				</div>
 			{:else if requiredReviews > 0}

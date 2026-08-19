@@ -5,6 +5,10 @@
 	import { dev } from '$app/environment';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import { formatDateShort, formatTime } from '$lib/utils';
+	import { formatCountdown } from '$lib/utils/formatCountdown';
+	import { getJitsiBreakoutRoomId } from '$lib/utils/jitsiBreakoutRooms';
+	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
+	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { videoCallService } from '$lib/services/videoCallService.svelte';
 	import MeetingLobby from '$lib/components/LiveEvent/MeetingLobby.svelte';
 	import AgendaPanel from '$lib/components/LiveEvent/AgendaPanel.svelte';
@@ -37,7 +41,6 @@
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { PageProps } from './$types';
-	import type { EventAgendaItem } from '@crownshy/api-client/api';
 
 	let { data }: PageProps = $props();
 
@@ -122,43 +125,12 @@
 	/** Flag to track if Jitsi breakout rooms have been created and are ready */
 	let breakoutRoomsReady = $state(false);
 
-	/** Get the Jitsi room ID for a given room index (0-based) */
-	function getJitsiBreakoutRoomId(roomIndex: number): string | null {
-		const nonMainRooms = Object.values(jitsiBreakoutRooms)
-			.filter((r: any) => !r.isMainRoom)
-			.sort((a: any, b: any) => (a.name ?? '').localeCompare(b.name ?? ''));
-		return nonMainRooms[roomIndex]?.jid ?? null;
-	}
-
 	/** Lightweight toast for admin confirmations */
 	let toastMessage = $state<string | null>(null);
 	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	let breakoutTimeRemaining = $state<number | null>(null);
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
-
-	/** Map API agenda items to live event format */
-	function mapApiAgenda(items: EventAgendaItem[]): AgendaItem[] {
-		return items.map((item, index) => {
-			if ('Basic' in item) {
-				return {
-					id: String(index + 1),
-					title: item.Basic.title,
-					type: 'plenary' as const
-				};
-			} else {
-				return {
-					id: String(index + 1),
-					title: item.BreakoutRoom.prompt || 'Breakout session',
-					type: 'breakout' as const,
-					breakoutQuestion: item.BreakoutRoom.prompt,
-					breakoutDescription: item.BreakoutRoom.instructions,
-					durationMinutes: item.BreakoutRoom.estimated_time,
-					maxPerRoom: item.BreakoutRoom.max_per_room ?? undefined
-				};
-			}
-		});
-	}
 
 	// Prefer the agenda pushed over WS (live edits) over the SSR-loaded one, which can go stale.
 	let agendaItems = $derived(mapApiAgenda(videoCallService.agenda ?? event?.agenda ?? []));
@@ -216,13 +188,7 @@
 		return roomContext.roomName;
 	});
 
-	let timeLeftFormatted = $derived.by(() => {
-		if (breakoutTimeRemaining === null || breakoutTimeRemaining <= 0) return '0:00';
-		const totalSecs = Math.floor(breakoutTimeRemaining / 1000);
-		const min = Math.floor(totalSecs / 60);
-		const sec = totalSecs % 60;
-		return `${min}:${sec.toString().padStart(2, '0')}`;
-	});
+	let timeLeftFormatted = $derived(formatCountdown(breakoutTimeRemaining));
 
 	let breakoutRoomDisplays = $derived.by((): BreakoutRoomDisplay[] => {
 		// Use real rooms from backend if available, otherwise use mock rooms
@@ -240,31 +206,9 @@
 		return mockBreakoutRooms;
 	});
 
-	let preassignedBreakoutRooms = $derived.by(() => {
-		return transformPreassignedRooms(allParticipants, videoCallService.breakoutRooms);
-	});
-
-	function transformPreassignedRooms(
-		participants: VideoCallParticipant[],
-		preassignedRooms: { participants: string[] }[]
-	): VideoCallParticipant[][] {
-		const roomIndexByUserId = new Map<string, number>();
-		preassignedRooms.forEach((room, index) => {
-			room.participants.forEach((userId) => roomIndexByUserId.set(userId, index));
-		});
-
-		const roomAssignments: VideoCallParticipant[][] = preassignedRooms.map(() => []);
-
-		participants.forEach((p) => {
-			const roomIndex = roomIndexByUserId.get(p.user_id);
-
-			if (roomIndex !== undefined) {
-				roomAssignments[roomIndex].push(p);
-			}
-		});
-
-		return roomAssignments;
-	}
+	let preassignedBreakoutRooms = $derived(
+		groupParticipantsByRoom(allParticipants, videoCallService.breakoutRooms)
+	);
 
 	$effect(() => {
 		const session = breakoutSession;
@@ -406,7 +350,6 @@
 	$effect(() => {
 		// Show countdown dialog to participants at 5 seconds
 		if (
-			!isModerator &&
 			breakoutTimeRemaining !== null &&
 			breakoutTimeRemaining <= 5000 &&
 			breakoutTimeRemaining > 0 &&
@@ -587,7 +530,7 @@
 		};
 
 		// Use Jitsi's native breakout room API to switch rooms
-		const jitsiRoomId = getJitsiBreakoutRoomId(roomIndex);
+		const jitsiRoomId = getJitsiBreakoutRoomId(jitsiBreakoutRooms, roomIndex);
 		if (jitsiRoomId) {
 			jitsiApi?.executeCommand('joinBreakoutRoom', jitsiRoomId);
 		} else {
