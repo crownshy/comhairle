@@ -264,5 +264,19 @@
 	"a11y_prep_line1": "Chaidh an aithris seo ullachadh air 5 Màrt 2026. Chaidh a h-ath-sgrùdadh mu dheireadh air 5 Màrt 2026.",
 	"a11y_prep_line2": "Chaidh an làrach-lìn seo a dhearbhadh mu dheireadh air 5 Màrt 2026 an aghaidh inbhe WCAG 2.2 AA.",
 	"a11y_prep_line3": "Chaidh an dearbhadh a dhèanamh le sgioba leasachaidh CrownShy. Chaidh na duilleagan air an tug a' mhòr-chuid sùil a dhearbhadh a' cleachdadh innealan dearbhaidh fèin-obrachail. Chaidh ath-sgrùdadh a-staigh eile den làrach-lìn a dhèanamh an aghaidh inbhe WCAG 2.2 AA.",
-	"tos_s10_email_label": "Post-d:"
+	"tos_s10_email_label": "Post-d:",
+	"page": "duilleag",
+	"of": "de",
+	"ask": "Faighnich",
+	"try_again": "Feuch a-rithist",
+	"you_asked": "Dh’fhaighnich thu",
+	"finding_answer": "A’ lorg freagairt...",
+	"sources": "Stòran",
+	"learning_assistant": "Neach-cuideachaidh ionnsachaidh",
+	"learning_assistant_summary": "Cleachd an t-àite seo gus ceistean a dh’fhaodadh a bhith agad mun chuspair a fhreagairt.",
+	"learning_assistant_description": "Tha e nas fheàrr ceistean fhaighneachd a chuidicheas tu le ionnsachadh. Feuchaidh sinn ris na ceistean sin a fhreagairt a’ cleachdadh nan stuthan taice a chaidh a dhèanamh rim faighinn airson a’ chòmhraidh seo.",
+	"learning_assistant_load_fail": "Cha b’ urrainn dhuinn an neach-cuideachaidh ionnsachaidh a luchdadh",
+	"learning_assistant_input_placeholder": "Taidhp ceist an seo",
+	"learning_assistant_no_answer": "Cha b’ urrainn dhuinn freagairt fhaighinn",
+	"learning_assistant_enable_statement": "Cuir an comas an neach-cuideachaidh ionnsachaidh gu h-àrd gus ceistean fhaighneachd mun duilleag seo."
 }
