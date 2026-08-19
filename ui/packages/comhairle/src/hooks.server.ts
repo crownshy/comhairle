@@ -84,6 +84,12 @@ export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
 		if (realIp && !request.headers.has('x-real-ip')) {
 			request.headers.set('x-real-ip', realIp);
 		}
+		// Forward the real browser signature; otherwise the API records the
+		// server-side HTTP client's UA (e.g. "axios/1.x") instead of the user's.
+		const userAgent = event.request.headers.get('user-agent');
+		if (userAgent) {
+			request.headers.set('user-agent', userAgent);
+		}
 	}
 	return fetch(request);
 };

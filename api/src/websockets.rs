@@ -1115,6 +1115,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
 
         let addr = "127.0.0.1:9999".parse().unwrap();
@@ -1218,6 +1219,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         }
     }
 
