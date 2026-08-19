@@ -9,8 +9,22 @@
 	import { notifications, NotificationsToaster } from '$lib/notifications.svelte';
 
 	let { children, data }: LayoutProps = $props();
-
 	let { themeName, isCommunity } = data;
+
+	import { UmamiAnalytics, status } from '@lukulent/svelte-umami';
+	import { env } from '$env/dynamic/public';
+
+	const umamiWebsiteID = env.PUBLIC_UMAMI_WEBSITE_ID;
+	const umamiSrcURL = env.PUBLIC_UMAMI_SRC;
+	const umamiEnabled = $derived(browser && !!umamiWebsiteID && !!umamiSrcURL);
+
+	// Send the logged-in user's id to Umami once the script has loaded, and
+	// re-run whenever the user (login/logout) or script status changes.
+	const userId = $derived(data.user?.id ?? null);
+	$effect(() => {
+		if ($status !== 'loaded') return;
+		window.umami?.identify(userId ? String(userId) : null);
+	});
 
 	// Theme name is always determined by the PUBLIC_THEME env var
 	if (browser && themeName) {
@@ -34,6 +48,10 @@
 		rel="stylesheet"
 	/>
 </svelte:head>
+
+{#if umamiEnabled}
+	<UmamiAnalytics websiteID={umamiWebsiteID!} srcURL={umamiSrcURL!} />
+{/if}
 
 <ThemeProvider>
 	<div class="bg-background w-full">
