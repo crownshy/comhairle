@@ -1066,7 +1066,18 @@ mod tests {
                         "interactiveMode": null,
                         "kind": null,
                         "settings": null,
-                        "fields": [ { "id": "choose-1", "title": "Favourite colour?", "description": null, "kind": "multiple_choice", "validations": null, "properties": { "choices": [ {"id": "c-red",  "label": "Red"}, {"id": "c-blue", "label": "Blue"} ] }, "layout": null, "width": null, "hide": null, "frozen": null } ],
+                        "fields": [{
+                            "id": "report-1",
+                            "title": "Favourite colour?",
+                            "description": null,
+                            "kind": "multiple_choice",
+                            "validations": null,
+                            "properties": { "choices": [ {"id": "c-red",  "label": "Red"}, {"id": "c-blue", "label": "Blue"} ] },
+                            "layout": null,
+                            "width": null,
+                            "hide": null,
+                            "frozen": null
+                        }],
                         "themeSettings": null,
                         "draft": null,
                         "status": null
