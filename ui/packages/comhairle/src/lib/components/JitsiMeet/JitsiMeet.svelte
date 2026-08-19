@@ -2,6 +2,12 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { env } from '$env/dynamic/public';
+	import type { JitsiBreakoutRoom } from '$lib/utils/jitsiBreakoutRooms';
+	import type {
+		JitsiConferenceEvent,
+		JitsiDisplayNameChangeEvent,
+		JitsiMeetExternalApi
+	} from './types';
 
 	interface JitsiMeetProps {
 		domain?: string;
@@ -16,14 +22,14 @@
 		configOverwrite?: Record<string, any>;
 		interfaceConfigOverwrite?: Record<string, any>;
 		loadingMessage?: string;
-		onApiReady?: (api: any) => void;
+		onApiReady?: (api: JitsiMeetExternalApi) => void;
 		onReadyToClose?: () => void;
 		onParticipantJoined?: (participant: any) => void;
 		onParticipantLeft?: (participant: any) => void;
-		onVideoConferenceJoined?: (data: any) => void;
-		onVideoConferenceLeft?: (data: any) => void;
-		onDisplayNameChange?: (data: any) => void;
-		onBreakoutRoomsUpdated?: (rooms: Record<string, any>) => void;
+		onVideoConferenceJoined?: (data: JitsiConferenceEvent) => void;
+		onVideoConferenceLeft?: (data: JitsiConferenceEvent) => void;
+		onDisplayNameChange?: (data: JitsiDisplayNameChangeEvent) => void;
+		onBreakoutRoomsUpdated?: (rooms: Record<string, JitsiBreakoutRoom>) => void;
 		onModeratorStatusChanged?: (isModerator: boolean) => void;
 	}
 
