@@ -43,10 +43,6 @@
 	const toolConfig = $derived(
 		api.resolveToolConfig<string>(workflowStep, conversation.isLive ?? false)
 	);
-	/** Whether the participant can return to this step later. Drives the "come
-	 * back to review more" reassurance when they move on before finishing. */
-	const canRevisit = $derived(workflowStep.canRevisit ?? false);
-
 	let proposals = $state<LocalizedProposal[]>([]);
 	let answers = $state<Record<string, Record<string, number | string>>>({}); // proposalId → questionId → value
 	/** proposalId → sectionId → questionId → value */
@@ -676,9 +672,9 @@
 					class="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
 				>
 					<p class="text-muted-foreground text-base">
-						You've reviewed enough to move on. Continue to the next step, or keep
-						reviewing.{#if canRevisit}
-							You can always come back to review more later.{/if}
+						Click the 'Submit &amp; continue' button above to review the next proposal.
+						If you'd like to move on rather than reviewing any more proposals, click
+						'Skip this step'.
 					</p>
 					<Button
 						variant="outline"
@@ -686,7 +682,7 @@
 						onclick={onDone}
 						disabled={submitting}
 					>
-						{@render continueToNextStepLabel()}
+						Skip this step
 					</Button>
 				</div>
 			{:else if requiredReviews > 0}
