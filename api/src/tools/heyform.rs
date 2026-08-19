@@ -882,7 +882,7 @@ mod tests {
             responses: vec![FormReportResponse {
                 id: "report-1".to_string(),
                 total: 42,
-                kind: Some("poll".to_string()),
+                kind: Some("multiple_choice".to_string()),
                 title: Some("Test Form Report".to_string()),
                 count: 42,
                 average: 12f64,
@@ -1065,11 +1065,11 @@ mod tests {
                         "interactiveMode": null,
                         "kind": null,
                         "settings": null,
-                        "fields": [],
+                        "fields": [ { "id": "choose-1", "title": "Favourite colour?", "description": null, "kind": "multiple_choice", "validations": null, "properties": { "choices": [ {"id": "c-red",  "label": "Red"}, {"id": "c-blue", "label": "Blue"} ] }, "layout": null, "width": null, "hide": null, "frozen": null } ],
                         "themeSettings": null,
                         "draft": null,
                         "status": null
-                    }
+                    },
                 }
             }));
         }
