@@ -119,7 +119,7 @@ pub struct FormField {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validations: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<serde_json::Value>,
+    pub properties: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]

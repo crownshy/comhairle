@@ -595,7 +595,9 @@ export const FormField = z
     layout: z
       .union([z.object({}).partial().passthrough(), z.null()])
       .optional(),
-    properties: z.unknown().optional(),
+    properties: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
     title: z.unknown().optional(),
     validations: z
       .union([z.object({}).partial().passthrough(), z.null()])
@@ -734,7 +736,9 @@ export const InsightQuestion = z
     choices: z.union([z.array(InsightChoice), z.null()]).optional(),
     id: z.string(),
     kind: z.union([z.string(), z.null()]).optional(),
-    properties: z.unknown().optional(),
+    properties: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
     submissions: z.union([z.array(InsightSubmission), z.null()]).optional(),
     title: z.string(),
     total: z.number().int().gte(0),

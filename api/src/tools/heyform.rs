@@ -510,7 +510,7 @@ pub struct InsightQuestion {
     pub total: u32,
     /// Field properties
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<serde_json::Value>,
+    pub properties: Option<HashMap<String, serde_json::Value>>,
     /// Per-choice breakdown. Present only for choice-based question kinds
     /// (multiple-choice, single-choice, picture-choice, etc.).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -642,7 +642,6 @@ pub fn build_survey_insights(
             let fields = field
                 .properties
                 .as_ref()
-                .and_then(|p| p.as_object())
                 .and_then(|p| p.get("fields"))
                 .and_then(|p| p.as_array());
 
@@ -663,7 +662,7 @@ pub fn build_survey_insights(
                     continue;
                 };
 
-                let properties = subfield.properties.as_mut().and_then(|p| p.as_object_mut());
+                let properties = subfield.properties.as_mut();
                 if let Some(properties) = properties {
                     properties.insert(
                         "parent".to_string(),
@@ -757,7 +756,6 @@ pub fn build_survey_insights(
             let field_choices_by_id: HashMap<String, String> = field
                 .properties
                 .as_ref()
-                .and_then(|properties| properties.as_object())
                 .and_then(|properties| properties.get("choices"))
                 .and_then(|choices| choices.as_array())
                 .map(|choices| {
@@ -1246,9 +1244,13 @@ mod tests {
                 description: None,
                 kind: "multiple_choice".to_string(),
                 validations: None,
-                properties: Some(
-                    json!({ "choices": [{ "id": "c-red", "label": "Red" }, { "id": "c-blue", "label": "Blue" }] }),
-                ),
+                properties: Some(HashMap::from([(
+                    "choices".to_string(),
+                    json!([
+                        {"id": "c-red",  "label": "Red"},
+                        {"id": "c-blue", "label": "Blue"}
+                    ]),
+                )])),
                 layout: None,
                 width: None,
                 hide: None,
