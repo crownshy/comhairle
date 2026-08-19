@@ -1344,7 +1344,11 @@ export const Question = z
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
-  .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
+  .object({
+    id: z.string().uuid(),
+    intent: z.string().uuid(),
+    text: z.string().uuid(),
+  })
   .passthrough();
 export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
@@ -1412,7 +1416,7 @@ export const ToolConfig = z.union([
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
       root_questions: z.array(ThinkingSpaceQuestion),
-      topic: z.string(),
+      topic: z.string().uuid(),
       type: z.literal("thinkingspace"),
     })
     .passthrough(),
@@ -1547,6 +1551,16 @@ export const QuestionWithTranslations = z
   })
   .passthrough();
 export type QuestionWithTranslations = z.infer<typeof QuestionWithTranslations>;
+export const ThinkingSpaceQuestionWithTranslations = z
+  .object({
+    id: z.string().uuid(),
+    intent: JsonFieldWithTranslations,
+    text: JsonFieldWithTranslations,
+  })
+  .passthrough();
+export type ThinkingSpaceQuestionWithTranslations = z.infer<
+  typeof ThinkingSpaceQuestionWithTranslations
+>;
 export const ToolConfigWithTranslations = z.union([
   z
     .object({
@@ -1608,8 +1622,8 @@ export const ToolConfigWithTranslations = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
-      root_questions: z.array(ThinkingSpaceQuestion),
-      topic: z.string(),
+      root_questions: z.array(ThinkingSpaceQuestionWithTranslations),
+      topic: JsonFieldWithTranslations,
       type: z.literal("thinkingspace"),
     })
     .passthrough(),
@@ -1680,6 +1694,12 @@ export const LocalizedQuestion = z
   })
   .passthrough();
 export type LocalizedQuestion = z.infer<typeof LocalizedQuestion>;
+export const LocalizedThinkingSpaceQuestion = z
+  .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
+  .passthrough();
+export type LocalizedThinkingSpaceQuestion = z.infer<
+  typeof LocalizedThinkingSpaceQuestion
+>;
 export const LocalizedToolConfig = z.union([
   z
     .object({
@@ -1741,7 +1761,7 @@ export const LocalizedToolConfig = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
-      root_questions: z.array(ThinkingSpaceQuestion),
+      root_questions: z.array(LocalizedThinkingSpaceQuestion),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
@@ -3154,6 +3174,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CategoryWithTranslations,
   QuestionTypeWithTranslations,
   QuestionWithTranslations,
+  ThinkingSpaceQuestionWithTranslations,
   ToolConfigWithTranslations,
   Translation4,
   WorkflowStepTranslations,
@@ -3161,6 +3182,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedCategory,
   LocalizedQuestionType,
   LocalizedQuestion,
+  LocalizedThinkingSpaceQuestion,
   LocalizedToolConfig,
   ProgressStatus,
   LocalizedWorkflowStepWithProgressDto,
