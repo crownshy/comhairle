@@ -82,7 +82,7 @@
 	 * empty card on short ones.
 	 *
 	 * Contract with the fork (see its `sendMessageToParent`), all tagged `source: 'HEYFORM'`:
-	 *   FORM_RESIZE      { height: <content height in px> }  active question's height
+	 *   FORM_RESIZE      { height: <px> }                    height the frame needs for this question
 	 *   FORM_STEP_CHANGE {}                                  a new question became active
 	 *   HIDE_EMBED_MODAL {}                                  the form finished
 	 * And the one message we send back, tagged `source: 'COMHAIRLE'`:
@@ -93,7 +93,14 @@
 	 * emit yet: it just behaves like the fixed-height version until the messages start coming.
 	 */
 	const MIN_FRAME_PX = 440;
-	const MAX_FRAME_PX = 2000;
+	/**
+	 * Not a layout constraint. The form document is `h-screen overflow-hidden` and, below 800px,
+	 * hands any overflow to its own inner scroller, so a frame shorter than the content is precisely
+	 * the double-scroll bug: the page scrolls and the form scrolls inside it. We follow the reported
+	 * height however tall it gets and let the page do the scrolling. This ceiling only rejects a
+	 * nonsense number from the frame.
+	 */
+	const MAX_FRAME_PX = 20000;
 
 	let measuredHeight = $state<number | null>(null);
 
