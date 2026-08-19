@@ -94,8 +94,31 @@
 	let selected = $state<Record<string, boolean>>({});
 	const selectedVisible = $derived(visible.filter((r) => selected[r.id]));
 
-	function toggleSelect(id: string, checked: boolean) {
+	// The last plainly-clicked row, used as the anchor for shift-click range
+	// selection. Ranges are computed against `visible` so they follow the current
+	// filter/search/sort order, not the raw data order.
+	let anchorId = $state<string | null>(null);
+
+	function toggleSelect(id: string, checked: boolean, range = false) {
+		// Shift-click: select every visible row between the anchor and this row
+		// (inclusive). Falls back to a plain toggle if there's no anchor or it's
+		// no longer visible (e.g. filtered out since it was clicked).
+		if (range && anchorId !== null && anchorId !== id) {
+			const order = visible.map((r) => r.id);
+			const a = order.indexOf(anchorId);
+			const b = order.indexOf(id);
+			if (a !== -1 && b !== -1) {
+				const [lo, hi] = a < b ? [a, b] : [b, a];
+				const next = { ...selected };
+				for (let i = lo; i <= hi; i++) next[order[i]] = true;
+				selected = next;
+				// Keep the anchor put so the range can be re-adjusted with another
+				// shift-click, matching standard file-list behaviour.
+				return;
+			}
+		}
 		selected = { ...selected, [id]: checked };
+		anchorId = id;
 	}
 	function toggleSelectAll(checked: boolean) {
 		const next = { ...selected };
@@ -104,6 +127,7 @@
 	}
 	function clearSelection() {
 		selected = {};
+		anchorId = null;
 	}
 
 	// Which bulk action is in flight (drives the per-button spinner); null when idle.

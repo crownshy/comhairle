@@ -8,7 +8,7 @@
 
 	type Props = {
 		proposals: RankedProposal[];
-		toolConfig: ToolConfig;
+		toolConfig: ToolConfig<string>;
 	};
 
 	let { proposals, toolConfig }: Props = $props();

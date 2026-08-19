@@ -1,5 +1,5 @@
 # ---- Chef Stage ----
-FROM rust:1.92-bookworm AS chef
+FROM rust:1.95-trixie AS chef
 WORKDIR /workspace
 
 # Install cargo-chef for dependency caching
@@ -40,7 +40,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry \
     cp /workspace/target/release/comhairle_api /workspace/comhairle_api
 
 # ---- Production Stage ----
-FROM debian:bookworm-slim AS production
+FROM debian:trixie-slim AS production
 WORKDIR /app
 
 # Install runtime dependencies

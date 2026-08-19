@@ -929,6 +929,7 @@ impl From<Prompt> for ComhairlePrompt {
             llm_prompt: input.prompt,
             opener: input.opener,
             empty_response: input.empty_response,
+            cross_languages: input.cross_languages,
         }
     }
 }
@@ -939,6 +940,19 @@ impl From<&Prompt> for ComhairlePrompt {
             llm_prompt: input.prompt.clone(),
             opener: input.opener.clone(),
             empty_response: input.empty_response.clone(),
+            cross_languages: input.cross_languages.clone(),
+        }
+    }
+}
+
+impl From<ComhairlePrompt> for Prompt {
+    fn from(input: ComhairlePrompt) -> Self {
+        Self {
+            prompt: input.llm_prompt,
+            opener: input.opener,
+            empty_response: input.empty_response,
+            cross_languages: input.cross_languages,
+            ..Default::default()
         }
     }
 }
@@ -953,16 +967,11 @@ impl From<CreateChatRequest> for CreateChat {
                 model_name: model.model_name,
             }),
             prompt: input.prompt.map(|prompt| Prompt {
-                opener: prompt.opener,
-                prompt: prompt.llm_prompt,
                 variables: Some(vec![Variable {
                     key: "knowledge".to_string(),
                     optional: false,
                 }]),
-                use_kg: Some(false),
-                keyword: Some(false),
-                empty_response: prompt.empty_response,
-                ..Default::default()
+                ..prompt.into()
             }),
         }
     }

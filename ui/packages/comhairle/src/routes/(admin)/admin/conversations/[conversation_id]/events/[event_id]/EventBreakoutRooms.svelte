@@ -4,16 +4,17 @@
 	import { Button } from '$lib/components/ui/button';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import type { BreakoutPlanDto } from '@crownshy/api-client/api';
+	import type { BreakoutPlanDto, EventAttendanceEtx } from '@crownshy/api-client/api';
 	import CreateBreakoutDialog from '$lib/components/LiveEvent/CreateBreakoutDialog.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
 
 	type Props = {
 		conversation_id: string;
 		event_id: string;
+		attendees: EventAttendanceEtx[];
 	};
 
-	let { conversation_id, event_id }: Props = $props();
+	let { conversation_id, event_id, attendees }: Props = $props();
 
 	let plan = $state<BreakoutPlanDto | null>(null);
 	let loading = $state(true);
@@ -180,7 +181,11 @@
 
 <CreateBreakoutDialog
 	bind:open={dialogOpen}
-	participants={[]}
+	participants={attendees.map((a) => ({
+		user_id: a.userId,
+		username: a.email ?? a.userId,
+		role: a.role
+	}))}
 	initialAssignments={dialogAssignments}
 	moderatorIds={dialogModeratorIds}
 	enableModerators={true}

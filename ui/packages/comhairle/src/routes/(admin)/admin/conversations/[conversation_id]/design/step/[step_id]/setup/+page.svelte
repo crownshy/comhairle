@@ -72,15 +72,6 @@
 
 {#if step && toolConfig?.type === Prioritization.TOOL_NAME}
 	{#key step.id}
-		<Prioritization.ManageUI
-			conversationId={conversation.id}
-			workflowId={step.workflowId}
-			workflowStep={step}
-			conversation={{
-				primaryLocale: conversation.primaryLocale,
-				isLive: conversation.isLive,
-				supportedLanguages: conversation.supportedLanguages
-			}}
-		/>
+		<Prioritization.ManageUI {conversation} workflowId={step.workflowId} workflowStep={step} />
 	{/key}
 {/if}

@@ -264,5 +264,19 @@
 	"a11y_prep_line1": "Esta declaração foi preparada a 5 de março de 2026. Foi revista pela última vez a 5 de março de 2026.",
 	"a11y_prep_line2": "Este website foi testado pela última vez a 5 de março de 2026 em relação à norma WCAG 2.2 AA.",
 	"a11y_prep_line3": "O teste foi realizado pela equipa de desenvolvimento da CrownShy. As páginas mais visualizadas foram testadas utilizando ferramentas de teste automatizadas. Foi realizada uma revisão interna adicional do website em relação à norma WCAG 2.2 AA.",
-	"tos_s10_email_label": "Email:"
+	"tos_s10_email_label": "Email:",
+	"page": "página",
+	"of": "de",
+	"ask": "Perguntar",
+	"try_again": "Tentar novamente",
+	"you_asked": "Você perguntou",
+	"finding_answer": "Encontrando uma resposta...",
+	"sources": "Fontes",
+	"learning_assistant": "Assistente de aprendizagem",
+	"learning_assistant_summary": "Use este espaço para responder às perguntas que você possa ter sobre o tópico.",
+	"learning_assistant_description": "É melhor fazer perguntas que ajudem você a aprender. Tentaremos responder a essas perguntas usando os materiais de apoio disponibilizados para esta conversa.",
+	"learning_assistant_load_fail": "Não foi possível carregar o assistente de aprendizagem",
+	"learning_assistant_input_placeholder": "Digite uma pergunta aqui",
+	"learning_assistant_no_answer": "Não foi possível obter uma resposta",
+	"learning_assistant_enable_statement": "Ative o assistente de aprendizagem acima para fazer perguntas sobre esta página."
 }

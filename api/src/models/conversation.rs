@@ -6,7 +6,6 @@ use super::{
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
-use crate::ComhairleState;
 use crate::bot_service::{
     ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
     DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
@@ -15,6 +14,7 @@ use crate::config::ComhairleConfig;
 use crate::error::ComhairleError;
 use crate::models::permissions::{Action, ResourcePermissionIden, ResourceType, Role};
 use crate::models::{self, SqlxResultExt};
+use crate::{ComhairleState, bot_service::COMHAIRLE_SUPPORTED_LANGUAGES};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -82,6 +82,11 @@ pub struct Conversation {
     pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    /// Whether a participant may return to the workflow's steps after finishing (i.e. once
+    /// every step is done). False seals them: no step is reachable and their step writes are
+    /// rejected. Orthogonal to the per-step `can_revisit` flag, which governs navigation
+    /// *before* they finish. See ADR-0016.
+    pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -89,7 +94,7 @@ pub struct Conversation {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 30] = [
+const DEFAULT_COLUMNS: [ConversationIden; 31] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -119,6 +124,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 30] = [
     ConversationIden::CallToAction,
     ConversationIden::EnableSignupPrompts,
     ConversationIden::ShowThankYouPageAnnonInstructions,
+    ConversationIden::AllowRevisitAfterFinishing,
     ConversationIden::Metadata,
 ];
 
@@ -201,6 +207,12 @@ impl PartialConversation {
         if let Some(value) = &self.show_thank_you_page_annon_instructions {
             values.push((
                 ConversationIden::ShowThankYouPageAnnonInstructions,
+                (*value).into(),
+            ))
+        };
+        if let Some(value) = &self.allow_revisit_after_finishing {
+            values.push((
+                ConversationIden::AllowRevisitAfterFinishing,
                 (*value).into(),
             ))
         };
@@ -741,6 +753,12 @@ pub async fn create(
                 llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
                 opener: Some(DEFAULT_CHAT_OPENER.to_string()),
                 empty_response: Some(DEFAULT_CHAT_NOT_FOUND_RESPONSE.to_string()),
+                cross_languages: Some(
+                    COMHAIRLE_SUPPORTED_LANGUAGES
+                        .into_iter()
+                        .map(|lang| lang.to_string())
+                        .collect(),
+                ),
             }),
             ..Default::default()
         };

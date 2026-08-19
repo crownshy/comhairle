@@ -16,7 +16,7 @@
 		pending: Record<string, boolean>;
 		/** Which bulk action is in flight, or null when idle. */
 		bulkAction: 'accepted' | 'rejected' | null;
-		onToggleSelect: (id: string, checked: boolean) => void;
+		onToggleSelect: (id: string, checked: boolean, range: boolean) => void;
 		onToggleAll: (checked: boolean) => void;
 		onClear: () => void;
 		onBulkModerate: (status: 'accepted' | 'rejected', reason?: string) => void;
@@ -141,7 +141,7 @@
 					{bulkWorking}
 					editedFrom={lineage[row.id]?.editedFrom}
 					replacedBy={lineage[row.id]?.replacedBy}
-					onToggle={(checked) => onToggleSelect(row.id, checked)}
+					onToggle={(checked, range) => onToggleSelect(row.id, checked, range)}
 					onModerate={(status, reason) => onModerate(row, status, reason)}
 					onSplit={() => onSplit(row)}
 				/>

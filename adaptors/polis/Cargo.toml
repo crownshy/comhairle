@@ -6,6 +6,7 @@ description = "A Rust SDK for polis"
 license = "MIT"
 repository = "https://github.com/crownshy/comhairle"
 keywords = [ "api", "polis"]
+rust-version = { "workspace" = true }
 
 [dependencies]
 reqwest = { version = "0.12", features = ["json", "cookies"] }

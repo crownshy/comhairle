@@ -21,12 +21,13 @@ use crate::{
         conversation::{self, PartialConversation},
         user_participation::{self, UserParticipation},
         user_profile::{self, DemographicReport},
+        user_progress,
         workflow::{self, CreateWorkflow, PartialWorkflow, WorkflowStats},
         workflow_step::{self, WorkflowStep},
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
-        workflows::dto::WorkflowDto,
+        workflows::dto::{UserParticipationDto, WorkflowDto},
     },
 };
 
@@ -150,9 +151,19 @@ async fn get_user_participation(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
-) -> Result<(StatusCode, Json<Option<UserParticipation>>), ComhairleError> {
-    let user_participation = user_participation::get(&state.db, &user.id, &workflow_id).await?;
-    Ok((StatusCode::OK, Json(user_participation)))
+) -> Result<(StatusCode, Json<Option<UserParticipationDto>>), ComhairleError> {
+    // No participation row means this user has never started the workflow, so there is
+    // nothing to seal and no seal to look up. Answering with null rather than a synthetic row
+    // keeps the existing contract: the conversation landing page and the invite page both
+    // branch on participation being absent.
+    let Some(participation) = user_participation::get(&state.db, &user.id, &workflow_id).await?
+    else {
+        return Ok((StatusCode::OK, Json(None)));
+    };
+
+    let sealed = user_progress::is_sealed(&state.db, &user.id, &workflow_id).await?;
+
+    Ok((StatusCode::OK, Json(Some(participation.into_dto(sealed)))))
 }
 
 /// Create workflow handler
@@ -384,7 +395,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                         .tag("Workflow")
                         .security_requirement("JWT")
                         .summary("Returns the status of the current user on this workflow")
-                        .response::<200, Json<Option<UserParticipation>>>()
+                        .response::<200, Json<Option<UserParticipationDto>>>()
                 }),
             ),
         _ => router,

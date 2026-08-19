@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import HeyFormEmbedSkeleton from './HeyFormEmbedSkeleton.svelte';
+	import { browser } from '$app/environment';
 
 	type Props = {
 		onDone: () => void;
@@ -10,7 +11,7 @@
 		userId: string;
 		extraSurveyParams?: Record<string, string>;
 	};
-	let { onDone, surveyId, userId, surveyURL, serverURL, extraSurveyParams }: Props = $props();
+	let { onDone, surveyId, userId, serverURL, extraSurveyParams }: Props = $props();
 
 	/**
 	 * The iframe's `load` fires when the form *document* arrives, but the renderer then boots its
@@ -56,6 +57,9 @@
 		pingTimer = setInterval(() => {
 			elapsed += RESIZE_PING_INTERVAL_MS;
 			if (measuredHeight !== null || elapsed >= RESIZE_PING_TIMEOUT_MS) {
+				if (elapsed >= RESIZE_PING_TIMEOUT_MS) {
+					console.warn('Resize timeout reached');
+				}
 				stopResizePing();
 				return;
 			}
@@ -177,19 +181,21 @@
 			<HeyFormEmbedSkeleton />
 		</div>
 	{/if}
-	<div class="mx-auto mt-1 w-full max-w-2xl overflow-hidden rounded-xl [grid-area:1/1]">
-		<iframe
-			bind:this={iframeEl}
-			src={fullUrl}
-			title="survey"
-			onload={handleLoad}
-			allow="microphone; camera"
-			style={measuredHeight ? `height:${measuredHeight}px` : undefined}
-			class="{measuredHeight
-				? ''
-				: 'min-h-110'} w-full border-none transition-[height,opacity] duration-300 {ready
-				? 'opacity-100'
-				: 'opacity-0'}"
-		></iframe>
-	</div>
+	{#if browser}
+		<div class="mx-auto mt-1 w-full max-w-2xl overflow-hidden rounded-xl [grid-area:1/1]">
+			<iframe
+				bind:this={iframeEl}
+				src={fullUrl}
+				title="survey"
+				onload={handleLoad}
+				allow="microphone; camera"
+				style={measuredHeight ? `height:${measuredHeight}px` : undefined}
+				class="{measuredHeight
+					? ''
+					: 'min-h-110'} w-full border-none transition-[height,opacity] duration-300 {ready
+					? 'opacity-100'
+					: 'opacity-0'}"
+			></iframe>
+		</div>
+	{/if}
 </div>
