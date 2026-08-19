@@ -1396,6 +1396,10 @@ export const ToolConfig = z.union([
       alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(Question),
       randomize_order: z.boolean(),
+      required_reviews: z
+        .union([z.number(), z.null()])
+        .optional()
+        .default(null),
       section_questions: z.array(Question).optional().default([]),
       type: z.literal("prioritization"),
     })
@@ -1592,6 +1596,7 @@ export const ToolConfigWithTranslations = z.union([
       alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(QuestionWithTranslations),
       randomize_order: z.boolean(),
+      required_reviews: z.union([z.number(), z.null()]).optional(),
       section_questions: z.array(QuestionWithTranslations),
       type: z.literal("prioritization"),
     })
@@ -1724,6 +1729,7 @@ export const LocalizedToolConfig = z.union([
       alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(LocalizedQuestion),
       randomize_order: z.boolean(),
+      required_reviews: z.union([z.number(), z.null()]).optional(),
       section_questions: z.array(LocalizedQuestion),
       type: z.literal("prioritization"),
     })
