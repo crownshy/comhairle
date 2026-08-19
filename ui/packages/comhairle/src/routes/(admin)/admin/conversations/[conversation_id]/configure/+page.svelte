@@ -33,7 +33,7 @@
 		OrganizationWithPermissionDto,
 		UserDto,
 		UserWithPermissionDto,
-		WorkflowDtoa
+		WorkflowDto
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { Image as ImageIcon, Info } from 'lucide-svelte';
@@ -266,6 +266,7 @@
 			autoLogin: data.workflows[0].autoLogin,
 			enableSignupPrompts: data.conversation.enableSignupPrompts,
 			showThankYouPageAnnonInstructions: data.conversation.showThankYouPageAnnonInstructions,
+			showThankyouPageFeedbackButton: data.conversation.showThankyouPageFeedbackButton,
 			allowRevisitAfterFinishing: data.conversation.allowRevisitAfterFinishing
 		},
 		{
@@ -391,6 +392,7 @@
 		| 'isInviteOnly'
 		| 'enableSignupPrompts'
 		| 'showThankYouPageAnnonInstructions'
+		| 'showThankyouPageFeedbackButton'
 		| 'allowRevisitAfterFinishing';
 
 	async function saveConversationToggle(field: ConversationToggle, value: boolean) {
@@ -999,6 +1001,35 @@
 											'showThankYouPageAnnonInstructions',
 											v
 										)}
+								/>
+							</div>
+						{/snippet}
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
+
+				<Form.Field form={conversationForm} name="showThankyouPageFeedbackButton">
+					<Form.Control>
+						{#snippet children({ props })}
+							<div class="flex items-center justify-between gap-4">
+								<div class="flex flex-col gap-1">
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Show thank you page feedback button</Form.Label
+										>
+										{@render infoPreview(
+											'On the thank-you page, shows participants a button to give feedback on the process.'
+										)}
+									</div>
+									<p class="text-muted-foreground text-sm">
+										Display the feedback button on the thank you page.
+									</p>
+								</div>
+								<Switch
+									{...props}
+									bind:checked={$form.showThankyouPageFeedbackButton}
+									onCheckedChange={(v) =>
+										saveConversationToggle('showThankyouPageFeedbackButton', v)}
 								/>
 							</div>
 						{/snippet}
