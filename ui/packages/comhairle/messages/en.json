@@ -285,6 +285,7 @@
 	"learning_assistant": "Learning assistant",
 	"learning_assistant_summary": "Use this this space to answer questions you might have about the topic.",
 	"learning_assistant_description": "It is best to ask questions that help you learn things. We will try to answer these questions using supporting materials that have been made avaliable for this conversation.",
+	"learning_assistant_privacy_notice": "Please don't enter any personal information into the Learning Assistant, such as your name or email address.",
 	"learning_assistant_load_fail": "Couldn't load learning assistant",
 	"learning_assistant_input_placeholder": "Type a question here",
 	"learning_assistant_no_answer": "Couldn't get an answer",

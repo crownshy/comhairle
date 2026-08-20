@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import HeyFormEmbedSkeleton from './HeyFormEmbedSkeleton.svelte';
 	import { browser } from '$app/environment';
@@ -82,7 +83,7 @@
 	 * empty card on short ones.
 	 *
 	 * Contract with the fork (see its `sendMessageToParent`), all tagged `source: 'HEYFORM'`:
-	 *   FORM_RESIZE      { height: <content height in px> }  active question's height
+	 *   FORM_RESIZE      { height: <px> }                    height the frame needs for this question
 	 *   FORM_STEP_CHANGE {}                                  a new question became active
 	 *   HIDE_EMBED_MODAL {}                                  the form finished
 	 * And the one message we send back, tagged `source: 'COMHAIRLE'`:
@@ -93,23 +94,62 @@
 	 * emit yet: it just behaves like the fixed-height version until the messages start coming.
 	 */
 	const MIN_FRAME_PX = 440;
-	const MAX_FRAME_PX = 2000;
+	/**
+	 * Not a layout constraint. The form document is `h-screen overflow-hidden` and, below 800px,
+	 * hands any overflow to its own inner scroller, so a frame shorter than the content is precisely
+	 * the double-scroll bug: the page scrolls and the form scrolls inside it. We follow the reported
+	 * height however tall it gets and let the page do the scrolling. This ceiling only rejects a
+	 * nonsense number from the frame.
+	 */
+	const MAX_FRAME_PX = 20000;
 
 	let measuredHeight = $state<number | null>(null);
 
-	// The iframe auto-sizes to each question, so the window (not the iframe) is what scrolls; after
-	// clicking Next the page would otherwise stay at the previous question's offset. FORM_STEP_CHANGE
-	// is the exact "new question" signal and always wins. Until a webapp build that emits it is
-	// deployed, we fall back to FORM_RESIZE: that build already re-emits on every question change, and
-	// a resize while the user is scrolled down almost always means a new question replaced the one they
-	// finished at the bottom of. The moment a FORM_STEP_CHANGE arrives we drop the fallback, since the
-	// exact signal avoids the fallback's false positives (textarea growth or validation reflow while
-	// scrolled down).
-	const SCROLL_TOP_THRESHOLD_PX = 80;
-	let stepChangeSupported = false;
+	/**
+	 * Keeping the active question in view. The iframe sizes itself to each question, so the page (not
+	 * the frame) is what scrolls: answer a tall question at the bottom and the next one renders above
+	 * the fold, or the page shrinks under you and strands you at the footer. The correction is to pull
+	 * the frame's top edge back up to the top of the viewport.
+	 *
+	 * Scrolling the window to 0 is a different thing and the wrong one: a step description can be many
+	 * paragraphs long, so top-of-page routinely leaves the question itself off screen.
+	 *
+	 * Two rules keep this from fighting the user:
+	 *   - FORM_STEP_CHANGE is the only trigger. FORM_RESIZE also covers the mount emit and every
+	 *     reflow (a textarea growing, validation, fonts settling), so acting on it hijacks someone who
+	 *     is reading or typing further down the page, or scrolling while the form is still a skeleton.
+	 *   - We only ever scroll up, and only when the frame's top is already above the viewport. If the
+	 *     new question starts on screen there is nothing to correct.
+	 */
+	const FRAME_TOP_MARGIN_PX = 16;
+	/**
+	 * The height for the new question arrives in a FORM_RESIZE just after the step change. Aligning
+	 * before it applies would scroll against the outgoing question's box and then be clamped when the
+	 * document resizes, so we wait for it; this bounds that wait.
+	 */
+	const ALIGN_AFTER_STEP_CHANGE_MS = 150;
 
-	function scrollPageToTop() {
-		window.scrollTo({ top: 0, behavior: 'smooth' });
+	let alignPending = false;
+	let alignTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function alignFrameTop() {
+		alignPending = false;
+		clearTimeout(alignTimer);
+		alignTimer = undefined;
+		if (!iframeEl) return;
+
+		const frameTop = window.scrollY + iframeEl.getBoundingClientRect().top;
+		const target = Math.max(0, frameTop - FRAME_TOP_MARGIN_PX);
+		if (window.scrollY <= target) return;
+
+		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		window.scrollTo({ top: target, behavior: reduceMotion ? 'auto' : 'smooth' });
+	}
+
+	function requestFrameTopAlign() {
+		alignPending = true;
+		clearTimeout(alignTimer);
+		alignTimer = setTimeout(alignFrameTop, ALIGN_AFTER_STEP_CHANGE_MS);
 	}
 
 	function onFrameMessage(e: MessageEvent) {
@@ -124,14 +164,12 @@
 			case 'FORM_RESIZE':
 				if (typeof data.height === 'number' && Number.isFinite(data.height)) {
 					measuredHeight = Math.min(Math.max(data.height, MIN_FRAME_PX), MAX_FRAME_PX);
-					if (!stepChangeSupported && window.scrollY > SCROLL_TOP_THRESHOLD_PX) {
-						scrollPageToTop();
-					}
+					// The new question's box is in the DOM after the flush, so measure then.
+					if (alignPending) tick().then(alignFrameTop);
 				}
 				break;
 			case 'FORM_STEP_CHANGE':
-				stepChangeSupported = true;
-				scrollPageToTop();
+				requestFrameTopAlign();
 				break;
 		}
 	}
@@ -142,6 +180,7 @@
 		return () => {
 			window.removeEventListener('message', onFrameMessage);
 			stopResizePing();
+			clearTimeout(alignTimer);
 		};
 	});
 

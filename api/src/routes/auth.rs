@@ -58,7 +58,7 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::middleware::request_logging::ClientIp;
+use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
     Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
     UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
@@ -66,7 +66,7 @@ use crate::models::permissions::{
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
     create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-    get_user_by_username, get_user_resource_roles, set_signup_ip, update_user,
+    get_user_by_username, get_user_resource_roles, set_signup_metadata, update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
@@ -289,21 +289,30 @@ pub struct SignupRequest {
     pub email: String,
 }
 
-/// Best-effort recording of the client IP on a newly created user. Failures are
-/// logged but never surfaced to the caller, so IP capture can't break signup.
-/// The IP is resolved by the request-logging middleware and passed through the
-/// request extensions as [`ClientIp`].
-async fn record_signup_ip(state: &Arc<ComhairleState>, user_id: &Uuid, client_ip: &ClientIp) {
-    if let Err(error) = set_signup_ip(user_id, &client_ip.0, &state.db).await {
-        warn!("Failed to record signup IP for user {user_id}: {error}");
+/// Best-effort recording of the client IP and browser signature on a newly
+/// created user. Failures are logged but never surfaced to the caller, so
+/// metadata capture can't break signup. Both values are resolved by the
+/// request-logging middleware and passed through the request extensions as
+/// [`ClientIp`] and [`ClientUserAgent`].
+async fn record_signup_metadata(
+    state: &Arc<ComhairleState>,
+    user_id: &Uuid,
+    client_ip: &ClientIp,
+    user_agent: &ClientUserAgent,
+) {
+    if let Err(error) =
+        set_signup_metadata(user_id, &client_ip.0, user_agent.0.as_deref(), &state.db).await
+    {
+        warn!("Failed to record signup metadata for user {user_id}: {error}");
     }
 }
 
 /// Signup handler
-#[instrument(err(Debug), skip(state, client_ip, payload))]
+#[instrument(err(Debug), skip(state, client_ip, user_agent, payload))]
 async fn signup(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
     Json(payload): Json<SignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
@@ -312,7 +321,7 @@ async fn signup(
 
     let user = create_user(&payload, &state.db).await?;
 
-    record_signup_ip(&state, &user.id, &client_ip).await;
+    record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
     send_verification_email(&user, &state)?;
 
@@ -338,15 +347,16 @@ async fn signup(
 }
 
 /// Signup handler for annon
-#[instrument(err(Debug), skip(state, client_ip))]
+#[instrument(err(Debug), skip(state, client_ip, user_agent))]
 async fn signup_annon(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_annon_user(&state.db).await?;
 
-    record_signup_ip(&state, &user.id, &client_ip).await;
+    record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
     let cookie = create_session_cookie(&user, &state);
 
@@ -361,16 +371,17 @@ pub struct OtpSignupRequest {
     pub username: Option<String>,
 }
 
-#[instrument(err(Debug), skip(state, client_ip, payload))]
+#[instrument(err(Debug), skip(state, client_ip, user_agent, payload))]
 async fn signup_otp(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
     Json(payload): Json<OtpSignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_otp_user(&payload, &state.db).await?;
 
-    record_signup_ip(&state, &user.id, &client_ip).await;
+    record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
     send_verification_email(&user, &state)?;
 
@@ -1485,6 +1496,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1536,6 +1548,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1591,6 +1604,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1914,6 +1928,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -1979,6 +1994,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -2029,6 +2045,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = EmailLinkClaims { email: None };
         let token = generate_jwt()

@@ -208,6 +208,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "api_spec_gen"
+version = "0.1.0"
+dependencies = [
+ "aide",
+ "async-trait",
+ "comhairle_api",
+ "lettre",
+ "minijinja",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "ar_archive_writer"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

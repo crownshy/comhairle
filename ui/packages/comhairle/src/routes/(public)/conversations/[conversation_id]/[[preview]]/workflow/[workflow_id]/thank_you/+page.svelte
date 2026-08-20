@@ -82,9 +82,11 @@
 
 		{@render revisitStepList()}
 
-		<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
-			<FeedbackModal conversationId={conversation.id} />
-		</div>
+		{#if conversation.showThankyouPageFeedbackButton}
+			<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
+				<FeedbackModal conversationId={conversation.id} />
+			</div>
+		{/if}
 
 		<h2>Keep informed</h2>
 
@@ -116,8 +118,10 @@
 			<h2>Next steps</h2>
 		{/if}
 		{@render revisitStepList()}
-		<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
-			<FeedbackModal conversationId={conversation.id} />
-		</div>
+		{#if conversation.showThankyouPageFeedbackButton}
+			<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
+				<FeedbackModal conversationId={conversation.id} />
+			</div>
+		{/if}
 	{/if}
 </div>
