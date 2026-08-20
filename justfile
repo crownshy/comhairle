@@ -16,6 +16,11 @@ psql:
 load_saia:
     cargo run --bin comhairle_data_loader -- -f fixtures/saia.json -d true
 
+generate-api-client: generate-api-spec
+    #!/usr/bin/env bash
+    pnpm -C ui install
+    pnpm -C ui client
+
 generate-api-spec:
     cargo run --bin api_spec_gen --
 
