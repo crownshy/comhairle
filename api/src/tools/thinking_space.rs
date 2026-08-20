@@ -30,7 +30,6 @@ use crate::models::thinking_space_summary::{
 };
 use crate::models::translations::{BuildTextTranslation, TextContentId};
 use crate::models::workflow_step;
-use crate::models::workflow_step::WithToolConfig;
 use crate::models::{
     thinking_space_answer::{
         self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer, ThinkingSpaceAnswerFilterOptions,

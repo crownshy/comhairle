@@ -26,7 +26,7 @@
 		workflowStepId: string;
 		workflowId: string;
 		conversationId: string;
-		questions: QuestionConfig[];
+		questions: QuestionConfig<string>[];
 		answers: QuestionAnswers[];
 		/**
 		 * All summary rounds for this participant. The parent owns generation

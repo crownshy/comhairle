@@ -54,7 +54,7 @@
 
 {#if step && toolConfig?.type === 'thinkingspace'}
 	<ThinkingSpaceManage
-		conversationId={conversation.id}
+		{conversation}
 		workflowId={step.workflowId}
 		workflowStep={step}
 		isLive={conversation.isLive}
