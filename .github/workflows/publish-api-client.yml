@@ -13,6 +13,7 @@ jobs:
     environment: base 
     permissions:
       contents: read
+      id-token: write
     steps:
       -
         name: Checkout
@@ -57,3 +58,4 @@ jobs:
         working-directory: ui/packages/api-client
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+
