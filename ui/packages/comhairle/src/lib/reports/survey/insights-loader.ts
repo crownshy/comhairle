@@ -49,6 +49,10 @@ export interface NonChoiceQuestion extends Question {
 export type SurveyQuestion = ChoiceQuestion | NonChoiceQuestion;
 
 function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'] {
+	if (!insight.kind || !isHeyFormChoiceFieldKind(insight.kind)) {
+		return [];
+	}
+
 	switch (insight.kind) {
 		case 'yes_no':
 		case 'multiple_choice':
@@ -157,13 +161,14 @@ function transformChoiceData(insight: InsightQuestion): ChoiceQuestion['answers'
 
 			return answers;
 		}
-
-		default:
-			return [];
 	}
 }
 
 function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['answers'] {
+	if (!insight.kind || !isHeyFormNonChoiceFieldKind(insight.kind)) {
+		return [];
+	}
+
 	switch (insight.kind) {
 		case 'rating':
 		case 'opinion_scale':
@@ -224,9 +229,6 @@ function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['an
 					})
 					.filter((s) => !!s.trim()) ?? []
 			);
-
-		default:
-			return [];
 	}
 }
 

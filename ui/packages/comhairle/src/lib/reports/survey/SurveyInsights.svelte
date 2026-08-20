@@ -9,6 +9,7 @@
 		isHeyFormNonChoiceFieldKind,
 		isHeyFormOtherFieldKind
 	} from '$lib/tools/heyform/guards';
+	import { handleNested } from './attachments';
 
 	interface Props {
 		data: SurveyQuestion[];
@@ -37,7 +38,7 @@
 {:else}
 	{#each data as section (section.id)}
 		{#if isValidQuestion(section)}
-			<div class="py-10">
+			<div class="py-10" {@attach handleNested(section.properties?.parent)}>
 				<h2 class="text-md font-bold">{section.title}</h2>
 				<div class="flex flex-row">
 					<h3 class="text-muted-foreground mr-10 text-sm">
