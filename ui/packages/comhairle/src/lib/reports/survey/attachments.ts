@@ -1,42 +1,39 @@
 import type { Parent } from '$lib/tools/heyform/utils';
 import type { Attachment } from 'svelte/attachments';
 
-function openNest(element: Element, title: string) {
-	element.outerHTML =
-		`<section class='border'><span class='font-bold text-xl'>${title}</span>` +
-		element.outerHTML;
-}
-function closeNest(element: Element) {
-	element.outerHTML = '</section>' + element.outerHTML;
+function getOrInsertParent(parent: Parent, element: Element): Element {
+	const parentElement = document.getElementById(parent.id);
+	if (parentElement !== null) {
+		return parentElement;
+	}
+
+	// Nested container
+	const section = document.createElement('section');
+	section.id = parent.id;
+	section.className = 'border rounded p-6';
+
+	// Title
+	const title = document.createElement('span');
+	title.className = 'font-bold text-xl';
+	title.textContent = parent.title;
+	section.appendChild(title);
+
+	element.before(section);
+	return section;
 }
 
-export function handleNested(
-	previousParent: Parent | undefined,
-	parent: Parent | undefined
-): Attachment {
-	let attachment: Attachment = () => {};
-	console.log('previousParent:', previousParent);
-	console.log('parent:', parent);
-	if (previousParent?.id !== undefined && parent?.id === undefined) {
-		// If the previous quesiton did have a parent, but this one doesn't then close the nesting
-		attachment = (element) => {
-			// closeNest(element);
-		};
-	} else if (previousParent?.id === undefined && parent?.id !== undefined) {
-		// If the previous quesiton didn't have a parent, but this one does then open the nesting
-		attachment = (element) => {
-			openNest(element, parent.title);
-		};
-	} else if (
-		previousParent?.id !== undefined &&
-		parent?.id !== undefined &&
-		previousParent.id !== parent.id
-	) {
-		// If the parent ids don't match then it's a new nested question, so close the old one and open a new one
-		attachment = (element) => {
-			closeNest(element);
-			openNest(element, parent.title);
-		};
-	}
-	return attachment;
+export function handleNested(parent: Parent | undefined): Attachment {
+	return (element) => {
+		if (parent === undefined) {
+			return;
+		}
+		// Get nested section
+		const parentElement = getOrInsertParent(parent, element);
+
+		// Indent all nested questions
+		element.className += ' pl-5';
+
+		// Move element to inside of the nested section
+		parentElement.appendChild(element);
+	};
 }

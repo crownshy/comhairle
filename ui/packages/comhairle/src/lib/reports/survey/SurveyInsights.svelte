@@ -36,15 +36,9 @@
 {#if data.length <= 0}
 	<span class="text-muted-foreground">No responses yet</span>
 {:else}
-	{#each data as section, i (section.id)}
+	{#each data as section (section.id)}
 		{#if isValidQuestion(section)}
-			<div
-				class="py-10"
-				{@attach handleNested(
-					i !== 0 ? data[i - 1].properties?.parent : undefined,
-					section.properties?.parent
-				)}
-			>
+			<div class="py-10" {@attach handleNested(section.properties?.parent)}>
 				<h2 class="text-md font-bold">{section.title}</h2>
 				<div class="flex flex-row">
 					<h3 class="text-muted-foreground mr-10 text-sm">
