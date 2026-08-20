@@ -104,6 +104,7 @@ export const UserRoles = z
 export type UserRoles = z.infer<typeof UserRoles>;
 export const LocalizedConversationDto = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
@@ -124,6 +125,7 @@ export const LocalizedConversationDto = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -477,6 +479,7 @@ export const PolisStatementAux = z
     is_seed: z.boolean(),
     moderation_reason: z.union([z.string(), z.null()]).optional(),
     moderation_status: ModerationStatus,
+    original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
     statement_text: z.string(),
@@ -554,6 +557,7 @@ export const ModerateStatementAuxBatchRequest = z
   .object({
     decision: ModerationDecisionRequest,
     ids: z.array(z.string().uuid()),
+    moderation_reason: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type ModerateStatementAuxBatchRequest = z.infer<
@@ -572,6 +576,181 @@ export const ModerateStatementAuxBatchResponse = z
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
 >;
+export const SplitStatementRequest = z
+  .object({ replacements: z.array(z.string()) })
+  .passthrough();
+export type SplitStatementRequest = z.infer<typeof SplitStatementRequest>;
+export const SplitStatementResponse = z
+  .object({
+    original: PolisStatementAux,
+    replacements: z.array(PolisStatementAux),
+  })
+  .passthrough();
+export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
+export const FormField = z
+  .object({
+    description: z.unknown().optional(),
+    frozen: z.union([z.boolean(), z.null()]).optional(),
+    hide: z.union([z.boolean(), z.null()]).optional(),
+    id: z.string(),
+    kind: z.string(),
+    layout: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    properties: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    title: z.unknown().optional(),
+    validations: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    width: z.union([z.number(), z.null()]).optional(),
+  })
+  .passthrough();
+export type FormField = z.infer<typeof FormField>;
+export const FormSettings = z
+  .object({
+    active: z.union([z.boolean(), z.null()]),
+    allowArchive: z.union([z.boolean(), z.null()]),
+    enableQuestionList: z.union([z.boolean(), z.null()]),
+    locale: z.union([z.string(), z.null()]),
+    published: z.union([z.boolean(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type FormSettings = z.infer<typeof FormSettings>;
+export const FormTheme = z
+  .object({
+    answerTextColor: z.union([z.string(), z.null()]),
+    backgroundBrightness: z.union([z.number(), z.null()]),
+    backgroundColor: z.union([z.string(), z.null()]),
+    backgroundImage: z.union([z.string(), z.null()]),
+    buttonBackground: z.union([z.string(), z.null()]),
+    buttonTextColor: z.union([z.string(), z.null()]),
+    customCSS: z.union([z.string(), z.null()]),
+    fontFamily: z.union([z.string(), z.null()]),
+    logo: z.union([z.string(), z.null()]),
+    questionTextColor: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type FormTheme = z.infer<typeof FormTheme>;
+export const ThemeSettings = z
+  .object({ theme: z.union([FormTheme, z.null()]) })
+  .partial()
+  .passthrough();
+export type ThemeSettings = z.infer<typeof ThemeSettings>;
+export const Form = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    draft: z.union([z.boolean(), z.null()]).optional(),
+    fields: z.union([z.array(FormField), z.null()]).optional(),
+    id: z.string(),
+    interactiveMode: z.union([z.number(), z.null()]).optional(),
+    kind: z.union([z.number(), z.null()]).optional(),
+    name: z.union([z.string(), z.null()]).optional(),
+    projectId: z.string(),
+    settings: z.union([FormSettings, z.null()]).optional(),
+    status: z.union([z.number(), z.null()]).optional(),
+    teamId: z.string(),
+    themeSettings: z.union([ThemeSettings, z.null()]).optional(),
+  })
+  .passthrough();
+export type Form = z.infer<typeof Form>;
+export const FormReportResponse = z
+  .object({
+    average: z.number(),
+    chooses: z.union([z.array(z.unknown()), z.null()]).optional(),
+    count: z.number().int().gte(0),
+    id: z.string(),
+    kind: z.union([z.string(), z.null()]).optional(),
+    title: z.union([z.string(), z.null()]).optional(),
+    total: z.number().int().gte(0),
+  })
+  .passthrough();
+export type FormReportResponse = z.infer<typeof FormReportResponse>;
+export const FormReportAnswer = z
+  .object({
+    endAt: z.number().int(),
+    kind: z.string(),
+    submissionId: z.string(),
+    value: z.unknown().optional(),
+  })
+  .passthrough();
+export type FormReportAnswer = z.infer<typeof FormReportAnswer>;
+export const FormReportSubmission = z
+  .object({ _id: z.string(), answers: z.array(FormReportAnswer) })
+  .passthrough();
+export type FormReportSubmission = z.infer<typeof FormReportSubmission>;
+export const FormReport = z
+  .object({
+    responses: z.array(FormReportResponse),
+    submissions: z.array(FormReportSubmission),
+  })
+  .passthrough();
+export type FormReport = z.infer<typeof FormReport>;
+export const SubmissionCategory = z.enum([
+  "inbox",
+  "spam",
+  "starred",
+  "archive",
+]);
+export type SubmissionCategory = z.infer<typeof SubmissionCategory>;
+export const HiddenFieldAnswer = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    value: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type HiddenFieldAnswer = z.infer<typeof HiddenFieldAnswer>;
+export const Submission = z
+  .object({
+    answers: z.array(z.object({}).partial().passthrough()),
+    category: z.union([SubmissionCategory, z.null()]).optional(),
+    endAt: z.number().int(),
+    hiddenFields: z.union([z.array(HiddenFieldAnswer), z.null()]).optional(),
+    id: z.string(),
+    title: z.union([z.string(), z.null()]).optional(),
+    variables: z.union([z.array(z.unknown()), z.null()]).optional(),
+  })
+  .passthrough();
+export type Submission = z.infer<typeof Submission>;
+export const Submissions = z
+  .object({ submissions: z.array(Submission), total: z.number().int().gte(0) })
+  .passthrough();
+export type Submissions = z.infer<typeof Submissions>;
+export const InsightChoice = z
+  .object({ count: z.number().int(), id: z.string(), label: z.string() })
+  .passthrough();
+export type InsightChoice = z.infer<typeof InsightChoice>;
+export const InsightSubmission = z
+  .object({
+    submission_id: z.string(),
+    submitted_at: z.union([z.number(), z.null()]).optional(),
+    value: z.unknown(),
+  })
+  .passthrough();
+export type InsightSubmission = z.infer<typeof InsightSubmission>;
+export const InsightQuestion = z
+  .object({
+    answered: z.number().int().gte(0),
+    choices: z.union([z.array(InsightChoice), z.null()]).optional(),
+    id: z.string(),
+    kind: z.union([z.string(), z.null()]).optional(),
+    properties: z
+      .union([z.object({}).partial().passthrough(), z.null()])
+      .optional(),
+    submissions: z.union([z.array(InsightSubmission), z.null()]).optional(),
+    title: z.string(),
+    total: z.number().int().gte(0),
+  })
+  .passthrough();
+export type InsightQuestion = z.infer<typeof InsightQuestion>;
+export const SurveyInsights = z
+  .object({ questions: z.array(InsightQuestion) })
+  .passthrough();
+export type SurveyInsights = z.infer<typeof SurveyInsights>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -894,6 +1073,7 @@ export const CreateConversation = z
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const ConversationDto = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
@@ -914,6 +1094,7 @@ export const ConversationDto = z
     shortDescription: z.string().uuid(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -945,6 +1126,7 @@ export const ConversationTranslations = z
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
 export const ConversationWithTranslations = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
@@ -968,6 +1150,7 @@ export const ConversationWithTranslations = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -988,6 +1171,7 @@ export const ConversationResponse = z.union([
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
 export const PartialConversation = z
   .object({
+    allow_revisit_after_finishing: z.union([z.boolean(), z.null()]),
     call_to_action: z.union([z.string(), z.null()]),
     chat_bot_id: z.union([z.string(), z.null()]),
     default_workflow_id: z.union([z.string(), z.null()]),
@@ -1002,11 +1186,13 @@ export const PartialConversation = z
     is_public: z.union([z.boolean(), z.null()]),
     knowledge_base_id: z.union([z.string(), z.null()]),
     metadata: z.unknown(),
+    organization_id: z.union([z.string(), z.null()]),
     primary_locale: z.union([z.string(), z.null()]),
     privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
     short_privacy_policy: z.union([z.string(), z.null()]),
     show_thank_you_page_annon_instructions: z.union([z.boolean(), z.null()]),
+    show_thankyou_page_feedback_button: z.union([z.boolean(), z.null()]),
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),
     tags: z.union([z.array(z.string()), z.null()]),
@@ -1128,7 +1314,7 @@ export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
 export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
 export const Category = z
-  .object({ label: z.string(), value: z.number() })
+  .object({ label: z.string().uuid(), value: z.number() })
   .passthrough();
 export type Category = z.infer<typeof Category>;
 export const QuestionType = z.union([
@@ -1139,19 +1325,22 @@ export const QuestionType = z.union([
   z.object({
     continuous: z
       .object({
-        max_label: z.string().default(""),
-        max_value: z.number().default(10),
-        min_label: z.string().default(""),
-        min_value: z.number().default(0),
-        sub_steps: z.number().int().default(10),
+        max_label: z.string().uuid(),
+        max_value: z.number().optional().default(10),
+        min_label: z.string().uuid(),
+        min_value: z.number().optional().default(0),
+        sub_steps: z.number().int().optional().default(10),
       })
-      .partial()
       .passthrough(),
   }),
 ]);
 export type QuestionType = z.infer<typeof QuestionType>;
 export const Question = z
-  .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
+  .object({
+    id: z.string().uuid(),
+    text: z.string().uuid(),
+    type: QuestionType,
+  })
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
@@ -1211,6 +1400,10 @@ export const ToolConfig = z.union([
       alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(Question),
       randomize_order: z.boolean(),
+      required_reviews: z
+        .union([z.number(), z.null()])
+        .optional()
+        .default(null),
       section_questions: z.array(Question).optional().default([]),
       type: z.literal("prioritization"),
     })
@@ -1296,6 +1489,134 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
+export const UserParticipationDto = z
+  .object({
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    sealed: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+    user_id: z.string().uuid(),
+    workflow_id: z.string().uuid(),
+  })
+  .passthrough();
+export type UserParticipationDto = z.infer<typeof UserParticipationDto>;
+export const TranslationDto = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type TranslationDto = z.infer<typeof TranslationDto>;
+export const JsonFieldWithTranslations = z
+  .object({ localized: z.string(), translations: TranslationDto })
+  .passthrough();
+export type JsonFieldWithTranslations = z.infer<
+  typeof JsonFieldWithTranslations
+>;
+export const CategoryWithTranslations = z
+  .object({ label: JsonFieldWithTranslations, value: z.number() })
+  .passthrough();
+export type CategoryWithTranslations = z.infer<typeof CategoryWithTranslations>;
+export const QuestionTypeWithTranslations = z.union([
+  z.literal("text"),
+  z.object({
+    likert_scale: z
+      .object({ categories: z.array(CategoryWithTranslations) })
+      .passthrough(),
+  }),
+  z.object({
+    continuous: z
+      .object({
+        max_label: JsonFieldWithTranslations,
+        max_value: z.number(),
+        min_label: JsonFieldWithTranslations,
+        min_value: z.number(),
+        sub_steps: z.number().int(),
+      })
+      .passthrough(),
+  }),
+]);
+export type QuestionTypeWithTranslations = z.infer<
+  typeof QuestionTypeWithTranslations
+>;
+export const QuestionWithTranslations = z
+  .object({
+    id: z.string().uuid(),
+    text: JsonFieldWithTranslations,
+    type: QuestionTypeWithTranslations,
+  })
+  .passthrough();
+export type QuestionWithTranslations = z.infer<typeof QuestionWithTranslations>;
+export const ToolConfigWithTranslations = z.union([
+  z
+    .object({
+      admin_password: z.string(),
+      admin_user: z.string(),
+      description: z.union([z.string(), z.null()]).optional().default(null),
+      is_active: z.union([z.boolean(), z.null()]).optional().default(null),
+      label_seeds_as_conversation_starter: z
+        .boolean()
+        .optional()
+        .default(false),
+      poll_id: z.string(),
+      required_votes: z.union([z.number(), z.null()]).optional(),
+      server_url: z.string(),
+      show_remaining_statements: z.boolean().optional().default(true),
+      strict_moderation: z
+        .union([z.boolean(), z.null()])
+        .optional()
+        .default(null),
+      topic: z.union([z.string(), z.null()]).optional().default(null),
+      type: z.literal("polis"),
+    })
+    .passthrough(),
+  z
+    .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
+    .passthrough(),
+  z
+    .object({
+      admin_password: z.string(),
+      admin_user: z.string(),
+      project_id: z.string(),
+      server_url: z.string().optional().default("forms.comhairle.scot"),
+      survey_id: z.string(),
+      survey_url: z.string(),
+      type: z.literal("heyform"),
+      workspace_id: z.string(),
+    })
+    .passthrough(),
+  z
+    .object({
+      max_time: z.number().int(),
+      to_see: z.number().int(),
+      type: z.literal("stories"),
+    })
+    .passthrough(),
+  z
+    .object({ topic: z.string(), type: z.literal("elicitationbot") })
+    .passthrough(),
+  z
+    .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
+      questions: z.array(QuestionWithTranslations),
+      randomize_order: z.boolean(),
+      required_reviews: z.union([z.number(), z.null()]).optional(),
+      section_questions: z.array(QuestionWithTranslations),
+      type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
+    })
+    .passthrough(),
+]);
+export type ToolConfigWithTranslations = z.infer<
+  typeof ToolConfigWithTranslations
+>;
 export const Translation4 = z
   .object({
     textContent: TextContentDto,
@@ -1307,28 +1628,126 @@ export const WorkflowStepTranslations = z
   .object({ description: Translation4, name: Translation4 })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
-export const WorkflowStepWithTranslations = z
+export const WorkflowStepWithTranslationsDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
-    createdAt: z.string().datetime({ offset: true }),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
     name: z.string(),
-    previewToolConfig: ToolConfig,
+    previewToolConfig: ToolConfigWithTranslations,
     requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    toolConfig: z.union([ToolConfigWithTranslations, z.null()]).optional(),
     translations: WorkflowStepTranslations,
-    updatedAt: z.string().datetime({ offset: true }),
     workflowId: z.string().uuid(),
   })
   .passthrough();
-export type WorkflowStepWithTranslations = z.infer<
-  typeof WorkflowStepWithTranslations
+export type WorkflowStepWithTranslationsDto = z.infer<
+  typeof WorkflowStepWithTranslationsDto
 >;
+export const LocalizedCategory = z
+  .object({ label: z.string(), value: z.number() })
+  .passthrough();
+export type LocalizedCategory = z.infer<typeof LocalizedCategory>;
+export const LocalizedQuestionType = z.union([
+  z.literal("text"),
+  z.object({
+    likert_scale: z
+      .object({ categories: z.array(LocalizedCategory) })
+      .passthrough(),
+  }),
+  z.object({
+    continuous: z
+      .object({
+        max_label: z.string(),
+        max_value: z.number(),
+        min_label: z.string(),
+        min_value: z.number(),
+        sub_steps: z.number().int(),
+      })
+      .passthrough(),
+  }),
+]);
+export type LocalizedQuestionType = z.infer<typeof LocalizedQuestionType>;
+export const LocalizedQuestion = z
+  .object({
+    id: z.string().uuid(),
+    text: z.string(),
+    type: LocalizedQuestionType,
+  })
+  .passthrough();
+export type LocalizedQuestion = z.infer<typeof LocalizedQuestion>;
+export const LocalizedToolConfig = z.union([
+  z
+    .object({
+      admin_password: z.string(),
+      admin_user: z.string(),
+      description: z.union([z.string(), z.null()]).optional().default(null),
+      is_active: z.union([z.boolean(), z.null()]).optional().default(null),
+      label_seeds_as_conversation_starter: z
+        .boolean()
+        .optional()
+        .default(false),
+      poll_id: z.string(),
+      required_votes: z.union([z.number(), z.null()]).optional(),
+      server_url: z.string(),
+      show_remaining_statements: z.boolean().optional().default(true),
+      strict_moderation: z
+        .union([z.boolean(), z.null()])
+        .optional()
+        .default(null),
+      topic: z.union([z.string(), z.null()]).optional().default(null),
+      type: z.literal("polis"),
+    })
+    .passthrough(),
+  z
+    .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
+    .passthrough(),
+  z
+    .object({
+      admin_password: z.string(),
+      admin_user: z.string(),
+      project_id: z.string(),
+      server_url: z.string().optional().default("forms.comhairle.scot"),
+      survey_id: z.string(),
+      survey_url: z.string(),
+      type: z.literal("heyform"),
+      workspace_id: z.string(),
+    })
+    .passthrough(),
+  z
+    .object({
+      max_time: z.number().int(),
+      to_see: z.number().int(),
+      type: z.literal("stories"),
+    })
+    .passthrough(),
+  z
+    .object({ topic: z.string(), type: z.literal("elicitationbot") })
+    .passthrough(),
+  z
+    .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
+      questions: z.array(LocalizedQuestion),
+      randomize_order: z.boolean(),
+      required_reviews: z.union([z.number(), z.null()]).optional(),
+      section_questions: z.array(LocalizedQuestion),
+      type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
+    })
+    .passthrough(),
+]);
+export type LocalizedToolConfig = z.infer<typeof LocalizedToolConfig>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
 export const LocalizedWorkflowStepWithProgressDto = z
@@ -1339,12 +1758,12 @@ export const LocalizedWorkflowStepWithProgressDto = z
     id: z.string().uuid(),
     isOffline: z.boolean(),
     name: z.string(),
-    previewToolConfig: ToolConfig,
+    previewToolConfig: LocalizedToolConfig,
     progressStatus: ProgressStatus,
     requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    toolConfig: z.union([LocalizedToolConfig, z.null()]).optional(),
     workflowId: z.string().uuid(),
   })
   .passthrough();
@@ -1359,25 +1778,49 @@ export const LocalizedWorkflowStepDto = z
     id: z.string().uuid(),
     isOffline: z.boolean(),
     name: z.string(),
-    previewToolConfig: ToolConfig,
+    previewToolConfig: LocalizedToolConfig,
     requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    toolConfig: z.union([LocalizedToolConfig, z.null()]).optional(),
     workflowId: z.string().uuid(),
   })
   .passthrough();
 export type LocalizedWorkflowStepDto = z.infer<typeof LocalizedWorkflowStepDto>;
 export const WorkflowStepsListResponse = z.union([
-  z.array(WorkflowStepWithTranslations),
+  z.array(WorkflowStepWithTranslationsDto),
   z.array(LocalizedWorkflowStepWithProgressDto),
   z.array(LocalizedWorkflowStepDto),
 ]);
 export type WorkflowStepsListResponse = z.infer<
   typeof WorkflowStepsListResponse
 >;
+export const SetupCategory = z
+  .object({ label: z.string(), value: z.number() })
+  .passthrough();
+export type SetupCategory = z.infer<typeof SetupCategory>;
+export const SetupQuestionType = z.union([
+  z.literal("text"),
+  z.object({
+    likert_scale: z
+      .object({ categories: z.array(SetupCategory) })
+      .passthrough(),
+  }),
+  z.object({
+    continuous: z
+      .object({
+        max_label: z.string(),
+        max_value: z.number(),
+        min_label: z.string(),
+        min_value: z.number(),
+        sub_steps: z.number().int(),
+      })
+      .passthrough(),
+  }),
+]);
+export type SetupQuestionType = z.infer<typeof SetupQuestionType>;
 export const SetupQuestion = z
-  .object({ text: z.string(), type: QuestionType })
+  .object({ text: z.string(), type: SetupQuestionType })
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
 export const ThinkingSpaceSetupQuestion = z
@@ -1416,10 +1859,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
-      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(SetupQuestion),
-      randomize_order: z.boolean(),
-      section_questions: z.array(SetupQuestion).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -2618,6 +3058,25 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
+  SplitStatementRequest,
+  SplitStatementResponse,
+  FormField,
+  FormSettings,
+  FormTheme,
+  ThemeSettings,
+  Form,
+  FormReportResponse,
+  FormReportAnswer,
+  FormReportSubmission,
+  FormReport,
+  SubmissionCategory,
+  HiddenFieldAnswer,
+  Submission,
+  Submissions,
+  InsightChoice,
+  InsightSubmission,
+  InsightQuestion,
+  SurveyInsights,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
@@ -2689,13 +3148,26 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicCategory,
   DemographicReport,
   UserParticipation,
+  UserParticipationDto,
+  TranslationDto,
+  JsonFieldWithTranslations,
+  CategoryWithTranslations,
+  QuestionTypeWithTranslations,
+  QuestionWithTranslations,
+  ToolConfigWithTranslations,
   Translation4,
   WorkflowStepTranslations,
-  WorkflowStepWithTranslations,
+  WorkflowStepWithTranslationsDto,
+  LocalizedCategory,
+  LocalizedQuestionType,
+  LocalizedQuestion,
+  LocalizedToolConfig,
   ProgressStatus,
   LocalizedWorkflowStepWithProgressDto,
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
+  SetupCategory,
+  SetupQuestionType,
   SetupQuestion,
   ThinkingSpaceSetupQuestion,
   ToolSetup,
@@ -4121,7 +4593,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
     alias: "GetUserConversationParticipation",
     requestFormat: "json",
-    response: z.union([UserParticipation, z.null()]),
+    response: z.union([UserParticipationDto, z.null()]),
   },
   {
     method: "get",
@@ -5332,6 +5804,21 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "post",
+    path: "/tools/polis/statement_aux/:id/split",
+    alias: "PolisSplitStatement",
+    description: `Posts one or more admin-authored replacement statements as non-seed (is_seed: false), auto-accepts them, rejects the original statement, and records lineage (original_statement_id) on each replacement. The replacements are real, votable statements, never host seeds. Returns the now-rejected original and the derived replacements.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SplitStatementRequest,
+      },
+    ],
+    response: SplitStatementResponse,
+  },
+  {
+    method: "post",
     path: "/tools/polis/statement_aux/:id/themes",
     alias: "PolisAddStatementAuxTheme",
     description: `Adds a theme to the statement&#x27;s themes array. Idempotent: adding a theme that is already present is a no-op. Caller must be the owner of the conversation the statement belongs to.`,
@@ -5541,6 +6028,45 @@ Create a response for prioritization tool proposal
     description: `Record a user story for the current user and workflow step`,
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/form",
+    alias: "HeyFormGetForm",
+    description: `Fetches the form for the HeyForm tool attached to a workflow step`,
+    requestFormat: "json",
+    response: Form,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/form_report",
+    alias: "HeyFormGetFormReport",
+    description: `Fetches the form report for the HeyForm tool attached to a workflow step`,
+    requestFormat: "json",
+    response: FormReport,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/insights",
+    alias: "HeyFormGetInsights",
+    description: `Combines the HeyForm form definition with its aggregate report to produce a per-question breakdown with human-readable question titles and choice labels resolved from the form schema.`,
+    requestFormat: "json",
+    response: SurveyInsights,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/submissions",
+    alias: "HeyFormGetSubmissions",
+    description: `Fetches the form submissions for the HeyForm tool attached to a workflow step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "category",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: Submissions,
   },
   {
     method: "post",
@@ -6159,6 +6685,51 @@ This struct contains optional fields that can be updated on a TextTranslation re
     response: WebSocketStats,
   },
 ] as const satisfies ZodiosEndpointDefinitions);
+
+// Axios error for failing request
+export interface ApiError {
+  // Standard
+  message: string;
+  name: string;
+  // Microsoft
+  description: string;
+  number: number;
+  // Mozilla
+  fileName: string;
+  lineNumber: number;
+  columnNumber: number;
+  stack: string;
+  // Axios
+  config: {
+    adapter: string[];
+    allowAbsoluteUrls: boolean;
+    baseURL: string;
+    data: undefined;
+    env: object;
+    headers: object;
+    maxBodyLength: number;
+    maxContentLength: number;
+    method: string;
+    params: object;
+    timeout: number;
+    transformRequest: string[];
+    transformResponse: string[];
+    transitional: {
+      silentJSONParsing: boolean;
+      forcedJSONParsing: boolean;
+      clarifyTimeoutError: boolean;
+    };
+    url: string;
+    validateStatus: (status: string) => void;
+    withCredentials: true;
+    xsrfCookieName: string;
+    xsrfHeaderName: string;
+  };
+  code: string;
+  status: number;
+  response: Response;
+  request: Request;
+}
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
 export type ApiClient = typeof api;

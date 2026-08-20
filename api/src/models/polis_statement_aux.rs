@@ -39,11 +39,15 @@ pub struct PolisStatementAux {
     pub themes: Vec<String>,
     pub visible_statement_when_submitted: Option<String>,
     pub moderation_reason: Option<String>,
+    /// Lineage for a derived (split / reworded) statement: the aux row it was
+    /// split or reworded from. `Some` only on admin-authored derived statements
+    /// (`is_seed = false`); `None` on seeds and raw participant statements.
+    pub original_statement_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [PolisStatementAuxIden; 14] = [
+const DEFAULT_COLUMNS: [PolisStatementAuxIden; 15] = [
     PolisStatementAuxIden::Id,
     PolisStatementAuxIden::WorkflowStepId,
     PolisStatementAuxIden::UserId,
@@ -56,6 +60,7 @@ const DEFAULT_COLUMNS: [PolisStatementAuxIden; 14] = [
     PolisStatementAuxIden::Themes,
     PolisStatementAuxIden::VisibleStatementWhenSubmitted,
     PolisStatementAuxIden::ModerationReason,
+    PolisStatementAuxIden::OriginalStatementId,
     PolisStatementAuxIden::CreatedAt,
     PolisStatementAuxIden::UpdatedAt,
 ];
@@ -131,6 +136,121 @@ pub async fn create(
     Ok(aux)
 }
 
+/// A derived statement to insert as part of a split: an admin-authored
+/// replacement (`is_seed = false`, auto-accepted) that points back at the
+/// original participant statement via `original_statement_id`. `user_id` is
+/// left NULL: the admin authored it, so it is not attributed to a participant.
+#[derive(Debug)]
+pub struct CreateDerivedStatement {
+    pub workflow_step_id: Uuid,
+    pub zid: i32,
+    pub polis_conversation_id: String,
+    pub polis_statement_id: i32,
+    pub statement_text: String,
+    pub original_statement_id: Uuid,
+}
+
+impl CreateDerivedStatement {
+    fn columns(&self) -> Vec<PolisStatementAuxIden> {
+        vec![
+            PolisStatementAuxIden::WorkflowStepId,
+            PolisStatementAuxIden::Zid,
+            PolisStatementAuxIden::PolisConversationId,
+            PolisStatementAuxIden::PolisStatementId,
+            PolisStatementAuxIden::StatementText,
+            PolisStatementAuxIden::ModerationStatus,
+            PolisStatementAuxIden::IsSeed,
+            PolisStatementAuxIden::OriginalStatementId,
+        ]
+    }
+
+    fn values(&self) -> Vec<SimpleExpr> {
+        vec![
+            self.workflow_step_id.into(),
+            self.zid.into(),
+            self.polis_conversation_id.clone().into(),
+            self.polis_statement_id.into(),
+            self.statement_text.clone().into(),
+            // Admin-authored replacements are auto-accepted and never seeds.
+            ModerationStatus::Accepted.into(),
+            false.into(),
+            self.original_statement_id.into(),
+        ]
+    }
+}
+
+/// Persist a split atomically: insert each derived replacement row (with lineage
+/// and `moderation_status = accepted`) and mark the original statement rejected
+/// with `reason`, all in one transaction. The Polis side (posting the
+/// replacements, accepting them, rejecting the original) has already happened;
+/// this only records the outcome locally. Returns `(updated original, derived rows)`.
+///
+/// The derived insert upserts on `(workflow_step_id, polis_statement_id)` so that
+/// if a concurrent sync already pulled the freshly-posted replacement in as a
+/// plain row, we enrich it with its lineage rather than conflicting.
+#[instrument(err(Debug), skip(db))]
+pub async fn record_split(
+    db: &PgPool,
+    original_id: Uuid,
+    derived: &[CreateDerivedStatement],
+    reason: &str,
+) -> Result<(PolisStatementAux, Vec<PolisStatementAux>), ComhairleError> {
+    let mut tx = db.begin().await?;
+
+    let mut derived_rows = Vec::with_capacity(derived.len());
+    for record in derived {
+        let (sql, values) = Query::insert()
+            .into_table(PolisStatementAuxIden::Table)
+            .columns(record.columns())
+            .values(record.values())?
+            .on_conflict(
+                OnConflict::columns([
+                    PolisStatementAuxIden::WorkflowStepId,
+                    PolisStatementAuxIden::PolisStatementId,
+                ])
+                .update_columns([
+                    PolisStatementAuxIden::StatementText,
+                    PolisStatementAuxIden::ModerationStatus,
+                    PolisStatementAuxIden::IsSeed,
+                    PolisStatementAuxIden::OriginalStatementId,
+                ])
+                .value(PolisStatementAuxIden::UpdatedAt, Expr::current_timestamp())
+                .to_owned(),
+            )
+            .returning(Query::returning().columns(DEFAULT_COLUMNS))
+            .build_sqlx(PostgresQueryBuilder);
+
+        let row = query_as_with::<_, PolisStatementAux, _>(&sql, values)
+            .fetch_one(&mut *tx)
+            .await?;
+        derived_rows.push(row);
+    }
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(vec![
+            (
+                PolisStatementAuxIden::ModerationStatus,
+                ModerationStatus::Rejected.into(),
+            ),
+            (
+                PolisStatementAuxIden::ModerationReason,
+                reason.to_owned().into(),
+            ),
+        ])
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(original_id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let original = query_as_with::<_, PolisStatementAux, _>(&sql, values)
+        .fetch_one(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+
+    Ok((original, derived_rows))
+}
+
 #[derive(Debug)]
 pub struct UpsertFromPolis {
     pub workflow_step_id: Uuid,
@@ -145,8 +265,9 @@ pub struct UpsertFromPolis {
 
 /// Upsert a row from polis. On conflict (workflow_step_id, polis_statement_id),
 /// `statement_text`, `is_seed`, and `moderation_status` are refreshed from
-/// polis — `moderation_reason`, `themes`, `visible_statement_when_submitted`,
-/// and `user_id` are preserved (these are comhairle-side state polis doesn't know about).
+/// polis. `moderation_reason`, `themes`, `visible_statement_when_submitted`,
+/// `original_statement_id`, and `user_id` are preserved (these are comhairle-side
+/// state polis doesn't know about) by virtue of being absent from `update_columns`.
 #[instrument(err(Debug), skip(db))]
 pub async fn upsert_from_polis(
     db: &PgPool,
@@ -296,6 +417,70 @@ pub async fn update_many(
     let (sql, values) = Query::update()
         .table(PolisStatementAuxIden::Table)
         .values(update_aux.to_values())
+        .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(aux)
+}
+
+/// The `(column, value)` pairs a moderation decision writes. Both single
+/// [`moderate`] and bulk [`moderate_many`] use this so they apply identical
+/// semantics: unlike the partial-update path, `moderation_reason` is *always*
+/// written (NULL when `reason` is `None`), so accepting a statement clears any
+/// prior rejection reason (ADR-0015).
+fn moderation_values(
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> [(PolisStatementAuxIden, SimpleExpr); 2] {
+    [
+        (PolisStatementAuxIden::ModerationStatus, status.into()),
+        (
+            PolisStatementAuxIden::ModerationReason,
+            reason.map(|s| s.to_string()).into(),
+        ),
+    ]
+}
+
+/// Apply a moderation decision to a single row, setting `moderation_status`
+/// and `moderation_reason` together (see [`moderation_values`]).
+#[instrument(err(Debug))]
+pub async fn moderate(
+    db: &PgPool,
+    id: Uuid,
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> Result<PolisStatementAux, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(moderation_values(status, reason))
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(aux)
+}
+
+/// Apply a moderation decision to many rows in one statement, returning the
+/// updated rows (see [`moderation_values`]). An empty id slice is a no-op.
+#[instrument(err(Debug))]
+pub async fn moderate_many(
+    db: &PgPool,
+    ids: &[Uuid],
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> Result<Vec<PolisStatementAux>, ComhairleError> {
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(moderation_values(status, reason))
         .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
@@ -616,6 +801,108 @@ mod tests {
             "moderation_status should refresh from polis on re-sync"
         );
         assert_eq!(accepted.statement_text, "updated text");
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn record_split_rejects_original_and_links_derived(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        let (_, workflow_step, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Polis step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "polis step",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": polis_tool_config(),
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let workflow_step_id = Uuid::parse_str(&extract::<String>("id", &workflow_step))?;
+
+        // A participant composite statement, pending.
+        let original = upsert_from_polis(
+            &pool,
+            &UpsertFromPolis {
+                workflow_step_id,
+                user_id: None,
+                zid: 5,
+                polis_conversation_id: "test-poll".into(),
+                polis_statement_id: 10,
+                statement_text: "cats are great and dogs are great".into(),
+                is_seed: false,
+                moderation_status: ModerationStatus::Pending,
+            },
+        )
+        .await?;
+
+        let derived = [
+            CreateDerivedStatement {
+                workflow_step_id,
+                zid: 0,
+                polis_conversation_id: "test-poll".into(),
+                polis_statement_id: 11,
+                statement_text: "cats are great".into(),
+                original_statement_id: original.id,
+            },
+            CreateDerivedStatement {
+                workflow_step_id,
+                zid: 0,
+                polis_conversation_id: "test-poll".into(),
+                polis_statement_id: 12,
+                statement_text: "dogs are great".into(),
+                original_statement_id: original.id,
+            },
+        ];
+
+        let (rejected_original, replacements) =
+            record_split(&pool, original.id, &derived, "Reworded/split by moderator").await?;
+
+        assert_eq!(rejected_original.id, original.id);
+        assert_eq!(
+            rejected_original.moderation_status,
+            ModerationStatus::Rejected
+        );
+        assert_eq!(
+            rejected_original.moderation_reason.as_deref(),
+            Some("Reworded/split by moderator")
+        );
+
+        assert_eq!(replacements.len(), 2);
+        for row in &replacements {
+            assert!(!row.is_seed, "derived statements are not seeds");
+            assert_eq!(
+                row.moderation_status,
+                ModerationStatus::Accepted,
+                "derived statements are auto-accepted"
+            );
+            assert_eq!(
+                row.original_statement_id,
+                Some(original.id),
+                "derived statements point back at the original"
+            );
+            assert_eq!(
+                row.user_id, None,
+                "derived statements are not attributed to a participant"
+            );
+        }
         Ok(())
     }
 }

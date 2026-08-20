@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
@@ -61,7 +62,7 @@ pub struct CreateFormInput {
     pub name_schema: Option<Vec<serde_json::Value>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Form {
     pub id: String,
@@ -85,7 +86,7 @@ pub struct Form {
     pub status: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -100,7 +101,7 @@ pub struct FormSettings {
     pub enable_question_list: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormField {
     pub id: String,
@@ -123,14 +124,14 @@ pub struct FormField {
     pub frozen: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ThemeSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<FormTheme>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormTheme {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -182,6 +183,14 @@ pub struct FormDetailInput {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct SubmissionsInput {
+    pub form_id: String,
+    pub category: String,
+    pub page: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateHiddenFieldInput {
     pub form_id: String,
     pub field_id: String,
@@ -202,6 +211,86 @@ pub enum FormKind {
     Survey = 2,
     Poll = 3,
     Quiz = 4,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FormReportResponse {
+    pub id: String,
+    pub kind: Option<String>,
+    pub title: Option<String>,
+    pub total: u32,
+    pub count: u32,
+    pub average: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chooses: Option<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FormReportAnswer {
+    pub submission_id: String,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<serde_json::Value>,
+    pub end_at: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FormReportSubmission {
+    #[serde(rename(serialize = "_id", deserialize = "_id"))]
+    pub id: String,
+    pub answers: Vec<FormReportAnswer>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FormReport {
+    pub responses: Vec<FormReportResponse>,
+    pub submissions: Vec<FormReportSubmission>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HiddenFieldAnswer {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone, Copy, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum SubmissionCategory {
+    #[default]
+    Inbox,
+    Spam,
+    Starred,
+    Archive,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Submission {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<SubmissionCategory>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub answers: Vec<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hidden_fields: Option<Vec<HiddenFieldAnswer>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<Vec<serde_json::Value>>,
+    pub end_at: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Submissions {
+    pub total: u32,
+    pub submissions: Vec<Submission>,
 }
 
 // Project types

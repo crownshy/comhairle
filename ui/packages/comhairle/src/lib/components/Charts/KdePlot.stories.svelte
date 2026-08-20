@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import KdePlot from '$lib/reports/KdePlot.svelte';
+	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/reports/KdePlot',
@@ -49,7 +49,7 @@
 	name="Default"
 	args={{
 		category: 'satisfaction',
-		rawData: { satisfaction: centered },
+		data: { satisfaction: centered },
 		minLabel: 'Not at all',
 		maxLabel: 'Extremely',
 		maxX: 10
@@ -60,7 +60,7 @@
 	name="No labels"
 	args={{
 		category: 'satisfaction',
-		rawData: { satisfaction: centered },
+		data: { satisfaction: centered },
 		maxX: 10
 	}}
 />
@@ -69,7 +69,7 @@
 	name="Skewed low"
 	args={{
 		category: 'difficulty',
-		rawData: { difficulty: lowSkew },
+		data: { difficulty: lowSkew },
 		minLabel: 'Easy',
 		maxLabel: 'Hard',
 		maxX: 10
@@ -80,7 +80,7 @@
 	name="Skewed high"
 	args={{
 		category: 'agreement',
-		rawData: { agreement: highSkew },
+		data: { agreement: highSkew },
 		minLabel: 'Disagree',
 		maxLabel: 'Agree',
 		maxX: 10
@@ -91,7 +91,7 @@
 	name="Bimodal"
 	args={{
 		category: 'sentiment',
-		rawData: { sentiment: bimodal },
+		data: { sentiment: bimodal },
 		minLabel: 'Negative',
 		maxLabel: 'Positive',
 		maxX: 10
@@ -102,7 +102,7 @@
 	name="Wide spread"
 	args={{
 		category: 'confidence',
-		rawData: { confidence: wideSpread },
+		data: { confidence: wideSpread },
 		minLabel: 'Not confident',
 		maxLabel: 'Very confident',
 		maxX: 10
@@ -113,7 +113,7 @@
 	name="Custom domain"
 	args={{
 		category: 'score',
-		rawData: { score: centered.map((v) => v * 5) },
+		data: { score: centered.map((v) => v * 5) },
 		minLabel: '0',
 		maxLabel: '50',
 		maxX: 50
@@ -124,7 +124,7 @@
 	name="Without density line"
 	args={{
 		category: 'score',
-		rawData: { score: centered.map((v) => v * 5) },
+		data: { score: centered.map((v) => v * 5) },
 		minLabel: '0',
 		maxLabel: '50',
 		maxX: 50,
@@ -136,7 +136,7 @@
 	name="With wave outlineline"
 	args={{
 		category: 'score',
-		rawData: { score: centered.map((v) => v * 5) },
+		data: { score: centered.map((v) => v * 5) },
 		minLabel: '0',
 		maxLabel: '50',
 		maxX: 50,

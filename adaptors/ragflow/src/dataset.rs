@@ -74,7 +74,7 @@ pub struct UpdateDataset {
     pub description: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Dataset {
     pub avatar: Option<String>,
     pub chunk_count: Option<i32>,

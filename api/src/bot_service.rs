@@ -52,6 +52,19 @@ Take prior chat history into account when answering.
 Here is the knowledge base:
 {knowledge}"#;
 
+pub const COMHAIRLE_SUPPORTED_LANGUAGES: [&str; 10] = [
+    "Arabic",
+    "Welsh",
+    "English",
+    "Spanish",
+    "French",
+    "Scottish Gaelic",
+    "Dari",
+    "Pashto",
+    "Portuguese",
+    "Chinese",
+];
+
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait ComhairleBotService: Send + Sync {
@@ -310,6 +323,7 @@ pub struct ComhairlePrompt {
     pub llm_prompt: Option<String>,
     pub opener: Option<String>,
     pub empty_response: Option<String>,
+    pub cross_languages: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]

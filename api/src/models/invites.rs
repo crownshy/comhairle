@@ -420,6 +420,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
 
         let invite = Invite {

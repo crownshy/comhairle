@@ -2,7 +2,7 @@ import { browser } from '$app/environment';
 import type { ComhairleChatSession } from '@crownshy/api-client/api';
 import { apiClient } from '@crownshy/api-client/client';
 
-function stripThinking(text: string): string {
+export function stripThinking(text: string): string {
 	// drop completed <think>…</think> blocks
 	let out = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
 	// mid-stream: unclosed <think> still open — hide everything from it on

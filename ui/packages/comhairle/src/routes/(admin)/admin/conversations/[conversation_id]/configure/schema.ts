@@ -19,5 +19,7 @@ export const conversationConfigSchema = z.object({
 	isInviteOnly: z.boolean(),
 	autoLogin: z.boolean(),
 	enableSignupPrompts: z.boolean(),
-	showThankYouPageAnnonInstructions: z.boolean()
+	showThankYouPageAnnonInstructions: z.boolean(),
+	showThankyouPageFeedbackButton: z.boolean(),
+	allowRevisitAfterFinishing: z.boolean()
 });

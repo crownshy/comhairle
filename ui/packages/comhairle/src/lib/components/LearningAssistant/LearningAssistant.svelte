@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { FileText, ChevronDown, AlertTriangle, RefreshCw } from 'lucide-svelte';
 	import { getChatSession, type ChatMessage } from '$lib/api/chatSession.svelte';
 	import type { ChatReference, ReferenceChunk } from '$lib/api/chatClient.svelte';
@@ -203,16 +204,13 @@
 			     so repeating it here reads as a doubled heading. -->
 			{#if variant === 'inline'}
 				<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
-					Learning assistant
+					{m.learning_assistant()}
 				</p>
 			{/if}
-			<div class="text-muted-foreground mb-3 space-y-2 text-sm leading-relaxed">
-				<p>Use this this space to answer questions you might have about the topic.</p>
-				<p>
-					It is best to ask questions that help you learn things. We will try to answer
-					these questions using supporting materials that have been made avaliable for
-					this conversation.
-				</p>
+			<div class="text-foreground mb-3 space-y-2 text-sm leading-relaxed">
+				<p>{m.learning_assistant_summary()}</p>
+				<p>{m.learning_assistant_description()}</p>
+				<p>{m.learning_assistant_privacy_notice()}</p>
 			</div>
 			<div
 				class="bg-primary/10 rounded-lg p-4 {variant === 'sidebar'
@@ -226,7 +224,9 @@
 					>
 						<AlertTriangle class="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
 						<div class="min-w-0 flex-1">
-							<p class="font-semibold text-red-800">Couldn't load tutor</p>
+							<p class="font-semibold text-red-800">
+								{m.learning_assistant_load_fail()}
+							</p>
 							<p class="text-red-700">{chatError}</p>
 							<button
 								type="button"
@@ -234,7 +234,7 @@
 								onclick={retryInit}
 							>
 								<RefreshCw class="h-3 w-3" />
-								Try again
+								{m.try_again()}
 							</button>
 						</div>
 					</div>
@@ -253,7 +253,7 @@
 								onclick={activate}
 								disabled={initializing}
 							>
-								Type a question here
+								{m.learning_assistant_input_placeholder()}
 							</button>
 						{:else}
 							<div
@@ -272,7 +272,7 @@
 											handleAsk();
 										}
 									}}
-									placeholder="Type your question..."
+									placeholder={m.learning_assistant_input_placeholder()}
 									disabled={inputDisabled}
 									class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none disabled:cursor-not-allowed"
 								/>
@@ -283,7 +283,7 @@
 										disabled={inputDisabled}
 										onclick={handleAsk}
 									>
-										{isStreaming ? '...' : 'Ask ↵'}
+										{isStreaming ? '...' : `${m.ask()} ↵`}
 									</button>
 								{/if}
 							</div>
@@ -310,7 +310,7 @@
 											<p
 												class="text-primary text-[11px] font-semibold tracking-wide uppercase"
 											>
-												You asked
+												{m.you_asked()}
 											</p>
 											{#if ts}
 												<span class="text-muted-foreground text-[11px]"
@@ -345,7 +345,7 @@
 													/>
 													<div class="min-w-0 flex-1">
 														<p class="font-semibold text-red-800">
-															Couldn't get an answer
+															{m.learning_assistant_no_answer()}
 														</p>
 														<p class="text-red-700">{qa.error}</p>
 														{#if isNewest}
@@ -356,7 +356,7 @@
 																disabled={isStreaming}
 															>
 																<RefreshCw class="h-3 w-3" />
-																Try again
+																{m.try_again()}
 															</button>
 														{/if}
 													</div>
@@ -386,7 +386,7 @@
 														style="animation-delay: 0.3s"
 													></span>
 													<span class="text-muted-foreground ml-2 text-xs"
-														>Finding an answer...</span
+														>{m.finding_answer()}</span
 													>
 												</span>
 											{/if}
@@ -399,7 +399,7 @@
 													<p
 														class="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wide uppercase"
 													>
-														Sources
+														{m.sources()}
 													</p>
 													<div class="flex flex-wrap gap-1.5">
 														{#each docs as chunk (chunk.id)}
@@ -431,7 +431,7 @@
 			<p
 				class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-center text-xs"
 			>
-				Enable the learning assistant above to ask questions about this page.
+				{m.learning_assistant_enable_statement()}
 			</p>
 		{/if}
 	</div>

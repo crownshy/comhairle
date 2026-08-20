@@ -3,7 +3,7 @@ type Ok<K extends string, T> = Record<K, T> & { err: null };
 type Err<K extends string, E extends ErrorType> = Record<K, null> & { err: E };
 export type Result<K extends string, T, E extends ErrorType> = Ok<K, T> | Err<K, E>;
 
-export async function tryCatchAsync<E extends string, T>(
+export async function tryCatchAsync<T, E extends ErrorType>(
 	fn: () => Promise<T>
 ): Promise<Result<'ok', T, E>> {
 	try {

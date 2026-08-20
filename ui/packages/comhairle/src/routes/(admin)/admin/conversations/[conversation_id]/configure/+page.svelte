@@ -33,7 +33,7 @@
 		OrganizationWithPermissionDto,
 		UserDto,
 		UserWithPermissionDto,
-		WorkflowDtoa
+		WorkflowDto
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { Image as ImageIcon, Info } from 'lucide-svelte';
@@ -150,6 +150,7 @@
 		$form.enableSignupPrompts = data.conversation.enableSignupPrompts;
 		$form.showThankYouPageAnnonInstructions =
 			data.conversation.showThankYouPageAnnonInstructions;
+		$form.allowRevisitAfterFinishing = data.conversation.allowRevisitAfterFinishing;
 	});
 
 	function updateFormForLanguage(newLanguage: string) {
@@ -264,7 +265,9 @@
 			isInviteOnly: data.conversation.isInviteOnly,
 			autoLogin: data.workflows[0].autoLogin,
 			enableSignupPrompts: data.conversation.enableSignupPrompts,
-			showThankYouPageAnnonInstructions: data.conversation.showThankYouPageAnnonInstructions
+			showThankYouPageAnnonInstructions: data.conversation.showThankYouPageAnnonInstructions,
+			showThankyouPageFeedbackButton: data.conversation.showThankyouPageFeedbackButton,
+			allowRevisitAfterFinishing: data.conversation.allowRevisitAfterFinishing
 		},
 		{
 			validators: zodClient(conversationConfigSchema),
@@ -388,7 +391,9 @@
 		| 'isPublic'
 		| 'isInviteOnly'
 		| 'enableSignupPrompts'
-		| 'showThankYouPageAnnonInstructions';
+		| 'showThankYouPageAnnonInstructions'
+		| 'showThankyouPageFeedbackButton'
+		| 'allowRevisitAfterFinishing';
 
 	async function saveConversationToggle(field: ConversationToggle, value: boolean) {
 		const res = await tryCatchAsync(() =>
@@ -996,6 +1001,65 @@
 											'showThankYouPageAnnonInstructions',
 											v
 										)}
+								/>
+							</div>
+						{/snippet}
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
+
+				<Form.Field form={conversationForm} name="showThankyouPageFeedbackButton">
+					<Form.Control>
+						{#snippet children({ props })}
+							<div class="flex items-center justify-between gap-4">
+								<div class="flex flex-col gap-1">
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Show thank you page feedback button</Form.Label
+										>
+										{@render infoPreview(
+											'On the thank-you page, shows participants a button to give feedback on the process.'
+										)}
+									</div>
+									<p class="text-muted-foreground text-sm">
+										Display the feedback button on the thank you page.
+									</p>
+								</div>
+								<Switch
+									{...props}
+									bind:checked={$form.showThankyouPageFeedbackButton}
+									onCheckedChange={(v) =>
+										saveConversationToggle('showThankyouPageFeedbackButton', v)}
+								/>
+							</div>
+						{/snippet}
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
+
+				<Form.Field form={conversationForm} name="allowRevisitAfterFinishing">
+					<Form.Control>
+						{#snippet children({ props })}
+							<div class="flex items-center justify-between gap-4">
+								<div class="flex flex-col gap-1">
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Allow revisit after finishing</Form.Label
+										>
+										{@render infoPreview(
+											'Once a participant has finished every step they reach the thank-you page. Turn this off to seal them out: no step is reachable afterwards, the revisit links disappear, and the server rejects any further contributions.'
+										)}
+									</div>
+									<p class="text-muted-foreground text-sm">
+										Let participants return to the steps after they have
+										finished.
+									</p>
+								</div>
+								<Switch
+									{...props}
+									bind:checked={$form.allowRevisitAfterFinishing}
+									onCheckedChange={(v) =>
+										saveConversationToggle('allowRevisitAfterFinishing', v)}
 								/>
 							</div>
 						{/snippet}

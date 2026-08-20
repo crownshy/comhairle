@@ -52,6 +52,23 @@ A single allowed operation (for example list, grant, revoke, read, update) that 
 **Authorization precedence**:
 Permission checks resolve in this order: resource ownership allows, then system admin grant allows globally, then role-action mapping on the target resource is evaluated. There are currently no explicit deny rules.
 
+### Participant journey
+
+**Finished** (a participant is finished):
+The point at which a participant has a `done` progress row for **every** Step in a Workflow. Reaching it is what lands them on the Thank You page. Distinct from a Conversation being **complete** (`is_complete`), which is an admin closing the whole Conversation, and from a single Step's `progressStatus: 'done'`. Matches what participants see: the last step's button is labelled "Finish".
+_Avoid_: Submission (already means one HeyForm survey response - see `tools/heyform.rs`), completion (collides with `Conversation.is_complete`).
+_Note_: Skipping an optional Step still writes `done`, so a participant who skips everything has still finished.
+
+**Sealed**:
+A participant who has [[#finished-a-participant-is-finished]] in a Conversation with [[#revisit-after-finishing]] turned off. A sealed participant can reach no Step and comhairle rejects their writes. Sealed is **derived**, never stored: it is recomputed from the Workflow's Steps and that participant's progress rows. One consequence of deriving it: adding a Step to a live Workflow un-seals everyone who had already finished.
+_Avoid_: Locked, closed (closed reads as the Conversation being closed).
+
+**Revisit after finishing**:
+The per-Conversation setting (`allow_revisit_after_finishing`, default `true`) governing whether a participant may return to Steps once they are [[#finished-a-participant-is-finished]]. Off means sealed. Orthogonal to the per-Step [[#revisitable-step]] flag, which governs navigation *before* they finish; the Conversation setting overrides it afterwards.
+
+**Revisitable step**:
+The per-Step `can_revisit` flag (default `false`), controlling whether a participant may navigate back to that Step once they have completed it. Governs mid-flow navigation only. Once a participant is [[#finished-a-participant-is-finished]] it is subordinate to [[#revisit-after-finishing]].
+
 ### Organizations and access
 
 **Organization Administrator**:
@@ -120,11 +137,18 @@ A Polis Step is backed by **two** separate Pol.is conversations: a **preview** p
 _Status_: `launch` creates a fresh live poll and migrates only seed **text** (`post_seed_comment`) — it does **not** carry over aux metadata (`moderation_status`, `themes`), so pre-launch moderation/theming does not survive launch. It also does not yet filter rejected seeds (`// TODO: filter seed statements`). Both are follow-up backend fixes, not part of the tab UI work.
 
 **Seed statement**:
-A statement authored by the moderator (not a participant) to spark discussion, `is_seed: true`. Posted server-side to the active Polis poll (preview while draft, live after launch) via a new backend seed route wrapping `post_seed_comment`, then surfaced locally after sync. Distinct from `moderation_status`.
+A statement authored by the moderator (not a participant) to spark discussion, `is_seed: true`. Posted server-side to the active Polis poll (preview while draft, live after launch) via a new backend seed route wrapping `post_seed_comment`, then surfaced locally after sync. Distinct from `moderation_status` and from a [[#derived-statement]] (which is `is_seed: false`). Polis auto-approves a seed on post (`mod: 1`); a non-seed host post lands `mod: 0` (pending).
 _Avoid_: Seeded status (it's a boolean flag, not a moderation status).
 
+**Derived statement**:
+A statement an admin authors while moderating, as a split or reword of an existing participant statement (see [[#split]]). Posted to Polis as `is_seed: false` (a real, votable, non-seed statement, not a host seed) and carries `original_statement_id` pointing at the aux row it was derived from. The discriminator: `is_seed: false` **and** `original_statement_id` set = derived; `is_seed: true` = seed; neither = raw participant statement. Never rendered as a host seed.
+_Avoid_: calling it a seed; "edited statement" (Polis has no in-place edit — a derived statement is always a *new* statement).
+
+**Split**:
+The moderation act of replacing one participant statement with one or more clean, separately-votable [[#derived-statement]]s. A single-replacement split is a **reword** (disambiguating one statement); a multi-replacement split breaks a composite statement into parts. One operation either way: post each replacement `is_seed: false`, auto-accept it (`mod: 1`), reject the original (`mod: -1`), and record lineage. No automatic text-splitting: the admin types every replacement by hand.
+
 **Polis statement aux**:
-Comhairle's `polis_statement_aux` sidecar table, one row per Polis statement, holding admin-only metadata Polis doesn't store: `moderation_status`, human-authored `themes`, `is_seed`, `moderation_reason`, `visible_statement_when_submitted`. Populated by sync.
+Comhairle's `polis_statement_aux` sidecar table, one row per Polis statement, holding admin-only metadata Polis doesn't store: `moderation_status`, human-authored `themes`, `is_seed`, `moderation_reason`, `visible_statement_when_submitted`, and `original_statement_id` (self-referential lineage for [[#derived-statement]]s). Populated by sync; comhairle-only fields (including `original_statement_id`) are preserved across re-sync, not overwritten from Polis.
 
 **Moderation status**:
 The three-value review state of a statement: `accepted · pending · rejected` (enum `ModerationStatus`). Not the same as `is_seed`.

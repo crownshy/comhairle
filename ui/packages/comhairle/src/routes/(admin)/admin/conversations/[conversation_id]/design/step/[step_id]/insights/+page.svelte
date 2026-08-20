@@ -2,6 +2,7 @@
 	import PolisInsights from '$lib/reports/polis/PolisInsights.svelte';
 	import ThinkingSpaceInsights from '$lib/reports/thinking-space/ThinkingSpaceInsights.svelte';
 	import PrioritizationInsights from '$lib/reports/prioritization/PrioritizationInsights.svelte';
+	import SurveyInsights from '$lib/reports/survey/SurveyInsights.svelte';
 
 	let { data } = $props();
 
@@ -22,7 +23,12 @@
 	/>
 {/if}
 
-<!-- Polis -->
+<!-- Prioritization -->
 {#if data.prioritization && step}
 	<PrioritizationInsights {step} {...data.prioritization} />
+{/if}
+
+<!-- Survey -->
+{#if data.survey && step}
+	<SurveyInsights data={data.survey} />
 {/if}

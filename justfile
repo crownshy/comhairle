@@ -16,6 +16,9 @@ psql:
 load_saia:
     cargo run --bin comhairle_data_loader -- -f fixtures/saia.json -d true
 
+generate-api-spec:
+    cargo run --bin api_spec_gen --
+
 api-dev:
     cargo watch -q -c \
     -i open-api-spec.json \

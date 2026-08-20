@@ -203,6 +203,12 @@ pub fn elicitation_bot_tool_config() -> serde_json::Value {
         "topic": "test_topic"
     })
 }
+pub fn heyform_tool_config() -> serde_json::Value {
+    json!({
+        "type": "heyform",
+        "server_url": "forms.comhairle.scot"
+    })
+}
 
 pub fn prioritization_tool_config() -> serde_json::Value {
     json!({
@@ -1226,7 +1232,11 @@ impl UserSession {
                                 "type": {
                                     "continuous": {
                                         "label": "Care?",
-                                        "sub_steps": 10
+                                        "sub_steps": 10,
+                                        "min_value": 0,
+                                        "max_value": 10,
+                                        "min_label": "Not at all",
+                                        "max_label": "Care a lot"
                                     }
                                 }
                             },

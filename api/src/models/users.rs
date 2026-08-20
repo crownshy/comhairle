@@ -152,9 +152,13 @@ pub struct User {
     /// serialized to API responses (see `skip_serializing`).
     #[serde(skip_serializing)]
     pub signup_ip: Option<String>,
+    /// Client browser signature (User-Agent) captured at account creation.
+    /// Internal/audit only — never serialized to API responses.
+    #[serde(skip_serializing)]
+    pub signup_user_agent: Option<String>,
 }
 
-const DEFAULT_COLUMNS: [UserIden; 11] = [
+const DEFAULT_COLUMNS: [UserIden; 12] = [
     UserIden::Id,
     UserIden::Username,
     UserIden::Password,
@@ -166,6 +170,7 @@ const DEFAULT_COLUMNS: [UserIden; 11] = [
     UserIden::CreatedAt,
     UserIden::UpdatedAt,
     UserIden::SignupIp,
+    UserIden::SignupUserAgent,
 ];
 
 /// Create a user from a signup request
@@ -372,14 +377,22 @@ async fn insert_otp_user(
     }
 }
 
-/// Record the client IP address for a freshly created user.
+/// Record the client IP and browser signature (User-Agent) for a freshly
+/// created user in a single update.
 ///
-/// Stored purely for internal/audit purposes; the value is never serialized
-/// back out over the API (the `signup_ip` field is `skip_serializing`).
-pub async fn set_signup_ip(user_id: &Uuid, ip: &str, db: &PgPool) -> Result<(), ComhairleError> {
+/// Stored purely for internal/audit purposes; neither value is serialized back
+/// out over the API (both fields are `skip_serializing`). A `None` user agent
+/// leaves the column NULL.
+pub async fn set_signup_metadata(
+    user_id: &Uuid,
+    ip: &str,
+    user_agent: Option<&str>,
+    db: &PgPool,
+) -> Result<(), ComhairleError> {
     let (sql, values) = Query::update()
         .table(UserIden::Table)
         .value(UserIden::SignupIp, ip)
+        .value(UserIden::SignupUserAgent, user_agent)
         .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -819,8 +832,18 @@ mod tests {
         .await?;
 
         assert!(user.signup_ip.is_none(), "signup_ip unset before recording");
+        assert!(
+            user.signup_user_agent.is_none(),
+            "signup_user_agent unset before recording"
+        );
 
-        set_signup_ip(&user.id, "203.0.113.7", &pool).await?;
+        set_signup_metadata(
+            &user.id,
+            "203.0.113.7",
+            Some("Mozilla/5.0 (Test) Firefox/152.0"),
+            &pool,
+        )
+        .await?;
 
         let stored = get_user_by_id(&user.id, &pool).await?;
         assert_eq!(
@@ -828,12 +851,21 @@ mod tests {
             Some("203.0.113.7"),
             "signup_ip should be persisted"
         );
+        assert_eq!(
+            stored.signup_user_agent.as_deref(),
+            Some("Mozilla/5.0 (Test) Firefox/152.0"),
+            "signup_user_agent should be persisted"
+        );
 
-        // The IP must never leak through API serialization.
+        // The IP and browser signature must never leak through API serialization.
         let json = serde_json::to_value(&stored)?;
         assert!(
             json.get("signup_ip").is_none(),
             "signup_ip must not be serialized"
+        );
+        assert!(
+            json.get("signup_user_agent").is_none(),
+            "signup_user_agent must not be serialized"
         );
 
         Ok(())

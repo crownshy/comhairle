@@ -1,5 +1,5 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleFetch } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName, DEFAULT_THEME, THEMES } from '$lib/types/theme';
@@ -68,3 +68,28 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 };
 
 export const handle: Handle = sequence(handleTheme, handleParaglide, handleHeaders);
+
+// Server-side `event.fetch('/api/...')` calls (form actions, load funcs) originate
+// from the frontend pod, so without this the API records the NAT gateway IP instead
+// of the real client. Forward the browser IP (set by nginx on the inbound request)
+// on same-origin /api requests only, so it never leaks to third-party hosts.
+export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
+	const url = new URL(request.url);
+	if (url.origin === event.url.origin && url.pathname.startsWith('/api')) {
+		const xff = event.request.headers.get('x-forwarded-for');
+		if (xff) {
+			request.headers.set('x-forwarded-for', xff);
+		}
+		const realIp = event.request.headers.get('x-real-ip');
+		if (realIp && !request.headers.has('x-real-ip')) {
+			request.headers.set('x-real-ip', realIp);
+		}
+		// Forward the real browser signature; otherwise the API records the
+		// server-side HTTP client's UA (e.g. "axios/1.x") instead of the user's.
+		const userAgent = event.request.headers.get('user-agent');
+		if (userAgent) {
+			request.headers.set('user-agent', userAgent);
+		}
+	}
+	return fetch(request);
+};

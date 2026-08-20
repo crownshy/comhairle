@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ScatterPlot, { type ScatterPoint } from '$lib/reports/ScatterPlot.svelte';
+	import ScatterPlot, { type ScatterPoint } from '$lib/components/Charts/ScatterPlot.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Components/reports/ScatterPlot',

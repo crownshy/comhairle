@@ -215,7 +215,7 @@
 		if (!file || importing) return;
 		importing = true;
 
-		const result = await tryCatchAsync<'INCORRECT_FILE_TYPE' | 'NO_ENTRIES_FOUND', number>(
+		const result = await tryCatchAsync<number, 'INCORRECT_FILE_TYPE' | 'NO_ENTRIES_FOUND'>(
 			async () => {
 				if (!file.name.toLowerCase().endsWith('.csv')) throw 'INCORRECT_FILE_TYPE';
 

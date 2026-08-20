@@ -5,12 +5,12 @@
  * module (prioritizationApi.ts) maps between them. */
 
 import type {
-	Category,
 	LocalizedProposalDto,
 	TextContentDto,
 	TextFormat as ApiTextFormat,
 	TextTranslationDto,
-	Translation
+	Translation,
+	TranslationDto
 } from '@crownshy/api-client/api';
 
 export type Locale = string;
@@ -44,36 +44,63 @@ export type Proposal = {
 /** Locale-resolved variant shown to participants (title + ordered section bodies). */
 export type LocalizedProposal = LocalizedProposalDto;
 
-/** Question definitions (from the workflow step's tool config) */
+/** Form state for a question being created or edited.  */
+export type DraftFields = { text: DraftTranslatableJsonField; type: DraftQuestionType };
 
-export type LikertCategory = Category;
-
-export type QuestionType =
+export type QuestionType<TText> =
 	| { kind: 'text' }
-	| { kind: 'likert'; categories: LikertCategory[] }
+	| { kind: 'likert'; categories: LikertCategory<TText>[] }
 	| {
 			kind: 'continuous';
 			subSteps: number;
 			minValue: number;
 			maxValue: number;
-			minLabel: string;
-			maxLabel: string;
+			maxLabel: TText;
+			minLabel: TText;
 	  };
 
-export type Question = {
+export type Question<TText> = {
 	id: string;
-	text: string;
-	type: QuestionType;
+	text: TText;
+	type: QuestionType<TText>;
 };
 
-export type ToolConfig = {
+/** Question definitions (from the workflow step's tool config) */
+
+export type LikertCategory<TText> = {
+	label: TText;
+	value: number;
+};
+
+export type ToolConfig<TText> = {
 	/** Questions asked once about the proposal as a whole. */
-	questions: Question[];
+	questions: Question<TText>[];
 	/** Questions asked about each section (same set for every section). */
-	sectionQuestions: Question[];
+	sectionQuestions: Question<TText>[];
 	randomizeOrder: boolean;
 	alignmentQuestionId: string;
+	/** Minimum proposals a participant must review before they can continue to the
+	 * next step. Unset means every proposal must be reviewed, which is the default;
+	 * an admin sets a number only to loosen that. Clamped to the proposal count at
+	 * gate time so the bar is never impossible. */
+	requiredReviews?: number;
 };
+
+/** ---------------------------- **/
+/** WITH TRANSLATIONS PRIORITIZATION TOOL TYPES FOR ADMIN UI **/
+/** ---------------------------- **/
+
+/** Mirror type of the backend JsonFieldWithTranslations with optional `translations`
+ * field to allow creating new translatable fields on questions
+ */
+export type DraftTranslatableJsonField = {
+	localized: string;
+	translations?: TranslationDto;
+};
+
+export type DraftQuestion = Question<DraftTranslatableJsonField>;
+export type DraftQuestionType = QuestionType<DraftTranslatableJsonField>;
+export type DraftLikertCategory = LikertCategory<DraftTranslatableJsonField>;
 
 /** Responses */
 
@@ -95,6 +122,9 @@ export type WorkflowStepInput = {
 	id: string;
 	toolConfig?: unknown;
 	previewToolConfig?: unknown;
+	/** Whether participants may return to this step after completing it. Used to
+	 * reassure them they can review the remaining proposals later. */
+	canRevisit?: boolean;
 };
 
 export type ConversationInput = {

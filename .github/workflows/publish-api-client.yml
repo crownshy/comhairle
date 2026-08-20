@@ -17,12 +17,34 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v4
+      - 
+        name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - 
+        name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+      - 
+        name: Generate OpenAPI Spec
+        run: cargo run --package api_spec_gen --bin api_spec_gen
+      -
+        name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
       -
         name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
+      -
+        name: Install pnpm
+        run: pnpm install
+        working-directory: ui
+      -
+        name: Build API Client
+        run: pnpm build
+        working-directory: ui/packages/api-client
       -
         name: Set version from tag
         run: |

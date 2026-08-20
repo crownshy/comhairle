@@ -1058,6 +1058,7 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
+
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
