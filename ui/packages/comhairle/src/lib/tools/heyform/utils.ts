@@ -21,11 +21,11 @@ export const HEYFORM_NON_CHOICE_FIELD_KIND = [
 	'phone_number',
 	'country_selector',
 	'date',
-	'date_range',
-	'group'
+	'date_range'
 ] as const;
 
 export const HEYFORM_OTHER_FIELD_KIND = [
+	'group',
 	'welcome',
 	'thank_you',
 	'statement',
@@ -82,7 +82,15 @@ export interface VariablePrice {
 	ref: string;
 }
 
+export interface Parent {
+	id: string;
+	title: string;
+}
+
 export interface Properties {
+	// Custom property for checking if it's a nested question
+	parent?: Parent;
+
 	// Statement
 	showButton?: boolean;
 	buttonText?: string;

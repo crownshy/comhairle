@@ -170,7 +170,6 @@ function transformNonChoiceData(insight: InsightQuestion): NonChoiceQuestion['an
 	}
 
 	switch (insight.kind) {
-		case 'group':
 		case 'rating':
 		case 'opinion_scale':
 		case 'number':
