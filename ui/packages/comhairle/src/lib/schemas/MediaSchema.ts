@@ -7,7 +7,7 @@ export const MediaSchema = {
 		name: 'media',
 		required: true,
 		accept: '.jpg,.jpeg,.png,.gif,.webp,.mp4,.mpeg,.mpg,.webm,.mp3',
-		maxSize: 50 * MB
+		maxSize: 500 * MB
 	}),
 	name: typedObj<InputAttr>({
 		name: 'name',
