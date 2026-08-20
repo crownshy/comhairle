@@ -104,8 +104,12 @@
 	 * A step hop that resolves quickly never trips this, so the header and body skeletons stay
 	 * hidden and the page just swaps content. Only a genuinely slow load shows them, where the
 	 * feedback is worth having. See delayedFlag for the reasoning.
+	 *
+	 * Gated on knowing the destination tool. `/next` and the thank-you page resolve their target
+	 * server-side, so `navigating.to` carries no step id and any skeleton we picked there would be
+	 * a guess. In that case we leave the finished step on screen until the new one arrives.
 	 */
-	let showNavigationSkeleton = delayedFlag(() => navigating.to !== null, 150);
+	let showNavigationSkeleton = delayedFlag(() => navigatingToToolType !== undefined, 150);
 
 	let prevStepHref = $derived.by(() => {
 		const viewedIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
@@ -285,95 +289,97 @@
 								</div>
 							{/if}
 						{/if}
-					{:else if toolConfig.type === Learn.TOOL_NAME}
-						{#key workflowStep.id}
-							<Learn.UserUI
-								onDone={stepComplete}
-								pages={toolConfig.pages}
-								user_id={user.id}
-								onNextAction={handleNextAction}
-								onPrevAction={handlePrevAction}
-								{conversation}
-								{availableDocuments}
-								{hasKnowledgeBaseDocs}
-								{isSubmitting}
-							/>
-						{/key}
-					{/if}
-					{#if toolConfig?.type === Polis.TOOL_NAME}
-						{#key workflowStep.id}
-							<Polis.UserUI
-								user_id={user.id}
-								polis_id={toolConfig.poll_id}
-								polis_url={toolConfig.server_url}
-								requiredVotes={toolConfig.required_votes}
-								workflowStepId={workflowStep.id}
-								{isPreview}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-								showRemainingStatementCount={toolConfig.show_remaining_statements}
-							/>
-						{/key}
-					{/if}
-					{#if toolConfig.type === HeyForm.TOOL_NAME}
-						{#key workflowStep.id}
-							<HeyForm.UserUI
-								userId={user.id}
-								surveyId={toolConfig.survey_id}
-								surveyURL={toolConfig.survey_url}
-								serverURL={toolConfig.server_url}
-								onDone={stepComplete}
-							/>
-						{/key}
-					{/if}
-					{#if toolConfig.type === LivedExperience.TOOL_NAME}
-						<LivedExperience.UserUI onDone={stepComplete} />
-					{/if}
-					{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
-						{#key workflowStep.id}
-							<ThinkingSpace.UserUI
-								workflowStepId={workflowStep.id}
-								workflowId={workflowStep.workflowId}
-								conversationId={conversation.id}
-								userId={user.id}
-								topic={toolConfig.topic}
-								rootQuestions={toolConfig.root_questions}
-								followUpRoundsCount={toolConfig.follow_up_rounds_count}
-								requestUserSharePermission={workflowStep.requestUserSharePermission}
-								initialPermissionToShareWithOrganizers={data.permissionToShareWithOrganizers}
-								progressStatus={workflowStep.progressStatus}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-							/>
-						{/key}
-					{/if}
-					{#if toolConfig.type === ElicitationBot.TOOL_NAME}
-						{#key workflowStep.id}
-							<ElicitationBot.UserUI
-								conversationId={conversation.id}
-								workflowId={workflowStep.workflowId}
-								workflowStepId={workflowStep.id}
-								userId={user.id}
-								topic={toolConfig.topic}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-							/>
-						{/key}
-					{/if}
-					{#if toolConfig.type === Prioritization.TOOL_NAME}
-						{#key workflowStep.id}
-							<Prioritization.UserUI
-								{workflowStep}
-								conversation={{
-									primaryLocale: conversation.primaryLocale,
-									isLive: conversation.isLive,
-									supportedLanguages: conversation.supportedLanguages
-								}}
-								participantId={user.id}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-							/>
-						{/key}
+					{:else}
+						{#if toolConfig.type === Learn.TOOL_NAME}
+							{#key workflowStep.id}
+								<Learn.UserUI
+									onDone={stepComplete}
+									pages={toolConfig.pages}
+									user_id={user.id}
+									onNextAction={handleNextAction}
+									onPrevAction={handlePrevAction}
+									{conversation}
+									{availableDocuments}
+									{hasKnowledgeBaseDocs}
+									{isSubmitting}
+								/>
+							{/key}
+						{/if}
+						{#if toolConfig?.type === Polis.TOOL_NAME}
+							{#key workflowStep.id}
+								<Polis.UserUI
+									user_id={user.id}
+									polis_id={toolConfig.poll_id}
+									polis_url={toolConfig.server_url}
+									requiredVotes={toolConfig.required_votes}
+									workflowStepId={workflowStep.id}
+									{isPreview}
+									onDone={stepComplete}
+									onCanContinueChange={handleCanContinueChange}
+									showRemainingStatementCount={toolConfig.show_remaining_statements}
+								/>
+							{/key}
+						{/if}
+						{#if toolConfig.type === HeyForm.TOOL_NAME}
+							{#key workflowStep.id}
+								<HeyForm.UserUI
+									userId={user.id}
+									surveyId={toolConfig.survey_id}
+									surveyURL={toolConfig.survey_url}
+									serverURL={toolConfig.server_url}
+									onDone={stepComplete}
+								/>
+							{/key}
+						{/if}
+						{#if toolConfig.type === LivedExperience.TOOL_NAME}
+							<LivedExperience.UserUI onDone={stepComplete} />
+						{/if}
+						{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
+							{#key workflowStep.id}
+								<ThinkingSpace.UserUI
+									workflowStepId={workflowStep.id}
+									workflowId={workflowStep.workflowId}
+									conversationId={conversation.id}
+									userId={user.id}
+									topic={toolConfig.topic}
+									rootQuestions={toolConfig.root_questions}
+									followUpRoundsCount={toolConfig.follow_up_rounds_count}
+									requestUserSharePermission={workflowStep.requestUserSharePermission}
+									initialPermissionToShareWithOrganizers={data.permissionToShareWithOrganizers}
+									progressStatus={workflowStep.progressStatus}
+									onDone={stepComplete}
+									onCanContinueChange={handleCanContinueChange}
+								/>
+							{/key}
+						{/if}
+						{#if toolConfig.type === ElicitationBot.TOOL_NAME}
+							{#key workflowStep.id}
+								<ElicitationBot.UserUI
+									conversationId={conversation.id}
+									workflowId={workflowStep.workflowId}
+									workflowStepId={workflowStep.id}
+									userId={user.id}
+									topic={toolConfig.topic}
+									onDone={stepComplete}
+									onCanContinueChange={handleCanContinueChange}
+								/>
+							{/key}
+						{/if}
+						{#if toolConfig.type === Prioritization.TOOL_NAME}
+							{#key workflowStep.id}
+								<Prioritization.UserUI
+									{workflowStep}
+									conversation={{
+										primaryLocale: conversation.primaryLocale,
+										isLive: conversation.isLive,
+										supportedLanguages: conversation.supportedLanguages
+									}}
+									participantId={user.id}
+									onDone={stepComplete}
+									onCanContinueChange={handleCanContinueChange}
+								/>
+							{/key}
+						{/if}
 					{/if}
 				</div>
 			</div>
