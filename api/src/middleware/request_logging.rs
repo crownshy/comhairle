@@ -26,8 +26,9 @@ pub struct ClientIp(pub String);
 #[derive(Debug, Clone)]
 pub struct ClientUserAgent(pub Option<String>);
 
-/// Middleware that opens an `api_request` span carrying the client IP, method,
-/// path, and the logged-in user's id (when a valid session cookie is present).
+/// Middleware that opens an `api_request` span carrying the client IP,
+/// `User-Agent`, method, path, and the logged-in user's id (when a valid session
+/// cookie is present).
 /// Running the handler inside the span stamps those fields onto every
 /// request-scoped log event, giving per-IP / per-user request tracing.
 ///
@@ -53,7 +54,8 @@ pub async fn log_requests(
         .get(axum::http::header::USER_AGENT)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_owned());
-    req.extensions_mut().insert(ClientUserAgent(user_agent));
+    req.extensions_mut()
+        .insert(ClientUserAgent(user_agent.clone()));
 
     let user_id = CookieJar::from_headers(req.headers())
         .get(AUTH_KEY)
@@ -65,6 +67,7 @@ pub async fn log_requests(
     let span = tracing::info_span!(
         "api_request",
         %ip,
+        user_agent = user_agent.as_deref().unwrap_or("-"),
         user_id = user_id.as_deref().unwrap_or("-"),
         %method,
         %path,
