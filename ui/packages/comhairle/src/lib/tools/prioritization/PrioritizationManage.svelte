@@ -15,7 +15,6 @@
 	import ProposalListSkeleton from './components/ProposalListSkeleton.svelte';
 	import QuestionEditorDialog from './components/QuestionEditorDialog.svelte';
 	import {
-		type DraftTranslatableJsonField,
 		type DraftQuestion,
 		type DraftQuestionType,
 		type Proposal,
@@ -25,6 +24,7 @@
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { useDebounce } from 'runed';
 	import { type ConversationWithTranslations } from '@crownshy/api-client/api';
+	import type { DraftTranslatableJsonField } from '$lib/components/Translation/translationUtils';
 
 	let {
 		workflowId,

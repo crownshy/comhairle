@@ -18,7 +18,7 @@
 	type Props = {
 		topic: string;
 		workflowStepId: string;
-		questions: QuestionConfig[];
+		questions: QuestionConfig<string>[];
 		followUpCount: number;
 		initialAnswers?: QuestionAnswers[];
 		mode?: FlowMode;
