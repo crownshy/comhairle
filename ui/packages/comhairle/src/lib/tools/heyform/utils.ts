@@ -82,7 +82,15 @@ export interface VariablePrice {
 	ref: string;
 }
 
+export interface Parent {
+	id: string;
+	title: string;
+}
+
 export interface Properties {
+	// Custom property for checking if it's a nested question
+	parent?: Parent;
+
 	// Statement
 	showButton?: boolean;
 	buttonText?: string;
