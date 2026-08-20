@@ -12,6 +12,8 @@
 
 	let numParticipants = $derived(insights.users.length);
 	let averageNumFollowUps = $derived.by(() => {
+		if (numParticipants === 0) return 0;
+
 		const sumFollowups = insights.users.reduce(
 			(acc, user) =>
 				acc + user.answers.reduce((acc, answer) => acc + answer.followUps.length, 0),
