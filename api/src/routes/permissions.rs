@@ -55,12 +55,20 @@ pub struct RevokePermissionQuery {
     pub role_name: String,
 }
 
-/// Represents a request query for listing permissions with optional filters.
+/// Represents a request query for listing permissions, with optional filters.
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct ListPermissionsQuery {
     pub user_id: Option<Uuid>,
     pub organization_id: Option<Uuid>,
     pub role_name: Option<String>,
+    pub offset: Option<u64>,
+    pub limit: Option<u64>,
+}
+
+/// Represents a request query for listing permissions by action, with optional filters.
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct ListPermissionsByActionQuery {
+    pub user_id: Option<Uuid>,
     pub offset: Option<u64>,
     pub limit: Option<u64>,
 }
@@ -223,6 +231,38 @@ async fn list(
     Ok((StatusCode::OK, Json(page)))
 }
 
+/// Lists the resources of the specified type that the caller can perform the specified action on.
+///
+/// # Errors
+///
+/// * Returns [`ComhairleError::BadRequest`] if the action is not provided or invalid.
+/// * Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
+#[instrument(err(Debug), skip(state))]
+async fn list_permissions_by_action(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(caller): RequiredUser,
+    system: SystemResource,
+    Path(action): Path<String>,
+    Query(query): Query<ListPermissionsByActionQuery>,
+) -> Result<(StatusCode, Json<Vec<permissions::ResourcePermission>>), ComhairleError> {
+    if let Err(err) = authorize(&state, &caller, Action::ListPermission, &system).await
+        && (!matches!(err, ComhairleError::UserNotAuthorized)
+            || caller.id != query.user_id.unwrap_or(caller.id))
+    {
+        return Err(err);
+    };
+
+    let permissions = permissions::list_permissions_by_action(
+        &state.db,
+        caller.id,
+        caller.organization_id,
+        &action,
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(permissions)))
+}
+
 /// Lists permissions for a specific resource with optional filtering. Supports pagination via offset and limit query parameters.
 ///
 /// # Errors
@@ -301,6 +341,21 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<PaginatedResults<permissions::ResourcePermission>>>()
+            }),
+        )
+        .api_route(
+            "/by-action/{action}",
+            get_with(list_permissions_by_action, |op| {
+                op.id("ListPermissionsByAction")
+                    .tag("Permissions")
+                    .summary("List resources by action")
+                    .description(
+                        "Returns resources of the specified type that the caller can perform \
+                        the specified action on. Optionally filter by user_id. Use the `offset` \
+                        and `limit` query params to page through results.",
+                    )
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<permissions::ResourcePermission>>>()
             }),
         )
         .api_route(

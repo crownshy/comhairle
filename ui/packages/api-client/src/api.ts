@@ -5466,6 +5466,31 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions/by-action/:action",
+    alias: "ListPermissionsByAction",
+    description: `Returns resources of the specified type that the caller can perform the specified action on. Optionally filter by user_id. Use the &#x60;offset&#x60; and &#x60;limit&#x60; query params to page through results.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(ResourcePermission),
+  },
+  {
+    method: "get",
     path: "/region_areas",
     alias: "ListRegionAreas",
     requestFormat: "json",
