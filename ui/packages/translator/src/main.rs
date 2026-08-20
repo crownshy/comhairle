@@ -1,5 +1,5 @@
 use core::error;
-use std::{collections::HashMap, env, fs, io};
+use std::{collections::BTreeMap, env, fs, io};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let main_language = get_main_language();
@@ -16,8 +16,8 @@ fn get_main_language() -> String {
     env::var("MAIN_LANGUAGE").unwrap_or(String::from("en"))
 }
 
-fn get_translation(language: &str) -> Result<HashMap<String, String>, io::Error> {
+fn get_translation(language: &str) -> Result<BTreeMap<String, String>, io::Error> {
     let contents = fs::read_to_string(format!("../comhairle/messages/{language}.json"))?;
-    let json = serde_json::from_str(contents.as_str())?;
+    let json: BTreeMap<String, String> = serde_json::from_str(contents.as_str())?;
     Ok(json)
 }
