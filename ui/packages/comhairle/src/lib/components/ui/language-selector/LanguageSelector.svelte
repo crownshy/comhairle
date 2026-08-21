@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
-	import { allLanguages } from '$lib/config/languages';
+	import { languages } from '$lib/config/languages';
 	import MultiSelect from '$lib/components/ui/mutli-select/multi-select.svelte';
 	import type { Option } from '$lib/components/ui/mutli-select/multi-select.svelte';
 
@@ -20,7 +20,7 @@
 	}: Props = $props();
 
 	let otherLanguageOptions = $derived<Option[]>(
-		allLanguages
+		languages
 			.filter((lang) => lang.code !== primaryLanguage)
 			.map((lang) => ({ value: lang.code, label: lang.name }))
 	);
@@ -30,7 +30,7 @@
 			.filter((code) => code !== primaryLanguage)
 			.map((code) => ({
 				value: code,
-				label: allLanguages.find((l) => l.code === code)?.name ?? code
+				label: languages.find((l) => l.code === code)?.name ?? code
 			}))
 	);
 
@@ -55,10 +55,10 @@
 		<Label class="font-semibold">Primary language</Label>
 		<Select.Root type="single" value={primaryLanguage} onValueChange={handlePrimaryChange}>
 			<Select.Trigger class="w-full">
-				{allLanguages.find((l) => l.code === primaryLanguage)?.name ?? primaryLanguage}
+				{languages.find((l) => l.code === primaryLanguage)?.name ?? primaryLanguage}
 			</Select.Trigger>
 			<Select.Content>
-				{#each allLanguages as lang (lang.code)}
+				{#each languages as lang (lang.code)}
 					<Select.Item value={lang.code}>{lang.name}</Select.Item>
 				{/each}
 			</Select.Content>
