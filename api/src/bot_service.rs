@@ -52,7 +52,7 @@ Take prior chat history into account when answering.
 Here is the knowledge base:
 {knowledge}"#;
 
-pub const COMHAIRLE_SUPPORTED_LANGUAGES: [&str; 10] = [
+pub const COMHAIRLE_SUPPORTED_LANGUAGES: [&str; 11] = [
     "Arabic",
     "Welsh",
     "English",
@@ -63,6 +63,7 @@ pub const COMHAIRLE_SUPPORTED_LANGUAGES: [&str; 10] = [
     "Pashto",
     "Portuguese",
     "Chinese",
+    "Farsi",
 ];
 
 #[async_trait]

@@ -8,7 +8,8 @@ export const allLanguages = [
 	{ code: 'pt', name: 'Portuguese' },
 	{ code: 'zh', name: 'Chinese' },
 	{ code: 'ps', name: 'Pashto' },
-	{ code: 'prs', name: 'Dari' }
+	{ code: 'prs', name: 'Dari' },
+	{ code: 'fa', name: 'Farsi' }
 ] as const;
 
 export type LanguageCode = (typeof allLanguages)[number]['code'];
@@ -18,7 +19,7 @@ export function getLanguageName(code: string): string {
 }
 
 /** Locales that are written right-to-left. */
-export const rtlLanguages = new Set(['ar', 'ps', 'prs']);
+export const rtlLanguages = new Set(['ar', 'ps', 'prs', 'fa']);
 
 export function getTextDirection(code: string): 'rtl' | 'ltr' {
 	return rtlLanguages.has(code) ? 'rtl' : 'ltr';

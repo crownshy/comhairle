@@ -14,7 +14,8 @@
 		ar: 'Arabic',
 		pt: 'Portuguese',
 		ps: 'Pashto',
-		prs: 'Dari'
+		prs: 'Dari',
+		fa: 'Farsi'
 	};
 
 	function setCookie(name: string, value: string, days: number = 365) {
