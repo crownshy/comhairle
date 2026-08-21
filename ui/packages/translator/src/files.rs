@@ -63,7 +63,6 @@ pub fn write(language: &str, language_maps: &BTreeMap<String, String>) -> () {
         Ok(_) => (),
         Err(e) => {
             eprintln!("Could not write to file: {e:?}");
-            return ();
         }
     }
 }
