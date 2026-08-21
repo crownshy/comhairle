@@ -118,6 +118,8 @@
 	"verify_user_conflict_error_body": "Votre adresse e-mail a déjà été vérifiée. Vous pouvez maintenant voir et <a href=\"/conversations\" class=\"underline\">rejoindre des conversations.</a>",
 	"something_went_wrong": "Quelque chose s'est mal passé",
 	"send_again": "Renvoyer",
+	"signup": "S'inscrire",
+	"sign_up": "S'inscrire",
 	"about_us": "À Propos",
 	"support": "Support",
 	"faq": "FAQ",
