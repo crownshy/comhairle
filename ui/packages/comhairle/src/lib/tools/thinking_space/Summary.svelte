@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -115,9 +116,9 @@
 	let consentModalOpen = $state(false);
 
 	const loadingMessages = [
-		'Drawing your thoughts together…',
-		'Looking for the threads that run through your answers…',
-		'Almost there — building a statement that reflects what you shared.'
+		m.thinking_space_summary_loading_1(),
+		m.thinking_space_summary_loading_2(),
+		m.thinking_space_summary_loading_3()
 	];
 	const skeletonLines: Array<{ first: string; second: string | null }> = [
 		{ first: 'w-full', second: 'w-11/12' },
@@ -275,12 +276,12 @@
 	}
 
 	function latestLabel(total: number): string {
-		if (total <= 1) return "Your latest thinking — edit anything that doesn't sound right";
-		return `Round ${total} — your latest thinking`;
+		if (total <= 1) return m.thinking_space_lastest_label();
+		return `${m.round()} ${total} — ${m.thinking_space_lastest_thinking()}`;
 	}
 
 	function frozenLabel(index: number): string {
-		return `Round ${index + 1} thinking`;
+		return `${m.round()} ${index + 1} ${m.thinking()}`;
 	}
 
 	let showFirstGenError = $derived(loadError && rounds.length === 0 && !pendingNextRound);
@@ -294,10 +295,11 @@
 				{topic}
 			</p>
 		{/if}
-		<h2 class="text-foreground mt-1 text-3xl font-semibold tracking-tight">Where you stand</h2>
+		<h2 class="text-foreground mt-1 text-3xl font-semibold tracking-tight">
+			{m.thinking_space_summary_heading()}
+		</h2>
 		<p class="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-relaxed">
-			Here's everything you shared, and a short statement we've drafted from it. Edit the
-			statement so it sounds like you — that's what you'll submit.
+			{m.thinking_space_summary_desc()}
 		</p>
 		{#if requestUserSharePermission && hasDecidedConsent}
 			<div class="mt-4 flex justify-center">
@@ -308,8 +310,8 @@
 
 	<!-- Answers recap: read-only source material for the summaries below. -->
 	<section>
-		<h3 class="text-foreground text-lg font-semibold">Your answers</h3>
-		<p class="text-muted-foreground mt-1 mb-6 text-sm">A recap of what you shared.</p>
+		<h3 class="text-foreground text-lg font-semibold">{m.thinking_space_your_answers()}</h3>
+		<p class="text-muted-foreground mt-1 mb-6 text-sm">{m.thinking_space_recap()}</p>
 
 		<div class="space-y-6">
 			{#each questions as q (q.id)}
@@ -359,24 +361,22 @@
 								class="text-muted-foreground inline-flex items-center gap-1 text-xs"
 							>
 								<LoaderCircle class="size-3 animate-spin" />
-								Saving
+								{m.saving()}
 							</span>
 						{:else if saveStateById[round.id] === 'saved'}
 							<span class="inline-flex items-center gap-1 text-xs text-green-600">
 								<Check class="size-3" />
-								Saved
+								{m.saving()}
 							</span>
 						{:else if saveStateById[round.id] === 'error'}
 							<span class="text-destructive inline-flex items-center gap-1 text-xs">
 								<TriangleAlert class="size-3" />
-								Not saved
+								{m.not_saved()}
 							</span>
 						{/if}
 					</div>
 					<p class="text-foreground text-sm leading-relaxed">
-						Please read the summary of your responses below. Does anything not quite
-						reflect your views? Is there anything important that feels missing? Feel
-						free to edit or add, and when you're happy with it click Confirm & Save.
+						{m.thinking_space_summary_edit_desc()}
 					</p>
 					<!-- Lock the previous round while the next one generates: once
 					generation starts this round is about to freeze, so editing it
@@ -390,7 +390,7 @@
 						class="bg-background text-base leading-relaxed {pendingNextRound
 							? 'cursor-not-allowed opacity-70'
 							: ''}"
-						placeholder="Your latest thinking…"
+						placeholder={m.thinking_space_latest_thinking()}
 					/>
 				</div>
 			{:else}
@@ -437,7 +437,7 @@
 		{#if showFirstGenError}
 			<div class="space-y-3 text-center">
 				<p class="text-muted-foreground text-sm">
-					Couldn't generate your summary. Please try again.
+					{m.thinking_space_summary_gen_failure()}
 				</p>
 				<div class="flex justify-center">
 					<Button
@@ -447,7 +447,7 @@
 						disabled={!onRetryGenerate}
 					>
 						<RotateCcw class="size-3.5" />
-						Try again
+						{m.try_again()}
 					</Button>
 				</div>
 			</div>
@@ -457,7 +457,7 @@
 					class="border-border flex items-center justify-between gap-3 rounded-lg border px-4 py-3"
 				>
 					<p class="text-muted-foreground text-sm">
-						Couldn't generate the new summary round.
+						{m.thinking_space_summary_gen_round_failure()}
 					</p>
 					<Button
 						variant="outline"
@@ -466,7 +466,7 @@
 						disabled={!onRetryGenerate}
 					>
 						<RotateCcw class="size-3.5" />
-						Try again
+						{m.try_again()}
 					</Button>
 				</div>
 			{/if}
@@ -479,7 +479,7 @@
 					disabled={!onAnswerMore}
 				>
 					<PlusCircle class="size-4" />
-					I want to answer more questions
+					{m.thinking_space_answer_more()}
 				</Button>
 				<Button
 					size="lg"
@@ -488,7 +488,7 @@
 					disabled={!valueFor(rounds[rounds.length - 1]).trim() || submitting}
 				>
 					<Check class="size-4" />
-					{submitting ? 'Saving...' : 'Confirm & Save'}
+					{submitting ? `${m.saving()}...` : m.confirm_and_save()}
 				</Button>
 			</div>
 		{/if}
