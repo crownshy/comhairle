@@ -1,5 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"$language": "Cymraeg",
 	"already_have_an_account_login": "Oes gennych gyfrif yn barod? Mewngofnodi",
 	"anonymous_id": "ID Dienw",
 	"anonymous_id_tooltip": "Gallwch gynhyrchu un trwy gofrestru'n ddienw",

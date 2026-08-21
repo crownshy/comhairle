@@ -1,5 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"$language": "فارسی",
 	"already_have_an_account_login": "از قبل حساب دارید؟ وارد شوید",
 	"anonymous_id": "شناسه ناشناس",
 	"anonymous_id_tooltip": "می‌توانید با ثبت‌نام ناشناس یکی ایجاد کنید",

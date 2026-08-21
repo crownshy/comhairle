@@ -1,5 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"$language": "پښتو",
 	"already_have_an_account_login": "دمخه حساب لرئ؟ ننوځئ",
 	"anonymous_id": "ناشناسه پېژندنه",
 	"anonymous_id_tooltip": "تاسو کولی شئ په ناشناسه توګه د نوم لیکنې له لارې یو جوړ کړئ",

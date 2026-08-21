@@ -1,5 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"$language": "中国人",
 	"already_have_an_account_login": "已有账户？登录",
 	"anonymous_id": "匿名ID",
 	"anonymous_id_tooltip": "您可以通过匿名注册来生成一个",

@@ -1,5 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"$language": "Gàidhlig",
 	"already_have_an_account_login": "A bheil cunntas agad mu thràth? Log a-steach",
 	"anonymous_id": "ID Gun Urra",
 	"anonymous_id_tooltip": "Faodaidh tu fear a ghineadh le bhith a' clàradh gun urra",

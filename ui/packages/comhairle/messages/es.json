@@ -1,5 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"$language": "Español",
 	"already_have_an_account_login": "¿Ya tienes una cuenta? Iniciar sesión",
 	"anonymous_id": "ID Anónimo",
 	"anonymous_id_tooltip": "Puedes generar uno registrándote de forma anónima",

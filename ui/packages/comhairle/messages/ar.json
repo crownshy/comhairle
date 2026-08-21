@@ -1,5 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"$language": "عربي",
 	"already_have_an_account_login": "هل لديك حساب بالفعل؟ تسجيل الدخول",
 	"anonymous_id": "معرف مجهول",
 	"anonymous_id_tooltip": "يمكنك إنشاء واحد من خلال التسجيل بشكل مجهول",
