@@ -56,7 +56,8 @@ pub fn write(language: &str, language_maps: &BTreeMap<String, String>) -> () {
             "\t".repeat(tabs) + &line[spaces..]
         })
         .collect::<Vec<_>>()
-        .join("\n");
+        .join("\n")
+        + "\n";
 
     match fs::write(LanguageFiles::path(language), contents) {
         Ok(_) => (),
