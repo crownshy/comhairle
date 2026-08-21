@@ -47,6 +47,17 @@ pub fn write(language: &str, language_maps: &BTreeMap<String, String>) -> () {
         }
     };
 
+    // to_string_pretty only seems to use spaces, so converting them to tabs here
+    let contents = contents
+        .lines()
+        .map(|line| {
+            let spaces = line.chars().take_while(|c| *c == ' ').count();
+            let tabs = spaces / 2;
+            "\t".repeat(tabs) + &line[spaces..]
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
     match fs::write(LanguageFiles::path(language), contents) {
         Ok(_) => (),
         Err(e) => {
