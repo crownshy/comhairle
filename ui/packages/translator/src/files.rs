@@ -5,21 +5,19 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const UNSAFE_LANGUAGES_DIR: &str = "../comhairle/messages/";
-
 pub struct LanguageFiles;
 impl LanguageFiles {
     fn dir() -> PathBuf {
-        Path::new(UNSAFE_LANGUAGES_DIR).to_path_buf()
+        Path::new("../comhairle/messages/").to_path_buf()
     }
 
     fn path(language: &str) -> PathBuf {
-        Path::new(UNSAFE_LANGUAGES_DIR).join(format!("{language}.json"))
+        LanguageFiles::dir().join(format!("{language}.json"))
     }
 
     fn languages<'a>()
     -> Result<impl Iterator<Item = Result<Option<OsString>, std::io::Error>>, std::io::Error> {
-        let dir = fs::read_dir(Path::new(UNSAFE_LANGUAGES_DIR))?;
+        let dir = fs::read_dir(LanguageFiles::dir())?;
         let languages =
             dir.map(|entry| entry.map(|e| e.path().file_prefix().map(|p| p.to_owned())));
         Ok(languages)

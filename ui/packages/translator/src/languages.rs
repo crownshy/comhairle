@@ -33,8 +33,7 @@ pub fn get_language_maps() -> Result<HashMap<String, BTreeMap<String, String>>, 
             }
         };
 
-        let file = files::read(&language);
-        let file = match file {
+        let file = match files::read(&language) {
             Ok(f) => f,
             Err(e) => {
                 eprintln!("{e:?}");
