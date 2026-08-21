@@ -236,11 +236,8 @@ async fn new_translation_tx(
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
-    let text_translation: TextTranslation =
+    let _text_translation: TextTranslation =
         sqlx::query_as_with(&sql, values).fetch_one(conn).await?;
-    println!();
-    println!("    >>>>    Text translation: {text_translation:#?}");
-    println!();
 
     Ok(text_content)
 }
