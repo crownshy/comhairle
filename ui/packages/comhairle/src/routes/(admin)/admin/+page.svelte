@@ -4,6 +4,7 @@
 	import type { PageProps } from './$types';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { Home } from 'lucide-svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let props: PageProps = $props();
 	let ownedConversations = $derived(props.data.ownedConversations?.records ?? []);
@@ -20,7 +21,7 @@
 	<Breadcrumb.Root>
 		<Breadcrumb.List>
 			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/admin">Workspace</Breadcrumb.Link>
+				<Breadcrumb.Link href="/admin">{m.workspace()}</Breadcrumb.Link>
 			</Breadcrumb.Item>
 			<Breadcrumb.Separator />
 			<Breadcrumb.Item>Conversations</Breadcrumb.Item>

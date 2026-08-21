@@ -3,6 +3,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { Button } from '$lib/components/ui/button';
 	import { Building2, Plus } from 'lucide-svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let props: PageProps = $props();
 	let organizationAccess = $derived(props.data.userOrganizations?.organizations ?? []);
@@ -21,7 +22,7 @@
 	<Breadcrumb.Root>
 		<Breadcrumb.List>
 			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/admin">Workspace</Breadcrumb.Link>
+				<Breadcrumb.Link href="/admin">{m.workspace()}</Breadcrumb.Link>
 			</Breadcrumb.Item>
 			<Breadcrumb.Separator />
 			<Breadcrumb.Item>Organisations</Breadcrumb.Item>
