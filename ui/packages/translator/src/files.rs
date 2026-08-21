@@ -38,11 +38,22 @@ pub fn read(language: &str) -> Result<BTreeMap<String, String>, std::io::Error> 
     Ok(json)
 }
 
-pub fn write(language: &str) -> Result<BTreeMap<String, String>, std::io::Error> {
-    let contents =
-        fs::read_to_string(Path::new(&format!("../comhairle/messages/{language}.json")))?;
-    let json: BTreeMap<String, String> = serde_json::from_str(contents.as_str())?;
-    Ok(json)
+pub fn write(language: &str, language_maps: &BTreeMap<String, String>) -> () {
+    let contents = match serde_json::to_string_pretty(&language_maps) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Could not convert to json: {e:?}");
+            return ();
+        }
+    };
+
+    match fs::write(LanguageFiles::path(language), contents) {
+        Ok(_) => (),
+        Err(e) => {
+            eprintln!("Could not write to file: {e:?}");
+            return ();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -73,7 +84,7 @@ mod tests {
         let Ok(paths) = paths else {
             panic!("Couldn't read directory");
         };
-        let paths: Vec<Result<OsString, std::io::Error>> = paths.collect();
+        let paths: Vec<Result<Option<OsString>, std::io::Error>> = paths.collect();
         assert!(paths.len() > 1);
     }
 }
