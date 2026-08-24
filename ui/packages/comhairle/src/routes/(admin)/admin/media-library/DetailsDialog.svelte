@@ -14,7 +14,6 @@
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import Media from '$lib/interfaces/Media';
-	import { formatDateShort, formatTime } from '$lib/utils';
 
 	interface Props extends MediaDto {
 		type: HTMLMediaElement | undefined;
