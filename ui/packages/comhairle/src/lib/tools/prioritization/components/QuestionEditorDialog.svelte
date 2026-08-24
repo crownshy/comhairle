@@ -23,6 +23,7 @@
 		localizeTranslatableJson,
 		traverseTranslatableJsonAndCreateTranslations
 	} from '$lib/components/Translation/translationUtils';
+	import { invalidate } from '$app/navigation';
 
 	type Props = {
 		open: boolean;
@@ -115,7 +116,8 @@
 			getPrimaryFallback: () => draft.text.localized,
 			onEdit: async (content) => {
 				draft.text.localized = content;
-			}
+			},
+			refresh: async () => await invalidate('conversation:workflow')
 		});
 	});
 
@@ -133,7 +135,8 @@
 				getPrimaryFallback: () => category.label.localized ?? '',
 				onEdit: async (content) => {
 					draft.type.categories[index].label.localized = content;
-				}
+				},
+				refresh: async () => await invalidate('conversation:workflow')
 			});
 		});
 	});
@@ -152,7 +155,8 @@
 				getPrimaryFallback: () => draft.type.minLabel.localized ?? '',
 				onEdit: async (content) => {
 					draft.type.minLabel.localized = content;
-				}
+				},
+				refresh: async () => await invalidate('conversation:workflow')
 			}),
 			maxLabel: createTextContentSource({
 				getTranslation: () => draft.type.maxLabel.translations ?? undefined,
@@ -161,7 +165,8 @@
 				getPrimaryFallback: () => draft.type.maxLabel.localized ?? '',
 				onEdit: async (content) => {
 					draft.type.maxLabel.localized = content;
-				}
+				},
+				refresh: async () => await invalidate('conversation:workflow')
 			})
 		};
 	});
