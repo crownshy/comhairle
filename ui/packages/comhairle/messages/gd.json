@@ -82,6 +82,8 @@
 	"landing_page_subtitle": "Àrd-ùrlar far am bi coimhearsnachdan a' tighinn còmhla ann an còmhraidhean, a' roinn bheachdan, a' meòrachadh còmhla, agus a' cuideachadh le co-dhùnaidhean nas fheàrr a chruthachadh.",
 	"conversations": "Còmhraidhean",
 	"conversations_find_open_conversations": "Lorg co-chomhairlean fhosgailte anns am faod thu pàirt a ghabhail, no lorg cuspairean a tha gad ùrachadh as motha.",
+	"conversations_search": "Lorg",
+	"conversations_no_conversations_found": "Cha deach còmhraidhean a lorg",
 	"conversations_return_error_message": "Cha b' urrainn dhuinn an t-adhartas agad airson a' chòmhraidh seo a luchdachadh.",
 	"conversations_return_error_link": "Till gu duilleag nan còmhraidhean?",
 	"conversations_return_heading": "Tha thu air a' chòmhradh seo a choileanadh!",

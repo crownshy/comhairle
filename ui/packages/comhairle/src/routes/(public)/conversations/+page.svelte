@@ -61,7 +61,7 @@
 			<Search />
 		</div>
 		{#if data.records.length === 0}
-			<h2 class="text-muted-foreground pt-10">No conversations found</h2>
+			<h2 class="text-muted-foreground pt-10">{m.conversations_no_conversations_found()}</h2>
 		{/if}
 	</header>
 

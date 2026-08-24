@@ -82,6 +82,8 @@
 	"landing_page_subtitle": "Une plateforme où les communautés rejoignent des conversations, partagent des idées, réfléchissent ensemble et contribuent à façonner de meilleures décisions.",
 	"conversations": "Conversations",
 	"conversations_find_open_conversations": "Trouvez des consultations ouvertes auxquelles vous pouvez participer, ou recherchez des sujets qui vous intéressent le plus.",
+	"conversations_search": "Recherche",
+	"conversations_no_conversations_found": "Aucune conversation trouvée",
 	"conversations_return_error_message": "Nous n'avons pas pu charger votre progression pour cette conversation.",
 	"conversations_return_error_link": "Retourner à la page des conversations ?",
 	"conversations_return_heading": "Vous avez terminé cette conversation !",

@@ -83,6 +83,8 @@
 	"landing_page_subtitle": "یو پلیټ فارم چیرې چې ټولنې په خبرو اترو کې ګډون کوي، نظرونه شریکوي، په ګډه فکر کوي، او د غوره پرېکړو په جوړولو کې مرسته کوي.",
 	"conversations": "خبرې اترې",
 	"conversations_find_open_conversations": "خلاصې سلا مشورې ومومئ چې تاسو یې ګډون کولی شئ، یا هغه موضوعات ولټوئ چې تاسو یې خورا زیاته لیوالتیا لرئ.",
+	"conversations_search": "د لټون",
+	"conversations_no_conversations_found": "هیڅ خبرې اترې ونه موندل شوې",
 	"conversations_return_error_message": "موږ ونه توانېدو چې د دې خبرو اترو لپاره ستاسو پرمختګ بار کړو.",
 	"conversations_return_error_link": "د خبرو اترو پاڼې ته بیرته لاړ شئ؟",
 	"conversations_return_heading": "تاسو دا خبرې اترې بشپړې کړې!",

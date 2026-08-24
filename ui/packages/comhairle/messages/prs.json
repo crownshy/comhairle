@@ -83,6 +83,8 @@
 	"landing_page_subtitle": "یک پلتفورم که در آن اجتماعات به گفتگوها می‌پیوندند، نظرها را به اشتراک می‌گذارند، با هم تأمل می‌کنند و به شکل‌دهی تصمیم‌های بهتر کمک می‌کنند.",
 	"conversations": "گفتگوها",
 	"conversations_find_open_conversations": "مشوره‌های باز را پیدا کنید که می‌توانید در آن‌ها اشتراک کنید، یا موضوعاتی را که بیشتر به آن علاقه دارید جستجو کنید.",
+	"conversations_search": "جستجو کردن",
+	"conversations_no_conversations_found": "هیچ مکالمه ای پیدا نشد",
 	"conversations_return_error_message": "ما نتوانستیم پیشرفت شما را برای این گفتگو بارگذاری کنیم.",
 	"conversations_return_error_link": "به صفحه گفتگوها برگردید؟",
 	"conversations_return_heading": "شما این گفتگو را تکمیل کردید!",
