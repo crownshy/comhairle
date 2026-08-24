@@ -2185,6 +2185,41 @@ export const PartialFeedback = z
   .partial()
   .passthrough();
 export type PartialFeedback = z.infer<typeof PartialFeedback>;
+export const ComhairleLlm = z
+  .object({ model_name: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
+export const ComhairlePrompt = z
+  .object({
+    cross_languages: z.union([z.array(z.string()), z.null()]),
+    empty_response: z.union([z.string(), z.null()]),
+    llm_prompt: z.union([z.string(), z.null()]),
+    opener: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type ComhairlePrompt = z.infer<typeof ComhairlePrompt>;
+export const ComhairleChat = z
+  .object({
+    id: z.string(),
+    knowledge_base_ids: z.array(z.string()),
+    llm_model: z.union([ComhairleLlm, z.null()]).optional(),
+    name: z.string(),
+    prompt: z.union([ComhairlePrompt, z.null()]).optional(),
+  })
+  .passthrough();
+export type ComhairleChat = z.infer<typeof ComhairleChat>;
+export const UpdateChatRequest = z
+  .object({
+    knowledge_base_ids: z.union([z.array(z.string()), z.null()]),
+    llm_model: z.union([ComhairleLlm, z.null()]),
+    name: z.union([z.string(), z.null()]),
+    prompt: z.union([ComhairlePrompt, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
 export const ComhairleChatSession = z
   .object({
     chat_id: z.string(),
@@ -3209,6 +3244,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   FeedbackDto,
   CreateFeedbackDTO,
   PartialFeedback,
+  ComhairleLlm,
+  ComhairlePrompt,
+  ComhairleChat,
+  UpdateChatRequest,
   ComhairleChatSession,
   ChatConversationRequest,
   page_size,
@@ -3665,6 +3704,29 @@ Use a raw HTTP request and process the response body incrementally.`,
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/chats",
+    alias: "GetChat",
+    description: `Get a conversation&#x27;s bot service chat`,
+    requestFormat: "json",
+    response: ComhairleChat,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/chats",
+    alias: "UpdateChat",
+    description: `Update a conversation&#x27;s bot service chat`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateChatRequest,
+      },
+    ],
+    response: ComhairleChat,
   },
   {
     method: "get",

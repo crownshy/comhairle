@@ -1034,10 +1034,7 @@ impl From<UpdateChatRequest> for UpdateChat {
             llm: input.llm_model.map(|model| Llm {
                 model_name: model.model_name,
             }),
-            prompt: input.prompt.map(|prompt| Prompt {
-                prompt: prompt.llm_prompt,
-                ..Default::default()
-            }),
+            prompt: input.prompt.map(|prompt| Prompt { ..prompt.into() }),
             ..Default::default()
         }
     }

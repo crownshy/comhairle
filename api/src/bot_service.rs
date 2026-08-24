@@ -52,20 +52,6 @@ Take prior chat history into account when answering.
 Here is the knowledge base:
 {knowledge}"#;
 
-pub const COMHAIRLE_SUPPORTED_LANGUAGES: [&str; 11] = [
-    "Arabic",
-    "Welsh",
-    "English",
-    "Spanish",
-    "French",
-    "Scottish Gaelic",
-    "Dari",
-    "Pashto",
-    "Portuguese",
-    "Chinese",
-    "Farsi",
-];
-
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait ComhairleBotService: Send + Sync {

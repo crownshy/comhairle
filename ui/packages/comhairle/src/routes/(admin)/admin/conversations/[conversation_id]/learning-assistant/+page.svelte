@@ -1,5 +1,9 @@
 <script lang="ts">
-	import type { ComhairleDocument, ConversationWithTranslations } from '@crownshy/api-client/api';
+	import type {
+		ComhairleChat,
+		ComhairleDocument,
+		ConversationWithTranslations
+	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidate } from '$app/navigation';
 	import PageHeader from '$lib/components/PageHeader.svelte';
@@ -23,6 +27,9 @@
 		type ImageMap
 	} from '$lib/learn/tiptapToPdf';
 	import LearnSyncStatus from './LearnSyncStatus.svelte';
+	import { allLanguages } from '$lib/config/languages';
+	import MultiSelect from '$lib/components/ui/mutli-select/multi-select.svelte';
+	import type { Option } from '$lib/components/ui/mutli-select/multi-select.svelte';
 
 	const MAX_SIZE = 50 * MB;
 
@@ -30,11 +37,13 @@
 		data: {
 			documents: ComhairleDocument[];
 			conversation: ConversationWithTranslations;
+			chat: ComhairleChat;
 		};
 	};
 
 	let { data }: Props = $props();
 	let conversation = $derived(data.conversation);
+	let chat = $derived(data.chat);
 	let documents = $derived(data.documents);
 
 	// The synced learn-step content is a knowledge-base document like any other, but it is
@@ -219,6 +228,41 @@
 		await invalidate('knowledge-base:documents');
 	}
 
+	let allLanguageOptions = $derived<Option[]>(
+		allLanguages.map((lang) => ({ value: lang.name, label: lang.name }))
+	);
+
+	let selectedCrossLanguages = $derived<Option[]>(
+		chat?.prompt?.cross_languages && chat.prompt.cross_languages.length
+			? allLanguageOptions.filter(
+					(langOption) =>
+						!!chat?.prompt?.cross_languages?.find((lang) => lang === langOption.value)
+				)
+			: []
+	);
+
+	async function handleCrossLanguagesChange(options: Option[]) {
+		const result = await tryCatchAsync(() =>
+			apiClient.UpdateChat(
+				{ prompt: { cross_languages: [...options.map((o) => o.value)] } },
+				{ params: { conversation_id: conversation.id } }
+			)
+		);
+
+		if (result.err !== null) {
+			return notifications.send({
+				priority: 'ERROR',
+				message: 'Failed to update learning assistant cross languages'
+			});
+		}
+
+		notifications.send({
+			priority: 'INFO',
+			message: 'Successfully updated learning assistant cross languages'
+		});
+		invalidate('knowledge-base:documents');
+	}
+
 	// FIX: Upload from Url functionality
 	// async function uploadFromUrl() {
 	// 	if (!urlInput.trim()) {
@@ -383,6 +427,32 @@
 			{#if parsedDocuments?.length}
 				<ParsedFileList documents={parsedDocuments} {conversation} />
 			{/if}
+		</div>
+	</div>
+
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<div class="lg:w-50 lg:shrink-0 lg:pt-1">
+			<p class="text-sm font-semibold">Cross-language Search</p>
+		</div>
+		<div class="flex-1 space-y-4">
+			<p class="text-muted-foreground text-base">
+				Lets users ask questions in one language and still get answers from documents
+				written in another. Before searching, your question is translated into the
+				document's language(s), so nothing gets missed just because of a language mismatch.
+			</p>
+			<div class="flex max-w-md flex-col gap-3">
+				<MultiSelect
+					defaultOptions={allLanguageOptions}
+					selected={selectedCrossLanguages}
+					onSelectedChange={handleCrossLanguagesChange}
+					placeholder="Select languages..."
+					ariaLabel="Supported languages"
+					emptyMessage="No languages found"
+					class="w-full"
+				/>
+			</div>
 		</div>
 	</div>
 </div>
