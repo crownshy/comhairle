@@ -6,7 +6,7 @@ use std::{
 
 use async_trait::async_trait;
 use axum::body::Bytes;
-use futures::{Stream, StreamExt};
+use futures::stream::{self, Stream, StreamExt};
 use ragflow::{
     ConvoQuestion, DeleteResources, GetQueryParams, Input, MessageReference, RagflowError,
     SessionMessage,
@@ -545,9 +545,9 @@ impl ComhairleBotService for ComhairleRagBotService {
         let stream =
             ragflow::chat::session::stream_chat_conversation(&self.client, chat_id, body).await?;
 
-        let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
+        let mapped_stream = Box::pin(stream.map(|item| item.map_err(ComhairleError::from)));
 
-        Ok(Box::pin(mapped_stream))
+        intercept_ragflow_stream(mapped_stream).await
     }
 
     async fn get_agent(
@@ -725,9 +725,9 @@ impl ComhairleBotService for ComhairleRagBotService {
             ragflow::agent::session::stream_agent_conversation(&self.client, agent_id, body)
                 .await?;
 
-        let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
+        let mapped_stream = Box::pin(stream.map(|item| item.map_err(ComhairleError::from)));
 
-        Ok(Box::pin(mapped_stream))
+        intercept_ragflow_stream(mapped_stream).await
     }
 
     async fn parse_sse_stream_to_events(
@@ -742,6 +742,55 @@ impl ComhairleBotService for ComhairleRagBotService {
 
         Ok(events)
     }
+}
+
+/// Peek at first stream chunks to check for `ERROR:` answer chunks. Prevent
+/// such chunks reaching frontend UI by returning [`ComhairleError`] if such
+/// chunks are detected.
+async fn intercept_ragflow_stream(
+    mut stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
+) -> Result<
+    Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
+    ComhairleError,
+> {
+    if let Some(first) = stream.next().await {
+        let first = first?;
+
+        if extract_ragflow_stream_error(&first).is_some() {
+            return Err(ComhairleError::StreamChunkError(
+                "Chunk contains ragflow 'ERROR:' message. Aborting.".to_string(),
+            ));
+        }
+
+        // No error - put the chunk back on the front of the stream.
+        let head = stream::once(async move { Ok(first) });
+        return Ok(Box::pin(head.chain(stream)));
+    }
+
+    Ok(stream)
+}
+
+fn extract_ragflow_stream_error(bytes: &Bytes) -> Option<String> {
+    let text = std::str::from_utf8(bytes).ok()?;
+
+    for line in text.lines() {
+        let line = line.trim();
+        let Some(payload) = line.strip_prefix("data:") else {
+            continue;
+        };
+
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(payload.trim()) else {
+            continue;
+        };
+
+        if let Some(answer) = json.pointer("/data/answer").and_then(|v| v.as_str())
+            && answer.trim_start().starts_with("ERROR:")
+        {
+            return Some(answer.to_string());
+        }
+    }
+
+    None
 }
 
 fn build_agent_dsl() -> Result<serde_json::Value, ComhairleError> {
@@ -985,10 +1034,7 @@ impl From<UpdateChatRequest> for UpdateChat {
             llm: input.llm_model.map(|model| Llm {
                 model_name: model.model_name,
             }),
-            prompt: input.prompt.map(|prompt| Prompt {
-                prompt: prompt.llm_prompt,
-                ..Default::default()
-            }),
+            prompt: input.prompt.map(|prompt| Prompt { ..prompt.into() }),
             ..Default::default()
         }
     }
@@ -1372,5 +1418,137 @@ mod tests {
         let fixed = reassociate_message_references(messages);
 
         assert_eq!(reference_ids(&fixed[1]), Some(vec!["r1".to_string()]));
+    }
+
+    fn sse_stream_chunk(answer: &str) -> Bytes {
+        Bytes::from(format!(r#"data:{{"data": {{"answer": "{answer}"}}}}"#))
+    }
+
+    #[test]
+    fn returns_none_for_normal_answer_chunk() {
+        let chunk = sse_stream_chunk("Some test chunk");
+        assert_eq!(extract_ragflow_stream_error(&chunk), None);
+    }
+
+    #[test]
+    fn detects_error_in_answer() {
+        let chunk = sse_stream_chunk("ERROR: (Test error)");
+        let result = extract_ragflow_stream_error(&chunk);
+        assert!(result.is_some(), "Error chunk not detected");
+        assert!(
+            result.unwrap().starts_with("ERROR:"),
+            "Error chunk data incorrectly passed through"
+        );
+    }
+
+    #[test]
+    fn returns_none_when_answer_missing() {
+        let chunk = Bytes::from(r#"data:{"code": 0, "data": {"other_field": "Some test chunk"}}"#);
+        assert_eq!(
+            extract_ragflow_stream_error(&chunk),
+            None,
+            "ERROR chunk detected"
+        );
+    }
+
+    #[tokio::test]
+    async fn errors_out_when_first_chunk_is_error() -> Result<(), Box<dyn Error>> {
+        let chunks = stream::iter(vec![
+            Ok(sse_stream_chunk("ERROR: (Some bad text)")),
+            Ok(sse_stream_chunk("Some safe text")),
+        ]);
+        let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
+
+        let result = intercept_ragflow_stream(boxed).await;
+        assert!(
+            matches!(result, Err(ComhairleError::StreamChunkError(_))),
+            "Error chunk not detected"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn passes_through_all_chunks_when_no_error() -> Result<(), Box<dyn Error>> {
+        let chunks = stream::iter(vec![
+            Ok(sse_stream_chunk("Some safe text")),
+            Ok(sse_stream_chunk("Some more safe text")),
+        ]);
+        let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
+
+        let result = intercept_ragflow_stream(boxed).await?;
+        let chunks: Vec<_> = result.collect().await;
+
+        assert_eq!(chunks.len(), 2);
+        let first_chunk = std::str::from_utf8(chunks[0].as_ref().unwrap()).unwrap();
+        let second_chunk = std::str::from_utf8(chunks[1].as_ref().unwrap()).unwrap();
+
+        assert!(
+            first_chunk.contains("Some safe text"),
+            "First chunk incorrect data"
+        );
+        assert!(
+            second_chunk.contains("Some more safe text"),
+            "Second chunk incorrect data"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn empty_stream_returns_empty_stream() -> Result<(), Box<dyn Error>> {
+        let chunks = stream::iter(Vec::<Result<Bytes, ComhairleError>>::new());
+        let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
+
+        let result = intercept_ragflow_stream(boxed).await?;
+        let chunks: Vec<_> = result.collect().await;
+
+        assert!(chunks.is_empty(), "Stream chunks not empty");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn comhairle_error_propogated_as_is() -> Result<(), Box<dyn Error>> {
+        let chunks = stream::iter(vec![Err(ComhairleError::BadRequest(
+            "missing param".to_string(),
+        ))]);
+        let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
+
+        let result = intercept_ragflow_stream(boxed).await;
+
+        assert!(
+            matches!(result, Err(ComhairleError::BadRequest(_))),
+            "Comhairle error not propogated"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn error_chunks_after_first_are_passed_through() -> Result<(), Box<dyn Error>> {
+        let chunks = stream::iter(vec![
+            Ok(sse_stream_chunk("Some safe text")),
+            Ok(sse_stream_chunk("ERROR: (something bad)")),
+        ]);
+        let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
+
+        let result = intercept_ragflow_stream(boxed).await?;
+        let chunks: Vec<_> = result.collect().await;
+
+        let first_chunk = std::str::from_utf8(chunks[0].as_ref().unwrap()).unwrap();
+        let second_chunk = std::str::from_utf8(chunks[1].as_ref().unwrap()).unwrap();
+
+        assert_eq!(chunks.len(), 2);
+        assert!(
+            first_chunk.contains("Some safe text"),
+            "First chunk incorrect data"
+        );
+        assert!(
+            second_chunk.contains("ERROR: (something bad)"),
+            "Second chunk incorrect data"
+        );
+
+        Ok(())
     }
 }
