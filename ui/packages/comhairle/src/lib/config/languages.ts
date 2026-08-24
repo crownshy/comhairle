@@ -1,26 +1,48 @@
 import { m } from '$lib/paraglide/messages';
-import { typed } from '$lib/utils/types';
 import { locales } from '$lib/paraglide/runtime';
 
 export type LanguageCode = (typeof locales)[number];
 
-interface Language {
-	code: LanguageCode;
-	name: string;
+export function getLanguageName(
+	languageCode: LanguageCode,
+	as: 'native' | 'local' = 'local'
+): string {
+	switch (as) {
+		case 'native':
+			return m.$language({}, { locale: languageCode });
+		case 'local': {
+			// This would usually just be m.$language();
+			// But currently we only want English on the Admin side, so it's hardcoded instead of using translations
+			switch (languageCode) {
+				case 'en':
+					return 'English';
+				case 'gd':
+					return 'Gaelic';
+				case 'cy':
+					return 'Welsh';
+				case 'zh':
+					return 'Chinese';
+				case 'es':
+					return 'Spanish';
+				case 'fr':
+					return 'French';
+				case 'ar':
+					return 'Arabic';
+				case 'pt':
+					return 'Portuguese';
+				case 'ps':
+					return 'Pashto';
+				case 'prs':
+					return 'Dari';
+				case 'fa':
+					return 'Persian';
+			}
+		}
+	}
 }
-
-export const languages: Language[] = locales.map((code) => ({
-	code,
-	name: m.$language({}, { locale: code })
-}));
-
-export function getLanguageName(code: string): string {
-	return languages.find((l) => l.code === code)?.name ?? code;
-}
-
-/** Locales that are written right-to-left. */
-export const rtlLanguages = new Set<LanguageCode>(typed<LanguageCode[]>(['ar', 'ps', 'prs', 'fa']));
 
 export function getTextDirection(code: LanguageCode): 'rtl' | 'ltr' {
-	return rtlLanguages.has(code) ? 'rtl' : 'ltr';
+	/** Locales that are written right-to-left. */
+	const rtlLanguages: LanguageCode[] = ['ar', 'ps', 'prs', 'fa'];
+	return rtlLanguages.includes(code) ? 'rtl' : 'ltr';
 }

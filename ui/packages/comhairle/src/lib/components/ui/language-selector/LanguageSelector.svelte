@@ -1,13 +1,14 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
-	import { languages } from '$lib/config/languages';
+	import { getLanguageName, type LanguageCode } from '$lib/config/languages';
 	import MultiSelect from '$lib/components/ui/mutli-select/multi-select.svelte';
 	import type { Option } from '$lib/components/ui/mutli-select/multi-select.svelte';
+	import { locales } from '$lib/paraglide/runtime';
 
 	interface Props {
-		primaryLanguage: string;
-		supportedLanguages: string[];
+		primaryLanguage: LanguageCode;
+		supportedLanguages: LanguageCode[];
 		onPrimaryChange?: (language: string) => void;
 		onSupportedChange?: (languages: string[]) => void;
 	}
@@ -20,9 +21,9 @@
 	}: Props = $props();
 
 	let otherLanguageOptions = $derived<Option[]>(
-		languages
-			.filter((lang) => lang.code !== primaryLanguage)
-			.map((lang) => ({ value: lang.code, label: lang.name }))
+		locales
+			.filter((locale) => locale !== primaryLanguage)
+			.map((locale) => ({ value: locale, label: getLanguageName(locale) }))
 	);
 
 	let selectedOtherLanguages = $derived<Option[]>(
@@ -30,21 +31,22 @@
 			.filter((code) => code !== primaryLanguage)
 			.map((code) => ({
 				value: code,
-				label: languages.find((l) => l.code === code)?.name ?? code
+				label: getLanguageName(code)
 			}))
 	);
 
 	function handlePrimaryChange(value: string | undefined) {
 		if (!value) return;
-		primaryLanguage = value;
-		if (!supportedLanguages.includes(value)) {
-			supportedLanguages = [value, ...supportedLanguages];
+		const languageCode = value as LanguageCode;
+		primaryLanguage = languageCode;
+		if (!supportedLanguages.includes(languageCode)) {
+			supportedLanguages = [languageCode].concat(supportedLanguages);
 		}
-		onPrimaryChange?.(value);
+		onPrimaryChange?.(languageCode);
 	}
 
 	function handleOtherLanguagesChange(options: Option[]) {
-		supportedLanguages = [primaryLanguage, ...options.map((o) => o.value)];
+		supportedLanguages = [primaryLanguage].concat(options.map((o) => o.value as LanguageCode));
 		onSupportedChange?.(supportedLanguages);
 	}
 </script>
@@ -55,11 +57,11 @@
 		<Label class="font-semibold">Primary language</Label>
 		<Select.Root type="single" value={primaryLanguage} onValueChange={handlePrimaryChange}>
 			<Select.Trigger class="w-full">
-				{languages.find((l) => l.code === primaryLanguage)?.name ?? primaryLanguage}
+				{getLanguageName(primaryLanguage)}
 			</Select.Trigger>
 			<Select.Content>
-				{#each languages as lang (lang.code)}
-					<Select.Item value={lang.code}>{lang.name}</Select.Item>
+				{#each locales as locale (locale)}
+					<Select.Item value={locale}>{getLanguageName(locale)}</Select.Item>
 				{/each}
 			</Select.Content>
 		</Select.Root>

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
+	import { getLocale, locales, setLocale, type Locale } from '$lib/paraglide/runtime';
 	import * as Select from '$lib/components/ui/select';
 	import { Day } from '$lib/utils/units';
-	import { languages, type LanguageCode } from '$lib/config/languages';
+	import { getLanguageName, type LanguageCode } from '$lib/config/languages';
 
 	interface Props {
 		class?: string;
@@ -11,7 +11,7 @@
 	let { class: className }: Props = $props();
 
 	let currentLanguage = $state<LanguageCode>(getLocale());
-	let languageName = $derived(languages.find((l) => l.code === currentLanguage)?.name ?? '');
+	let languageName = $derived(getLanguageName(currentLanguage, 'native'));
 
 	function setCookie(name: string, value: string, days: number = 365) {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -26,8 +26,6 @@
 		setLocale(newLanguage);
 		currentLanguage = newLanguage;
 	}
-
-	console.log('languages:', languages);
 </script>
 
 <Select.Root type="single" onValueChange={(locale) => switchToLanguage(locale as Locale)}>
@@ -35,8 +33,8 @@
 		<span class="text-center">{languageName}</span>
 	</Select.Trigger>
 	<Select.Content>
-		{#each languages as language (language.code)}
-			<Select.Item value={language.code}>{language.name}</Select.Item>
+		{#each locales as locale (locale)}
+			<Select.Item value={locale}>{getLanguageName(locale, 'native')}</Select.Item>
 		{/each}
 	</Select.Content>
 </Select.Root>
