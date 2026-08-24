@@ -3,6 +3,12 @@ import { locales } from '$lib/paraglide/runtime';
 
 export type LanguageCode = (typeof locales)[number];
 
+/**
+ * "native" would give the language name in the language itself, local would give it in the current user locale,
+ * e.g. if the currently user locale is 'en' then:
+ * getLanguageName('es', 'local') = 'Spanish'
+ * getLanguageName('es', 'native') = 'Español'
+ */
 export function getLanguageName(
 	languageCode: LanguageCode,
 	as: 'native' | 'local' = 'local'
