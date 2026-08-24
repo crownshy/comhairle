@@ -48,7 +48,7 @@ export function getLanguageName(
 }
 
 export function getTextDirection(code: LanguageCode): 'rtl' | 'ltr' {
-	/** Locales that are written right-to-left. */
+	// Locales that are written right-to-left
 	const rtlLanguages: LanguageCode[] = ['ar', 'ps', 'prs', 'fa'];
 	return rtlLanguages.includes(code) ? 'rtl' : 'ltr';
 }
