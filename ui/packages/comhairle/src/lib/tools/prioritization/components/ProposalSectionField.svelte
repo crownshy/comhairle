@@ -4,12 +4,12 @@
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import type { TranslationSource } from '$lib/components/Translation/translationUtils';
 	import type { ProposalSection } from '../types';
-	import type { LanguageCode } from '$lib/config/languages';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		section: ProposalSection;
-		primaryLocale: LanguageCode;
-		supportedLocales: LanguageCode[];
+		primaryLocale: Locale;
+		supportedLocales: Locale[];
 		/** Reconcile the self-managed store after a save (see store.reload). */
 		refresh: () => Promise<void>;
 		/** Let the parent flush this section's pending save before it closes the dialog. */

@@ -1,14 +1,14 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
-	import { getLanguageName, type LanguageCode } from '$lib/config/languages';
+	import { getLanguageName } from '$lib/config/languages';
 	import MultiSelect from '$lib/components/ui/mutli-select/multi-select.svelte';
 	import type { Option } from '$lib/components/ui/mutli-select/multi-select.svelte';
-	import { locales } from '$lib/paraglide/runtime';
+	import { locales, type Locale } from '$lib/paraglide/runtime';
 
 	interface Props {
-		primaryLanguage: LanguageCode;
-		supportedLanguages: LanguageCode[];
+		primaryLanguage: Locale;
+		supportedLanguages: Locale[];
 		onPrimaryChange?: (language: string) => void;
 		onSupportedChange?: (languages: string[]) => void;
 	}
@@ -37,7 +37,7 @@
 
 	function handlePrimaryChange(value: string | undefined) {
 		if (!value) return;
-		const languageCode = value as LanguageCode;
+		const languageCode = value as Locale;
 		primaryLanguage = languageCode;
 		if (!supportedLanguages.includes(languageCode)) {
 			supportedLanguages = [languageCode].concat(supportedLanguages);
@@ -46,7 +46,7 @@
 	}
 
 	function handleOtherLanguagesChange(options: Option[]) {
-		supportedLanguages = [primaryLanguage].concat(options.map((o) => o.value as LanguageCode));
+		supportedLanguages = [primaryLanguage].concat(options.map((o) => o.value as Locale));
 		onSupportedChange?.(supportedLanguages);
 	}
 </script>

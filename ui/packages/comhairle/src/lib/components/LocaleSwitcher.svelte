@@ -2,7 +2,7 @@
 	import { getLocale, locales, setLocale, type Locale } from '$lib/paraglide/runtime';
 	import * as Select from '$lib/components/ui/select';
 	import { Day } from '$lib/utils/units';
-	import { getLanguageName, type LanguageCode } from '$lib/config/languages';
+	import { getLanguageName } from '$lib/config/languages';
 
 	interface Props {
 		class?: string;
@@ -10,7 +10,7 @@
 
 	let { class: className }: Props = $props();
 
-	let currentLanguage = $state<LanguageCode>(getLocale());
+	let currentLanguage = $state<Locale>(getLocale());
 	let languageName = $derived(getLanguageName(currentLanguage, 'native'));
 
 	function setCookie(name: string, value: string, days: number = 365) {

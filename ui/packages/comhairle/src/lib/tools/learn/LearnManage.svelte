@@ -22,7 +22,7 @@
 	} from '$lib/tools/types';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
-	import type { LanguageCode } from '$lib/config/languages';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	interface Props {
 		conversationId: string;
@@ -34,11 +34,9 @@
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
 
 	let isInitialLoad = $state(true);
-	let primaryLocale = $derived<LanguageCode>(
-		(conversation.primaryLocale as LanguageCode) ?? 'en'
-	);
-	let supportedLanguages = $derived<LanguageCode[]>(
-		(conversation.supportedLanguages as LanguageCode[]) ?? ['en']
+	let primaryLocale = $derived<Locale>((conversation.primaryLocale as Locale) ?? 'en');
+	let supportedLanguages = $derived<Locale[]>(
+		(conversation.supportedLanguages as Locale[]) ?? ['en']
 	);
 
 	// FIX: Remove this after the types have been fixed on the backend

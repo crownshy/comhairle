@@ -19,12 +19,13 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { cn } from '$lib/utils';
-	import { getLanguageName, type LanguageCode } from '$lib/config/languages';
+	import { getLanguageName } from '$lib/config/languages';
 	import { aiTranslateContent } from '$lib/components/Translation/translationUtils';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import { parseGlossaryCsv } from '$lib/glossary/glossaryCsv';
 	import type { LocalizedGlossary } from '$lib/glossary/types';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	let {
 		conversationId,
@@ -33,8 +34,8 @@
 		initial = []
 	}: {
 		conversationId: string;
-		primaryLocale: LanguageCode;
-		supportedLanguages: LanguageCode[];
+		primaryLocale: Locale;
+		supportedLanguages: Locale[];
 		/** The translatable glossary already stored on the conversation, if any. */
 		initial?: LocalizedGlossary;
 	} = $props();
@@ -348,7 +349,7 @@
 								: 'text-muted-foreground hover:bg-muted'
 						)}
 					>
-						{getLanguageName(locale as LanguageCode)}
+						{getLanguageName(locale as Locale)}
 						{#if locale === primaryLocale}<span class="opacity-70">(primary)</span>{/if}
 					</button>
 				{/each}

@@ -13,7 +13,9 @@ import type {
 	TranslationDto
 } from '@crownshy/api-client/api';
 
-export type Locale = string;
+import type { Locale as ParaGlideLocale } from '$lib/paraglide/runtime';
+
+export type Locale = ParaGlideLocale;
 
 export type TextFormat = ApiTextFormat;
 

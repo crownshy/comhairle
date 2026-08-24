@@ -4,20 +4,21 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Sparkles, Check, MoreHorizontal } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { getLanguageName, type LanguageCode } from '$lib/config/languages';
+	import { getLanguageName } from '$lib/config/languages';
 	import { notifications } from '$lib/notifications.svelte';
 	import { type TranslationSource, statusToBadgeVariant } from './translationUtils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		/** The same source the inline field renders; the dialog is just another view over it. */
 		source: TranslationSource;
-		primaryLocale: LanguageCode;
-		supportedLanguages: LanguageCode[];
+		primaryLocale: Locale;
+		supportedLanguages: Locale[];
 		editorType?: 'plain' | 'rich';
 		minHeight?: string;
 		maxHeight?: string;
-		initialTargetLang?: LanguageCode;
+		initialTargetLang?: Locale;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
 	};
@@ -39,7 +40,7 @@
 
 	// The only genuinely local state here is which tab is open and whether an AI request is in flight;
 	// all content and status is read straight from the source.
-	let activeTab = $state<LanguageCode | null>(null);
+	let activeTab = $state<Locale | null>(null);
 	let isTranslating = $state(false);
 
 	// Not a $derived: activeTab is user-controlled and must persist across dependency changes.
@@ -84,7 +85,7 @@
 		handleTargetChange((e.currentTarget as HTMLTextAreaElement).value);
 	}
 
-	async function selectTab(lang: LanguageCode) {
+	async function selectTab(lang: Locale) {
 		// Commit pending edits before leaving the current tab so nothing is lost on switch.
 		await source.flush();
 		activeTab = lang;

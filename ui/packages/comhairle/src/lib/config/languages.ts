@@ -1,7 +1,5 @@
 import { m } from '$lib/paraglide/messages';
-import { locales } from '$lib/paraglide/runtime';
-
-export type LanguageCode = (typeof locales)[number];
+import { type Locale } from '$lib/paraglide/runtime';
 
 /**
  * "native" would give the language name in the language itself, local would give it in the current user locale,
@@ -9,17 +7,14 @@ export type LanguageCode = (typeof locales)[number];
  * getLanguageName('es', 'local') = 'Spanish'
  * getLanguageName('es', 'native') = 'Español'
  */
-export function getLanguageName(
-	languageCode: LanguageCode,
-	as: 'native' | 'local' = 'local'
-): string {
+export function getLanguageName(locale: Locale, as: 'local' | 'native' = 'local'): string {
 	switch (as) {
 		case 'native':
-			return m.$language({}, { locale: languageCode });
+			return m.$language({}, { locale });
 		case 'local': {
 			// This would usually just be m.$language();
 			// But currently we only want English on the Admin side, so it's hardcoded instead of using translations
-			switch (languageCode) {
+			switch (locale) {
 				case 'en':
 					return 'English';
 				case 'gd':
@@ -47,8 +42,8 @@ export function getLanguageName(
 	}
 }
 
-export function getTextDirection(code: LanguageCode): 'rtl' | 'ltr' {
+export function getTextDirection(code: Locale): 'rtl' | 'ltr' {
 	// Locales that are written right-to-left
-	const rtlLanguages: LanguageCode[] = ['ar', 'ps', 'prs', 'fa'];
+	const rtlLanguages: Locale[] = ['ar', 'ps', 'prs', 'fa'];
 	return rtlLanguages.includes(code) ? 'rtl' : 'ltr';
 }

@@ -42,7 +42,7 @@
 	} from '$lib/components/Media/MediaLibraryDialog.svelte';
 	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import type { LanguageCode } from '$lib/config/languages';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	let {
 		data
@@ -68,11 +68,9 @@
 	let cohostOrganizations = $derived(data.cohostOrganizations);
 	let canManageCohosts = $derived(data.user.id === conversation.ownerId);
 
-	let primaryLanguage = $derived<LanguageCode>(
-		(data.conversation.primaryLocale as LanguageCode) ?? 'en'
-	);
-	let supportedLanguages = $derived<LanguageCode[]>(
-		(data.conversation.supportedLanguages as LanguageCode[]) ?? ['en']
+	let primaryLanguage = $derived<Locale>((data.conversation.primaryLocale as Locale) ?? 'en');
+	let supportedLanguages = $derived<Locale[]>(
+		(data.conversation.supportedLanguages as Locale[]) ?? ['en']
 	);
 	let pageTitle = $derived(`Configure ${conversation.title}`);
 
@@ -139,8 +137,8 @@
 	});
 
 	$effect(() => {
-		primaryLanguage = (data.conversation.primaryLocale as LanguageCode) ?? 'en';
-		supportedLanguages = (data.conversation.supportedLanguages as LanguageCode[]) ?? ['en'];
+		primaryLanguage = (data.conversation.primaryLocale as Locale) ?? 'en';
+		supportedLanguages = (data.conversation.supportedLanguages as Locale[]) ?? ['en'];
 		$form.title = data.conversation.title;
 		$form.shortDescription = data.conversation.shortDescription;
 		$form.description = data.conversation.description;

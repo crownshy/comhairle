@@ -23,7 +23,7 @@
 		localizeTranslatableJson,
 		traverseTranslatableJsonAndCreateTranslations
 	} from '$lib/components/Translation/translationUtils';
-	import type { LanguageCode } from '$lib/config/languages';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		open: boolean;
@@ -33,8 +33,8 @@
 		/** Which question set this dialog edits. */
 		target?: 'proposal' | 'section';
 		onOpenChange: (open: boolean) => void;
-		primaryLocale: LanguageCode;
-		supportedLocales: LanguageCode[];
+		primaryLocale: Locale;
+		supportedLocales: Locale[];
 	};
 
 	let {
