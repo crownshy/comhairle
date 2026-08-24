@@ -40,7 +40,7 @@
 	<header class="mb:pb-20 px-2 pb-5 md:px-0">
 		<h1 class="mb-4 text-4xl font-bold">{m.conversations()}</h1>
 		<p class="mb-4">
-			{m.find_open_conversations()}
+			{m.conversations_find_open_conversations()}
 		</p>
 		<div class="flex justify-between">
 			<DropdownMenu.Root>
