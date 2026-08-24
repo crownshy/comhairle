@@ -23,6 +23,7 @@
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte.js';
+	import type { LanguageCode } from '$lib/config/languages';
 
 	let { data } = $props();
 	let report = $derived(data.report);
@@ -44,8 +45,8 @@
 
 	const summaryTranslationSource = createTextContentSource({
 		getTranslation: () => report.translations.summary,
-		getPrimaryLocale: () => conversation.primaryLocale,
-		getSupportedLanguages: () => conversation.supportedLanguages
+		getPrimaryLocale: () => conversation.primaryLocale as LanguageCode,
+		getSupportedLanguages: () => conversation.supportedLanguages as LanguageCode[]
 	});
 
 	async function createFeedback() {}
@@ -85,8 +86,8 @@
 		<Card.Content>
 			<TranslatableField
 				source={summaryTranslationSource}
-				primaryLocale={conversation.primaryLocale}
-				supportedLanguages={conversation.supportedLanguages}
+				primaryLocale={conversation.primaryLocale as LanguageCode}
+				supportedLanguages={conversation.supportedLanguages as LanguageCode[]}
 				inputType="textarea"
 				placeholder="Summary to be filled out by the facilitator"
 				editorType="rich"

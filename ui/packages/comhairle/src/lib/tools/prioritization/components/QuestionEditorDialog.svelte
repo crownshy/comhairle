@@ -23,6 +23,7 @@
 		localizeTranslatableJson,
 		traverseTranslatableJsonAndCreateTranslations
 	} from '$lib/components/Translation/translationUtils';
+	import type { LanguageCode } from '$lib/config/languages';
 
 	type Props = {
 		open: boolean;
@@ -32,8 +33,8 @@
 		/** Which question set this dialog edits. */
 		target?: 'proposal' | 'section';
 		onOpenChange: (open: boolean) => void;
-		primaryLocale: string;
-		supportedLocales: string[];
+		primaryLocale: LanguageCode;
+		supportedLocales: LanguageCode[];
 	};
 
 	let {

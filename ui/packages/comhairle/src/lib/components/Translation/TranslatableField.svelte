@@ -7,7 +7,7 @@
 	import LanguageStatusBadge from './LanguageStatusBadge.svelte';
 	import TranslationEditor from './TranslationEditor.svelte';
 	import { Languages, X, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
-	import { getLanguageName } from '$lib/config/languages';
+	import { getLanguageName, type LanguageCode } from '$lib/config/languages';
 	import type { ComponentProps } from 'svelte';
 	import type { TranslationSource, TranslationEntry } from './translationUtils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
@@ -16,8 +16,8 @@
 	type BaseProps = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
 		source: TranslationSource;
-		primaryLocale: string;
-		supportedLanguages: string[];
+		primaryLocale: LanguageCode;
+		supportedLanguages: LanguageCode[];
 		editorType?: 'plain' | 'rich';
 		placeholder?: string;
 		minHeight?: string;

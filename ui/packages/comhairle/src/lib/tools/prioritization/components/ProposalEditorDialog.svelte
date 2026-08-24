@@ -14,13 +14,14 @@
 	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
 	import type { PrioritizationStore } from '../store.svelte';
 	import type { Proposal } from '../types';
+	import type { LanguageCode } from '$lib/config/languages';
 
 	type Props = {
 		open: boolean;
 		proposal?: Proposal | null;
 		store: PrioritizationStore;
-		primaryLocale: string;
-		supportedLocales: string[];
+		primaryLocale: LanguageCode;
+		supportedLocales: LanguageCode[];
 		onOpenChange: (open: boolean) => void;
 	};
 

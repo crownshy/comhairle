@@ -4,11 +4,12 @@ import {
 	type TranslationSource,
 	type TranslationStatus
 } from '$lib/components/Translation/translationUtils';
+import type { LanguageCode } from '$lib/config/languages';
 
 type LearnSourceOptions = {
 	pages: Pages;
-	getPrimaryLocale: () => string;
-	getSupportedLanguages: () => string[];
+	getPrimaryLocale: () => LanguageCode;
+	getSupportedLanguages: () => LanguageCode[];
 };
 
 /**

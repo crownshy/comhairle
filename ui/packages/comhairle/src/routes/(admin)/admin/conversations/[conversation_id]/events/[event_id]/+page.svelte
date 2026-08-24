@@ -47,6 +47,7 @@
 	import EventRecordings from './EventRecordings.svelte';
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
+	import type { LanguageCode } from '$lib/config/languages';
 
 	let url = $derived(page.url);
 	let { data } = $props();
@@ -81,8 +82,12 @@
 				status: invite.status
 			}))
 	);
-	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
-	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
+	let primaryLanguage = $derived<LanguageCode>(
+		(data.conversation.primaryLocale as LanguageCode) ?? 'en'
+	);
+	let supportedLanguages = $derived<LanguageCode[]>(
+		(data.conversation.supportedLanguages as LanguageCode[]) ?? ['en']
+	);
 
 	const timeZone = getLocalTimeZone();
 	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));

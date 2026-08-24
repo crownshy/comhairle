@@ -22,6 +22,7 @@
 	} from '$lib/tools/types';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
+	import type { LanguageCode } from '$lib/config/languages';
 
 	interface Props {
 		conversationId: string;
@@ -33,8 +34,12 @@
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
 
 	let isInitialLoad = $state(true);
-	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
-	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
+	let primaryLocale = $derived<LanguageCode>(
+		(conversation.primaryLocale as LanguageCode) ?? 'en'
+	);
+	let supportedLanguages = $derived<LanguageCode[]>(
+		(conversation.supportedLanguages as LanguageCode[]) ?? ['en']
+	);
 
 	// FIX: Remove this after the types have been fixed on the backend
 	type LearnToolConfig = Exclude<InstancedToolConfig<'learn'>, 'pages'> & {
