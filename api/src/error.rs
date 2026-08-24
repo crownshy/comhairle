@@ -356,6 +356,9 @@ pub enum ComhairleError {
 
     #[error("Cannot revoke the last system admin role")]
     CannotRevokeLastSuperAdmin,
+
+    #[error("Stream chunk error: {0}")]
+    StreamChunkError(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
