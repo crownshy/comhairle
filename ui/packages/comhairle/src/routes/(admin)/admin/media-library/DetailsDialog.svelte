@@ -11,18 +11,26 @@
 	import { invalidate } from '$app/navigation';
 	import DetailsField from './DetailsField.svelte';
 	import { Form, Submit } from '$lib/components/EasyForm';
+	import type { MediaDto } from '@crownshy/api-client/api';
+	import { capitalise } from '$lib/utils/casingUtils';
+	import Media from '$lib/interfaces/Media';
+	import { formatDateShort, formatTime } from '$lib/utils';
 
-	interface Props {
+	interface Props extends MediaDto {
 		type: HTMLMediaElement | undefined;
-		id: string;
-		filename: string;
-		name: string;
-		alt: string;
-		src: string;
 		close: () => void;
 	}
 
-	let { id, type, filename, name: initialName, alt: initialAlt, src, close }: Props = $props();
+	let {
+		id,
+		type,
+		filename,
+		name: initialName,
+		alt: initialAlt,
+		url: src,
+		createdAt,
+		close
+	}: Props = $props();
 
 	let editable = $state<boolean>(false);
 	let deleteDialogOpen = $state<boolean>(false);
@@ -117,6 +125,11 @@
 	</AlertDialog.Root>
 {/snippet}
 
+{#snippet readOnlyField(label: string, value: string)}
+	<div class="text-muted-foreground mb-1 text-sm font-semibold">{label}</div>
+	<div class="mb-5">{value}</div>
+{/snippet}
+
 <Dialog.Portal>
 	<Dialog.Overlay>
 		<Dialog.Content class="flex min-w-[90vw] flex-col overflow-y-scroll">
@@ -146,7 +159,7 @@
 							<track kind="captions" />
 						</video>
 					{:else}
-						<img {src} alt="" class="max-h-[60vh] object-contain" />
+						<img {src} alt={initialAlt} class="max-h-[60vh] object-contain" />
 					{/if}
 				</div>
 				<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
@@ -156,13 +169,33 @@
 							initialValue={initialName}
 							{editable}
 							field="name"
+							{readOnlyField}
 						/>
 						<DetailsField
 							label="Alt"
 							initialValue={initialAlt}
 							{editable}
 							field="alt"
+							{readOnlyField}
 						/>
+						<section class="grid grid-cols-2">
+							<div>
+								{@render readOnlyField('Type', capitalise(type ?? ''))}
+							</div>
+							<div>
+								{@render readOnlyField(
+									'Format',
+									Media.getExtension(filename)?.toUpperCase().slice(1) ?? ''
+								)}
+							</div>
+							<div>
+								{@render readOnlyField(
+									'Created at',
+									new Date(createdAt).toLocaleString()
+								)}
+							</div>
+						</section>
+
 						<div class="mt-4 self-end">
 							{#if editable}
 								<Button
