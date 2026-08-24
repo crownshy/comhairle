@@ -21,7 +21,8 @@ const EventSchema = z
 				message: 'Signup mode must be either "invite" or "open".'
 			})
 		}),
-		format: z.string()
+		format: z.string(),
+		custom_event_link: z.string().optional()
 	})
 	.superRefine((data, ctx) => {
 		if (data.start_time && data.end_time && data.end_time <= data.start_time) {
