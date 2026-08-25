@@ -4,7 +4,7 @@
 		type ComhairleDocument
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
@@ -61,10 +61,10 @@
 	// until a save succeeds (and after a failed save), so this covers the mid-save refresh case.
 	guardUnsavedChanges(() => pages.areDirty);
 
-	type SaveToServerOptions = { invalidate?: boolean };
+	type SaveToServerOptions = { shouldInvalidate?: boolean };
 	async function save(
 		pagesToSave: ExtendedLocalizedPage[][],
-		{ invalidate = true }: SaveToServerOptions = {}
+		{ shouldInvalidate = true }: SaveToServerOptions = {}
 	) {
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
@@ -91,12 +91,12 @@
 			throw response.err;
 		}
 
-		if (invalidate) await invalidateAll();
+		if (shouldInvalidate) await invalidate('conversation:meta');
 		pages.markSaved();
 	}
 
 	pages.saveHandler((options) =>
-		save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true })
+		save(pages.toLocalizedPages(), { shouldInvalidate: options?.invalidate ?? true })
 	);
 
 	pages.onMarkSaved(() => {
