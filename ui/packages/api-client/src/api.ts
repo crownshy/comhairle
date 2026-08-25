@@ -1344,7 +1344,11 @@ export const Question = z
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
-  .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
+  .object({
+    id: z.string().uuid(),
+    intent: z.string().uuid(),
+    text: z.string().uuid(),
+  })
   .passthrough();
 export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
@@ -1412,7 +1416,7 @@ export const ToolConfig = z.union([
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
       root_questions: z.array(ThinkingSpaceQuestion),
-      topic: z.string(),
+      topic: z.string().uuid(),
       type: z.literal("thinkingspace"),
     })
     .passthrough(),
@@ -1547,6 +1551,16 @@ export const QuestionWithTranslations = z
   })
   .passthrough();
 export type QuestionWithTranslations = z.infer<typeof QuestionWithTranslations>;
+export const ThinkingSpaceQuestionWithTranslations = z
+  .object({
+    id: z.string().uuid(),
+    intent: JsonFieldWithTranslations,
+    text: JsonFieldWithTranslations,
+  })
+  .passthrough();
+export type ThinkingSpaceQuestionWithTranslations = z.infer<
+  typeof ThinkingSpaceQuestionWithTranslations
+>;
 export const ToolConfigWithTranslations = z.union([
   z
     .object({
@@ -1608,8 +1622,8 @@ export const ToolConfigWithTranslations = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
-      root_questions: z.array(ThinkingSpaceQuestion),
-      topic: z.string(),
+      root_questions: z.array(ThinkingSpaceQuestionWithTranslations),
+      topic: JsonFieldWithTranslations,
       type: z.literal("thinkingspace"),
     })
     .passthrough(),
@@ -1680,6 +1694,12 @@ export const LocalizedQuestion = z
   })
   .passthrough();
 export type LocalizedQuestion = z.infer<typeof LocalizedQuestion>;
+export const LocalizedThinkingSpaceQuestion = z
+  .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
+  .passthrough();
+export type LocalizedThinkingSpaceQuestion = z.infer<
+  typeof LocalizedThinkingSpaceQuestion
+>;
 export const LocalizedToolConfig = z.union([
   z
     .object({
@@ -1741,7 +1761,7 @@ export const LocalizedToolConfig = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
-      root_questions: z.array(ThinkingSpaceQuestion),
+      root_questions: z.array(LocalizedThinkingSpaceQuestion),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
@@ -2335,6 +2355,7 @@ export const LocalizedEventDto = z
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     currentAttendance: z.union([z.number(), z.null()]).optional(),
+    customEventLink: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
     format: EventFormat,
@@ -2358,6 +2379,7 @@ export const CreateEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).optional(),
     capacity: z.union([z.number(), z.null()]).optional(),
+    custom_event_link: z.union([z.string(), z.null()]).optional(),
     default_time_zone: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     end_time: z.string().datetime({ offset: true }),
@@ -2374,6 +2396,7 @@ export const EventDto = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
+    customEventLink: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     endTime: z.string().datetime({ offset: true }),
     format: EventFormat,
@@ -2419,6 +2442,7 @@ export const EventWithTranslations = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
+    customEventLink: z.union([z.string(), z.null()]).optional(),
     defaultTimeZone: z.string(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
@@ -2444,6 +2468,7 @@ export const PartialEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).default(null),
     capacity: z.union([z.number(), z.null()]),
+    custom_event_link: z.union([z.string(), z.null()]),
     default_time_zone: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
@@ -3189,6 +3214,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CategoryWithTranslations,
   QuestionTypeWithTranslations,
   QuestionWithTranslations,
+  ThinkingSpaceQuestionWithTranslations,
   ToolConfigWithTranslations,
   Translation4,
   WorkflowStepTranslations,
@@ -3196,6 +3222,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedCategory,
   LocalizedQuestionType,
   LocalizedQuestion,
+  LocalizedThinkingSpaceQuestion,
   LocalizedToolConfig,
   ProgressStatus,
   LocalizedWorkflowStepWithProgressDto,

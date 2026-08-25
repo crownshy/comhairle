@@ -176,6 +176,8 @@ pub struct Event {
     pub default_time_zone: String,
     pub format: EventFormat,
     #[partially(transparent)]
+    pub custom_event_link: Option<String>,
+    #[partially(transparent)]
     pub location: Option<EventLocation>,
     pub metadata: Option<serde_json::Value>,
     #[partially(omit)]
@@ -325,7 +327,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 17] = [
+const DEFAULT_COLUMNS: [EventIden; 18] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -341,6 +343,7 @@ const DEFAULT_COLUMNS: [EventIden; 17] = [
     EventIden::Location,
     EventIden::Metadata,
     EventIden::Format,
+    EventIden::CustomEventLink,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -356,6 +359,7 @@ pub struct CreateEvent {
     pub agenda: Option<EventAgenda>,
     pub location: Option<EventLocation>,
     pub default_time_zone: Option<String>,
+    pub custom_event_link: Option<String>,
 }
 
 impl CreateEvent {
@@ -378,6 +382,10 @@ impl CreateEvent {
             columns.push(EventIden::DefaultTimeZone)
         }
 
+        if self.custom_event_link.is_some() {
+            columns.push(EventIden::CustomEventLink)
+        }
+
         columns
     }
 
@@ -397,6 +405,10 @@ impl CreateEvent {
         }
 
         if let Some(ref value) = self.default_time_zone {
+            values.push(value.into());
+        }
+
+        if let Some(ref value) = self.custom_event_link {
             values.push(value.into());
         }
 
@@ -477,6 +489,16 @@ impl PartialEvent {
         }
         if let Some(value) = &self.format {
             values.push((EventIden::Format, value.clone().into()));
+        }
+        if let Some(value) = &self.custom_event_link {
+            if value.trim().is_empty() {
+                values.push((
+                    EventIden::CustomEventLink,
+                    sea_query::Value::String(None).into(),
+                ));
+            } else {
+                values.push((EventIden::CustomEventLink, value.clone().into()));
+            }
         }
         if let Some(value) = &self.default_time_zone {
             values.push((EventIden::DefaultTimeZone, value.into()));

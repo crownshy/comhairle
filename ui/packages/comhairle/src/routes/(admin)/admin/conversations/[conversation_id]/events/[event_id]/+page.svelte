@@ -105,7 +105,8 @@
 			start_time: utcTimeToLocal(event.startTime, timeZone),
 			end_time: utcTimeToLocal(event.endTime, timeZone),
 			signup_mode: event.signupMode,
-			format: event.format
+			format: event.format,
+			custom_event_link: event.customEventLink ?? ''
 		},
 		{
 			validators: zodClient(EventSchema),
@@ -181,6 +182,7 @@
 		try {
 			const eventParams = {
 				...eventData,
+				custom_event_link: eventData.custom_event_link?.trim() || '',
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
 				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
@@ -550,6 +552,33 @@
 								<Select.Item value="in_person">In-person</Select.Item>
 							</Select.Content>
 						</Select.Root>
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
+		</div>
+
+		<!-- Custom Event Link -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field form={eventForm} name="custom_event_link" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label
+							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>
+							<span>Custom event link</span>
+							<span class="font-normal">Override default Jitsi meeting link</span>
+						</Form.Label>
+						<div class="flex-1">
+							<Input
+								{...props}
+								bind:value={$form.custom_event_link}
+								placeholder={`/conversations/${conversation.id}/events/${event.id}/live`}
+								disabled={$form.format !== 'online'}
+							/>
+							<Form.FieldErrors />
+						</div>
 					{/snippet}
 				</Form.Control>
 			</Form.Field>
