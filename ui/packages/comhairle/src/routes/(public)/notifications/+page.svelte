@@ -31,7 +31,11 @@
 	import { formatDistanceToNow } from 'date-fns';
 	import { Second } from '$lib/utils/units';
 
-	let { data }: PageData = $props();
+	interface Props {
+		data: PageData;
+	}
+
+	let { data }: Props = $props();
 
 	let showAll = $state(false);
 	let markingAllAsRead = $state(false);
