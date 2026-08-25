@@ -1,4 +1,4 @@
-import { invalidateAll } from '$app/navigation';
+import { invalidate } from '$app/navigation';
 import { apiClient } from '@crownshy/api-client/client';
 import type {
 	PartialWorkflowStep,
@@ -275,7 +275,7 @@ async function putToolConfig(opts: {
 		}
 	});
 
-	await invalidateAll();
+	await invalidate('conversation:workflow');
 }
 
 /* ---------- Responses ---------- */
