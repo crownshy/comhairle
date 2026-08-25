@@ -12,7 +12,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications as notificationService } from '$lib/notifications.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import ConversationContextImage from '$lib/components/ConversationContextImage.svelte';
 	import {
 		Bell,
@@ -31,7 +31,6 @@
 	import { formatDistanceToNow } from 'date-fns';
 
 	let { data }: PageData = $props();
-
 
 	let showAll = $state(false);
 	let markingAllAsRead = $state(false);
@@ -56,9 +55,8 @@
 	}
 
 	$effect(() => {
-		async function reloadNotifications() {}
 		let timeoutId = setTimeout(async () => {
-			await invalidateAll();
+			await invalidate('notifications');
 		}, 5000);
 		return () => {
 			window.clearTimeout(timeoutId);
@@ -88,7 +86,7 @@
 			await apiClient.MarkNotificationAsRead(undefined, {
 				params: { delivery_id: deliveryId }
 			});
-			await invalidateAll();
+			await invalidate('notifications');
 			notificationService.send({
 				message: 'Notification marked as read',
 				priority: 'SUCCESS'
@@ -110,7 +108,7 @@
 		markingAllAsRead = true;
 		try {
 			await apiClient.MarkAllNotificationsAsRead(undefined);
-			await invalidateAll();
+			await invalidate('notifications');
 			notificationService.send({
 				message: 'All notifications marked as read',
 				priority: 'SUCCESS'
