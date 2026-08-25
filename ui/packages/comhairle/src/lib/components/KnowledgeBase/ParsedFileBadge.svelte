@@ -6,7 +6,7 @@
 	import Button from '../ui/button/button.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 
 	type Props = {
 		conversationId: string;
@@ -32,7 +32,7 @@
 			});
 			console.error(e);
 		} finally {
-			await invalidateAll();
+			await invalidate('knowledge-base:documents');
 		}
 	}
 
@@ -53,7 +53,7 @@
 			});
 			console.error(e);
 		} finally {
-			await invalidateAll();
+			await invalidate('knowledge-base:documents');
 		}
 	}
 </script>

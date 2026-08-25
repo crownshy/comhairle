@@ -11,7 +11,7 @@
 	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import LoadingButton from './ui/button/loading-button.svelte';
 	import type { ConversationDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
@@ -35,7 +35,7 @@
 					{ params: { conversation_id: conversation.id } }
 				);
 				open = false;
-				invalidateAll();
+				invalidate('conversation:meta');
 
 				notifications.send({
 					message: isComplete ? 'Conversation now ended' : 'Conversation re-opened',

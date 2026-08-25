@@ -61,7 +61,11 @@
 	// until a save succeeds (and after a failed save), so this covers the mid-save refresh case.
 	guardUnsavedChanges(() => pages.areDirty);
 
-	async function save(pagesToSave: ExtendedLocalizedPage[][]) {
+	type SaveToServerOptions = { shouldInvalidate?: boolean };
+	async function save(
+		pagesToSave: ExtendedLocalizedPage[][],
+		{ shouldInvalidate = true }: SaveToServerOptions = {}
+	) {
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
 			pages: pagesToSave
@@ -87,15 +91,7 @@
 			throw response.err;
 		}
 
-		// Every save refreshes the step list, content edits included. This step's config is served
-		// from the conversation layout's `workflowSteps`, and that load keys off `conversation_id`
-		// alone, so hopping between steps never refetches it. A save that skipped this left the
-		// cache holding pre-edit pages: leave the step, come back, and the editor remounts from
-		// stale props and the next autosave writes them back over the real content.
-		//
-		// Ordering matters. Invalidating before markSaved() means the fresh props land while
-		// `areDirty` is still true, so the reload effect below leaves the editor alone.
-		await invalidate('conversation:workflow');
+		if (shouldInvalidate) await invalidate('conversation:meta');
 		pages.markSaved();
 	}
 

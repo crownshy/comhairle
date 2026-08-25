@@ -7,7 +7,6 @@ import type {
 	WorkflowStats,
 	WorkflowStepsListResponse
 } from '@crownshy/api-client/api';
-import type {} from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
 
 /**
