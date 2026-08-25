@@ -6,10 +6,10 @@
  * is stored client-side.
  */
 
-export interface QuestionConfig<TText> {
+export interface QuestionConfig {
 	id: string;
-	text: TText;
-	intent: TText;
+	text: string;
+	intent: string;
 	// Matches the api-client's `passthrough()` shape so this type is assignable
 	// when sent back as part of an UpdateConversationWorkflowStep payload.
 	[key: string]: unknown;

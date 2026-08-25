@@ -42,7 +42,7 @@ export type LocalQuestionState = {
 export type FlowMode = 'initial' | 'extension';
 
 type Init = {
-	questions: QuestionConfig<string>[];
+	questions: QuestionConfig[];
 	followUpCount: number;
 	workflowStepId: string;
 	initialAnswers: QuestionAnswers[];
@@ -57,7 +57,7 @@ type Init = {
  * renders from its getters.
  */
 export class QuestionFlowState {
-	readonly questions: QuestionConfig<string>[];
+	readonly questions: QuestionConfig[];
 	readonly followUpCount: number;
 	readonly workflowStepId: string;
 	readonly mode: FlowMode;
@@ -138,7 +138,7 @@ export class QuestionFlowState {
 		return this.states[this.currentQuestionIndex];
 	}
 
-	get currentQuestion(): QuestionConfig<string> {
+	get currentQuestion(): QuestionConfig {
 		return this.questions[this.currentQuestionIndex];
 	}
 

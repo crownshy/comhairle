@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { tick, untrack, onMount } from 'svelte';
-	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Progress } from '$lib/components/ui/progress';
@@ -19,7 +18,7 @@
 	type Props = {
 		topic: string;
 		workflowStepId: string;
-		questions: QuestionConfig<string>[];
+		questions: QuestionConfig[];
 		followUpCount: number;
 		initialAnswers?: QuestionAnswers[];
 		mode?: FlowMode;
@@ -121,17 +120,13 @@
 				<span></span>
 				<span>
 					{#if inExtensionPicker}
-						{m.thinking_space_pick_question()}
+						Pick a question to explore further
 					{:else if inExtensionChain}
-						{m.thinking_space_go_deeper()}
-						{flow.currentQuestionIndex + 1}
-						{m.of()}
-						{questions.length}
+						Going deeper on question {flow.currentQuestionIndex + 1} of {questions.length}
 					{:else}
-						{m.question()}
-						{flow.currentQuestionIndex + 1}
-						{m.of()}
-						{questions.length} · {Math.round(flow.progress)}%
+						Question {flow.currentQuestionIndex + 1} of {questions.length} · {Math.round(
+							flow.progress
+						)}%
 					{/if}
 				</span>
 			</div>
@@ -150,10 +145,11 @@
 			<div class="mx-auto max-w-2xl space-y-6">
 				<header>
 					<h2 class="text-foreground text-2xl leading-snug font-semibold">
-						{m.thinking_space_explore_further()}
+						What do you want to explore further?
 					</h2>
 					<p class="text-muted-foreground mt-2 text-sm leading-relaxed">
-						{m.thinking_space_add_more()}
+						Pick a question to add more thinking to. You can come back here to pick
+						another, or finish to update your latest thinking.
 					</p>
 				</header>
 
@@ -170,12 +166,7 @@
 									{q.text || '(unnamed question)'}
 								</p>
 								<p class="text-muted-foreground mt-1 text-xs">
-									{count}
-									{#if count === 1}
-										{m.thinking_space_answer_so_far()}
-									{:else}
-										{m.thinking_space_answers_so_far()}
-									{/if}
+									{count} answer{count === 1 ? '' : 's'} so far
 								</p>
 							</div>
 							<ChevronRight class="text-muted-foreground size-4 shrink-0" />
@@ -186,7 +177,7 @@
 				<div class="border-border flex justify-end border-t pt-6">
 					<Button size="lg" onclick={() => flow.finishExtension()}>
 						<Check class="size-4" />
-						{m.thinking_space_finish()}
+						Finish & update my latest thinking
 					</Button>
 				</div>
 			</div>
@@ -195,8 +186,7 @@
 				<!-- Root question -->
 				<section>
 					<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
-						{m.question()}
-						{flow.currentQuestionIndex + 1}
+						Question {flow.currentQuestionIndex + 1}
 					</p>
 					<h2 class="text-foreground text-2xl leading-snug font-semibold">
 						{flow.currentQuestion.text || '(unnamed question)'}
@@ -210,7 +200,7 @@
 							value={flow.currentState.rootAnswer}
 							oninput={(e) => flow.updateRootAnswerDraft(e.currentTarget.value)}
 							onkeydown={handleRootKeydown}
-							placeholder={m.thinking_space_write_thoughts()}
+							placeholder="Write your thoughts here…"
 							rows={4}
 							class="text-base"
 						/>
@@ -219,14 +209,14 @@
 								onclick={() => flow.submitRootAnswer()}
 								disabled={!flow.currentState.rootAnswer.trim() || flow.submitting}
 							>
-								{flow.submitting ? `${m.saving()}…` : m.continue_()}
+								{flow.submitting ? 'Saving…' : 'Continue'}
 							</Button>
 						</div>
 					</section>
 				{:else}
 					<section class="border-primary/20 bg-primary/5 rounded-xl border p-4">
 						<p class="text-primary mb-1 text-xs font-semibold tracking-wide uppercase">
-							{m.thinking_space_you_answered()}
+							You answered
 						</p>
 						<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
 							{flow.currentState.rootAnswer}
@@ -241,8 +231,7 @@
 							class="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase"
 						>
 							<CornerDownRight class="size-3.5" />
-							{m.follow_up()}
-							{followUpIndex + 1}
+							Follow-up {followUpIndex + 1}
 						</p>
 						<p class="text-foreground/80 text-base leading-snug italic">
 							{followUp.question}
@@ -269,12 +258,12 @@
 									class="h-12 w-full text-base"
 									onclick={() => flow.chooseMore()}
 								>
-									{m.thinking_space_continue()}
+									Continue exploring
 								</Button>
 								<p
 									class="text-muted-foreground text-center text-xs leading-relaxed"
 								>
-									{m.thinking_space_keep_going()}
+									Keep going deeper with more follow-up questions.
 								</p>
 							</div>
 							<div class="flex flex-1 flex-col items-stretch gap-2">
@@ -284,14 +273,14 @@
 									onclick={() => flow.continueNow()}
 								>
 									<Check class="size-4" />
-									{flow.isLastQuestion ? m.finish() : m.move_on()}
+									{flow.isLastQuestion ? 'Finish' : 'Move on'}
 								</Button>
 								<p
 									class="text-muted-foreground text-center text-xs leading-relaxed"
 								>
 									{flow.isLastQuestion
-										? m.thinking_space_happy_finish()
-										: m.thinking_space_happy_move_on()}
+										? "I'm happy with my response and ready to finish."
+										: "I'm happy with my response and ready to move on to the next question."}
 								</p>
 							</div>
 						</div>
@@ -308,7 +297,7 @@
 							onclick={() => flow.continueNow()}
 						>
 							<Check class="size-4" />
-							{flow.isLastQuestion ? m.finish() : m.move_on()}
+							{flow.isLastQuestion ? 'Finish' : 'Move on'}
 						</Button>
 					</section>
 				{/if}
@@ -328,7 +317,7 @@
 									onclick={() => flow.doneWithRoot()}
 								>
 									<Check class="size-3.5" />
-									{m.thinking_space_question_done()}
+									Done with this question
 								</Button>
 							</div>
 						{/if}
@@ -347,15 +336,15 @@
 									onclick={() => flow.retryPicker()}
 								>
 									<RotateCcw class="size-3.5" />
-									{m.try_again()}
+									Try again
 								</Button>
 								{#if inExtensionChain}
 									<Button size="sm" onclick={() => flow.doneWithRoot()}>
-										{m.thinking_space_question_done()}
+										Done with this question
 									</Button>
 								{:else if flow.minReached}
 									<Button size="sm" onclick={() => flow.continueNow()}>
-										{flow.isLastQuestion ? m.finish() : m.move_on()}
+										{flow.isLastQuestion ? 'Finish' : 'Move on'}
 									</Button>
 								{/if}
 							</div>
@@ -369,41 +358,41 @@
 								<div class="min-w-0">
 									<p class="text-foreground text-sm font-semibold">
 										{inExtensionChain
-											? m.thinking_space_pick_deeper()
+											? 'Pick one to go deeper'
 											: flow.minReached
-												? m.thinking_space_pick_deeper()
-												: m.thinking_space_pick_follow_up()}
+												? 'Pick one to go deeper'
+												: 'Pick a follow-up to continue'}
 									</p>
 									{#if inExtensionChain}
 										<p class="text-muted-foreground text-xs">
-											{m.or()}
+											Or
 											<button
 												type="button"
 												class="text-primary underline-offset-2 hover:underline"
 												onclick={() => flow.doneWithRoot()}
 											>
-												{m.thinking_space_pick_back()}
+												go back to pick a different question
 											</button>
 											.
 										</p>
 									{:else if !flow.minReached}
 										<p class="text-muted-foreground text-xs">
-											{flow.followUpsRemaining}
-											{flow.followUpsRemaining === 1
-												? m.thinking_space_follow_to_go()
-												: m.thinking_space_follows_to_go()}
+											{flow.followUpsRemaining} more follow-up{flow.followUpsRemaining ===
+											1
+												? ''
+												: 's'} to go
 										</p>
 									{:else}
 										<p class="text-muted-foreground text-xs">
-											{m.or()}
+											Or
 											<button
 												type="button"
-												class="text-primary lowercase underline-offset-2 hover:underline"
+												class="text-primary underline-offset-2 hover:underline"
 												onclick={() => flow.continueNow()}
 											>
-												{flow.isLastQuestion ? m.finish() : m.move_on()}
+												{flow.isLastQuestion ? 'finish' : 'move on'}
 											</button>
-											{m.instead()}.
+											instead.
 										</p>
 									{/if}
 								</div>
@@ -414,7 +403,7 @@
 									onclick={() => flow.pickRandom()}
 								>
 									<Shuffle class="size-3.5" />
-									{m.thinking_space_pick_for_me()}
+									Pick one for me
 								</Button>
 							</div>
 							<div class="space-y-2">
@@ -436,7 +425,7 @@
 										onclick={() => flow.doneWithRoot()}
 									>
 										<Check class="size-3.5" />
-										{m.thinking_space_question_done()}
+										Done with this question
 									</Button>
 								</div>
 							{/if}
@@ -452,8 +441,7 @@
 								class="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase"
 							>
 								<CornerDownRight class="size-3.5" />
-								{m.follow_up()}
-								{flow.followUpsDone + 1}
+								Follow-up {flow.followUpsDone + 1}
 							</p>
 							<Button
 								variant="ghost"
@@ -462,7 +450,7 @@
 								onclick={() => flow.backToPicker()}
 							>
 								<ChevronLeft class="size-3.5" />
-								{m.thinking_space_pick_different()}
+								Pick a different question
 							</Button>
 						</div>
 						<p class="text-foreground text-lg leading-snug italic">
@@ -473,7 +461,7 @@
 							value={flow.currentState.currentPickAnswer}
 							oninput={(e) => flow.updateFollowUpDraft(e.currentTarget.value)}
 							onkeydown={handleFollowUpKeydown}
-							placeholder={m.thinking_space_write_thoughts()}
+							placeholder="Write your thoughts…"
 							rows={4}
 							class="text-base"
 						/>
@@ -483,7 +471,7 @@
 								disabled={!flow.currentState.currentPickAnswer.trim() ||
 									flow.submitting}
 							>
-								{flow.submitting ? `${m.saving()}…` : m.continue_()}
+								{flow.submitting ? 'Saving…' : 'Continue'}
 							</Button>
 						</div>
 					</section>

@@ -4,13 +4,13 @@
  * differs from the backend (kind-tagged unions, camelCase, etc.). The api
  * module (prioritizationApi.ts) maps between them. */
 
-import type { DraftTranslatableJsonField } from '$lib/components/Translation/translationUtils';
 import type {
 	LocalizedProposalDto,
 	TextContentDto,
 	TextFormat as ApiTextFormat,
 	TextTranslationDto,
-	Translation
+	Translation,
+	TranslationDto
 } from '@crownshy/api-client/api';
 
 export type Locale = string;
@@ -84,6 +84,18 @@ export type ToolConfig<TText> = {
 	 * an admin sets a number only to loosen that. Clamped to the proposal count at
 	 * gate time so the bar is never impossible. */
 	requiredReviews?: number;
+};
+
+/** ---------------------------- **/
+/** WITH TRANSLATIONS PRIORITIZATION TOOL TYPES FOR ADMIN UI **/
+/** ---------------------------- **/
+
+/** Mirror type of the backend JsonFieldWithTranslations with optional `translations`
+ * field to allow creating new translatable fields on questions
+ */
+export type DraftTranslatableJsonField = {
+	localized: string;
+	translations?: TranslationDto;
 };
 
 export type DraftQuestion = Question<DraftTranslatableJsonField>;
