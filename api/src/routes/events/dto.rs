@@ -43,6 +43,7 @@ pub struct EventDto {
     pub location: Option<EventLocation>,
     pub metadata: Option<serde_json::Value>,
     pub format: EventFormat,
+    pub custom_event_link: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -75,6 +76,7 @@ pub struct LocalizedEventDto {
     pub location: Option<EventLocation>,
     pub metadata: Option<serde_json::Value>,
     pub format: EventFormat,
+    pub custom_event_link: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -94,6 +96,7 @@ impl From<Event> for EventDto {
             location: e.location,
             metadata: e.metadata,
             format: e.format,
+            custom_event_link: e.custom_event_link,
             created_at: e.created_at,
         }
     }
@@ -116,6 +119,7 @@ impl From<LocalizedEventWithAttendance> for LocalizedEventDto {
             location: e.event.location,
             metadata: e.event.metadata,
             format: e.event.format,
+            custom_event_link: e.event.custom_event_link,
             current_attendance: Some(e.current_attendance),
         }
     }
@@ -138,6 +142,7 @@ impl From<LocalizedEvent> for LocalizedEventDto {
             location: e.location,
             metadata: e.metadata,
             format: e.format,
+            custom_event_link: e.custom_event_link,
             current_attendance: None,
         }
     }
