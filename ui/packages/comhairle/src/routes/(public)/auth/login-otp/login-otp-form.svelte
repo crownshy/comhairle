@@ -8,7 +8,7 @@
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { onMount } from 'svelte';
@@ -63,7 +63,7 @@
 						} catch {}
 					}
 
-					await goto(resolve(redirectTo), { invalidateAll: true });
+					await goto(resolve(redirectTo), { invalidate: ['app:user'] });
 				} catch (e) {
 					responseMessage = e.response.data.err;
 				}
@@ -92,7 +92,7 @@
 					await apiClient.CreateOtp({
 						email
 					});
-					await invalidateAll();
+					await invalidate('app:user');
 				} catch (e) {
 					responseMessage = e.response?.data?.err ?? 'Failed to send one-time-passcode';
 				}
