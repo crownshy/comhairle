@@ -3,7 +3,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { Trash2, LoaderCircle } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import type {
@@ -108,7 +108,7 @@
 					}
 				}
 			);
-			await invalidateAll();
+			await invalidate('conversation:workflow');
 		} catch (e) {
 			notifications.send({ message: `Failed to update ${field} status`, priority: 'ERROR' });
 		}
@@ -338,7 +338,7 @@
 	<Dialog.Root
 		bind:open
 		onOpenChange={(isOpen) => {
-			if (!isOpen) invalidateAll();
+			if (!isOpen) invalidate('conversation:workflow');
 		}}
 	>
 		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">
