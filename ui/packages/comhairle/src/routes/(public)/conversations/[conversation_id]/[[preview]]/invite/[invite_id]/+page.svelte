@@ -60,11 +60,11 @@
 				await apiClient.SignupGuestUser(undefined, {});
 				await acceptInvite();
 				await goto(firstWorkflowPath + url.search, {
-					invalidate: ['user', 'app:participation']
+					invalidateAll: true
 				});
 			} else {
 				await acceptInvite();
-				await goto(firstWorkflowPath + url.search, { invalidate: ['app:participation'] });
+				await goto(firstWorkflowPath + url.search, { invalidateAll: true });
 			}
 		} catch (e) {
 			console.error(e);
