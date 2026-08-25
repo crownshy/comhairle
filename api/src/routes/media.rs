@@ -123,7 +123,11 @@ async fn upload(
         | MediaContentType::Gif
         | MediaContentType::Webp => "images",
         MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
-        MediaContentType::Mp3 => "audio",
+        MediaContentType::Mp3
+        | MediaContentType::M4a
+        | MediaContentType::Weba
+        | MediaContentType::Oga
+        | MediaContentType::Wav => "audio",
     };
 
     let storage_key = format!("{}/{}", prefix, upload_media_form.file.filename);
