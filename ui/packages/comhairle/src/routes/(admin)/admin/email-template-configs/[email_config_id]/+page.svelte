@@ -8,7 +8,7 @@
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
@@ -76,7 +76,7 @@
 				message: 'Successfully updated custom email'
 			});
 
-			await invalidateAll();
+			await invalidate('app:email_template_config');
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -92,7 +92,7 @@
 				params: { email_config_id: emailConfig.id }
 			});
 
-			goto('/admin/email-template-configs', { invalidateAll: true });
+			goto('/admin/email-template-configs', { invalidate: ['app:email_template_config'] });
 		} catch (e) {
 			console.error(e);
 			notifications.send({

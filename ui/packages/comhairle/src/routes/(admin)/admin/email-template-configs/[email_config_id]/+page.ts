@@ -1,7 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ params, parent }) => {
+export const load: PageLoad = async ({ params, parent, depends }) => {
+	depends('app:email_template_config');
 	const { api } = await parent();
 	const { email_config_id } = params;
 
