@@ -57,7 +57,12 @@
 	});
 
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
-	let liveHref = $derived(`/conversations/${conversationId}/events/${event?.id}/live`);
+	let liveHref = $derived.by(() => {
+		if (event?.format === 'online' && event?.customEventLink) {
+			return event.customEventLink;
+		}
+		return `/conversations/${conversationId}/events/${event?.id}/live`;
+	});
 
 	let canStartMeeting = $derived(
 		userAttendance?.role === 'moderator' || userAttendance?.role === 'facilitator'

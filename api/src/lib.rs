@@ -13,7 +13,7 @@ mod routes;
 pub mod schema_helpers;
 #[cfg(test)]
 mod test_helpers;
-mod tools;
+pub mod tools;
 pub mod transcription_service;
 pub mod translation_service;
 pub mod websockets;
