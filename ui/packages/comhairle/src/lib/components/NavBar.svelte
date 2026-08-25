@@ -99,7 +99,7 @@
 					class="gap-2 rounded-full text-base font-normal"
 				>
 					<Briefcase class="size-4" />
-					Workspace
+					{m.workspace()}
 				</Button>
 			{/if}
 			<ProfileMenu {user} />
@@ -194,7 +194,7 @@
 									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
 								>
 									<LayoutGrid class="text-muted-foreground size-5" />
-									Workspace
+									{m.workspace()}
 								</Button>
 							{/if}
 						</div>

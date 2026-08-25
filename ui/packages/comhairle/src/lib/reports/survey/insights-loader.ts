@@ -19,7 +19,7 @@ import type {
 	Properties
 } from '$lib/tools/heyform/utils';
 import type { ApiClient, InsightQuestion } from '@crownshy/api-client/api';
-import { typedObj } from '$lib/utils/types';
+import { typed } from '$lib/utils/types';
 
 type Choice = {
 	id: string;
@@ -249,7 +249,7 @@ function normalise(insight: InsightQuestion): SurveyQuestion | undefined {
 	};
 
 	if (isHeyFormChoiceFieldKind(insight.kind)) {
-		return typedObj<ChoiceQuestion>({
+		return typed<ChoiceQuestion>({
 			...question,
 			properties: insight.properties ?? undefined,
 			kind: insight.kind,
@@ -258,7 +258,7 @@ function normalise(insight: InsightQuestion): SurveyQuestion | undefined {
 	}
 
 	if (isHeyFormNonChoiceFieldKind(insight.kind)) {
-		return typedObj<NonChoiceQuestion>({
+		return typed<NonChoiceQuestion>({
 			...question,
 			properties: insight.properties ?? undefined,
 			kind: insight.kind,

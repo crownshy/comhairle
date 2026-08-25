@@ -14,15 +14,17 @@ import {
 	aiTranslate as aiTranslateApi,
 	markOtherTranslationsAsDraft
 } from './translationUtils';
+import { Second } from '$lib/utils/units';
+import type { Locale } from '$lib/paraglide/runtime';
 
 /** How long after the last keystroke we wait before persisting, so typing doesn't hit the API per key. */
-const SAVE_DEBOUNCE_MS = 1_000;
+const SAVE_DEBOUNCE_MS = 1 * Second;
 
 type TextContentSourceOptions = {
 	/** Getter (not a value) so the source tracks the live prop across `invalidateAll()`. */
 	getTranslation: () => Translation | Translation2 | undefined;
-	getPrimaryLocale: () => string;
-	getSupportedLanguages: () => string[];
+	getPrimaryLocale: () => Locale;
+	getSupportedLanguages: () => Locale[];
 	/** Plain field value used for the primary locale before any translation row exists (e.g. `step.name`). */
 	getPrimaryFallback?: () => string;
 	/**

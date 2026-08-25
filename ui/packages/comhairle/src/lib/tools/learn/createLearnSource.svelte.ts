@@ -4,11 +4,12 @@ import {
 	type TranslationSource,
 	type TranslationStatus
 } from '$lib/components/Translation/translationUtils';
+import type { Locale } from '$lib/paraglide/runtime';
 
 type LearnSourceOptions = {
 	pages: Pages;
-	getPrimaryLocale: () => string;
-	getSupportedLanguages: () => string[];
+	getPrimaryLocale: () => Locale;
+	getSupportedLanguages: () => Locale[];
 };
 
 /**

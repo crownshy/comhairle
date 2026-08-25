@@ -6,7 +6,7 @@
 	<title>About - Comhairle</title>
 </svelte:head>
 
-<h1 class="mt-10 mb-10 text-4xl font-bold md:mt-20">About</h1>
+<h1 class="mt-10 mb-10 text-4xl font-bold md:mt-20">{m.about()}</h1>
 
 <article class="prose">
 	<section>

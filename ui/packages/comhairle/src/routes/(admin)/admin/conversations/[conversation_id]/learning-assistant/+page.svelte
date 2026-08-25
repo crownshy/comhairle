@@ -27,9 +27,10 @@
 		type ImageMap
 	} from '$lib/learn/tiptapToPdf';
 	import LearnSyncStatus from './LearnSyncStatus.svelte';
-	import { allLanguages } from '$lib/config/languages';
 	import MultiSelect from '$lib/components/ui/mutli-select/multi-select.svelte';
 	import type { Option } from '$lib/components/ui/mutli-select/multi-select.svelte';
+	import { locales } from '$lib/paraglide/runtime';
+	import { getLanguageName } from '$lib/config/languages';
 
 	const MAX_SIZE = 50 * MB;
 
@@ -229,7 +230,10 @@
 	}
 
 	let allLanguageOptions = $derived<Option[]>(
-		allLanguages.map((lang) => ({ value: lang.name, label: lang.name }))
+		locales.map((locale) => {
+			const name = getLanguageName(locale);
+			return { value: name, label: name };
+		})
 	);
 
 	let selectedCrossLanguages = $derived<Option[]>(

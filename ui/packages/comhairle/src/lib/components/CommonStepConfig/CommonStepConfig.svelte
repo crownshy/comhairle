@@ -27,6 +27,7 @@
 	import { useDebounce } from 'runed';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		conversation_id: string;
@@ -46,8 +47,10 @@
 		inline = false
 	}: Props = $props();
 
-	let primaryLocale = $derived(conversation?.primaryLocale ?? 'en');
-	let supportedLanguages = $derived(conversation?.supportedLanguages ?? ['en']);
+	let primaryLocale = $derived<Locale>((conversation?.primaryLocale as Locale) ?? 'en');
+	let supportedLanguages = $derived<Locale[]>(
+		(conversation?.supportedLanguages as Locale[]) ?? ['en']
+	);
 
 	const nameSource = createTextContentSource({
 		getTranslation: () => step?.translations?.name,

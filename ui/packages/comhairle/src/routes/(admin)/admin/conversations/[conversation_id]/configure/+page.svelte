@@ -42,6 +42,7 @@
 	} from '$lib/components/Media/MediaLibraryDialog.svelte';
 	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	let {
 		data
@@ -67,8 +68,10 @@
 	let cohostOrganizations = $derived(data.cohostOrganizations);
 	let canManageCohosts = $derived(data.user.id === conversation.ownerId);
 
-	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
-	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
+	let primaryLanguage = $derived<Locale>((data.conversation.primaryLocale as Locale) ?? 'en');
+	let supportedLanguages = $derived<Locale[]>(
+		(data.conversation.supportedLanguages as Locale[]) ?? ['en']
+	);
 	let pageTitle = $derived(`Configure ${conversation.title}`);
 
 	// The sub-tab strip (Row 3) is server-rendered by the conversation layout from `configureTabs`;
@@ -134,8 +137,8 @@
 	});
 
 	$effect(() => {
-		primaryLanguage = data.conversation.primaryLocale ?? 'en';
-		supportedLanguages = data.conversation.supportedLanguages ?? ['en'];
+		primaryLanguage = (data.conversation.primaryLocale as Locale) ?? 'en';
+		supportedLanguages = (data.conversation.supportedLanguages as Locale[]) ?? ['en'];
 		$form.title = data.conversation.title;
 		$form.shortDescription = data.conversation.shortDescription;
 		$form.description = data.conversation.description;
