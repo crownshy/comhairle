@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { page } from '$app/stores';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Badge } from '$lib/components/ui/badge';
@@ -112,7 +112,7 @@
 				}
 			);
 			// Reload to refresh attendance data
-			await invalidateAll();
+			await invalidate('app:event');
 		} catch (e: any) {
 			error = e?.message || 'Failed to register';
 		} finally {
