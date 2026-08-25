@@ -143,7 +143,7 @@ jobs:
           workspaces: |
             . -> target
 
-      - 
+      -
         name: Wait for PostgreSQL to be ready
         run: |
           for i in {1..30}; do
@@ -152,7 +152,18 @@ jobs:
             sleep 2
           done
           echo "PostgreSQL failed to start" && exit 1
-      
+
+      -
+        name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres --locked
+
+      -
+        name: Run database migrations
+        working-directory: api
+        env:
+          DATABASE_URL: postgres://test_user:test_password@localhost:5432/test_db
+        run: sqlx migrate run
+
       - 
         name: Run unit tests
         working-directory: api
