@@ -29,6 +29,7 @@
 	} from 'lucide-svelte';
 	import type { NotificationWithDelivery } from '@crownshy/api-client/api';
 	import { formatDistanceToNow } from 'date-fns';
+	import { Second } from '$lib/utils/units';
 
 	let { data }: PageData = $props();
 
@@ -59,7 +60,7 @@
 		async function reloadNotifications() {}
 		let timeoutId = setTimeout(async () => {
 			await invalidate('notifications');
-		}, 5000);
+		}, 5 * Second);
 		return () => {
 			window.clearTimeout(timeoutId);
 		};
