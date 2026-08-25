@@ -1,12 +1,13 @@
 import { typedObj } from '$lib/utils/types';
 import { MB } from '$lib/utils/units';
 import { type FileAttr, type InputAttr } from '$lib/components/EasyForm';
+import Media from '$lib/interfaces/Media';
 
 export const MediaSchema = {
 	media: typedObj<FileAttr>({
 		name: 'media',
 		required: true,
-		accept: '.jpg,.jpeg,.png,.gif,.webp,.mp4,.mpeg,.mpg,.webm,.mp3',
+		accept: Media.acceptedExtensions(),
 		maxSize: 500 * MB
 	}),
 	name: typedObj<InputAttr>({
