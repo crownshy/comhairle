@@ -8,7 +8,7 @@
 
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { env } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
 
@@ -60,7 +60,7 @@
 				await apiClient.SignupAnnonUser(undefined, {});
 			}
 			await acceptInvite();
-			await goto(firstWorkflowPath + url.search, { invalidateAll: true });
+			await goto(firstWorkflowPath + url.search, { invalidate: ['app:participation'] });
 		} catch (e) {
 			console.error(e);
 		}
@@ -81,7 +81,7 @@
 
 	onMount(() => {
 		if (!user && eventId) {
-			invalidateAll();
+			invalidate('app:participation');
 		}
 	});
 </script>
