@@ -2804,6 +2804,10 @@ export const MediaContentType = z.enum([
   "video/mpeg",
   "video/webm",
   "audio/mpeg",
+  "audio/mp4",
+  "audio/webm",
+  "audio/wav",
+  "audio/ogg",
 ]);
 export type MediaContentType = z.infer<typeof MediaContentType>;
 export const content_type = z.union([MediaContentType, z.null()]).optional();
