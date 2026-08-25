@@ -1,7 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ parent }) => {
+export const load: PageLoad = async ({ parent, depends }) => {
+	depends('notifications');
+
 	const { api, user } = await parent();
 	if (!user) {
 		redirect(307, '/');
