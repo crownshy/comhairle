@@ -21,7 +21,7 @@
 		conversationId: string;
 		userId: string;
 		topic?: string;
-		rootQuestions?: QuestionConfig<string>[];
+		rootQuestions?: QuestionConfig[];
 		followUpRoundsCount?: number;
 		requestUserSharePermission?: boolean;
 		initialPermissionToShareWithOrganizers?: boolean | null;

@@ -2,13 +2,12 @@
 	import { onMount } from 'svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { Sparkles } from 'lucide-svelte';
-	import * as m from '$lib/paraglide/messages';
 
 	const messages = [
-		m.thinking_space_follow_loading_1(),
-		m.thinking_space_follow_loading_2(),
-		m.thinking_space_follow_loading_3(),
-		m.thinking_space_follow_loading_4()
+		'Your answers are shaping the questions, that’s why this takes a moment.',
+		'How often do you actually pause to reflect on this?',
+		'Taking time to think is important. You don’t get this space often.',
+		'Good thinking takes time. The next question will be worth it.'
 	];
 
 	// Card line widths — varied so the skeleton doesn't look like a flat block.

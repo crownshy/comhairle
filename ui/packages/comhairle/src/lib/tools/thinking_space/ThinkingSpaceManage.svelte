@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
 	import {
 		Card,
 		CardContent,
@@ -13,69 +14,34 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import QuestionEditorDialog from './QuestionEditorDialog.svelte';
-	import type {
-		ConversationWithTranslations,
-		WorkflowStepWithTranslationsDto
-	} from '@crownshy/api-client/api';
+	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 	import type { QuestionConfig } from './types';
-	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
-	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
-	import {
-		resolveTranslatableJsonToTextContentIds,
-		traverseTranslatableJsonAndCreateTranslations,
-		type DraftTranslatableJsonField
-	} from '$lib/components/Translation/translationUtils';
-	import { invalidate } from '$app/navigation';
 
 	type Props = {
-		conversation: ConversationWithTranslations;
+		conversationId: string;
 		workflowId: string;
-		workflowStep: WorkflowStepWithTranslationsDto;
+		workflowStep: WorkflowStepWithTranslations;
 		isLive: boolean;
 	};
 
-	let { conversation, workflowId, workflowStep, isLive }: Props = $props();
+	let { conversationId, workflowId, workflowStep, isLive }: Props = $props();
 
 	let toolConfig = $derived(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig);
 
-	let topic = $derived<DraftTranslatableJsonField>(
-		(toolConfig?.topic as DraftTranslatableJsonField) ?? { localized: '' }
-	);
-	let config = $state<{
-		questions: QuestionConfig<DraftTranslatableJsonField>[];
-		followUpRoundsCount: number;
-	}>({
+	let topic = $state('');
+	let config = $state<{ questions: QuestionConfig[]; followUpRoundsCount: number }>({
 		questions: [],
 		followUpRoundsCount: 2
 	});
 	let saving = $state(false);
 	let questionEditorOpen = $state(false);
-	let editingQuestionId = $state<string | null>(null);
-	let editingQuestion = $derived<QuestionConfig<DraftTranslatableJsonField> | null>(
-		(toolConfig?.root_questions as QuestionConfig<DraftTranslatableJsonField>[]).find(
-			(question) => question.id === editingQuestionId
-		) ?? null
-	);
-
-	const topicTransSource = $derived.by(() => {
-		void toolConfig;
-		void workflowStep;
-		return createTextContentSource({
-			getTranslation: () => topic?.translations,
-			getPrimaryLocale: () => conversation.primaryLocale,
-			getSupportedLanguages: () => conversation.supportedLanguages,
-			getPrimaryFallback: () => topic?.localized ?? ''
-		});
-	});
+	let editingQuestion = $state<QuestionConfig | null>(null);
 
 	onMount(() => {
 		const cfg = toolConfig as
-			| {
-					topic?: DraftTranslatableJsonField;
-					root_questions?: QuestionConfig<DraftTranslatableJsonField>[];
-					follow_up_rounds_count?: number;
-			  }
+			| { topic?: string; root_questions?: QuestionConfig[]; follow_up_rounds_count?: number }
 			| undefined;
+		topic = cfg?.topic ?? '';
 		config = {
 			questions:
 				cfg?.root_questions?.map((q) => ({
@@ -91,16 +57,16 @@
 	});
 
 	function openCreateQuestion() {
-		editingQuestionId = null;
+		editingQuestion = null;
 		questionEditorOpen = true;
 	}
 
-	function openEditQuestion(q: QuestionConfig<DraftTranslatableJsonField>) {
-		editingQuestionId = q.id;
+	function openEditQuestion(q: QuestionConfig) {
+		editingQuestion = q;
 		questionEditorOpen = true;
 	}
 
-	function handleSaveQuestion(q: QuestionConfig<DraftTranslatableJsonField>) {
+	function handleSaveQuestion(q: QuestionConfig) {
 		const exists = config.questions.some((x) => x.id === q.id);
 		config.questions = exists
 			? config.questions.map((x) => (x.id === q.id ? q : x))
@@ -116,17 +82,17 @@
 	}
 
 	async function saveAll() {
-		if (topic.localized.trim().length < 3) {
+		if (topic.trim().length < 3) {
 			notifications.send({
 				message: 'Topic must be at least 3 characters.',
 				priority: 'ERROR'
 			});
 			return;
 		}
-		const missingIntent = config.questions.find((q) => !q.intent.localized.trim());
+		const missingIntent = config.questions.find((q) => !q.intent.trim());
 		if (missingIntent) {
 			notifications.send({
-				message: `Every question needs an intent. Add one to "${missingIntent.text.localized.trim() || 'Untitled question'}".`,
+				message: `Every question needs an intent. Add one to "${missingIntent.text.trim() || 'Untitled question'}".`,
 				priority: 'ERROR'
 			});
 			return;
@@ -139,21 +105,10 @@
 				root_questions: config.questions,
 				follow_up_rounds_count: config.followUpRoundsCount
 			};
-			const payloadWithNewlyCreatedTranslations =
-				await traverseTranslatableJsonAndCreateTranslations(
-					payload,
-					conversation.primaryLocale
-				);
-			const resolvedToolConfig = resolveTranslatableJsonToTextContentIds(
-				payloadWithNewlyCreatedTranslations
-			);
-
-			const update = isLive
-				? { tool_config: resolvedToolConfig }
-				: { preview_tool_config: resolvedToolConfig };
+			const update = isLive ? { tool_config: payload } : { preview_tool_config: payload };
 			await apiClient.UpdateConversationWorkflowStep(update, {
 				params: {
-					conversation_id: conversation.id,
+					conversation_id: conversationId,
 					workflow_id: workflowId,
 					workflow_step_id: workflowStep.id
 				}
@@ -162,7 +117,6 @@
 				message: 'Thinking Space configuration saved.',
 				priority: 'INFO'
 			});
-			await invalidate('conversation:workflow');
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -192,11 +146,7 @@
 			</CardDescription>
 		</CardHeader>
 		<CardContent>
-			<TranslatableField
-				source={topicTransSource}
-				primaryLocale={conversation.primaryLocale}
-				supportedLanguages={conversation.supportedLanguages}
-			/>
+			<Input bind:value={topic} placeholder="e.g. Farmers & Agriculture in Scotland" />
 		</CardContent>
 	</Card>
 
@@ -272,7 +222,7 @@
 				dragDisabled={saving}
 				class="space-y-3"
 			>
-				{#snippet children(q: QuestionConfig<DraftTranslatableJsonField>)}
+				{#snippet children(q: QuestionConfig)}
 					<Card class="bg-card">
 						<CardContent class="flex items-start gap-3 p-4">
 							<button
@@ -285,15 +235,15 @@
 							<div class="min-w-0 flex-1 space-y-1">
 								<p
 									class="text-base leading-relaxed"
-									class:text-foreground={q.text.localized.trim()}
-									class:text-muted-foreground={!q.text.localized.trim()}
+									class:text-foreground={q.text.trim()}
+									class:text-muted-foreground={!q.text.trim()}
 								>
-									{q.text.localized.trim() || 'Untitled question'}
+									{q.text.trim() || 'Untitled question'}
 								</p>
-								{#if q.intent.localized.trim()}
+								{#if q.intent.trim()}
 									<p class="text-muted-foreground line-clamp-2 text-xs">
 										<span class="font-medium">Intent:</span>
-										{q.intent.localized.trim()}
+										{q.intent.trim()}
 									</p>
 								{:else}
 									<p class="text-destructive text-xs">
@@ -337,9 +287,7 @@
 	question={editingQuestion}
 	onOpenChange={(o) => {
 		questionEditorOpen = o;
-		if (!o) editingQuestionId = null;
+		if (!o) editingQuestion = null;
 	}}
 	onSave={handleSaveQuestion}
-	primaryLocale={conversation.primaryLocale}
-	supportedLanguages={conversation.supportedLanguages}
 />

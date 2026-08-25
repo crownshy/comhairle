@@ -4,19 +4,9 @@ import {
 	translateTiptapContent,
 	isTiptapJson
 } from '$lib/utils/tiptapUtils';
-import type { Translation, Translation2, TranslationDto } from '@crownshy/api-client/api';
+import type { Translation, Translation2 } from '@crownshy/api-client/api';
 
 export type TranslationStatus = 'primary' | 'draft' | 'approved';
-
-/** Mirror type of the backend JsonFieldWithTranslations with optional `translations`
- * field to allow creating new translatable fields in nested JSON, where only
- * the `localized` text is initialized and translations are created before saving
- * via `traverseTranslatableJsonAndCreateTranslations`.
- */
-export type DraftTranslatableJsonField = {
-	localized: string;
-	translations?: TranslationDto;
-};
 
 /** Lifecycle of a background save, so the UI can show a truthful indicator instead of guessing. */
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';

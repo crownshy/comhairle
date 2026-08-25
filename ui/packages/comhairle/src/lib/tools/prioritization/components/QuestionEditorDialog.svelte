@@ -8,6 +8,7 @@
 	import QuestionField from './QuestionField.svelte';
 	import type { PrioritizationStore } from '../store.svelte';
 	import type {
+		DraftTranslatableJsonField,
 		DraftQuestion,
 		ToolConfig,
 		DraftFields,
@@ -20,8 +21,7 @@
 	import {
 		isDraftTranslatableField,
 		localizeTranslatableJson,
-		traverseTranslatableJsonAndCreateTranslations,
-		type DraftTranslatableJsonField
+		traverseTranslatableJsonAndCreateTranslations
 	} from '$lib/components/Translation/translationUtils';
 	import { invalidate } from '$app/navigation';
 

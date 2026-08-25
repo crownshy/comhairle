@@ -9,10 +9,11 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
 use crate::models::translations::TextContentId;
-use crate::tools::thinking_space::{
-    ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup,
+use crate::{
+    ComhairleState,
+    error::ComhairleError,
+    tools::thinking_space::{ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup},
 };
-use crate::{ComhairleState, error::ComhairleError};
 
 pub mod elicitation_bot;
 pub mod heyform;
@@ -119,7 +120,6 @@ pub enum ToolConfig {
     ElicitationBot(ElicitationBotToolConfig),
     #[translatable]
     Prioritization(PrioritizationToolConfig),
-    #[translatable]
     ThinkingSpace(ThinkingSpaceToolConfig),
 }
 
