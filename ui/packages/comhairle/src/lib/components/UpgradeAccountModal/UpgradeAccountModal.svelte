@@ -61,7 +61,7 @@
 			});
 
 			open = false;
-			invalidateAll();
+			await invalidateAll();
 			onSuccess(upgradedUser);
 		} catch (error: any) {
 			notifications.send({
