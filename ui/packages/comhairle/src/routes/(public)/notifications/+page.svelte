@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { PageData, PageProps } from './$types';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
@@ -31,11 +31,7 @@
 	import { formatDistanceToNow } from 'date-fns';
 	import { Second } from '$lib/utils/units';
 
-	interface Props {
-		data: PageData;
-	}
-
-	let { data }: Props = $props();
+	let { data }: PageProps = $props();
 
 	let showAll = $state(false);
 	let markingAllAsRead = $state(false);
