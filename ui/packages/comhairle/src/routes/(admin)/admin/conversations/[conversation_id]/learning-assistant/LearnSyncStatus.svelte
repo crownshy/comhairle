@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
@@ -44,7 +44,7 @@
 		// Once parsing settles, refresh the page data so the rest of the page (e.g. the
 		// "needs parsed docs" gate) reflects the finished sync.
 		if (!isParsing) {
-			await invalidateAll();
+			await invalidate('knowledge-base:documents');
 		}
 	}
 
