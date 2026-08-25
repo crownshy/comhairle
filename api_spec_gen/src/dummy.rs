@@ -325,6 +325,7 @@ pub(crate) unsafe fn create_dummy_state() -> ComhairleState {
                 domain: "".to_string(),
                 heyform_url: "".to_string(),
                 jwt_secret: "".to_string(),
+                refresh_jwt_secret: "".to_string(),
                 polis_url: "".to_string(),
                 resource_bucket: "".to_string(),
                 admin_users: None,

@@ -64,6 +64,7 @@ pub struct ComhairleConfig {
     pub redis_cache_url: Option<String>,
     pub redis_cache_ttl_secs: u64,
     pub jwt_secret: String,
+    pub refresh_jwt_secret: String,
     pub resource_bucket: String,
     pub default_conversation_image_url: String,
     pub admin_users: Option<Vec<String>>,
