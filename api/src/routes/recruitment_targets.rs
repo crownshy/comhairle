@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -26,6 +27,7 @@ use crate::{
 
 pub mod dto;
 
+#[instrument(err(Debug), skip(state))]
 async fn create_recruitment_target(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -38,6 +40,7 @@ async fn create_recruitment_target(
     Ok((StatusCode::CREATED, Json(target)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn list_recruitment_targets(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -51,6 +54,7 @@ async fn list_recruitment_targets(
     Ok((StatusCode::OK, Json(targets)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn get_recruitment_target(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, _workflow_id, target_id)): Path<(Uuid, Uuid, Uuid)>,
@@ -62,6 +66,7 @@ async fn get_recruitment_target(
     Ok((StatusCode::OK, Json(target)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn update_recruitment_target(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, _workflow_id, target_id)): Path<(Uuid, Uuid, Uuid)>,
@@ -74,6 +79,7 @@ async fn update_recruitment_target(
     Ok((StatusCode::OK, Json(target)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn delete_recruitment_target(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, _workflow_id, target_id)): Path<(Uuid, Uuid, Uuid)>,

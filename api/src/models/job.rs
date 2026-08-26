@@ -4,6 +4,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -78,6 +79,7 @@ impl CreateJob {
     }
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn create(db: &PgPool, create_job: CreateJob) -> Result<Job, ComhairleError> {
     let columns = create_job.columns();
     let values = create_job.values();
@@ -137,6 +139,7 @@ impl UpdateJob {
     }
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn update(db: &PgPool, id: &Uuid, update_job: UpdateJob) -> Result<Job, ComhairleError> {
     let values = update_job.to_values();
 
@@ -159,6 +162,7 @@ pub async fn update(db: &PgPool, id: &Uuid, update_job: UpdateJob) -> Result<Job
 }
 
 /// Convenience method to mark job as completed with custom completion_message
+#[instrument(err(Debug), skip(db))]
 pub async fn complete(db: &PgPool, id: Uuid, message: &str) -> Result<Job, ComhairleError> {
     let (sql, values) = Query::update()
         .table(JobIden::Table)
@@ -176,6 +180,7 @@ pub async fn complete(db: &PgPool, id: Uuid, message: &str) -> Result<Job, Comha
     Ok(job)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(JobIden::Table)
@@ -191,6 +196,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
     Ok(job)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get_id_id(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -280,6 +286,7 @@ impl JobFilterOptions {
     }
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,

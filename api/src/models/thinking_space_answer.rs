@@ -118,7 +118,7 @@ impl CreateAnswer {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -156,7 +156,7 @@ pub async fn create(
     Ok(answer)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -207,7 +207,7 @@ impl ThinkingSpaceAnswerFilterOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -255,7 +255,7 @@ impl UpdateAnswer {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -279,7 +279,7 @@ pub async fn update(
     Ok(answer)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ThinkingSpaceAnswerIden::Table)

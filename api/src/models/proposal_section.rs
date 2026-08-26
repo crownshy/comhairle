@@ -42,7 +42,7 @@ const DEFAULT_COLUMNS: [ProposalSectionIden; 6] = [
 ];
 
 /// Creates a new section for a proposal, storing `body` as translatable rich content.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     proposal_id: &Uuid,
@@ -69,7 +69,7 @@ pub async fn create(
 }
 
 /// Returns the next `position` value for a proposal (max existing + 1, or 0).
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn next_position(db: &PgPool, proposal_id: &Uuid) -> Result<i32, ComhairleError> {
     let sections = list(db, proposal_id).await?;
     Ok(sections
@@ -80,7 +80,7 @@ pub async fn next_position(db: &PgPool, proposal_id: &Uuid) -> Result<i32, Comha
 }
 
 /// Lists the raw sections for a proposal, ordered by `position`.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(db: &PgPool, proposal_id: &Uuid) -> Result<Vec<ProposalSection>, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ProposalSectionIden::Table)
@@ -95,7 +95,7 @@ pub async fn list(db: &PgPool, proposal_id: &Uuid) -> Result<Vec<ProposalSection
 }
 
 /// Lists sections for a proposal with `body` resolved to the requested locale.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_localized(
     db: &PgPool,
     proposal_id: &Uuid,
@@ -124,7 +124,7 @@ pub async fn list_localized(
 }
 
 /// Lists sections for a proposal together with their full translation metadata.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_with_translations(
     db: &PgPool,
     proposal_id: &Uuid,
@@ -139,7 +139,7 @@ pub async fn list_with_translations(
 }
 
 /// Deletes a single section.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ProposalSection, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ProposalSectionIden::Table)

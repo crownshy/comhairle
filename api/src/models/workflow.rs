@@ -90,7 +90,7 @@ impl PartialWorkflow {
 }
 
 /// Get a conversation by ID
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -106,19 +106,17 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
     Ok(conversation)
 }
 
-pub async fn launch(
-    db: &PgPool,
-    workflow_id: &Uuid,
-    state: &Arc<ComhairleState>,
-) -> Result<(), ComhairleError> {
-    let steps = workflow_step::list(db, workflow_id).await?;
+#[instrument(err(Debug), skip(state))]
+pub async fn launch(state: &Arc<ComhairleState>, workflow_id: &Uuid) -> Result<(), ComhairleError> {
+    let steps = workflow_step::list(&state.db, workflow_id).await?;
     for step in steps {
-        workflow_step::launch(db, &step.id, state).await?;
+        workflow_step::launch(state, &step.id).await?;
     }
 
     Ok(())
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn check_user_is_owner(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -180,7 +178,7 @@ impl CreateWorkflow {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn register_user(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -222,7 +220,7 @@ pub async fn register_user(
 }
 
 // TODO ensure this deletes all workflow steps on deletion
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(WorkflowIden::Table)
@@ -238,7 +236,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> 
     Ok(workflow)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -279,7 +277,7 @@ pub async fn update(
 /// As events are attached to conversations and event routes are nested under
 /// `/conversation`, the `conversation_id` is always passed as an argument, even if
 /// it is not used in the final database query.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     conversation_id: Uuid,
@@ -388,7 +386,7 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
 /// If `conversation_id` is `Some` the workflow will be created referencing the specified conversation.
 ///
 /// If `event_id` is `Some` the workflow will be created referencing the specified event.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     workflow: &CreateWorkflow,

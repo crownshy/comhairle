@@ -162,7 +162,7 @@ impl PartialReport {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<Report, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -178,7 +178,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<Report, ComhairleError> 
     Ok(conversation)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     conversation_id: Uuid,
@@ -198,7 +198,7 @@ pub async fn update(
         .map_err(|_| ComhairleError::FailedToUpdateReport)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_for_conversation(
     db: &PgPool,
     conversation_id: Uuid,
@@ -282,7 +282,7 @@ pub async fn create_for_conversation(
     Ok(report)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_for_conversation(
     db: &PgPool,
     conversation_id: Uuid,
@@ -301,7 +301,7 @@ pub async fn get_for_conversation(
     Ok(report)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localized_for_conversation(
     db: &PgPool,
     conversation_id: Uuid,

@@ -408,6 +408,7 @@ impl ConversationOrderOptions {
     }
 }
 
+#[instrument(err(Debug), skip(db, bot_service))]
 pub async fn delete(
     db: &PgPool,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
@@ -438,6 +439,7 @@ pub async fn delete(
     Ok(conversation)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id_or_slug(
     db: &PgPool,
     id_or_slug: &IdOrSlug,
@@ -449,7 +451,7 @@ pub async fn get_by_id_or_slug(
     Ok(conversation)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localised_by_id_or_slug(
     db: &PgPool,
     id_or_slug: &IdOrSlug,
@@ -462,7 +464,7 @@ pub async fn get_localised_by_id_or_slug(
     Ok(original_conversation)
 }
 /// Get a conversation by ID (original struct, not localized)
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -479,7 +481,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, Comhairle
 }
 
 /// Get a conversation by ID
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localised_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -504,7 +506,7 @@ pub async fn get_localised_by_id(
 }
 
 /// Get a conversation by slug (original struct, not localized)
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -520,7 +522,7 @@ pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, Comhai
     Ok(conversation)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localised_by_slug(
     db: &PgPool,
     slug: &str,
@@ -543,7 +545,7 @@ pub async fn get_localised_by_slug(
     Ok(conversation)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -577,6 +579,7 @@ pub async fn update(
 /// the top level. Existing keys are overwritten by the patch, keys not present
 /// in the patch are left untouched. This is a shallow merge — nested objects
 /// are replaced, not merged recursively. `patch` must be a JSON object.
+#[instrument(err(Debug), skip(db))]
 pub async fn patch_metadata(
     db: &PgPool,
     id: &Uuid,
@@ -604,7 +607,7 @@ pub async fn patch_metadata(
     Ok(conversation)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_user_participation(
     db: &PgPool,
     user_id: &Uuid,
@@ -651,7 +654,7 @@ pub async fn list_for_user_participation(
     Ok(conversations)
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[cfg_attr(test, derive(Dummy))]
 pub struct CreateConversation {
     pub title: String,
@@ -711,6 +714,7 @@ impl CreateConversation {
     }
 }
 
+#[instrument(err(Debug), skip(db, bot_service))]
 pub async fn create(
     db: &PgPool,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
@@ -845,6 +849,7 @@ pub async fn create(
     }
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn list_owned(
     db: &PgPool,
     owner_id: Uuid,
@@ -874,6 +879,7 @@ pub async fn list_owned(
     Ok(conversations)
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn launch(
     db: &PgPool,
     conversation_id: Uuid,
@@ -881,7 +887,7 @@ pub async fn launch(
 ) -> Result<Conversation, ComhairleError> {
     let workflows = models::workflow::list(db, conversation_id, None).await?;
     for workflow in workflows {
-        models::workflow::launch(db, &workflow.id, state).await?;
+        models::workflow::launch(state, &workflow.id).await?;
     }
 
     update(
@@ -898,6 +904,8 @@ pub async fn launch(
 
     Ok(conversation)
 }
+
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -925,7 +933,7 @@ pub async fn list(
     Ok(conversations)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_permitted_user(
     db: &PgPool,
     user_id: Uuid,

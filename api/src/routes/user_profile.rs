@@ -5,6 +5,7 @@ use aide::axum::{
     routing::{get_with, put_with},
 };
 use axum::{Json, extract::State, http::StatusCode};
+use tracing::instrument;
 
 use crate::{
     ComhairleState,
@@ -21,6 +22,7 @@ pub mod dto;
 use dto::UpsertUserProfileRequest;
 
 /// Get the current user's profile
+#[instrument(err(Debug), skip(state))]
 pub async fn get_profile(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -30,6 +32,7 @@ pub async fn get_profile(
 }
 
 /// Create or update the current user's profile
+#[instrument(err(Debug), skip(state))]
 pub async fn upsert_profile(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,

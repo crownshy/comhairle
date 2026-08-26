@@ -189,7 +189,7 @@ pub struct CreateScheduledEmail {
     pub email_config: ScheduledEmailConfig,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     email: CreateScheduledEmail,
@@ -230,7 +230,7 @@ impl UpdateScheduledEmail {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -254,7 +254,7 @@ pub async fn update(
     Ok(email)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ScheduledEmailIden::Table)
@@ -319,7 +319,7 @@ impl ScheduledEmailOrderOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -339,7 +339,7 @@ pub async fn list(
     Ok(emails)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_upcoming_scheduled_emails(
     db: &PgPool,
     upcoming_duration: chrono::Duration,
@@ -361,7 +361,7 @@ pub async fn list_upcoming_scheduled_emails(
     Ok(scheduled_emails)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ScheduledEmailIden::Table)
