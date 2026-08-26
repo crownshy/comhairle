@@ -6,7 +6,6 @@ import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ depends, params }: LoadEvent) => {
 	depends(key('knowledge-base/documents'));
-	depends('knowledge-base:documents');
 
 	const { conversation_id } = params;
 	if (!conversation_id) {
