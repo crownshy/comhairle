@@ -10,6 +10,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		document: ComhairleDocument;
@@ -59,7 +60,7 @@
 		if (timeout) {
 			clearTimeout(timeout);
 			timeout = null;
-			await invalidate('knowledge-base:documents');
+			await invalidate(key('knowledge-base/documents'));
 		}
 	}
 
@@ -89,7 +90,7 @@
 			});
 			console.error(e);
 		} finally {
-			await invalidate('knowledge-base:documents');
+			await invalidate(key('knowledge-base/documents'));
 		}
 	}
 </script>
