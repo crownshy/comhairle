@@ -17,6 +17,7 @@ import type {
 	DraftTranslatableJsonField,
 	WorkflowStepInput
 } from './types';
+import { key } from '$lib/utils/invalidationKey';
 
 /** API + DTO mapping */
 
@@ -275,7 +276,7 @@ async function putToolConfig(opts: {
 		}
 	});
 
-	await invalidate('conversation:workflow');
+	await invalidate(key('conversation/workflow'));
 }
 
 /* ---------- Responses ---------- */

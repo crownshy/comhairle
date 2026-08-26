@@ -7,6 +7,7 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { notifications } from '$lib/notifications.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { useDebounce } from 'runed';
 
@@ -74,7 +75,7 @@
 					}
 				}
 			);
-			await invalidate('conversation:meta');
+			await invalidate(key('conversation'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to update setup' });
