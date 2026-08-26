@@ -231,7 +231,7 @@
 </svelte:head>
 
 <div class="flex flex-col items-center sm:py-2 md:py-10">
-	{#if conversation && workflowStep}
+	{#if conversation && workflowStep && user}
 		<div
 			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:px-0 md:pt-0 md:pb-0"
 		>
