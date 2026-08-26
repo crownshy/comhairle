@@ -11,6 +11,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { env } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let loginType = $state<'automatic' | 'login'>('login');
 
@@ -60,7 +61,7 @@
 				await apiClient.SignupAnnonUser(undefined, {});
 			}
 			await acceptInvite();
-			await goto(firstWorkflowPath + url.search, { invalidate: ['app:participation'] });
+			await goto(firstWorkflowPath + url.search, { invalidate: [key('participation')] });
 		} catch (e) {
 			console.error(e);
 		}
@@ -81,7 +82,7 @@
 
 	onMount(() => {
 		if (!user && eventId) {
-			invalidate('app:participation');
+			invalidate(key('participation'));
 		}
 	});
 </script>

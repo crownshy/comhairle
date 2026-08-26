@@ -12,6 +12,7 @@
 	import type { UserDto } from '@crownshy/api-client/api';
 	import { UserCheck, Mail, Lock } from 'lucide-svelte';
 	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let {
 		open = $bindable(false),
@@ -61,7 +62,7 @@
 			});
 
 			open = false;
-			invalidate('app:user');
+			invalidate(key('user'));
 			onSuccess(upgradedUser);
 		} catch (error: any) {
 			notifications.send({

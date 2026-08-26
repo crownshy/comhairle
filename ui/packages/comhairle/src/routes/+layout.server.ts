@@ -1,9 +1,10 @@
 import type { LayoutServerLoad } from './$types.js';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName } from '$lib/types/theme';
+import { key } from '$lib/utils/invalidationKey';
 
 export const load: LayoutServerLoad = async (event) => {
-	event.depends('app:user');
+	event.depends(key('user'));
 
 	const tk = event.cookies.get('auth-token');
 	const common = {

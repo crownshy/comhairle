@@ -1,9 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import type { LocalizedEventDto, EventAttendanceDto } from '@crownshy/api-client/api';
+import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ parent, params, url, depends }) => {
-	depends('app:event');
+	depends(key('event'));
 	const { api, user } = await parent();
 	const { conversation_id, event_id } = params;
 
