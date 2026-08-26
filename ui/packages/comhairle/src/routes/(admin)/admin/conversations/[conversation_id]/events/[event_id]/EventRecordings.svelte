@@ -5,13 +5,15 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Progress } from '$lib/components/ui/progress';
 	import { notifications } from '$lib/notifications.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type {
 		AudioRecordingDto,
 		AudioRecordingStatus,
 		RecordingDownloadUrls
 	} from '@crownshy/api-client/api';
+	import { key } from '$lib/utils/invalidationKey';
+	import { Second } from '$lib/utils/units';
 
 	type Props = {
 		conversation_id: string;
@@ -213,7 +215,7 @@
 			// Keep failed rows so the user can fix and retry; drop successful ones.
 			rows = rows.filter((r) => r.state !== 'done');
 			if (rows.length === 0) rows = [makeRow()];
-			await invalidateAll();
+			await invalidate(key('conversation/events'));
 		}
 	}
 
@@ -229,7 +231,7 @@
 				params: { conversation_id, event_id, recording_id: recording.id }
 			});
 			notifications.send({ message: `Deleted "${recording.name}"`, priority: 'INFO' });
-			await invalidateAll();
+			await invalidate(key('conversation/events'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -248,7 +250,7 @@
 				params: { conversation_id, event_id, recording_id: recordingId }
 			});
 			notifications.send({ message: 'Processing restarted', priority: 'INFO' });
-			await invalidateAll();
+			await invalidate(key('conversation/events'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({ message: 'Failed to restart processing', priority: 'ERROR' });
@@ -256,7 +258,7 @@
 	}
 
 	async function refreshStatus() {
-		await invalidateAll();
+		await invalidate(key('conversation/events'));
 	}
 
 	async function loadDownloads(recordingId: string) {
@@ -333,8 +335,8 @@
 	$effect(() => {
 		if (!hasInFlight) return;
 		const interval = setInterval(() => {
-			invalidateAll();
-		}, 10000);
+			invalidate(key('conversation/events'));
+		}, 10 * Second);
 		return () => clearInterval(interval);
 	});
 </script>
