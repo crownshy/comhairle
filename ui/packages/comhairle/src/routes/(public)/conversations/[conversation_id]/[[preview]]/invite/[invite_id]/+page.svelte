@@ -11,6 +11,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { env } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let loginType = $state<'automatic' | 'login'>('login');
 
@@ -86,7 +87,7 @@
 
 	onMount(() => {
 		if (!user && eventId) {
-			invalidate('app:participation');
+			invalidate(key('participation'));
 		}
 	});
 </script>

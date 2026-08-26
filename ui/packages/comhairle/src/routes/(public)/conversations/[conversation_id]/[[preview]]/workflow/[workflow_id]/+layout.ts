@@ -1,3 +1,4 @@
+import { key } from '$lib/utils/invalidationKey';
 import type { LayoutLoad } from './$types';
 import type {
 	LocalizedWorkflowStepDto,
@@ -13,10 +14,10 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 		await parent();
 	const workflow_id = params.workflow_id;
 
-	depends('app:workflow-steps');
+	depends(key('workflow-steps'));
 	// This layout fetches participation itself when the parent's row is for another workflow,
 	// so it needs the same key the conversation layout declares.
-	depends('app:participation');
+	depends(key('participation'));
 
 	let workflowSteps: LocalizedWorkflowStepWithProgressDto[];
 	if (conversation.isLive) {

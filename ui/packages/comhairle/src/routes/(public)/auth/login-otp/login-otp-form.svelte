@@ -12,6 +12,7 @@
 	import { resolve } from '$app/paths';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { onMount } from 'svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -63,7 +64,7 @@
 						} catch {}
 					}
 
-					await goto(resolve(redirectTo), { invalidate: ['app:user'] });
+					await goto(resolve(redirectTo), { invalidate: [key('user')] });
 				} catch (e) {
 					responseMessage = e.response.data.err;
 				}
@@ -92,7 +93,7 @@
 					await apiClient.CreateOtp({
 						email
 					});
-					await invalidate('app:user');
+					await invalidate(key('user'));
 				} catch (e) {
 					responseMessage = e.response?.data?.err ?? 'Failed to send one-time-passcode';
 				}

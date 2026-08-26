@@ -13,6 +13,7 @@
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
 	import { LoaderCircle } from 'lucide-svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	const { data } = $props();
 	const { emailConfig, schema } = data;
@@ -76,7 +77,7 @@
 				message: 'Successfully updated custom email'
 			});
 
-			await invalidate('app:email_template_config');
+			await invalidate(key('email-template-config'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -92,7 +93,7 @@
 				params: { email_config_id: emailConfig.id }
 			});
 
-			goto('/admin/email-template-configs', { invalidate: ['app:email_template_config'] });
+			goto('/admin/email-template-configs', { invalidate: [key('email-template-config')] });
 		} catch (e) {
 			console.error(e);
 			notifications.send({
