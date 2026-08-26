@@ -9,6 +9,7 @@
 	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck, Info } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { data }: PageProps = $props();
 
@@ -112,7 +113,7 @@
 				}
 			);
 			// Reload to refresh attendance data
-			await invalidate('app:event');
+			await invalidate(key('event'));
 		} catch (e: any) {
 			error = e?.message || 'Failed to register';
 		} finally {

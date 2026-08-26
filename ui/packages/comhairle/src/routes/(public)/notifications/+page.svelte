@@ -30,6 +30,7 @@
 	import type { NotificationWithDelivery } from '@crownshy/api-client/api';
 	import { formatDistanceToNow } from 'date-fns';
 	import { Second } from '$lib/utils/units';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { data }: PageData = $props();
 
@@ -59,7 +60,7 @@
 	$effect(() => {
 		async function reloadNotifications() {}
 		let timeoutId = setTimeout(async () => {
-			await invalidate('app:notifications');
+			await invalidate(key('notifications'));
 		}, 5 * Second);
 		return () => {
 			window.clearTimeout(timeoutId);
@@ -89,7 +90,7 @@
 			await apiClient.MarkNotificationAsRead(undefined, {
 				params: { delivery_id: deliveryId }
 			});
-			await invalidate('app:notifications');
+			await invalidate(key('notifications'));
 			notificationService.send({
 				message: 'Notification marked as read',
 				priority: 'SUCCESS'
@@ -111,7 +112,7 @@
 		markingAllAsRead = true;
 		try {
 			await apiClient.MarkAllNotificationsAsRead(undefined);
-			await invalidate('app:notifications');
+			await invalidate(key('notifications'));
 			notificationService.send({
 				message: 'All notifications marked as read',
 				priority: 'SUCCESS'
