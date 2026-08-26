@@ -4,6 +4,7 @@
 	import { invalidate } from '$app/navigation';
 	import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		document: ComhairleDocument | undefined;
@@ -44,7 +45,7 @@
 		// Once parsing settles, refresh the page data so the rest of the page (e.g. the
 		// "needs parsed docs" gate) reflects the finished sync.
 		if (!isParsing) {
-			await invalidate('knowledge-base:documents');
+			await invalidate(key('knowledge-base/documents'));
 		}
 	}
 
