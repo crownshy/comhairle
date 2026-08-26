@@ -13,7 +13,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import Edit from 'lucide-svelte/icons/edit';
 	import Delete from 'lucide-svelte/icons/delete';
@@ -24,6 +24,7 @@
 	import 'carta-plugin-video/default.css';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
+	import { key } from '$lib/utils/invalidationKey.js';
 
 	let { data } = $props();
 	let report = $derived(data.report);
@@ -56,7 +57,7 @@
 			await apiClient.CreateImpact(newImpact, {
 				params: { report_id: report.id, conversation_id: report.conversationId }
 			});
-			invalidateAll();
+			invalidate(key('conversation/report'));
 			impactOpen = false;
 			notifications.send({ message: 'Impact Saved', priority: 'INFO' });
 		} catch (e) {
