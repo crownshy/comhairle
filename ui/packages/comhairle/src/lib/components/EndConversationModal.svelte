@@ -16,6 +16,7 @@
 	import type { ConversationDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
 	import { LucideCircleX } from 'lucide-svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		conversation: ConversationDto;
@@ -35,7 +36,7 @@
 					{ params: { conversation_id: conversation.id } }
 				);
 				open = false;
-				invalidate('conversation:meta');
+				invalidate(key('conversation'));
 
 				notifications.send({
 					message: isComplete ? 'Conversation now ended' : 'Conversation re-opened',
