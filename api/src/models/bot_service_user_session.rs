@@ -296,7 +296,7 @@ pub async fn create(
 ///
 /// Returns a `Result` containing the `BotServiceUserSession` if found or a
 /// `ComhairleError` if not found.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation_id(
     db: &PgPool,
     user_id: Uuid,
@@ -344,7 +344,7 @@ pub async fn get_by_conversation_id(
 ///
 /// Returns a `Result` containing the `BotServiceUserSession` if found or a
 /// `ComhairleError` if not found.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_workflow_step_id(
     db: &PgPool,
     user_id: Uuid,
@@ -381,7 +381,7 @@ pub async fn get_by_workflow_step_id(
 }
 
 /// Lists bot sessions by workflow step id and context.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_by_workflow_step_id_and_context(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -414,7 +414,7 @@ pub async fn list_by_workflow_step_id_and_context(
 }
 
 /// Deletes bot sessions by local table id.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete_by_ids(db: &PgPool, ids: &[Uuid]) -> Result<u64, ComhairleError> {
     if ids.is_empty() {
         return Ok(0);

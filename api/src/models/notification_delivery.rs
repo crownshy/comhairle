@@ -215,7 +215,7 @@ impl CreateNotificationDelivery {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     delivery: &CreateNotificationDelivery,
@@ -238,7 +238,7 @@ pub async fn create(
     delivery_result.map_err(ComhairleError::DatabaseError)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_bulk(
     db: &PgPool,
     deliveries: &[CreateNotificationDelivery],
@@ -271,7 +271,7 @@ pub async fn create_bulk(
     Ok(deliveries)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -287,7 +287,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, C
     Ok(delivery)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn mark_as_read(
     db: &PgPool,
     id: &Uuid,
@@ -307,7 +307,7 @@ pub async fn mark_as_read(
     Ok(delivery)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn mark_all_as_read_for_user(
     db: &PgPool,
     user_id: &Uuid,
@@ -328,7 +328,7 @@ pub async fn mark_all_as_read_for_user(
     Ok(deliveries)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -354,7 +354,7 @@ pub async fn update(
     Ok(delivery)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(NotificationDeliveryIden::Table)
@@ -370,7 +370,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, Comh
     Ok(delivery)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_user(
     db: &PgPool,
     user_id: &Uuid,
@@ -390,7 +390,7 @@ pub async fn list_for_user(
     Ok(deliveries)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_unread_for_user(
     db: &PgPool,
     user_id: &Uuid,
@@ -411,7 +411,7 @@ pub async fn list_unread_for_user(
     Ok(deliveries)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -431,7 +431,7 @@ pub async fn list(
     Ok(deliveries)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_unread_count_for_user(db: &PgPool, user_id: &Uuid) -> Result<i64, ComhairleError> {
     let (sql, values) = Query::select()
         .expr(Expr::count(Expr::asterisk()))
@@ -445,7 +445,7 @@ pub async fn get_unread_count_for_user(db: &PgPool, user_id: &Uuid) -> Result<i6
     Ok(count.0)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_user_with_notifications(
     db: &PgPool,
     user_id: &Uuid,
@@ -502,7 +502,7 @@ pub async fn list_for_user_with_notifications(
     })
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_unread_for_user_with_notifications(
     db: &PgPool,
     user_id: &Uuid,

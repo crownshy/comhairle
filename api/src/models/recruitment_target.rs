@@ -44,7 +44,7 @@ const DEFAULT_COLUMNS: [RecruitmentTargetIden; 7] = [
     RecruitmentTargetIden::UpdatedAt,
 ];
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -87,7 +87,7 @@ pub async fn create(
     Ok(target)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -103,7 +103,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, Comh
     Ok(target)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_workflow(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -123,7 +123,7 @@ pub async fn list_for_workflow(
     Ok(targets)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -175,7 +175,7 @@ pub async fn update(
     Ok(target)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RecruitmentTargetIden::Table)

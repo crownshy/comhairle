@@ -112,7 +112,7 @@ impl CreatePolisStatementAux {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     user_id: Uuid,
@@ -364,7 +364,7 @@ impl UpdatePolisStatementAux {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -384,7 +384,7 @@ pub async fn update(
     Ok(aux)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, ComhairleError> {
     let (sql, values) = Query::select()
         .from(PolisStatementAuxIden::Table)
@@ -404,7 +404,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, Comh
 /// Applies the same field semantics as [`update`]: only the `Some` fields of
 /// `update_aux` are written. Used by batch moderation once the decisions have
 /// been forwarded to Polis. An empty id slice is a no-op.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update_many(
     db: &PgPool,
     ids: &[Uuid],
@@ -446,7 +446,7 @@ fn moderation_values(
 
 /// Apply a moderation decision to a single row, setting `moderation_status`
 /// and `moderation_reason` together (see [`moderation_values`]).
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn moderate(
     db: &PgPool,
     id: Uuid,
@@ -467,7 +467,7 @@ pub async fn moderate(
 
 /// Apply a moderation decision to many rows in one statement, returning the
 /// updated rows (see [`moderation_values`]). An empty id slice is a no-op.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn moderate_many(
     db: &PgPool,
     ids: &[Uuid],
@@ -540,7 +540,7 @@ impl PolisStatementAuxFilterOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn check_is_commentor(
     db: &PgPool,
     aux_id: &Uuid,
@@ -582,7 +582,7 @@ pub async fn check_can_moderate(
     Ok(())
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     workflow_step_id: Option<Uuid>,
@@ -632,7 +632,7 @@ pub struct ThemeStatistic {
     pub count: i64,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn theme_stats(
     db: &PgPool,
     workflow_step_id: Option<Uuid>,
@@ -706,7 +706,7 @@ pub async fn remove_theme(
     Ok(aux)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(PolisStatementAuxIden::Table)

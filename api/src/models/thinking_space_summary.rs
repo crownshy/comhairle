@@ -64,7 +64,7 @@ impl CreateSummary {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     user_id: Uuid,
@@ -96,7 +96,7 @@ pub struct UpdateSummary {
     pub summary: String,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -135,7 +135,7 @@ pub async fn update(
     Ok(summary)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ThinkingSpaceSummaryIden::Table)
@@ -225,7 +225,7 @@ impl ThinkingSpaceSummaryFilterOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -252,7 +252,7 @@ pub async fn list(
     Ok(summaries)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ThinkingSpaceSummaryIden::Table)

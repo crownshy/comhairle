@@ -326,7 +326,7 @@ impl CreateMedia {
 ///
 /// Returns a `Result` containing the created `Media` record if successful or a
 /// `ComhairleError` if the query fails.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     create_media: &CreateMedia,
@@ -362,7 +362,7 @@ pub async fn create(
 /// Returns a `Result` containing the `Media` record if found,
 /// a `ComhairleError::ResourceNotFound` if not found, or a
 /// `ComhairleError` if the query fails for any other reason.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -459,7 +459,7 @@ impl MediaFilterOptions {
 ///
 /// Returns a `Result` containing a `PaginatedResults<Media>` if successful,
 /// or a `ComhairleError` if the query fails.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -491,7 +491,7 @@ pub async fn list(
 ///
 /// Returns a `Result` containing the updated `Media` record, or `ComhairleError`
 /// if the query fails.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -526,7 +526,7 @@ pub async fn update(
 ///
 /// Returns a `Result` containing the deleted `Media` record, or `ComhairleError`
 /// if the query fails.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(MediaIden::Table)

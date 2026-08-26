@@ -35,7 +35,7 @@ const DEFAULT_COLUMNS: [RegionAreaIden; 4] = [
     RegionAreaIden::UpdatedAt,
 ];
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     create_request: CreateRegionArea,
@@ -57,7 +57,7 @@ pub async fn create(
     Ok(area)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -73,7 +73,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleEr
     Ok(area)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(db: &PgPool) -> Result<Vec<RegionArea>, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -88,7 +88,7 @@ pub async fn list(db: &PgPool) -> Result<Vec<RegionArea>, ComhairleError> {
     Ok(areas)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -132,7 +132,7 @@ pub async fn update(
     Ok(area)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RegionAreaIden::Table)

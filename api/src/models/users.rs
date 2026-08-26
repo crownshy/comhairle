@@ -174,7 +174,7 @@ const DEFAULT_COLUMNS: [UserIden; 12] = [
 ];
 
 /// Create a user from a signup request
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
     let password = hash_pw(&user.password)?;
     let (sql, values) = Query::insert()
@@ -223,7 +223,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
 }
 
 /// Create an annon user
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
     let mut retries = 5; // Retry up to 5 times to generate a unique username
     while retries > 0 {
@@ -260,7 +260,7 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
     ))
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
     match &user.username {
         Some(username) => create_otp_user_with_username(&user.email, username, db).await,
@@ -346,7 +346,7 @@ async fn create_otp_user_random_username(email: &str, db: &PgPool) -> Result<Use
 
 /// Returns Ok(Some(user)) on success, Ok(None) on duplicate username,
 /// Err on duplicate email or any other DB error.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 async fn insert_otp_user(
     email: &str,
     username: &str,
@@ -388,7 +388,7 @@ async fn insert_otp_user(
 /// Stored purely for internal/audit purposes; neither value is serialized back
 /// out over the API (both fields are `skip_serializing`). A `None` user agent
 /// leaves the column NULL.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn set_signup_metadata(
     user_id: &Uuid,
     ip: &str,
@@ -407,7 +407,7 @@ pub async fn set_signup_metadata(
 }
 
 /// Return a user by ID
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -423,7 +423,7 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
 }
 
 /// Return a user by email
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -438,7 +438,7 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
     Ok(user)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_user_resource_roles(
     resource_kind: Resource,
     resource_id: &Uuid,
@@ -473,7 +473,7 @@ pub async fn get_user_resource_roles(
         .map_err(ComhairleError::DatabaseError)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn user_has_resource_role(
     resource_kind: Resource,
     resource_id: &Uuid,
@@ -490,7 +490,7 @@ pub async fn user_has_resource_role(
     Ok(true)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn add_user_resource_role(
     resource_kind: Resource,
     resource_id: &Uuid,
@@ -520,7 +520,7 @@ pub async fn add_user_resource_role(
 }
 
 /// Return a user by username
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -535,7 +535,7 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
 }
 
 /// Return all users associated with an organization.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_by_organization_id(
     organization_id: &Uuid,
     db: &PgPool,
@@ -553,7 +553,7 @@ pub async fn list_by_organization_id(
 }
 
 /// Set or clear the organization membership for a user.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn set_user_organization_id(
     user_id: &Uuid,
     organization_id: Option<Uuid>,
@@ -588,7 +588,7 @@ pub struct UpgradeAccountRequest {
 }
 
 /// Update user details (username and/or password)
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update_user(
     user_id: &Uuid,
     update_request: &UpdateUserRequest,
@@ -653,7 +653,7 @@ pub async fn update_user(
 }
 
 /// Upgrade an anonymous account to email/password account
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn upgrade_account(
     user_id: &Uuid,
     upgrade_request: &UpgradeAccountRequest,
@@ -778,7 +778,7 @@ impl UserOrderOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,

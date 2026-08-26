@@ -41,7 +41,7 @@ pub struct CreateFeedbackDTO {
     pub content: String,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     update_request: PartialFeedback,
@@ -62,7 +62,7 @@ pub async fn update(
         .map_err(|_e| ComhairleError::FailedToUpdateFeedback)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     create_request: CreateFeedbackDTO,
@@ -91,7 +91,7 @@ pub async fn create(
         .map_err(|_e| ComhairleError::FailedToCreateFeedback)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_conversation(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -110,7 +110,7 @@ pub async fn list_for_conversation(
     Ok(feedback)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_user_on_conversation(
     db: &PgPool,
     user_id: &Uuid,

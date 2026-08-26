@@ -190,7 +190,7 @@ pub struct CreateAudioRecording {
 }
 
 /// Create a new audio recording in the database.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     create_recording: &CreateAudioRecording,
@@ -236,7 +236,7 @@ pub async fn create(
 }
 
 /// Get an audio recording by ID
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, recording_id: &Uuid) -> Result<AudioRecording, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -258,7 +258,7 @@ pub async fn get_by_id(db: &PgPool, recording_id: &Uuid) -> Result<AudioRecordin
 ///
 /// Returns [`ComhairleError::ResourceNotFound`] if no recording with that id
 /// exists for the given event.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id_and_event(
     db: &PgPool,
     recording_id: &Uuid,
@@ -282,7 +282,7 @@ pub async fn get_by_id_and_event(
 }
 
 /// List all recordings for an event, oldest first.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_by_event(
     db: &PgPool,
     event_id: &Uuid,
@@ -305,7 +305,7 @@ pub async fn list_by_event(
 ///
 /// Returns [`ComhairleError::ResourceNotFound`] if no recording with that id
 /// exists for the given event.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(
     db: &PgPool,
     recording_id: &Uuid,
@@ -329,7 +329,7 @@ pub async fn delete(
 }
 
 /// Update the status of an audio recording
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update_status(
     db: &PgPool,
     recording_id: &Uuid,

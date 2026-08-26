@@ -49,7 +49,7 @@ pub struct CreateProposal {
 }
 
 /// Creates a proposal and its ordered sections, returning both.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -77,7 +77,7 @@ pub async fn create(
     Ok((proposal, sections))
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_localized(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -105,7 +105,7 @@ pub async fn list_localized(
     Ok(proposals)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(db: &PgPool, workflow_step_id: &Uuid) -> Result<Vec<Proposal>, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ProposalIden::Table)
@@ -119,7 +119,7 @@ pub async fn list(db: &PgPool, workflow_step_id: &Uuid) -> Result<Vec<Proposal>,
     Ok(proposals)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_with_translations(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -133,7 +133,7 @@ pub async fn list_with_translations(
     Ok(out)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -159,7 +159,7 @@ pub async fn get_localized_by_id(
 
 /// Get a proposal by ID (original struct, not localized). Used by the sealed gate on
 /// proposal responses to find the step, and from it the workflow, the seal is evaluated for.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (ProposalIden::Table, col)))
@@ -175,7 +175,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleErro
     Ok(proposal)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ProposalIden::Table)

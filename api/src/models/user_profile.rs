@@ -106,7 +106,7 @@ impl CreateUserProfile {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     profile: &CreateUserProfile,
@@ -129,7 +129,7 @@ pub async fn create(
     Ok(profile)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -145,7 +145,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleE
     Ok(profile)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_user_id(db: &PgPool, user_id: &Uuid) -> Result<UserProfile, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -161,7 +161,7 @@ pub async fn get_by_user_id(db: &PgPool, user_id: &Uuid) -> Result<UserProfile, 
     Ok(profile)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -221,7 +221,7 @@ pub async fn update(
     Ok(profile)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(UserProfileIden::Table)
@@ -268,7 +268,7 @@ pub struct UserProfileExport {
     pub created_at: DateTime<Utc>,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_demographics_for_export(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -299,7 +299,7 @@ pub async fn get_demographics_for_export(
     Ok(profiles)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_demographic_report(
     db: &PgPool,
     workflow_id: &Uuid,

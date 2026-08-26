@@ -227,7 +227,7 @@ impl CreateNotification {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     notification: &CreateNotification,
@@ -250,7 +250,7 @@ pub async fn create(
     Ok(notification)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -266,7 +266,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Notification, Comhairle
     Ok(notification)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -292,7 +292,7 @@ pub async fn update(
     Ok(notification)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(NotificationIden::Table)
@@ -308,7 +308,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleErr
     Ok(notification)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,

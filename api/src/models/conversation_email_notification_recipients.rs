@@ -58,7 +58,7 @@ impl CreateConversationEmailNotificationRecipients {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     recipient: &CreateConversationEmailNotificationRecipients,
@@ -82,7 +82,7 @@ pub async fn create(
     Ok(recipient)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation_and_email(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -109,7 +109,7 @@ pub async fn get_by_conversation_and_email(
     Ok(recipient)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -131,7 +131,7 @@ pub async fn get_by_conversation(
     Ok(recipients)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete_by_conversation_and_email(
     db: &PgPool,
     conversation_id: &Uuid,

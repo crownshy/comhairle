@@ -581,7 +581,7 @@ async fn cache_set_role_list(
 }
 
 /// Loads all role names assigned to a specific actor on a specific resource from Postgres.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 async fn fetch_actor_roles_for_resource(
     db: &PgPool,
     resource_type: &str,
@@ -959,7 +959,7 @@ pub struct OrganizationWithPermissionDto {
     pub role_name: String,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_users_with_permission(
     db: &PgPool,
     resource_type: &str,
@@ -1020,7 +1020,7 @@ pub async fn list_users_with_permission(
     Ok(users_with_permission)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_organizations_with_permission(
     db: &PgPool,
     resource_type: &str,
@@ -1087,7 +1087,7 @@ pub async fn list_organizations_with_permission(
     Ok(organizations_with_permission)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_permissions_by_action(
     db: &PgPool,
     user_id: Uuid,
