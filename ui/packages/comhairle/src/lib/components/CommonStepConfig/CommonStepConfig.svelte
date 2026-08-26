@@ -137,7 +137,7 @@
 			notifications.send({ priority: 'INFO', message: 'Step deleted' });
 			deleteOpen = false;
 			await goto(`/admin/conversations/${conversation_id}/design`, {
-				invalidate: [key('conversation/workflow'))]
+				invalidate: [key('conversation/workflow')]
 			});
 		} catch (e) {
 			console.error(e);
