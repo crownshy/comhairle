@@ -2,8 +2,10 @@ import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type { LoadEvent } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { apiClient } from '@crownshy/api-client/client';
+import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ depends, params }: LoadEvent) => {
+	depends(key('knowledge-base/documents'));
 	depends('knowledge-base:documents');
 
 	const { conversation_id } = params;
