@@ -11,6 +11,7 @@
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
 	import { loginRedirect, signupRedirect } from '$lib/urls.js';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
+	import { key } from '$lib/utils/invalidationKey.js';
 
 	let { data }: PageProps = $props();
 	let { conversation, workflows, participation, preview } = data;
@@ -77,7 +78,7 @@
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 
-		goto(firstWorkflowPath, { invalidateAll: true });
+		goto(firstWorkflowPath, { invalidate: [key('user'), key('conversation')] });
 	}
 
 	async function redirectToSignIn() {
