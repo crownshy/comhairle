@@ -408,7 +408,7 @@ impl ConversationOrderOptions {
     }
 }
 
-#[instrument(err(Debug), skip(bot_service))]
+#[instrument(err(Debug), skip(db, bot_service))]
 pub async fn delete(
     db: &PgPool,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
@@ -714,7 +714,7 @@ impl CreateConversation {
     }
 }
 
-#[instrument(err(Debug), skip(bot_service))]
+#[instrument(err(Debug), skip(db, bot_service))]
 pub async fn create(
     db: &PgPool,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
@@ -887,7 +887,7 @@ pub async fn launch(
 ) -> Result<Conversation, ComhairleError> {
     let workflows = models::workflow::list(db, conversation_id, None).await?;
     for workflow in workflows {
-        models::workflow::launch(db, &workflow.id, state).await?;
+        models::workflow::launch(state, &workflow.id).await?;
     }
 
     update(

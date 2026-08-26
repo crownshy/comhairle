@@ -139,16 +139,15 @@ async fn reset_orders(pool: &mut PgConnection, workflow_id: &Uuid) -> Result<(),
 /// Create the live version of this workflow step
 #[instrument(err(Debug), skip(state))]
 pub async fn launch(
-    db: &PgPool,
-    workflow_step_id: &Uuid,
     state: &Arc<ComhairleState>,
+    workflow_step_id: &Uuid,
 ) -> Result<(), ComhairleError> {
-    let workflow_step = get_by_id(db, workflow_step_id).await?;
+    let workflow_step = get_by_id(&state.db, workflow_step_id).await?;
     // Use the new trait method for cloning the tool
     let new_live_config = workflow_step.preview_tool_config.clone_tool(state).await?;
 
     update(
-        db,
+        &state.db,
         workflow_step_id,
         &workflow_step.workflow_id,
         &PartialWorkflowStep {

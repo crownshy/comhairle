@@ -107,14 +107,10 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
 }
 
 #[instrument(err(Debug), skip(state))]
-pub async fn launch(
-    db: &PgPool,
-    workflow_id: &Uuid,
-    state: &Arc<ComhairleState>,
-) -> Result<(), ComhairleError> {
-    let steps = workflow_step::list(db, workflow_id).await?;
+pub async fn launch(state: &Arc<ComhairleState>, workflow_id: &Uuid) -> Result<(), ComhairleError> {
+    let steps = workflow_step::list(&state.db, workflow_id).await?;
     for step in steps {
-        workflow_step::launch(db, &step.id, state).await?;
+        workflow_step::launch(state, &step.id).await?;
     }
 
     Ok(())
