@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
@@ -16,6 +16,7 @@
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
 	import { inviteUrl, embedInviteUrl } from '$lib/utils/invites.js';
+	import { key } from '$lib/utils/invalidationKey.js';
 
 	let labelDialogOpen = $state(false);
 	let selectedInvite = $state<InviteDto | null>(null);
@@ -41,7 +42,7 @@
 	}
 
 	async function handleLabelSaved() {
-		await invalidateAll();
+		await invalidate(key('conversation/invites'));
 	}
 
 	let openInvites = $derived(invites.filter((invite) => invite.inviteType == 'open'));
@@ -55,7 +56,7 @@
 	);
 
 	function emailInvitesSubmitted() {
-		invalidateAll();
+		invalidate(key('conversation/invites'));
 	}
 </script>
 
