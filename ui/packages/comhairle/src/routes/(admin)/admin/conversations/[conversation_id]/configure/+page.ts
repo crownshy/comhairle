@@ -1,3 +1,4 @@
+import { key } from '$lib/utils/invalidationKey';
 import type { PageLoad } from './$types';
 import type { ComhairleDocument } from '@crownshy/api-client/api';
 
@@ -14,7 +15,7 @@ export const load: PageLoad = async ({
 	params,
 	depends
 }): Promise<{ availableDocuments: ComhairleDocument[] }> => {
-	depends('conversation:documents');
+	depends(key('conversation/documents'));
 	const { api } = await parent();
 
 	let availableDocuments: ComhairleDocument[] = [];
