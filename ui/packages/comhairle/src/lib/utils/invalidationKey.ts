@@ -2,6 +2,8 @@ type InvalidationKey = `${string}:${string}`;
 type InputKey =
 	| 'user'
 	| 'conversation'
+	| 'conversation/report'
+	| 'conversation/workflow'
 	| 'notifications'
 	| 'event'
 	| 'documents'

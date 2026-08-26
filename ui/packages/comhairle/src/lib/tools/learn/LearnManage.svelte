@@ -23,6 +23,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import { key } from '$lib/utils/invalidationKey';
 
 	interface Props {
 		conversationId: string;
@@ -91,7 +92,7 @@
 			throw response.err;
 		}
 
-		if (shouldInvalidate) await invalidate('conversation:meta');
+		if (shouldInvalidate) await invalidate(key('conversation'));
 		pages.markSaved();
 	}
 
