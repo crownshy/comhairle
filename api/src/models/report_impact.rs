@@ -35,7 +35,7 @@ const DEFAULT_COLUMNS: [ReportImpactIden; 8] = [
     ReportImpactIden::UpdatedAt,
 ];
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateImpactDTO {
     pub title: String,
     pub details: String,
@@ -81,6 +81,7 @@ pub async fn update(
         .map_err(ComhairleError::FailedToUpdateImpact)
 }
 
+#[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     create_request: CreateImpactDTO,
@@ -113,6 +114,7 @@ pub async fn create(
         .map_err(|_e| ComhairleError::FailedToCreateImpact)
 }
 
+#[instrument(err(Debug))]
 pub async fn get_for_report(
     db: &PgPool,
     report_id: &Uuid,

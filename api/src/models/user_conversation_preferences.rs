@@ -7,6 +7,7 @@ use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, UnionType, enum_def
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
@@ -82,6 +83,7 @@ impl CreateUserConversationPreferences {
     }
 }
 
+#[instrument(err(Debug))]
 pub async fn create_with_defaults(
     db: &PgPool,
     user_id: &Uuid,
@@ -101,6 +103,7 @@ pub async fn create_with_defaults(
     .await
 }
 
+#[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     preferences: &CreateUserConversationPreferences,
@@ -123,6 +126,7 @@ pub async fn create(
     Ok(preferences)
 }
 
+#[instrument(err(Debug))]
 pub async fn get_by_user_and_conversation(
     db: &PgPool,
     user_id: &Uuid,
@@ -146,6 +150,7 @@ pub async fn get_by_user_and_conversation(
     Ok(preferences)
 }
 
+#[instrument(err(Debug))]
 pub async fn get_by_user(
     db: &PgPool,
     user_id: &Uuid,
@@ -163,6 +168,7 @@ pub async fn get_by_user(
     Ok(preferences)
 }
 
+#[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
     user_id: &Uuid,
@@ -225,6 +231,7 @@ pub async fn update(
     Ok(preferences)
 }
 
+#[instrument(err(Debug))]
 pub async fn delete(
     db: &PgPool,
     user_id: &Uuid,
@@ -248,6 +255,7 @@ pub async fn delete(
     Ok(preferences)
 }
 
+#[instrument(err(Debug))]
 pub async fn get_opted_in_broadcast_emails(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -292,6 +300,7 @@ pub async fn get_opted_in_broadcast_emails(
     Ok(rows.into_iter().map(|(email,)| email).collect())
 }
 
+#[instrument(err(Debug))]
 pub async fn get_contacts_for_export(
     db: &PgPool,
     conversation_id: &Uuid,

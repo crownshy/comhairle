@@ -408,6 +408,7 @@ impl ConversationOrderOptions {
     }
 }
 
+#[instrument(err(Debug), skip(bot_service))]
 pub async fn delete(
     db: &PgPool,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
@@ -438,6 +439,7 @@ pub async fn delete(
     Ok(conversation)
 }
 
+#[instrument(err(Debug))]
 pub async fn get_by_id_or_slug(
     db: &PgPool,
     id_or_slug: &IdOrSlug,
@@ -577,6 +579,7 @@ pub async fn update(
 /// the top level. Existing keys are overwritten by the patch, keys not present
 /// in the patch are left untouched. This is a shallow merge — nested objects
 /// are replaced, not merged recursively. `patch` must be a JSON object.
+#[instrument(err(Debug))]
 pub async fn patch_metadata(
     db: &PgPool,
     id: &Uuid,
@@ -651,7 +654,7 @@ pub async fn list_for_user_participation(
     Ok(conversations)
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[cfg_attr(test, derive(Dummy))]
 pub struct CreateConversation {
     pub title: String,
@@ -711,6 +714,7 @@ impl CreateConversation {
     }
 }
 
+#[instrument(err(Debug), skip(bot_service))]
 pub async fn create(
     db: &PgPool,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
@@ -845,6 +849,7 @@ pub async fn create(
     }
 }
 
+#[instrument(err(Debug))]
 pub async fn list_owned(
     db: &PgPool,
     owner_id: Uuid,
@@ -874,6 +879,7 @@ pub async fn list_owned(
     Ok(conversations)
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn launch(
     db: &PgPool,
     conversation_id: Uuid,
@@ -898,6 +904,8 @@ pub async fn launch(
 
     Ok(conversation)
 }
+
+#[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,

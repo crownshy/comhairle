@@ -12,6 +12,7 @@ use axum::{
     extract::{FromRequestParts, Path, State},
     http::{StatusCode, request::Parts},
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -112,6 +113,7 @@ impl FromRequestParts<Arc<ComhairleState>> for WorkflowPathCtx {
 
 /// Return the first step in the workflow that is not "done" for the
 /// current user
+#[instrument(err(Debug), skip(state))]
 async fn active_step_for_user(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -126,6 +128,7 @@ async fn active_step_for_user(
 /// This end point will create a user participation
 /// entry and a UserProgress entry for each of the
 /// workflow_steps in this workflow
+#[instrument(err(Debug), skip(state))]
 async fn register_user_for_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -136,6 +139,7 @@ async fn register_user_for_workflow(
 }
 
 /// Remove a user from a given workflow
+#[instrument(err(Debug), skip(state))]
 async fn deregister_user_on_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -147,6 +151,7 @@ async fn deregister_user_on_workflow(
 
 /// Returns the participation
 /// status of a user on a workflow
+#[instrument(err(Debug), skip(state))]
 async fn get_user_participation(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -167,6 +172,7 @@ async fn get_user_participation(
 }
 
 /// Create workflow handler
+#[instrument(err(Debug), skip(state))]
 async fn create_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -208,6 +214,7 @@ async fn create_workflow(
     }
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn get_workflow_stats(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -216,6 +223,7 @@ async fn get_workflow_stats(
     Ok((StatusCode::OK, Json(stats)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn get_participation_report(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -225,6 +233,7 @@ async fn get_participation_report(
 }
 
 /// Update workflow handler
+#[instrument(err(Debug), skip(state))]
 async fn update_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -238,6 +247,7 @@ async fn update_workflow(
 }
 
 /// List workflows handler
+#[instrument(err(Debug), skip(state))]
 async fn list_workflows(
     State(state): State<Arc<ComhairleState>>,
     SourcePathCtx {
@@ -254,6 +264,7 @@ async fn list_workflows(
 }
 
 /// Get a specific workflow
+#[instrument(err(Debug), skip(state))]
 async fn get_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -264,6 +275,7 @@ async fn get_workflow(
 }
 
 /// Delete a specific workflow
+#[instrument(err(Debug), skip(state))]
 async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,

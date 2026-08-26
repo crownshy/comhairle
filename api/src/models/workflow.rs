@@ -106,6 +106,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
     Ok(conversation)
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn launch(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -119,6 +120,7 @@ pub async fn launch(
     Ok(())
 }
 
+#[instrument(err(Debug))]
 pub async fn check_user_is_owner(
     db: &PgPool,
     workflow_id: &Uuid,

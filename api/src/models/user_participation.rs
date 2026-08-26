@@ -5,6 +5,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{error::ComhairleError, models::SqlxResultExt};
@@ -27,6 +28,7 @@ const DEFAULT_COLUMNS: [UserParticipationIden; 5] = [
     UserParticipationIden::UpdatedAt,
 ];
 
+#[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     user_id: &Uuid,
@@ -62,6 +64,7 @@ pub async fn create(
     }
 }
 
+#[instrument(err(Debug))]
 pub async fn get(
     db: &PgPool,
     user_id: &Uuid,
@@ -80,6 +83,7 @@ pub async fn get(
     Ok(result)
 }
 
+#[instrument(err(Debug))]
 pub async fn delete(
     db: &PgPool,
     user_id: &Uuid,
@@ -100,6 +104,7 @@ pub async fn delete(
     Ok(user_participation)
 }
 
+#[instrument(err(Debug))]
 pub async fn check_user_participating(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -128,6 +133,7 @@ pub async fn check_user_participating(
     Ok(())
 }
 
+#[instrument(err(Debug))]
 pub async fn get_participant_user_ids_for_conversation(
     db: &PgPool,
     conversation_id: &Uuid,

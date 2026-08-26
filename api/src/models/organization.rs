@@ -13,7 +13,6 @@ use uuid::Uuid;
 use fake::Dummy;
 
 use crate::{
-    ComhairleState,
     error::ComhairleError,
     models::{
         SqlxResultExt,
@@ -283,6 +282,7 @@ pub async fn get_metadata(
 
 /// Merge the supplied object into the organization's `metadata` jsonb column
 /// at the top level. Existing keys are overwritten by the patch.
+#[instrument(err(Debug))]
 pub async fn patch_metadata(
     db: &PgPool,
     id: &Uuid,

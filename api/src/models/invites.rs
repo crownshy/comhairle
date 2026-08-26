@@ -364,6 +364,7 @@ pub struct DailyResponseStats {
     reject: i32,
 }
 
+#[instrument(err(Debug))]
 pub async fn get_stats_for_invite(
     db: &PgPool,
     invite_id: &Uuid,

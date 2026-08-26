@@ -5,6 +5,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{error::ComhairleError, models::SqlxResultExt};
@@ -35,11 +36,12 @@ const DEFAULT_COLUMNS: [FeedbackIden; 6] = [
     FeedbackIden::UpdatedAt,
 ];
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateFeedbackDTO {
     pub content: String,
 }
 
+#[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
     update_request: PartialFeedback,
@@ -60,6 +62,7 @@ pub async fn update(
         .map_err(|_e| ComhairleError::FailedToUpdateFeedback)
 }
 
+#[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     create_request: CreateFeedbackDTO,
@@ -87,6 +90,8 @@ pub async fn create(
         .await
         .map_err(|_e| ComhairleError::FailedToCreateFeedback)
 }
+
+#[instrument(err(Debug))]
 pub async fn list_for_conversation(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -105,6 +110,7 @@ pub async fn list_for_conversation(
     Ok(feedback)
 }
 
+#[instrument(err(Debug))]
 pub async fn list_for_user_on_conversation(
     db: &PgPool,
     user_id: &Uuid,

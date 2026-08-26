@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, State},
 };
 use hyper::StatusCode;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -25,6 +26,7 @@ use super::auth::RequiredAdminUser;
 
 pub mod dto;
 
+#[instrument(err(Debug), skip(state))]
 async fn create_impact(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, report_id)): Path<(Uuid, Uuid)>,
@@ -43,6 +45,7 @@ async fn create_impact(
     Ok((StatusCode::CREATED, Json(impact)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn update_impact(
     State(state): State<Arc<ComhairleState>>,
     Path((_, _, impact_id)): Path<(Uuid, Uuid, Uuid)>,
@@ -55,6 +58,7 @@ async fn update_impact(
     Ok((StatusCode::OK, Json(impact)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn list_impacts_for_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, report_id)): Path<(Uuid, Uuid)>,
