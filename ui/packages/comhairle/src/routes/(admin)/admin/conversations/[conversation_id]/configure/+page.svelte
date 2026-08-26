@@ -5,7 +5,7 @@
 	import * as Form from '$lib/components/ui/form/';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidate, invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { justCreatedConversation } from '$lib/stores/justCreatedConversation.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
@@ -43,6 +43,7 @@
 	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let {
 		data
@@ -185,7 +186,7 @@
 				},
 				{ params: { conversation_id: conversation.id } }
 			);
-			await invalidateAll();
+			await invalidate(key('conversation'));
 			notifications.send({ message: 'Primary language updated', priority: 'INFO' });
 		} catch (e) {
 			notifications.send({ message: 'Failed to update primary language', priority: 'ERROR' });
@@ -204,7 +205,7 @@
 				},
 				{ params: { conversation_id: conversation.id } }
 			);
-			await invalidateAll();
+			await invalidate(key('conversation'));
 			notifications.send({ message: 'Languages updated', priority: 'INFO' });
 
 			if (newlyAddedLanguages.length > 0) {
@@ -237,7 +238,7 @@
 					);
 				}
 
-				await invalidateAll();
+				await invalidate(key('conversation'));
 				notifications.send({ message: 'Translations generated', priority: 'INFO' });
 			}
 		} catch (e) {
@@ -310,7 +311,7 @@
 				}
 			}
 
-			await invalidateAll();
+			await invalidate(key('conversation'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -412,7 +413,7 @@
 			return;
 		}
 		notifications.send({ message: 'Setting updated', priority: 'INFO' });
-		await invalidate('conversation:meta');
+		await invalidate(key('conversation'));
 	}
 
 	// `autoLogin` lives on the workflow, not the conversation, so it saves via its own route.
@@ -430,7 +431,7 @@
 			return;
 		}
 		notifications.send({ message: 'Setting updated', priority: 'INFO' });
-		await invalidate('conversation:meta');
+		await invalidate(key('conversation'));
 	}
 
 	async function updateConversationMedia(media: MediaDto, field: string) {
@@ -458,7 +459,7 @@
 			priority: 'INFO'
 		});
 
-		await invalidate('conversation:meta');
+		await invalidate(key('conversation'));
 	}
 </script>
 

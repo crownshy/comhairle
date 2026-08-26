@@ -5,6 +5,7 @@ type InputKey =
 	| 'conversation/report'
 	| 'conversation/workflow'
 	| 'conversation/invites'
+	| 'conversation/documents'
 	| 'notifications'
 	| 'event'
 	| 'documents'
