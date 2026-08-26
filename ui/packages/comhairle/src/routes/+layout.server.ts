@@ -3,7 +3,7 @@ import { env } from '$env/dynamic/public';
 import { resolveThemeName } from '$lib/types/theme';
 
 export const load: LayoutServerLoad = async (event) => {
-	event.depends('app:user');
+	event.depends('user');
 
 	const common = {
 		themeName: resolveThemeName(env.PUBLIC_THEME),
