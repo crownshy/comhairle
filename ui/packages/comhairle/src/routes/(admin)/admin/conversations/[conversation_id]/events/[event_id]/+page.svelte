@@ -31,7 +31,7 @@
 	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidate, invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import FacilitatorRoleList from './FacilitatorRoleList.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
