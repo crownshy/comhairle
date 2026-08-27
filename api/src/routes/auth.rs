@@ -2697,7 +2697,9 @@ mod tests {
 
         assert_eq!(user.id, current_user.id, "ids don't match");
         assert!(
-            cookies.unwrap().to_str()?.contains("auth-token"),
+            cookies
+                .iter()
+                .any(|cookie| cookie.to_str().unwrap().contains("auth-token")),
             "missing auth-token cookie"
         );
 
@@ -2707,7 +2709,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn refresh_cookie_has_correct_attributes(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool.clone()).call()?;
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
@@ -2736,7 +2738,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn refresh_jwt_claims_contains_correct_jti(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool.clone()).call()?;
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
@@ -2760,7 +2762,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn issue_creates_row_and_returns_cookie(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool.clone()).call()?;
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
@@ -2787,7 +2789,8 @@ mod tests {
             username: None,
             password: None,
             avatar_url: None,
-            auth_type: UserAuthType::Annon,
+            auth_type: UserAuthType::Guest,
+            guest_code: None,
             email: None,
             email_verified: false,
             organization_id: None,
