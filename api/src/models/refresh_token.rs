@@ -12,6 +12,8 @@ use crate::error::ComhairleError;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::SqlxResultExt;
 
+const REFRESH_TOKEN_TTL: Duration = Duration::days(7);
+
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "refresh_token")]
 pub struct RefreshToken {
@@ -43,19 +45,23 @@ const DEFAULT_COLUMNS: [RefreshTokenIden; 11] = [
     RefreshTokenIden::UpdatedAt,
 ];
 
+#[derive(Debug)]
+pub struct CreateRefreshToken<'a> {
+    pub user_id: Uuid,
+    pub ip_addr: &'a ClientIp,
+    pub user_agent: &'a ClientUserAgent,
+    pub family_id: Option<Uuid>,
+    pub custom_expiry: Option<DateTime<Utc>>,
+}
+
 #[instrument(err(Debug))]
 pub async fn create<'e, E>(
     db: E,
-    user_id: Uuid,
-    ip_addr: &ClientIp,
-    user_agent: &ClientUserAgent,
-    family_id: Option<Uuid>,
+    payload: CreateRefreshToken<'e>,
 ) -> Result<RefreshToken, ComhairleError>
 where
     E: sqlx::PgExecutor<'e>,
 {
-    let expires_at = Utc::now() + Duration::days(7);
-
     let mut columns = vec![
         RefreshTokenIden::UserId,
         RefreshTokenIden::IpAddress,
@@ -63,13 +69,16 @@ where
         RefreshTokenIden::ExpiresAt,
     ];
     let mut values = vec![
-        user_id.into(),
-        ip_addr.0.clone().into(),
-        user_agent.0.as_deref().into(),
-        expires_at.into(),
+        payload.user_id.into(),
+        payload.ip_addr.0.clone().into(),
+        payload.user_agent.0.as_deref().into(),
+        payload
+            .custom_expiry
+            .unwrap_or_else(|| Utc::now() + REFRESH_TOKEN_TTL)
+            .into(),
     ];
 
-    if let Some(family_id) = family_id {
+    if let Some(family_id) = payload.family_id {
         columns.push(RefreshTokenIden::FamilyId);
         values.push(family_id.into());
     }
@@ -270,10 +279,13 @@ pub async fn rotate(
 
     let new_token = create(
         &mut *tx,
-        user_id,
-        ip_addr,
-        user_agent,
-        Some(old_token.family_id),
+        CreateRefreshToken {
+            user_id,
+            ip_addr,
+            user_agent,
+            family_id: Some(old_token.family_id),
+            custom_expiry: None,
+        },
     )
     .await?;
 
@@ -358,7 +370,17 @@ mod tests {
 
         let now = Utc::now();
 
-        let token = create(&pool, user_id, &ip_addr, &user_agent, None).await?;
+        let token = create(
+            &pool,
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
 
         assert_eq!(
             token.ip_address.unwrap(),
@@ -390,8 +412,28 @@ mod tests {
         let user_agent = ClientUserAgent(Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()));
         let user_id = get_random_user_id(&app, &mut session).await?;
 
-        let original_token = create(&pool, user_id, &ip_addr, &user_agent, None).await?;
-        let rotation_token = create(&pool, user_id, &ip_addr, &user_agent, None).await?;
+        let original_token = create(
+            &pool,
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
+        let rotation_token = create(
+            &pool,
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
         let revoked_at = Utc::now();
 
         assert!(
@@ -444,22 +486,48 @@ mod tests {
         let user_agent = ClientUserAgent(Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()));
         let user_id = get_random_user_id(&app, &mut session).await?;
 
-        let unrelated_token = create(&pool, user_id, &ip_addr, &user_agent, None).await?;
-        let family_token_a = create(&pool, user_id, &ip_addr, &user_agent, None).await?;
+        let unrelated_token = create(
+            &pool,
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
+        let family_token_a = create(
+            &pool,
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
         let family_token_b = create(
             &pool,
-            user_id,
-            &ip_addr,
-            &user_agent,
-            Some(family_token_a.family_id),
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: Some(family_token_a.family_id),
+                custom_expiry: None,
+            },
         )
         .await?;
         let family_token_c = create(
             &pool,
-            user_id,
-            &ip_addr,
-            &user_agent,
-            Some(family_token_b.family_id),
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: Some(family_token_b.family_id),
+                custom_expiry: None,
+            },
         )
         .await?;
 
@@ -491,6 +559,183 @@ mod tests {
         assert!(
             revoked_tokens.iter().any(|t| t.id == family_token_c.id),
             "family_token_c missing"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_rotate_valid_token(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()));
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        let original_token = create(
+            &pool,
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
+
+        let rotation_token =
+            rotate(&pool, original_token.id, user_id, &ip_addr, &user_agent).await?;
+
+        let original_token = get_by_id(&pool, original_token.id).await?.unwrap();
+
+        assert_eq!(
+            rotation_token.family_id, original_token.family_id,
+            "family_id mismatch"
+        );
+        assert!(rotation_token.revoked_at.is_none(), "new token is revoked");
+        assert!(
+            original_token.revoked_at.is_some(),
+            "original token not revoked"
+        );
+        assert_eq!(
+            original_token.revoked_reason.unwrap(),
+            "rotated",
+            "incorrect revoked_reason"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_detect_reuse_of_revoked_token(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()));
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        let original_token = create(
+            &pool,
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
+        update(
+            &pool,
+            original_token.id,
+            UpdateRefreshToken {
+                revoked_at: Some(Utc::now()),
+                revoked_reason: Some("test reuse detection".to_string()),
+                replaced_by: None,
+            },
+        )
+        .await?;
+
+        let err = rotate(&pool, original_token.id, user_id, &ip_addr, &user_agent)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(
+                err,
+                ComhairleError::SessionRefreshFailure(RefreshFailure::ReuseDetected)
+            ),
+            "incorrect error type"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_detect_user_mismatch(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()));
+        let user_a_id = get_random_user_id(&app, &mut session).await?;
+        let user_b_id = get_random_user_id(&app, &mut session).await?;
+
+        let original_token = create(
+            &pool,
+            CreateRefreshToken {
+                user_id: user_a_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
+
+        let err = rotate(&pool, original_token.id, user_b_id, &ip_addr, &user_agent)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(
+                err,
+                ComhairleError::SessionRefreshFailure(RefreshFailure::OwnershipMismatch)
+            ),
+            "incorrect error type"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_return_not_found_error(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()));
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        let err = rotate(&pool, Uuid::new_v4(), user_id, &ip_addr, &user_agent)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(
+                err,
+                ComhairleError::SessionRefreshFailure(RefreshFailure::NotFound)
+            ),
+            "incorrect error type"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_detect_expired_token(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()));
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        let token = create(
+            &pool,
+            CreateRefreshToken {
+                user_id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: Some(Utc::now() - Duration::hours(1)),
+            },
+        )
+        .await?;
+
+        let err = rotate(&pool, token.id, user_id, &ip_addr, &user_agent)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(
+                err,
+                ComhairleError::SessionRefreshFailure(RefreshFailure::Expired)
+            ),
+            "incorrect error type"
         );
 
         Ok(())
