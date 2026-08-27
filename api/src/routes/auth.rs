@@ -53,11 +53,13 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
+use tower::util::option_layer;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
     Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
@@ -1135,6 +1137,12 @@ pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> Co
 
 /// Function to set up the auth routes
 pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    // One strict per-IP bucket, shared by every route that takes or issues
+    // credentials, so rotating between login and signup does not buy extra
+    // attempts. Session reads (`current_user`, `logout`) stay off it: they run
+    // on every page render, and limiting them signs people out at random.
+    let credential_limit = option_layer(auth_rate_limiter_if_enabled(&state.config));
+
     ApiRouter::new()
         .api_route(
             "/login_annon",
@@ -1143,7 +1151,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Login an annon user")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/login",
@@ -1152,7 +1161,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Login a user")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/login_otp",
@@ -1162,7 +1172,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Login an otp user")
                     .description("Login a user with a one time passcode")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/signup",
@@ -1171,7 +1182,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Signup a user with email and password")
                     .response::<201, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/signup_annon",
@@ -1180,7 +1192,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Signup and annon user")
                     .response::<201, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/signup_otp",
@@ -1189,7 +1202,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Signup a one-time-password user with an email")
                     .response::<201, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/create_otp",
@@ -1198,7 +1212,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Create and send a new one time passcode")
                     .response::<201, ()>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/login_otp_token",
@@ -1207,7 +1222,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Verify one-time-passcode from a JWT")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/logout",
@@ -1225,7 +1241,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Verify token from email verification link")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/resend_verification_email",
@@ -1234,7 +1251,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Resend email verification link to user")
                     .response::<200, ()>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/password_reset_create",
@@ -1243,7 +1261,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Create password reset flow by sending reset link to user email")
                     .response::<204, ()>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/password_reset_update",
@@ -1252,7 +1271,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Update password of user in reset flow")
                     .response::<204, ()>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/current_user",
