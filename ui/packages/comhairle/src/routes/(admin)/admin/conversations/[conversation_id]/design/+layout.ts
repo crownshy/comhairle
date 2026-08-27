@@ -1,8 +1,8 @@
-import type { PageLoad } from './$types';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { notifications } from '$lib/notifications.svelte';
+import type { LayoutLoad } from './$types';
 
-export const load: PageLoad = async ({ parent, params }) => {
+export const load: LayoutLoad = async ({ parent, params }) => {
 	const { api, workflows } = await parent();
 	const { conversation_id } = params;
 
