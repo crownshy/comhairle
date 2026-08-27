@@ -16,7 +16,7 @@
 	} = $props();
 
 	let basePath = $derived(`/admin/conversations/${conversationId}/design`);
-	let orderedSteps = $derived(steps ? [...steps].sort((a, b) => a.stepOrder - b.stepOrder) : []);
+	let orderedSteps = $derived(steps ? steps.toSorted((a, b) => a.stepOrder - b.stepOrder) : []);
 	let loading = $derived(steps === undefined);
 	let manageActive = $derived(page.url.pathname === basePath);
 
@@ -40,7 +40,7 @@
 		</a>
 	</li>
 	{#if loading}
-		{#each Array(3) as _, i (i)}
+		{#each [1, 2, 3] as i (i)}
 			<li class="px-3.5 py-1.5">
 				<Skeleton class="h-5 w-24" />
 			</li>

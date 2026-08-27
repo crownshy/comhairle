@@ -1,7 +1,7 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { key } from '$lib/utils/invalidationKey';
 import type { PageLoad } from './$types';
-import type { ComhairleDocument } from '@crownshy/api-client/api';
+import type { ComhairleDocument, MediaDto } from '@crownshy/api-client/api';
 
 /**
  * The Content tab's rich fields (FAQ, thank-you, privacy policy, short privacy policy) offer an
@@ -14,7 +14,7 @@ import type { ComhairleDocument } from '@crownshy/api-client/api';
 export const load: PageLoad = async ({ parent, params, depends }) => {
 	depends(key('conversation/documents'));
 
-	const { api } = await parent();
+	const { api, conversation } = await parent();
 	const { conversation_id } = params;
 
 	const documents = await tryCatchAsync(() =>
@@ -30,5 +30,15 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 	const availableDocuments =
 		documents.ok?.filter((d: ComhairleDocument) => d.parse_status === 'DONE') ?? [];
 
-	return { availableDocuments };
+	let media: MediaDto | null = null;
+	const { image } = conversation;
+	if (image) {
+		const result = await tryCatchAsync(() => api.GetMedia({ params: { media_id: image } }));
+		media = result.ok;
+	}
+
+	return {
+		availableDocuments,
+		media
+	};
 };

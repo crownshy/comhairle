@@ -95,8 +95,8 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 
 	return {
 		conversation,
-		workflowIds: workflows.ok.map((w) => w.id),
 		user,
+		workflows: workflows.ok,
 		cohostOrganizations: cohostOrganizations.ok,
 		usersWithPermission,
 		configureTabs
