@@ -7,6 +7,7 @@
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { formatCountdown } from '$lib/utils/formatCountdown';
 	import { getJitsiBreakoutRoomId } from '$lib/utils/jitsiBreakoutRooms';
+	import { isBreakoutWrappingUp, wrapUpEndTime } from '$lib/utils/breakoutWrapUp';
 	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { videoCallService } from '$lib/services/videoCallService.svelte';
@@ -133,6 +134,8 @@
 
 	let breakoutTimeRemaining = $state<number | null>(null);
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
+	/** Guards the multi-step teardown against a second click landing mid-flight. */
+	let endingBreakoutSession = $state(false);
 
 	// Prefer the agenda pushed over WS (live edits) over the SSR-loaded one, which can go stale.
 	let agendaItems = $derived(mapApiAgenda(videoCallService.agenda ?? event?.agenda ?? []));
@@ -179,6 +182,10 @@
 	});
 
 	let timeLeftFormatted = $derived(formatCountdown(breakoutTimeRemaining));
+
+	let isBreakoutWrapUp = $derived(
+		isBreakoutActive && isBreakoutWrappingUp(breakoutTimeRemaining)
+	);
 
 	let breakoutRoomDisplays = $derived.by((): BreakoutRoomDisplay[] => {
 		// Use real rooms from backend if available, otherwise use mock rooms
@@ -435,6 +442,7 @@
 		showBreakoutEnding = false;
 		breakoutEndingDismissed = false;
 		breakoutAutoEnded = false;
+		endingBreakoutSession = false;
 		trackedRoomIndex = null;
 		jitsiBreakoutRooms = {};
 		breakoutRoomsReady = false;
@@ -591,13 +599,24 @@
 		}
 	}
 
-	function handleEndBreakoutSessionCountdown() {
+	/**
+	 * The End control is two-stage: the first press starts the wrap-up minute, and once the
+	 * session is in that minute the same control closes the rooms straight away. Pressing it
+	 * again during the wrap-up can therefore never put time back on the clock.
+	 */
+	function handleEndSessionPressed() {
 		const currentEnd = videoCallService.getBreakoutSessionEndTime();
 		if (!currentEnd || !isBreakoutActive) {
 			showToast('No active breakout session to end');
 			return;
 		}
-		const newEnd = new Date(Date.now() + 60 * 1000).toISOString();
+
+		if (isBreakoutWrapUp) {
+			handleEndBreakoutSession();
+			return;
+		}
+
+		const newEnd = wrapUpEndTime(currentEnd, Date.now()).toISOString();
 		const message = 'Breakout rooms will finish in 1 min';
 		videoCallService.extendBreakoutSession(eventId, newEnd);
 		videoCallService.broadcastMessage(eventId, message);
@@ -605,6 +624,16 @@
 	}
 
 	async function handleEndBreakoutSession() {
+		if (endingBreakoutSession) return;
+		endingBreakoutSession = true;
+		try {
+			await closeBreakoutRooms();
+		} finally {
+			endingBreakoutSession = false;
+		}
+	}
+
+	async function closeBreakoutRooms() {
 		// Step 1: Ensure moderator is in main room before removing breakout rooms
 		if (typeof roomContext !== 'string') {
 			try {
@@ -866,9 +895,11 @@
 							rooms={breakoutRoomDisplays}
 							{timeLeftFormatted}
 							{isModerator}
+							isWrappingUp={isBreakoutWrapUp}
+							endDisabled={endingBreakoutSession}
 							onEnterRoom={handleEnterBreakoutRoom}
 							onUpdateTime={handleUpdateTime}
-							onEndSession={handleEndBreakoutSessionCountdown}
+							onEndSession={handleEndSessionPressed}
 							onBroadcastMessage={() => (showBroadcast = true)}
 						/>
 					{:else}
@@ -1216,8 +1247,10 @@
 	<div class="flex min-h-0 flex-col gap-4 overflow-y-auto px-4 pb-5">
 		<!-- Timer + chips -->
 		<div class="flex items-center justify-center gap-2.5">
-			<span class="text-ring text-sm font-semibold">
-				Time left&nbsp;&nbsp;{timeLeftFormatted}
+			<span
+				class="{isBreakoutWrapUp ? 'text-destructive' : 'text-ring'} text-sm font-semibold"
+			>
+				{isBreakoutWrapUp ? 'Ending in' : 'Time left'}&nbsp;&nbsp;{timeLeftFormatted}
 			</span>
 			<div class="flex items-center gap-1.5">
 				<button
@@ -1331,12 +1364,15 @@
 				Broadcast message
 			</Button>
 			<Button
-				variant="outline"
-				class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-11 w-full text-sm font-medium"
-				onclick={handleEndBreakoutSessionCountdown}
+				variant={isBreakoutWrapUp ? 'destructive' : 'outline'}
+				disabled={endingBreakoutSession}
+				class={isBreakoutWrapUp
+					? 'h-11 w-full text-sm font-medium'
+					: 'border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-11 w-full text-sm font-medium'}
+				onclick={handleEndSessionPressed}
 			>
 				<CircleStop class="mr-1.5 h-4 w-4" />
-				End breakout session
+				{isBreakoutWrapUp ? 'End now' : 'End breakout session'}
 			</Button>
 		</div>
 	</div>
