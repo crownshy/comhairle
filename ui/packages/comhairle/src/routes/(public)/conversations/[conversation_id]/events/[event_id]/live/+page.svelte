@@ -886,6 +886,7 @@
 							question={currentAgendaItem?.breakoutQuestion}
 							description={currentAgendaItem?.breakoutDescription}
 							{timeLeftFormatted}
+							isWrappingUp={isBreakoutWrapUp}
 							{isModerator}
 							onCallForSupport={handleCallForSupport}
 							onLeaveBreakoutRoom={handleLeaveBreakoutRoom}
@@ -1128,10 +1129,10 @@
 		<div
 			class="bg-sidebar-foreground/20 flex items-center justify-center gap-2 rounded-full px-4 py-2 md:px-3 md:py-1"
 		>
-			<span class="text-sidebar-foreground text-sm font-medium md:text-xs">
+			<span class="text-sidebar-foreground/80 text-sm font-medium md:text-xs">
 				{roomChipText}
 			</span>
-			<span class="text-primary text-sm font-medium md:text-xs">
+			<span class="text-sidebar-foreground text-sm font-semibold tabular-nums md:text-xs">
 				<span class="md:hidden">Time left </span>
 				<span class="hidden md:inline">·</span>
 				{timeLeftFormatted}
@@ -1154,7 +1155,7 @@
 	<div
 		class="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 {status ===
 		'current'
-			? 'bg-primary/30 text-foreground'
+			? 'bg-accent text-accent-foreground'
 			: status === 'done'
 				? 'bg-muted-foreground/10 text-muted-foreground'
 				: 'bg-background text-card-foreground'}"
