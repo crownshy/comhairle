@@ -26,7 +26,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	depends('conversation:events');
 
 	const { conversation_id } = params;
-	const { user, api } = await parent();
+	const { api } = await parent();
 
 	const conversationResponse = await tryCatchAsync(() =>
 		api.GetConversation({
@@ -81,24 +81,10 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 		{ id: 'access', label: 'Access' }
 	];
 
-	let usersWithPermission: UserWithPermissionDto[] = [];
-	if (user.id === conversation.ownerId) {
-		configureTabs.push({ id: 'team', label: 'Team' });
-		usersWithPermission = await api.ListUsersWithPermission({
-			params: {
-				resource_type: 'conversation',
-				resource_id: conversation.id
-			},
-			queries: { role_name: 'content_editor' }
-		});
-	}
-
 	return {
 		conversation,
-		user,
 		workflows: workflows.ok,
 		cohostOrganizations: cohostOrganizations.ok,
-		usersWithPermission,
 		configureTabs
 	};
 };

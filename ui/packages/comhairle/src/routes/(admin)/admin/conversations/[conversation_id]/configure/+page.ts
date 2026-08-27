@@ -1,7 +1,7 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { key } from '$lib/utils/invalidationKey';
 import type { PageLoad } from './$types';
-import type { MediaDto } from '@crownshy/api-client/api';
+import type { MediaDto, UserWithPermissionDto } from '@crownshy/api-client/api';
 
 /**
  * The Content tab's rich fields (FAQ, thank-you, privacy policy, short privacy policy) offer an
@@ -14,7 +14,7 @@ import type { MediaDto } from '@crownshy/api-client/api';
 export const load: PageLoad = async ({ parent, params, depends }) => {
 	depends(key('conversation/documents'));
 
-	const { api, conversation } = await parent();
+	const { api, conversation, user, configureTabs } = await parent();
 	const { conversation_id } = params;
 
 	const documents = await tryCatchAsync(() =>
@@ -36,8 +36,28 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 		media = result.ok;
 	}
 
+	let usersWithPermission: UserWithPermissionDto[] = [];
+	if (user.id === conversation.ownerId) {
+		const id = 'team';
+		if (configureTabs.find((ct) => ct.id === id) === undefined) {
+			configureTabs.push({ id, label: 'Team' });
+		}
+		const result = await tryCatchAsync(() =>
+			api.ListUsersWithPermission({
+				params: {
+					resource_type: 'conversation',
+					resource_id: conversation.id
+				},
+				queries: { role_name: 'content_editor' }
+			})
+		);
+		usersWithPermission = result.ok ?? [];
+	}
+
 	return {
 		availableDocuments,
-		media
+		media,
+		configureTabs,
+		usersWithPermission
 	};
 };

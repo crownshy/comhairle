@@ -36,13 +36,12 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import type { Locale } from '$lib/paraglide/runtime';
 	import { key } from '$lib/utils/invalidationKey';
-	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
-	let conversation = $derived(data.conversation);
+	let { data } = $props();
 	// Parsed knowledge base documents, for the "Insert Source Document" control in the Content-tab
 	// rich fields (both the picker and, via the same list, the inserted badge's name/size/download).
 	const {
+		conversation,
 		availableDocuments,
 		media: imageMedia,
 		usersWithPermission: permittedUsers,

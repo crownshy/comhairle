@@ -44,7 +44,7 @@
 	// Using $derived (not $state + $effect) means SSR renders the real order too, so a slow
 	// client no longer flashes the empty state before hydration. (See CLAUDE.md.)
 	let reorderedSteps = $derived(
-		workflowSteps ? [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder) : []
+		workflowSteps ? workflowSteps.toSorted((a, b) => a.stepOrder - b.stepOrder) : []
 	);
 
 	// --- Ephemeral UI state ---
