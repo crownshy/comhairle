@@ -16,6 +16,7 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
             "jwt_secret",
             "ababa039cc54b5df83e8899c3c5839e096379d507263c732eb54c52477bf8087",
         )?
+        .set_default("refresh_jwt_secret", "")?
         .set_default("redis_cache_ttl_secs", 300)?
         .set_default("domain", "http://localhost:5173")?
         .set_default("default_conversation_image_url", "https://comhairle-media.s3.amazonaws.com/images/comhairle-conversation-placeholder.png")?

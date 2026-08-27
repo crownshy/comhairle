@@ -65,7 +65,7 @@ use crate::models::permissions::{
     Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
     UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
 };
-use crate::models::refresh_token::{self, RefreshFailure, RefreshToken};
+use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
     create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
@@ -1215,8 +1215,17 @@ async fn issue_refresh_token<'a>(
     ip_addr: &ClientIp,
     user_agent: &ClientUserAgent,
 ) -> Option<Cookie<'a>> {
-    if let Ok(token_record) =
-        refresh_token::create(&state.db, user.id, ip_addr, user_agent, None).await
+    if let Ok(token_record) = refresh_token::create(
+        &state.db,
+        CreateRefreshToken {
+            user_id: user.id,
+            ip_addr,
+            user_agent,
+            family_id: None,
+            custom_expiry: None,
+        },
+    )
+    .await
     {
         Some(build_refresh_token_cookie(state, user, &token_record))
     } else {
@@ -2649,8 +2658,17 @@ mod tests {
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
-        let token_record =
-            refresh_token::create(&state.db, user.id, &ip_addr, &user_agent, None).await?;
+        let token_record = refresh_token::create(
+            &state.db,
+            CreateRefreshToken {
+                user_id: user.id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
 
         let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record);
 
@@ -2678,8 +2696,17 @@ mod tests {
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
-        let token_record =
-            refresh_token::create(&state.db, user.id, &ip_addr, &user_agent, None).await?;
+        let token_record = refresh_token::create(
+            &state.db,
+            CreateRefreshToken {
+                user_id: user.id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
 
         let token_cookie =
             build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record);
