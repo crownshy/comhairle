@@ -1,5 +1,4 @@
 use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
-use crate::models::region_area;
 use crate::redis_connection::RedisConnection;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 use chrono::Utc;
@@ -139,6 +138,7 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
         "admin@crown-shy.com".into(),
         "test@crown-shy.com".into(),
     ]);
+    config.refresh_jwt_secret = "refresh_secret".to_string();
     config.enable_rate_limiting = false; // Disable rate limiting for tests by default
     Ok(config)
 }
