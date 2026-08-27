@@ -1,13 +1,14 @@
 import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 
-export const load: PageLoad = async ({ parent, depends }) => {
+export const load: PageLoad = async ({ parent, depends, params }) => {
 	depends(key('conversation/invites'));
-	const { api, conversation } = await parent();
+	const { api } = await parent();
+	const { conversation_id } = params;
 
 	const invites = await api.ListInvitesForConversation({
-		params: { conversation_id: conversation.id }
+		params: { conversation_id }
 	});
 
-	return { invites, conversation };
+	return { invites };
 };

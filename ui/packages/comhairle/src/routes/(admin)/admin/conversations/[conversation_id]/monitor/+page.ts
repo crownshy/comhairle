@@ -1,15 +1,31 @@
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ parent }) => {
-	const { conversation, workflows, workflowSteps, api } = await parent();
+export const load: PageLoad = async ({ parent, params }) => {
+	const { conversation_id } = params;
+	const { api, workflowIds } = await parent();
 
-	try {
-		const workflowStats = await api.GetConversationWorkflowStats({
-			params: { conversation_id: conversation.id, workflow_id: workflows[0].id }
-		});
+	const workflowStepsResponse = tryCatchAsync(() =>
+		api.GetConversationWorkflowStats({
+			params: { conversation_id, workflow_id: workflowIds[0] }
+		})
+	);
 
-		return { conversation, workflows, workflowSteps, workflowStats };
-	} catch (e) {
-		console.error(e);
+	const workflowStatsResponse = tryCatchAsync(() =>
+		api.GetConversationWorkflowStats({
+			params: { conversation_id, workflow_id: workflowIds[0] }
+		})
+	);
+
+	const workflowSteps = await workflowStepsResponse;
+	if (workflowSteps !== null) {
+		console.error(workflowSteps.err);
 	}
+
+	const workflowStats = await workflowStatsResponse;
+	if (workflowStats !== null) {
+		console.error(workflowStats.err);
+	}
+
+	return { workflowSteps: workflowSteps.ok ?? [], workflowStats: workflowStats.ok ?? [] };
 };

@@ -1,3 +1,4 @@
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { key } from '$lib/utils/invalidationKey';
 import type { PageLoad } from './$types';
 import type { ComhairleDocument } from '@crownshy/api-client/api';
@@ -10,23 +11,24 @@ import type { ComhairleDocument } from '@crownshy/api-client/api';
  * pay for it) and only surface the DONE-parsed ones, matching the Learn step path. A failed fetch
  * falls back to an empty list, so the picker shows its empty state rather than a raw backend error.
  */
-export const load: PageLoad = async ({
-	parent,
-	params,
-	depends
-}): Promise<{ availableDocuments: ComhairleDocument[] }> => {
+export const load: PageLoad = async ({ parent, params, depends }) => {
 	depends(key('conversation/documents'));
-	const { api } = await parent();
 
-	let availableDocuments: ComhairleDocument[] = [];
-	try {
-		const documents = await api.ListDocuments({
-			params: { conversation_id: params.conversation_id }
-		});
-		availableDocuments = documents.filter((d: ComhairleDocument) => d.parse_status === 'DONE');
-	} catch (e) {
-		console.warn('failed to load conversation documents', e);
+	const { api } = await parent();
+	const { conversation_id } = params;
+
+	const documents = await tryCatchAsync(() =>
+		api.ListDocuments({
+			params: { conversation_id }
+		})
+	);
+
+	if (documents.err !== null) {
+		console.warn('failed to load conversation documents', documents.err);
 	}
+
+	const availableDocuments =
+		documents.ok?.filter((d: ComhairleDocument) => d.parse_status === 'DONE') ?? [];
 
 	return { availableDocuments };
 };

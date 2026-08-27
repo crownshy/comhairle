@@ -5,7 +5,7 @@
 	import { Info } from 'lucide-svelte';
 
 	let { data } = $props();
-	let { isCommunity } = data;
+	let { isCommunity } = $derived(data);
 
 	let topPadding = $derived(isCommunity ? 'pt-6 sm:pt-36' : 'pt-26 sm:pt-50');
 </script>

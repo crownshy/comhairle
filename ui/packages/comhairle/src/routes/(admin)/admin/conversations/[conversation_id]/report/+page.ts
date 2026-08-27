@@ -7,14 +7,17 @@ import { key } from '$lib/utils/invalidationKey';
 // component set (Thinking Space is next); HeyForm has none yet.
 const REPORT_CAPABLE_TOOLS = new Set(['polis']);
 
-export const load: PageLoad = async ({ parent, depends }) => {
+export const load: PageLoad = async ({ parent, depends, params }) => {
 	depends(key('conversation/report'));
-	const { conversation, api, workflowSteps } = await parent();
+
+	const { api, workflowSteps } = await parent();
 	let report: FullReportDto;
+
+	const { conversation_id } = params;
 
 	try {
 		report = await api.GetReportForConversation({
-			params: { conversation_id: conversation.id },
+			params: { conversation_id },
 			queries: { withTranslations: true }
 		});
 	} catch {

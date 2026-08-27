@@ -6,13 +6,13 @@ import { key } from '$lib/utils/invalidationKey';
 export const load: LayoutServerLoad = async (event) => {
 	event.depends(key('user'));
 
-	const tk = event.cookies.get('auth-token');
+	const token = event.cookies.get('auth-token');
 	const common = {
 		themeName: resolveThemeName(env.PUBLIC_THEME),
 		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true'
 	};
 
-	if (!tk) {
+	if (!token) {
 		return {
 			user: null,
 			...common
@@ -30,6 +30,5 @@ export const load: LayoutServerLoad = async (event) => {
 	const body = await resp.json();
 	if (!body.id) return { user: null, ...common };
 
-	// console.log("Returning with token ", tk)
-	return { user: body, token: tk, ...common };
+	return { user: body, token, ...common };
 };
