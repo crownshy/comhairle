@@ -1,7 +1,7 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { key } from '$lib/utils/invalidationKey';
 import type { PageLoad } from './$types';
-import type { ComhairleDocument, MediaDto } from '@crownshy/api-client/api';
+import type { MediaDto } from '@crownshy/api-client/api';
 
 /**
  * The Content tab's rich fields (FAQ, thank-you, privacy policy, short privacy policy) offer an
@@ -27,8 +27,7 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 		console.warn('failed to load conversation documents', documents.err);
 	}
 
-	const availableDocuments =
-		documents.ok?.filter((d: ComhairleDocument) => d.parse_status === 'DONE') ?? [];
+	const availableDocuments = documents.ok?.filter((d) => d.parse_status === 'DONE') ?? [];
 
 	let media: MediaDto | null = null;
 	const { image } = conversation;
