@@ -747,7 +747,9 @@ mod tests {
             "incorrect user_id on event attendance"
         );
         assert!(
-            cookies.unwrap().to_str()?.contains("auth-token"),
+            cookies
+                .iter()
+                .any(|cookie| cookie.to_str().unwrap().contains("auth-token")),
             "missing auth-token cookie"
         );
 
@@ -838,7 +840,9 @@ mod tests {
             "incorrect user_id on event attendance"
         );
         assert!(
-            cookies.unwrap().to_str()?.contains("auth-token"),
+            cookies
+                .iter()
+                .any(|cookie| cookie.to_str().unwrap().contains("auth-token")),
             "missing auth-token cookie"
         );
 
@@ -913,7 +917,9 @@ mod tests {
             "incorrect user_id on event attendance"
         );
         assert!(
-            cookies.unwrap().to_str()?.contains("auth-token"),
+            cookies
+                .iter()
+                .any(|cookie| cookie.to_str().unwrap().contains("auth-token")),
             "missing auth-token cookie"
         );
 

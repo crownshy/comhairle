@@ -2633,7 +2633,9 @@ mod tests {
 
         assert_eq!(user.id, current_user.id, "ids don't match");
         assert!(
-            cookies.unwrap().to_str()?.contains("auth-token"),
+            cookies
+                .iter()
+                .any(|cookie| cookie.to_str().unwrap().contains("auth-token")),
             "missing auth-token cookie"
         );
 
