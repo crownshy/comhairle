@@ -3515,6 +3515,14 @@ const endpoints = makeApi([
     response: z.void(),
   },
   {
+    method: "get",
+    path: "/auth/refresh",
+    alias: "RefreshSession",
+    description: `Refresh user session to prevent frequent users logging back in`,
+    requestFormat: "json",
+    response: UserDto,
+  },
+  {
     method: "post",
     path: "/auth/resend_verification_email",
     alias: "ResendVerificationEmail",

@@ -65,7 +65,7 @@ use crate::models::permissions::{
     Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
     UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
 };
-use crate::models::refresh_token::{self, RefreshToken};
+use crate::models::refresh_token::{self, RefreshFailure, RefreshToken};
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
     create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
@@ -239,7 +239,7 @@ pub struct SessionClaims {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RefreshClaims {
-    /// Identifier for DB record to allow rotation / revoking
+    /// Corresponds to refresh_token.id in the database.
     jti: Uuid,
 }
 
@@ -730,6 +730,39 @@ async fn password_reset_update(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[instrument(err(Debug), skip(state, client_ip, user_agent))]
+async fn refresh_session(
+    State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
+    jar: CookieJar,
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    let refresh_cookie = jar
+        .get(REFRESH_KEY)
+        .ok_or_else(|| ComhairleError::SessionRefreshFailure(RefreshFailure::Missing))?;
+
+    let token_data =
+        decode_jwt::<RefreshClaims>(refresh_cookie.value(), &state.config.refresh_jwt_secret)
+            .ok()
+            .ok_or_else(|| ComhairleError::AuthJWTError("Unable to decode JWT".to_string()))?;
+
+    let user_id = Uuid::parse_str(&token_data.claims.sub)
+        .map_err(|_| ComhairleError::SessionRefreshFailure(RefreshFailure::InvalidClaim))?;
+    let jti = token_data.claims.details.jti;
+
+    // Handles expired / re-used / invalid tokens
+    let new_token = refresh_token::rotate(&state.db, jti, user_id, &client_ip, &user_agent).await?;
+
+    let user = users::get_user_by_id(&user_id, &state.db).await?;
+
+    let session_cookie = create_session_cookie(&user, &state);
+    let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token);
+
+    let jar = jar.add(session_cookie).add(refresh_cookie);
+
+    Ok((jar, (StatusCode::OK, Json(user.into()))))
+}
+
 /// Decode a JWT
 pub fn decode_jwt<T: Serialize + DeserializeOwned>(
     jwt: &str,
@@ -1182,7 +1215,9 @@ async fn issue_refresh_token<'a>(
     ip_addr: &ClientIp,
     user_agent: &ClientUserAgent,
 ) -> Option<Cookie<'a>> {
-    if let Ok(token_record) = refresh_token::create(&state.db, user.id, ip_addr, user_agent).await {
+    if let Ok(token_record) =
+        refresh_token::create(&state.db, user.id, ip_addr, user_agent, None).await
+    {
         Some(build_refresh_token_cookie(state, user, &token_record))
     } else {
         warn!(
@@ -1338,6 +1373,16 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("CurrentUser")
                     .tag("Auth")
                     .summary("Get the current user")
+                    .response::<200, Json<UserDto>>()
+            }),
+        )
+        .api_route(
+            "/refresh",
+            get_with(refresh_session, |op| {
+                op.id("RefreshSession")
+                    .tag("Auth")
+                    .summary("Refresh user session")
+                    .description("Refresh user session to prevent frequent users logging back in")
                     .response::<200, Json<UserDto>>()
             }),
         )
@@ -2602,7 +2647,8 @@ mod tests {
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
-        let token_record = refresh_token::create(&state.db, user.id, &ip_addr, &user_agent).await?;
+        let token_record =
+            refresh_token::create(&state.db, user.id, &ip_addr, &user_agent, None).await?;
 
         let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record);
 
@@ -2630,7 +2676,8 @@ mod tests {
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
-        let token_record = refresh_token::create(&state.db, user.id, &ip_addr, &user_agent).await?;
+        let token_record =
+            refresh_token::create(&state.db, user.id, &ip_addr, &user_agent, None).await?;
 
         let token_cookie =
             build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record);
@@ -2661,7 +2708,7 @@ mod tests {
 
         let token_result = refresh_token::get_by_id(&state.db, token_data.claims.details.jti).await;
 
-        assert!(token_result.is_ok(), "db transaction failed");
+        assert!(token_result.unwrap().is_some(), "db transaction failed");
 
         Ok(())
     }
