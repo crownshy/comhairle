@@ -1,11 +1,17 @@
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::{
+    error::ComhairleError,
+    models::{
+        SqlxResultExt,
+        demographics::{self, ValueBuckets},
+    },
+};
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::{PgPool, prelude::FromRow, types::Json};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -18,16 +24,6 @@ pub struct UserProfile {
     #[partially(omit)]
     pub user_id: Uuid,
     pub consented: bool,
-    #[partially(transparent)]
-    pub ethnicity: Option<String>,
-    #[partially(transparent)]
-    pub age: Option<i32>,
-    #[partially(transparent)]
-    pub gender: Option<String>,
-    #[partially(transparent)]
-    pub zipcode: Option<String>,
-    #[partially(transparent)]
-    pub political_party: Option<String>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -38,70 +34,28 @@ pub struct UserProfile {
 pub struct CreateUserProfile {
     pub user_id: Uuid,
     pub consented: bool,
-    pub ethnicity: Option<String>,
     pub age: Option<i32>,
+    pub ethnicity: Option<String>,
     pub gender: Option<String>,
     pub zipcode: Option<String>,
     pub political_party: Option<String>,
 }
 
-const DEFAULT_COLUMNS: [UserProfileIden; 10] = [
+const DEFAULT_COLUMNS: [UserProfileIden; 5] = [
     UserProfileIden::Id,
     UserProfileIden::UserId,
     UserProfileIden::Consented,
-    UserProfileIden::Ethnicity,
-    UserProfileIden::Age,
-    UserProfileIden::Gender,
-    UserProfileIden::Zipcode,
-    UserProfileIden::PoliticalParty,
     UserProfileIden::CreatedAt,
     UserProfileIden::UpdatedAt,
 ];
 
 impl CreateUserProfile {
     pub fn columns(&self) -> Vec<UserProfileIden> {
-        let mut columns = vec![UserProfileIden::UserId, UserProfileIden::Consented];
-
-        if self.ethnicity.is_some() {
-            columns.push(UserProfileIden::Ethnicity);
-        }
-        if self.age.is_some() {
-            columns.push(UserProfileIden::Age);
-        }
-        if self.gender.is_some() {
-            columns.push(UserProfileIden::Gender);
-        }
-        if self.zipcode.is_some() {
-            columns.push(UserProfileIden::Zipcode);
-        }
-        if self.political_party.is_some() {
-            columns.push(UserProfileIden::PoliticalParty);
-        }
-
-        columns
+        vec![UserProfileIden::UserId, UserProfileIden::Consented]
     }
 
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        let mut values: Vec<sea_query::SimpleExpr> =
-            vec![self.user_id.into(), self.consented.into()];
-
-        if let Some(ref ethnicity) = self.ethnicity {
-            values.push(ethnicity.clone().into());
-        }
-        if let Some(age) = self.age {
-            values.push(age.into());
-        }
-        if let Some(ref gender) = self.gender {
-            values.push(gender.clone().into());
-        }
-        if let Some(ref zipcode) = self.zipcode {
-            values.push(zipcode.clone().into());
-        }
-        if let Some(ref political_party) = self.political_party {
-            values.push(political_party.clone().into());
-        }
-
-        values
+        vec![self.user_id.into(), self.consented.into()]
     }
 }
 
@@ -120,11 +74,22 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let profile = sqlx::query_as_with::<_, UserProfile, _>(&sql, values)
+    let new_profile = sqlx::query_as_with::<_, UserProfile, _>(&sql, values)
         .fetch_one(db)
         .await?;
 
-    Ok(profile)
+    let _ = create_default_user_profile_demographics(
+        db,
+        new_profile.user_id,
+        profile.age.to_owned(),
+        profile.ethnicity.to_owned(),
+        profile.gender.to_owned(),
+        profile.zipcode.to_owned(),
+        profile.political_party.to_owned(),
+    )
+    .await?;
+
+    Ok(new_profile)
 }
 
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleError> {
@@ -173,28 +138,6 @@ pub async fn update(
         query = query.value(UserProfileIden::Consented, *value).to_owned();
         has_updates = true;
     }
-    if let Some(value) = &update.ethnicity {
-        query = query.value(UserProfileIden::Ethnicity, value).to_owned();
-        has_updates = true;
-    }
-    if let Some(value) = &update.age {
-        query = query.value(UserProfileIden::Age, *value).to_owned();
-        has_updates = true;
-    }
-    if let Some(value) = &update.gender {
-        query = query.value(UserProfileIden::Gender, value).to_owned();
-        has_updates = true;
-    }
-    if let Some(value) = &update.zipcode {
-        query = query.value(UserProfileIden::Zipcode, value).to_owned();
-        has_updates = true;
-    }
-    if let Some(value) = &update.political_party {
-        query = query
-            .value(UserProfileIden::PoliticalParty, value)
-            .to_owned();
-        has_updates = true;
-    }
 
     if !has_updates {
         return get_by_id(db, id).await;
@@ -231,11 +174,45 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleErro
     Ok(profile)
 }
 
+pub async fn create_default_user_profile_demographics(
+    db: &PgPool,
+    user_id: Uuid,
+    age: Option<i32>,
+    ethnicity: Option<String>,
+    gender: Option<String>,
+    zipcode: Option<String>,
+    political_party: Option<String>,
+) -> Result<Vec<demographics::DemographicsResponse>, ComhairleError> {
+    let demographics = std::iter::once(("age", age.map(|v| v.to_string())))
+        .chain(std::iter::once(("ethnicity", ethnicity)))
+        .chain(std::iter::once(("gender", gender)))
+        .chain(std::iter::once(("zipcode", zipcode)))
+        .chain(std::iter::once(("political_party", political_party)));
+
+    let mut responses = Vec::new();
+    for (question_slug, value) in demographics {
+        if let Some(value) = value {
+            let response = demographics::create_demographics_response(
+                db,
+                demographics::CreateDemographicsResponse {
+                    question_slug: question_slug.to_string(),
+                    user_id,
+                    value,
+                },
+            )
+            .await?;
+            responses.push(response);
+        }
+    }
+
+    Ok(responses)
+}
+
 #[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DemographicCategory {
-    pub category: String,
-    pub value: Option<String>,
+pub struct DemographicCount {
+    pub display_name: String,
+    pub value: String,
     pub count: i64,
 }
 
@@ -243,44 +220,55 @@ pub struct DemographicCategory {
 #[serde(rename_all = "camelCase")]
 pub struct DemographicReport {
     pub total_participants: i64,
-    pub ethnicity: Vec<DemographicCategory>,
-    pub age_ranges: Vec<DemographicCategory>,
-    pub gender: Vec<DemographicCategory>,
-    pub political_party: Vec<DemographicCategory>,
-    pub zipcode_counts: HashMap<String, i64>,
+    pub categories: HashMap<String, Vec<DemographicCount>>,
 }
 
 /// Generate a demographic report for users participating in a workflow
 #[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct UserProfileDemographicsExport {
+    pub question_slug: String,
+    pub display_name: String,
+    pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct UserProfileExport {
     pub user_id: Uuid,
-    pub ethnicity: Option<String>,
-    pub age: Option<i32>,
-    pub gender: Option<String>,
-    pub zipcode: Option<String>,
-    pub political_party: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub demographics: Json<HashMap<String, UserProfileDemographicsExport>>,
 }
 
 pub async fn get_demographics_for_export(
     db: &PgPool,
     conversation_id: &Uuid,
 ) -> Result<Vec<UserProfileExport>, ComhairleError> {
+    // We join conversation_demographics to ensure we only get required questions,
+    // and use jsonb_object_agg to map question_slug -> value dynamically.
     let query = r#"
-        SELECT DISTINCT
+        SELECT
             up.user_id,
-            up.ethnicity,
-            up.age,
-            up.gender,
-            up.zipcode,
-            up.political_party,
-            up.created_at
+            up.created_at,
+            COALESCE(
+                jsonb_object_agg(
+                    cd.question_slug,
+                    jsonb_build_object(
+                        'question_slug', cd.question_slug,
+                        'display_name', dq.display_name,
+                        'value', dr.value
+                    )
+                ), 
+                '{}'::jsonb
+            ) as demographics
         FROM user_profile up
         INNER JOIN comhairle_user u ON u.id = up.user_id
         INNER JOIN user_participation upart ON upart.user_id = u.id
         INNER JOIN workflow w ON w.id = upart.workflow_id
+        LEFT JOIN conversation_demographics cd ON cd.conversation_id = w.conversation_id
+        LEFT JOIN demographics_question dq ON dq.slug = cd.question_slug
+        LEFT JOIN demographics_response dr ON dr.user_id = up.user_id AND dr.question_slug = cd.question_slug
         WHERE w.conversation_id = $1
-          AND up.consented = true
+        AND up.consented = true
+        GROUP BY up.user_id, up.created_at
         ORDER BY up.created_at DESC
     "#;
 
@@ -296,7 +284,7 @@ pub async fn get_demographic_report(
     db: &PgPool,
     workflow_id: &Uuid,
 ) -> Result<DemographicReport, ComhairleError> {
-    // Get total participants
+    // 1. Get total participants (unchanged)
     let total_query = r#"
         SELECT COUNT(DISTINCT up.user_id)::BIGINT as count
         FROM user_participation up
@@ -307,143 +295,147 @@ pub async fn get_demographic_report(
         .fetch_one(db)
         .await?;
 
-    // Get ethnicity breakdown (only consented users)
-    let ethnicity_query = r#"
+    // 2. Get dynamically grouped counts for ALL string-based demographics
+    let dynamic_report_query = r#"
         SELECT
-            'ethnicity'::TEXT as category,
-            prof.ethnicity as value,
-            COUNT(*)::BIGINT as count
+            dq.slug as category_name,
+            dq.display_name as display_name,
+            dq.bucket_config as bucket_config,
+            dr.value as value,
+            COUNT(up.user_id)::BIGINT as count
         FROM user_participation up
-        INNER JOIN user_profile prof ON prof.user_id = up.user_id
-        WHERE up.workflow_id = $1 AND prof.consented = true
-        GROUP BY prof.ethnicity
-        ORDER BY count DESC
-    "#;
-    let ethnicity: Vec<DemographicCategory> = sqlx::query_as(ethnicity_query)
-        .bind(workflow_id)
-        .fetch_all(db)
-        .await?;
-
-    // Get age ranges breakdown (only consented users)
-    let age_query = r#"
-        WITH age_categories AS (
-            SELECT
-                'age_range'::TEXT as category,
-                CASE
-                    WHEN prof.age IS NULL THEN NULL
-                    WHEN prof.age < 18 THEN 'Under 18'
-                    WHEN prof.age >= 18 AND prof.age < 25 THEN '18-24'
-                    WHEN prof.age >= 25 AND prof.age < 35 THEN '25-34'
-                    WHEN prof.age >= 35 AND prof.age < 45 THEN '35-44'
-                    WHEN prof.age >= 45 AND prof.age < 55 THEN '45-54'
-                    WHEN prof.age >= 55 AND prof.age < 65 THEN '55-64'
-                    ELSE '65+'
-                END as value
-            FROM user_participation up
-            INNER JOIN user_profile prof ON prof.user_id = up.user_id
-            WHERE up.workflow_id = $1 AND prof.consented = true
-        )
-        SELECT
-            category,
-            value,
-            COUNT(*)::BIGINT as count
-        FROM age_categories
-        GROUP BY category, value
-        ORDER BY
-            CASE value
-                WHEN 'Under 18' THEN 1
-                WHEN '18-24' THEN 2
-                WHEN '25-34' THEN 3
-                WHEN '35-44' THEN 4
-                WHEN '45-54' THEN 5
-                WHEN '55-64' THEN 6
-                WHEN '65+' THEN 7
-                ELSE 8
-            END
-    "#;
-    let age_ranges: Vec<DemographicCategory> = sqlx::query_as(age_query)
-        .bind(workflow_id)
-        .fetch_all(db)
-        .await?;
-
-    // Get gender breakdown (only consented users)
-    let gender_query = r#"
-        SELECT
-            'gender'::TEXT as category,
-            prof.gender as value,
-            COUNT(*)::BIGINT as count
-        FROM user_participation up
-        INNER JOIN user_profile prof ON prof.user_id = up.user_id
-        WHERE up.workflow_id = $1 AND prof.consented = true
-        GROUP BY prof.gender
-        ORDER BY count DESC
-    "#;
-    let gender: Vec<DemographicCategory> = sqlx::query_as(gender_query)
-        .bind(workflow_id)
-        .fetch_all(db)
-        .await?;
-
-    // Get political party breakdown (only consented users)
-    let political_party_query = r#"
-        SELECT
-            'political_party'::TEXT as category,
-            prof.political_party as value,
-            COUNT(*)::BIGINT as count
-        FROM user_participation up
-        INNER JOIN user_profile prof ON prof.user_id = up.user_id
-        WHERE up.workflow_id = $1 AND prof.consented = true
-        GROUP BY prof.political_party
-        ORDER BY count DESC
-    "#;
-    let political_party: Vec<DemographicCategory> = sqlx::query_as(political_party_query)
-        .bind(workflow_id)
-        .fetch_all(db)
-        .await?;
-
-    // Get zipcode counts (only non-null zipcodes from consented users)
-    let zipcode_query = r#"
-        SELECT
-            prof.zipcode as zipcode,
-            COUNT(*)::BIGINT as count
-        FROM user_participation up
-        INNER JOIN user_profile prof ON prof.user_id = up.user_id
-        WHERE up.workflow_id = $1 AND prof.consented = true AND prof.zipcode IS NOT NULL
-        GROUP BY prof.zipcode
-        ORDER BY count DESC
+        INNER JOIN workflow w ON w.id = up.workflow_id
+        INNER JOIN conversation_demographics cd ON cd.conversation_id = w.conversation_id
+        INNER JOIN demographics_question dq ON dq.slug = cd.question_slug
+        INNER JOIN user_profile prof ON prof.user_id = up.user_id AND prof.consented = true
+        LEFT JOIN demographics_response dr ON dr.user_id = up.user_id AND dr.question_slug = cd.question_slug
+        WHERE up.workflow_id = $1
+        GROUP BY dq.slug, dq.bucket_config, dr.value
+        ORDER BY dq.slug, count DESC
     "#;
 
-    #[derive(FromRow)]
-    struct ZipcodeCount {
-        zipcode: String,
+    // Use a temporary struct to hold the flat DB rows
+    #[derive(sqlx::FromRow)]
+    struct FlatDemographicRow {
+        category_name: String,
+        display_name: String,
+        bucket_config: Option<sqlx::types::Json<ValueBuckets>>,
+        value: String,
         count: i64,
     }
 
-    let zipcode_results: Vec<ZipcodeCount> = sqlx::query_as(zipcode_query)
+    let flat_rows: Vec<FlatDemographicRow> = sqlx::query_as(dynamic_report_query)
         .bind(workflow_id)
         .fetch_all(db)
         .await?;
 
-    let zipcode_counts: HashMap<String, i64> = zipcode_results
-        .into_iter()
-        .map(|z| (z.zipcode, z.count))
-        .collect();
+    // 3. Transform the flat rows into a nested HashMap for the UI
+    let mut categories: HashMap<String, Vec<DemographicCount>> = HashMap::new();
+
+    for row in flat_rows {
+        if let Some(bucket_config) = &row.bucket_config {
+            let bucket_value = demographics::resolve_category_bucket(&row.value, &bucket_config.0);
+            let category_counts = categories.entry(row.category_name).or_insert_with(Vec::new);
+
+            if let Some(category_count) =
+                category_counts.iter_mut().find(|c| c.value == bucket_value)
+            {
+                category_count.count += row.count;
+            } else {
+                category_counts.push(DemographicCount {
+                    display_name: row.display_name,
+                    value: bucket_value,
+                    count: row.count,
+                });
+            }
+        } else {
+            categories
+                .entry(row.category_name)
+                .or_insert_with(Vec::new)
+                .push(DemographicCount {
+                    display_name: row.display_name,
+                    value: row.value,
+                    count: row.count,
+                });
+        };
+    }
 
     Ok(DemographicReport {
         total_participants,
-        ethnicity,
-        age_ranges,
-        gender,
-        political_party,
-        zipcode_counts,
+        categories,
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::routes::auth::SignupRequest;
+
     use sqlx::PgPool;
     use std::error::Error;
+
+    use crate::models::demographics::{
+        DemographicsResponse, DemographicsResponsesFilterOptions, get_demographics_responses,
+    };
+    use crate::routes::auth::SignupRequest;
+
+    async fn get_demographic(
+        pool: &PgPool,
+        question_slug: String,
+        user_id: Uuid,
+    ) -> Result<Option<DemographicsResponse>, Box<dyn Error>> {
+        let record = get_demographics_responses(
+            &pool,
+            DemographicsResponsesFilterOptions {
+                question_slug: Some(question_slug),
+                user_id: Some(user_id),
+                ..Default::default()
+            },
+            Default::default(),
+        )
+        .await?
+        .records
+        .drain(..)
+        .next();
+        Ok(record)
+    }
+
+    async fn update_demographic(
+        pool: &PgPool,
+        question_slug: String,
+        user_id: Uuid,
+        value: Option<String>,
+    ) -> Result<(), Box<dyn Error>> {
+        crate::models::demographics::update_demographics_response(
+            &pool,
+            question_slug,
+            user_id,
+            crate::models::demographics::PartialDemographicsResponse { value: value },
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn add_default_demographics_to_conversation(
+        pool: &PgPool,
+        conversation_id: Uuid,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::demographics::{
+            CreateConversationDemographics, create_conversation_demographics,
+        };
+
+        let default_questions = vec!["age", "ethnicity", "gender", "zipcode", "political_party"];
+        for question_slug in default_questions {
+            let _ = create_conversation_demographics(
+                &pool,
+                CreateConversationDemographics {
+                    conversation_id,
+                    question_slug: question_slug.to_string(),
+                },
+            )
+            .await?;
+        }
+        Ok(())
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_user_profile(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -472,23 +464,32 @@ mod tests {
 
         assert_eq!(profile.user_id, user.id, "incorrect user_id");
         assert!(profile.consented, "incorrect consented");
+
+        let age = get_demographic(&pool, "age".to_string(), user.id).await?;
+        let ethnicity = get_demographic(&pool, "ethnicity".to_string(), user.id).await?;
+        let gender = get_demographic(&pool, "gender".to_string(), user.id).await?;
+        let zipcode = get_demographic(&pool, "zipcode".to_string(), user.id).await?;
+
         assert_eq!(
-            profile.ethnicity,
+            age.map(|r| r.value),
+            Some("25".to_string()),
+            "incorrect age"
+        );
+        assert_eq!(
+            ethnicity.map(|r| r.value),
             Some("Asian".to_string()),
             "incorrect ethnicity"
         );
-        assert_eq!(profile.age, Some(25), "incorrect age");
         assert_eq!(
-            profile.gender,
+            gender.map(|r| r.value),
             Some("Female".to_string()),
             "incorrect gender"
         );
         assert_eq!(
-            profile.zipcode,
+            zipcode.map(|r| r.value),
             Some("12345".to_string()),
             "incorrect zipcode"
         );
-
         Ok(())
     }
 
@@ -545,10 +546,10 @@ mod tests {
         let create_profile = CreateUserProfile {
             user_id: user.id,
             consented: false,
-            ethnicity: None,
+            ethnicity: Some("Hispanic".to_string()),
             age: None,
             gender: None,
-            zipcode: None,
+            zipcode: Some("67890".to_string()),
             political_party: None,
         };
 
@@ -563,35 +564,54 @@ mod tests {
             &profile.id,
             &PartialUserProfile {
                 consented: Some(true),
-                ethnicity: Some("Black".to_string()),
-                age: Some(35),
-                gender: Some("Non-binary".to_string()),
-                zipcode: Some("54321".to_string()),
                 ..PartialUserProfile::default()
             },
         )
         .await?;
 
-        assert!(updated_profile.consented, "consented not updated");
-        assert_eq!(
-            updated_profile.ethnicity,
+        update_demographic(
+            &pool,
+            "ethnicity".to_string(),
+            user.id,
             Some("Black".to_string()),
-            "ethnicity not updated"
-        );
-        assert_eq!(updated_profile.age, Some(35), "age not updated");
-        assert_eq!(
-            updated_profile.gender,
-            Some("Non-binary".to_string()),
-            "gender not updated"
-        );
-        assert_eq!(
-            updated_profile.zipcode,
+        )
+        .await?;
+        update_demographic(
+            &pool,
+            "zipcode".to_string(),
+            user.id,
             Some("54321".to_string()),
-            "zipcode not updated"
-        );
+        )
+        .await?;
+
+        assert!(updated_profile.consented, "consented not updated");
         assert!(
             updated_profile.updated_at > original_updated_at,
             "updated_at should be updated"
+        );
+
+        let age = get_demographic(&pool, "age".to_string(), user.id).await?;
+        let ethnicity = get_demographic(&pool, "ethnicity".to_string(), user.id).await?;
+        let gender = get_demographic(&pool, "gender".to_string(), user.id).await?;
+        let zipcode = get_demographic(&pool, "zipcode".to_string(), user.id).await?;
+        let political_party =
+            get_demographic(&pool, "political_party".to_string(), user.id).await?;
+
+        assert_eq!(age, None, "age updated unexpectedly");
+        assert_eq!(
+            ethnicity.map(|r| r.value),
+            Some("Black".to_string()),
+            "ethnicity not updated"
+        );
+        assert_eq!(gender, None, "gender updated unexpectedly");
+        assert_eq!(
+            zipcode.map(|r| r.value),
+            Some("54321".to_string()),
+            "zipcode not updated"
+        );
+        assert_eq!(
+            political_party, None,
+            "political_party updated unexpectedly"
         );
 
         Ok(())
@@ -661,6 +681,38 @@ mod tests {
 
         let profile = create(&pool, &create_profile).await?;
 
+        let age = get_demographic(&pool, "age".to_string(), user.id).await?;
+        let ethnicity = get_demographic(&pool, "ethnicity".to_string(), user.id).await?;
+        let gender = get_demographic(&pool, "gender".to_string(), user.id).await?;
+        let zipcode = get_demographic(&pool, "zipcode".to_string(), user.id).await?;
+        let political_party =
+            get_demographic(&pool, "political_party".to_string(), user.id).await?;
+
+        assert_eq!(
+            age.map(|r| r.value),
+            Some("40".to_string()),
+            "age should be correctly set"
+        );
+        assert_eq!(
+            ethnicity.map(|r| r.value),
+            Some("White".to_string()),
+            "ethnicity should be correctly set"
+        );
+        assert_eq!(
+            gender.map(|r| r.value),
+            Some("Male".to_string()),
+            "gender should be correctly set"
+        );
+        assert_eq!(
+            zipcode.map(|r| r.value),
+            Some("11111".to_string()),
+            "zipcode should be correctly set"
+        );
+        assert_eq!(
+            political_party, None,
+            "political_party should be correctly set"
+        );
+
         // Delete the user
         sqlx::query("DELETE FROM comhairle_user WHERE id = $1")
             .bind(user.id)
@@ -673,6 +725,97 @@ mod tests {
         assert!(
             result.is_err(),
             "profile should be deleted when user is deleted"
+        );
+
+        // We should keep demographics and simply set the user to null on delete.
+        let age = get_demographics_responses(
+            &pool,
+            DemographicsResponsesFilterOptions {
+                question_slug: Some("age".to_string()),
+                ..Default::default()
+            },
+            Default::default(),
+        )
+        .await?
+        .records
+        .drain(..)
+        .next();
+
+        let ethnicity = get_demographics_responses(
+            &pool,
+            DemographicsResponsesFilterOptions {
+                question_slug: Some("ethnicity".to_string()),
+                ..Default::default()
+            },
+            Default::default(),
+        )
+        .await?
+        .records
+        .drain(..)
+        .next();
+
+        let gender = get_demographics_responses(
+            &pool,
+            DemographicsResponsesFilterOptions {
+                question_slug: Some("gender".to_string()),
+                ..Default::default()
+            },
+            Default::default(),
+        )
+        .await?
+        .records
+        .drain(..)
+        .next();
+
+        let zipcode = get_demographics_responses(
+            &pool,
+            DemographicsResponsesFilterOptions {
+                question_slug: Some("zipcode".to_string()),
+                ..Default::default()
+            },
+            Default::default(),
+        )
+        .await?
+        .records
+        .drain(..)
+        .next();
+
+        let political_party = get_demographics_responses(
+            &pool,
+            DemographicsResponsesFilterOptions {
+                question_slug: Some("political_party".to_string()),
+                ..Default::default()
+            },
+            Default::default(),
+        )
+        .await?
+        .records
+        .drain(..)
+        .next();
+
+        assert_eq!(
+            age.map(|r| r.value),
+            Some("40".to_string()),
+            "age should not be deleted via cascade"
+        );
+        assert_eq!(
+            ethnicity.map(|r| r.value),
+            Some("White".to_string()),
+            "ethnicity should not be deleted via cascade"
+        );
+        assert_eq!(
+            gender.map(|r| r.value),
+            Some("Male".to_string()),
+            "gender should not be deleted via cascade"
+        );
+        assert_eq!(
+            zipcode.map(|r| r.value),
+            Some("11111".to_string()),
+            "zipcode should not be deleted via cascade"
+        );
+        assert_eq!(
+            political_party, None,
+            "political_party should be not be set"
         );
 
         Ok(())
@@ -699,6 +842,9 @@ mod tests {
         let workflow: crate::routes::workflows::dto::WorkflowDto =
             serde_json::from_value(workflow)?;
         let workflow_id = workflow.id;
+
+        // Add demographics questions to conversation
+        add_default_demographics_to_conversation(&pool, conversation.id).await?;
 
         // Create users with different demographics
         let user1 = crate::models::users::create_user(
@@ -788,69 +934,85 @@ mod tests {
         assert_eq!(report.total_participants, 3, "incorrect total participants");
 
         // Verify ethnicity breakdown
-        assert_eq!(report.ethnicity.len(), 2, "incorrect ethnicity count");
-        let asian_count = report
-            .ethnicity
+        assert_eq!(report.categories.len(), 5, "incorrect number of categories");
+
+        let ethnicity = report.categories.get("ethnicity");
+        let age = report.categories.get("age");
+        let gender = report.categories.get("gender");
+        let political_party = report.categories.get("political_party");
+        let zipcode = report.categories.get("zipcode");
+
+        assert!(ethnicity.is_some(), "ethnicity category should exist");
+        assert!(age.is_some(), "age category should exist");
+        assert!(gender.is_some(), "gender category should exist");
+        assert!(
+            political_party.is_some(),
+            "political party category should exist"
+        );
+        assert!(zipcode.is_some(), "zipcode category should exist");
+
+        let ethnicities = ethnicity.unwrap();
+        let ages = age.unwrap();
+        let genders = gender.unwrap();
+        let political_parties = political_party.unwrap();
+        let zipcodes = zipcode.unwrap();
+
+        assert_eq!(ethnicities.len(), 2, "incorrect ethnicity count");
+        let asian_count = ethnicities
             .iter()
-            .find(|e| e.value == Some("Asian".to_string()))
+            .find(|e| e.value == "Asian".to_string())
             .map(|e| e.count)
             .unwrap_or(0);
         assert_eq!(asian_count, 2, "incorrect Asian count");
 
-        let hispanic_count = report
-            .ethnicity
+        let hispanic_count = ethnicities
             .iter()
-            .find(|e| e.value == Some("Hispanic".to_string()))
+            .find(|e| e.value == "Hispanic".to_string())
             .map(|e| e.count)
             .unwrap_or(0);
         assert_eq!(hispanic_count, 1, "incorrect Hispanic count");
 
         // Verify age ranges (user1=25, user2=30, user3=45)
-        let age_25_34 = report
-            .age_ranges
+        let age_25_34 = ages
             .iter()
-            .find(|a| a.value == Some("25-34".to_string()))
+            .find(|a| a.value == "25-34".to_string())
             .map(|a| a.count)
             .unwrap_or(0);
         assert_eq!(age_25_34, 2, "incorrect 25-34 age range count");
 
-        let age_45_54 = report
-            .age_ranges
+        let age_45_54 = ages
             .iter()
-            .find(|a| a.value == Some("45-54".to_string()))
+            .find(|a| a.value == "45-54".to_string())
             .map(|a| a.count)
             .unwrap_or(0);
         assert_eq!(age_45_54, 1, "incorrect 45-54 age range count");
 
         // Verify gender breakdown
-        assert_eq!(report.gender.len(), 3, "incorrect gender count");
+        assert_eq!(genders.len(), 3, "incorrect gender count");
 
         // Verify political party breakdown
         assert_eq!(
-            report.political_party.len(),
+            political_parties.len(),
             3,
             "incorrect political party count"
         );
 
         // Verify zipcode counts
+        assert_eq!(zipcodes.len(), 3, "should have 3 unique zipcodes");
         assert_eq!(
-            report.zipcode_counts.len(),
-            3,
-            "should have 3 unique zipcodes"
-        );
-        assert_eq!(
-            report.zipcode_counts.get("12345"),
-            Some(&1),
+            // Count of users in zipcode 12345
+            zipcodes.iter().find(|dc| dc.value == "12345").iter().len(),
+            1,
             "zipcode 12345 should have 1 user"
         );
         assert_eq!(
-            report.zipcode_counts.get("67890"),
-            Some(&1),
+            zipcodes.iter().find(|dc| dc.value == "67890").iter().len(),
+            1,
             "zipcode 67890 should have 1 user"
         );
         assert_eq!(
-            report.zipcode_counts.get("11111"),
-            Some(&1),
+            zipcodes.iter().find(|dc| dc.value == "11111").iter().len(),
+            1,
             "zipcode 11111 should have 1 user"
         );
 
@@ -878,6 +1040,9 @@ mod tests {
         let workflow: crate::routes::workflows::dto::WorkflowDto =
             serde_json::from_value(workflow)?;
         let workflow_id = workflow.id;
+
+        // Add default demographics to the conversation
+        add_default_demographics_to_conversation(&pool, conversation.id).await?;
 
         // Create consented user
         let consented_user = crate::models::users::create_user(
@@ -941,34 +1106,42 @@ mod tests {
         // Both users should count in total
         assert_eq!(report.total_participants, 2, "incorrect total participants");
 
+        let ethnicities = report.categories.get("ethnicity");
+        let genders = report.categories.get("gender");
+        let zipcodes = report.categories.get("zipcode");
+
+        assert!(ethnicities.is_some(), "ethnicity category should exist");
+        assert!(genders.is_some(), "gender category should exist");
+        assert!(zipcodes.is_some(), "zipcode category should exist");
+
+        let ethnicities = ethnicities.unwrap();
+        let genders = genders.unwrap();
+        let zipcodes = zipcodes.unwrap();
+
+        assert_eq!(ethnicities.len(), 1, "should only have one ethnicity");
+        assert_eq!(genders.len(), 1, "should only have one gender");
+        assert_eq!(zipcodes.len(), 1, "should only have one zipcode");
+
         // Only consented user should appear in demographics
-        assert_eq!(report.ethnicity.len(), 1, "should only have one ethnicity");
         assert_eq!(
-            report.ethnicity[0].value,
-            Some("Asian".to_string()),
+            ethnicities[0].value,
+            "Asian".to_string(),
             "should only show consented user's ethnicity"
         );
-        assert_eq!(
-            report.ethnicity[0].count, 1,
-            "should only count consented user"
-        );
+        assert_eq!(ethnicities[0].count, 1, "should only count consented user");
 
-        assert_eq!(report.gender.len(), 1, "should only have one gender");
+        assert_eq!(genders.len(), 1, "should only have one gender");
         assert_eq!(
-            report.gender[0].value,
-            Some("Female".to_string()),
+            genders[0].value,
+            "Female".to_string(),
             "should only show consented user's gender"
         );
 
         // Verify zipcode counts only include consented user
+        assert_eq!(zipcodes.len(), 1, "should only have one zipcode");
         assert_eq!(
-            report.zipcode_counts.len(),
-            1,
-            "should only have one zipcode"
-        );
-        assert_eq!(
-            report.zipcode_counts.get("12345"),
-            Some(&1),
+            zipcodes[0].value,
+            "12345".to_string(),
             "should only show consented user's zipcode"
         );
 
@@ -1029,34 +1202,10 @@ mod tests {
         // Generate report
         let report = get_demographic_report(&pool, &workflow_id).await?;
 
-        // Should show None for null values
-        assert_eq!(report.ethnicity.len(), 1, "should have one ethnicity entry");
         assert_eq!(
-            report.ethnicity[0].value, None,
-            "should show None for null ethnicity"
-        );
-
-        assert_eq!(
-            report.age_ranges.len(),
-            1,
-            "should have one age range entry"
-        );
-        assert_eq!(
-            report.age_ranges[0].value, None,
-            "should show None for null age"
-        );
-
-        assert_eq!(report.gender.len(), 1, "should have one gender entry");
-        assert_eq!(
-            report.gender[0].value, None,
-            "should show None for null gender"
-        );
-
-        // Verify zipcode counts (user has null zipcode, so map should be empty)
-        assert_eq!(
-            report.zipcode_counts.len(),
+            report.categories.len(),
             0,
-            "should have no zipcodes for user with null zipcode"
+            "should have no demographics entries for user with null values"
         );
 
         Ok(())

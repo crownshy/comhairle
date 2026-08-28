@@ -8,6 +8,7 @@ pub mod bot_service_user_session;
 pub mod breakout_plan;
 pub mod conversation;
 pub mod conversation_email_notification_recipients;
+pub mod demographics;
 pub mod email_template_config;
 pub mod event;
 pub mod event_attendance;

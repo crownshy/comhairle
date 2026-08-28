@@ -652,7 +652,8 @@ impl UserSession {
     ) -> Result<(StatusCode, UserDto, Option<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
 
-        let user: UserDto = serde_json::from_value(value).unwrap();
+        let user: UserDto = serde_json::from_value(value.clone())
+            .map_err(|err| format!("Failed to parse current user: {value:?} - Error: {err}"))?;
         Ok((status, user, cookie))
     }
 

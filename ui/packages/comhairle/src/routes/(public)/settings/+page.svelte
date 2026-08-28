@@ -3,12 +3,15 @@
 	import type { PageProps } from './$types';
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
+	import UserDemographicsForm from '$lib/components/UserDemographicsForm/UserDemographicsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import type { UserDto } from '@crownshy/api-client/api';
 
 	let { data }: PageProps = $props();
 	let participation = $derived(data.participation);
 	let user = $state(data.user) as UserDto;
+	let demographicQuestions = $derived(data.demographicQuestions);
+	let demographicResponses = $derived(data.demographicResponses);
 
 	function handleUpgradeSuccess(upgradedUser: UserDto) {
 		user = upgradedUser;
@@ -55,6 +58,11 @@
 				</div>
 			{:else}
 				<UserDetailsForm {user} />
+				<UserDemographicsForm
+					questions={demographicQuestions}
+					responses={demographicResponses}
+					userId={user.id}
+				/>
 			{/if}
 		</section>
 
