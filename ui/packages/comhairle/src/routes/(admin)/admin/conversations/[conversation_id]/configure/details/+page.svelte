@@ -25,9 +25,10 @@
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	let { data } = $props();
-	const { conversation, media: imageMedia } = $derived(data);
+	const { conversation, media } = $derived(data);
 
 	let primaryLocale = $derived<Locale>((data.conversation.primaryLocale as Locale) ?? 'en');
 	let supportedLanguages = $derived<Locale[]>(
@@ -53,17 +54,13 @@
 		return (value: string) => detailsSchema.shape[field].safeParse(value).success;
 	}
 
-	const fieldSource = (
-		field: 'title' | 'shortDescription' | 'description',
-		ensureTextContentId?: (content: string) => Promise<void>
-	): TranslationSource =>
+	const fieldSource = (field: 'title' | 'shortDescription' | 'description'): TranslationSource =>
 		createTextContentSource({
 			getTranslation: () => conversation.translations?.[field] ?? undefined,
 			getPrimaryLocale: () => primaryLocale,
 			getSupportedLanguages: () => supportedLanguages,
 			getPrimaryFallback: () => $form[field] ?? '',
-			onEdit: (content) => ($form[field] = content),
-			ensureTextContentId
+			onEdit: (content) => ($form[field] = content)
 		});
 
 	const titleSource = fieldSource('title');
@@ -344,22 +341,31 @@
 						}}
 					/>
 				</div>
-				{#if imageMedia}
-					<div class="h-70 w-auto">
-						<img
-							src={imageMedia.url}
-							alt="Conversation"
-							class="h-full w-auto object-contain"
-						/>
-					</div>
+				{#if media === null}
+					<span class="text-muted-foreground">No image</span>
 				{:else}
-					<div class="relative h-40 w-fit rounded-3xl bg-white/60">
-						<Image class="h-full w-auto" />
-						<span
-							class="absolute top-1/2 left-1/2 z-10 -translate-1/2 text-center text-xl font-bold text-gray-600"
-							>Awaiting image</span
-						>
-					</div>
+					{#await media}
+						<!-- TODO: Try using a CSS mask here -->
+						<div class="pile">
+							<Skeleton class="h-40 w-40 rounded-4xl" />
+							<Image class="z-2 h-full w-auto" strokeWidth={0.9} opacity={0.5} />
+						</div>
+					{:then image}
+						{#if image?.err !== null}
+							{notifications.addFlash({
+								message: 'Could not load image. Please try again',
+								priority: 'ERROR'
+							})}
+						{:else}
+							<div class="h-70 w-auto">
+								<img
+									src={image.ok.url}
+									alt="Conversation"
+									class="h-full w-auto object-contain"
+								/>
+							</div>
+						{/if}
+					{/await}
 				{/if}
 			</div>
 		</div>
