@@ -1,6 +1,6 @@
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
-import type { ConversationWithTranslations, UserWithPermissionDto } from '@crownshy/api-client/api';
+import type { ConversationWithTranslations } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -74,17 +74,9 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 		redirect(HttpStatus.Found, '/admin');
 	}
 
-	const configureTabs: { id: string; label: string }[] = [
-		{ id: 'details', label: 'Details' },
-		{ id: 'content', label: 'Content' },
-		{ id: 'glossary', label: 'Glossary' },
-		{ id: 'access', label: 'Access' }
-	];
-
 	return {
 		conversation,
 		workflows: workflows.ok,
-		cohostOrganizations: cohostOrganizations.ok,
-		configureTabs
+		cohostOrganizations: cohostOrganizations.ok
 	};
 };

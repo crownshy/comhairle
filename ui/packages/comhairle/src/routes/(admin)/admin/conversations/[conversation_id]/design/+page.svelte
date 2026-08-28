@@ -31,13 +31,8 @@
 	} from 'lucide-svelte';
 
 	let { data } = $props();
-
-	let conversation = $derived(data.conversation);
+	let { conversation, workflowSteps } = $derived(data);
 	let workflow = $derived(data.workflows[0]);
-	let workflowSteps = $derived<WorkflowStepWithTranslations[] | undefined>(data.workflowSteps);
-
-	// `undefined` = steps not loaded yet (show a skeleton); `[]` = genuinely no steps.
-	let loadingSteps = $derived(workflowSteps === undefined);
 
 	// Writable derived: seeds from the loaded steps and re-seeds whenever they change (e.g.
 	// after `invalidate`), while a drag/reorder can still assign to it locally in between.
@@ -286,7 +281,7 @@
 				</DropdownMenu.Root>
 			</div>
 
-			{#if loadingSteps}
+			{#if workflowSteps === undefined}
 				<StepListSkeleton />
 			{:else if reorderedSteps.length === 0}
 				<div

@@ -72,7 +72,7 @@
 		access: { title: 'Access', description: 'Visibility, invites and participation.' },
 		team: { title: 'Team', description: 'Manage collaborators.' }
 	};
-	let activeTab = $derived(page.url.searchParams.get('tab') ?? data.configureTabs[0].id);
+	let activeTab = $derived(page.url.searchParams.get('tab') ?? 'details');
 	let header = $derived(tabHeaders[activeTab] ?? tabHeaders.details);
 
 	// "See example" opens a modal with a static screenshot of where the field appears for

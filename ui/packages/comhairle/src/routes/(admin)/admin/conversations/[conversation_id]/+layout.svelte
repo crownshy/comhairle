@@ -8,7 +8,6 @@
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
-	import ConfigureTabStrip from './configure/ConfigureTabStrip.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
 	import EventStrip from '$lib/components/EventStrip.svelte';
@@ -46,14 +45,6 @@
 			.startsWith(`/admin/conversations/${conversation.id}/design/step/`)
 	);
 
-	// Configure's sub-tabs are a static list (its `?tab=` sections share one form + load), so we
-	// server-render the strip here from `configureTabs`, the same way the workflow step strip is
-	// rendered from data, rather than the page injecting it via a client `$effect`.
-	let isConfigureSection = $derived(
-		page.url.pathname.replace(/\/+$/, '') ===
-			`/admin/conversations/${conversation.id}/configure`
-	);
-
 	// Recruit (invites) is the same shape as Configure: a static `?subtab=` strip over one page,
 	// so we server-render it here from INVITE_SUBTABS instead of a client `$effect`.
 	let isInvitesSection = $derived(
@@ -73,15 +64,6 @@
 	let isEventDetailPage = $derived.by(() => {
 		const path = page.url.pathname.replace(/\/+$/, '');
 		return path.startsWith(`${eventsBase}/`) && path !== `${eventsBase}/new`;
-	});
-
-	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
-	// step strip. We render it here from `data.workflowSteps` (loaded by this layout) so it's
-	// server-rendered, rather than injected by the design layout's client `$effect`.
-	let isDesignSection = $derived.by(() => {
-		const base = `/admin/conversations/${conversation.id}/design`;
-		const path = page.url.pathname.replace(/\/+$/, '');
-		return path === base || path.startsWith(`${base}/`);
 	});
 
 	// A workflow step's sub-tabs (Configure/Setup/Moderation/Insights) are real routes, so
@@ -278,8 +260,6 @@
 				widths={primaryStripSkeleton.widths}
 			/>
 		{/if}
-	{:else if isConfigureSection}
-		<ConfigureTabStrip tabs={data.configureTabs} />
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
 	{:else if isEventsSection}
@@ -329,8 +309,8 @@
 {:else}
 	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
 		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-		<div class="h-full w-full max-w-[1200px]">
+	<div class="bg-admin-background grow">
+		<div class="h-full w-full">
 			{#if showSwitchingSkeleton.current}
 				<TabContentSkeleton />
 			{:else}

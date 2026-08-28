@@ -14,7 +14,7 @@ import type { MediaDto, UserWithPermissionDto } from '@crownshy/api-client/api';
 export const load: PageLoad = async ({ parent, params, depends }) => {
 	depends(key('conversation/documents'));
 
-	const { api, conversation, user, configureTabs } = await parent();
+	const { api, conversation, user } = await parent();
 	const { conversation_id } = params;
 
 	const documents = await tryCatchAsync(() =>
@@ -37,11 +37,10 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 	}
 
 	let usersWithPermission: UserWithPermissionDto[] = [];
+	let isConversationOwner = false;
+
 	if (user.id === conversation.ownerId) {
-		const id = 'team';
-		if (configureTabs.find((ct) => ct.id === id) === undefined) {
-			configureTabs.push({ id, label: 'Team' });
-		}
+		isConversationOwner = true;
 		const result = await tryCatchAsync(() =>
 			api.ListUsersWithPermission({
 				params: {
@@ -57,7 +56,7 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 	return {
 		availableDocuments,
 		media,
-		configureTabs,
+		isConversationOwner,
 		usersWithPermission
 	};
 };
