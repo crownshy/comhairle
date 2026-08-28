@@ -15,6 +15,7 @@
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { resolve } from '$app/paths';
 
 	let { data, children } = $props();
 
@@ -99,141 +100,150 @@
 	let primaryStripSkeleton = $derived(
 		conversationPrimaryStripSkeleton(effectivePathname, conversation.id)
 	);
+
+	let innerWidth = $state<number | null>(null);
 </script>
+
+<svelte:window bind:innerWidth />
 
 <!-- Row 1: conversation title + launch controls -->
 <div
 	class="border-border bg-background md:pl-gutter flex w-full shrink-0 items-center justify-between border-b py-2 pr-3 pl-14 md:pr-6"
 >
-	<h1
-		class="text-primary max-w-[22ch] truncate text-lg leading-7 font-semibold sm:max-w-[40ch]"
-		title={displayTitle}
-	>
+	<h1 class="text-primary max-w-[22ch] truncate text-lg leading-7 font-semibold sm:max-w-[40ch]">
 		{displayTitle}
 	</h1>
 
-	<!-- Mobile actions: single more-menu -->
-	<div class="flex shrink-0 items-center lg:hidden">
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
-				class="bg-primary/20 hover:bg-primary/30 inline-flex size-9 items-center justify-center rounded-full"
-				aria-label="Actions"
-			>
-				<MoreHorizontal class="size-4" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="end" class="w-56">
-				<DropdownMenu.Item>
-					<a
-						href={`/conversations/${conversation.id}/preview`}
-						target="_blank"
-						class="flex w-full items-center gap-2"
-					>
-						<Eye class="size-4" />
-						Preview
-					</a>
-				</DropdownMenu.Item>
-				{#if conversation.isLive}
-					<DropdownMenu.Item>
-						<a
-							href={`/conversations/${conversation.id}`}
-							class="flex w-full items-center gap-2"
-						>
-							<ExternalLink class="size-4" />
-							Live Conversation Link
-						</a>
-					</DropdownMenu.Item>
-					<DropdownMenu.Separator />
-					{#if !conversation.isComplete}
-						<DropdownMenu.Item
-							class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
-							onclick={() => (endModalOpen = true)}
-						>
-							<CircleX class="text-destructive size-4" />
-							End Conversation
-						</DropdownMenu.Item>
-					{:else}
-						<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
-							<Check class="size-4" />
-							Re-open Conversation
-						</DropdownMenu.Item>
-					{/if}
-				{:else}
-					<DropdownMenu.Separator />
-					<DropdownMenu.Item onclick={() => (launchModalOpen = true)}>
-						<ArrowUpRight class="size-4" />
-						Launch Conversation
-					</DropdownMenu.Item>
-				{/if}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	</div>
-
-	<!-- Desktop actions -->
-	<div class="hidden shrink-0 items-center gap-4 md:flex">
-		<Button
-			href={`/conversations/${conversation.id}/preview`}
-			target="_blank"
-			variant="secondary"
-			class="bg-primary/20 text-foreground hover:bg-primary/30 inline-flex h-10 rounded-full px-4 text-sm"
-		>
-			Preview
-			<ArrowUpRight class="size-4" />
-		</Button>
-
-		{#if conversation.isLive}
-			{#if !conversation.isComplete}
-				<span
-					class="bg-primary text-primary-foreground inline-flex h-10 items-center gap-2 rounded-full py-1 pr-1 pl-5 text-sm font-medium"
-				>
-					Launched
-					<span
-						class="bg-primary-foreground text-primary inline-flex size-8 items-center justify-center rounded-full"
-					>
-						<Check class="size-4" strokeWidth={3} />
-					</span>
-				</span>
-			{/if}
-
+	{#if innerWidth && innerWidth < 1024}
+		<!-- Mobile actions: single more-menu -->
+		<div class="flex shrink-0 items-center">
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
-					class="bg-primary/20 hover:bg-primary/30 inline-flex size-10 items-center justify-center rounded-full"
-					aria-label="More actions"
+					class="bg-primary/20 hover:bg-primary/30 inline-flex size-9 items-center justify-center rounded-full"
+					aria-label="Actions"
 				>
 					<MoreHorizontal class="size-4" />
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end" class="w-56">
 					<DropdownMenu.Item>
 						<a
-							href={`/conversations/${conversation.id}`}
+							href={resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+								conversation_id: conversation.id
+							})}
+							target="_blank"
 							class="flex w-full items-center gap-2"
 						>
-							<ExternalLink class="size-4" />
-							Live Conversation Link
+							<Eye class="size-4" />
+							Preview
 						</a>
 					</DropdownMenu.Item>
-					<DropdownMenu.Separator />
-					{#if !conversation.isComplete}
-						<DropdownMenu.Item
-							class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
-							onclick={() => (endModalOpen = true)}
-						>
-							<CircleX class="text-destructive size-4" />
-							End Conversation
+					{#if conversation.isLive}
+						<DropdownMenu.Item>
+							<a
+								href={resolve('/(public)/conversations/[conversation_id]', {
+									conversation_id: conversation.id
+								})}
+								class="flex w-full items-center gap-2"
+							>
+								<ExternalLink class="size-4" />
+								Live Conversation Link
+							</a>
 						</DropdownMenu.Item>
+						<DropdownMenu.Separator />
+						{#if !conversation.isComplete}
+							<DropdownMenu.Item
+								class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
+								onclick={() => (endModalOpen = true)}
+							>
+								<CircleX class="text-destructive size-4" />
+								End Conversation
+							</DropdownMenu.Item>
+						{:else}
+							<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
+								<Check class="size-4" />
+								Re-open Conversation
+							</DropdownMenu.Item>
+						{/if}
 					{:else}
-						<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
-							<Check class="size-4" />
-							Re-open Conversation
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item onclick={() => (launchModalOpen = true)}>
+							<ArrowUpRight class="size-4" />
+							Launch Conversation
 						</DropdownMenu.Item>
 					{/if}
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
-		{:else}
-			<Button variant="default" class="h-[40px]" onclick={() => (launchModalOpen = true)}>
-				Launch Conversation
+		</div>
+	{:else}
+		<!-- Desktop actions -->
+		<div class="flex shrink-0 items-center gap-4">
+			<Button
+				href={`/conversations/${conversation.id}/preview`}
+				target="_blank"
+				variant="secondary"
+				class="bg-primary/20 text-foreground hover:bg-primary/30 inline-flex h-10 rounded-full px-4 text-sm"
+			>
+				Preview
+				<ArrowUpRight class="size-4" />
 			</Button>
-		{/if}
-	</div>
+
+			{#if conversation.isLive}
+				{#if !conversation.isComplete}
+					<span
+						class="bg-primary text-primary-foreground inline-flex h-10 items-center gap-2 rounded-full py-1 pr-1 pl-5 text-sm font-medium"
+					>
+						Launched
+						<span
+							class="bg-primary-foreground text-primary inline-flex size-8 items-center justify-center rounded-full"
+						>
+							<Check class="size-4" strokeWidth={3} />
+						</span>
+					</span>
+				{/if}
+
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger
+						class="bg-primary/20 hover:bg-primary/30 inline-flex size-10 items-center justify-center rounded-full"
+						aria-label="More actions"
+					>
+						<MoreHorizontal class="size-4" />
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end" class="w-56">
+						<DropdownMenu.Item>
+							<a
+								href={resolve('/(public)/conversations/[conversation_id]', {
+									conversation_id: conversation.id
+								})}
+								class="flex w-full items-center gap-2"
+							>
+								<ExternalLink class="size-4" />
+								Live Conversation Link
+							</a>
+						</DropdownMenu.Item>
+						<DropdownMenu.Separator />
+						{#if !conversation.isComplete}
+							<DropdownMenu.Item
+								class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
+								onclick={() => (endModalOpen = true)}
+							>
+								<CircleX class="text-destructive size-4" />
+								End Conversation
+							</DropdownMenu.Item>
+						{:else}
+							<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
+								<Check class="size-4" />
+								Re-open Conversation
+							</DropdownMenu.Item>
+						{/if}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			{:else}
+				<Button variant="default" class="h-10" onclick={() => (launchModalOpen = true)}>
+					Launch Conversation
+				</Button>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <!-- Modals (triggered programmatically from mobile dropdown or desktop UI) -->
@@ -286,7 +296,7 @@
 	<div class="bg-card flex min-h-0 grow flex-col overflow-hidden">
 		{#if showSwitchingSkeleton.current}
 			<div class="pt-page-top px-gutter">
-				<div class="w-full max-w-[1200px]">
+				<div class="w-full max-w-300">
 					<TabContentSkeleton />
 				</div>
 			</div>
@@ -299,7 +309,7 @@
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
 		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-			<div class="h-full w-full max-w-[1200px]">
+			<div class="h-full w-full max-w-300">
 				<TabContentSkeleton />
 			</div>
 		</div>
