@@ -28,7 +28,7 @@ use time::Duration;
 pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
-        &state,
+        state,
         PermissionRole::Admin.system_triplet(),
         &user.id,
         user.organization_id.as_ref(),
@@ -229,7 +229,7 @@ pub(crate) struct EmailLinkClaims {
     pub(crate) email: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SessionClaims {
     username: Option<String>,
     sudo_user: Option<String>, // TODO: Remove at some point
@@ -748,12 +748,11 @@ async fn refresh_session(
 
     let user_id = Uuid::parse_str(&token_data.claims.sub)
         .map_err(|_| ComhairleError::SessionRefreshFailure(RefreshFailure::InvalidClaim))?;
+    let user = users::get_user_by_id(&user_id, &state.db).await?;
     let jti = token_data.claims.details.jti;
 
     // Handles expired / re-used / invalid tokens
     let new_token = refresh_token::rotate(&state.db, jti, user_id, &client_ip, &user_agent).await?;
-
-    let user = users::get_user_by_id(&user_id, &state.db).await?;
 
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token);
@@ -1387,7 +1386,7 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/refresh",
-            get_with(refresh_session, |op| {
+            post_with(refresh_session, |op| {
                 op.id("RefreshSession")
                     .tag("Auth")
                     .summary("Refresh user session")
@@ -2768,6 +2767,149 @@ mod tests {
             issue_refresh_token(&Arc::new(state.clone()), &user, &ip_addr, &user_agent).await;
 
         assert!(cookie.is_none());
+
+        Ok(())
+    }
+
+    async fn get_refresh_token_from_cookies(
+        state: &Arc<ComhairleState>,
+        cookies: &HashMap<String, String>,
+    ) -> Result<RefreshToken, Box<dyn Error>> {
+        let refresh_token = cookies
+            .get(REFRESH_KEY)
+            .unwrap()
+            .replace(&format!("{REFRESH_KEY}="), "");
+        let token_data =
+            decode_jwt::<RefreshClaims>(&refresh_token, &state.config.refresh_jwt_secret).unwrap();
+        let refresh_jti = token_data.claims.details.jti;
+        let token = refresh_token::get_by_id(&state.db, refresh_jti)
+            .await?
+            .unwrap();
+
+        Ok(token)
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_refresh_user_session_and_rotate_refresh_token(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = crate::test_helpers::TEST_PASSWORD;
+        let email = "test_email";
+
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut session = UserSession::new(username, password, email);
+
+        // Signup
+        session.signup(&app).await?;
+        let (_, current_user, _) = session.current_user(&app).await?;
+        let current_user_model = users::get_user_by_id(&current_user.id, &pool).await?;
+
+        // Extract refresh-token from cookies and assert db record is valid
+        let original_refresh_token_record =
+            get_refresh_token_from_cookies(&state, session.cookies.as_ref().unwrap()).await?;
+        assert!(
+            original_refresh_token_record.revoked_at.is_none(),
+            "refresh token already revoked"
+        );
+
+        // Create expired auth-token jwt
+        let expired_session_jwt = generate_jwt()
+            .user(&current_user_model)
+            .secret(&state.config.jwt_secret)
+            .custom_claims(SessionClaims {
+                username: current_user_model.username.clone(),
+                ..Default::default()
+            })
+            .duration(chrono::Duration::hours(-1))
+            .call();
+
+        // Replace auth-token cookie with expired jwt
+        session.cookies.as_mut().unwrap().insert(
+            AUTH_KEY.to_string(),
+            format!("{AUTH_KEY}={expired_session_jwt}"),
+        );
+
+        // Check current user request fails because of authentication
+        let (status, result, _) = session.get(&app, "/auth/current_user").await?;
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "incorrect status for logged out user"
+        );
+        assert_eq!(
+            result.get("err").unwrap(),
+            "No user logged in",
+            "incorrect error message for logged out user"
+        );
+
+        // Run refresh request
+        session
+            .post(&app, "/auth/refresh", axum::body::Body::empty())
+            .await?;
+
+        // Check now able to perform authenticated requests
+        let (_, current_user, _) = session.current_user(&app).await?;
+        assert_eq!(current_user.id, current_user_model.id, "users don't match");
+
+        // Check original refresh token is revoked
+        let revoked_token = refresh_token::get_by_id(&pool, original_refresh_token_record.id)
+            .await?
+            .unwrap();
+        assert!(
+            revoked_token.revoked_at.is_some(),
+            "original refresh token not revoked"
+        );
+        assert_eq!(
+            revoked_token.revoked_reason.unwrap(),
+            "rotated",
+            "incorrect revoked_reason"
+        );
+
+        // Check valid refresh token in cookies with same family_id as original
+        let rotation_token_record =
+            get_refresh_token_from_cookies(&state, session.cookies.as_ref().unwrap()).await?;
+        assert!(
+            rotation_token_record.revoked_at.is_none(),
+            "rotation token already revoked"
+        );
+        assert_eq!(
+            rotation_token_record.family_id, original_refresh_token_record.family_id,
+            "rotation token not in same family"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_return_error_if_refresh_cookie_missing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = crate::test_helpers::TEST_PASSWORD;
+        let email = "test_email";
+
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut session = UserSession::new(username, password, email);
+
+        // Signup
+        session.signup(&app).await?;
+
+        // Remove refresh cookie from session
+        session.cookies.as_mut().unwrap().remove(REFRESH_KEY);
+
+        let (status, res, _) = session
+            .post(&app, "/auth/refresh", axum::body::Body::empty())
+            .await?;
+
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "incorrect status code");
+        assert_eq!(
+            res.get("err").and_then(|v| v.as_str()).unwrap(),
+            ComhairleError::SessionRefreshFailure(RefreshFailure::Missing).to_string(),
+            "incorrect error message"
+        );
 
         Ok(())
     }
