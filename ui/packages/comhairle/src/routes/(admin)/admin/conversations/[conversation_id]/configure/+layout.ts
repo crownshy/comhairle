@@ -1,7 +1,7 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { key } from '$lib/utils/invalidationKey';
-import type { PageLoad } from './$types';
 import type { MediaDto, UserWithPermissionDto } from '@crownshy/api-client/api';
+import type { LayoutLoad } from './$types';
 
 /**
  * The Content tab's rich fields (FAQ, thank-you, privacy policy, short privacy policy) offer an
@@ -11,7 +11,7 @@ import type { MediaDto, UserWithPermissionDto } from '@crownshy/api-client/api';
  * pay for it) and only surface the DONE-parsed ones, matching the Learn step path. A failed fetch
  * falls back to an empty list, so the picker shows its empty state rather than a raw backend error.
  */
-export const load: PageLoad = async ({ parent, params, depends }) => {
+export const load: LayoutLoad = async ({ parent, params, depends }) => {
 	depends(key('conversation/documents'));
 
 	const { api, conversation, user } = await parent();
