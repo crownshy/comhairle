@@ -102,6 +102,8 @@
 	);
 
 	let innerWidth = $state<number | null>(null);
+
+	const MOBILE = 1_024;
 </script>
 
 <svelte:window bind:innerWidth />
@@ -114,7 +116,7 @@
 		{displayTitle}
 	</h1>
 
-	{#if innerWidth && innerWidth < 1024}
+	{#if innerWidth && innerWidth <= MOBILE}
 		<!-- Mobile actions: single more-menu -->
 		<div class="flex shrink-0 items-center">
 			<DropdownMenu.Root>
