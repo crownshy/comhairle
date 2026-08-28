@@ -1108,12 +1108,27 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
 }
 
 /// Destroy the cookie on our session to log a user out
-pub async fn logout(jar: CookieJar) -> (CookieJar, Response) {
-    let cookie = Cookie::build(AUTH_KEY).path("/");
-    (
-        jar.remove(cookie),
-        Json(json!({"msg":"Logged out"})).into_response(),
-    )
+pub async fn logout(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+) -> (CookieJar, Response) {
+    if let Some(refresh_cookie) = jar.get(REFRESH_KEY)
+        && let Ok(token_data) =
+            decode_jwt::<RefreshClaims>(refresh_cookie.value(), &state.config.refresh_jwt_secret)
+        && let Ok(Some(token_record)) =
+            refresh_token::get_by_id(&state.db, token_data.claims.details.jti).await
+        && let Err(error) =
+            refresh_token::revoke_family(&state.db, token_record.family_id, "user_logout").await
+    {
+        warn!("Failed to revoke refresh token: {error:#?}");
+    }
+
+    let session_cookie = Cookie::build(AUTH_KEY).path("/");
+    let refresh_cookie = Cookie::build(REFRESH_KEY).path("/api/auth");
+
+    let jar = jar.remove(session_cookie).remove(refresh_cookie);
+
+    (jar, Json(json!({"msg":"Logged out"})).into_response())
 }
 
 /// Handler for the current user if there is one
@@ -1200,7 +1215,7 @@ fn build_refresh_token_cookie<'a>(
         .call();
 
     Cookie::build((REFRESH_KEY, refresh_token))
-        .path("/api/auth/refresh")
+        .path("/api/auth")
         .secure(true)
         .http_only(true)
         .same_site(SameSite::Strict)
@@ -1214,6 +1229,11 @@ async fn issue_refresh_token<'a>(
     ip_addr: &ClientIp,
     user_agent: &ClientUserAgent,
 ) -> Option<Cookie<'a>> {
+    // Revoke any existing refresh tokens for user
+    if let Err(error) = refresh_token::revoke_for_user(&state.db, user.id, "new_user_login").await {
+        warn!("Failed to revoke existing user refresh tokens: {error}")
+    }
+
     if let Ok(token_record) = refresh_token::create(
         &state.db,
         CreateRefreshToken {
@@ -2910,6 +2930,47 @@ mod tests {
             ComhairleError::SessionRefreshFailure(RefreshFailure::Missing).to_string(),
             "incorrect error message"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_remove_session_and_refresh_cookies_on_logout(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = crate::test_helpers::TEST_PASSWORD;
+        let email = "test_email";
+
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut session = UserSession::new(username, password, email);
+
+        session.signup(&app).await?;
+
+        assert!(
+            session.cookies.as_ref().unwrap().contains_key(AUTH_KEY),
+            "missing auth-token cookie after signup"
+        );
+        assert!(
+            session.cookies.as_ref().unwrap().contains_key(REFRESH_KEY),
+            "missing refresh-token cookie after signup"
+        );
+
+        session.logout(&app).await?;
+
+        let (status, _, _) = session.get(&app, "/auth/current_user").await?;
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "incorrect status code from current_user"
+        );
+
+        let (status, _, _) = session
+            .post(&app, "/auth/refresh", axum::body::Body::empty())
+            .await?;
+
+        assert!(!status.is_success(), "incorrect status code from refresh");
 
         Ok(())
     }
