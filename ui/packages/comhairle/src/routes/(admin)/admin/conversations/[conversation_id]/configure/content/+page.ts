@@ -1,7 +1,8 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type { PageLoad } from './$types';
+import { key } from '$lib/utils/invalidationKey';
 
-export const load: PageLoad = async ({ parent, params }) => {
+export const load: PageLoad = async ({ parent, params, depends }) => {
 	depends(key('conversation/documents'));
 
 	const { api } = await parent();
