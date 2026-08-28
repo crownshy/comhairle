@@ -1,5 +1,5 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import type { MediaDto, UserWithPermissionDto } from '@crownshy/api-client/api';
+import type { UserWithPermissionDto } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
 
 /**

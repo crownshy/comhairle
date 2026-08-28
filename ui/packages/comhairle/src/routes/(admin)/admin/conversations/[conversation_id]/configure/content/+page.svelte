@@ -133,7 +133,10 @@
 	);
 </script>
 
-<PageHeader title="Details" description="Title, description, language and banner." />
+<PageHeader
+	title="Content"
+	description="Participant-facing copy shown throughout the conversation."
+/>
 
 <div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
 	<Form.Field form={contentForm} name="privacyPolicy" class="contents">
