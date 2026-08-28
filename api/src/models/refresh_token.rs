@@ -137,52 +137,29 @@ where
     Ok(token)
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
-pub struct UpdateRefreshToken {
-    pub revoked_at: Option<DateTime<Utc>>,
-    pub revoked_reason: Option<String>,
-    pub replaced_by: Option<Uuid>,
-}
-
-impl UpdateRefreshToken {
-    fn values(&self) -> Vec<(RefreshTokenIden, SimpleExpr)> {
-        let mut values = vec![];
-
-        if let Some(value) = self.revoked_at {
-            values.push((RefreshTokenIden::RevokedAt, value.into()));
-        }
-        if let Some(value) = &self.revoked_reason {
-            values.push((RefreshTokenIden::RevokedReason, value.to_owned().into()));
-        }
-        if let Some(value) = self.replaced_by {
-            values.push((RefreshTokenIden::ReplacedBy, value.into()));
-        }
-
-        values
-    }
-}
-
 #[instrument(err(Debug))]
-pub async fn update(
+pub async fn revoke_for_user(
     db: &PgPool,
-    id: Uuid,
-    payload: UpdateRefreshToken,
-) -> Result<RefreshToken, ComhairleError> {
-    let values = payload.values();
-
+    user_id: Uuid,
+    revoked_reason: &str,
+) -> Result<Vec<RefreshToken>, ComhairleError> {
     let (sql, values) = Query::update()
         .table(RefreshTokenIden::Table)
-        .values(values)
+        .values([
+            (RefreshTokenIden::RevokedAt, Utc::now().into()),
+            (RefreshTokenIden::RevokedReason, revoked_reason.into()),
+        ])
+        .and_where(Expr::col(RefreshTokenIden::UserId).eq(user_id))
+        .and_where(Expr::col(RefreshTokenIden::RevokedAt).is_null())
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
-        .and_where(Expr::col(RefreshTokenIden::Id).eq(id))
         .build_sqlx(PostgresQueryBuilder);
 
-    let token = query_as_with(&sql, values)
-        .fetch_one(db)
+    let tokens = query_as_with(&sql, values)
+        .fetch_all(db)
         .await
         .resolve_db_err("Refresh Token")?;
 
-    Ok(token)
+    Ok(tokens)
 }
 
 #[derive(Debug)]
@@ -357,7 +334,6 @@ mod tests {
 
     use super::*;
 
-    use chrono::SubsecRound;
     use sqlx::PgPool;
     use std::error::Error;
 
@@ -406,13 +382,13 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_update_refresh_token(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_revoke_all_tokens_for_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()));
         let user_id = get_random_user_id(&app, &mut session).await?;
 
-        let original_token = create(
+        let token_a = create(
             &pool,
             CreateRefreshToken {
                 user_id,
@@ -423,7 +399,7 @@ mod tests {
             },
         )
         .await?;
-        let rotation_token = create(
+        let token_b = create(
             &pool,
             CreateRefreshToken {
                 user_id,
@@ -434,46 +410,28 @@ mod tests {
             },
         )
         .await?;
-        let revoked_at = Utc::now();
 
         assert!(
-            original_token.revoked_reason.is_none(),
-            "incorrect revoked_reason before update"
+            token_a.revoked_at.is_none(),
+            "token_a revoked before update"
         );
         assert!(
-            original_token.revoked_at.is_none(),
-            "incorrect revoked_at before update"
+            token_b.revoked_at.is_none(),
+            "token_b revoked before update"
+        );
+
+        revoke_for_user(&pool, user_id, "test revoke for user").await?;
+
+        let token_a = get_by_id(&pool, token_a.id).await?.unwrap();
+        let token_b = get_by_id(&pool, token_b.id).await?.unwrap();
+
+        assert!(
+            token_a.revoked_at.is_some(),
+            "token_a not revoked after update"
         );
         assert!(
-            original_token.replaced_by.is_none(),
-            "incorrect replaced_by before update"
-        );
-
-        let updated_original = update(
-            &pool,
-            original_token.id,
-            UpdateRefreshToken {
-                revoked_at: Some(revoked_at),
-                revoked_reason: Some("Token rotation".to_string()),
-                replaced_by: Some(rotation_token.id),
-            },
-        )
-        .await?;
-
-        assert_eq!(
-            updated_original.revoked_reason.unwrap(),
-            "Token rotation".to_string(),
-            "incorrect revoked_reason after update"
-        );
-        assert_eq!(
-            updated_original.revoked_at.unwrap(),
-            revoked_at.trunc_subsecs(6), // Postgres only stores up to 6 decimals
-            "incorrect revoked_at after update"
-        );
-        assert_eq!(
-            updated_original.replaced_by.unwrap(),
-            rotation_token.id,
-            "incorrect replaced_by after update"
+            token_b.revoked_at.is_some(),
+            "token_b not revoked after update"
         );
 
         Ok(())
@@ -624,16 +582,7 @@ mod tests {
             },
         )
         .await?;
-        update(
-            &pool,
-            original_token.id,
-            UpdateRefreshToken {
-                revoked_at: Some(Utc::now()),
-                revoked_reason: Some("test reuse detection".to_string()),
-                replaced_by: None,
-            },
-        )
-        .await?;
+        revoke_for_user(&pool, user_id, "test reuse detection").await?;
 
         let err = rotate(&pool, original_token.id, user_id, &ip_addr, &user_agent)
             .await
