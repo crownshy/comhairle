@@ -9,6 +9,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
+	import { goto } from '$app/navigation';
 
 	import { notificationService } from '$lib/services/notifications.svelte';
 	import type { UserDto } from '@crownshy/api-client/api';
@@ -20,6 +21,20 @@
 	const { user, triggerVariant = 'outline' }: Props = $props();
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
+
+	async function attemptLogout() {
+		try {
+			await apiClient.LogoutUser(undefined);
+
+			await goto('/', { invalidate: ['user'] });
+		} catch (e) {
+			console.error(e);
+			notificationService.send({
+				priority: 'ERROR',
+				message: 'An error occurred when attempting to logout '
+			});
+		}
+	}
 </script>
 
 {#if user}
@@ -69,7 +84,13 @@
 					</Button>
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
-					<form method="POST" action="/auth/logout">
+					<form
+						method="POST"
+						onsubmit={(e) => {
+							e.preventDefault();
+							attemptLogout();
+						}}
+					>
 						<Button type="submit" variant="ghost"><LogOut />Logout</Button>
 					</form>
 				</DropdownMenu.Item>

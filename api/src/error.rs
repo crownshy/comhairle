@@ -1,9 +1,12 @@
-use crate::{
-    bulk_storage_service::error::BulkStorageError, tools::polis::PolisError,
-    transcription_service::error::TranscriptionServiceError,
-    translation_service::error::TranslationError, websockets::error::WebsocketError,
-    wiki_poll_service::error::WikiPollServiceError, worker_service::error::WorkerServiceError,
-};
+use crate::bulk_storage_service::error::BulkStorageError;
+use crate::models::refresh_token::RefreshFailure;
+use crate::tools::polis::PolisError;
+use crate::transcription_service::error::TranscriptionServiceError;
+use crate::translation_service::error::TranslationError;
+use crate::websockets::error::WebsocketError;
+use crate::wiki_poll_service::error::WikiPollServiceError;
+use crate::worker_service::error::WorkerServiceError;
+
 use aide::OperationIo;
 use axum::{
     Json,
@@ -182,7 +185,7 @@ pub enum ComhairleError {
     InviteResponseAlreadyCreated,
 
     #[error("No user logged in")]
-    NoLogedInUser,
+    NoLoggedInUser,
 
     #[error("User is not signed up to participate in the conversation")]
     UserIsNotParticipatingInTheConversation,
@@ -255,6 +258,9 @@ pub enum ComhairleError {
 
     #[error("User is not authorized to perform this action")]
     UserNotAuthorized,
+
+    #[error("Session refresh failure: {0}")]
+    SessionRefreshFailure(RefreshFailure),
 
     /// The participant has already finished and the conversation does not allow revisits
     /// afterwards. Distinct from `UserNotAuthorized` so the frontend can send
@@ -392,8 +398,9 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WrongPassword
             | ComhairleError::InvalidApiKey
             | ComhairleError::RequiresAuthUser
+            | ComhairleError::SessionRefreshFailure(_)
             | ComhairleError::InviteDoesNotMatchUser
-            | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
+            | ComhairleError::NoLoggedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates
             | ComhairleError::EventHasPast
             | ComhairleError::ConversationNotLive

@@ -9,7 +9,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { page } from '$app/state';
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
-	import { loginRedirect, signupRedirect } from '$lib/urls.js';
+	import { loginRedirectClient, signupRedirect } from '$lib/urls.js';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 
 	let { data }: PageProps = $props();
@@ -65,7 +65,7 @@
 	async function redirectToLogin() {
 		if (isSubmitting) return;
 		isSubmitting = true;
-		loginRedirect(url.pathname, 'Login to join the conversation');
+		loginRedirectClient(url.pathname, 'Login to join the conversation');
 	}
 
 	// Register a new annon user, sign them up for

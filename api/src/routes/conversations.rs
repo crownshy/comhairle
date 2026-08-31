@@ -210,7 +210,7 @@ async fn get_conversation(
                 return Err(ComhairleError::UserNotAuthorized);
             }
         } else {
-            return Err(ComhairleError::UserNotAuthorized);
+            return Err(ComhairleError::NoLoggedInUser);
         }
     }
 
@@ -2132,7 +2132,7 @@ mod tests {
         let url = format!("/conversation/{}/demographics/export", conversation.id);
         let mut request = Request::builder().uri(&url).method("GET");
 
-        if let Some(cookie) = &admin_session.cookie {
+        if let Some(cookie) = &admin_session.cookie_header() {
             request = request.header("Cookie", cookie);
         }
 

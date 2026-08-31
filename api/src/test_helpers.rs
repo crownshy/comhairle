@@ -1,5 +1,4 @@
 use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
-use crate::models::region_area;
 use crate::redis_connection::RedisConnection;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 use chrono::Utc;
@@ -10,7 +9,7 @@ use uuid::Uuid;
 use axum::{
     Router,
     body::Body,
-    http::{HeaderName, HeaderValue, Request, StatusCode, header::COOKIE},
+    http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header::COOKIE},
     response::Response,
 };
 use bon::builder;
@@ -139,6 +138,7 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
         "admin@crown-shy.com".into(),
         "test@crown-shy.com".into(),
     ]);
+    config.refresh_jwt_secret = "refresh_secret".to_string();
     config.enable_rate_limiting = false; // Disable rate limiting for tests by default
     Ok(config)
 }
@@ -300,7 +300,7 @@ pub struct UserSession {
     pub username: Option<String>,
     pub password: Option<String>,
     pub email: Option<String>,
-    pub cookie: Option<HeaderValue>,
+    pub cookies: Option<HashMap<String, String>>,
 }
 
 impl UserSession {
@@ -310,7 +310,7 @@ impl UserSession {
             username: None,
             password: None,
             email: None,
-            cookie: None,
+            cookies: None,
         }
     }
 
@@ -320,7 +320,7 @@ impl UserSession {
             username: Some("admin".into()),
             password: Some(TEST_PASSWORD.into()),
             email: Some("admin@crown-shy.com".into()),
-            cookie: None,
+            cookies: None,
         }
     }
 
@@ -330,7 +330,28 @@ impl UserSession {
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
-            cookie: None,
+            cookies: None,
+        }
+    }
+
+    pub fn cookie_header(&self) -> Option<String> {
+        let cookies = self.cookies.as_ref()?;
+        if cookies.is_empty() {
+            return None;
+        }
+        Some(cookies.values().cloned().collect::<Vec<_>>().join("; "))
+    }
+
+    fn store_cookies(&mut self, headers: &HeaderMap) {
+        for raw in headers.get_all(axum::http::header::SET_COOKIE) {
+            if let Ok(header_str) = raw.to_str()
+                && let Some(name_value) = header_str.split(';').next()
+                && let Some((name, _)) = name_value.split_once('=')
+            {
+                self.cookies
+                    .get_or_insert_with(HashMap::new)
+                    .insert(name.to_string(), name_value.to_string());
+            }
         }
     }
 
@@ -338,28 +359,28 @@ impl UserSession {
         &mut self,
         app: &Router,
         url: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder().uri(url).method("GET");
 
-        if let Some(cookie) = &self.cookie {
-            request = request.header(COOKIE, cookie)
+        if let Some(cookie_header) = &self.cookie_header() {
+            request = request.header(COOKIE, cookie_header)
         }
 
         let request = request.body(Body::empty()).unwrap();
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let value = response_to_json(response).await;
-        Ok((status, value, cookie))
+        Ok((status, value, set_cookies))
     }
 
     pub async fn get_with_api_key(
@@ -384,10 +405,10 @@ impl UserSession {
         &mut self,
         app: &Router,
         url: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder().uri(url).method("DELETE");
 
-        if let Some(cookie) = &self.cookie {
+        if let Some(cookie) = &self.cookie_header() {
             request = request.header(COOKIE, cookie)
         }
 
@@ -395,17 +416,17 @@ impl UserSession {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let value = response_to_json(response).await;
-        Ok((status, value, cookie))
+        Ok((status, value, set_cookies))
     }
 
     pub async fn delete_with_body(
@@ -413,13 +434,13 @@ impl UserSession {
         app: &Router,
         url: &str,
         body: Body,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder()
             .uri(url)
             .method("DELETE")
             .header("content-type", "application/json");
 
-        if let Some(cookie) = &self.cookie {
+        if let Some(cookie) = &self.cookie_header() {
             request = request.header(COOKIE, cookie)
         }
 
@@ -427,17 +448,17 @@ impl UserSession {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let value = response_to_json(response).await;
-        Ok((status, value, cookie))
+        Ok((status, value, set_cookies))
     }
 
     pub async fn post(
@@ -445,31 +466,31 @@ impl UserSession {
         app: &Router,
         url: &str,
         body: Body,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder()
             .uri(url)
             .method("POST")
             .header("content-type", "application/json");
 
-        if let Some(cookie) = &self.cookie {
-            request = request.header(COOKIE, cookie)
+        if let Some(cookie_header) = &self.cookie_header() {
+            request = request.header(COOKIE, cookie_header)
         }
 
         let request = request.body(body).unwrap();
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let value = response_to_json(response).await;
-        Ok((status, value, cookie))
+        Ok((status, value, set_cookies))
     }
 
     pub async fn post_raw_response(
@@ -477,13 +498,13 @@ impl UserSession {
         app: &Router,
         url: &str,
         body: Body,
-    ) -> Result<(StatusCode, Body, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Body, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder()
             .uri(url)
             .method("POST")
             .header("content-type", "application/json");
 
-        if let Some(cookie) = &self.cookie {
+        if let Some(cookie) = &self.cookie_header() {
             request = request.header(COOKIE, cookie);
         }
 
@@ -491,18 +512,18 @@ impl UserSession {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let body = response.into_body();
 
-        Ok((status, body, cookie))
+        Ok((status, body, set_cookies))
     }
 
     pub async fn post_multipart(
@@ -511,13 +532,13 @@ impl UserSession {
         url: &str,
         boundary: &str,
         body: Body,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder().uri(url).method("POST").header(
             "content-type",
             format!("multipart/form-data; boundary={boundary}"),
         );
 
-        if let Some(cookie) = &self.cookie {
+        if let Some(cookie) = &self.cookie_header() {
             request = request.header(COOKIE, cookie)
         }
 
@@ -525,17 +546,17 @@ impl UserSession {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let value = response_to_json(response).await;
-        Ok((status, value, cookie))
+        Ok((status, value, set_cookies))
     }
 
     pub async fn post_with_headers(
@@ -544,13 +565,13 @@ impl UserSession {
         url: &str,
         body: Body,
         headers: &[(HeaderName, HeaderValue)],
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder()
             .uri(url)
             .method("POST")
             .header("content-type", "application/json");
 
-        if let Some(cookie) = &self.cookie {
+        if let Some(cookie) = &self.cookie_header() {
             request = request.header(COOKIE, cookie)
         }
 
@@ -562,17 +583,17 @@ impl UserSession {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let value = response_to_json(response).await;
-        Ok((status, value, cookie))
+        Ok((status, value, set_cookies))
     }
 
     pub async fn put(
@@ -580,13 +601,13 @@ impl UserSession {
         app: &Router,
         url: &str,
         body: Body,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder()
             .uri(url)
             .method("PUT")
             .header("content-type", "application/json");
 
-        if let Some(cookie) = &self.cookie {
+        if let Some(cookie) = &self.cookie_header() {
             request = request.header(COOKIE, cookie)
         }
 
@@ -594,17 +615,17 @@ impl UserSession {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let value = response_to_json(response).await;
-        Ok((status, value, cookie))
+        Ok((status, value, set_cookies))
     }
 
     pub async fn patch(
@@ -612,13 +633,13 @@ impl UserSession {
         app: &Router,
         url: &str,
         body: Body,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder()
             .uri(url)
             .method("PATCH")
             .header("content-type", "application/json");
 
-        if let Some(cookie) = &self.cookie {
+        if let Some(cookie) = &self.cookie_header() {
             request = request.header(COOKIE, cookie)
         }
 
@@ -626,30 +647,30 @@ impl UserSession {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
-        let cookie = response
+        let set_cookies: Vec<HeaderValue> = response
             .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .cloned()
+            .collect();
 
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
+        self.store_cookies(response.headers());
 
         let value = response_to_json(response).await;
-        Ok((status, value, cookie))
+        Ok((status, value, set_cookies))
     }
 
     pub async fn logout(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/auth/logout", Body::empty()).await
     }
 
     pub async fn current_user(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, UserDto, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, UserDto, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
 
         let user: UserDto = serde_json::from_value(value).unwrap();
@@ -661,7 +682,7 @@ impl UserSession {
         app: &Router,
         email: &str,
         password: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/login",
@@ -675,7 +696,7 @@ impl UserSession {
     pub async fn login_annon(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/login_annon",
@@ -687,14 +708,8 @@ impl UserSession {
     pub async fn signup_annon(
         &mut self,
         app: &Router,
-    ) -> Result<
-        (
-            StatusCode,
-            HashMap<String, Option<Value>>,
-            Option<HeaderValue>,
-        ),
-        Box<dyn Error>,
-    > {
+    ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>
+    {
         let (status, value, cookie) = self.post(app, "/auth/signup_annon", Body::empty()).await?;
         let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
         let username: String =
@@ -708,14 +723,8 @@ impl UserSession {
     pub async fn signup(
         &mut self,
         app: &Router,
-    ) -> Result<
-        (
-            StatusCode,
-            HashMap<String, Option<Value>>,
-            Option<HeaderValue>,
-        ),
-        Box<dyn Error>,
-    > {
+    ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>
+    {
         let body: Body = if self.username.is_some() {
             json!({"username":self.username, "password":self.password, "email":self.email})
                 .to_string()
@@ -728,7 +737,8 @@ impl UserSession {
 
         let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
 
-        self.cookie = cookie.clone();
+        // TODO:
+        // self.cookie = cookie.clone();
         if let Some(Some(id)) = user.get("id") {
             let id: String = serde_json::from_value(id.clone()).unwrap();
             self.id = Some(Uuid::parse_str(&id).unwrap());
@@ -740,7 +750,7 @@ impl UserSession {
     pub async fn resend_verification_email(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/resend_verification_email",
@@ -753,7 +763,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         token: String,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/verify_email_token",
@@ -766,7 +776,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         update_user: UpdateUserRequest,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.put(
             app,
             "/user/details",
@@ -780,7 +790,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         email: String,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/password_reset_create",
@@ -795,7 +805,7 @@ impl UserSession {
         token: &str,
         password: &str,
         confirm_password: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/password_reset_update",
@@ -810,7 +820,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         new_coversation: serde_json::Value,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self
             .post(app, "/conversation", new_coversation.to_string().into())
             .await?;
@@ -822,7 +832,7 @@ impl UserSession {
         app: &Router,
         id: &str,
         conversation_update: serde_json::Value,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self
             .put(
                 app,
@@ -838,7 +848,7 @@ impl UserSession {
         app: &Router,
         offset: i32,
         limit: i32,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let url = format!(
             "/conversation?limit={}&offset={}&sort=created_at+asc",
             limit, offset
@@ -850,7 +860,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         id: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.delete(app, &format!("/conversation/{id}")).await
     }
 
@@ -858,7 +868,7 @@ impl UserSession {
     pub async fn create_random_conversation(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let title: String = Sentence(1..10).fake();
         let description: String = Paragraph(3..4).fake();
         let short_description: String = Paragraph(5..8).fake();
@@ -889,7 +899,7 @@ impl UserSession {
     pub async fn create_random_unlaunched_conversation(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let title: String = Sentence(1..10).fake();
         let description: String = Paragraph(3..4).fake();
         let short_description: String = Paragraph(5..8).fake();
@@ -922,7 +932,7 @@ impl UserSession {
         conversation_id: &str,
         workflow_id: &str,
         new_workflow_step: Value,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
         let (status, value, cookie) = self
             .post(app, &url, new_workflow_step.to_string().into())
@@ -968,7 +978,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         convo_id: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let name: String = Sentence(1..10).fake();
         let description: String = Paragraph(6..10).fake();
         let is_active = true;
@@ -995,7 +1005,7 @@ impl UserSession {
         app: &Router,
         conversation_id: &str,
         event: serde_json::Value,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             &format!("/conversation/{conversation_id}/events"),
@@ -1008,7 +1018,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         conversation_id: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             &format!("/conversation/{conversation_id}/events"),
@@ -1031,7 +1041,7 @@ impl UserSession {
         app: &Router,
         conversation_id: &str,
         event_id: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             &format!("/conversation/{conversation_id}/events/{event_id}/attendances"),
@@ -1049,7 +1059,7 @@ impl UserSession {
         app: &Router,
         conversation_id: &str,
         event_id: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             &format!("/conversation/{conversation_id}/events/{event_id}/workflows"),
@@ -1072,7 +1082,7 @@ impl UserSession {
         conversation_id: &str,
         event_id: &str,
         workflow_id: &str,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             &format!("/conversation/{conversation_id}/events/{event_id}/workflows/{workflow_id}/workflow_steps"),
@@ -1095,7 +1105,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         organization: serde_json::Value,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/organizations", organization.to_string().into())
             .await
     }
@@ -1103,7 +1113,7 @@ impl UserSession {
     pub async fn create_random_organization(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/organizations",
@@ -1123,7 +1133,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         region_area: serde_json::Value,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/region_areas", region_area.to_string().into())
             .await
     }
@@ -1131,7 +1141,7 @@ impl UserSession {
     pub async fn create_random_region_area(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let zip_prefix = format!("test-{}", Uuid::new_v4());
         self.post(
             app,
@@ -1149,14 +1159,14 @@ impl UserSession {
         &mut self,
         app: &Router,
         region: serde_json::Value,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/regions", region.to_string().into()).await
     }
 
     pub async fn create_random_region(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/regions",
@@ -1175,7 +1185,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         id: &str,
-    ) -> Result<(StatusCode, HashMap<String, Value>, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, HashMap<String, Value>, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, &format!("/conversation/{id}")).await?;
         let value: HashMap<String, serde_json::Value> = serde_json::from_value(value)?;
         Ok((status, value, cookie))
@@ -1185,7 +1195,7 @@ impl UserSession {
         &mut self,
         app: &Router,
         new_job: serde_json::Value,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+    ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.post(app, "/jobs", new_job.to_string().into()).await?;
 
         Ok((status, value, cookie))
