@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import { capitalise } from '$lib/utils/casingUtils';
+	import TabContent from '../TabContent.svelte';
 
 	let { data, children, params } = $props();
 
@@ -37,6 +38,6 @@
 	{/if}
 </TabStripShell>
 
-<section class="pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+<TabContent>
 	{@render children?.()}
-</section>
+</TabContent>
