@@ -11,7 +11,6 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
-	import CohostManager from './CohostManager.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
@@ -1064,14 +1063,6 @@
 						'Additional organizations that should have read access to this conversation. Search by organization name to add one, and remove it here later.'
 					)}
 				</div>
-			</div>
-			<div class="flex-1">
-				<CohostManager
-					conversationId={conversation.id}
-					primaryHostOrganizationId={conversation.organizationId ?? null}
-					{cohostOrganizations}
-					canManage={canManageCohosts}
-				/>
 			</div>
 		</div>
 	{/if}
