@@ -1,8 +1,9 @@
-import type { PageLoad } from './$types';
+import type { LayoutLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 
-export const load: PageLoad = async ({ parent, depends, params }) => {
+export const load: LayoutLoad = async ({ parent, depends, params }) => {
 	depends(key('conversation/invites'));
+
 	const { api } = await parent();
 	const { conversation_id } = params;
 

@@ -5,7 +5,7 @@
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { cubicInOut } from 'svelte/easing';
-	import { Spinner } from './ui/spinner';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { DailyResponseStats } from '@crownshy/api-client/api';
 	import { parseISO } from 'date-fns';
@@ -18,7 +18,7 @@
 		conversation_id: string;
 	};
 
-	let { invite_id, conversation_id } = $props();
+	let { invite_id, conversation_id }: Props = $props();
 
 	$effect(() => {
 		loading = true;

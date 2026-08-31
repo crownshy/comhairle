@@ -5,18 +5,18 @@ import type { ConversationDto, EventDto, InviteDto, UserDto } from '@crownshy/ap
  */
 export function inviteUrl(
 	url: URL,
-	invite: InviteDto,
-	conversation: ConversationDto,
-	event?: EventDto
+	inviteId: InviteDto['id'],
+	conversationId: ConversationDto['id'],
+	eventId?: EventDto['id']
 ) {
-	return `${url.origin}/conversations/${conversation.id}/${event ? `events/${event.id}/` : ''}invite/${invite.id}`;
+	return `${url.origin}/conversations/${conversationId}/${eventId ? `events/${eventId}/` : ''}invite/${inviteId}`;
 }
 
 export function embedInviteUrl(
 	url: URL,
-	invite: InviteDto,
-	conversation: ConversationDto,
-	event?: EventDto
+	invite: InviteDto['id'],
+	conversation: ConversationDto['id'],
+	event?: EventDto['id']
 ) {
 	return inviteUrl(url, invite, conversation, event) + '?embed=true';
 }
