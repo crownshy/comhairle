@@ -6,7 +6,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 	const { api, workflows } = await parent();
 
 	const workflowStepsResponse = tryCatchAsync(() =>
-		api.GetConversationWorkflowStats({
+		api.ListConversationWorkflowSteps({
 			params: { conversation_id, workflow_id: workflows[0].id }
 		})
 	);
@@ -18,14 +18,14 @@ export const load: PageLoad = async ({ parent, params }) => {
 	);
 
 	const workflowSteps = await workflowStepsResponse;
-	if (workflowSteps !== null) {
+	if (workflowSteps.err !== null) {
 		console.error(workflowSteps.err);
 	}
 
 	const workflowStats = await workflowStatsResponse;
-	if (workflowStats !== null) {
+	if (workflowStats.err !== null) {
 		console.error(workflowStats.err);
 	}
 
-	return { workflowSteps: workflowSteps.ok ?? [], workflowStats: workflowStats.ok ?? [] };
+	return { workflowSteps: workflowSteps.ok ?? [], workflowStats: workflowStats.ok };
 };
