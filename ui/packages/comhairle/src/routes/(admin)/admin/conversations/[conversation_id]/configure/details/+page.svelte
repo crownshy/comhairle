@@ -28,7 +28,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	let { data } = $props();
-	const { conversation, media } = $derived(data);
+	const { conversation, streamedMedia } = $derived(data);
 
 	let primaryLocale = $derived<Locale>((data.conversation.primaryLocale as Locale) ?? 'en');
 	let supportedLanguages = $derived<Locale[]>(
@@ -341,17 +341,17 @@
 						}}
 					/>
 				</div>
-				{#if media === null}
+				{#if streamedMedia === null}
 					<span class="text-muted-foreground">No image</span>
 				{:else}
-					{#await media}
+					{#await streamedMedia}
 						<!-- TODO: Try using a CSS mask here -->
 						<div class="pile">
 							<Skeleton class="h-40 w-40 rounded-4xl" />
 							<Image class="z-2 h-full w-auto" strokeWidth={0.9} opacity={0.5} />
 						</div>
-					{:then image}
-						{#if image?.err !== null}
+					{:then media}
+						{#if media?.err !== null}
 							{notifications.addFlash({
 								message: 'Could not load image. Please try again',
 								priority: 'ERROR'
@@ -359,7 +359,7 @@
 						{:else}
 							<div class="h-70 w-auto">
 								<img
-									src={image.ok.url}
+									src={media.ok.url}
 									alt="Conversation"
 									class="h-full w-auto object-contain"
 								/>

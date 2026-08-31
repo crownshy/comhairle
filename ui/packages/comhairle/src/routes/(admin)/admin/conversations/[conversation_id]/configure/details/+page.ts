@@ -6,11 +6,13 @@ export const load: PageLoad = async ({ parent }) => {
 
 	if (!conversation.image) {
 		return {
-			media: null
+			streamedMedia: null
 		};
 	}
 
 	return {
-		media: tryCatchAsync(() => api.GetMedia({ params: { media_id: conversation.image! } }))
+		streamedMedia: tryCatchAsync(() =>
+			api.GetMedia({ params: { media_id: conversation.image! } })
+		)
 	};
 };
