@@ -1,4 +1,3 @@
-import { loginRedirect } from '$lib/urls';
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 import type {
@@ -86,6 +85,5 @@ export const load: LayoutLoad = async ({
 			throw e;
 		}
 		return redirect(302, '/');
-		loginRedirect(`/conversations/${params.conversation_id}`, 'Login to take part');
 	}
 };

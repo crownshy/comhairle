@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Expr, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
+use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, query_as_with};

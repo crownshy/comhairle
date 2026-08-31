@@ -4,7 +4,7 @@
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	import { loginRedirect, signupRedirect, signupAnnonRedirect } from '$lib/urls.js';
+	import { loginRedirectClient, signupRedirect, signupAnnonRedirect } from '$lib/urls.js';
 
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -34,7 +34,7 @@
 	);
 
 	function login() {
-		loginRedirect(url.toString(), 'Login to accept invite');
+		loginRedirectClient(url.toString(), 'Login to accept invite');
 	}
 
 	function create_account() {

@@ -1124,7 +1124,7 @@ pub async fn logout(
     }
 
     let session_cookie = Cookie::build(AUTH_KEY).path("/");
-    let refresh_cookie = Cookie::build(REFRESH_KEY).path("/api/auth");
+    let refresh_cookie = Cookie::build(REFRESH_KEY).path("/");
 
     let jar = jar.remove(session_cookie).remove(refresh_cookie);
 
@@ -1215,7 +1215,7 @@ fn build_refresh_token_cookie<'a>(
         .call();
 
     Cookie::build((REFRESH_KEY, refresh_token))
-        .path("/api/auth")
+        .path("/") // TODO: can this be more tightly scoped
         .secure(true)
         .http_only(true)
         .same_site(SameSite::Strict)
@@ -2692,11 +2692,7 @@ mod tests {
         let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record);
 
         assert_eq!(token_cookie.name(), REFRESH_KEY, "incorrect name");
-        assert_eq!(
-            token_cookie.path().unwrap(),
-            "/api/auth/refresh",
-            "incorrect path"
-        );
+        assert_eq!(token_cookie.path().unwrap(), "/", "incorrect path");
         assert_eq!(
             token_cookie.same_site(),
             Some(SameSite::Strict),
