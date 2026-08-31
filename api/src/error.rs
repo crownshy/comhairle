@@ -185,7 +185,7 @@ pub enum ComhairleError {
     InviteResponseAlreadyCreated,
 
     #[error("No user logged in")]
-    NoLogedInUser,
+    NoLoggedInUser,
 
     #[error("User is not signed up to participate in the conversation")]
     UserIsNotParticipatingInTheConversation,
@@ -400,7 +400,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::RequiresAuthUser
             | ComhairleError::SessionRefreshFailure(_)
             | ComhairleError::InviteDoesNotMatchUser
-            | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
+            | ComhairleError::NoLoggedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates
             | ComhairleError::EventHasPast
             | ComhairleError::ConversationNotLive

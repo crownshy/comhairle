@@ -12,6 +12,7 @@ async function refreshSession(): Promise<boolean> {
 	if (!refreshPromise) {
 		refreshPromise = fetch('/api/auth/refresh', {
 			method: 'POST',
+			credentials: 'include'
 		})
 		.then((res) => res.ok)
 		.catch(() => false)

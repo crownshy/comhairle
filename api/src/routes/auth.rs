@@ -1136,7 +1136,7 @@ pub async fn logout(
 pub async fn current_user(
     OptionalUser(user): OptionalUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLogedInUser)?).into();
+    let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLoggedInUser)?).into();
 
     Ok((StatusCode::OK, Json(user)))
 }

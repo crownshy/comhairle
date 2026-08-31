@@ -210,7 +210,7 @@ async fn get_conversation(
                 return Err(ComhairleError::UserNotAuthorized);
             }
         } else {
-            return Err(ComhairleError::UserNotAuthorized);
+            return Err(ComhairleError::NoLoggedInUser);
         }
     }
 
