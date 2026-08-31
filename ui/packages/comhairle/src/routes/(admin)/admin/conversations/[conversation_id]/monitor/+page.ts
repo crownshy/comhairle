@@ -5,27 +5,16 @@ export const load: PageLoad = async ({ parent, params }) => {
 	const { conversation_id } = params;
 	const { api, workflows } = await parent();
 
-	const workflowStepsResponse = tryCatchAsync(() =>
-		api.ListConversationWorkflowSteps({
-			params: { conversation_id, workflow_id: workflows[0].id }
-		})
-	);
-
-	const workflowStatsResponse = tryCatchAsync(() =>
-		api.GetConversationWorkflowStats({
-			params: { conversation_id, workflow_id: workflows[0].id }
-		})
-	);
-
-	const workflowSteps = await workflowStepsResponse;
-	if (workflowSteps.err !== null) {
-		console.error(workflowSteps.err);
-	}
-
-	const workflowStats = await workflowStatsResponse;
-	if (workflowStats.err !== null) {
-		console.error(workflowStats.err);
-	}
-
-	return { workflowSteps: workflowSteps.ok ?? [], workflowStats: workflowStats.ok };
+	return {
+		streamedWorkflowSteps: tryCatchAsync(() =>
+			api.ListConversationWorkflowSteps({
+				params: { conversation_id, workflow_id: workflows[0].id }
+			})
+		),
+		streamedWorkflowStats: tryCatchAsync(() =>
+			api.GetConversationWorkflowStats({
+				params: { conversation_id, workflow_id: workflows[0].id }
+			})
+		)
+	};
 };
