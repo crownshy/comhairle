@@ -1,5 +1,29 @@
 import { createApiClient as createApi } from './api';
 
+/**
+ * Single promise for refresh requests to avoid race conditions if multiple
+ * components make requests simultaneously and fail with 401, thus triggering
+ * the refresh flow multiple times with the same `refresh-token` cookie. This
+ * would fail on any attempt after the first due to token re-use restrictions.
+ */
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshSession(): Promise<boolean> {
+	if (!refreshPromise) {
+		refreshPromise = fetch('/api/auth/refresh', {
+			method: 'POST',
+		})
+		.then((res) => res.ok)
+		.catch(() => false)
+		.finally(() => {
+				refreshPromise = null;
+			})
+
+	}
+
+	return refreshPromise
+}
+
 export const createApiClient = (
 	baseUrl: string,
 	authToken: string | undefined,
@@ -27,6 +51,30 @@ export const createApiClient = (
 		}
 		return config;
 	});
+
+	if (source === 'client') {
+		api.axios.interceptors.response.use(
+			(response) => response,
+			async (error) => {
+				const originalRequest = error.config;
+
+				if (error.response?.status === 401 &&
+					!originalRequest._retried && 
+					!originalRequest.url?.includes('/api/auth/refresh')
+				) {
+					// Prevents infinite loop of retries by axios
+					originalRequest._retried = true;
+
+					const refreshed = await refreshSession();
+					if (refreshed) {
+						return api.axios(originalRequest);
+					}
+				}
+
+				return Promise.reject(error);
+			}
+		)
+	}
 
 	return api;
 };
