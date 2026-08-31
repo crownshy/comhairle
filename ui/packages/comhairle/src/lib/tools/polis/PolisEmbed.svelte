@@ -18,6 +18,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
+	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 
 	type Props = {
 		polis_id: string;
@@ -29,6 +30,7 @@
 		isPreview?: boolean;
 		showRemainingStatementCount?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -40,6 +42,7 @@
 		workflowStepId = polis_id,
 		isPreview = false,
 		onCanContinueChange,
+		onSequenceChange,
 		showRemainingStatementCount
 	}: Props = $props();
 
@@ -265,39 +268,32 @@
 		}
 	}
 
-	const remainingBeforeContinue = $derived(safeRequiredVotes - totalVotes);
-	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
+	// Polis has no internal sequence the pager traverses: every vote lands on the same
+	// screen. It reports progress and its position only, and the chrome draws both
+	// (ADR-0018). `showRemainingStatementCount` now gates the chrome's count.
+	$effect(() => {
+		onSequenceChange?.({
+			progress: totalVotes / safeRequiredVotes,
+			count:
+				showRemainingStatementCount && polisReady && !polisError && !poolExhausted
+					? m.polis_opinion_counter({
+							current: opinionPosition.current,
+							total: opinionPosition.total
+						})
+					: undefined
+		});
+	});
 </script>
 
-<div
-	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-4 md:py-0"
->
+<div class="bg-primary/5 flex w-full flex-col items-center gap-8 rounded-2xl py-4 md:py-0">
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-8 md:gap-6 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-center gap-6 px-6 py-8 md:px-16 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
-			<!-- Opinion counter -->
-			{#if !polisReady}
-				<div class="bg-foreground/10 h-5 w-32 animate-pulse rounded md:h-6"></div>
-			{:else if !polisError && !poolExhausted && showRemainingStatementCount}
-				<p class="text-muted-foreground tex-base font-semibold md:text-lg">
-					{m.polis_opinion_counter({
-						current: opinionPosition.current,
-						total: opinionPosition.total
-					})}
-				</p>
-				<div class="bg-secondary/30 relative h-1.5 w-full">
-					<div
-						class="bg-secondary absolute top-0 left-0 h-full transition-all duration-300"
-						style="width: {progress}%"
-					></div>
-				</div>
-			{/if}
-
-			<!-- Statement text -->
-			<div class="w-full pt-2 pb-6">
+			<!-- Statement text: one opinion at a time, sized to be the thing you read. -->
+			<div class="flex min-h-[9rem] w-full items-center">
 				{#if polisReady && polisError}
 					<div
 						class="border-destructive/20 bg-destructive/5 flex w-full flex-col items-center gap-4 rounded-lg border p-6 text-center"
@@ -333,7 +329,9 @@
 							: ''}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
-						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
+						<p
+							class="text-card-foreground text-2xl leading-9 font-bold sm:text-4xl sm:leading-11"
+						>
 							{polisCurrentStatement.txt}
 						</p>
 					</div>
@@ -341,69 +339,52 @@
 			</div>
 
 			{#if !polisError && polisCurrentStatement}
-				<!-- Vote buttons -->
-				<div class="flex flex-wrap items-start gap-4 md:gap-6">
-					<Button
-						variant="default"
-						size="lg"
+				<!-- Two thumbs, thumb-reachable, tilted towards each other. Pass stays as a
+					tertiary control: dropping it would change what gets recorded. -->
+				<div class="flex w-full max-w-[420px] items-center justify-between gap-4">
+					<button
+						type="button"
+						class="polis-thumb polis-thumb-agree bg-primary text-primary-foreground flex aspect-square w-[42%] max-w-[148px] shrink-0 touch-manipulation items-center justify-center rounded-full disabled:opacity-40"
+						aria-label={m.polis_agree()}
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('agree')}
-						class="text-lg"
 					>
-						<ThumbsUp class="h-5 w-5" />
-						{m.polis_agree()}
-					</Button>
-					<Button
-						variant="default"
-						size="lg"
+						<ThumbsUp class="size-16 sm:size-20" />
+					</button>
+					<button
+						type="button"
+						class="polis-thumb polis-thumb-disagree bg-primary text-primary-foreground flex aspect-square w-[42%] max-w-[148px] shrink-0 touch-manipulation items-center justify-center rounded-full disabled:opacity-40"
+						aria-label={m.polis_disagree()}
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('disagree')}
-						class="gap-2 px-6 py-4 text-lg"
 					>
-						<ThumbsDown class="h-5 w-5" />
-						{m.polis_disagree()}
-					</Button>
+						<ThumbsDown class="size-16 sm:size-20" />
+					</button>
+				</div>
+				<Button
+					variant="ghost"
+					size="lg"
+					class="text-base"
+					disabled={disabled || !polisReady}
+					onclick={() => doVote('pass')}
+				>
+					{m.polis_pass_unsure()}
+					<SkipForward class="h-5 w-5" />
+				</Button>
+
+				<Separator orientation="horizontal" class="mt-2" />
+
+				<div class="flex flex-col items-center gap-1">
+					<p class="text-muted-foreground text-base">{m.polis_dont_see_your_view()}</p>
 					<Button
 						variant="ghost"
-						size="lg"
-						class="text-lg"
-						disabled={disabled || !polisReady}
-						onclick={() => doVote('pass')}
+						class="text-primary hover:text-primary flex items-center gap-2 text-base font-semibold"
+						disabled={!polisReady}
+						onclick={openAddOpinion}
 					>
-						{m.polis_pass_unsure()}
-						<SkipForward class="h-5 w-5" />
+						<MessageSquare fill="currentColor" class="h-5 w-5" />
+						{m.polis_add_opinion()}
 					</Button>
-				</div>
-
-				<Separator orientation="horizontal" />
-
-				<!-- Add your own opinion -->
-				<p>{m.polis_dont_see_your_view()}</p>
-
-				<Button
-					variant="secondary"
-					class="text-foreground hover:text-foreground flex items-center gap-2 p-5 text-xl font-bold transition-colors"
-					disabled={!polisReady}
-					onclick={openAddOpinion}
-				>
-					<MessageSquare fill="currentColor" class="h-5 w-5" />
-					{m.polis_add_opinion()}
-				</Button>
-			{/if}
-
-			<!-- Continue to next step (only after threshold) -->
-			{#if canContinue}
-				<div class="mt-4 w-full border-t pt-6" in:fade={{ duration: 300 }}>
-					<LoadingButton
-						variant="primaryDark"
-						size="lg"
-						loading={continuing}
-						onclick={handleContinue}
-						class="gap-2 px-6 py-4 text-lg"
-					>
-						{m.polis_continue_to_next_step()}
-						{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
-					</LoadingButton>
 				</div>
 			{/if}
 		</div>
@@ -567,3 +548,33 @@
 		</LoadingButton>
 	{/if}
 </div>
+
+<style>
+	.polis-thumb {
+		transition:
+			transform 140ms ease,
+			opacity 140ms ease;
+	}
+
+	.polis-thumb-agree {
+		transform: rotate(-15deg);
+	}
+
+	.polis-thumb-disagree {
+		transform: rotate(15deg);
+	}
+
+	.polis-thumb-agree:active:not(:disabled) {
+		transform: rotate(-15deg) scale(0.9);
+	}
+
+	.polis-thumb-disagree:active:not(:disabled) {
+		transform: rotate(15deg) scale(0.9);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.polis-thumb {
+			transition: none;
+		}
+	}
+</style>

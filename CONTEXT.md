@@ -69,6 +69,55 @@ The per-Conversation setting (`allow_revisit_after_finishing`, default `true`) g
 **Revisitable step**:
 The per-Step `can_revisit` flag (default `false`), controlling whether a participant may navigate back to that Step once they have completed it. Governs mid-flow navigation only. Once a participant is [[#finished-a-participant-is-finished]] it is subordinate to [[#revisit-after-finishing]].
 
+### Participant step chrome
+
+The participant-facing frame around a Step, introduced by the mobile exploration and shared
+by both breakpoints. Replaces the old `StepHeader` plus `StepSelector` pair. See
+[ADR-0017](documentation/adr/0017-step-brief-slides-split-at-horizontal-rules.md) and
+[ADR-0018](documentation/adr/0018-one-pager-innermost-first-navigation.md).
+
+**Step brief**:
+A Step's description *as presented to participants*: a sequence of [[#slide]]s rather than
+one block of prose. The description is the source, the brief is the presentation. The brief
+has exactly two surfaces, the [[#cover]] and the [[#hint]], and both show the same content.
+_Avoid_: Intro, blurb.
+
+**Slide**:
+One screen of a [[#step-brief]]: the run of top-level rich-text nodes between two horizontal
+rules in the Step description. Admins author a break by typing `---`. A description with no
+horizontal rule is a single Slide. Slides are split per locale, so counts may differ between
+languages.
+_Avoid_: Page (the Learn tool's `tool_config.pages` already owns that word, and the pager
+traverses both).
+
+**Cover**:
+The first [[#slide]] of a [[#step-brief]], shown as a full screen on entering a Step, before
+the tool body mounts. Carries an illustration (the Slide's first image, else the tool's
+icon) and a derived meta line (duration, and a per-tool count such as opinions or follow-up
+questions). Its last Slide's forward control reads "Start".
+_Avoid_: Intro screen (the prototype's name), splash.
+
+**Hint**:
+The pill in the centre of the [[#pager]] and the modal it opens, which reopens the whole
+[[#step-brief]] mid-Step. Same content as the [[#cover]].
+_Status_: The label is provisional and held in one constant. It says "Hint" because that is
+what the Figma says, but what it opens is the full Step description rather than a nudge;
+"About" and "Help" are the live alternatives, open for the team.
+
+**Pager**:
+The persistent bar at the bottom of the participant viewport: back on the left, [[#hint]] in
+the middle, forward or Skip on the right. Its arrows traverse the innermost open sequence
+first ([[#slide]]s, then a tool-internal sequence, then the Step boundary). The forward slot
+states one thing at a time: Next, Skip, Start, or a disabled chevron.
+_Avoid_: Footer (that is the site-wide `Footer.svelte`, which the workflow routes no longer
+render), toolbar.
+
+**Step dropdown**:
+The chevron beside the Step label in the participant header, listing the Workflow's Steps
+with their status. Replaces `StepSelector` at both breakpoints, including the desktop
+horizontal stepper. Navigation permissions are unchanged: only completed, revisitable Steps
+are links, and a [[#sealed]] participant's dropdown is read-only.
+
 ### Organizations and access
 
 **Organization Administrator**:

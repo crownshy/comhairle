@@ -1,4 +1,7 @@
 <script lang="ts">
+	/* Every destination here is built by the string helpers in $lib/urls, not from a typed
+	   route id, so resolve() has nothing to resolve. */
+	/* eslint-disable svelte/no-navigation-without-resolve */
 	import * as Polis from '$lib/tools/polis/index.js';
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as Learn from '$lib/tools/learn/index.js';
@@ -9,12 +12,18 @@
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import StepSelector, { type StepItem } from '$lib/components/StepSelector.svelte';
-	import StepHeader from '$lib/components/StepHeader.svelte';
-	import StepHeaderSkeleton from '$lib/components/StepHeaderSkeleton.svelte';
+	import StepChrome from '$lib/components/participant/StepChrome.svelte';
+	import StepPager from '$lib/components/participant/StepPager.svelte';
+	import StepCover from '$lib/components/participant/StepCover.svelte';
+	import StepBriefDialog from '$lib/components/participant/StepBriefDialog.svelte';
+	import type { StepItem } from '$lib/components/participant/stepItems';
+	import { splitSlides } from '$lib/step-brief/splitSlides';
+	import { toMetaToolConfig } from '$lib/step-brief/slideMeta';
+	import { onStepPreview } from '$lib/step-brief/livePreview';
+	import { segmentFill } from '$lib/step-brief/segmentFill';
+	import type { ToolSequence } from '$lib/step-brief/toolSequence';
+	import * as m from '$lib/paraglide/messages';
 
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 	import { page, navigating } from '$app/state';
@@ -84,7 +93,18 @@
 		})
 	);
 
-	let currentStepNumber = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id) + 1);
+	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
+	let currentStepNumber = $derived(viewedIndex + 1);
+	let stepLabel = $derived(
+		`${m.step_position_label({ current: currentStepNumber, total: sortedSteps.length })}: ${workflowStep.name}`
+	);
+
+	/** The footer no longer renders on workflow routes, so its links live in the dropdown. */
+	const legalLinks = [
+		{ href: '/rights/privacy', label: m.privacy_policy() },
+		{ href: '/rights/tos', label: m.terms_of_service() },
+		{ href: '/rights/cookies', label: m.cookies_settings() }
+	];
 
 	/**
 	 * Tool type of the step being navigated *to*, or undefined when we aren't navigating to a step.
@@ -101,27 +121,65 @@
 	});
 
 	/**
-	 * A step hop that resolves quickly never trips this, so the header and body skeletons stay
-	 * hidden and the page just swaps content. Only a genuinely slow load shows them, where the
-	 * feedback is worth having. See delayedFlag for the reasoning.
+	 * A step hop that resolves quickly never trips this, so the body skeleton stays hidden and
+	 * the page just swaps content. Only a genuinely slow load shows it. See delayedFlag.
 	 */
 	let showNavigationSkeleton = delayedFlag(() => navigating.to !== null, 150);
 
 	let prevStepHref = $derived.by(() => {
-		const viewedIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
-		if (viewedIdx <= 0) return undefined;
-		const prevItem = stepItems[viewedIdx - 1];
+		if (viewedIndex <= 0) return undefined;
+		const prevItem = stepItems[viewedIndex - 1];
 		if (!prevItem || prevItem.status !== 'completed') return undefined;
 		return prevItem.href;
 	});
 
-	let currentNextAction = $state<(() => void) | undefined>(undefined);
-	let currentPrevAction = $state<(() => void) | undefined>(undefined);
+	/**
+	 * An unsaved description pushed in by the admin's preview panel. Preview only: on a live
+	 * conversation the participant always sees the saved description.
+	 */
+	let previewDescription = $derived.by<string | null>(() => {
+		void workflowStep.id;
+		return null;
+	});
+
+	$effect(() => {
+		if (!isPreview) return;
+		return onStepPreview(workflowStep.id, (draft) => {
+			previewDescription = draft;
+		});
+	});
+
+	// The step brief: the description as slides (ADR-0017). A step with no description still
+	// gets one slide, so its cover carries the title and the derived meta line.
+	let slides = $derived(splitSlides(previewDescription ?? workflowStep.description));
+	let briefSlides = $derived(slides.length > 0 ? slides : ['']);
+	let metaToolConfig = $derived(toMetaToolConfig(toolConfig));
+
+	// Writable $derived rather than $effect: these reset when the step changes, and are also
+	// assigned to directly by the pager. See AGENTS.md on mirroring state.
+	let phase = $derived.by<'cover' | 'body'>(() => {
+		void workflowStep.id;
+		return 'cover';
+	});
+	let slideIndex = $derived.by(() => {
+		void workflowStep.id;
+		return 0;
+	});
+	let briefOpen = $derived.by(() => {
+		void workflowStep.id;
+		return false;
+	});
+	/** What the mounted tool reports about itself (ADR-0018). Empty until it says otherwise. */
+	let sequence = $derived.by<ToolSequence>(() => {
+		void workflowStep.id;
+		return {};
+	});
+
 	let canProceed = $state(false);
 	let isSubmitting = $state(false);
 
 	$effect(() => {
-		workflowStep.id;
+		void workflowStep.id;
 		isSubmitting = false;
 	});
 
@@ -132,22 +190,76 @@
 		} else {
 			canProceed = false;
 		}
-		if (type !== Learn.TOOL_NAME) {
-			currentNextAction = undefined;
-			currentPrevAction = undefined;
-		}
 	});
 
-	function handleNextAction(fn: () => void) {
-		currentNextAction = fn;
-	}
-
-	function handlePrevAction(fn: (() => void) | undefined) {
-		currentPrevAction = fn;
+	function handleSequenceChange(next: ToolSequence) {
+		sequence = next;
 	}
 
 	function handleCanContinueChange(value: boolean) {
 		canProceed = value;
+	}
+
+	let fill = $derived(
+		segmentFill({
+			phase,
+			slideIndex,
+			slideCount: briefSlides.length,
+			toolProgress: sequence.progress
+		})
+	);
+
+	let isLastSlide = $derived(slideIndex >= briefSlides.length - 1);
+
+	let canGoBack = $derived(
+		phase === 'body' ? true : slideIndex > 0 || prevStepHref !== undefined
+	);
+
+	let canGoForward = $derived.by(() => {
+		if (phase === 'cover') return true;
+		if (sequence.next) return true;
+		// An optional step is always leavable, even when its tool says it is not complete.
+		return canProceed || !workflowStep.required;
+	});
+
+	let forwardMode = $derived.by<'next' | 'skip' | 'start'>(() => {
+		if (phase === 'cover') return isLastSlide ? 'start' : 'next';
+		if (sequence.next || canProceed) return 'next';
+		return workflowStep.required ? 'next' : 'skip';
+	});
+
+	function goBack() {
+		if (phase === 'cover') {
+			if (slideIndex > 0) {
+				slideIndex -= 1;
+			} else if (prevStepHref) {
+				goto(prevStepHref);
+			}
+			return;
+		}
+		// Innermost first: back out of the tool's own sequence before leaving the body.
+		if (sequence.prev) {
+			sequence.prev();
+			return;
+		}
+		phase = 'cover';
+		slideIndex = briefSlides.length - 1;
+	}
+
+	function goForward() {
+		if (phase === 'cover') {
+			if (isLastSlide) {
+				phase = 'body';
+			} else {
+				slideIndex += 1;
+			}
+			return;
+		}
+		if (sequence.next) {
+			sequence.next();
+			return;
+		}
+		stepComplete();
 	}
 
 	function goToThankYouPage() {
@@ -230,50 +342,29 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="flex flex-col items-center sm:py-2 md:py-10">
-	{#if conversation && workflowStep && user}
-		<div
-			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:px-0 md:pt-0 md:pb-0"
-		>
-			<StepSelector steps={stepItems} />
-		</div>
+{#if conversation && workflowStep && user}
+	<div class="flex min-h-[100dvh] flex-col">
+		<StepChrome
+			steps={stepItems}
+			currentIndex={viewedIndex}
+			label={stepLabel}
+			{fill}
+			{legalLinks}
+			count={sequence.count}
+		/>
 
-		<div class="mt-2 w-full md:mt-6 md:px-0">
-			{#if showNavigationSkeleton.current}
-				<StepHeaderSkeleton />
-			{:else}
-				<StepHeader
-					{currentStepNumber}
-					totalSteps={stepItems.length}
+		<main class="flex w-full grow flex-col">
+			{#if phase === 'cover'}
+				<StepCover
+					slides={briefSlides}
+					index={slideIndex}
 					title={workflowStep.name}
-					description={workflowStep.description}
-					prevHref={prevStepHref}
-					onPrev={currentPrevAction}
-					onNext={currentNextAction ?? stepComplete}
-					nextDisabled={!canProceed}
-					nextLoading={isSubmitting}
+					toolConfig={metaToolConfig}
 					{availableDocuments}
 					conversationId={conversation.id}
 				/>
-			{/if}
-		</div>
-
-		<div class="flex w-full grow flex-col gap-y-2 md:order-3">
-			<div class="flex grow flex-col">
-				{#if !workflowStep.required}
-					<Button
-						onclick={stepComplete}
-						disabled={isSubmitting}
-						class="mx-auto"
-						variant="secondary"
-					>
-						{#if isSubmitting}
-							<Spinner class="mr-2 size-4" />
-						{/if}
-						Skip this step
-					</Button>
-				{/if}
-				<div class="mb-10 w-full grow">
+			{:else}
+				<div class="mx-auto w-full max-w-5xl grow px-4 pb-6 md:px-6">
 					{#if showNavigationSkeleton.current}
 						{#if navigatingToToolType === HeyForm.TOOL_NAME}
 							<HeyForm.UserUISkeleton />
@@ -288,19 +379,14 @@
 					{:else if toolConfig.type === Learn.TOOL_NAME}
 						{#key workflowStep.id}
 							<Learn.UserUI
-								onDone={stepComplete}
 								pages={toolConfig.pages}
-								user_id={user.id}
-								onNextAction={handleNextAction}
-								onPrevAction={handlePrevAction}
+								onSequenceChange={handleSequenceChange}
 								{conversation}
 								{availableDocuments}
 								{hasKnowledgeBaseDocs}
-								{isSubmitting}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig?.type === Polis.TOOL_NAME}
+					{:else if toolConfig?.type === Polis.TOOL_NAME}
 						{#key workflowStep.id}
 							<Polis.UserUI
 								user_id={user.id}
@@ -311,11 +397,11 @@
 								{isPreview}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
+								onSequenceChange={handleSequenceChange}
 								showRemainingStatementCount={toolConfig.show_remaining_statements}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig.type === HeyForm.TOOL_NAME}
+					{:else if toolConfig.type === HeyForm.TOOL_NAME}
 						{#key workflowStep.id}
 							<HeyForm.UserUI
 								userId={user.id}
@@ -325,11 +411,14 @@
 								onDone={stepComplete}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig.type === LivedExperience.TOOL_NAME}
-						<LivedExperience.UserUI onDone={stepComplete} />
-					{/if}
-					{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
+					{:else if toolConfig.type === LivedExperience.TOOL_NAME}
+						{#key workflowStep.id}
+							<LivedExperience.UserUI
+								onDone={stepComplete}
+								onSequenceChange={handleSequenceChange}
+							/>
+						{/key}
+					{:else if toolConfig.type === ThinkingSpace.TOOL_NAME}
 						{#key workflowStep.id}
 							<ThinkingSpace.UserUI
 								workflowStepId={workflowStep.id}
@@ -344,10 +433,10 @@
 								progressStatus={workflowStep.progressStatus}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
+								onSequenceChange={handleSequenceChange}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig.type === ElicitationBot.TOOL_NAME}
+					{:else if toolConfig.type === ElicitationBot.TOOL_NAME}
 						{#key workflowStep.id}
 							<ElicitationBot.UserUI
 								conversationId={conversation.id}
@@ -359,8 +448,7 @@
 								onCanContinueChange={handleCanContinueChange}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig.type === Prioritization.TOOL_NAME}
+					{:else if toolConfig.type === Prioritization.TOOL_NAME}
 						{#key workflowStep.id}
 							<Prioritization.UserUI
 								{workflowStep}
@@ -372,13 +460,36 @@
 								participantId={user.id}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
+								onSequenceChange={handleSequenceChange}
 							/>
 						{/key}
 					{/if}
 				</div>
-			</div>
-		</div>
-	{:else}
-		<h1>Failed to find conversation</h1>
+			{/if}
+		</main>
+
+		<StepPager
+			{forwardMode}
+			{briefOpen}
+			{canGoBack}
+			{canGoForward}
+			loading={isSubmitting}
+			onBack={goBack}
+			onForward={goForward}
+			onBrief={() => (briefOpen = !briefOpen)}
+		/>
+	</div>
+
+	{#if briefOpen}
+		<StepBriefDialog
+			slides={briefSlides}
+			title={workflowStep.name}
+			toolConfig={metaToolConfig}
+			{availableDocuments}
+			conversationId={conversation.id}
+			onClose={() => (briefOpen = false)}
+		/>
 	{/if}
-</div>
+{:else}
+	<h1>Failed to find conversation</h1>
+{/if}

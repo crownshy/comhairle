@@ -1,9 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { Progress } from '$lib/components/ui/progress';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import type {
 		Page,
@@ -16,25 +12,20 @@
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { resolveGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
+	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 
 	let {
 		pages,
-		onDone,
-		onNextAction,
-		onPrevAction,
+		onSequenceChange,
 		conversation,
 		availableDocuments = [],
-		hasKnowledgeBaseDocs = false,
-		isSubmitting = false
+		hasKnowledgeBaseDocs = false
 	}: {
 		pages: Array<Page>;
-		onDone: () => void;
-		onNextAction?: (fn: () => void) => void;
-		onPrevAction?: (fn: (() => void) | undefined) => void;
+		onSequenceChange?: OnSequenceChange;
 		conversation?: LocalizedConversationDto;
 		availableDocuments?: ComhairleDocument[];
 		hasKnowledgeBaseDocs?: boolean;
-		isSubmitting?: boolean;
 	} = $props();
 
 	// The assistant only answers from parsed knowledge base documents, so it is hidden entirely
@@ -82,8 +73,7 @@
 		});
 	}
 
-	/** True while SvelteKit is routing to another step. Gates the controls, which shouldn't be
-	 * clickable mid-navigation. */
+	/** True while SvelteKit is routing to another step. */
 	let isNavigating = $derived(!!navigating.to);
 
 	/**
@@ -97,30 +87,18 @@
 	 */
 	let showSkeleton = delayedFlag(() => isNavigating, 150);
 
+	// Learn's pages are the tool-internal sequence the pager traverses before it reaches the
+	// step boundary (ADR-0018). Undefined `next` on the last page is what pops the pager out.
 	$effect(() => {
-		if (onNextAction) {
-			onNextAction(isLastPage ? onDone : nextPage);
-		}
-	});
-
-	$effect(() => {
-		onPrevAction?.(currentPageNo > 0 ? prevPage : undefined);
+		onSequenceChange?.({
+			next: isLastPage ? undefined : nextPage,
+			prev: currentPageNo > 0 ? prevPage : undefined,
+			progress: pages.length > 0 ? (currentPageNo + 1) / pages.length : undefined
+		});
 	});
 </script>
 
 <div class="mx-auto flex grow flex-col">
-	{#if pages.length > 1}
-		<div class="mx-auto mb-6 w-full max-w-[65ch]">
-			<p class="text-muted-foreground mb-1.5 text-sm font-medium">
-				<span class="capitalize">{m.page()}</span>
-				{currentPageNo + 1}
-				{m.of()}
-				{pages.length}
-			</p>
-			<Progress value={currentPageNo + 1} max={pages.length} aria-label="Learning progress" />
-		</div>
-	{/if}
-
 	<!-- Article content: own loading state (route navigation / content not ready) -->
 	{#if showSkeleton.current}
 		<LearnArticleSkeleton />
@@ -145,18 +123,5 @@
 				loading={showSkeleton.current}
 			/>
 		</div>
-	{/if}
-
-	{#if currentPageNo == pages.length - 1}
-		<!-- Disabling tracks isNavigating, not the delayed flag: a control that stays live for
-			150ms into a navigation could fire twice. -->
-		<Button class="mx-auto mt-10" onclick={onDone} disabled={isNavigating || isSubmitting}>
-			{#if isSubmitting}
-				<Spinner class="mr-2 size-4" />
-			{/if}
-			{m.continue_()}
-		</Button>
-	{:else}
-		<Button class="mx-auto mt-10" onclick={nextPage} disabled={isNavigating}>{m.next()}</Button>
 	{/if}
 </div>

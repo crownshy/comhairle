@@ -36,6 +36,8 @@
 		headerless?: boolean;
 		open?: boolean;
 		inline?: boolean;
+		/** Fires with the just-typed description, for the live participant preview. */
+		onDraftDescriptionChange?: (description: string) => void;
 	};
 
 	let {
@@ -44,7 +46,8 @@
 		conversation,
 		headerless = false,
 		open = $bindable(false),
-		inline = false
+		inline = false,
+		onDraftDescriptionChange
 	}: Props = $props();
 
 	let primaryLocale = $derived<Locale>((conversation?.primaryLocale as Locale) ?? 'en');
@@ -68,6 +71,12 @@
 	// Header / delete-dialog / preview read the live primary content straight from the sources.
 	let displayName = $derived(nameSource.contents[primaryLocale] ?? '');
 	let displayDescription = $derived(descriptionSource.contents[primaryLocale] ?? '');
+
+	// Fed to the admin preview panel so slide breaks appear as they are typed. The source
+	// already carries an optimistic overlay of unsaved edits, so this is the live value.
+	$effect(() => {
+		onDraftDescriptionChange?.(displayDescription);
+	});
 	let availableDocuments = $state<ComhairleDocument[]>([]);
 
 	$effect(() => {

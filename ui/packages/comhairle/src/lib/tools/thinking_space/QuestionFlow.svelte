@@ -3,7 +3,6 @@
 	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Progress } from '$lib/components/ui/progress';
 	import {
 		CornerDownRight,
 		Shuffle,
@@ -24,6 +23,8 @@
 		initialAnswers?: QuestionAnswers[];
 		mode?: FlowMode;
 		onComplete: (answers: QuestionAnswers[]) => void;
+		/** Fraction complete, 0 to 1, for the chrome's progress bar. */
+		onProgress?: (fraction: number) => void;
 	};
 
 	let {
@@ -33,8 +34,15 @@
 		followUpCount,
 		initialAnswers = [],
 		mode = 'initial',
-		onComplete
+		onComplete,
+		onProgress
 	}: Props = $props();
+
+	// Reported up so the chrome's bar can show it. This is the only place that knows how far
+	// through the root answer and follow-up rounds a participant is.
+	$effect(() => {
+		onProgress?.(flow.progress / 100);
+	});
 
 	const flow = new QuestionFlowState({
 		questions,
@@ -114,11 +122,10 @@
 </script>
 
 <div class="flex h-full flex-col">
-	<!-- Header / progress -->
-	<div class="border-border bg-card/60 border-b px-6 py-4 backdrop-blur">
+	<!-- Where you are in the rounds. The bar itself lives in the step chrome (ADR-0018). -->
+	<div class="border-border bg-card/60 border-b px-6 py-3 backdrop-blur">
 		<div class="mx-auto max-w-2xl">
-			<div class="text-muted-foreground mb-2 flex items-center justify-between gap-3 text-xs">
-				<span></span>
+			<div class="text-muted-foreground flex items-center justify-end gap-3 text-xs">
 				<span>
 					{#if inExtensionPicker}
 						{m.thinking_space_pick_question()}
@@ -131,13 +138,10 @@
 						{m.question()}
 						{flow.currentQuestionIndex + 1}
 						{m.of()}
-						{questions.length} · {Math.round(flow.progress)}%
+						{questions.length}
 					{/if}
 				</span>
 			</div>
-			{#if flow.mode !== 'extension'}
-				<Progress value={flow.progress} class="h-1.5" />
-			{/if}
 		</div>
 	</div>
 
@@ -192,13 +196,15 @@
 			</div>
 		{:else}
 			<div class="mx-auto max-w-2xl space-y-6">
-				<!-- Root question -->
+				<!-- Root question. Sized as the thing on the screen, not as a field label. -->
 				<section>
-					<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
+					<p class="text-primary mb-2 text-base font-medium">
 						{m.question()}
 						{flow.currentQuestionIndex + 1}
 					</p>
-					<h2 class="text-foreground text-2xl leading-snug font-semibold">
+					<h2
+						class="text-foreground text-2xl leading-9 font-semibold sm:text-3xl sm:leading-10"
+					>
 						{flow.currentQuestion.text || '(unnamed question)'}
 					</h2>
 				</section>
@@ -211,8 +217,8 @@
 							oninput={(e) => flow.updateRootAnswerDraft(e.currentTarget.value)}
 							onkeydown={handleRootKeydown}
 							placeholder={m.thinking_space_write_thoughts()}
-							rows={4}
-							class="text-base"
+							rows={6}
+							class="rounded-2xl text-base"
 						/>
 						<div class="flex justify-end">
 							<Button

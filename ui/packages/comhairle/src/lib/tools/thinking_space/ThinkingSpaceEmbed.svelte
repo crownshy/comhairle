@@ -14,6 +14,7 @@
 	} from './types';
 	import type { FlowMode } from './questionFlowState.svelte';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
+	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 
 	type Props = {
 		workflowStepId: string;
@@ -28,6 +29,7 @@
 		progressStatus?: ProgressStatus;
 		onDone?: () => void;
 		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -42,7 +44,8 @@
 		initialPermissionToShareWithOrganizers = null,
 		progressStatus = 'not_started',
 		onDone,
-		onCanContinueChange
+		onCanContinueChange,
+		onSequenceChange
 	}: Props = $props();
 
 	let loaded = $state(false);
@@ -59,6 +62,16 @@
 	let generationError = $state(false);
 
 	let canContinue = $derived(phase === 'summary');
+
+	/** Fraction reported by QuestionFlow, which is the only thing that tracks rounds. */
+	let questionProgress = $state(0);
+
+	// The chrome draws the only progress bar (ADR-0018).
+	$effect(() => {
+		onSequenceChange?.({
+			progress: phase === 'summary' ? 1 : questionProgress
+		});
+	});
 
 	$effect(() => {
 		onCanContinueChange?.(canContinue);
@@ -224,6 +237,7 @@
 				initialAnswers={answers}
 				mode={flowMode}
 				onComplete={handleQuestionFlowComplete}
+				onProgress={(fraction) => (questionProgress = fraction)}
 			/>
 		{:else if phase === 'summary'}
 			<Summary

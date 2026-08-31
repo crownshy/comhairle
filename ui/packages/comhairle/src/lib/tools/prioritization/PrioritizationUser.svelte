@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 	import { tick } from 'svelte';
 	import { Portal } from 'bits-ui';
 	import { Button } from '$lib/components/ui/button';
@@ -29,6 +30,7 @@
 		/** Drives the host step's top-nav "Next": true once the participant has
 		 * reviewed the minimum number of proposals. Mirrors Polis / Thinking Space. */
 		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -36,7 +38,8 @@
 		conversation,
 		participantId = '',
 		onDone,
-		onCanContinueChange
+		onCanContinueChange,
+		onSequenceChange
 	}: Props = $props();
 
 	const stepId = $derived(workflowStep.id);
@@ -185,6 +188,14 @@
 	});
 
 	let current = $derived(proposals[currentIndex] ?? null);
+
+	// Prioritization walks a list of proposals, so it can report where it is. The pager does
+	// not drive that walk: each proposal advances on its own answer control (ADR-0018).
+	$effect(() => {
+		onSequenceChange?.({
+			progress: proposals.length > 0 ? currentIndex / proposals.length : undefined
+		});
+	});
 	let currentSubmitted = $derived(current ? submittedIds.has(current.id) : false);
 	let currentAnswers = $derived(current ? (answers[current.id] ?? {}) : {});
 	let currentSectionAnswers = $derived(current ? (sectionAnswers[current.id] ?? {}) : {});
@@ -513,9 +524,8 @@
 				{/each}
 			</Accordion.Root>
 
-			<div
-				class="bg-background/90 sticky bottom-0 z-10 flex flex-col gap-2 border-t py-3 backdrop-blur"
-			>
+			<!-- Deliberately not sticky: the pager owns the bottom of the viewport now. -->
+			<div class="bg-background/90 flex flex-col gap-2 border-t py-3">
 				{#if reviewError}
 					<p class="text-destructive text-right text-sm">{reviewError}</p>
 				{/if}
