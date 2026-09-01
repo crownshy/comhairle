@@ -1425,7 +1425,50 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_signup_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let email = "test_email";
+        let email = "test_email@test.com";
+        let username = "test_user";
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+
+        mailer.expect_send_verification_email().times(0);
+        mailer.expect_send_password_reset_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/auth/signup_otp",
+                json!({ "email": email, "username": username })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        let user: UserDto = serde_json::from_value(value)?;
+
+        assert_eq!(user.email, Some(email.to_string()), "incorrect email");
+        assert_eq!(
+            user.username,
+            Some(username.to_string()),
+            "incorrect username"
+        );
+        assert_eq!(user.auth_type, UserAuthType::Otp, "incorrect auth type");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_signup_otp_user_with_email_local_if_no_username(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
 
         let mut mailer = MockComhairleMailer::new();
         mailer
@@ -1451,6 +1494,11 @@ mod tests {
         let user: UserDto = serde_json::from_value(value)?;
 
         assert_eq!(user.email, Some(email.to_string()), "incorrect email");
+        assert_eq!(
+            user.username,
+            Some("test_email".to_string()),
+            "incorrect username"
+        );
         assert_eq!(user.auth_type, UserAuthType::Otp, "incorrect auth type");
 
         Ok(())
