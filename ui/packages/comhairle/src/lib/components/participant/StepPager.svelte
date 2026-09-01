@@ -17,10 +17,11 @@
 		onBrief
 	}: {
 		/**
-		 * What the right slot means right now. One thing at a time (ADR-0018): `start` ends
-		 * the cover, `skip` appears only when an optional step cannot yet advance.
+		 * What the right slot means right now. One thing at a time (ADR-0018): `skip` appears
+		 * only when an optional step cannot yet advance. The cover has its own bar (ADR-0023),
+		 * so the pager never has to say Start.
 		 */
-		forwardMode: 'next' | 'skip' | 'start';
+		forwardMode: 'next' | 'skip';
 		briefOpen?: boolean;
 		canGoBack: boolean;
 		canGoForward: boolean;
@@ -31,17 +32,11 @@
 		onBrief: () => void;
 	} = $props();
 
-	let forwardLabel = $derived(
-		forwardMode === 'start'
-			? m.step_brief_start()
-			: forwardMode === 'skip'
-				? m.pager_skip()
-				: m.pager_next()
-	);
+	let forwardLabel = $derived(forwardMode === 'skip' ? m.pager_skip() : m.pager_next());
 	let showForwardLabel = $derived(forwardMode !== 'next');
 </script>
 
-<div class="bg-background sticky bottom-0 z-40 shrink-0 border-t md:border-t-0">
+<div class="bg-background border-t md:border-t-0">
 	<div class="relative mx-auto flex h-20 w-full max-w-5xl items-center px-4 md:px-6">
 		<button
 			type="button"

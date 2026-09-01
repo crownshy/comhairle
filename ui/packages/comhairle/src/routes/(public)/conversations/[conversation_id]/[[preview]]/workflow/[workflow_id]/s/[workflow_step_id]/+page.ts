@@ -90,7 +90,10 @@ export const load: PageLoad = async (event) => {
 			workflowSteps,
 			workflow_id,
 			preview,
-			permissionToShareWithOrganizers
+			permissionToShareWithOrganizers,
+			// The step runs in participant chrome, which carries its own preview marker. Flags
+			// off the conversation layout's full-width banner. See the landing page's load.
+			participantChrome: true
 		};
 	} catch (e: any) {
 		// TODO: figure out how to type this from the generated api

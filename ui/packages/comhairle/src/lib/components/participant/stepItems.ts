@@ -9,4 +9,10 @@ export type StepItem = {
 	name: string;
 	status: StepStatus;
 	href?: string;
+	/**
+	 * A segment that is part of the journey but not one of the workflow's steps: today only
+	 * the conversation landing page, which is Step zero (ADR-0021). Excluded from "Step N of
+	 * M" so adding it cannot change the count participants are quoted.
+	 */
+	isIntro?: boolean;
 };

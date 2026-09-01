@@ -15,7 +15,11 @@
 	import StepChrome from '$lib/components/participant/StepChrome.svelte';
 	import StepPager from '$lib/components/participant/StepPager.svelte';
 	import StepCover from '$lib/components/participant/StepCover.svelte';
-	import StepBriefDialog from '$lib/components/participant/StepBriefDialog.svelte';
+	import StepComplete from '$lib/components/participant/StepComplete.svelte';
+	import StepProceedBar from '$lib/components/participant/StepProceedBar.svelte';
+	import StepBriefOverlay from '$lib/components/participant/StepBriefOverlay.svelte';
+	import StepBriefBar from '$lib/components/participant/StepBriefBar.svelte';
+	import StepCoverNav from '$lib/components/participant/StepCoverNav.svelte';
 	import type { StepItem } from '$lib/components/participant/stepItems';
 	import { splitSlides } from '$lib/step-brief/splitSlides';
 	import { toMetaToolConfig } from '$lib/step-brief/slideMeta';
@@ -25,11 +29,17 @@
 	import * as m from '$lib/paraglide/messages';
 
 	import { goto } from '$app/navigation';
-	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
+	import {
+		thank_you_page,
+		next_workflow_step_url,
+		return_to_workflow_url,
+		workflow_step_url
+	} from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
+	import { learningAssistantAvailable } from '$lib/components/LearningAssistant/availability';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
@@ -61,6 +71,9 @@
 	// the workflow +layout.ts so the step page and the support sidebar share one source.
 	let availableDocuments = $derived(data.availableDocuments);
 	let hasKnowledgeBaseDocs = $derived(data.hasKnowledgeBaseDocs);
+	let assistantAvailable = $derived(
+		learningAssistantAvailable(conversation, hasKnowledgeBaseDocs)
+	);
 
 	let stepItems = $derived<StepItem[]>(
 		sortedSteps.map((ws) => {
@@ -93,18 +106,27 @@
 		})
 	);
 
+	/**
+	 * Absolute, shareable link back into this workflow, offered when the participant tries to
+	 * leave. `/return` rather than this step's own address so it still lands them in the right
+	 * place after they move on. A preview has no progress to keep, so it gets no link.
+	 */
+	let returnUrl = $derived(
+		isPreview
+			? undefined
+			: new URL(return_to_workflow_url(conversation.id, workflow_id), url.origin).href
+	);
+
+	// An anonymous participant's username is the only way back in from another browser.
+	let anonymousId = $derived(
+		user?.authType === 'annon' ? (user.username ?? undefined) : undefined
+	);
+
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
 	let currentStepNumber = $derived(viewedIndex + 1);
 	let stepLabel = $derived(
 		`${m.step_position_label({ current: currentStepNumber, total: sortedSteps.length })}: ${workflowStep.name}`
 	);
-
-	/** The footer no longer renders on workflow routes, so its links live in the dropdown. */
-	const legalLinks = [
-		{ href: '/rights/privacy', label: m.privacy_policy() },
-		{ href: '/rights/tos', label: m.terms_of_service() },
-		{ href: '/rights/cookies', label: m.cookies_settings() }
-	];
 
 	/**
 	 * Tool type of the step being navigated *to*, or undefined when we aren't navigating to a step.
@@ -157,7 +179,7 @@
 
 	// Writable $derived rather than $effect: these reset when the step changes, and are also
 	// assigned to directly by the pager. See AGENTS.md on mirroring state.
-	let phase = $derived.by<'cover' | 'body'>(() => {
+	let phase = $derived.by<'cover' | 'body' | 'done'>(() => {
 		void workflowStep.id;
 		return 'cover';
 	});
@@ -211,19 +233,19 @@
 
 	let isLastSlide = $derived(slideIndex >= briefSlides.length - 1);
 
+	let coverForwardLabel = $derived(isLastSlide ? m.step_brief_start() : m.pager_next());
+
 	let canGoBack = $derived(
 		phase === 'body' ? true : slideIndex > 0 || prevStepHref !== undefined
 	);
 
 	let canGoForward = $derived.by(() => {
-		if (phase === 'cover') return true;
 		if (sequence.next) return true;
 		// An optional step is always leavable, even when its tool says it is not complete.
 		return canProceed || !workflowStep.required;
 	});
 
-	let forwardMode = $derived.by<'next' | 'skip' | 'start'>(() => {
-		if (phase === 'cover') return isLastSlide ? 'start' : 'next';
+	let forwardMode = $derived.by<'next' | 'skip'>(() => {
 		if (sequence.next || canProceed) return 'next';
 		return workflowStep.required ? 'next' : 'skip';
 	});
@@ -266,7 +288,16 @@
 		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString);
 	}
 
-	async function stepComplete() {
+	/**
+	 * The step's work is finished. Nothing is written yet: the participant sees the completion
+	 * screen and the write happens when they proceed, so a tool that finishes on its own last
+	 * action does not silently navigate out from under them.
+	 */
+	function stepComplete() {
+		phase = 'done';
+	}
+
+	async function proceed() {
 		if (isSubmitting) return;
 		isSubmitting = true;
 
@@ -343,18 +374,37 @@
 </svelte:head>
 
 {#if conversation && workflowStep && user}
-	<div class="flex min-h-[100dvh] flex-col">
+	<!-- The step is exactly one screen: chrome on top, pager on the bottom, and the tool body
+	     takes whatever is left and scrolls inside it. The two chrome rows are laid out, not
+	     stuck: nothing can push them off. The column is minmax(0,1fr), not the implicit
+	     auto: an auto column floors at the widest row's min-content, so a long header (the
+	     opinion count next to an untruncated step label) would widen the whole grid past the
+	     viewport and shift every centred row right. -->
+	<div
+		class="grid h-[100dvh] grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] overflow-hidden"
+	>
 		<StepChrome
 			steps={stepItems}
 			currentIndex={viewedIndex}
 			label={stepLabel}
 			{fill}
-			{legalLinks}
-			count={sequence.count}
+			count={phase === 'done' ? undefined : sequence.count}
+			{assistantAvailable}
+			{returnUrl}
+			{anonymousId}
+			preview={isPreview}
 		/>
 
-		<main class="flex w-full grow flex-col">
-			{#if phase === 'cover'}
+		<main data-step-scroll class="flex min-h-0 w-full flex-col overflow-y-auto">
+			{#if phase === 'done'}
+				<StepComplete />
+			{:else if phase === 'cover'}
+				<StepCoverNav
+					{canGoBack}
+					skippable={!workflowStep.required}
+					onBack={goBack}
+					onSkip={stepComplete}
+				/>
 				<StepCover
 					slides={briefSlides}
 					index={slideIndex}
@@ -362,15 +412,21 @@
 					toolConfig={metaToolConfig}
 					{availableDocuments}
 					conversationId={conversation.id}
+					onPrev={goBack}
+					onNext={goForward}
 				/>
 			{:else}
-				<div class="mx-auto w-full max-w-5xl grow px-4 pb-6 md:px-6">
+				<div
+					class="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pb-[clamp(0.5rem,2vh,1.5rem)] md:px-6"
+				>
 					{#if showNavigationSkeleton.current}
 						{#if navigatingToToolType === HeyForm.TOOL_NAME}
 							<HeyForm.UserUISkeleton />
+						{:else if navigatingToToolType === Polis.TOOL_NAME}
+							<Polis.UserUISkeleton />
 						{:else}
 							<LearnArticleSkeleton />
-							{#if conversation?.chatBotId && conversation.enableQaChatBot && hasKnowledgeBaseDocs}
+							{#if assistantAvailable}
 								<div class="mx-auto mt-6 w-full max-w-[65ch]">
 									<LearningAssistantSkeleton />
 								</div>
@@ -468,20 +524,31 @@
 			{/if}
 		</main>
 
-		<StepPager
-			{forwardMode}
-			{briefOpen}
-			{canGoBack}
-			{canGoForward}
-			loading={isSubmitting}
-			onBack={goBack}
-			onForward={goForward}
-			onBrief={() => (briefOpen = !briefOpen)}
-		/>
+		{#if phase === 'done'}
+			<StepProceedBar loading={isSubmitting} onProceed={proceed} />
+		{:else if phase === 'cover'}
+			<StepBriefBar
+				index={slideIndex}
+				count={briefSlides.length}
+				label={coverForwardLabel}
+				onForward={goForward}
+			/>
+		{:else}
+			<StepPager
+				{forwardMode}
+				{briefOpen}
+				{canGoBack}
+				{canGoForward}
+				loading={isSubmitting}
+				onBack={goBack}
+				onForward={goForward}
+				onBrief={() => (briefOpen = !briefOpen)}
+			/>
+		{/if}
 	</div>
 
 	{#if briefOpen}
-		<StepBriefDialog
+		<StepBriefOverlay
 			slides={briefSlides}
 			title={workflowStep.name}
 			toolConfig={metaToolConfig}
