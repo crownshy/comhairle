@@ -395,7 +395,14 @@
 			preview={isPreview}
 		/>
 
-		<main data-step-scroll class="flex min-h-0 w-full flex-col overflow-y-auto">
+		<!-- The bottom of the scroll dissolves into the background instead of stopping at a
+		     hard line, so a cut-off paragraph reads as content continuing under the bar. The
+		     padding matches the fade, so the mask sits over empty space once the reader is at
+		     the end and never dims the last line. -->
+		<main
+			data-step-scroll
+			class="flex min-h-0 w-full flex-col overflow-y-auto mask-b-from-[calc(100%-2.5rem)] pb-10"
+		>
 			{#if phase === 'done'}
 				<StepComplete />
 			{:else if phase === 'cover'}

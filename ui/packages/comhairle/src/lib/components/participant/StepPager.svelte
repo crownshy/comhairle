@@ -36,7 +36,7 @@
 	let showForwardLabel = $derived(forwardMode !== 'next');
 </script>
 
-<div class="bg-background border-t md:border-t-0">
+<div class="bg-background">
 	<div class="relative mx-auto flex h-20 w-full max-w-5xl items-center px-4 md:px-6">
 		<button
 			type="button"

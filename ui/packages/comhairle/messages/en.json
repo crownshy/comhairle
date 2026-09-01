@@ -406,5 +406,17 @@
 	"landing_step_optional": "optional",
 	"conversation_preview_badge": "Preview",
 	"landing_nav_about": "About",
-	"landing_nav_steps": "Steps"
+	"landing_nav_steps": "Steps",
+	"lived_experience_audio_only": "Audio only",
+	"lived_experience_record_prompt": "You just heard three other people's views on the issue. Would you like to record your own to let others know what you think?",
+	"lived_experience_privacy_question": "Will others see my recording?",
+	"lived_experience_privacy_body": "We will only show this video to other people signed up to take part in this conversation. Like with any platform on the internet we can't guarantee that someone won't download this video and use it elsewhere. If you're comfortable with that go ahead, and if not feel free to skip this step.",
+	"lived_experience_start_recording": "Start recording",
+	"lived_experience_pass": "Pass",
+	"lived_experience_camera_starting": "Starting your camera",
+	"lived_experience_camera_blocked": "We can't reach your camera. Check the camera permission for this site in your browser, or pass on this step.",
+	"lived_experience_recording_countdown": "Recording, {seconds}s left",
+	"lived_experience_stop_recording": "Stop",
+	"lived_experience_record_again": "Record again",
+	"lived_experience_use_recording": "Use this recording"
 }
