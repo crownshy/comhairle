@@ -20,34 +20,28 @@
 		toolConfig.questions.find((question) => question.id === toolConfig.alignmentQuestionId)
 	);
 
-	let maxPossibleScore = $derived.by(() => {
-		if (!alignmentQuestion) return 0;
+	let progressDomain = $derived.by(() => {
+		if (!alignmentQuestion) return [0, 0];
 
-		if (alignmentQuestion.type.kind === 'likert') {
-			const maxValue = Math.max(...alignmentQuestion.type.categories.map((cat) => cat.value));
-			return maxValue * proposals.length;
+		switch (alignmentQuestion.type.kind) {
+			case 'likert': {
+				const values = alignmentQuestion.type.categories.map((cat) => cat.value);
+				return [
+					Math.min(...values) * proposals.length,
+					Math.max(...values) * proposals.length
+				];
+			}
+			case 'continuous': {
+				return [
+					alignmentQuestion.type.minValue * proposals.length,
+					alignmentQuestion.type.maxValue * proposals.length
+				];
+			}
+			default: {
+				return [0, 0];
+			}
 		}
-
-		if (alignmentQuestion.type.kind === 'continuous') {
-			return alignmentQuestion.type.maxValue * proposals.length;
-		}
-		return 0;
 	});
-	let minPossibleScore = $derived.by(() => {
-		if (!alignmentQuestion) return 0;
-
-		if (alignmentQuestion.type.kind === 'likert') {
-			const minValue = Math.min(...alignmentQuestion.type.categories.map((cat) => cat.value));
-			return minValue * proposals.length;
-		}
-
-		if (alignmentQuestion.type.kind === 'continuous') {
-			return alignmentQuestion.type.minValue * proposals.length;
-		}
-
-		return 0;
-	});
-	let progressDomain = $derived([minPossibleScore, maxPossibleScore]);
 </script>
 
 {#if alignmentQuestion}

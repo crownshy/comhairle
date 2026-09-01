@@ -359,10 +359,10 @@
 				value={toolConfig.alignmentQuestionId ?? questions[0].id}
 				onValueChange={setAlignmentQuestion}
 			>
-				<Select.Trigger>
-					{@const selectedQuestion =
-						questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text
-							.localized ?? questions[0].text.localized}
+				{@const selectedQuestion =
+					questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text
+						.localized ?? questions[0].text.localized}
+				<Select.Trigger title={selectedQuestion}>
 					{selectedQuestion.length > 40
 						? selectedQuestion.slice(0, 40).concat('...')
 						: selectedQuestion}
@@ -372,7 +372,7 @@
 				</Select.Trigger>
 				<Select.Content>
 					{#each questions as question (question.id)}
-						<Select.Item value={question.id}
+						<Select.Item title={question.text.localized} value={question.id}
 							>{question.text.localized.length > 40
 								? question.text.localized.slice(0, 40).concat('...')
 								: question.text.localized}</Select.Item
