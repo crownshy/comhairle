@@ -23,11 +23,6 @@ export type LocalQuestionState = {
 	currentPick: string;
 	currentPickAnswer: string;
 	phase: Phase;
-	// Once the follow-up minimum is met, the participant is asked whether to
-	// keep going deeper or move on. The picker is only revealed after they
-	// opt in via `chooseMore()`. Reset to false after each follow-up answer
-	// so we re-ask before each additional one.
-	wantsMore: boolean;
 };
 
 /**
@@ -40,6 +35,13 @@ export type LocalQuestionState = {
  *   follow-up is a fresh RAGFlow call.
  */
 export type FlowMode = 'initial' | 'extension';
+
+/**
+ * How many follow-ups the agent's suggestions are cut down to before the participant sees
+ * them. Three is what fits on a phone without scrolling, and choosing between three is a
+ * decision rather than a search.
+ */
+const PICKER_SIZE = 3;
 
 type Init = {
 	questions: QuestionConfig<string>[];
@@ -65,7 +67,6 @@ export class QuestionFlowState {
 
 	states = $state<LocalQuestionState[]>([]);
 	currentQuestionIndex = $state(0);
-	transitioning = $state(false);
 	submitting = $state(false);
 	// Extension-mode navigation phase. Unused in initial mode.
 	extensionPhase = $state<ExtensionPhase>('root-picker');
@@ -99,8 +100,7 @@ export class QuestionFlowState {
 				pickerError: false,
 				currentPick: '',
 				currentPickAnswer: '',
-				phase: 'root',
-				wantsMore: false
+				phase: 'root'
 			};
 		}
 		return {
@@ -114,8 +114,7 @@ export class QuestionFlowState {
 			pickerError: false,
 			currentPick: '',
 			currentPickAnswer: '',
-			phase: 'picking',
-			wantsMore: false
+			phase: 'picking'
 		};
 	}
 
@@ -146,18 +145,8 @@ export class QuestionFlowState {
 		return this.currentState.followUps.length;
 	}
 
-	get followUpsRemaining(): number {
-		return Math.max(0, this.followUpCount - this.followUpsDone);
-	}
-
 	get isLastQuestion(): boolean {
 		return this.currentQuestionIndex === this.questions.length - 1;
-	}
-
-	// Minimum follow-ups reached for the current question — Continue button
-	// is revealed but the user may keep answering more follow-ups.
-	get minReached(): boolean {
-		return this.currentState.rootSubmitted && this.followUpsDone >= this.followUpCount;
 	}
 
 	get totalSteps(): number {
@@ -200,30 +189,14 @@ export class QuestionFlowState {
 		return lines.join('\n');
 	}
 
-	// Participant has opted to keep going deeper after meeting the minimum.
-	// Reveals the picker; loads it if it isn't already in flight or cached.
-	chooseMore() {
-		this.states[this.currentQuestionIndex] = {
-			...this.currentState,
-			wantsMore: true
-		};
-		const state = this.currentState;
-		if (state.pickerLoading) return;
-		if (state.pickerError || state.picker.length === 0) {
-			this.loadPicker(this.currentQuestionIndex);
-		}
-	}
-
+	// Move to the next root question, or hand the finished set to the summary. Every screen in
+	// this flow swaps in place, so this one does too rather than fading through a blank.
 	continueNow() {
 		if (this.isLastQuestion) {
 			this.onComplete(this.buildAnswers());
 			return;
 		}
-		this.transitioning = true;
-		setTimeout(() => {
-			this.currentQuestionIndex = this.currentQuestionIndex + 1;
-			this.transitioning = false;
-		}, 500);
+		this.currentQuestionIndex = this.currentQuestionIndex + 1;
 	}
 
 	async loadPicker(questionIndex: number) {
@@ -240,7 +213,7 @@ export class QuestionFlowState {
 				questionIntent: question.intent,
 				history: this.buildHistory(questionIndex)
 			});
-			const picker = followUps.map((followUp) => followUp.question);
+			const picker = followUps.map((followUp) => followUp.question).slice(0, PICKER_SIZE);
 			this.states[questionIndex] = {
 				...this.states[questionIndex],
 				picker,
@@ -298,10 +271,10 @@ export class QuestionFlowState {
 				rootSubmitted: true,
 				rootAnswerId: saved.id,
 				picker: [],
-				phase: 'picking',
-				wantsMore: false
+				phase: 'picking'
 			};
 			if (this.followUpCount > 0) this.loadPicker(this.currentQuestionIndex);
+			else this.continueNow();
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -339,12 +312,6 @@ export class QuestionFlowState {
 		};
 	}
 
-	pickRandom() {
-		const pool = this.currentState.picker;
-		if (pool.length === 0) return;
-		this.pickFollowUp(pool[Math.floor(Math.random() * pool.length)]);
-	}
-
 	async submitFollowUp() {
 		const value = this.currentState.currentPickAnswer.trim();
 		if (!value || this.submitting) return;
@@ -367,19 +334,23 @@ export class QuestionFlowState {
 				// on a future "answer more" visit.
 				otherQuestions: this.currentState.picker
 			};
-			// Always refetch the picker and stay in 'picking'. The participant
-			// chooses when to move on via the Continue button (revealed once
-			// followUpsDone >= followUpCount). We never force-quit them.
 			this.states[this.currentQuestionIndex] = {
 				...this.currentState,
 				followUps: [...this.currentState.followUps, followUp],
 				currentPick: '',
 				currentPickAnswer: '',
 				picker: [],
-				phase: 'picking',
-				wantsMore: false
+				phase: 'picking'
 			};
-			if (this.followUpCount > 0) this.loadPicker(this.currentQuestionIndex);
+			// The round is a fixed length in initial mode: once the follow-ups are answered the
+			// flow moves on by itself. Going deeper is offered on the summary instead, so the
+			// participant is never asked mid-round whether they want more. Extension mode is the
+			// other side of that: the chain keeps going until they say they are done with it.
+			if (this.mode === 'extension' || this.followUpsDone < this.followUpCount) {
+				this.loadPicker(this.currentQuestionIndex);
+			} else {
+				this.continueNow();
+			}
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -405,8 +376,7 @@ export class QuestionFlowState {
 			picker: [],
 			pickerLoading: false,
 			pickerError: false,
-			phase: 'picking',
-			wantsMore: false
+			phase: 'picking'
 		};
 		if (this.followUpCount > 0) this.loadPicker(questionIndex);
 	}

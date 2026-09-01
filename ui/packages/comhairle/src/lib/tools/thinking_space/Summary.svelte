@@ -4,31 +4,20 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import {
-		Sparkles,
-		RotateCcw,
-		Check,
-		CornerDownRight,
-		PlusCircle,
-		LoaderCircle,
-		TriangleAlert
-	} from 'lucide-svelte';
+	import { Sparkles, RotateCcw, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { saveRound } from './summary';
 	import ConsentModal from './ConsentModal.svelte';
 	import ConsentToggle from './ConsentToggle.svelte';
-	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
+	import type { SummaryRound } from './types';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
 
 	type Props = {
-		topic: string;
 		workflowStepId: string;
 		workflowId: string;
 		conversationId: string;
-		questions: QuestionConfig<string>[];
-		answers: QuestionAnswers[];
 		/**
 		 * All summary rounds for this participant. The parent owns generation
 		 * and appends to this array; Summary is a pure renderer over it.
@@ -60,9 +49,6 @@
 	};
 
 	let {
-		topic,
-		questions,
-		answers,
 		workflowStepId,
 		workflowId,
 		conversationId,
@@ -275,11 +261,6 @@
 		});
 	}
 
-	function latestLabel(total: number): string {
-		if (total <= 1) return m.thinking_space_lastest_label();
-		return `${m.round()} ${total} — ${m.thinking_space_lastest_thinking()}`;
-	}
-
 	function frozenLabel(index: number): string {
 		return `${m.round()} ${index + 1} ${m.thinking()}`;
 	}
@@ -288,96 +269,52 @@
 	let showRetryInline = $derived(loadError && rounds.length > 0 && !pendingNextRound);
 </script>
 
-<div class="mx-auto w-full max-w-2xl px-6 py-10">
-	<header class="mb-8 text-center">
-		{#if topic}
-			<p class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-				{topic}
-			</p>
-		{/if}
-		<h2 class="text-foreground mt-1 text-3xl font-semibold tracking-tight">
-			{m.thinking_space_summary_heading()}
+<div class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 py-8">
+	<header>
+		<h2 class="text-foreground text-2xl leading-snug font-semibold sm:text-3xl">
+			{m.thinking_space_review_heading()}
 		</h2>
-		<p class="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-relaxed">
-			{m.thinking_space_summary_desc()}
+		<p class="text-muted-foreground mt-3 text-base leading-relaxed">
+			{m.thinking_space_review_desc()}
 		</p>
 		{#if requestUserSharePermission && hasDecidedConsent}
-			<div class="mt-4 flex justify-center">
+			<div class="mt-4">
 				<ConsentToggle shared={consent} onChange={handleToggleChange} />
 			</div>
 		{/if}
 	</header>
 
-	<!-- Answers recap: read-only source material for the summaries below. -->
-	<section>
-		<h3 class="text-foreground text-lg font-semibold">{m.thinking_space_your_answers()}</h3>
-		<p class="text-muted-foreground mt-1 mb-6 text-sm">{m.thinking_space_recap()}</p>
-
-		<div class="space-y-6">
-			{#each questions as q (q.id)}
-				{@const item = answers.find((x) => x.questionId === q.id)}
-				{#if item}
-					<div class="space-y-2">
-						<h4 class="text-foreground text-base font-semibold">{q.text}</h4>
-						<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
-							{item.rootAnswer}
-						</p>
-						{#each item.followUps as followUp (followUp.id)}
-							<div class="space-y-1 pl-4">
-								<p
-									class="text-muted-foreground flex items-center gap-1.5 text-sm leading-snug italic"
-								>
-									<CornerDownRight class="size-3.5 shrink-0" />
-									{followUp.question}
-								</p>
-								<p
-									class="text-foreground text-sm leading-relaxed whitespace-pre-wrap"
-								>
-									{followUp.answer}
-								</p>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			{/each}
-		</div>
-	</section>
-
-	<!-- Summary stack: one editable textarea per round. -->
-	<section class="mt-12 space-y-8">
+	<!-- The summary stack is the whole screen: the statement the participant submits, plus any
+	     frozen rounds behind it. The answers it was drawn from are not repeated here. -->
+	<section class="space-y-6">
 		{#each rounds as round, i (round.id)}
 			{@const isLatest = i === rounds.length - 1}
 			{#if isLatest}
-				<div class="bg-primary/10 space-y-3 rounded-lg p-4">
-					<div class="flex items-center gap-2">
-						<Sparkles class="text-primary size-4 shrink-0" />
-						<p
-							class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
-						>
-							{latestLabel(rounds.length)}
-						</p>
-						{#if saveStateById[round.id] === 'saving'}
-							<span
-								class="text-muted-foreground inline-flex items-center gap-1 text-xs"
-							>
-								<LoaderCircle class="size-3 animate-spin" />
-								{m.saving()}
-							</span>
-						{:else if saveStateById[round.id] === 'saved'}
-							<span class="inline-flex items-center gap-1 text-xs text-green-600">
-								<Check class="size-3" />
-								{m.saving()}
-							</span>
-						{:else if saveStateById[round.id] === 'error'}
-							<span class="text-destructive inline-flex items-center gap-1 text-xs">
-								<TriangleAlert class="size-3" />
-								{m.not_saved()}
-							</span>
-						{/if}
-					</div>
-					<p class="text-foreground text-sm leading-relaxed">
-						{m.thinking_space_summary_edit_desc()}
-					</p>
+				<div class="space-y-2">
+					{#if saveStateById[round.id]}
+						<div class="flex justify-end">
+							{#if saveStateById[round.id] === 'saving'}
+								<span
+									class="text-muted-foreground inline-flex items-center gap-1 text-sm"
+								>
+									<LoaderCircle class="size-3.5 animate-spin" />
+									{m.saving()}
+								</span>
+							{:else if saveStateById[round.id] === 'saved'}
+								<span class="inline-flex items-center gap-1 text-sm text-green-600">
+									<Check class="size-3.5" />
+									{m.saved()}
+								</span>
+							{:else}
+								<span
+									class="text-destructive inline-flex items-center gap-1 text-sm"
+								>
+									<TriangleAlert class="size-3.5" />
+									{m.not_saved()}
+								</span>
+							{/if}
+						</div>
+					{/if}
 					<!-- Lock the previous round while the next one generates: once
 					generation starts this round is about to freeze, so editing it
 					would be lost. -->
@@ -387,7 +324,7 @@
 						onblur={() => persistEdit(round.id)}
 						readonly={pendingNextRound}
 						rows={10}
-						class="bg-background text-base leading-relaxed {pendingNextRound
+						class="bg-background rounded-xl text-base leading-relaxed {pendingNextRound
 							? 'cursor-not-allowed opacity-70'
 							: ''}"
 						placeholder={m.thinking_space_latest_thinking()}
@@ -395,10 +332,10 @@
 				</div>
 			{:else}
 				<div class="space-y-2">
-					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+					<p class="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
 						{frozenLabel(i)}
 					</p>
-					<p class="text-foreground/80 text-sm leading-relaxed whitespace-pre-wrap">
+					<p class="text-foreground/80 text-base leading-relaxed whitespace-pre-wrap">
 						{valueFor(round)}
 					</p>
 				</div>
@@ -410,7 +347,7 @@
 				<div class="flex items-start gap-2">
 					<Sparkles class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
 					<p
-						class="text-muted-foreground text-sm leading-relaxed transition-opacity duration-300"
+						class="text-muted-foreground text-base leading-relaxed transition-opacity duration-300"
 						class:opacity-0={fading}
 						class:opacity-100={!fading}
 						aria-live="polite"
@@ -418,15 +355,12 @@
 						{loadingMessages[messageIndex]}
 					</p>
 				</div>
-				<div
-					class="border-primary/20 bg-primary/5 space-y-3 rounded-lg border px-4 py-4"
-					aria-hidden="true"
-				>
+				<div class="border-border space-y-3 rounded-xl border px-4 py-4" aria-hidden="true">
 					{#each skeletonLines as layout, i (i)}
 						<div>
-							<Skeleton class="bg-primary/15 h-4 {layout.first}" />
+							<Skeleton class="h-4 {layout.first}" />
 							{#if layout.second}
-								<Skeleton class="bg-primary/15 mt-2 h-4 {layout.second}" />
+								<Skeleton class="mt-2 h-4 {layout.second}" />
 							{/if}
 						</div>
 					{/each}
@@ -435,26 +369,23 @@
 		{/if}
 
 		{#if showFirstGenError}
-			<div class="space-y-3 text-center">
-				<p class="text-muted-foreground text-sm">
+			<div class="space-y-3">
+				<p class="text-muted-foreground text-base">
 					{m.thinking_space_summary_gen_failure()}
 				</p>
-				<div class="flex justify-center">
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() => onRetryGenerate?.()}
-						disabled={!onRetryGenerate}
-					>
-						<RotateCcw class="size-3.5" />
-						{m.try_again()}
-					</Button>
-				</div>
+				<Button
+					variant="outline"
+					onclick={() => onRetryGenerate?.()}
+					disabled={!onRetryGenerate}
+				>
+					<RotateCcw class="size-4" />
+					{m.try_again()}
+				</Button>
 			</div>
 		{:else if !pendingNextRound && rounds.length > 0}
 			{#if showRetryInline}
 				<div
-					class="border-border flex items-center justify-between gap-3 rounded-lg border px-4 py-3"
+					class="border-border flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
 				>
 					<p class="text-muted-foreground text-sm">
 						{m.thinking_space_summary_gen_round_failure()}
@@ -470,25 +401,24 @@
 					</Button>
 				</div>
 			{/if}
-			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
+			<div class="flex gap-3">
 				<Button
 					variant="outline"
 					size="lg"
-					class="w-full sm:w-auto"
+					class="flex-1"
 					onclick={onAnswerMore}
 					disabled={!onAnswerMore}
 				>
-					<PlusCircle class="size-4" />
-					{m.thinking_space_answer_more()}
+					{m.thinking_space_explore_more()}
 				</Button>
 				<Button
 					size="lg"
-					class="w-full sm:w-auto"
+					class="flex-1"
 					onclick={submit}
 					disabled={!valueFor(rounds[rounds.length - 1]).trim() || submitting}
 				>
 					<Check class="size-4" />
-					{submitting ? `${m.saving()}...` : m.confirm_and_save()}
+					{submitting ? `${m.saving()}...` : m.finish()}
 				</Button>
 			</div>
 		{/if}

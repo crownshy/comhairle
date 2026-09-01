@@ -14,7 +14,7 @@
 	} from './types';
 	import type { FlowMode } from './questionFlowState.svelte';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
-	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
+	import type { OnSequenceChange, ToolSequence } from '$lib/step-brief/toolSequence';
 
 	type Props = {
 		workflowStepId: string;
@@ -63,14 +63,13 @@
 
 	let canContinue = $derived(phase === 'summary');
 
-	/** Fraction reported by QuestionFlow, which is the only thing that tracks rounds. */
-	let questionProgress = $state(0);
+	/** What QuestionFlow reports about itself: it is the only thing that tracks rounds. */
+	let questionSequence = $state<ToolSequence>({ progress: 0 });
 
-	// The chrome draws the only progress bar (ADR-0018).
+	// The chrome draws the only progress bar (ADR-0018). The summary is the end of the tool's
+	// own sequence, so it hands the arrows back to the step.
 	$effect(() => {
-		onSequenceChange?.({
-			progress: phase === 'summary' ? 1 : questionProgress
-		});
+		onSequenceChange?.(phase === 'summary' ? { progress: 1 } : questionSequence);
 	});
 
 	$effect(() => {
@@ -227,29 +226,25 @@
 		</p>
 	</div>
 {:else}
-	<div class="relative flex min-h-[600px] flex-col">
+	<div class="flex min-h-0 w-full flex-1 flex-col">
 		{#if phase === 'questions'}
 			<QuestionFlow
-				{topic}
 				{workflowStepId}
 				questions={rootQuestions}
 				followUpCount={followUpRoundsCount}
 				initialAnswers={answers}
 				mode={flowMode}
 				onComplete={handleQuestionFlowComplete}
-				onProgress={(fraction) => (questionProgress = fraction)}
+				onSequence={(sequence) => (questionSequence = sequence)}
 			/>
 		{:else if phase === 'summary'}
 			<Summary
-				{topic}
 				{workflowStepId}
 				{workflowId}
 				{conversationId}
 				{requestUserSharePermission}
 				{initialPermissionToShareWithOrganizers}
 				{progressStatus}
-				questions={rootQuestions}
-				{answers}
 				rounds={savedRounds}
 				pendingNextRound={generatingNextRound}
 				loadError={generationError}
