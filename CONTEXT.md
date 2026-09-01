@@ -73,8 +73,10 @@ The per-Step `can_revisit` flag (default `false`), controlling whether a partici
 
 The participant-facing frame around a Step, introduced by the mobile exploration and shared
 by both breakpoints. Replaces the old `StepHeader` plus `StepSelector` pair. See
-[ADR-0017](documentation/adr/0017-step-brief-slides-split-at-horizontal-rules.md) and
-[ADR-0018](documentation/adr/0018-one-pager-innermost-first-navigation.md).
+[ADR-0017](documentation/adr/0017-step-brief-slides-split-at-horizontal-rules.md),
+[ADR-0018](documentation/adr/0018-one-pager-innermost-first-navigation.md) and
+[ADR-0019](documentation/adr/0019-your-rights-reads-in-place-during-a-step.md) and
+[ADR-0022](documentation/adr/0022-a-step-ends-on-a-completion-screen.md).
 
 **Step brief**:
 A Step's description *as presented to participants*: a sequence of [[#slide]]s rather than
@@ -94,29 +96,71 @@ traverses both).
 The first [[#slide]] of a [[#step-brief]], shown as a full screen on entering a Step, before
 the tool body mounts. Carries an illustration (the Slide's first image, else the tool's
 icon) and a derived meta line (duration, and a per-tool count such as opinions or follow-up
-questions). Its last Slide's forward control reads "Start".
+questions). It ends in the [[#brief-bar]] rather than the [[#pager]], and its Step-level
+controls (back, and Skip for an optional Step) sit above the Slide on desktop only. See
+[ADR-0023](documentation/adr/0023-the-step-brief-ends-in-a-button.md).
 _Avoid_: Intro screen (the prototype's name), splash.
 
 **Hint**:
-The pill in the centre of the [[#pager]] and the modal it opens, which reopens the whole
-[[#step-brief]] mid-Step. Same content as the [[#cover]].
+The pill in the centre of the [[#pager]] and the full screen take-over it opens, which
+reopens the whole [[#step-brief]] mid-Step. Shaped like the [[#cover]], down to the
+[[#brief-bar]], because it is the same content; its last Slide's button reads "Close".
 _Status_: The label is provisional and held in one constant. It says "Hint" because that is
 what the Figma says, but what it opens is the full Step description rather than a nudge;
 "About" and "Help" are the live alternatives, open for the team.
 
+**Step zero**:
+The Conversation landing page, understood as the first screen of the participant journey
+rather than as a page in front of it. Renders in the [[#participant-step-chrome]] with no
+site NavBar or Footer, and the progress bar carries a leading segment for it, excluded from
+"Step N of M". Its detail (description, Steps, FAQs, privacy policy) sits in sections below
+the fold under a sticky strip of jump links. See
+[ADR-0021](documentation/adr/0021-conversation-landing-page-is-step-zero.md).
+_Avoid_: Cover (that is the Step brief's first [[#slide]]), splash, landing hero.
+
+**Completion screen**:
+The screen a Step ends on, after the tool unmounts and before the participant moves on: the
+Step's progress segment full, a check mark, and a single Proceed button in place of the
+[[#pager]]'s controls. Pressing Proceed is what writes the Step done and navigates, so a
+tool that finishes on its own last action cannot navigate without being asked. See
+[ADR-0022](documentation/adr/0022-a-step-ends-on-a-completion-screen.md).
+_Avoid_: Thank you screen (that is the Workflow-level `/thank_you` route), success state.
+
 **Pager**:
-The persistent bar at the bottom of the participant viewport: back on the left, [[#hint]] in
-the middle, forward or Skip on the right. Its arrows traverse the innermost open sequence
-first ([[#slide]]s, then a tool-internal sequence, then the Step boundary). The forward slot
-states one thing at a time: Next, Skip, Start, or a disabled chevron.
+The bar at the bottom of the participant viewport while a tool body is mounted: back on the
+left, [[#hint]] in the middle, forward or Skip on the right. Its arrows traverse the
+innermost open sequence first (a tool-internal sequence, then the Step boundary). The
+forward slot states one thing at a time: Next, Skip, or a disabled chevron. The
+[[#step-brief]] and the [[#completion-screen]] replace it with their own bar.
 _Avoid_: Footer (that is the site-wide `Footer.svelte`, which the workflow routes no longer
 render), toolbar.
+
+**Brief bar**:
+What the [[#step-brief]] gets instead of the [[#pager]]: the [[#slide]] dots and one full
+width forward button, shared by the [[#cover]] and the [[#hint]]. The label progresses
+through Next to Start on the Cover's last Slide, or Close on the Hint's.
 
 **Step dropdown**:
 The chevron beside the Step label in the participant header, listing the Workflow's Steps
 with their status. Replaces `StepSelector` at both breakpoints, including the desktop
 horizontal stepper. Navigation permissions are unchanged: only completed, revisitable Steps
-are links, and a [[#sealed]] participant's dropdown is read-only.
+are links, and a [[#sealed]] participant's dropdown is read-only. Below the Steps it also
+lists the Your Rights documents, which open as a [[#rights-sheet]] rather than as links.
+
+**Rights sheet**:
+The panel that reads a Your Rights document (Privacy Policy, Terms of Service, Cookies
+Settings) over a Step without navigating away, opened from the [[#step-dropdown]]. It exists
+because leaving a Step unmounts the tool and discards state the participant built up, such
+as a Polis opinion sequence. Same document components as the `/rights/*` routes.
+_Avoid_: Legal modal, rights page (that is the standalone route).
+
+**Leave dialog**:
+What the Comhairle mark in the participant header opens mid-Step, instead of linking home.
+It says progress is saved, offers the `/return` link back (plus the anonymous id, for a
+participant who has one), and makes staying the emphasised choice. Preview has no progress
+to keep, so there the mark is an ordinary link. See
+[ADR-0020](documentation/adr/0020-the-logo-asks-before-it-leaves-a-step.md).
+_Avoid_: Exit confirmation, are-you-sure.
 
 ### Organizations and access
 
