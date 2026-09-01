@@ -57,10 +57,6 @@
 
 	<p class="text-foreground max-w-xl text-lg md:text-xl">{conversation.shortDescription}</p>
 
-	{#if metaLine}
-		<p class="text-muted-foreground text-base">{metaLine}</p>
-	{/if}
-
 	{#if onReadMore}
 		<button
 			type="button"
