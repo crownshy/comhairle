@@ -49,6 +49,7 @@
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { key } from '$lib/utils/invalidationKey.js';
+	import { TabContent } from './index';
 
 	let url = $derived(page.url);
 	let { data } = $props();
@@ -339,349 +340,357 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<div class="mb-6 flex flex-row items-center gap-4">
-	<h1 class="text-3xl font-bold">Event: {event?.name}</h1>
-	{#if conversation && event}
-		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
-	{/if}
-</div>
+<TabContent>
+	<div class="mb-6 flex flex-row items-center gap-4">
+		<h1 class="text-3xl font-bold">Event: {event?.name}</h1>
+		{#if conversation && event}
+			<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button
+			>
+		{/if}
+	</div>
 
-{#if activeTab === 'details'}
-	<form method="POST" class="flex flex-col" use:enhance>
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
-			<Form.Field form={eventForm} name="name" class="contents">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Name</Form.Label
-						>
-						<div class="flex-1">
-							<TranslatableField
-								source={nameSource}
-								primaryLocale={primaryLanguage}
-								{supportedLanguages}
-								inputProps={props}
-							/>
+	{#if activeTab === 'details'}
+		<form method="POST" class="flex flex-col" use:enhance>
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="name" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+								>Name</Form.Label
+							>
+							<div class="flex-1">
+								<TranslatableField
+									source={nameSource}
+									primaryLocale={primaryLanguage}
+									{supportedLanguages}
+									inputProps={props}
+								/>
+								<Form.FieldErrors />
+							</div>
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
+			</div>
+
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="description" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+								>Description</Form.Label
+							>
+							<div class="flex-1">
+								<TranslatableField
+									source={descriptionSource}
+									primaryLocale={primaryLanguage}
+									{supportedLanguages}
+									inputType="textarea"
+									inputProps={props}
+								/>
+								<Form.FieldErrors />
+							</div>
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
+			</div>
+
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="capacity" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
+								Capacity
+							</Form.Label>
+							<Input {...props} bind:value={$form.capacity} type="number" />
 							<Form.FieldErrors />
-						</div>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
+			</div>
 
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
-			<Form.Field form={eventForm} name="description" class="contents">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Description</Form.Label
-						>
-						<div class="flex-1">
-							<TranslatableField
-								source={descriptionSource}
-								primaryLocale={primaryLanguage}
-								{supportedLanguages}
-								inputType="textarea"
-								inputProps={props}
-							/>
-							<Form.FieldErrors />
-						</div>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
-
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
-			<Form.Field form={eventForm} name="capacity" class="contents">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
-							Capacity
-						</Form.Label>
-						<Input {...props} bind:value={$form.capacity} type="number" />
-						<Form.FieldErrors />
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
-
-		<!-- Default time zone -->
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
-			<Form.Field form={eventForm} name="default_time_zone" class="contents">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>
-							<span>Default time zone</span>
-							<span class="font-normal">Time zone event is taking place in</span>
-						</Form.Label>
-						<div class="flex-1">
-							<Combobox
-								selectedItem={availableTimeZones.find(
-									(tz) => tz.value === $form.default_time_zone
-								)}
-								items={availableTimeZones}
-								placeholder="Select a default timezone"
-								onSelect={(item) => ($form.default_time_zone = item.value)}
-							/>
-						</div>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
-
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
-			<Form.Field form={eventForm} name="start_date" class="contents">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
-							Event date
-						</Form.Label>
-						<div class="flex-1">
-							<Popover.Root>
-								<Popover.Trigger
-									{...props}
-									class={cn(
-										buttonVariants({ variant: 'outline' }),
-										'w-full max-w-xs justify-start pl-4 text-left font-normal',
-										!eventDate && 'text-muted-foreground'
+			<!-- Default time zone -->
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="default_time_zone" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label
+								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>
+								<span>Default time zone</span>
+								<span class="font-normal">Time zone event is taking place in</span>
+							</Form.Label>
+							<div class="flex-1">
+								<Combobox
+									selectedItem={availableTimeZones.find(
+										(tz) => tz.value === $form.default_time_zone
 									)}
-								>
-									{eventDate
-										? df.format(eventDate.toDate(getLocalTimeZone()))
-										: 'Pick a date'}
-									<CalendarIcon class="ml-auto size-4 opacity-50" />
-								</Popover.Trigger>
-								<Popover.Content class="w-auto p-0" side="bottom" align="start">
-									<Calendar
-										type="single"
-										value={eventDate as DateValue}
-										minValue={today(getLocalTimeZone())}
-										calendarLabel="Event Date"
-										onValueChange={(v) => {
-											if (v) {
-												$form.start_date = v.toString();
-											} else {
-												$form.start_date = '';
-											}
-										}}
-									/>
-								</Popover.Content>
-							</Popover.Root>
-							<Form.FieldErrors />
-							<input hidden value={$form.start_date} name="start_date" />
-						</div>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
+									items={availableTimeZones}
+									placeholder="Select a default timezone"
+									onSelect={(item) => ($form.default_time_zone = item.value)}
+								/>
+							</div>
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
+			</div>
 
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
-			<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
-			<div class="flex flex-1 flex-col gap-2 2xl:flex-row 2xl:items-center">
-				<TimeRangePicker
-					startName="start_time"
-					endName="end_time"
-					bind:startValue={$form.start_time}
-					bind:endValue={$form.end_time}
-				/>
-				<Form.Field form={eventForm} name="start_time" class="contents">
-					<Form.FieldErrors class="text-destructive text-sm" />
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="start_date" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
+								Event date
+							</Form.Label>
+							<div class="flex-1">
+								<Popover.Root>
+									<Popover.Trigger
+										{...props}
+										class={cn(
+											buttonVariants({ variant: 'outline' }),
+											'w-full max-w-xs justify-start pl-4 text-left font-normal',
+											!eventDate && 'text-muted-foreground'
+										)}
+									>
+										{eventDate
+											? df.format(eventDate.toDate(getLocalTimeZone()))
+											: 'Pick a date'}
+										<CalendarIcon class="ml-auto size-4 opacity-50" />
+									</Popover.Trigger>
+									<Popover.Content class="w-auto p-0" side="bottom" align="start">
+										<Calendar
+											type="single"
+											value={eventDate as DateValue}
+											minValue={today(getLocalTimeZone())}
+											calendarLabel="Event Date"
+											onValueChange={(v) => {
+												if (v) {
+													$form.start_date = v.toString();
+												} else {
+													$form.start_date = '';
+												}
+											}}
+										/>
+									</Popover.Content>
+								</Popover.Root>
+								<Form.FieldErrors />
+								<input hidden value={$form.start_date} name="start_date" />
+							</div>
+						{/snippet}
+					</Form.Control>
 				</Form.Field>
-				<Form.Field form={eventForm} name="end_time" class="contents">
-					<Form.FieldErrors class="text-destructive text-sm" />
+			</div>
+
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
+				<div class="flex flex-1 flex-col gap-2 2xl:flex-row 2xl:items-center">
+					<TimeRangePicker
+						startName="start_time"
+						endName="end_time"
+						bind:startValue={$form.start_time}
+						bind:endValue={$form.end_time}
+					/>
+					<Form.Field form={eventForm} name="start_time" class="contents">
+						<Form.FieldErrors class="text-destructive text-sm" />
+					</Form.Field>
+					<Form.Field form={eventForm} name="end_time" class="contents">
+						<Form.FieldErrors class="text-destructive text-sm" />
+					</Form.Field>
+					{#if $form.default_time_zone !== 'Europe/London'}
+						<div class="text-muted-foreground flex gap-2">
+							<span>{$form.default_time_zone}</span>
+							<span>-</span>
+							<span
+								>{convertTimeToSelectedZone(
+									$form.start_date,
+									$form.start_time,
+									$form.default_time_zone
+								)}</span
+							>
+							<span>-</span>
+							<span
+								>{convertTimeToSelectedZone(
+									$form.start_date,
+									$form.end_time,
+									$form.default_time_zone
+								)}</span
+							>
+						</div>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Format -->
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="format" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label
+								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>
+								<span>Format</span>
+							</Form.Label>
+							<Select.Root
+								type="single"
+								value={$form.format}
+								onValueChange={(value: string) => ($form.format = value)}
+							>
+								<Select.Trigger class="w-45"
+									>Format: {snakeToSentenceCase($form.format)}</Select.Trigger
+								>
+								<Select.Content>
+									<Select.Item value="online">Online</Select.Item>
+									<Select.Item value="in_person">In-person</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						{/snippet}
+					</Form.Control>
 				</Form.Field>
-				{#if $form.default_time_zone !== 'Europe/London'}
-					<div class="text-muted-foreground flex gap-2">
-						<span>{$form.default_time_zone}</span>
-						<span>-</span>
-						<span
-							>{convertTimeToSelectedZone(
-								$form.start_date,
-								$form.start_time,
-								$form.default_time_zone
-							)}</span
-						>
-						<span>-</span>
-						<span
-							>{convertTimeToSelectedZone(
-								$form.start_date,
-								$form.end_time,
-								$form.default_time_zone
-							)}</span
-						>
-					</div>
-				{/if}
+			</div>
+
+			<!-- Custom Event Link -->
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="custom_event_link" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label
+								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>
+								<span>Custom event link</span>
+								<span class="font-normal">Override default Jitsi meeting link</span>
+							</Form.Label>
+							<div class="flex-1">
+								<Input
+									{...props}
+									bind:value={$form.custom_event_link}
+									placeholder={`/conversations/${conversation.id}/events/${event.id}/live`}
+									disabled={$form.format !== 'online'}
+								/>
+								<Form.FieldErrors />
+							</div>
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
+			</div>
+
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Fieldset form={eventForm} name="signup_mode" class="contents">
+					<Form.Legend class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>Signup mode</Form.Legend
+					>
+					<RadioGroup.Root
+						bind:value={$form.signup_mode}
+						class="flex flex-row space-x-1"
+						name="signup_mode"
+					>
+						<div class="flex items-center space-y-0 space-x-3">
+							<Form.Control>
+								{#snippet children({ props })}
+									<RadioGroup.Item value="invite" {...props} />
+									<Form.Label class="font-normal">Invite</Form.Label>
+								{/snippet}
+							</Form.Control>
+							<Form.Control>
+								{#snippet children({ props })}
+									<RadioGroup.Item value="open" {...props} />
+									<Form.Label class="font-normal">Open</Form.Label>
+								{/snippet}
+							</Form.Control>
+						</div>
+					</RadioGroup.Root>
+				</Form.Fieldset>
+			</div>
+
+			<div class="border-border flex justify-center border-t py-6">
+				<Form.Button
+					type="submit"
+					variant="default"
+					class="px-12"
+					disabled={saving || $submitting || !$tainted}
+				>
+					Save Changes
+				</Form.Button>
+			</div>
+		</form>
+	{:else if activeTab === 'structure'}
+		<div class="flex flex-col gap-10 py-6">
+			<div class="flex flex-col gap-2">
+				<h2 class="text-3xl font-bold">
+					Event structure <span class="font-bold">(for facilitator)</span>
+				</h2>
+				<p class="text-muted-foreground text-base">Plan how your meeting will run</p>
+			</div>
+
+			<AgendaEditor bind:items={agendaItems} onUpdate={handleAgendaUpdate} />
+
+			<div class="border-border flex justify-center border-t py-6">
+				<Button
+					variant="default"
+					class="px-12"
+					disabled={!agendaDirty || agendaSaving}
+					onclick={handleSaveAgenda}
+				>
+					{agendaSaving ? 'Saving...' : 'Save Agenda'}
+				</Button>
 			</div>
 		</div>
-
-		<!-- Format -->
+	{:else if activeTab === 'facilitators'}
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
-			<Form.Field form={eventForm} name="format" class="contents">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>
-							<span>Format</span>
-						</Form.Label>
-						<Select.Root
-							type="single"
-							value={$form.format}
-							onValueChange={(value: string) => ($form.format = value)}
-						>
-							<Select.Trigger class="w-45"
-								>Format: {snakeToSentenceCase($form.format)}</Select.Trigger
-							>
-							<Select.Content>
-								<Select.Item value="online">Online</Select.Item>
-								<Select.Item value="in_person">In-person</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
-
-		<!-- Custom Event Link -->
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
-			<Form.Field form={eventForm} name="custom_event_link" class="contents">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>
-							<span>Custom event link</span>
-							<span class="font-normal">Override default Jitsi meeting link</span>
-						</Form.Label>
-						<div class="flex-1">
-							<Input
-								{...props}
-								bind:value={$form.custom_event_link}
-								placeholder={`/conversations/${conversation.id}/events/${event.id}/live`}
-								disabled={$form.format !== 'online'}
-							/>
-							<Form.FieldErrors />
-						</div>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
-
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
-			<Form.Fieldset form={eventForm} name="signup_mode" class="contents">
-				<Form.Legend class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-					>Signup mode</Form.Legend
+			<div class="contents">
+				<Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Facilitators</Label
 				>
-				<RadioGroup.Root
-					bind:value={$form.signup_mode}
-					class="flex flex-row space-x-1"
-					name="signup_mode"
-				>
-					<div class="flex items-center space-y-0 space-x-3">
-						<Form.Control>
-							{#snippet children({ props })}
-								<RadioGroup.Item value="invite" {...props} />
-								<Form.Label class="font-normal">Invite</Form.Label>
-							{/snippet}
-						</Form.Control>
-						<Form.Control>
-							{#snippet children({ props })}
-								<RadioGroup.Item value="open" {...props} />
-								<Form.Label class="font-normal">Open</Form.Label>
-							{/snippet}
-						</Form.Control>
-					</div>
-				</RadioGroup.Root>
-			</Form.Fieldset>
+				<FacilitatorRoleList
+					{attendees}
+					{pendingInvites}
+					onSetRole={handleSetAttendeeRole}
+				/>
+			</div>
 		</div>
+	{:else if activeTab === 'location'}
+		<div class="flex flex-col gap-10 py-6">
+			<div class="flex flex-col gap-2">
+				<h2 class="text-3xl font-bold">
+					Location <span class="font-bold">(for in-person events)</span>
+				</h2>
+			</div>
 
-		<div class="border-border flex justify-center border-t py-6">
-			<Form.Button
-				type="submit"
-				variant="default"
-				class="px-12"
-				disabled={saving || $submitting || !$tainted}
-			>
-				Save Changes
-			</Form.Button>
+			<EventLocationForm {event} />
 		</div>
-	</form>
-{:else if activeTab === 'structure'}
-	<div class="flex flex-col gap-10 py-6">
-		<div class="flex flex-col gap-2">
-			<h2 class="text-3xl font-bold">
-				Event structure <span class="font-bold">(for facilitator)</span>
-			</h2>
-			<p class="text-muted-foreground text-base">Plan how your meeting will run</p>
+	{:else if activeTab === 'invites'}
+		<div class="border-border flex flex-col gap-4 border-t py-6 lg:gap-6">
+			<Label class="text-sm font-semibold lg:shrink-0 lg:pt-2">Email invites</Label>
+			<EmailInviteForm
+				conversationId={conversation.id}
+				eventId={event.id}
+				onDone={emailInvitesSubmitted}
+			/>
+			<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 		</div>
-
-		<AgendaEditor bind:items={agendaItems} onUpdate={handleAgendaUpdate} />
-
-		<div class="border-border flex justify-center border-t py-6">
-			<Button
-				variant="default"
-				class="px-12"
-				disabled={!agendaDirty || agendaSaving}
-				onclick={handleSaveAgenda}
-			>
-				{agendaSaving ? 'Saving...' : 'Save Agenda'}
-			</Button>
-		</div>
-	</div>
-{:else if activeTab === 'facilitators'}
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<div class="contents">
-			<Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Facilitators</Label>
-			<FacilitatorRoleList {attendees} {pendingInvites} onSetRole={handleSetAttendeeRole} />
-		</div>
-	</div>
-{:else if activeTab === 'location'}
-	<div class="flex flex-col gap-10 py-6">
-		<div class="flex flex-col gap-2">
-			<h2 class="text-3xl font-bold">
-				Location <span class="font-bold">(for in-person events)</span>
-			</h2>
-		</div>
-
-		<EventLocationForm {event} />
-	</div>
-{:else if activeTab === 'invites'}
-	<div class="border-border flex flex-col gap-4 border-t py-6 lg:gap-6">
-		<Label class="text-sm font-semibold lg:shrink-0 lg:pt-2">Email invites</Label>
-		<EmailInviteForm
-			conversationId={conversation.id}
-			eventId={event.id}
-			onDone={emailInvitesSubmitted}
-		/>
-		<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
-	</div>
-{:else if activeTab === 'breakout'}
-	<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} {attendees} />
-{:else if activeTab === 'recordings'}
-	<EventRecordings conversation_id={conversation.id} event_id={event.id} {recordings} />
-{/if}
+	{:else if activeTab === 'breakout'}
+		<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} {attendees} />
+	{:else if activeTab === 'recordings'}
+		<EventRecordings conversation_id={conversation.id} event_id={event.id} {recordings} />
+	{/if}
+</TabContent>
 
 {#snippet InviteLink(invite: InviteDto, label: string)}
 	<div class="flex flex-row gap-x-2">

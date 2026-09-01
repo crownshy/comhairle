@@ -43,7 +43,7 @@ export const load: PageLoad = async ({ params, parent, depends }) => {
 	});
 
 	return {
-		event,
+		event: event.ok,
 		attendees: attendees.records,
 		invites,
 		recordings
