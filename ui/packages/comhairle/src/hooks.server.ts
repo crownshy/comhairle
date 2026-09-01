@@ -4,6 +4,7 @@ import { paraglideMiddleware } from '$lib/paraglide/server';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName, DEFAULT_THEME, THEMES } from '$lib/types/theme';
 import { getTextDirection } from '$lib/paraglide/runtime';
+import { serverApiBaseUrl } from '$lib/apiBaseUrl';
 
 const isEmbeddable = (pathname: string) =>
 	EMBEDDABLE_PATHS.some((path) => pathname.startsWith(path));
@@ -72,10 +73,15 @@ export const handle: Handle = sequence(handleTheme, handleParaglide, handleHeade
 // Server-side `event.fetch('/api/...')` calls (form actions, load funcs) originate
 // from the frontend pod, so without this the API records the NAT gateway IP instead
 // of the real client. Forward the browser IP (set by nginx on the inbound request)
-// on same-origin /api requests only, so it never leaks to third-party hosts.
+// on requests to our own API only, so it never leaks to third-party hosts.
 export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
 	const url = new URL(request.url);
-	if (url.origin === event.url.origin && url.pathname.startsWith('/api')) {
+	// Matches our API whether it is reached through the public origin or, in a deployment that
+	// sets one, the internal service address.
+	const isApiRequest =
+		(url.origin === event.url.origin && url.pathname.startsWith('/api')) ||
+		request.url.startsWith(serverApiBaseUrl(event.url));
+	if (isApiRequest) {
 		const xff = event.request.headers.get('x-forwarded-for');
 		if (xff) {
 			request.headers.set('x-forwarded-for', xff);

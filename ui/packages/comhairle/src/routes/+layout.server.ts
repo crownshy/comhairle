@@ -1,6 +1,7 @@
 import type { LayoutServerLoad } from './$types.js';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName } from '$lib/types/theme';
+import { serverApiBaseUrl } from '$lib/apiBaseUrl';
 
 export const load: LayoutServerLoad = async (event) => {
 	event.depends('user');
@@ -18,9 +19,11 @@ export const load: LayoutServerLoad = async (event) => {
 		};
 	}
 
-	const resp = await event.fetch(`/api/auth/current_user`, {
+	const resp = await event.fetch(`${serverApiBaseUrl(event.url)}/auth/current_user`, {
 		method: 'GET',
-		headers: { Accept: 'application/json' }
+		// An absolute internal URL is cross-origin as far as `event.fetch` is concerned, so it
+		// stops forwarding the request's cookies and the token has to be passed by hand.
+		headers: { Accept: 'application/json', Cookie: `auth-token=${tk}` }
 	});
 
 	if (!resp.ok) {
