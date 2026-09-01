@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { stepScroller, stepScrollTop } from '$lib/utils/stepScroll';
 	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import HeyFormEmbedSkeleton from './HeyFormEmbedSkeleton.svelte';
@@ -138,12 +139,16 @@
 		alignTimer = undefined;
 		if (!iframeEl) return;
 
-		const frameTop = window.scrollY + iframeEl.getBoundingClientRect().top;
+		const scroller = stepScroller();
+		const scrolled = stepScrollTop(scroller);
+		const scrollerTop = scroller instanceof Window ? 0 : scroller.getBoundingClientRect().top;
+
+		const frameTop = scrolled + iframeEl.getBoundingClientRect().top - scrollerTop;
 		const target = Math.max(0, frameTop - FRAME_TOP_MARGIN_PX);
-		if (window.scrollY <= target) return;
+		if (scrolled <= target) return;
 
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		window.scrollTo({ top: target, behavior: reduceMotion ? 'auto' : 'smooth' });
+		scroller.scrollTo({ top: target, behavior: reduceMotion ? 'auto' : 'smooth' });
 	}
 
 	function requestFrameTopAlign() {

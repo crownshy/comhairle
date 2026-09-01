@@ -7,6 +7,7 @@
 		ComhairleDocument
 	} from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
+	import { scrollStepToTop } from '$lib/utils/stepScroll';
 	import { navigating } from '$app/state';
 	import LearningAssistant from '$lib/components/LearningAssistant/LearningAssistant.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
@@ -62,14 +63,14 @@
 	function nextPage() {
 		currentPageNo += 1;
 		tick().then(() => {
-			window.scrollTo(0, 0);
+			scrollStepToTop();
 		});
 	}
 
 	function prevPage() {
 		currentPageNo -= 1;
 		tick().then(() => {
-			window.scrollTo(0, 0);
+			scrollStepToTop();
 		});
 	}
 
@@ -98,30 +99,36 @@
 	});
 </script>
 
-<div class="mx-auto flex grow flex-col">
-	<!-- Article content: own loading state (route navigation / content not ready) -->
-	{#if showSkeleton.current}
-		<LearnArticleSkeleton />
-	{:else if content}
-		<article class="prose mx-auto w-full grow overflow-y-auto">
-			<ContentRenderer
-				{content}
-				{availableDocuments}
-				conversationId={conversation?.id}
-				{glossary}
-			/>
-		</article>
-	{:else}
-		<h1>Sorry this page is currently not avaliable in this language</h1>
-	{/if}
+<div class="mx-auto flex w-full grow flex-col">
+	<!-- A page shorter than the screen sits in the middle of the step rather than hugging the
+		chrome with dead space beneath it. Auto margins resolve to zero once the page is taller
+		than the screen, so a long article still starts at the top and scrolls normally. The
+		scroller is the step's <main>, not this element. -->
+	<div class="my-auto flex w-full flex-col py-4">
+		<!-- Article content: own loading state (route navigation / content not ready) -->
+		{#if showSkeleton.current}
+			<LearnArticleSkeleton />
+		{:else if content}
+			<article class="prose mx-auto w-full">
+				<ContentRenderer
+					{content}
+					{availableDocuments}
+					conversationId={conversation?.id}
+					{glossary}
+				/>
+			</article>
+		{:else}
+			<h1>Sorry this page is currently not avaliable in this language</h1>
+		{/if}
 
-	{#if tutorAvailable && conversation}
-		<div class="mx-auto w-full max-w-[65ch]">
-			<LearningAssistant
-				conversationId={conversation.id}
-				pageTitle={pageHeading}
-				loading={showSkeleton.current}
-			/>
-		</div>
-	{/if}
+		{#if tutorAvailable && conversation}
+			<div class="mx-auto mt-6 w-full max-w-[65ch]">
+				<LearningAssistant
+					conversationId={conversation.id}
+					pageTitle={pageHeading}
+					loading={showSkeleton.current}
+				/>
+			</div>
+		{/if}
+	</div>
 </div>

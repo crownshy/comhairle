@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 	import { tick } from 'svelte';
+	import { scrollStepToTop } from '$lib/utils/stepScroll';
 	import { Portal } from 'bits-ui';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -67,7 +68,7 @@
 	async function scrollToTop() {
 		await tick();
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+		scrollStepToTop(reduceMotion ? 'auto' : 'smooth');
 	}
 
 	/** Brief success interstitial shown between proposals so a submit registers as a
