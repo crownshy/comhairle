@@ -26,6 +26,14 @@ export function next_workflow_step_url(
 	return workflow_url(conversation_id, workflow_id, isPreview) + `/next`;
 }
 
+export function return_to_workflow_url(
+	conversation_id: string,
+	workflow_id: string,
+	isPreview: boolean = false
+) {
+	return workflow_url(conversation_id, workflow_id, isPreview) + `/return`;
+}
+
 export function thank_you_page(
 	conversation_id: string,
 	workflow_id: string,

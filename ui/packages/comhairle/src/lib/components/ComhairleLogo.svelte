@@ -5,7 +5,8 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 
 	type Props = {
-		href?: string;
+		/** `null` renders the mark without a link, for callers that handle the click themselves. */
+		href?: string | null;
 		showText?: boolean;
 		logoSize?: 'sm' | 'md' | 'lg';
 		color?: string;
