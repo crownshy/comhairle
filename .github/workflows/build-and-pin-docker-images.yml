@@ -53,6 +53,21 @@ jobs:
       force_pin: ${{ github.event.inputs.force_pin == 'true' }}
     secrets: inherit
 
+  pin-demo-young-scot-manifests:
+    if: github.ref == 'refs/heads/demo/young-scot'
+    needs:
+      - build-api
+      - build-frontend
+    uses: ./.github/workflows/pin-images-shared.yml
+    with:
+      gitops_file_path: comhairle/demo_young_scot_values.yaml
+      pin_ref: ${{ github.sha }}
+      pin_keys: docker_tag_api docker_tag_frontend
+      commit_message: Pin demo_young_scot frontend/api images to ${{ github.sha }}
+      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+      force_pin: ${{ github.event.inputs.force_pin == 'true' }}
+    secrets: inherit
+
   pin-prod-manifests:
     if: startsWith(github.ref, 'refs/tags/v') && github.ref_type == 'tag'
     needs:
