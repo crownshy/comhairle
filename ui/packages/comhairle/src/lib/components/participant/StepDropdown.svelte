@@ -79,16 +79,19 @@
 							class={cn(
 								'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums',
 								step.status === 'upcoming'
-									? 'bg-primary/15 text-muted-foreground'
+									? 'bg-muted text-muted-foreground'
 									: 'bg-primary text-primary-foreground'
 							)}
 						>
 							{#if step.status === 'completed' || step.status === 'completed-locked'}
-								<Check class="size-3.5" />
+								<!-- `text-current` opts out of the menu item's blanket
+									`[&_svg:not([class*='text-'])]:text-muted-foreground`, which would
+									otherwise paint the tick grey on the filled circle. -->
+								<Check class="size-3.5 text-current" strokeWidth={3} />
 							{:else if position}
 								{position}
 							{:else}
-								<span class="bg-background size-2 rounded-full"></span>
+								<span class="size-2 rounded-full bg-current"></span>
 							{/if}
 						</span>
 						<span
