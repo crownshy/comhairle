@@ -6,7 +6,7 @@
 	import { browser } from '$app/environment';
 	import '../app.css';
 	import { afterNavigate } from '$app/navigation';
-	import { notifications, NotificationsToaster } from '$lib/notifications.svelte';
+	import { notifications } from '$lib/notifications.svelte';
 
 	let { children, data }: LayoutProps = $props();
 	let { themeName, isCommunity } = data;
@@ -56,7 +56,8 @@
 <ThemeProvider>
 	<div class="bg-background w-full">
 		<CookieConsent />
-		<NotificationsToaster closeButton />
+		<!-- Toasts temporarily disabled while we simplify the participant chrome. -->
+		<!-- <NotificationsToaster closeButton /> -->
 		{@render children()}
 	</div>
 </ThemeProvider>
