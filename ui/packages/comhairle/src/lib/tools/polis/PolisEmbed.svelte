@@ -187,11 +187,11 @@
 		hasMetThreshold = data.hasMetThreshold;
 
 		if (data.totalVotes === safeRequiredVotes) {
-			setTimeout(() => {
-				screen = 'continue-prompt';
-				voteCooldown = false;
-				waitingForNext = false;
-			}, 600);
+			// Flip now, not after a beat: Polis has already been asked for the next
+			// statement, and any delay here lets it render behind the prompt first.
+			screen = 'continue-prompt';
+			voteCooldown = false;
+			waitingForNext = false;
 			return;
 		}
 
