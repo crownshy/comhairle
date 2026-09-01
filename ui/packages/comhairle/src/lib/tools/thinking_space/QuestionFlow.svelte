@@ -203,9 +203,13 @@
 		</div>
 	{:else}
 		<!-- One prompt at a time: the question, and the box you answer it in. What you already
-		     said is recapped on the summary, not here. Both are anchored to the bottom of the
-		     screen so the composer stays under the thumb. -->
-		<div class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-end gap-8 py-8">
+		     said is recapped on the summary, not here. On a phone the pair sits at the bottom so
+		     the composer stays under the thumb and above the keyboard; on a wide screen there is
+		     no thumb to reach and no keyboard to dodge, so it centres instead of leaving a void
+		     over it. -->
+		<div
+			class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-end gap-8 py-8 sm:justify-center"
+		>
 			<div>
 				{#if isRoot}
 					<p class="text-primary text-base font-medium">
