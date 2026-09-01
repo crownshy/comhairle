@@ -40,6 +40,13 @@ describe('segmentFill', () => {
 		}
 	});
 
+	it('fills the segment on the completion screen', () => {
+		expect(segmentFill({ phase: 'done', slideIndex: 0, slideCount: 3 })).toBe(1);
+		expect(segmentFill({ phase: 'done', slideIndex: 0, slideCount: 3, toolProgress: 0 })).toBe(
+			1
+		);
+	});
+
 	it('survives a slide count of zero', () => {
 		expect(cover(0, 0)).toBeGreaterThan(0);
 		expect(cover(0, 0)).toBeLessThanOrEqual(1);

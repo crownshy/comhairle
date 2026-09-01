@@ -3,6 +3,8 @@
 **Status:** proposed
 **Date:** 2026-08-31
 **Branch:** `mobile-exploration/participant-step-chrome`
+**Amended by:** [ADR-0023](0023-the-step-brief-ends-in-a-button.md), which moves the cover's
+forward control out of the pager and into a button
 
 ## Context
 

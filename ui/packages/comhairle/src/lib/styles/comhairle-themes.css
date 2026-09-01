@@ -129,6 +129,12 @@
 	--vote-not-voted-border: #e5e7eb;
 
 	--beeswarm-dot: #030712;
+
+	/* Completion green, shared by every theme: a step's "you are done here" marker has to
+	   read as success rather than as the theme's action colour, which the Proceed button
+	   directly under it already uses. */
+	--step-complete: #2a9d90;
+	--step-complete-foreground: #ffffff;
 }
 
 .dark {
@@ -608,6 +614,9 @@
 	--color-chat-text: var(--chat-text);
 	--color-chat-text-muted: var(--chat-text-muted);
 	--color-chat-bubble: var(--chat-bubble);
+
+	--color-step-complete: var(--step-complete);
+	--color-step-complete-foreground: var(--step-complete-foreground);
 
 	--color-seed-highlight: var(--seed-highlight);
 	--color-seed-highlight-bg: var(--seed-highlight-bg);
