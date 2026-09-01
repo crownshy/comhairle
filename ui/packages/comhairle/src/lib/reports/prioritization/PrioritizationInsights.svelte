@@ -17,17 +17,18 @@
 	let { insights, step, error }: Props = $props();
 	let toolConfig = $derived(localizeTranslatableJson(resolveToolConfig(step, !!step.toolConfig)));
 
-	// Use average incase some steps weren't completed and a proposal has less
-	// responses than others
-	const averageNumParticipants = $derived.by(() => {
+	const numDistinctParticipants = $derived.by(() => {
 		if (!insights) return 0;
 
-		const total = insights.rankedProposals.reduce(
-			(acc, proposal) => proposal.responses.length + acc,
-			0
-		);
+		const voterIds = new Set();
 
-		return Math.ceil(total / insights.rankedProposals.length);
+		for (const proposal of insights.rankedProposals) {
+			for (const response of proposal.responses) {
+				voterIds.add(response.userId);
+			}
+		}
+
+		return voterIds.size;
 	});
 </script>
 
@@ -41,7 +42,7 @@
 		<div class="flex gap-4">
 			<MetricOverviewCard
 				superText="Participants"
-				metric={averageNumParticipants}
+				metric={numDistinctParticipants}
 				subText="unique voters"
 			/>
 		</div>
