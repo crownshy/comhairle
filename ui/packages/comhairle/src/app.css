@@ -50,8 +50,17 @@ body {
    defaults, so they hold their size whatever `prose-*` modifier the call site uses.
    Mirrored in editor-content.css for `.tiptap` without `.prose`; keep the two in step. */
 .prose h1 {
-	font-size: var(--type-size-3xl);
-	line-height: var(--type-leading-3xl);
+	/* 3xl is a desktop size: at 375px it wraps a short title onto three lines and pushes
+	   the body off the fold. Off-scale on purpose, so a mobile h1 still outranks the 2xl h2. */
+	font-size: 1.75rem;
+	line-height: 2.25rem;
+}
+
+@media (width >= 48rem) {
+	.prose h1 {
+		font-size: var(--type-size-3xl);
+		line-height: var(--type-leading-3xl);
+	}
 }
 
 .prose h2 {
@@ -93,6 +102,13 @@ a {
 	top: 0.5rem !important;
 	right: 0.5rem !important;
 	left: auto !important;
+}
+
+@utility scrollbar-none {
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
 }
 
 /* Report page utilities */

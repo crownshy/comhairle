@@ -19,10 +19,18 @@
    carry `.tiptap` without the prose classes and the two sheets have no guaranteed
    import order. */
 .tiptap h1 {
-	font-size: var(--type-size-3xl);
+	/* See app.css: 3xl is a desktop size, so an h1 is smaller below the md breakpoint. */
+	font-size: 1.75rem;
 	font-weight: var(--type-weight-bold);
 	margin: 1rem 0 0.5rem 0;
-	line-height: var(--type-leading-3xl);
+	line-height: 2.25rem;
+}
+
+@media (width >= 48rem) {
+	.tiptap h1 {
+		font-size: var(--type-size-3xl);
+		line-height: var(--type-leading-3xl);
+	}
 }
 
 .tiptap h2 {
@@ -39,9 +47,11 @@
 	line-height: var(--type-leading-xl);
 }
 
+/* Reading rhythm, not an authoring one: this markup is what participants read on a phone,
+   so paragraphs get room to breathe. Call sites that need it tight override with `[&_p]:my-0`. */
 .tiptap p {
-	margin: 0.5rem 0;
-	line-height: 1.6;
+	margin: 0.75rem 0;
+	line-height: 1.7;
 }
 
 .tiptap ul {

@@ -23,7 +23,9 @@ export const EDITOR_HTML_ATTRIBUTES = {
 		class: 'max-w-full h-auto rounded-lg'
 	},
 	editor: {
-		class: 'prose prose-sm max-w-none focus:outline-none'
+		/* `prose`, not `prose-sm`: this class is reproduced onto rendered content by
+		   ContentRenderer, and text participants read has to start at 16px. */
+		class: 'prose max-w-none focus:outline-none'
 	}
 } as const;
 
