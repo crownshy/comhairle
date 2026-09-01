@@ -172,7 +172,9 @@
 		<div class="flex flex-col gap-1">
 			<span class="text-lg font-semibold">Description</span>
 			<p class="text-muted-foreground text-sm">
-				A description of this step that will inform users of its intent.
+				A description of this step that will inform users of its intent. Type
+				<code class="bg-muted rounded px-1">---</code>
+				to start a new slide; open Preview step to see the breaks as you type.
 			</p>
 		</div>
 		<div class="pt-4">

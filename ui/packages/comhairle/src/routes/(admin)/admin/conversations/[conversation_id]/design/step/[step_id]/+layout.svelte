@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
+	import StepPreviewDialog from '$lib/components/admin/StepPreviewDialog.svelte';
 
 	let { data, children } = $props();
 
@@ -27,7 +28,17 @@
 	 Rendered here from `data` (server-rendered) so a hard refresh of /design/step/* paints it
 	 immediately, rather than flashing in after hydration. The parent conversation layout gives
 	 the step route a full-bleed region (no padded wrapper) so this strip sits flush under Row 3. -->
-<SubTabStrip items={subtabItems} {basePath} />
+<SubTabStrip items={subtabItems} {basePath}>
+	{#snippet actions()}
+		{#if data.step}
+			<StepPreviewDialog
+				conversationId={data.conversation.id}
+				workflowId={data.step.workflowId}
+				stepId={data.step.id}
+			/>
+		{/if}
+	{/snippet}
+</SubTabStrip>
 
 {#if isHeyformSetup}
 	<div class="bg-admin-background min-h-0 grow overflow-hidden">

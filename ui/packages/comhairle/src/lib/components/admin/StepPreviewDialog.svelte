@@ -4,18 +4,16 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { workflow_step_url } from '$lib/urls';
 	import { postStepPreview } from '$lib/step-brief/livePreview';
+	import { stepPreviewDraft } from '$lib/step-brief/previewDraft.svelte';
 
 	let {
 		conversationId,
 		workflowId,
-		stepId,
-		description
+		stepId
 	}: {
 		conversationId: string;
 		workflowId: string;
 		stepId: string;
-		/** The editor's unsaved value. Pushed into the frame as it changes. */
-		description: string;
 	} = $props();
 
 	let open = $state(false);
@@ -27,36 +25,35 @@
 
 	let src = $derived(workflow_step_url(conversationId, workflowId, stepId, true));
 
+	// Undefined on every sub-tab but Configure, and on Configure until the editor reports its
+	// first value. The frame then shows the saved description, which is what it loaded with.
+	let draft = $derived(stepPreviewDraft.for(stepId));
+
 	// Debounced so a fast typist does not post on every keystroke. The frame keeps the last
 	// value it was given, so a dropped intermediate costs nothing.
 	$effect(() => {
-		const draft = description;
-		if (!ready) return;
+		const description = draft;
+		if (!ready || description === undefined) return;
 
 		const timer = setTimeout(() => {
-			postStepPreview(frame?.contentWindow, stepId, draft);
+			postStepPreview(frame?.contentWindow, stepId, description);
 		}, 250);
 		return () => clearTimeout(timer);
 	});
 
 	function onLoad() {
 		ready = true;
-		postStepPreview(frame?.contentWindow, stepId, description);
+		if (draft !== undefined) postStepPreview(frame?.contentWindow, stepId, draft);
 	}
 </script>
 
-<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-	<Button variant="outline" onclick={() => (open = true)}>
-		<Play class="size-4" />
-		Preview as participant
-	</Button>
-	<p class="text-muted-foreground text-sm">
-		Type <code class="bg-muted rounded px-1">---</code> in the description to start a new slide.
-	</p>
-</div>
+<Button variant="ghost" size="sm" class="text-primary" onclick={() => (open = true)}>
+	<Play class="size-4" />
+	Preview step
+</Button>
 
 <!-- Full screen rather than inline: the phone is only useful at its real size, and at that
-	size it crowds out the fields the admin is actually editing (ADR-0017). -->
+	size it crowds out the tab it was opened from (ADR-0017). -->
 <Dialog.Root
 	bind:open
 	onOpenChange={(isOpen) => {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import type { Snippet } from 'svelte';
 
 	type Item = { label: string; value: string };
 
@@ -21,6 +22,9 @@
 		 * server-renders and deep-links cleanly. Omit for query-param sub-tabs.
 		 */
 		basePath?: string;
+		/** Rendered at the end of the strip, pushed right. For actions that belong to the
+		 *  section the tabs are in, e.g. a step's preview trigger. */
+		actions?: Snippet;
 	};
 
 	let {
@@ -28,7 +32,8 @@
 		paramName = 'subtab',
 		defaultValue,
 		tone = 'secondary',
-		basePath
+		basePath,
+		actions
 	}: Props = $props();
 
 	let currentValue = $derived(
@@ -74,6 +79,11 @@
 				</a>
 			</li>
 		{/each}
+		{#if actions}
+			<li class="ms-auto shrink-0 ps-4">
+				{@render actions()}
+			</li>
+		{/if}
 	</ul>
 </nav>
 
