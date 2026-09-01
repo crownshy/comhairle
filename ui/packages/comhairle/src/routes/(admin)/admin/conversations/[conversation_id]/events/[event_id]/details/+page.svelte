@@ -37,9 +37,16 @@
 	import { invalidate } from '$app/navigation';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { omit } from '$lib/utils/objects';
+	import { EventFormat } from '@crownshy/api-client/api';
 
 	let { data } = $props();
-	const { event, conversation, attendees, recordings } = $derived(data);
+	const { event, conversation } = $derived(data);
+
+	const timeZone = getLocalTimeZone();
+	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
+		value: tz,
+		label: tz
+	}));
 
 	const eventForm = superForm(
 		{
@@ -47,12 +54,12 @@
 			description: event.description,
 			capacity: event.capacity,
 			default_time_zone: event.defaultTimeZone,
-			start_date: startDate,
+			start_date: event.startTime.split('T')[0],
 			start_time: utcTimeToLocal(event.startTime, timeZone),
 			end_time: utcTimeToLocal(event.endTime, timeZone),
-			signup_mode: event.signupMode,
 			format: event.format,
-			custom_event_link: event.customEventLink ?? ''
+			custom_event_link: event.customEventLink ?? '',
+			signup_mode: event.signupMode
 		},
 		{
 			validators: zodClient(EventDetailsSchema),
@@ -93,11 +100,6 @@
 		getPrimaryFallback: () => $form.description ?? '',
 		onEdit: (content) => ($form.description = content)
 	});
-
-	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
-		value: tz,
-		label: tz
-	}));
 
 	// Warn on refresh / navigate-away while a field is still autosaving.
 	guardUnsavedChanges(() => [nameSource, descriptionSource].some(hasUnsavedChanges));
@@ -148,7 +150,7 @@
 			return;
 		}
 
-		await invalidate(key('conversation/events'));
+		await invalidate(key('conversation/event'));
 		notifications.send({ message: 'Updated event', priority: 'INFO' });
 	}
 
@@ -362,7 +364,7 @@
 				<Select.Root
 					type="single"
 					value={$form.format}
-					onValueChange={(value: string) => ($form.format = value)}
+					onValueChange={(value) => ($form.format = value as EventFormat)}
 				>
 					<Select.Trigger class="w-45"
 						>Format: {snakeToSentenceCase($form.format)}</Select.Trigger

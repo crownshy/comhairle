@@ -1,4 +1,4 @@
-import type { PageLoad } from './$types';
+import type { LayoutLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
 import { key } from '$lib/utils/invalidationKey';
@@ -6,8 +6,9 @@ import { HttpStatus } from '$lib/utils/constants';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { resolve } from '$app/paths';
 
-export const load: PageLoad = async ({ params, parent, depends }) => {
-	depends(key('conversation/events'));
+export const load: LayoutLoad = async ({ params, parent, depends }) => {
+	depends(key('conversation/event'));
+
 	const { api, conversation } = await parent();
 	const { conversation_id, event_id } = params;
 

@@ -1,7 +1,10 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { key } from '$lib/utils/invalidationKey';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ parent, params }) => {
+export const load: PageLoad = async ({ parent, params, depends }) => {
+	depends(key('conversation/events'));
+
 	const { api } = await parent();
 	const { conversation_id } = params;
 

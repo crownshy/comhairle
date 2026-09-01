@@ -3,8 +3,11 @@
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import { resolve } from '$app/paths';
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils';
+	import { TabContent } from './external';
+	import { Button } from '$lib/components/ui/button';
 
-	const { children, params } = $props();
+	const { data, children, params } = $props();
+	const { conversation, event } = $derived(data);
 
 	const tabs = [
 		'details',
@@ -44,5 +47,15 @@
 		/>
 	{/each}
 </TabStripShell>
+
+<TabContent>
+	<div class="mb-6 flex flex-row items-center gap-4">
+		<h1 class="text-3xl font-bold">Event: {event?.name}</h1>
+		{#if conversation && event}
+			<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button
+			>
+		{/if}
+	</div>
+</TabContent>
 
 {@render children()}
