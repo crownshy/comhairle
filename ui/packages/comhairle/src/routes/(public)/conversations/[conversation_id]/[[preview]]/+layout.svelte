@@ -6,6 +6,10 @@
 	let { children, data }: LayoutProps = $props();
 	let preview = $derived(data.preview);
 
+	// Participant chrome pages (the landing page and the steps) carry a compact preview pill in
+	// their header, so this full-width banner covers the conversation's other pages only.
+	let showPreviewBanner = $derived(preview && !page.data.participantChrome);
+
 	beforeNavigate(({ to, cancel }) => {
 		const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
 
@@ -22,7 +26,7 @@
 	});
 </script>
 
-{#if preview}
+{#if showPreviewBanner}
 	<div class="bg-sidebar mt-3 w-full py-3 text-center text-white">
 		This is a preview of the conversation
 	</div>

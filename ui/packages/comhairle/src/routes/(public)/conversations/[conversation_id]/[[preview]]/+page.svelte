@@ -1,16 +1,19 @@
 <script lang="ts">
-	import type { PageProps } from '../$types.js';
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import type { PageProps } from './$types.js';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import * as m from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { page } from '$app/state';
-	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
 	import { loginRedirect, signupRedirect } from '$lib/urls.js';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
+	import StepChrome from '$lib/components/participant/StepChrome.svelte';
+	import type { StepItem } from '$lib/components/participant/stepItems';
+	import { stepPreviews } from '$lib/components/participant/stepPreview';
+	import StepZeroScreen from './StepZeroScreen.svelte';
+	import ConversationDetail, { landingSections } from './ConversationDetail.svelte';
 
 	let { data }: PageProps = $props();
 	let { conversation, workflows, participation, preview } = data;
@@ -112,85 +115,122 @@
 			isSubmitting = false;
 		}
 	}
+
+	let steps = $derived(stepPreviews(data.workflowSteps));
+	let hasDetail = $derived(landingSections(conversation, steps).length > 0);
+
+	/**
+	 * The landing page is Step zero: the progress bar carries its own segment ahead of the
+	 * workflow's, so a participant sees the shape of the whole journey before joining and the
+	 * bar does not appear out of nowhere on the first Step (ADR-0021).
+	 *
+	 * The intro segment is excluded from "Step N of M", so adding it here cannot change the
+	 * number of steps a participant is quoted.
+	 */
+	let stepItems = $derived<StepItem[]>([
+		{
+			id: 'landing',
+			name: m.landing_before_you_start(),
+			status: 'current',
+			isIntro: true
+		},
+		...steps.map((step) => ({ id: step.id, name: step.name, status: 'upcoming' as const }))
+	]);
+
+	function scrollToDetail() {
+		document
+			.getElementById('conversation-detail')
+			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="pt-5 pb-10 md:pt-20">
-	{#if conversation}
-		<div class="hidden md:block">
-			<Breadcrumbs {conversation} />
-		</div>
-		{#if conversation.isComplete}
-			<div class="flex flex-col gap-4">
-				<h1 class="text-xl font-bold">{m.conversation_closed_title()}</h1>
-				<p>{m.conversation_closed_description()}</p>
-				<Button href="/conversations">{m.conversation_closed_link()}</Button>
-			</div>
-		{:else}
-			<ConversationSummary {conversation}>
-				{#if user}
-					{#if participation}
-						<Button class="mt-5 w-full md:w-fit" variant="primaryDark" href={returnPath}
-							>{conversation.callToAction || m.jump_back_in()}</Button
-						>
-					{:else}
-						<Button
-							class="mt-5 w-full md:w-fit"
-							onclick={handleJoin}
-							disabled={isSubmitting}
-						>
-							{#if isSubmitting}
-								<Spinner class="mr-2 size-4" />
-							{/if}
-							{conversation.callToAction || m.join_the_conversation()}
-						</Button>
-					{/if}
-				{:else if firstWorkflow.autoLogin}
-					<Button
-						class="mt-5 w-full md:w-fit"
-						onclick={handleJoin}
-						disabled={isSubmitting}
-					>
-						{#if isSubmitting}
-							<Spinner class="mr-2 size-4" />
-						{/if}
-						{conversation.callToAction || m.join_the_conversation()}
-					</Button>
-				{:else}
-					<Button
-						class="mt-5 w-full md:w-fit"
-						onclick={redirectToLogin}
-						disabled={isSubmitting}
-					>
-						{#if isSubmitting}
-							<Spinner class="mr-2 size-4" />
-						{/if}
-						{m.login_to_take_part()}
-					</Button>
-					<Button
-						class="mt-5 w-full md:w-fit"
-						onclick={redirectToSignIn}
-						disabled={isSubmitting}
-					>
-						{#if isSubmitting}
-							<Spinner class="mr-2 size-4" />
-						{/if}
-						{m.signup_to_take_part()}
-					</Button>
-				{/if}
-			</ConversationSummary>
+{#if !conversation}
+	<div class="mx-auto w-full max-w-5xl px-5 py-20 md:px-6">
+		<h1 class="text-2xl font-semibold">Conversation not found</h1>
+	</div>
+{:else if conversation.isComplete}
+	<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-5 py-20 md:px-6">
+		<h1 class="text-2xl font-semibold">{m.conversation_closed_title()}</h1>
+		<p class="text-base">{m.conversation_closed_description()}</p>
+		<Button class="w-fit" href="/conversations">{m.conversation_closed_link()}</Button>
+	</div>
+{:else}
+	<!-- The cover owns the first viewport: chrome, cover, call to action, nothing below the
+	     fold until you scroll. `min-h` rather than a fixed height because the chrome grows on
+	     a narrow screen and the cover must be allowed to push past the fold rather than clip. -->
+	<div class="flex min-h-[100dvh] flex-col pb-28">
+		<StepChrome
+			steps={stepItems}
+			currentIndex={0}
+			label={m.landing_before_you_start()}
+			fill={0}
+			showSupport={false}
+			{preview}
+		/>
 
-			<PrivacyPolicyDialog
-				{conversation}
-				availableDocuments={data.availableDocuments}
-				bind:open={privacyPolicyOpen}
-				onAccept={handlePrivacyPolicyAccept}
-			/>
-		{/if}
-	{:else}
-		<h1>Conversation not found</h1>
-	{/if}
-</div>
+		<StepZeroScreen
+			{conversation}
+			{steps}
+			onReadMore={hasDetail ? scrollToDetail : undefined}
+		/>
+	</div>
+
+	<ConversationDetail {conversation} {steps} availableDocuments={data.availableDocuments} />
+
+	<!-- Fixed rather than sticky: the call to action has to survive the whole scroll through
+	     the detail, not just the cover. Both blocks above reserve its height. -->
+	<div class="bg-background fixed inset-x-0 bottom-0 z-30 border-t">
+		<div class="mx-auto flex w-full max-w-5xl flex-col gap-2 px-5 pt-3 pb-5 md:px-6">
+			{#if user && participation}
+				<Button
+					class="h-12 w-full text-base md:mx-auto md:w-80"
+					variant="primaryDark"
+					href={returnPath}
+				>
+					{conversation.callToAction || m.jump_back_in()}
+				</Button>
+			{:else if user || firstWorkflow.autoLogin}
+				<Button
+					class="h-12 w-full text-base md:mx-auto md:w-80"
+					onclick={handleJoin}
+					disabled={isSubmitting}
+				>
+					{#if isSubmitting}
+						<Spinner class="mr-2 size-4" />
+					{/if}
+					{conversation.callToAction || m.join_the_conversation()}
+				</Button>
+			{:else}
+				<Button
+					class="h-12 w-full text-base md:mx-auto md:w-80"
+					onclick={redirectToSignIn}
+					disabled={isSubmitting}
+				>
+					{#if isSubmitting}
+						<Spinner class="mr-2 size-4" />
+					{/if}
+					{m.signup_to_take_part()}
+				</Button>
+				<Button
+					variant="ghost"
+					class="h-10 w-full text-base md:mx-auto md:w-80"
+					onclick={redirectToLogin}
+					disabled={isSubmitting}
+				>
+					{m.login_to_take_part()}
+				</Button>
+			{/if}
+		</div>
+	</div>
+
+	<PrivacyPolicyDialog
+		{conversation}
+		availableDocuments={data.availableDocuments}
+		bind:open={privacyPolicyOpen}
+		onAccept={handlePrivacyPolicyAccept}
+	/>
+{/if}
