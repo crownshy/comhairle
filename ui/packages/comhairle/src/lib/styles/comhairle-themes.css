@@ -197,8 +197,10 @@
 	--seed-highlight-bg: #7cb34226;
 }
 
-/* Scottish Government Theme */
-[data-theme='scot-gov'] {
+/* Scottish Government Theme. young-scot rides on the same palette until its own brand
+   colours land; only the logo lockup differs today. */
+[data-theme='scot-gov'],
+[data-theme='young-scot'] {
 	--background: #ffffff;
 	--foreground: #111827;
 	--card: #ffffff;
@@ -284,7 +286,8 @@
 	--vote-not-voted-border: #e5e7eb;
 }
 
-[data-theme='scot-gov'].dark {
+[data-theme='scot-gov'].dark,
+[data-theme='young-scot'].dark {
 	--background: #0b1120;
 	--foreground: #e8edf4;
 	--card: #111827;

@@ -7,6 +7,7 @@ export const DEFAULT_THEME = 'comhairle' as const;
 export const THEMES = {
 	comhairle: { favicon: 'favicon.png' },
 	'scot-gov': { favicon: 'favicon.png' },
+	'young-scot': { favicon: 'favicon.png' },
 	waves: { favicon: 'waves-favicon.png' }
 } as const satisfies Record<string, ThemeConfig>;
 

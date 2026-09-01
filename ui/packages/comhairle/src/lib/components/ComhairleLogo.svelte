@@ -2,6 +2,7 @@
 	import IconLogo from '$lib/assets/comhairle_logo.svg';
 	import FullLogo from '$lib/assets/comhairle_full_logo.svg';
 	import WavesLogo from '$lib/assets/waves-logo-lg.png';
+	import YoungScotLogo from '$lib/components/YoungScotLogo.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 
 	type Props = {
@@ -34,12 +35,15 @@
 	};
 
 	let isWaves = $derived(themeStore.name === 'waves');
+	let isYoungScot = $derived(themeStore.name === 'young-scot');
 	let logoSrc = $derived(showText ? FullLogo : IconLogo);
 	let sizeClass = $derived(showText ? fullSizeMap[logoSize] : iconSizeMap[logoSize]);
 </script>
 
 {#snippet logoContent()}
-	{#if isWaves}
+	{#if isYoungScot}
+		<YoungScotLogo {showText} {logoSize} />
+	{:else if isWaves}
 		<img
 			src={WavesLogo}
 			alt="Logo"

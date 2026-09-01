@@ -22,7 +22,8 @@ const preview: Preview = {
 				icon: 'paintbrush',
 				items: [
 					{ value: 'comhairle', title: 'Comhairle' },
-					{ value: 'scot-gov', title: 'Scottish Gov' }
+					{ value: 'scot-gov', title: 'Scottish Gov' },
+					{ value: 'young-scot', title: 'Young Scot' }
 				],
 				dynamicTitle: true
 			}
