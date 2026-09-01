@@ -8,7 +8,7 @@
 
 	const { params, children } = $props();
 
-	const tabs = ['email', 'open-links', 'physical'] as const;
+	const tabs = ['email', 'open-links'] as const;
 </script>
 
 <svelte:head>
