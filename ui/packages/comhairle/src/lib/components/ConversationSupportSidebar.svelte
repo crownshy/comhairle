@@ -2,12 +2,13 @@
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { LucideChevronRight } from 'lucide-svelte';
-	import CircleQuestionMark from '$lib/components/icons/CircleQuestionMark.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type { ComhairleDocument, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
 	import ComhairleFAQs from './ComhairleFAQs.svelte';
 	import LearningAssistant from './LearningAssistant/LearningAssistant.svelte';
+	import { learningAssistantAvailable } from './LearningAssistant/availability';
+	import { supportPanel, type SupportPanelTab } from './participant/supportPanel.svelte';
 
 	let {
 		conversation,
@@ -22,16 +23,14 @@
 		currentStepTitle?: string;
 	} = $props();
 
-	// The Learning Assistant only answers from parsed knowledge base documents, so it is hidden
-	// entirely when the knowledge base is empty (see workflow +layout.ts for the single source).
-	let learningAssistantAvailable = $derived(
-		!!conversation?.chatBotId && !!conversation.enableQaChatBot && hasKnowledgeBaseDocs
+	let assistantAvailable = $derived(
+		learningAssistantAvailable(conversation, hasKnowledgeBaseDocs)
 	);
 
-	let activeTab = $state(
-		conversation?.chatBotId && conversation.enableQaChatBot && hasKnowledgeBaseDocs
-			? 'learningAssistant'
-			: 'faqs'
+	// The panel's tab lives in supportPanel, because the step menu opens the panel on a
+	// particular one. A click on the tab strip writes back there, so the two agree.
+	let activeTab = $derived(
+		supportPanel.tab === 'learningAssistant' && !assistantAvailable ? 'faqs' : supportPanel.tab
 	);
 
 	let tabs = [
@@ -50,18 +49,25 @@
 	];
 </script>
 
-<Drawer.Root direction="right">
+<Drawer.Root direction="right" bind:open={supportPanel.open}>
+	<!-- Below lg the way in is the step menu, which can name what is behind it (the assistant,
+	     the FAQs) where an icon could not. The rotated tab needs room to sit beside the content,
+	     so it stays a desktop affordance. -->
 	<Drawer.Trigger
-		class="bg-primary/50 hover:bg-primary lg:bg-primary fixed top-1/5 right-0 translate-x-12 -rotate-90 p-3 font-bold text-white transition-colors duration-300 ease-in-out"
+		class="bg-primary fixed top-1/5 right-0 hidden translate-x-12 -rotate-90 p-3 font-bold text-white transition-colors duration-300 ease-in-out lg:block"
 		><span>Find out more</span></Drawer.Trigger
 	>
 	<Drawer.Content class="flex w-screen! max-w-[100vw]! flex-col px-8 py-12 lg:max-w-[50vw]!">
 		<Drawer.Close class="absolute top-0 left-0 p-3 focus:border-none"
 			><span><LucideChevronRight class="stroke-foreground" /></span></Drawer.Close
 		>
-		<Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col">
+		<Tabs.Root
+			value={activeTab}
+			onValueChange={(next) => supportPanel.openAt(next as SupportPanelTab)}
+			class="flex min-h-0 flex-1 flex-col"
+		>
 			<div class="bg-sidebar mb-4 flex shrink-0 flex-row gap-0.5 rounded-xl p-1">
-				{#if learningAssistantAvailable}
+				{#if assistantAvailable}
 					<Tabs.Trigger
 						value="learningAssistant"
 						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
@@ -93,7 +99,7 @@
 						{/if}
 					</Tabs.Content>
 				{/each}
-				{#if learningAssistantAvailable}
+				{#if assistantAvailable}
 					<Tabs.Content value="learningAssistant" class="flex min-h-0 flex-1 flex-col">
 						<LearningAssistant
 							conversationId={conversation.id}
