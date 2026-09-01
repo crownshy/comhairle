@@ -1,6 +1,7 @@
 # ADR-0020: The logo asks before it leaves a step, and hands over the way back
 
-**Status:** proposed
+**Status:** superseded by
+[ADR-0024](0024-before-you-start-is-a-deck-you-can-come-back-to.md)
 **Date:** 2026-09-01
 **Branch:** `mobile-exploration/participant-step-chrome`
 

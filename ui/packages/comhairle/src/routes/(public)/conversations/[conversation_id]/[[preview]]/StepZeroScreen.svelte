@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * Step zero: the conversation landing page's first screen, one viewport ending in the call
-	 * to action. Everything else lives in {@link ConversationDetail} below the fold.
+	 * to action. Everything else lives in {@link BeforeYouStart} below the fold.
 	 *
 	 * Deliberately shaped like a Step rather than like a website page. The chrome above it is
 	 * the participant `StepChrome`, so arriving at a Conversation and starting its first Step
@@ -12,6 +12,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { ChevronDown } from 'lucide-svelte';
 	import { totalMinutes, type StepPreview } from '$lib/components/participant/stepPreview';
+	import { conversationImageUrl } from '$lib/utils/conversationImage';
 
 	let {
 		conversation,
@@ -25,6 +26,8 @@
 	} = $props();
 
 	let minutes = $derived(totalMinutes(steps));
+
+	let imageUrl = $derived(conversationImageUrl(conversation.imageUrl));
 
 	let metaLine = $derived(
 		[
@@ -43,13 +46,7 @@
 <section
 	class="mx-auto flex w-full max-w-5xl grow flex-col items-center justify-center gap-6 px-6 py-8 text-center"
 >
-	{#if conversation.imageUrl}
-		<img
-			class="max-h-[24vh] w-full max-w-md rounded-2xl object-cover"
-			src={conversation.imageUrl}
-			alt=""
-		/>
-	{/if}
+	<img class="max-h-[24vh] w-full max-w-md rounded-2xl object-cover" src={imageUrl} alt="" />
 
 	<h1 class="max-w-2xl text-4xl leading-tight font-semibold md:text-5xl">
 		{conversation.title}

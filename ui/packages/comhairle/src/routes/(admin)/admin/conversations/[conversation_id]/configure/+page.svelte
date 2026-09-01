@@ -592,7 +592,7 @@
 						{@render fieldLabel(
 							'Description',
 							'',
-							'A fuller introduction, shown beside the banner image on the landing and invitation pages.'
+							'A fuller introduction, shown on Before you start and the invitation page. A line of --- starts a new page there, and a page that opens with a heading is named by it.'
 						)}
 						<div class="flex-1">
 							<TranslatableField

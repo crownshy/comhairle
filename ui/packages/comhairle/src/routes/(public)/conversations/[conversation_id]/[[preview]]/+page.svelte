@@ -13,7 +13,8 @@
 	import type { StepItem } from '$lib/components/participant/stepItems';
 	import { stepPreviews } from '$lib/components/participant/stepPreview';
 	import StepZeroScreen from './StepZeroScreen.svelte';
-	import ConversationDetail, { landingSections } from './ConversationDetail.svelte';
+	import BeforeYouStart from './BeforeYouStart.svelte';
+	import { beforeYouStartPages } from '$lib/components/participant/beforeYouStart';
 
 	let { data }: PageProps = $props();
 	let { conversation, workflows, participation, preview } = data;
@@ -117,7 +118,7 @@
 	}
 
 	let steps = $derived(stepPreviews(data.workflowSteps));
-	let hasDetail = $derived(landingSections(conversation, steps).length > 0);
+	let pages = $derived(beforeYouStartPages(conversation, steps));
 
 	/**
 	 * The landing page is Step zero: the progress bar carries its own segment ahead of the
@@ -175,11 +176,16 @@
 		<StepZeroScreen
 			{conversation}
 			{steps}
-			onReadMore={hasDetail ? scrollToDetail : undefined}
+			onReadMore={pages.length ? scrollToDetail : undefined}
 		/>
 	</div>
 
-	<ConversationDetail {conversation} {steps} availableDocuments={data.availableDocuments} />
+	<BeforeYouStart
+		{pages}
+		{steps}
+		conversationId={conversation.id}
+		availableDocuments={data.availableDocuments}
+	/>
 
 	<!-- Fixed rather than sticky: the call to action has to survive the whole scroll through
 	     the detail, not just the cover. Both blocks above reserve its height. -->

@@ -1,6 +1,7 @@
 # ADR-0021: The conversation landing page is Step zero
 
-**Status:** proposed
+**Status:** proposed (part 3 superseded by
+[ADR-0024](0024-before-you-start-is-a-deck-you-can-come-back-to.md))
 **Date:** 2026-09-01
 **Branch:** `mobile-exploration/participant-step-chrome`
 

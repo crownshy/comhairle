@@ -1,6 +1,7 @@
 # ADR-0022: A step ends on a completion screen, and the progress write waits for Proceed
 
-**Status:** proposed
+**Status:** proposed (a skipped step is exempted by
+[ADR-0024](0024-before-you-start-is-a-deck-you-can-come-back-to.md))
 **Date:** 2026-09-01
 **Branch:** `mobile-exploration/participant-step-chrome`
 
