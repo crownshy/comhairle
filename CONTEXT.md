@@ -26,6 +26,9 @@ _Avoid_: Tool selection modal (being removed).
 A per-Step duration in minutes shown as a card pill when the board's "Estimated time" toggle is on. Distinct from the typical-duration ranges described narratively in the Tools Guide.
 _Status_: Not backed yet — displayed from a hardcoded per-tool default for now; a real editable `estimated_minutes` (nullable) column is deferred pending the same team decision as [[data-protocol]] (flagged on the PR).
 
+**Time spent**:
+The minutes the completion screen reports back to a participant. Measured, not estimated: the step pages stamp a clock in the browser and the thank-you page reads it, so it is time in this sitting rather than the sum of the tools' hardcoded defaults. Distinct from [[#estimated-time]], which is what the landing page quotes before anyone starts. Missing or stale stamps drop the figure rather than guess at one (ADR-0027).
+
 **Tools Guide**:
 The admin reference pages at `/admin/info/tools/<key>`, one long-form editorial page per tool (sections: What you need to know, How it works, Mostly used in, Data collection and analysis, A typical participant experience, How to set this up, The open source tool we use). Opened in a new tab from a tool's "Learn more" link.
 
