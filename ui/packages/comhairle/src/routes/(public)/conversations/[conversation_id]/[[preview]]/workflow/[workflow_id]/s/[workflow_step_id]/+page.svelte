@@ -15,13 +15,19 @@
 	import StepChrome from '$lib/components/participant/StepChrome.svelte';
 	import StepPager from '$lib/components/participant/StepPager.svelte';
 	import StepCover from '$lib/components/participant/StepCover.svelte';
+	import StepTour from '$lib/components/participant/StepTour.svelte';
 	import StepComplete from '$lib/components/participant/StepComplete.svelte';
 	import StepProceedBar from '$lib/components/participant/StepProceedBar.svelte';
 	import StepBriefOverlay from '$lib/components/participant/StepBriefOverlay.svelte';
 	import StepBriefBar from '$lib/components/participant/StepBriefBar.svelte';
-	import StepCoverNav from '$lib/components/participant/StepCoverNav.svelte';
 	import type { StepItem } from '$lib/components/participant/stepItems';
 	import { splitSlides } from '$lib/step-brief/splitSlides';
+	import {
+		isFirstRun,
+		hasSeenStepTour,
+		markStepTourSeen
+	} from '$lib/components/participant/stepTour';
+	import { touchFlowTiming } from '$lib/components/participant/flowTiming';
 	import { toMetaToolConfig } from '$lib/step-brief/slideMeta';
 	import { onStepPreview } from '$lib/step-brief/livePreview';
 	import { segmentFill } from '$lib/step-brief/segmentFill';
@@ -32,7 +38,7 @@
 	import {
 		thank_you_page,
 		next_workflow_step_url,
-		return_to_workflow_url,
+		conversation_url,
 		workflow_step_url
 	} from '$lib/urls';
 	import { page, navigating } from '$app/state';
@@ -106,21 +112,25 @@
 		})
 	);
 
-	/**
-	 * Absolute, shareable link back into this workflow, offered when the participant tries to
-	 * leave. `/return` rather than this step's own address so it still lands them in the right
-	 * place after they move on. A preview has no progress to keep, so it gets no link.
-	 */
-	let returnUrl = $derived(
-		isPreview
-			? undefined
-			: new URL(return_to_workflow_url(conversation.id, workflow_id), url.origin).href
-	);
+	/** Where the logo and the menu's first row go: this conversation's Before you start. */
+	let introUrl = $derived(conversation_url(conversation.id, isPreview) + queryString);
 
-	// An anonymous participant's username is the only way back in from another browser.
-	let anonymousId = $derived(
-		user?.authType === 'annon' ? (user.username ?? undefined) : undefined
-	);
+	/**
+	 * Before you start keeps its segment in the chrome once a participant has joined, so the
+	 * bar does not lose a segment on the first step and the menu keeps a way back to it
+	 * (ADR-0024). It is not one of the workflow's steps, so `isIntro` keeps it out of
+	 * "Step N of M" and out of the index the pager walks.
+	 */
+	let chromeSteps = $derived<StepItem[]>([
+		{
+			id: 'landing',
+			name: m.landing_before_you_start(),
+			status: 'completed',
+			href: introUrl,
+			isIntro: true
+		},
+		...stepItems
+	]);
 
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
 	let currentStepNumber = $derived(viewedIndex + 1);
@@ -195,6 +205,14 @@
 	let sequence = $derived.by<ToolSequence>(() => {
 		void workflowStep.id;
 		return {};
+	});
+
+	// The clock the thank-you page reports on. Stamped as each step opens, so the number it
+	// gives is time this participant spent in the flow rather than the sum of the tools'
+	// hardcoded estimates.
+	$effect(() => {
+		void workflowStep.id;
+		touchFlowTiming(conversation.id);
 	});
 
 	let canProceed = $state(false);
@@ -281,7 +299,41 @@
 			sequence.next();
 			return;
 		}
+		// Skipping is a decision to move on, not something finished, so it goes straight to the
+		// next step. The completion screen is for a step the participant actually did.
+		if (forwardMode === 'skip') {
+			proceed();
+			return;
+		}
 		stepComplete();
+	}
+
+	function toggleBrief() {
+		briefOpen = !briefOpen;
+	}
+
+	/**
+	 * The brief is only worth reopening once the tool is up. On the cover it is the screen the
+	 * participant is looking at, and a step with no description has no brief at all.
+	 */
+	let canReopenBrief = $derived(phase === 'body' && briefSlides.length > 0);
+
+	/**
+	 * The one-time tour of the chrome. It waits for the body phase because that is the first
+	 * screen where all four places it names exist: the cover has no pager and no brief chip.
+	 */
+	let tourOpen = $state(false);
+
+	$effect(() => {
+		if (phase !== 'body') return;
+		if (!isFirstRun(workflowSteps)) return;
+		if (hasSeenStepTour(conversation.id)) return;
+		tourOpen = true;
+	});
+
+	function dismissTour() {
+		markStepTourSeen(conversation.id);
+		tourOpen = false;
 	}
 
 	function goToThankYouPage() {
@@ -384,14 +436,15 @@
 		class="grid h-[100dvh] grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] overflow-hidden"
 	>
 		<StepChrome
-			steps={stepItems}
-			currentIndex={viewedIndex}
+			steps={chromeSteps}
+			currentIndex={viewedIndex + 1}
 			label={stepLabel}
 			{fill}
 			count={phase === 'done' ? undefined : sequence.count}
 			{assistantAvailable}
-			{returnUrl}
-			{anonymousId}
+			{introUrl}
+			{briefOpen}
+			onBrief={canReopenBrief ? toggleBrief : undefined}
 			preview={isPreview}
 		/>
 
@@ -406,12 +459,9 @@
 			{#if phase === 'done'}
 				<StepComplete />
 			{:else if phase === 'cover'}
-				<StepCoverNav
-					{canGoBack}
-					skippable={!workflowStep.required}
-					onBack={goBack}
-					onSkip={stepComplete}
-				/>
+				<!-- No back or skip here: the cover explains the step, and one forward action is
+				     the whole decision it asks for (ADR-0024). Both moves are still on the pager
+				     once the step itself is open. -->
 				<StepCover
 					slides={briefSlides}
 					index={slideIndex}
@@ -543,16 +593,18 @@
 		{:else}
 			<StepPager
 				{forwardMode}
-				{briefOpen}
 				{canGoBack}
 				{canGoForward}
 				loading={isSubmitting}
 				onBack={goBack}
 				onForward={goForward}
-				onBrief={() => (briefOpen = !briefOpen)}
 			/>
 		{/if}
 	</div>
+
+	{#if tourOpen}
+		<StepTour onDismiss={dismissTour} />
+	{/if}
 
 	{#if briefOpen}
 		<StepBriefOverlay
