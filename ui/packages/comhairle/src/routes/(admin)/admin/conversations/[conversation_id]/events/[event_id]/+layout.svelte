@@ -56,6 +56,5 @@
 			>
 		{/if}
 	</div>
+	{@render children()}
 </TabContent>
-
-{@render children()}

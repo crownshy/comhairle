@@ -202,7 +202,7 @@
 					<!-- Breakout prompts -->
 					<div class="text-foreground text-lg font-bold">Breakout prompt</div>
 
-					{#each item.prompts ?? [] as prompt, pIdx (prompt.title)}
+					{#each item.prompts ?? [] as prompt, pIdx}
 						<div class="border-border flex flex-col gap-6 rounded-lg border p-6">
 							<div class="flex items-start gap-4">
 								<div class="flex flex-col gap-1">
@@ -275,7 +275,7 @@
 								>How would you like to balance each group's composition?</span
 							>
 							<div class="flex flex-col">
-								{#each balanceOptions as opt (opt)}
+								{#each balanceOptions as opt}
 									<label class="flex cursor-pointer items-center gap-2.5 p-2.5">
 										<input
 											type="checkbox"

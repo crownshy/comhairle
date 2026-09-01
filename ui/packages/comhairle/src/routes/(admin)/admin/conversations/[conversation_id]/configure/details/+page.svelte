@@ -27,7 +27,7 @@
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
-	let { data } = $props();
+	const { data } = $props();
 	const { conversation, streamedMedia } = $derived(data);
 
 	let primaryLocale = $derived<Locale>((data.conversation.primaryLocale as Locale) ?? 'en');

@@ -49,7 +49,7 @@
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { key } from '$lib/utils/invalidationKey.js';
-	import { TabContent } from './index';
+	import { TabContent } from './external';
 
 	let url = $derived(page.url);
 	let { data } = $props();
