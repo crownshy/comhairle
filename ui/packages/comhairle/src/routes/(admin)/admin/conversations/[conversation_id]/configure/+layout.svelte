@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
+	import TabStripItem from '$lib/components/TabStripItem.svelte';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import TabContent from '../TabContent.svelte';
@@ -10,23 +10,14 @@
 	const tabs = ['details', 'content', 'glossary', 'access'] as const;
 </script>
 
-{#snippet Tab(id: (typeof tabs)[number] | 'team')}
-	{@const active = page.route.id?.endsWith(id)}
-	<li>
-		<a
-			href={resolve(`/(admin)/admin/conversations/[conversation_id]/configure/${id}`, {
-				conversation_id: params.conversation_id
-			})}
-			data-sveltekit-noscroll
-			class="text-foreground inline-flex h-9 items-center px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"
-			class:text-primary={active}
-			class:opacity-70={!active}
-			class:hover:opacity-100={!active}
-			aria-current={active ? 'page' : undefined}
-		>
-			{capitalise(id)}
-		</a>
-	</li>
+{#snippet Tab(tab: (typeof tabs)[number] | 'team')}
+	<TabStripItem
+		{tab}
+		href={resolve(`/(admin)/admin/conversations/[conversation_id]/configure/${tab}`, {
+			conversation_id: params.conversation_id
+		})}
+		label={capitalise(tab)}
+	/>
 {/snippet}
 
 <TabStripShell ariaLabel="Configure sections">
