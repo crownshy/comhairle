@@ -296,8 +296,6 @@
 	"round": "پړاو",
 	"thinking": "فکر",
 	"learning_assistant": "د زده کړې مرستیال",
-	"learning_assistant_summary": "له دې ځای څخه د موضوع په اړه د هغو پوښتنو د ځوابولو لپاره کار واخلئ چې ښايي تاسو یې ولرئ.",
-	"learning_assistant_description": "غوره ده داسې پوښتنې وکړئ چې ستاسو په زده کړه کې مرسته وکړي. موږ به هڅه وکړو چې د هغو مرستندویه موادو په کارولو سره دې پوښتنو ته ځواب ووایو چې د دې خبرو لپاره چمتو شوي دي.",
 	"learning_assistant_load_fail": "د زده کړې مرستیال پورته کول ممکن نه شول",
 	"learning_assistant_input_placeholder": "پوښتنه دلته ولیکئ",
 	"learning_assistant_no_answer": "ځواب ترلاسه کول ممکن نه شول",

@@ -291,8 +291,6 @@
 	"round": "Ronda",
 	"thinking": "reflexão",
 	"learning_assistant": "Assistente de aprendizagem",
-	"learning_assistant_summary": "Use este espaço para responder às perguntas que você possa ter sobre o tópico.",
-	"learning_assistant_description": "É melhor fazer perguntas que ajudem você a aprender. Tentaremos responder a essas perguntas usando os materiais de apoio disponibilizados para esta conversa.",
 	"learning_assistant_load_fail": "Não foi possível carregar o assistente de aprendizagem",
 	"learning_assistant_input_placeholder": "Digite uma pergunta aqui",
 	"learning_assistant_no_answer": "Não foi possível obter uma resposta",

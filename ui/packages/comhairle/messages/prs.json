@@ -296,8 +296,6 @@
 	"round": "دور",
 	"thinking": "فکر",
 	"learning_assistant": "دستیار یادگیری",
-	"learning_assistant_summary": "از این بخش برای پاسخ دادن به پرسش‌هایی که ممکن است درباره موضوع داشته باشید استفاده کنید.",
-	"learning_assistant_description": "بهتر است پرسش‌هایی بپرسید که به یادگیری شما کمک کنند. ما تلاش می‌کنیم با استفاده از مطالب پشتیبانی که برای این گفتگو در دسترس قرار گرفته‌اند، به این پرسش‌ها پاسخ دهیم.",
 	"learning_assistant_load_fail": "بارگذاری دستیار یادگیری ممکن نشد",
 	"learning_assistant_input_placeholder": "پرسشی را اینجا بنویسید",
 	"learning_assistant_no_answer": "دریافت پاسخ ممکن نشد",

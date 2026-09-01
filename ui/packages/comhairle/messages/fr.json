@@ -291,8 +291,6 @@
 	"round": "Tour",
 	"thinking": "réflexion",
 	"learning_assistant": "Assistant d'apprentissage",
-	"learning_assistant_summary": "Utilisez cet espace pour répondre aux questions que vous pourriez avoir sur le sujet.",
-	"learning_assistant_description": "Il est préférable de poser des questions qui vous aident à apprendre. Nous essaierons de répondre à ces questions à l'aide des documents d'accompagnement mis à disposition pour cette conversation.",
 	"learning_assistant_load_fail": "Impossible de charger l'assistant d'apprentissage",
 	"learning_assistant_input_placeholder": "Saisissez une question ici",
 	"learning_assistant_no_answer": "Impossible d'obtenir une réponse",

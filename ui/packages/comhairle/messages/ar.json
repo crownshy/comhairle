@@ -291,8 +291,6 @@
 	"round": "جولة",
 	"thinking": "التفكير",
 	"learning_assistant": "مساعد التعلّم",
-	"learning_assistant_summary": "استخدم هذه المساحة للإجابة عن الأسئلة التي قد تكون لديك حول الموضوع.",
-	"learning_assistant_description": "من الأفضل طرح أسئلة تساعدك على التعلّم. سنحاول الإجابة عن هذه الأسئلة باستخدام المواد الداعمة التي تم توفيرها لهذه المحادثة.",
 	"learning_assistant_load_fail": "تعذّر تحميل مساعد التعلّم",
 	"learning_assistant_input_placeholder": "اكتب سؤالًا هنا",
 	"learning_assistant_no_answer": "تعذّر الحصول على إجابة",

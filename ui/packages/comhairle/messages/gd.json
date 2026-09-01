@@ -291,8 +291,6 @@
 	"round": "Cuairt",
 	"thinking": "smaoineachadh",
 	"learning_assistant": "Neach-cuideachaidh ionnsachaidh",
-	"learning_assistant_summary": "Cleachd an t-àite seo gus ceistean a dh’fhaodadh a bhith agad mun chuspair a fhreagairt.",
-	"learning_assistant_description": "Tha e nas fheàrr ceistean fhaighneachd a chuidicheas tu le ionnsachadh. Feuchaidh sinn ris na ceistean sin a fhreagairt a’ cleachdadh nan stuthan taice a chaidh a dhèanamh rim faighinn airson a’ chòmhraidh seo.",
 	"learning_assistant_load_fail": "Cha b’ urrainn dhuinn an neach-cuideachaidh ionnsachaidh a luchdadh",
 	"learning_assistant_input_placeholder": "Taidhp ceist an seo",
 	"learning_assistant_no_answer": "Cha b’ urrainn dhuinn freagairt fhaighinn",

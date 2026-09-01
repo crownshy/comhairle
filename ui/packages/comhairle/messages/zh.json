@@ -290,8 +290,6 @@
 	"round": "轮次",
 	"thinking": "思考",
 	"learning_assistant": "学习助手",
-	"learning_assistant_summary": "使用此空间回答你可能对该主题有的疑问。",
-	"learning_assistant_description": "最好提出有助于你学习的问题。我们会尝试使用为本次对话提供的支持材料来回答这些问题。",
 	"learning_assistant_load_fail": "无法加载学习助手",
 	"learning_assistant_input_placeholder": "在此输入问题",
 	"learning_assistant_no_answer": "无法获取答案",

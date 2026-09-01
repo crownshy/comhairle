@@ -291,8 +291,6 @@
 	"round": "Rownd",
 	"thinking": "meddwl",
 	"learning_assistant": "Cynorthwyydd dysgu",
-	"learning_assistant_summary": "Defnyddiwch y gofod hwn i ateb cwestiynau sydd gennych am y pwnc.",
-	"learning_assistant_description": "Mae'n well gofyn cwestiynau sy'n eich helpu i ddysgu. Byddwn yn ceisio ateb y cwestiynau hyn gan ddefnyddio deunyddiau ategol sydd wedi'u darparu ar gyfer y sgwrs hon.",
 	"learning_assistant_load_fail": "Methwyd â llwytho'r cynorthwyydd dysgu",
 	"learning_assistant_input_placeholder": "Teipiwch gwestiwn yma",
 	"learning_assistant_no_answer": "Methwyd â chael ateb",
