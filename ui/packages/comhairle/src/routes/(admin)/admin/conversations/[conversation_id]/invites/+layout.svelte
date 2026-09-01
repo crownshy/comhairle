@@ -2,7 +2,7 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import TabContent from '../TabContent.svelte';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
-	import { capitalise } from '$lib/utils/casingUtils';
+	import { snakeToSentenceCase } from '$lib/utils/casingUtils';
 	import { resolve } from '$app/paths';
 	import TabStripItem from '$lib/components/TabStripItem.svelte';
 
@@ -22,7 +22,7 @@
 			href={resolve(`/(admin)/admin/conversations/[conversation_id]/invites/${tab}`, {
 				conversation_id: params.conversation_id
 			})}
-			label={tab.split('-').reduce((acc, word) => acc.concat(' ', capitalise(word)), '')}
+			label={snakeToSentenceCase(tab)}
 		/>
 	{/each}
 </TabStripShell>
