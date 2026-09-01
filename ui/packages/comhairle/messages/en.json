@@ -429,6 +429,7 @@
 	"landing_nav_steps": "Steps",
 	"landing_nav_more": "More",
 	"landing_page_of": "Page {current} of {total}",
+	"landing_next_page": "Go to {label}",
 	"step_tour_before_you_start": "Top left: what this consultation is, any time.",
 	"step_tour_brief": "Top right: the instructions for this step, whenever you want them again.",
 	"step_tour_back": "Bottom left: back to where you were.",

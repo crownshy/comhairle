@@ -163,7 +163,7 @@
 	<!-- The cover owns the first viewport: chrome, cover, call to action, nothing below the
 	     fold until you scroll. `min-h` rather than a fixed height because the chrome grows on
 	     a narrow screen and the cover must be allowed to push past the fold rather than clip. -->
-	<div class="flex min-h-[100dvh] flex-col pb-28">
+	<div class="flex min-h-[100dvh] snap-start flex-col pb-28">
 		<StepChrome
 			steps={stepItems}
 			currentIndex={0}

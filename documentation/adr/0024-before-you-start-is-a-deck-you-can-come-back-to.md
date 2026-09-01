@@ -33,12 +33,30 @@ decision about abandoning the conversation.
 page takes at least a viewport, so a chip lands on a screen rather than partway through a
 wall of text, and the reader always knows which page they are on.
 
-The pages stay in the ordinary scroll rather than being mounted one at a time. Scrolling
+The pages stay in the ordinary scroll rather than being mounted one at a time, and the
+scroll snaps to them, so one swipe down lands on one page rather than between two. Scrolling
 down walks them in order, the lit chip follows the reader, and swiping is the same move as
 scrolling to the next page (ADR-0018). The strip is the shortcut, not the only way through.
 
+Position is reported by a scroll cue at the foot of the page rather than by a row of dots.
+The dots sat under a page that is mostly whitespace, far enough from the text to read as
+unattached, and told a reader where they were when the question a first-time reader has is
+whether there is more. The cue answers that one, nudges downwards so the gesture is obvious,
+and is a button, so it works for a reader who is not going to swipe. The last page has none:
+the call to action is the next move.
+
+Each page centres a column of at most a line's worth of characters, rather than filling the
+screen's width from the top. A short page then sits in the middle of its screen instead of
+leaving a hole under it, and a long one does not run to a measure nobody can read on a wide
+screen. The text inside the column stays ragged right: a centred paragraph costs the reader
+the left edge they return to on every line.
+
 Rejected: showing one page at a time and nothing else. It makes the deck a dead end for a
 reader who simply keeps scrolling, and it throws away the navigation the phone already has.
+
+Rejected: dropping the deck for one document of content-sized sections. It reads well and
+costs nothing, but it gives up the thing the deck is for, which is that a chip lands on a
+screen rather than partway through a wall of text.
 
 **2. The pages are authored, not fixed.** The description splits at horizontal rules into as
 many pages as it needs, the same break the step brief splits slides at (ADR-0017), so this
@@ -89,6 +107,11 @@ the same button led through the completion screen.
   prose is unaffected.
 - Two chips can end up with the same name when several pages are written without headings.
   Repeats are numbered rather than left ambiguous.
+- Snapping belongs to the scroll container, which here is the document, so the landing page
+  sets it on the root element for as long as it is mounted. The cover carries a snap point
+  of its own, so arriving at the top of the page is already on one.
+- `SlideDots` is no longer used by the deck. It stays where it is: the step brief still
+  reports its position that way, over slides that fill their screen.
 - The completion screen is now the end of a step that was done, not of every step. The
   `done` phase is reached from a tool finishing, never from Skip.
 - `StepCoverNav` is deleted. An optional step can no longer be skipped from its cover, only
