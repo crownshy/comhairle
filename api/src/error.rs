@@ -106,8 +106,8 @@ pub enum ComhairleError {
     #[error("CSS inliner error: {0}")]
     CssInlinerError(#[from] css_inline::error::InlineError),
 
-    #[error("Username {0} already taken")]
-    DuplicateUsername(String),
+    #[error("AnnonCode {0} already taken")]
+    DuplicateAnnonCode(String),
 
     #[error("Email {0} already taken")]
     DuplicateEmail(String),
@@ -371,7 +371,7 @@ pub struct ComhairleErrorResponse {
 impl IntoResponse for ComhairleError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match self {
-            ComhairleError::DuplicateUsername(_)
+            ComhairleError::DuplicateAnnonCode(_)
             | ComhairleError::DuplicateEmail(_)
             | ComhairleError::ConversationAlreadyLive
             | ComhairleError::EmailAlreadyVerified

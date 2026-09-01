@@ -34,7 +34,7 @@
 	{#if conversation.showThankYouPageAnnonInstructions}
 		{#if user.authType === 'annon'}
 			<p>You are currently signed in as an anonymous user. Use your anonymous id</p>
-			<h2 class="text-center">{user.username}</h2>
+			<h2 class="text-center">{user.annonCode}</h2>
 			<p>to log back in at a later time to see the results of the conversations.</p>
 		{:else}
 			<p>

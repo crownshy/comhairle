@@ -49,7 +49,7 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item>
 					{#if user.authType === 'annon'}
-						<h2>Your ID: {user.username}</h2>
+						<h2>Your ID: {user.annonCode}</h2>
 					{/if}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>

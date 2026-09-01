@@ -413,6 +413,7 @@ mod tests {
             id: Uuid::new_v4(),
             username: Some("Name".into()),
             password: Some("some password".into()),
+            annon_code: None,
             avatar_url: Some("".into()),
             auth_type: users::UserAuthType::EmailPassword,
             email: Some("TestEmail@gmail.com".into()),

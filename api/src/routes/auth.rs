@@ -28,7 +28,7 @@ use time::Duration;
 pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
-        &state,
+        state,
         PermissionRole::Admin.system_triplet(),
         &user.id,
         user.organization_id.as_ref(),
@@ -67,8 +67,9 @@ use crate::models::permissions::{
 };
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-    create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-    get_user_by_username, get_user_resource_roles, set_signup_metadata, update_user,
+    create_annon_user, create_otp_user, create_user, get_annon_user_by_code, get_user_by_email,
+    get_user_by_id, get_user_by_username, get_user_resource_roles, set_signup_metadata,
+    update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
@@ -197,7 +198,7 @@ struct LoginRequest {
 /// Expected payload for an annon login request
 #[derive(Deserialize, JsonSchema)]
 struct AnnonLoginRequest {
-    username: String,
+    annon_code: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -444,7 +445,7 @@ async fn login_annon(
     cookies: CookieJar,
     Json(payload): Json<AnnonLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = get_user_by_username(&payload.username, &state.db).await?;
+    let user = get_annon_user_by_code(&payload.annon_code, &state.db).await?;
 
     if user.auth_type != UserAuthType::Annon {
         // return not found to avoid revealing that a correct username has been used.
@@ -452,7 +453,7 @@ async fn login_annon(
     }
 
     let claims = SessionClaims {
-        username: user.username.clone(),
+        username: user.annon_code.clone(),
         sudo_user: None,
         email_verified: user.email_verified,
         roles: Vec::new(),
@@ -1326,6 +1327,7 @@ mod tests {
         },
         setup_server,
         test_helpers::{TEST_PASSWORD, UserSession, test_state},
+        tools::id::gen_id,
     };
 
     use argon2::{Argon2, PasswordHash, PasswordVerifier};
@@ -1509,6 +1511,7 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
+            annon_code: None,
             auth_type: UserAuthType::EmailPassword,
             avatar_url: None,
             email_verified: false,
@@ -1548,6 +1551,7 @@ mod tests {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
+        let annon_code = gen_id();
 
         let state = test_state().db(pool).call()?;
         let secret = &state.config.jwt_secret.clone();
@@ -1561,6 +1565,7 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
+            annon_code: Some(annon_code),
             auth_type: UserAuthType::Annon,
             avatar_url: None,
             email_verified: false,
@@ -1618,6 +1623,7 @@ mod tests {
             password: Some(password.to_string()),
             username: Some(username.to_string()),
             auth_type: UserAuthType::Annon,
+            annon_code: None,
             avatar_url: None,
             email_verified: user.email_verified,
             organization_id: None,
@@ -1711,7 +1717,11 @@ mod tests {
         session.logout(&app).await?;
         let (status, _, _) = session.login_annon(&app).await?;
 
-        assert_eq!(status, StatusCode::NOT_FOUND, "API should return NOT_FOUND");
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "API should return UNPROCESSABLE_ENTITY"
+        );
         Ok(())
     }
 
@@ -1731,14 +1741,14 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn unknown_username_should_not_be_able_to_annon_login(
+    fn unknown_annon_code_should_not_be_able_to_annon_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_anon();
-        session.username = Some("foo".to_string());
+        session.annon_code = Some("foo".to_string());
 
         let (status, _, _) = session.login_annon(&app).await?;
 
@@ -1751,7 +1761,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1761,15 +1771,6 @@ mod tests {
 
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
-
-        let mut session = UserSession::new(username, password, "test_email2");
-        let (status, _, _) = session.signup(&app).await?;
-
-        assert_eq!(
-            status,
-            StatusCode::CONFLICT,
-            "Should not be able to have same username"
-        );
 
         let mut session = UserSession::new("test_user2", crate::test_helpers::TEST_PASSWORD, email);
         let (status, _, _) = session.signup(&app).await?;
@@ -1830,8 +1831,8 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "Should be ok ");
 
         assert!(
-            user_response.username.is_some(),
-            "current annon user should have a username"
+            user_response.annon_code.is_some(),
+            "current annon user should have annon_cdde"
         );
 
         assert_eq!(
@@ -1941,6 +1942,7 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
+            annon_code: None,
             auth_type: UserAuthType::EmailPassword,
             avatar_url: None,
             email_verified: false,
@@ -2007,6 +2009,7 @@ mod tests {
             email: Some(email.to_string()),
             username: Some(username.to_string()),
             password: Some(password.to_string()),
+            annon_code: None,
             avatar_url: None,
             auth_type: UserAuthType::EmailPassword,
             email_verified: false,
@@ -2046,8 +2049,8 @@ mod tests {
         let (_, user, _) = session.signup_annon(&app).await?;
 
         let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
-        let username = user
-            .get("username")
+        let annon_code = user
+            .get("annonCode")
             .unwrap()
             .as_ref()
             .unwrap()
@@ -2057,7 +2060,8 @@ mod tests {
             id: Uuid::parse_str(id).unwrap(),
             email: None,
             password: None,
-            username: Some(username.to_string()),
+            username: None,
+            annon_code: Some(annon_code.to_string()),
             auth_type: UserAuthType::Annon,
             avatar_url: None,
             email_verified: false,

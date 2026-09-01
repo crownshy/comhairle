@@ -8,7 +8,7 @@ import {
 import { z } from "zod";
 
 export const AnnonLoginRequest = z
-  .object({ username: z.string() })
+  .object({ annon_code: z.string() })
   .passthrough();
 export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
 export const UserAuthType = z.enum([
@@ -20,6 +20,7 @@ export const UserAuthType = z.enum([
 export type UserAuthType = z.infer<typeof UserAuthType>;
 export const UserDto = z
   .object({
+    annonCode: z.union([z.string(), z.null()]).optional(),
     authType: UserAuthType,
     avatarUrl: z.union([z.string(), z.null()]).optional(),
     email: z.union([z.string(), z.null()]).optional(),
@@ -3445,7 +3446,7 @@ const endpoints = makeApi([
         name: "body",
         description: `Expected payload for an annon login request`,
         type: "Body",
-        schema: z.object({ username: z.string() }).passthrough(),
+        schema: z.object({ annon_code: z.string() }).passthrough(),
       },
     ],
     response: UserDto,

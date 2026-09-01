@@ -35,7 +35,7 @@
 						<div class="text-muted-foreground mb-4">
 							You are currently signed in as an anonymous account with ID:
 						</div>
-						<h3 class="my-4 text-center text-2xl font-bold">{user.username}</h3>
+						<h3 class="my-4 text-center text-2xl font-bold">{user.annonCode}</h3>
 					</div>
 
 					<div class=" bg-card p-6">

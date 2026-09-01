@@ -23,7 +23,7 @@
 	}
 
 	function downloadId() {
-		const text = `Your Comhairle Anonymous ID: ${data?.user?.username}\n\nSave this — you'll need it to log in.`;
+		const text = `Your Comhairle Anonymous ID: ${data?.user?.annonCode}\n\nSave this — you'll need it to log in.`;
 		const blob = new Blob([text], { type: 'text/plain' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
@@ -51,13 +51,13 @@
 				<Tooltip.Root open={copied ? true : undefined}>
 					<Tooltip.Trigger>
 						<button
-							use:copy={{ text: data?.user?.username ?? '', onCopy: onCopied }}
+							use:copy={{ text: data?.user?.annonCode ?? '', onCopy: onCopied }}
 							class="group inline-flex cursor-pointer items-center gap-3 rounded-lg bg-white px-5 py-2 transition-all duration-200 hover:bg-white/90 hover:shadow-lg active:scale-[0.98] lg:gap-4 lg:px-8 lg:py-3"
 						>
 							<span
 								class="text-center text-2xl leading-8 font-bold text-black select-all sm:text-3xl lg:text-5xl lg:leading-[52px]"
 							>
-								{data?.user?.username}
+								{data?.user?.annonCode}
 							</span>
 							<span
 								class="text-black/40 transition-colors duration-200 group-hover:text-black/70"

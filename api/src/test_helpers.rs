@@ -299,6 +299,7 @@ pub struct UserSession {
     pub id: Option<Uuid>,
     pub username: Option<String>,
     pub password: Option<String>,
+    pub annon_code: Option<String>,
     pub email: Option<String>,
     pub cookie: Option<HeaderValue>,
 }
@@ -309,6 +310,7 @@ impl UserSession {
             id: None,
             username: None,
             password: None,
+            annon_code: None,
             email: None,
             cookie: None,
         }
@@ -319,6 +321,7 @@ impl UserSession {
             id: None,
             username: Some("admin".into()),
             password: Some(TEST_PASSWORD.into()),
+            annon_code: None,
             email: Some("admin@crown-shy.com".into()),
             cookie: None,
         }
@@ -329,6 +332,7 @@ impl UserSession {
             id: None,
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
+            annon_code: None,
             email: Some(email.to_owned()),
             cookie: None,
         }
@@ -679,7 +683,7 @@ impl UserSession {
         self.post(
             app,
             "/auth/login_annon",
-            json!({"username":self.username}).to_string().into(),
+            json!({"annon_code":self.annon_code}).to_string().into(),
         )
         .await
     }
@@ -697,9 +701,9 @@ impl UserSession {
     > {
         let (status, value, cookie) = self.post(app, "/auth/signup_annon", Body::empty()).await?;
         let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
-        let username: String =
-            serde_json::from_value(user.get("username").unwrap().clone().unwrap()).unwrap();
-        self.username = Some(username);
+        let annon_code: String =
+            serde_json::from_value(user.get("annonCode").unwrap().clone().unwrap()).unwrap();
+        self.annon_code = Some(annon_code);
         let id: String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
         self.id = Some(Uuid::parse_str(&id).unwrap());
         Ok((status, user, cookie))
