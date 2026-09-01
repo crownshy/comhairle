@@ -2,7 +2,8 @@
 	import type { ConversationDto, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { ArrowRight, MessageSquareText } from 'lucide-svelte';
+	import { ArrowRight } from 'lucide-svelte';
+	import { conversationImageUrl } from '$lib/utils/conversationImage';
 
 	let {
 		conversation,
@@ -13,6 +14,12 @@
 		variant?: 'admin' | 'public';
 		organizationName?: string;
 	} = $props();
+
+	let imageUrl = $derived.by(() => {
+		// `imageUrl` is only on LocalizedConversationDto; the admin DTO carries a media id instead.
+		const url = conversation?.imageUrl;
+		return conversationImageUrl(typeof url === 'string' ? url : null);
+	});
 </script>
 
 <!-- Image snippet -->
@@ -21,19 +28,11 @@
 		<div
 			class="bg-primary/10 relative {heightClass} w-full overflow-hidden rounded-xl transition-all duration-300 ease-out group-hover:rounded-2xl group-hover:shadow-lg lg:rounded-3xl lg:group-hover:rounded-[2rem]"
 		>
-			{#if conversation.imageUrl}
-				<img
-					class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-					src={conversation.imageUrl}
-					alt={conversation.title}
-				/>
-			{:else}
-				<div class="bg-primary/10 absolute inset-0 flex items-center justify-center">
-					<MessageSquareText
-						class="text-primary/30 group-hover:text-primary/50 h-32 w-32 transition-all duration-300 group-hover:scale-110"
-					/>
-				</div>
-			{/if}
+			<img
+				class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+				src={imageUrl}
+				alt={conversation.title}
+			/>
 		</div>
 	</div>
 {/snippet}

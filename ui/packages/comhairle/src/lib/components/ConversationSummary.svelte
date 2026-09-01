@@ -1,12 +1,15 @@
 <script lang="ts">
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
+	import { conversationImageUrl } from '$lib/utils/conversationImage';
 
 	type Props = {
 		conversation: LocalizedConversationDto;
 		children: Snippet;
 	};
 	let { conversation, children }: Props = $props();
+
+	let imageUrl = $derived(conversationImageUrl(conversation.imageUrl));
 </script>
 
 <div class="mt-10 grid grid-cols-1 gap-10 md:mt-0 md:grid-cols-[400px_1fr]">
@@ -21,13 +24,7 @@
 	</div>
 
 	<div class="flex flex-col gap-5">
-		{#if conversation.imageUrl}
-			<img
-				class="max-h-117 w-full object-contain"
-				src={conversation.imageUrl}
-				alt={conversation.title}
-			/>
-		{/if}
+		<img class="max-h-117 w-full object-contain" src={imageUrl} alt={conversation.title} />
 		<p class="text-foreground md:text-lg">{conversation.description}</p>
 		<div class="block md:hidden">
 			{@render children()}

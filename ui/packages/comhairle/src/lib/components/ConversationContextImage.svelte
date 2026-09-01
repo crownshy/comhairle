@@ -2,6 +2,7 @@
 	import { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import Spinner from './ui/spinner/spinner.svelte';
+	import { conversationImageUrl } from '$lib/utils/conversationImage';
 
 	type Props = {
 		conversation_id: string;
@@ -24,7 +25,7 @@
 			<img
 				alt={conversation.title}
 				class="h-64 w-full rounded-lg object-cover"
-				src={conversation.imageUrl}
+				src={conversationImageUrl(conversation.imageUrl)}
 			/>
 			<div class="absolute inset-0 rounded-lg bg-gray-700 opacity-60"></div>
 			<div class="absolute inset-0 flex items-center justify-center">
