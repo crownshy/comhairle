@@ -360,15 +360,23 @@
 				onValueChange={setAlignmentQuestion}
 			>
 				<Select.Trigger>
-					{questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text
-						.localized ?? questions[0].text.localized}
+					{@const selectedQuestion =
+						questions.find((q) => q.id === toolConfig.alignmentQuestionId)?.text
+							.localized ?? questions[0].text.localized}
+					{selectedQuestion.length > 40
+						? selectedQuestion.slice(0, 40).concat('...')
+						: selectedQuestion}
 					{#if savingAlignmentQuestion}
 						<Spinner />
 					{/if}
 				</Select.Trigger>
 				<Select.Content>
 					{#each questions as question (question.id)}
-						<Select.Item value={question.id}>{question.text.localized}</Select.Item>
+						<Select.Item value={question.id}
+							>{question.text.localized.length > 40
+								? question.text.localized.slice(0, 40).concat('...')
+								: question.text.localized}</Select.Item
+						>
 					{/each}
 				</Select.Content>
 			</Select.Root>

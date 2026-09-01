@@ -53,7 +53,7 @@
 				<p class="text-muted-foreground text-sm">See how all proposals rank.</p>
 			</div>
 
-			<PrioritizationRankedProposalTable proposals={insights.rankedProposals} />
+			<PrioritizationRankedProposalTable proposals={insights.rankedProposals} {toolConfig} />
 		</ContentCard>
 
 		<PrioritizationScatterPlot proposals={insights.rankedProposals} {toolConfig} />
