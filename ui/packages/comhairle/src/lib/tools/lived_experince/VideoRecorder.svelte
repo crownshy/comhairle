@@ -96,44 +96,50 @@
 </script>
 
 <div class="flex min-h-0 grow flex-col gap-4">
-	<div class="relative flex min-h-0 grow items-center justify-center">
-		<div class="relative aspect-[9/16] max-h-full w-full overflow-hidden rounded-2xl bg-black">
-			{#if phase === 'review' && playbackUrl}
-				<!-- svelte-ignore a11y_media_has_caption -->
-				<video controls playsinline src={playbackUrl} class="size-full object-cover"
-				></video>
-			{:else}
-				<video
-					bind:this={previewEl}
-					autoplay
-					muted
-					playsinline
-					class="size-full object-cover"
-				></video>
-			{/if}
+	<!-- Sized off the height that is left over rather than the column's width, so the frame
+		never grows past the screen and pushes the actions under it out of reach. -->
+	<div class="relative min-h-0 grow">
+		<div class="absolute inset-0 flex items-center justify-center">
+			<div
+				class="relative aspect-[9/16] h-full max-w-full overflow-hidden rounded-2xl bg-black"
+			>
+				{#if phase === 'review' && playbackUrl}
+					<!-- svelte-ignore a11y_media_has_caption -->
+					<video controls playsinline src={playbackUrl} class="size-full object-cover"
+					></video>
+				{:else}
+					<video
+						bind:this={previewEl}
+						autoplay
+						muted
+						playsinline
+						class="size-full object-cover"
+					></video>
+				{/if}
 
-			{#if phase === 'recording'}
-				<div
-					class="absolute top-4 left-4 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-white"
-					role="status"
-				>
-					<span class="bg-destructive size-2 rounded-full" aria-hidden="true"></span>
-					<span class="text-sm font-medium">
-						{m.lived_experience_recording_countdown({ seconds: secondsLeft })}
-					</span>
-				</div>
-			{/if}
+				{#if phase === 'recording'}
+					<div
+						class="absolute top-4 left-4 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-white"
+						role="status"
+					>
+						<span class="bg-destructive size-2 rounded-full" aria-hidden="true"></span>
+						<span class="text-sm font-medium">
+							{m.lived_experience_recording_countdown({ seconds: secondsLeft })}
+						</span>
+					</div>
+				{/if}
 
-			{#if phase !== 'recording' && phase !== 'review'}
-				<p
-					class="absolute inset-0 flex items-center justify-center px-6 text-center text-base text-white"
-					role="status"
-				>
-					{phase === 'blocked'
-						? m.lived_experience_camera_blocked()
-						: m.lived_experience_camera_starting()}
-				</p>
-			{/if}
+				{#if phase !== 'recording' && phase !== 'review'}
+					<p
+						class="absolute inset-0 flex items-center justify-center px-6 text-center text-base text-white"
+						role="status"
+					>
+						{phase === 'blocked'
+							? m.lived_experience_camera_blocked()
+							: m.lived_experience_camera_starting()}
+					</p>
+				{/if}
+			</div>
 		</div>
 	</div>
 

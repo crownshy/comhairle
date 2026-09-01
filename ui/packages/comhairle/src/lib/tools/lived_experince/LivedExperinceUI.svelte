@@ -73,39 +73,49 @@
 
 <!-- The dots are the tool's position, in the margin beside the content rather than under it,
 	so the bottom of the screen stays free for the record prompt's own two actions. -->
-<div class="relative mx-auto flex w-full max-w-xl grow flex-col px-4 py-4">
+<div class="relative mx-auto flex w-full max-w-xl grow flex-col px-4 py-3">
 	<div class="pointer-events-none absolute top-1/2 right-0 z-10 -translate-y-1/2">
 		<SlideDots {index} count={recordIndex + 1} orientation="vertical" />
 	</div>
 
 	{#if clip}
-		<div class="flex min-h-0 grow items-center justify-center">
-			<div
-				class="relative aspect-[9/16] max-h-full w-full overflow-hidden rounded-2xl bg-black"
-			>
-				{#key index}
-					{#if clip.audio}
-						<!-- A contribution with no picture. The frame says why it is black, and
-							the player sits where a video's control bar would be. -->
-						<div
-							class="flex size-full flex-col items-center justify-center gap-3 text-white"
-						>
-							<Mic class="size-12" aria-hidden="true" />
-							<p class="text-xl leading-8 font-medium">
-								{m.lived_experience_audio_only()}
-							</p>
-						</div>
-						<audio
-							controls
-							src={clip.src}
-							class="absolute inset-x-4 bottom-4 w-[calc(100%-2rem)]"
-						></audio>
-					{:else}
-						<!-- svelte-ignore a11y_media_has_caption -->
-						<video controls playsinline src={clip.src} class="size-full object-cover"
-						></video>
-					{/if}
-				{/key}
+		<!-- The clip is sized off the height it has rather than the column's width: asked to be
+			as wide as the text, a portrait video comes out taller than the screen and its
+			bottom (the audio player with it) vanishes under the pager's fade. Absolutely
+			positioned so the aspect box has a definite height to take 100% of. -->
+		<div class="relative min-h-0 grow">
+			<div class="absolute inset-0 flex items-center justify-center">
+				<div
+					class="relative aspect-[9/16] h-full max-w-full overflow-hidden rounded-2xl bg-black"
+				>
+					{#key index}
+						{#if clip.audio}
+							<!-- A contribution with no picture. The frame says why it is black,
+								and the player sits where a video's control bar would be. -->
+							<div
+								class="flex size-full flex-col items-center justify-center gap-3 text-white"
+							>
+								<Mic class="size-12" aria-hidden="true" />
+								<p class="text-xl leading-8 font-medium">
+									{m.lived_experience_audio_only()}
+								</p>
+							</div>
+							<audio
+								controls
+								src={clip.src}
+								class="absolute inset-x-4 bottom-4 w-[calc(100%-2rem)]"
+							></audio>
+						{:else}
+							<!-- svelte-ignore a11y_media_has_caption -->
+							<video
+								controls
+								playsinline
+								src={clip.src}
+								class="size-full object-contain"
+							></video>
+						{/if}
+					{/key}
+				</div>
 			</div>
 		</div>
 	{:else if recording}
