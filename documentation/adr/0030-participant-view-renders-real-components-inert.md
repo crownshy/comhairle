@@ -65,10 +65,12 @@ slides. Setup shows the Step as a participant meets it. This is what fixes the "
 first, page second" complaint: not a skip button, but a preview that never had the cover in
 it to begin with.
 
-**6. `StepShell` is extracted from the participant step route.** The three-row grid becomes
-a component taking chrome props, a content snippet and a bar snippet. The real route and the
-participant view both render it. A second copy of the layout would diverge silently: nothing
-would fail, the preview would just quietly stop matching.
+**6. `StepShell` and `StepToolBody` are extracted from the participant step route.**
+`StepShell` is the three-row grid, taking the chrome's props, a content snippet and a bar
+snippet. `StepToolBody` is the switch from tool type to participant component, in the column
+every tool body shares. The real route and the participant view both render both. A second
+copy of either would diverge silently: nothing would fail, and a tool added to the route
+would simply never appear in Setup's participant view.
 
 **7. Inertness is enforced at the boundary.** The `inert` attribute plus
 `pointer-events-none` on the panel container. No tool changes. Every write in every tool is
@@ -133,9 +135,15 @@ than a third call site.
 - **`StepShell` takes the chrome's props as one object**, not eleven pass-throughs, so the
   chrome's prop list stays defined in one place. The shell still renders `StepChrome`
   itself, which is what decision 6 is protecting: a caller cannot swap it out or omit it.
-- **The participant step route is refactored on a demo branch.** Decision 6 is a pure
-  extraction with no behaviour change, but it is the highest-risk file in the change and
-  wants its own commit.
+- **The participant step route is refactored twice on a demo branch.** Decision 6 is two
+  pure extractions with no behaviour change, but that route is the highest-risk file here
+  and each wants its own commit.
+- **`StepToolBody` types its step, conversation and tool config as `any`,** because the
+  admin and participant routes are handed nominally different generated types for the same
+  data. The tool switch carried around 23 pre-existing type errors while it lived in the
+  route; moving it silenced them rather than fixing them, and the repo error count fell from
+  353 to 330 for that reason alone. Giving those props real types means fixing the generated
+  DTOs, and doing so will put the errors back where they can be seen.
 - **A Polis participant view makes a network call per open** and shows the draft poll's real
   seed statements rather than a sample. Correct, but not free.
 - **An admin who has walked their own draft sees their own data in the panel.** Preview

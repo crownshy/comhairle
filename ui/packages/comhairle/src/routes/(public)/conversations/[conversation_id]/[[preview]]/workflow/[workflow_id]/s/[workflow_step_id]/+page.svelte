@@ -6,13 +6,11 @@
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
-	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
-	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
-	import * as Prioritization from '$lib/tools/prioritization/index.js';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import StepShell from '$lib/components/participant/StepShell.svelte';
+	import StepToolBody from '$lib/components/participant/StepToolBody.svelte';
 	import StepPager from '$lib/components/participant/StepPager.svelte';
 	import StepCover from '$lib/components/participant/StepCover.svelte';
 	import StepTour from '$lib/components/participant/StepTour.svelte';
@@ -418,6 +416,21 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
+{#snippet navigationSkeleton()}
+	{#if navigatingToToolType === HeyForm.TOOL_NAME}
+		<HeyForm.UserUISkeleton />
+	{:else if navigatingToToolType === Polis.TOOL_NAME}
+		<Polis.UserUISkeleton />
+	{:else}
+		<LearnArticleSkeleton />
+		{#if assistantAvailable}
+			<div class="mx-auto mt-6 w-full max-w-[65ch]">
+				<LearningAssistantSkeleton />
+			</div>
+		{/if}
+	{/if}
+{/snippet}
+
 {#if conversation && workflowStep && user}
 	<StepShell
 		class="h-[100dvh]"
@@ -451,111 +464,20 @@
 					conversationId={conversation.id}
 				/>
 			{:else}
-				<div
-					class="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pb-[clamp(0.5rem,2vh,1.5rem)] md:px-6"
-				>
-					{#if showNavigationSkeleton.current}
-						{#if navigatingToToolType === HeyForm.TOOL_NAME}
-							<HeyForm.UserUISkeleton />
-						{:else if navigatingToToolType === Polis.TOOL_NAME}
-							<Polis.UserUISkeleton />
-						{:else}
-							<LearnArticleSkeleton />
-							{#if assistantAvailable}
-								<div class="mx-auto mt-6 w-full max-w-[65ch]">
-									<LearningAssistantSkeleton />
-								</div>
-							{/if}
-						{/if}
-					{:else if toolConfig.type === Learn.TOOL_NAME}
-						{#key workflowStep.id}
-							<Learn.UserUI
-								pages={toolConfig.pages}
-								onSequenceChange={handleSequenceChange}
-								{conversation}
-								{availableDocuments}
-								{hasKnowledgeBaseDocs}
-							/>
-						{/key}
-					{:else if toolConfig?.type === Polis.TOOL_NAME}
-						{#key workflowStep.id}
-							<Polis.UserUI
-								user_id={user.id}
-								polis_id={toolConfig.poll_id}
-								polis_url={toolConfig.server_url}
-								requiredVotes={toolConfig.required_votes}
-								workflowStepId={workflowStep.id}
-								{isPreview}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-								onSequenceChange={handleSequenceChange}
-								showRemainingStatementCount={toolConfig.show_remaining_statements}
-							/>
-						{/key}
-					{:else if toolConfig.type === HeyForm.TOOL_NAME}
-						{#key workflowStep.id}
-							<HeyForm.UserUI
-								userId={user.id}
-								surveyId={toolConfig.survey_id}
-								surveyURL={toolConfig.survey_url}
-								serverURL={toolConfig.server_url}
-								onDone={stepComplete}
-							/>
-						{/key}
-					{:else if toolConfig.type === LivedExperience.TOOL_NAME}
-						{#key workflowStep.id}
-							<LivedExperience.UserUI
-								onDone={stepComplete}
-								onSequenceChange={handleSequenceChange}
-							/>
-						{/key}
-					{:else if toolConfig.type === ThinkingSpace.TOOL_NAME}
-						{#key workflowStep.id}
-							<ThinkingSpace.UserUI
-								workflowStepId={workflowStep.id}
-								workflowId={workflowStep.workflowId}
-								conversationId={conversation.id}
-								userId={user.id}
-								topic={toolConfig.topic}
-								rootQuestions={toolConfig.root_questions}
-								followUpRoundsCount={toolConfig.follow_up_rounds_count}
-								requestUserSharePermission={workflowStep.requestUserSharePermission}
-								initialPermissionToShareWithOrganizers={data.permissionToShareWithOrganizers}
-								progressStatus={workflowStep.progressStatus}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-								onSequenceChange={handleSequenceChange}
-							/>
-						{/key}
-					{:else if toolConfig.type === ElicitationBot.TOOL_NAME}
-						{#key workflowStep.id}
-							<ElicitationBot.UserUI
-								conversationId={conversation.id}
-								workflowId={workflowStep.workflowId}
-								workflowStepId={workflowStep.id}
-								userId={user.id}
-								topic={toolConfig.topic}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-							/>
-						{/key}
-					{:else if toolConfig.type === Prioritization.TOOL_NAME}
-						{#key workflowStep.id}
-							<Prioritization.UserUI
-								{workflowStep}
-								conversation={{
-									primaryLocale: conversation.primaryLocale,
-									isLive: conversation.isLive,
-									supportedLanguages: conversation.supportedLanguages
-								}}
-								participantId={user.id}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-								onSequenceChange={handleSequenceChange}
-							/>
-						{/key}
-					{/if}
-				</div>
+				<StepToolBody
+					{toolConfig}
+					{conversation}
+					{workflowStep}
+					userId={user.id}
+					{availableDocuments}
+					{hasKnowledgeBaseDocs}
+					preview={isPreview}
+					permissionToShareWithOrganizers={data.permissionToShareWithOrganizers}
+					onDone={stepComplete}
+					onCanContinueChange={handleCanContinueChange}
+					onSequenceChange={handleSequenceChange}
+					loading={showNavigationSkeleton.current ? navigationSkeleton : undefined}
+				/>
 			{/if}
 		{/snippet}
 
