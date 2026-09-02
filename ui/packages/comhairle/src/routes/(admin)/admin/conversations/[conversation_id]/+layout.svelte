@@ -87,9 +87,9 @@
 					false}
 				{@const disabled = needsLiveConversation(path) && !conversation.isLive}
 				<li
-					class="border-box border-box border-b-[3px] px-4 pt-3 pb-2 text-sm font-medium select-none {active
-						? 'border-primary'
-						: 'border-transparent'}"
+					class="border-box border-box border-b-[3px] px-4 pt-3 pb-2 text-sm font-medium select-none border-{active
+						? 'primary'
+						: 'transparent'}"
 				>
 					{#if disabled}
 						<span
