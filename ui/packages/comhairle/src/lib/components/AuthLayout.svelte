@@ -7,7 +7,7 @@
 	let { children }: { children: Snippet } = $props();
 </script>
 
-<div class="flex min-h-screen flex-col lg:flex-row">
+<div class="flex min-h-[100dvh] flex-col lg:flex-row">
 	<!-- Gradient: header on mobile, side panel on desktop -->
 	<div class="relative h-[20vh] shrink-0 lg:h-auto lg:w-1/2">
 		<AuthGradient mode="fill" showLogo={false}>

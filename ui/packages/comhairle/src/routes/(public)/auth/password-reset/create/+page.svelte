@@ -47,7 +47,7 @@
 	<title>Reset Password - Comhairle</title>
 </svelte:head>
 
-<div class="flex min-h-screen w-full flex-col">
+<div class="flex min-h-[100dvh] w-full flex-col">
 	<AuthGradient showLogo={false} mode="full">
 		<div
 			class="dark:bg-card mx-4 w-full max-w-lg rounded-xl bg-white p-6 shadow-sm lg:mx-0 lg:p-10"

@@ -38,7 +38,7 @@
 	<title>Your Anonymous ID - Comhairle</title>
 </svelte:head>
 
-<div class="flex min-h-screen w-full flex-col">
+<div class="flex min-h-[100dvh] w-full flex-col">
 	<AuthGradient showLogo={false} mode="full">
 		<div class="flex flex-col items-center gap-5">
 			<p

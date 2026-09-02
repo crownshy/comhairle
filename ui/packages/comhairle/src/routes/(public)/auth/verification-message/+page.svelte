@@ -10,7 +10,7 @@
 	<title>Verify Your Email - Comhairle</title>
 </svelte:head>
 
-<div class="flex min-h-screen w-full flex-col">
+<div class="flex min-h-[100dvh] w-full flex-col">
 	<AuthGradient showLogo={false} mode="full">
 		<VerificationMessage user={data.user} backTo={data.backTo} />
 	</AuthGradient>

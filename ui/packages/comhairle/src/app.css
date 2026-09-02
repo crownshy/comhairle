@@ -5,11 +5,22 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* `dvh`, not `vh`: on a phone `100vh` is the tall viewport with the browser toolbars
+   hidden, so a body sized to it is always taller than what is actually on screen and the
+   document scrolls by the height of the toolbar even when nothing overflows. The
+   participant screens size themselves in `dvh`, and that mismatch is what let a full
+   screen page be dragged upwards, taking the fixed bottom bar with it. */
 html,
 body {
 	width: 100%;
 	max-width: 100dvw;
-	height: 100vh;
+	height: 100dvh;
+}
+
+/* A screen that exactly fills the viewport has nothing to scroll, so the rubber band at
+   either end is only ever a way to pull the fixed chrome off screen. */
+html {
+	overscroll-behavior-y: none;
 }
 
 @layer base {

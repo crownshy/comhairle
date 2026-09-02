@@ -16,11 +16,11 @@
 	);
 </script>
 
-<div class="flex min-h-screen w-full flex-col">
+<div class="flex min-h-[100dvh] w-full flex-col">
 	<NavBar {user} {isAdmin} />
 
 	<div
-		class="bg-background relative flex min-h-[calc(100vh-220px)] flex-1 flex-col items-center justify-center overflow-hidden px-6 py-24"
+		class="bg-background relative flex min-h-[calc(100dvh-220px)] flex-1 flex-col items-center justify-center overflow-hidden px-6 py-24"
 	>
 		{#if status === 404}
 			<span

@@ -82,7 +82,7 @@
 			<Tabs.Content value={step.id} class="spage-y-4">
 				{#if step.toolConfig.type === 'polis'}
 					<iframe
-						class="h-[100vh] w-full border-none"
+						class="h-[100dvh] w-full border-none"
 						src="https://poliscommunity.crown-shy.com/report/r4hrfdtemrjsxbn3ieyyb"
 					>
 					</iframe>
