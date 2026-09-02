@@ -914,21 +914,21 @@
 					>
 						{#if currentAgendaItem?.breakoutQuestion}
 							<div
-								class="bg-background flex flex-col items-center gap-4 rounded-2xl px-5 py-5"
+								class="bg-background flex shrink-0 flex-col items-center gap-4 rounded-2xl px-5 py-5"
 							>
 								<div class="flex flex-col items-center gap-2">
 									<span class="text-primary text-xs font-medium uppercase">
 										Question
 									</span>
 									<p
-										class="text-foreground text-center text-lg leading-tight font-semibold"
+										class="text-foreground text-center text-lg leading-tight font-semibold break-words"
 									>
 										{currentAgendaItem.breakoutQuestion}
 									</p>
 								</div>
 								{#if currentAgendaItem.breakoutDescription}
 									<div class="bg-border h-px w-full"></div>
-									<div class="text-muted-foreground w-full text-sm">
+									<div class="text-muted-foreground w-full text-base">
 										<ContentRenderer
 											content={currentAgendaItem.breakoutDescription}
 										/>

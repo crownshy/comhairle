@@ -189,14 +189,10 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
         ])
         .allow_origin(allowed_origins);
 
+    // Rate limiting is applied per route inside the auth router: the strict
+    // limiter belongs on the credential endpoints, not on session reads.
     // Added `.await` here to resolve the opaque Future issue
     let auth_router = routes::auth::router(state.clone()).await;
-
-    let auth_router = if state.config.enable_rate_limiting {
-        auth_router.layer(middleware::rate_limit::auth_rate_limiter())
-    } else {
-        auth_router
-    };
 
     let router = ApiRouter::new()
         .route("/health", axum::routing::get(health_check))

@@ -829,7 +829,7 @@ impl UpdateTextTranslation {
 ///
 /// This function will return an error if:
 /// * The database operation fails
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_text_content(
     db: &PgPool,
     text_content: &CreateTextContent,
@@ -864,7 +864,7 @@ pub async fn create_text_content(
 /// Returns a `Result` containing the `TextContent` if found,
 /// or a `ComhairleError::ResourceNotFound` if not found.
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_text_content_by_id(
     db: &PgPool,
     id: &TextContentId,
@@ -902,7 +902,7 @@ pub async fn get_text_content_by_id(
 /// * No valid updates are provided (all fields are None)
 /// * The text content with the given ID does not exist
 /// * The database operation fails
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update_text_content(
     db: &PgPool,
     id: &TextContentId,
@@ -945,7 +945,7 @@ pub async fn update_text_content(
 ///
 /// Returns a `Result` containing the deleted `TextContent` on success,
 /// or a `ComhairleError::ResourceNotFound` if the content doesn't exist.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete_text_content(
     db: &PgPool,
     id: &TextContentId,
@@ -985,7 +985,7 @@ pub async fn delete_text_content(
 /// * The database operation fails
 /// * The content_id references a non-existent text content
 /// * A translation for the same content_id and locale already exists
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_text_translation(
     db: &PgPool,
     text_translation: &CreateTextTranslation,
@@ -1019,7 +1019,7 @@ pub async fn create_text_translation(
 ///
 /// Returns a `Result` containing the `TextTranslation` if found,
 /// or a `ComhairleError::ResourceNotFound` if not found.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_text_translation_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -1050,7 +1050,7 @@ pub async fn get_text_translation_by_id(
 /// Returns a `Result` containing a vector of `TextTranslation` records,
 /// or a `ComhairleError` on database failure. Returns an empty vector
 /// if no translations are found for the content.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_text_translations_by_content_id(
     db: &PgPool,
     content_id: &TextContentId,
@@ -1084,7 +1084,7 @@ pub async fn get_text_translations_by_content_id(
 /// Returns a `Result` containing the `TextTranslation` if found,
 /// or a `ComhairleError::ResourceNotFound` if no translation exists
 /// for the given content and locale combination.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_text_translation_by_content_and_locale(
     db: &PgPool,
     content_id: &TextContentId,
@@ -1125,7 +1125,7 @@ pub async fn get_text_translation_by_content_and_locale(
 /// * The text translation with the given ID does not exist
 /// * The database operation fails
 /// * The updated locale would create a duplicate (content_id, locale) pair
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update_text_translation(
     db: &PgPool,
     id: &Uuid,
@@ -1162,7 +1162,7 @@ pub async fn update_text_translation(
 ///
 /// Returns a `Result` containing the deleted `TextTranslation` on success,
 /// or a `ComhairleError::ResourceNotFound` if the translation doesn't exist.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete_text_translation(
     db: &PgPool,
     id: &Uuid,
@@ -1197,7 +1197,7 @@ pub async fn delete_text_translation(
 ///
 /// Returns a `Result` containing the `TextContentId` of the created content,
 /// or a `ComhairleError` on failure.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_text_content_and_get_id(
     db: &PgPool,
     text_content: &CreateTextContent,
@@ -1221,7 +1221,7 @@ pub async fn create_text_content_and_get_id(
 ///
 /// Returns a `Result` containing `Some(TextTranslation)` if found,
 /// `None` if no translation exists, or a `ComhairleError` on database failure.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_text_translation_optional(
     db: &PgPool,
     content_id: &TextContentId,
@@ -1306,7 +1306,7 @@ pub async fn auto_generate_translation(
     Ok(updated_translation)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn new_translation(
     db: &PgPool,
     locale: &str,
@@ -1343,7 +1343,7 @@ pub struct TranslationDto {
     pub text_translations: Vec<crate::routes::translations::dto::TextTranslationDto>,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_text_content_with_translations(
     db: &PgPool,
     text_content_ids: Vec<TextContentId>,

@@ -744,7 +744,7 @@ impl ComhairleBotService for ComhairleRagBotService {
     }
 }
 
-/// Peek at first stream chunks to check for `ERROR:` answer chunks. Prevent
+/// Peek at first stream chunks to check for `**ERROR**:` answer chunks. Prevent
 /// such chunks reaching frontend UI by returning [`ComhairleError`] if such
 /// chunks are detected.
 async fn intercept_ragflow_stream(
@@ -758,7 +758,7 @@ async fn intercept_ragflow_stream(
 
         if extract_ragflow_stream_error(&first).is_some() {
             return Err(ComhairleError::StreamChunkError(
-                "Chunk contains ragflow 'ERROR:' message. Aborting.".to_string(),
+                "Chunk contains ragflow '**ERROR**:' message. Aborting.".to_string(),
             ));
         }
 
@@ -784,7 +784,7 @@ fn extract_ragflow_stream_error(bytes: &Bytes) -> Option<String> {
         };
 
         if let Some(answer) = json.pointer("/data/answer").and_then(|v| v.as_str())
-            && answer.trim_start().starts_with("ERROR:")
+            && answer.trim_start().starts_with("**ERROR**:")
         {
             return Some(answer.to_string());
         }
@@ -1432,11 +1432,11 @@ mod tests {
 
     #[test]
     fn detects_error_in_answer() {
-        let chunk = sse_stream_chunk("ERROR: (Test error)");
+        let chunk = sse_stream_chunk("**ERROR**: (Test error)");
         let result = extract_ragflow_stream_error(&chunk);
         assert!(result.is_some(), "Error chunk not detected");
         assert!(
-            result.unwrap().starts_with("ERROR:"),
+            result.unwrap().starts_with("**ERROR**:"),
             "Error chunk data incorrectly passed through"
         );
     }
@@ -1454,7 +1454,7 @@ mod tests {
     #[tokio::test]
     async fn errors_out_when_first_chunk_is_error() -> Result<(), Box<dyn Error>> {
         let chunks = stream::iter(vec![
-            Ok(sse_stream_chunk("ERROR: (Some bad text)")),
+            Ok(sse_stream_chunk("**ERROR**: (Some bad text)")),
             Ok(sse_stream_chunk("Some safe text")),
         ]);
         let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
@@ -1529,7 +1529,7 @@ mod tests {
     async fn error_chunks_after_first_are_passed_through() -> Result<(), Box<dyn Error>> {
         let chunks = stream::iter(vec![
             Ok(sse_stream_chunk("Some safe text")),
-            Ok(sse_stream_chunk("ERROR: (something bad)")),
+            Ok(sse_stream_chunk("**ERROR**: (something bad)")),
         ]);
         let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
 
@@ -1545,7 +1545,7 @@ mod tests {
             "First chunk incorrect data"
         );
         assert!(
-            second_chunk.contains("ERROR: (something bad)"),
+            second_chunk.contains("**ERROR**: (something bad)"),
             "Second chunk incorrect data"
         );
 

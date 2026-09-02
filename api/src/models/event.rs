@@ -416,7 +416,7 @@ impl CreateEvent {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -511,7 +511,7 @@ impl PartialEvent {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -722,7 +722,7 @@ pub struct LocalizedEventWithAttendance {
     pub current_attendance: i64,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -750,7 +750,7 @@ pub async fn list(
     Ok(events)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
@@ -768,7 +768,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> 
     Ok(event)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -792,7 +792,7 @@ pub async fn get_localized_by_id(
     Ok(event)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(EventIden::Table)

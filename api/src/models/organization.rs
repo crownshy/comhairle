@@ -13,7 +13,6 @@ use uuid::Uuid;
 use fake::Dummy;
 
 use crate::{
-    ComhairleState,
     error::ComhairleError,
     models::{
         SqlxResultExt,
@@ -137,7 +136,7 @@ impl CreateOrganization {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     new_org: &CreateOrganization,
@@ -169,7 +168,7 @@ pub async fn create(
     Ok(organization)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn add_member_emails(
     db: &PgPool,
     organization_id: &Uuid,
@@ -238,7 +237,7 @@ impl PartialOrganization {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -283,6 +282,7 @@ pub async fn get_metadata(
 
 /// Merge the supplied object into the organization's `metadata` jsonb column
 /// at the top level. Existing keys are overwritten by the patch.
+#[instrument(err(Debug), skip(db))]
 pub async fn patch_metadata(
     db: &PgPool,
     id: &Uuid,
@@ -358,7 +358,7 @@ impl OrganizationFilterOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -380,7 +380,7 @@ pub async fn list(
     Ok(organizations)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -404,7 +404,7 @@ pub async fn get_localized_by_id(
     Ok(organization)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (OrganizationIden::Table, col)))
@@ -420,7 +420,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Organization, Comhairle
     Ok(organization)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
     let mut tx = db.begin().await?;
 

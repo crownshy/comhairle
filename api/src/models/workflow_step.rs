@@ -117,6 +117,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
 
 /// Will renormalize the step orders as part of a wider transaction
 /// So for example [ 3, 4 , 5, 30] will become [1,2,3,4]
+#[instrument(err(Debug), skip(pool))]
 async fn reset_orders(pool: &mut PgConnection, workflow_id: &Uuid) -> Result<(), ComhairleError> {
     sqlx::query(
         "
@@ -136,17 +137,17 @@ async fn reset_orders(pool: &mut PgConnection, workflow_id: &Uuid) -> Result<(),
 }
 
 /// Create the live version of this workflow step
+#[instrument(err(Debug), skip(state))]
 pub async fn launch(
-    db: &PgPool,
-    workflow_step_id: &Uuid,
     state: &Arc<ComhairleState>,
+    workflow_step_id: &Uuid,
 ) -> Result<(), ComhairleError> {
-    let workflow_step = get_by_id(db, workflow_step_id).await?;
+    let workflow_step = get_by_id(&state.db, workflow_step_id).await?;
     // Use the new trait method for cloning the tool
     let new_live_config = workflow_step.preview_tool_config.clone_tool(state).await?;
 
     update(
-        db,
+        &state.db,
         workflow_step_id,
         &workflow_step.workflow_id,
         &PartialWorkflowStep {
@@ -166,6 +167,7 @@ pub async fn launch(
 }
 
 /// Shift if
+#[instrument(err(Debug), skip(transaction))]
 async fn shift_steps_if_in_conflict(
     transaction: &mut PgConnection,
     workflow_id: &Uuid,
@@ -302,6 +304,7 @@ impl CreateWorkflowStep {
 }
 
 /// Get a workflow_step by ID (original struct, not localized)
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -318,7 +321,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, Comhairle
 }
 
 /// Get a workflow_step by ID (localized)
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localised_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -343,6 +346,7 @@ pub async fn get_localised_by_id(
 
 /// Delete a workflow_step by ID, returning the deleted step
 /// If the workflow step is live, returns an error and does not delete the step
+#[instrument(err(Debug), skip(state))]
 pub async fn delete(
     state: &Arc<ComhairleState>,
     id: &Uuid,
@@ -382,6 +386,7 @@ pub async fn delete(
     Ok(deleted_step)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -427,6 +432,7 @@ pub async fn update(
     Ok(workflow)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn list(db: &PgPool, workflow_id: &Uuid) -> Result<Vec<WorkflowStep>, ComhairleError> {
     let query = Query::select()
         .from(WorkflowStepIden::Table)
@@ -444,7 +450,7 @@ pub async fn list(db: &PgPool, workflow_id: &Uuid) -> Result<Vec<WorkflowStep>, 
     Ok(workflow_steps)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_localized(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -480,7 +486,7 @@ pub struct LocalizedWorkflowStepWithProgress {
     pub status: ProgressStatus,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_localized_with_progress(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -521,6 +527,7 @@ pub async fn list_localized_with_progress(
     Ok(workflow_steps)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn list_with_translations(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -641,7 +648,7 @@ pub async fn create(
 ///
 /// Used by the seal to tell "finished every step" apart from "there are no steps", which
 /// otherwise look identical to `get_current_active_step_for_user`.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn count_for_workflow(db: &PgPool, workflow_id: &Uuid) -> Result<i64, ComhairleError> {
     let (sql, values) = Query::select()
         .expr(Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id)).count())
@@ -656,6 +663,7 @@ pub async fn count_for_workflow(db: &PgPool, workflow_id: &Uuid) -> Result<i64, 
     Ok(count)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get_current_active_step_for_user(
     db: &PgPool,
     user_id: &Uuid,
@@ -692,6 +700,7 @@ pub async fn get_current_active_step_for_user(
     Ok(result)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get_current_active_step_for_user_localised(
     db: &PgPool,
     user_id: &Uuid,

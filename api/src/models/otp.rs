@@ -69,7 +69,7 @@ const DEFAULT_COLUMNS: [OtpIden; 8] = [
     OtpIden::UpdatedAt,
 ];
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     user_id: &Uuid,
@@ -118,7 +118,7 @@ pub async fn create(
     Ok(otp)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Otp, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -134,7 +134,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Otp, ComhairleError> {
     Ok(otp)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn accept(
     db: &PgPool,
     user_id: &Uuid,
