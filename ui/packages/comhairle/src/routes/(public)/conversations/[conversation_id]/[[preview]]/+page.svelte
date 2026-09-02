@@ -15,6 +15,7 @@
 	import StepZeroScreen from './StepZeroScreen.svelte';
 	import BeforeYouStart from './BeforeYouStart.svelte';
 	import { beforeYouStartPages } from '$lib/components/participant/beforeYouStart';
+	import { routeProgress } from '$lib/stores/routeProgress.svelte';
 
 	let { data }: PageProps = $props();
 	let { conversation, workflows, participation, preview } = data;
@@ -23,6 +24,9 @@
 
 	let privacyPolicyOpen = $state(false);
 	let isSubmitting = $state(false);
+	// The return link is a plain navigation, so nothing in the button changes until
+	// the next page has loaded. Flip it on click so the tap registers.
+	let isReturning = $state(false);
 	let privacyAccepted = $state(false);
 
 	function handleJoin() {
@@ -36,11 +40,18 @@
 		}
 	}
 
-	function doJoin() {
-		if (!user && firstWorkflow.autoLogin) {
-			registerAnnonUserSignupAndRedirect();
-		} else {
-			registerUser();
+	async function doJoin() {
+		// The join is two API calls and a page load before anything moves. Hold the
+		// global progress bar up for the whole of it, not just the navigation.
+		routeProgress.start();
+		try {
+			if (!user && firstWorkflow.autoLogin) {
+				await registerAnnonUserSignupAndRedirect();
+			} else {
+				await registerUser();
+			}
+		} finally {
+			routeProgress.stop();
 		}
 	}
 
@@ -81,7 +92,7 @@
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 
-		goto(firstWorkflowPath, { invalidateAll: true });
+		await goto(firstWorkflowPath, { invalidateAll: true });
 	}
 
 	async function redirectToSignIn() {
@@ -100,7 +111,7 @@
 				message: `You are part of the "${conversation.title}" conversation!`
 			});
 
-			goto(firstWorkflowPath);
+			await goto(firstWorkflowPath);
 		} catch (e) {
 			let message;
 
@@ -196,7 +207,11 @@
 					class="h-12 w-full text-base md:mx-auto md:w-80"
 					variant="primaryDark"
 					href={returnPath}
+					onclick={() => (isReturning = true)}
 				>
+					{#if isReturning}
+						<Spinner class="mr-2 size-4" />
+					{/if}
 					{conversation.callToAction || m.jump_back_in()}
 				</Button>
 			{:else if user || firstWorkflow.autoLogin}

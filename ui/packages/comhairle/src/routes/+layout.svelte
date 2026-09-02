@@ -3,6 +3,7 @@
 	import CookieConsent from '$lib/cookies/cookieconsent.svelte';
 	import ThemeProvider from '$lib/components/ThemeProvider.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
+	import RouteProgress from '$lib/components/RouteProgress.svelte';
 	import { browser } from '$app/environment';
 	import '../app.css';
 	import { afterNavigate } from '$app/navigation';
@@ -55,6 +56,7 @@
 
 <ThemeProvider>
 	<div class="bg-background w-full">
+		<RouteProgress />
 		<CookieConsent />
 		<!-- Toasts temporarily disabled while we simplify the participant chrome. -->
 		<!-- <NotificationsToaster closeButton /> -->
