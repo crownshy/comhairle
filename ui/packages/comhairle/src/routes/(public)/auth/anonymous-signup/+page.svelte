@@ -1,12 +1,30 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import AuthLayout from '$lib/components/AuthLayout.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { goto } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 	let loading = $state(false);
+	let responseMessage = $state(null);
+
+	async function attemptSignupAnnon() {
+		try {
+			await apiClient.SignupAnnonUser(undefined);
+
+			await goto(
+				`/auth/anonymous-signup/code?backTo=${encodeURIComponent(data.backTo ?? '/')}`,
+				{
+					invalidateAll: true
+				}
+			);
+		} catch (e) {
+			console.error(e);
+			responseMessage = e.response?.data?.err;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -17,12 +35,9 @@
 	<form
 		class="space-y-6 lg:space-y-8"
 		method="POST"
-		use:enhance={() => {
-			loading = true;
-			return async ({ update }) => {
-				await update();
-				loading = false;
-			};
+		onsubmit={(e) => {
+			e.preventDefault();
+			attemptSignupAnnon();
 		}}
 	>
 		<div class="flex flex-col items-center gap-3 lg:gap-6">
@@ -37,6 +52,10 @@
 				{m.get_started_with_comhairle_right_away()}
 			</p>
 		</div>
+
+		{#if responseMessage}
+			<p class="text-destructive text-center text-sm">{responseMessage}</p>
+		{/if}
 
 		<div class="flex justify-center">
 			<LoadingButton

@@ -115,7 +115,7 @@ pub struct CreateResponse {
 /// Upsert a participant's response for a proposal. There is at most one row
 /// per (proposal_id, user_id), so re-submitting overwrites the previous answer
 /// instead of stacking duplicate rows.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     proposal_id: &Uuid,
@@ -151,7 +151,7 @@ pub struct ProposalResponseFilterOptions;
 #[derive(Deserialize, JsonSchema, Debug, Clone, Default)]
 pub struct ProposalResponseOrderOptions;
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     proposal_id: &Uuid,

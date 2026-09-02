@@ -59,9 +59,14 @@
 		try {
 			if (loginType === 'automatic') {
 				await apiClient.SignupAnnonUser(undefined, {});
+				await acceptInvite();
+				await goto(firstWorkflowPath + url.search, {
+					invalidate: ['user', 'app:participation']
+				});
+			} else {
+				await acceptInvite();
+				await goto(firstWorkflowPath + url.search, { invalidate: [key('participation')] });
 			}
-			await acceptInvite();
-			await goto(firstWorkflowPath + url.search, { invalidate: [key('participation')] });
 		} catch (e) {
 			console.error(e);
 		}

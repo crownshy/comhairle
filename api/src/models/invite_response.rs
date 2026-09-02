@@ -38,7 +38,7 @@ const DEFAULT_COLUMNS: [InviteResponseIden; 5] = [
     InviteResponseIden::CreatedAt,
 ];
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &sqlx::PgPool,
     user_id: &Uuid,

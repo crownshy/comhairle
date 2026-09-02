@@ -76,7 +76,7 @@ const DEFAULT_COLUMNS: [(UserProgressIden, UserProgressIden); 8] = [
     (UserProgressIden::Table, UserProgressIden::UpdatedAt),
 ];
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     user_id: &Uuid,
@@ -112,7 +112,7 @@ pub async fn create(
 /// row for the new step. Takes a `&mut PgConnection` so it can be run
 /// inside a wider transaction (e.g. with the step insert) or standalone
 /// against a connection acquired from a pool.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create_for_workflow_participants(
     db: &mut PgConnection,
     workflow_step_id: &Uuid,
@@ -184,7 +184,7 @@ impl UpdateUserProgress {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     user_id: &Uuid,
@@ -214,7 +214,7 @@ pub async fn update(
 
 /// A single participant's progress row for one step, if they have one at all. A step added
 /// after they registered leaves them with no row, hence the `Option`.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get(
     db: &PgPool,
     user_id: &Uuid,
@@ -239,7 +239,7 @@ pub async fn get(
     Ok(result)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_user_on_workflow(
     db: &PgPool,
     user_id: &Uuid,
@@ -288,7 +288,7 @@ pub async fn list_for_user_on_workflow(
 ///
 /// A workflow with no steps is never finished - "you completed all zero of them" is not a
 /// meaningful thing to seal on.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn has_finished(
     db: &PgPool,
     user_id: &Uuid,
@@ -322,7 +322,7 @@ pub async fn has_finished(
 ///
 /// Event workflows (no `conversation_id`) are never sealed: the setting lives on the
 /// conversation and there is nothing to read.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn is_sealed(
     db: &PgPool,
     user_id: &Uuid,

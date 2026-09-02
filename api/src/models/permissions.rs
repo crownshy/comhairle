@@ -581,6 +581,7 @@ async fn cache_set_role_list(
 }
 
 /// Loads all role names assigned to a specific actor on a specific resource from Postgres.
+#[instrument(err(Debug), skip(db))]
 async fn fetch_actor_roles_for_resource(
     db: &PgPool,
     resource_type: &str,
@@ -617,6 +618,7 @@ async fn fetch_actor_roles_for_resource(
 }
 
 /// Returns role names for an actor on a resource, using Redis cache when available.
+#[instrument(err(Debug), skip(state))]
 async fn get_actor_roles_for_resource(
     state: &Arc<ComhairleState>,
     resource_type: &str,
@@ -655,6 +657,7 @@ async fn get_actor_roles_for_resource(
 /// assigned.
 /// * Returns [`ComhairleError::DatabaseError`] if there is an error interacting
 /// with the database.
+#[instrument(err(Debug), skip(state))]
 pub async fn grant_role(
     state: &Arc<ComhairleState>,
     request: GrantRoleRequest<'_>,
@@ -716,6 +719,7 @@ pub async fn grant_role(
 /// granted.
 /// * Returns [`ComhairleError::DatabaseError`] if there is an error interactin
 /// with the database.
+#[instrument(err(Debug), skip(state))]
 pub async fn revoke_role(
     state: &Arc<ComhairleState>,
     request: RevokeRoleRequest<'_>,
@@ -804,6 +808,7 @@ pub struct ListPermissionsFilters<'request> {
 /// # Errors
 ///
 /// Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
+#[instrument(err(Debug), skip(state))]
 pub async fn list_permissions(
     state: &Arc<ComhairleState>,
     request: ListPermissionsFilters<'_>,
@@ -842,6 +847,7 @@ pub async fn list_permissions(
 }
 
 /// Check whether a user, or their organization, has a specific role on a resource.
+#[instrument(err(Debug), skip(state))]
 pub async fn has_resource_permission(
     state: &Arc<ComhairleState>,
     permission_triplet: PermissionTriplet<'_>,
@@ -881,6 +887,7 @@ pub async fn has_resource_permission(
 }
 
 /// Check whether a user, or their organization, can perform an action on a resource.
+#[instrument(err(Debug), skip(state))]
 pub async fn can_perform_resource_action(
     state: &Arc<ComhairleState>,
     resource_id: &Uuid,
@@ -952,7 +959,7 @@ pub struct OrganizationWithPermissionDto {
     pub role_name: String,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_users_with_permission(
     db: &PgPool,
     resource_type: &str,
@@ -1013,7 +1020,7 @@ pub async fn list_users_with_permission(
     Ok(users_with_permission)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_organizations_with_permission(
     db: &PgPool,
     resource_type: &str,
@@ -1080,7 +1087,7 @@ pub async fn list_organizations_with_permission(
     Ok(organizations_with_permission)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_permissions_by_action(
     db: &PgPool,
     user_id: Uuid,
@@ -1613,7 +1620,6 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&state.db).await?;
 
         let user_id = get_random_user_id(&app, &mut session).await?;
-        let resource_id = Uuid::new_v4();
 
         // Create three test resources
         let resource_1_id = Uuid::new_v4(); // Simulated conversation resource

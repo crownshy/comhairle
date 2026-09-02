@@ -8,7 +8,7 @@ use axum::{
     http::StatusCode,
 };
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::ComhairleState;
@@ -24,6 +24,7 @@ use super::auth::RequiredUser;
 pub mod dto;
 
 /// Get the progress for a user on a workflow step
+#[instrument(err(Debug), skip(state))]
 async fn get_user_progress_for_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -46,6 +47,7 @@ async fn get_user_progress_for_workflow(
 /// state *before* this write, which matters: the write that marks the final step done is the
 /// one that brings the seal into existence, so checking afterwards would reject the very
 /// request that completes the flow and nobody could ever finish. See ADR-0016.
+#[instrument(err(Debug), skip(state))]
 pub async fn update_user_progress(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
