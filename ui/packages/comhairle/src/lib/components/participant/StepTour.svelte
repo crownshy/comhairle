@@ -24,6 +24,9 @@
 
 	/** Breathing room between the ring and the control it circles. */
 	const PAD = 10;
+	/** Smallest gap the card keeps from the side of the screen. */
+	const EDGE = 16;
+	const CARD_WIDTH = 320;
 
 	function target(spot: Spot | undefined): HTMLElement | null {
 		if (!spot) return null;
@@ -86,21 +89,26 @@
 	}
 
 	let cardStyle = $derived.by(() => {
-		if (!rect || typeof window === 'undefined') {
-			return 'left:50%; top:50%; transform:translate(-50%,-50%);';
+		if (typeof window === 'undefined') {
+			return `width:${CARD_WIDTH}px; left:50%; top:50%; transform:translate(-50%,-50%);`;
 		}
+		const width = Math.min(CARD_WIDTH, window.innerWidth - EDGE * 2);
+		const size = `width:${width}px;`;
+		if (!rect) return `${size} left:50%; top:50%; transform:translate(-50%,-50%);`;
 		const gap = PAD + 12;
 		const vertical =
 			rect.top < window.innerHeight / 2
 				? `top:${rect.bottom + gap}px;`
 				: `bottom:${window.innerHeight - rect.top + gap}px;`;
-		// Anchored to the near edge rather than centred on the control, so a caption for a
-		// corner control never hangs off the side of the screen.
-		const horizontal =
+		// Anchored to the near edge rather than centred on the control, then clamped: a control
+		// that sits near the middle of the screen, like the brief chip with the step menu beside
+		// it, would otherwise hang the card off the far side.
+		const preferred =
 			rect.left + rect.width / 2 < window.innerWidth / 2
-				? `left:${Math.max(16, rect.left - PAD)}px;`
-				: `right:${Math.max(16, window.innerWidth - rect.right - PAD)}px;`;
-		return vertical + horizontal;
+				? rect.left - PAD
+				: rect.right + PAD - width;
+		const left = Math.min(Math.max(EDGE, preferred), window.innerWidth - width - EDGE);
+		return `${size}${vertical}left:${left}px;`;
 	});
 
 	const captionId = 'step-tour-caption';
@@ -132,7 +140,7 @@
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby={captionId}
-		class="bg-card text-card-foreground fixed z-50 flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-4 rounded-2xl p-4 shadow-xl outline-none"
+		class="bg-card text-card-foreground fixed z-50 flex flex-col gap-4 rounded-2xl p-4 shadow-xl outline-none"
 		style={cardStyle}
 		onkeydown={onCardKeydown}
 	>
