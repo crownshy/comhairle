@@ -12,7 +12,7 @@
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import StepChrome from '$lib/components/participant/StepChrome.svelte';
+	import StepShell from '$lib/components/participant/StepShell.svelte';
 	import StepPager from '$lib/components/participant/StepPager.svelte';
 	import StepCover from '$lib/components/participant/StepCover.svelte';
 	import StepTour from '$lib/components/participant/StepTour.svelte';
@@ -29,7 +29,6 @@
 	} from '$lib/components/participant/stepTour';
 	import { touchFlowTiming } from '$lib/components/participant/flowTiming';
 	import { toMetaToolConfig } from '$lib/step-brief/slideMeta';
-	import { onStepPreview } from '$lib/step-brief/livePreview';
 	import { segmentFill } from '$lib/step-brief/segmentFill';
 	import type { ToolSequence } from '$lib/step-brief/toolSequence';
 	import * as m from '$lib/paraglide/messages';
@@ -45,7 +44,6 @@
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { keyboardOpen } from '$lib/utils/keyboardOpen.svelte';
-	import { cn } from '$lib/utils';
 	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
 	import { learningAssistantAvailable } from '$lib/components/LearningAssistant/availability';
 
@@ -167,25 +165,9 @@
 		return prevItem.href;
 	});
 
-	/**
-	 * An unsaved description pushed in by the admin's preview panel. Preview only: on a live
-	 * conversation the participant always sees the saved description.
-	 */
-	let previewDescription = $derived.by<string | null>(() => {
-		void workflowStep.id;
-		return null;
-	});
-
-	$effect(() => {
-		if (!isPreview) return;
-		return onStepPreview(workflowStep.id, (draft) => {
-			previewDescription = draft;
-		});
-	});
-
 	// The step brief: the description as slides (ADR-0017). A step with no description still
 	// gets one slide, so its cover carries the title and the derived meta line.
-	let slides = $derived(splitSlides(previewDescription ?? workflowStep.description));
+	let slides = $derived(splitSlides(workflowStep.description));
 	let briefSlides = $derived(slides.length > 0 ? slides : ['']);
 	let metaToolConfig = $derived(toMetaToolConfig(toolConfig));
 
@@ -437,39 +419,23 @@
 </svelte:head>
 
 {#if conversation && workflowStep && user}
-	<!-- The step is exactly one screen: chrome on top, pager on the bottom, and the tool body
-	     takes whatever is left and scrolls inside it. The two chrome rows are laid out, not
-	     stuck: nothing can push them off. The column is minmax(0,1fr), not the implicit
-	     auto: an auto column floors at the widest row's min-content, so a long header (the
-	     opinion count next to an untruncated step label) would widen the whole grid past the
-	     viewport and shift every centred row right. -->
-	<div
-		class="grid h-[100dvh] grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] overflow-hidden"
+	<StepShell
+		class="h-[100dvh]"
+		masked={!typing.current}
+		chrome={{
+			steps: chromeSteps,
+			currentIndex: viewedIndex + 1,
+			label: stepLabel,
+			fill,
+			count: phase === 'done' ? undefined : sequence.count,
+			assistantAvailable,
+			introUrl,
+			briefOpen,
+			onBrief: canReopenBrief ? toggleBrief : undefined,
+			preview: isPreview
+		}}
 	>
-		<StepChrome
-			steps={chromeSteps}
-			currentIndex={viewedIndex + 1}
-			label={stepLabel}
-			{fill}
-			count={phase === 'done' ? undefined : sequence.count}
-			{assistantAvailable}
-			{introUrl}
-			{briefOpen}
-			onBrief={canReopenBrief ? toggleBrief : undefined}
-			preview={isPreview}
-		/>
-
-		<!-- The bottom of the scroll dissolves into the background instead of stopping at a
-		     hard line, so a cut-off paragraph reads as content continuing under the bar. The
-		     padding matches the fade, so the mask sits over empty space once the reader is at
-		     the end and never dims the last line. -->
-		<main
-			data-step-scroll
-			class={cn(
-				'flex min-h-0 w-full flex-col overflow-y-auto',
-				!typing.current && 'mask-b-from-[calc(100%-2.5rem)] pb-10'
-			)}
-		>
+		{#snippet content()}
 			{#if phase === 'done'}
 				<StepComplete />
 			{:else if phase === 'cover'}
@@ -591,25 +557,27 @@
 					{/if}
 				</div>
 			{/if}
-		</main>
+		{/snippet}
 
-		{#if typing.current}
-			<!-- The keyboard has the bottom of the screen. -->
-		{:else if phase === 'done'}
-			<StepProceedBar loading={isSubmitting} onProceed={proceed} />
-		{:else if phase === 'cover'}
-			<StepBriefBar label={coverForwardLabel} onForward={goForward} />
-		{:else}
-			<StepPager
-				{forwardMode}
-				{canGoBack}
-				{canGoForward}
-				loading={isSubmitting}
-				onBack={goBack}
-				onForward={goForward}
-			/>
-		{/if}
-	</div>
+		{#snippet bar()}
+			{#if typing.current}
+				<!-- The keyboard has the bottom of the screen. -->
+			{:else if phase === 'done'}
+				<StepProceedBar loading={isSubmitting} onProceed={proceed} />
+			{:else if phase === 'cover'}
+				<StepBriefBar label={coverForwardLabel} onForward={goForward} />
+			{:else}
+				<StepPager
+					{forwardMode}
+					{canGoBack}
+					{canGoForward}
+					loading={isSubmitting}
+					onBack={goBack}
+					onForward={goForward}
+				/>
+			{/if}
+		{/snippet}
+	</StepShell>
 
 	{#if tourOpen}
 		<StepTour onDismiss={dismissTour} />

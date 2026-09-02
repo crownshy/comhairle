@@ -165,6 +165,30 @@ to keep, so there the mark is an ordinary link. See
 [ADR-0020](documentation/adr/0020-the-logo-asks-before-it-leaves-a-step.md).
 _Avoid_: Exit confirmation, are-you-sure.
 
+### Authoring and preview
+
+**Preview**:
+A draft Conversation walked end to end as a participant would, at
+`/conversations/<id>/preview`, linked from the conversation admin header. Steps show their
+draft configuration rather than their live one, a Polis Step targets its
+[[#preview-poll-live-poll]], and the Workflow records no progress. It is interactive: the
+admin moves through it, clicks things, and reaches the end. Distinct from
+[[#participant-view]], which is a still of one screen.
+_Avoid_: Draft mode (draft is a state of the Conversation; preview is how you look at one),
+test run, dry run.
+_Note_: A Step whose tool stores its own answers still writes them in Preview, so an admin
+who walks their own draft leaves real data behind under their own account.
+
+**Participant view**:
+An inert rendering of a single participant screen, shown beside the admin surface that
+authors it and updating as the admin types. Nothing in it can be clicked, focused or
+submitted: it is something to look at, not something to use. Available in phone and desktop
+proportions and expandable to fullscreen. On a Step's Configure it shows the
+[[#step-brief]]'s slides; on a Step's Setup it shows the Step as a participant meets it.
+Distinct from [[#preview]], which is the whole draft Conversation and is interactive, and
+from the in-page document viewer, which reads an uploaded file.
+_Avoid_: Preview (taken), live preview, participant preview, preview panel.
+
 ### Organizations and access
 
 **Organization Administrator**:

@@ -1,4 +1,5 @@
 import type { LayoutLoad } from './$types';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 /**
  * Shared shell for a single workflow step. Derives the step's sub-tab list from its
@@ -8,8 +9,19 @@ import type { LayoutLoad } from './$types';
  * the canonical landing and the most-visited tab.
  */
 export const load: LayoutLoad = async (event) => {
+	// Source documents feed both the description editor's badges and the participant view
+	// that renders those badges back, so they resolve once here rather than in each.
+	// Same invalidation key the participant side uses for the same fetch.
+	event.depends('app:documents');
+
 	const step_id = event.params.step_id;
-	const { conversation, workflowSteps } = await event.parent();
+	const { api, conversation, workflowSteps } = await event.parent();
+
+	const documents = await tryCatchAsync(() =>
+		api.ListDocuments({ params: { conversation_id: event.params.conversation_id } })
+	);
+	const availableDocuments =
+		documents.err === null ? documents.ok.filter((d) => d.parse_status === 'DONE') : [];
 
 	const step = workflowSteps?.find((s) => s.id === step_id);
 	const toolConfig = step
@@ -40,5 +52,5 @@ export const load: LayoutLoad = async (event) => {
 
 	// `step` and `toolConfig` are shared by every sub-tab page (Configure/Setup/Moderation/
 	// Insights), so they resolve once here and each page reads them from merged layout data.
-	return { step_id, step, toolConfig, subtabItems };
+	return { step_id, step, toolConfig, subtabItems, availableDocuments };
 };

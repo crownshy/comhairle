@@ -36,8 +36,10 @@
 		headerless?: boolean;
 		open?: boolean;
 		inline?: boolean;
-		/** Fires with the just-typed description, for the live participant preview. */
+		/** Fires with the just-typed description, for the live participant view. */
 		onDraftDescriptionChange?: (description: string) => void;
+		/** Parsed source documents, resolved once by the step layout's load. */
+		availableDocuments?: ComhairleDocument[];
 	};
 
 	let {
@@ -47,7 +49,8 @@
 		headerless = false,
 		open = $bindable(false),
 		inline = false,
-		onDraftDescriptionChange
+		onDraftDescriptionChange,
+		availableDocuments = []
 	}: Props = $props();
 
 	let primaryLocale = $derived<Locale>((conversation?.primaryLocale as Locale) ?? 'en');
@@ -72,23 +75,10 @@
 	let displayName = $derived(nameSource.contents[primaryLocale] ?? '');
 	let displayDescription = $derived(descriptionSource.contents[primaryLocale] ?? '');
 
-	// Fed to the admin preview panel so slide breaks appear as they are typed. The source
+	// Fed to the participant view so slide breaks appear as they are typed. The source
 	// already carries an optimistic overlay of unsaved edits, so this is the live value.
 	$effect(() => {
 		onDraftDescriptionChange?.(displayDescription);
-	});
-	let availableDocuments = $state<ComhairleDocument[]>([]);
-
-	$effect(() => {
-		if (!conversation_id) return;
-		apiClient
-			.ListDocuments({ params: { conversation_id } })
-			.then((docs) => {
-				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
-			})
-			.catch(() => {
-				availableDocuments = [];
-			});
 	});
 	let required = $derived(step?.required ?? false);
 	let revisitable = $derived(step?.canRevisit ?? false);

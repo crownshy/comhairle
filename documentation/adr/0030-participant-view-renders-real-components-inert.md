@@ -1,0 +1,144 @@
+# ADR-0030: A participant view renders the real components inert, rather than framing the participant route
+
+**Status:** proposed
+**Date:** 2026-09-02
+**Relates to:** [ADR-0017](0017-step-brief-slides-split-at-horizontal-rules.md), whose
+"admin preview panel on the configure subtab" this replaces
+
+## Context
+
+Two different things in the admin are called preview.
+
+The first is the draft Conversation at `/conversations/<id>/preview`, linked from the
+conversation header. An admin walks their unlaunched Conversation as a participant would.
+Steps read `preview_tool_config`, a Polis Step targets its preview poll, and the Workflow
+records no progress. This meaning is deep in the code: the `[[preview]]` route segment, the
+`preview_tool_config` field through the Rust DTOs, and the preview/live poll pair.
+
+The second is `StepPreviewDialog`: a fullscreen dialog holding an `<iframe>` pointed at that
+same route, with a phone/desktop toggle and a reload button, opened from the step sub-tab
+strip. It was built alongside ADR-0017 to close the gap that ADR left open, namely that
+typing `---` changes the participant UI and nothing in the editor says so.
+
+The dialog has three problems and they compound.
+
+**It always starts at the beginning.** The participant step route opens on the cover,
+`phase` is component state, and no URL opens the body directly. An admin working on a Learn
+step's pages clicks through the whole brief every time to reach the thing they are editing.
+
+**It cannot see unsaved edits.** A separate document cannot read the editor's state, so
+`livePreview.ts` posts the description across with `postMessage` and
+`previewDraft.svelte.ts` carries that value from the Configure page up to the layout where
+the button lives. Only the description crosses. Everything else needs a save and a reload,
+which is why the dialog has a reload button and a line of copy apologising for it. The
+value being posted is already a `$derived` in `CommonStepConfig`, reactive and correct; the
+frame is the only reason it has to be serialised and thrown over a wall.
+
+**The word is triple booked.** Draft conversation, device frame, and the in-page document
+viewer in `previewKind.ts` all say preview.
+
+## Decision
+
+**1. Preview keeps its existing meaning. The panel is a participant view.** Nothing
+renames: the route segment, `preview_tool_config`, the preview poll and the header button
+all stand. The new thing takes the new name, because naming the new thing is free and
+renaming the old one costs three layers. See CONTEXT.md for both entries.
+
+**2. A participant view is inert.** No navigation, no active controls, no walking through
+it. It is one screen, frozen, the way a proof is a page rather than a book.
+
+**3. It renders the real participant components, in the admin document.** Not an iframe.
+The content it shows is passed as props from the same page that authors it, so live typing
+is the default rather than a bridge. `livePreview.ts` and `previewDraft.svelte.ts` are both
+deleted rather than converted.
+
+**4. It shows the whole screen, not the content alone.** `StepCover` is
+`items-center justify-center` inside the `1fr` row of a `h-[100dvh]` grid; its layout is
+vertical centring against a known height. Rendered loose in a panel it does not centre and
+the preview is a lie. So the panel renders a device-proportioned box containing chrome bar,
+content and bottom bar. The chrome earns its place beyond fidelity: its segmented fill is
+derived from the slide count, so adding a slide break changes it, and that is a consequence
+of the edit the admin just made.
+
+**5. It is scoped to the surface that authors it.** Configure shows the step brief's
+slides. Setup shows the Step as a participant meets it. This is what fixes the "instructions
+first, page second" complaint: not a skip button, but a preview that never had the cover in
+it to begin with.
+
+**6. `StepShell` is extracted from the participant step route.** The three-row grid becomes
+a component taking chrome props, a content snippet and a bar snippet. The real route and the
+participant view both render it. A second copy of the layout would diverge silently: nothing
+would fail, the preview would just quietly stop matching.
+
+**7. Inertness is enforced at the boundary.** The `inert` attribute plus
+`pointer-events-none` on the panel container. No tool changes. Every write in every tool is
+behind a user action (Prioritization on "Submit & continue", Thinking Space on save, Polis
+on a vote), so blocking input blocks writes. A per-tool `preview` prop was rejected as the
+safety mechanism: a prop is a convention a tool added later will not follow, and the failure
+mode of forgetting it is a preview panel casting a real vote. The prop may still arrive
+later as a presentation nicety, for tools that want to show sample data.
+
+**8. Tool components receive the admin's own user id.** Reads on mount are then scoped to
+someone with no answers, which yields the empty first-time state a preview should show.
+
+**9. It is docked beside the editor, expandable to fullscreen.** Phone and desktop
+proportions. In phone mode the brief's slides render as a scaled contact sheet: each at a
+real 390px so the layout computes correctly, then CSS-scaled down so several sit together,
+because the question Configure is asking is where the breaks fell, and that is about the set
+rather than any one slide. Desktop mode shows one screen at a time, since a 1400px render
+scaled into a dock is unreadable.
+
+## Considered options
+
+- **Keep the iframe, add a URL that opens the body.** Cheapest fix for the loudest
+  complaint. Rejected because it leaves the `postMessage` bridge, the reload button and the
+  save-then-reload loop in place, and adds a participant-facing URL parameter that exists
+  only for admins.
+- **Approximate the shell inside the panel.** Rejected: see decision 6.
+- **Rely on autosave and invalidation instead of props.** The Configure page already
+  autosaves on a debounce, so the panel could read saved data and lag by about a second with
+  no plumbing at all. Rejected because the `postMessage` bridge was built precisely because
+  that lag was not acceptable, and it means a server round trip per sentence typed.
+- **Rename the draft concept to Draft and give the panel Preview.** The honest model: draft
+  is a state, preview is a rendering. Rejected on cost, across the route segment, the Rust
+  DTOs and the Polis vocabulary.
+
+## Scope
+
+In: a Step's Configure and Setup. Out for now: HeyForm, whose participant UI is a
+third-party iframe with no component to render, and the conversation landing page, which
+uses a scroll-snap deck rather than the step grid and so needs its own extraction rather
+than a third call site.
+
+## Consequences
+
+- **Editing in place is now reachable, and `inert` is what gets lifted to get there.** The
+  panel already holds live editor state and real components; making a heading editable from
+  the preview is a matter of relaxing the boundary for chosen elements rather than rebuilding
+  the surface. That is the destination this decision is pointed at, and nothing here should
+  be built in a way that blocks it.
+- **The isolation the iframe gave for free is gone.** Participant styles now cascade in an
+  admin document, and a participant component that grabs focus, listens on `window`, or
+  assumes it owns the viewport will misbehave in a panel. `inert` covers focus. The rest is
+  a real class of bug that did not exist before.
+- **`StepPreviewDialog` is deleted, not gutted.** The plan was to keep it as the fullscreen
+  host. In the build the dock and the fullscreen dialog show the same `screens` snippet, so
+  both hosts live in `ParticipantViewSplit` and a separate dialog file would only have held
+  a second copy of the device toggle. Its iframe, reload button and the copy about needing a
+  save go with it.
+- **Source documents are hoisted to the step layout's load.** The editor's badges and the
+  participant view that renders those badges back are two consumers of one fetch, so it
+  moved out of a `$effect` in `CommonStepConfig` and into `+layout.ts` under the same
+  `app:documents` key the participant side uses. `CommonStepConfig` takes them as a prop.
+- **`StepShell` takes the chrome's props as one object**, not eleven pass-throughs, so the
+  chrome's prop list stays defined in one place. The shell still renders `StepChrome`
+  itself, which is what decision 6 is protecting: a caller cannot swap it out or omit it.
+- **The participant step route is refactored on a demo branch.** Decision 6 is a pure
+  extraction with no behaviour change, but it is the highest-risk file in the change and
+  wants its own commit.
+- **A Polis participant view makes a network call per open** and shows the draft poll's real
+  seed statements rather than a sample. Correct, but not free.
+- **An admin who has walked their own draft sees their own data in the panel.** Preview
+  writes are real for tools that store their own answers, so the empty-state property in
+  decision 8 holds only until the first walkthrough, and nothing on screen explains the
+  difference.
