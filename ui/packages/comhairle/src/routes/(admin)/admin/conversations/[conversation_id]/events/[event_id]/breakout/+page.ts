@@ -6,7 +6,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 	const { conversation_id, event_id } = params;
 
 	return {
-		attendees: tryCatchAsync(() =>
+		streamedAttendees: tryCatchAsync(() =>
 			api
 				.ListEventAttendances({
 					params: { conversation_id, event_id },

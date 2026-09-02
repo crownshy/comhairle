@@ -187,7 +187,7 @@
 	{/if}
 </div>
 
-{#await data.attendees then attendees}
+{#await data.streamedAttendees then attendees}
 	{#if attendees.err !== null}
 		{notifications.addFlash({
 			message: 'Could not load attendees please try again',
