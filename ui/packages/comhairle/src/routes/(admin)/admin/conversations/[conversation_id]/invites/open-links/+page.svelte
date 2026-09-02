@@ -4,7 +4,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import { embedInviteUrl, inviteUrl } from '$lib/utils/invites';
 	import QrCode from 'svelte-qrcode';
-	import InviteLink from '../InviteLink.svelte';
+	import { InviteLink } from './external';
 	import InviteLabelDialog from './InviteLabelDialog.svelte';
 	import InviteStatsBarChart from './InviteStatsBarChart.svelte';
 	import { formatDistanceToNow } from 'date-fns';

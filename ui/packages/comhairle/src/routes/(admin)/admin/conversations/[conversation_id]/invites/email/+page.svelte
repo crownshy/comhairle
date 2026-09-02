@@ -3,7 +3,7 @@
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
 	import { key } from '$lib/utils/invalidationKey';
-	import InviteLink from '../InviteLink.svelte';
+	import { InviteLink } from './external';
 
 	let { data } = $props();
 
