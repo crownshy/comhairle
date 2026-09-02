@@ -37,7 +37,7 @@
 			message: 'Role updated'
 		});
 
-		await invalidate(key('conversation/event'));
+		await invalidate(key('event/facilitators'));
 	}
 </script>
 

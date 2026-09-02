@@ -5,8 +5,11 @@ import { HttpStatus } from '$lib/utils/constants';
 import { resolve } from '$app/paths';
 import { notifications } from '$lib/notifications.svelte';
 import type { PendingInvite } from './types';
+import { key } from '$lib/utils/invalidationKey';
 
-export const load: PageLoad = async ({ parent, params }) => {
+export const load: PageLoad = async ({ parent, params, depends }) => {
+	depends(key('event/facilitators'));
+
 	const { api } = await parent();
 	const { conversation_id, event_id } = params;
 
