@@ -23,10 +23,10 @@ export const signupFormSchema = z
 	});
 export type SignupForm = z.infer<typeof signupFormSchema>;
 
-export const annonLoginFormSchema = z.object({
-	username: z.string().min(1)
+export const guestLoginFormSchema = z.object({
+	guest_code: z.string().min(1)
 });
-export type AnnonLoginFrom = z.infer<typeof annonLoginFormSchema>;
+export type GuestLoginFrom = z.infer<typeof guestLoginFormSchema>;
 
 export const passwordResetCreateFormSchema = z.object({
 	email: z.string().email(m.please_enter_a_valid_email())

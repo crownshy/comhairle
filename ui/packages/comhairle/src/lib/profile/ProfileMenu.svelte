@@ -5,7 +5,6 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import LoginButtons from './LoginButtons.svelte';
 	import { userInitials } from '$lib/utils';
-	import { apiClient } from '@crownshy/api-client/client';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
@@ -34,10 +33,10 @@
 				<Avatar.Fallback class="text-foreground">{user_initials}</Avatar.Fallback>
 			</Avatar.Root>
 			<p class="text-foreground text-base font-normal">
-				{#if user.authType === 'annon'}
-					Anonymous
+				{#if user.authType === 'guest'}
+					Guest
 				{:else}
-					{user.username}
+					{user.guestCode}
 				{/if}
 			</p>
 			{#if notificationService.unreadCount > 0}
@@ -48,8 +47,8 @@
 		<DropdownMenu.Content>
 			<DropdownMenu.Group>
 				<DropdownMenu.Item>
-					{#if user.authType === 'annon'}
-						<h2>Your ID: {user.username}</h2>
+					{#if user.authType === 'guest'}
+						<h2>Your ID: {user.guestCode}</h2>
 					{/if}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>

@@ -28,7 +28,7 @@ use time::Duration;
 pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
-        &state,
+        state,
         PermissionRole::Admin.system_triplet(),
         &user.id,
         user.organization_id.as_ref(),
@@ -67,8 +67,8 @@ use crate::models::permissions::{
 };
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-    create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-    get_user_by_username, get_user_resource_roles, set_signup_metadata, update_user,
+    create_guest_user, create_otp_user, create_user, get_guest_user_by_code, get_user_by_email,
+    get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
@@ -194,10 +194,10 @@ struct LoginRequest {
     password: String,
 }
 
-/// Expected payload for an annon login request
+/// Expected payload for an guest login request
 #[derive(Deserialize, JsonSchema)]
-struct AnnonLoginRequest {
-    username: String,
+struct GuestLoginRequest {
+    guest_code: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -348,15 +348,15 @@ async fn signup(
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
 
-/// Signup handler for annon
+/// Signup handler for guest
 #[instrument(err(Debug), skip(state, client_ip, user_agent))]
-async fn signup_annon(
+async fn signup_guest(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = create_annon_user(&state.db).await?;
+    let user = create_guest_user(&state.db).await?;
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
@@ -439,20 +439,20 @@ async fn login(
 }
 
 #[instrument(err(Debug), skip(state, payload))]
-async fn login_annon(
+async fn login_guest(
     State(state): State<Arc<ComhairleState>>,
     cookies: CookieJar,
-    Json(payload): Json<AnnonLoginRequest>,
+    Json(payload): Json<GuestLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = get_user_by_username(&payload.username, &state.db).await?;
+    let user = get_guest_user_by_code(&payload.guest_code, &state.db).await?;
 
-    if user.auth_type != UserAuthType::Annon {
+    if user.auth_type != UserAuthType::Guest {
         // return not found to avoid revealing that a correct username has been used.
         return Err(ComhairleError::NoUserFound);
     }
 
     let claims = SessionClaims {
-        username: user.username.clone(),
+        username: user.guest_code.clone(),
         sudo_user: None,
         email_verified: user.email_verified,
         roles: Vec::new(),
@@ -578,7 +578,7 @@ async fn login_otp_token(
     let user = get_user_by_email(&token_data.claims.details.email, &state.db).await?;
     let now = Utc::now();
 
-    if user.auth_type == UserAuthType::Annon {
+    if user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -620,7 +620,7 @@ async fn verify_email_token(
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let current_user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
-    if current_user.auth_type == UserAuthType::Annon {
+    if current_user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -691,7 +691,7 @@ async fn password_reset_update(
 ) -> Result<StatusCode, ComhairleError> {
     let user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
-    if user.auth_type == UserAuthType::Annon {
+    if user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -1145,11 +1145,11 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
     ApiRouter::new()
         .api_route(
-            "/login_annon",
-            post_with(login_annon, |op| {
-                op.id("LoginAnnonUser")
+            "/login_guest",
+            post_with(login_guest, |op| {
+                op.id("LoginGuestUser")
                     .tag("Auth")
-                    .summary("Login an annon user")
+                    .summary("Login an guest user")
                     .response::<200, Json<UserDto>>()
             })
             .layer(credential_limit.clone()),
@@ -1186,11 +1186,11 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             .layer(credential_limit.clone()),
         )
         .api_route(
-            "/signup_annon",
-            post_with(signup_annon, |op| {
-                op.id("SignupAnnonUser")
+            "/signup_guest",
+            post_with(signup_guest, |op| {
+                op.id("SignupGuestUser")
                     .tag("Auth")
-                    .summary("Signup and annon user")
+                    .summary("Signup and guest user")
                     .response::<201, Json<UserDto>>()
             })
             .layer(credential_limit.clone()),
@@ -1509,6 +1509,7 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
+            guest_code: None,
             auth_type: UserAuthType::EmailPassword,
             avatar_url: None,
             email_verified: false,
@@ -1544,7 +1545,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1553,7 +1554,7 @@ mod tests {
         let secret = &state.config.jwt_secret.clone();
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new(username, password, email);
-        let (_, user, _) = session.signup_annon(&app).await?;
+        let (_, user, _) = session.signup_guest(&app).await?;
 
         let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
         let user = User {
@@ -1561,7 +1562,8 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            guest_code: None,
+            auth_type: UserAuthType::Guest,
             avatar_url: None,
             email_verified: false,
             organization_id: None,
@@ -1586,7 +1588,7 @@ mod tests {
         assert_eq!(
             status,
             StatusCode::INTERNAL_SERVER_ERROR,
-            "cannot verify annonymous user"
+            "cannot verify guest user"
         );
 
         Ok(())
@@ -1617,7 +1619,8 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             avatar_url: None,
             email_verified: user.email_verified,
             organization_id: None,
@@ -1696,7 +1699,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn other_user_types_should_not_be_able_to_annon_login(
+    fn other_user_types_should_not_be_able_to_guest_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -1709,38 +1712,42 @@ mod tests {
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
         session.logout(&app).await?;
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
-        assert_eq!(status, StatusCode::NOT_FOUND, "API should return NOT_FOUND");
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "API should return NOT_FOUND"
+        );
         Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_should_be_able_to_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_should_be_able_to_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut session = UserSession::new_anon();
-        session.signup_annon(&app).await?;
+        let mut session = UserSession::new_guest();
+        session.signup_guest(&app).await?;
         session.logout(&app).await?;
 
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
         assert_eq!(status, StatusCode::OK, "API should respond OK");
         Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn unknown_username_should_not_be_able_to_annon_login(
+    fn unknown_guest_code_should_not_be_able_to_guest_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut session = UserSession::new_anon();
-        session.username = Some("foo".to_string());
+        let mut session = UserSession::new_guest();
+        session.guest_code = Some("foo".to_string());
 
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
         assert_eq!(
             status,
@@ -1751,7 +1758,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1761,15 +1768,6 @@ mod tests {
 
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
-
-        let mut session = UserSession::new(username, password, "test_email2");
-        let (status, _, _) = session.signup(&app).await?;
-
-        assert_eq!(
-            status,
-            StatusCode::CONFLICT,
-            "Should not be able to have same username"
-        );
 
         let mut session = UserSession::new("test_user2", crate::test_helpers::TEST_PASSWORD, email);
         let (status, _, _) = session.signup(&app).await?;
@@ -1816,34 +1814,34 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_should_by_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_should_be_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut annon_user = UserSession::new_anon();
-        let (status, _, _) = annon_user.signup_annon(&app).await?;
+        let mut guest_user = UserSession::new_guest();
+        let (status, _, _) = guest_user.signup_guest(&app).await?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
 
-        let (status, user_response, _) = annon_user.current_user(&app).await?;
+        let (status, user_response, _) = guest_user.current_user(&app).await?;
 
-        assert_eq!(status, StatusCode::OK, "Should be ok ");
+        assert_eq!(status, StatusCode::OK, "Should be ok");
 
         assert!(
-            user_response.username.is_some(),
-            "current annon user should have a username"
+            user_response.guest_code.is_some(),
+            "current guest user should have a guest_code"
         );
 
         assert_eq!(
             user_response.auth_type,
-            UserAuthType::Annon,
-            "current annon user should have a username"
+            UserAuthType::Guest,
+            "current guest user should have guest auth_type"
         );
 
         assert_ne!(
             user_response.id,
             Uuid::nil(),
-            "current annon user should have an id"
+            "current guest user should have an id"
         );
 
         Ok(())
@@ -1942,6 +1940,7 @@ mod tests {
             password: Some(password.to_string()),
             username: Some(username.to_string()),
             auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             avatar_url: None,
             email_verified: false,
             organization_id: None,
@@ -2009,6 +2008,7 @@ mod tests {
             password: Some(password.to_string()),
             avatar_url: None,
             auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             email_verified: false,
             organization_id: None,
             created_at: Utc::now(),
@@ -2038,27 +2038,27 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let secret = state.config.jwt_secret.clone();
         let app = setup_server(Arc::new(state)).await?;
-        let mut session = UserSession::new_anon();
-        let (_, user, _) = session.signup_annon(&app).await?;
+        let mut session = UserSession::new_guest();
+        let (_, user, _) = session.signup_guest(&app).await?;
 
         let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
-        let username = user
-            .get("username")
+        let guest_code = user
+            .get("guestCode")
             .unwrap()
             .as_ref()
-            .unwrap()
-            .as_str()
+            .and_then(|v| v.as_str())
             .unwrap();
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: None,
             password: None,
-            username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            username: None,
+            auth_type: UserAuthType::Guest,
+            guest_code: Some(guest_code.to_string()),
             avatar_url: None,
             email_verified: false,
             organization_id: None,
@@ -2081,7 +2081,7 @@ mod tests {
         assert_eq!(
             status,
             StatusCode::INTERNAL_SERVER_ERROR,
-            "annon users cannot reset password"
+            "guest users cannot reset password"
         );
 
         Ok(())

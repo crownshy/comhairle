@@ -133,7 +133,7 @@
 								</Avatar.Root>
 								<div class="flex flex-col">
 									<span class="text-foreground text-sm font-medium">
-										{#if user.authType === 'annon'}Anonymous{:else}{user.username}{/if}
+										{#if user.authType === 'guest'}Guest{:else}{user.guestCode}{/if}
 									</span>
 									{#if user.email}
 										<span class="text-muted-foreground text-xs"

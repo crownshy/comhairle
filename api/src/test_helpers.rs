@@ -301,14 +301,16 @@ pub struct UserSession {
     pub password: Option<String>,
     pub email: Option<String>,
     pub cookie: Option<HeaderValue>,
+    pub guest_code: Option<String>,
 }
 
 impl UserSession {
-    pub fn new_anon() -> Self {
+    pub fn new_guest() -> Self {
         Self {
             id: None,
             username: None,
             password: None,
+            guest_code: None,
             email: None,
             cookie: None,
         }
@@ -320,6 +322,7 @@ impl UserSession {
             username: Some("admin".into()),
             password: Some(TEST_PASSWORD.into()),
             email: Some("admin@crown-shy.com".into()),
+            guest_code: None,
             cookie: None,
         }
     }
@@ -330,6 +333,7 @@ impl UserSession {
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
+            guest_code: None,
             cookie: None,
         }
     }
@@ -672,19 +676,19 @@ impl UserSession {
         .await
     }
 
-    pub async fn login_annon(
+    pub async fn login_guest(
         &mut self,
         app: &Router,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
-            "/auth/login_annon",
-            json!({"username":self.username}).to_string().into(),
+            "/auth/login_guest",
+            json!({"guest_code":self.guest_code}).to_string().into(),
         )
         .await
     }
 
-    pub async fn signup_annon(
+    pub async fn signup_guest(
         &mut self,
         app: &Router,
     ) -> Result<
@@ -695,11 +699,11 @@ impl UserSession {
         ),
         Box<dyn Error>,
     > {
-        let (status, value, cookie) = self.post(app, "/auth/signup_annon", Body::empty()).await?;
+        let (status, value, cookie) = self.post(app, "/auth/signup_guest", Body::empty()).await?;
         let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
-        let username: String =
-            serde_json::from_value(user.get("username").unwrap().clone().unwrap()).unwrap();
-        self.username = Some(username);
+        let guest_code: String =
+            serde_json::from_value(user.get("guestCode").unwrap().clone().unwrap()).unwrap();
+        self.guest_code = Some(guest_code);
         let id: String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
         self.id = Some(Uuid::parse_str(&id).unwrap());
         Ok((status, user, cookie))

@@ -331,7 +331,7 @@ mod tests {
         let (app, _) = setup_default_app_and_session(&pool).await?;
 
         // Create an unauthenticated session
-        let mut unauth_session = UserSession::new_anon();
+        let mut unauth_session = UserSession::new_guest();
 
         // Try to get profile without authentication
         let (status, _, _) = unauth_session.get(&app, "/user/profile").await?;

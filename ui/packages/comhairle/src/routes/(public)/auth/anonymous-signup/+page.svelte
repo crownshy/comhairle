@@ -10,9 +10,9 @@
 	let loading = $state(false);
 	let responseMessage = $state(null);
 
-	async function attemptSignupAnnon() {
+	async function attemptSignupGuest() {
 		try {
-			await apiClient.SignupAnnonUser(undefined);
+			await apiClient.SignupGuestUser(undefined);
 
 			await goto(
 				`/auth/anonymous-signup/code?backTo=${encodeURIComponent(data.backTo ?? '/')}`,
@@ -37,7 +37,7 @@
 		method="POST"
 		onsubmit={(e) => {
 			e.preventDefault();
-			attemptSignupAnnon();
+			attemptSignupGuest();
 		}}
 	>
 		<div class="flex flex-col items-center gap-3 lg:gap-6">
