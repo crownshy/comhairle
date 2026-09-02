@@ -52,7 +52,7 @@
 		<h1 class="text-primary text-3xl leading-10 font-bold md:text-4xl">{title}</h1>
 	{/if}
 
-	<div class="prose prose-p:text-base w-full max-w-none text-base leading-6">
+	<div class="prose w-full max-w-none">
 		<ContentRenderer content={body} {availableDocuments} {conversationId} />
 	</div>
 

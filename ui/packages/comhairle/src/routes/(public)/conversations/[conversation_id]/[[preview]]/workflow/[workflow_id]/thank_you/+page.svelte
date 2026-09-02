@@ -141,7 +141,7 @@
 				<ThankYouStats {minutes} {stepsDone} {percentComplete} />
 			{/if}
 
-			<div class="prose prose-p:text-base w-full max-w-none text-base">
+			<div class="prose w-full max-w-none">
 				{#if conversation.thankYouMessage}
 					<ContentRenderer
 						content={conversation.thankYouMessage}

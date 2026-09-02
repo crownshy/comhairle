@@ -46,14 +46,35 @@ body {
 	--tw-prose-kbd: var(--foreground);
 }
 
+/* Body copy runs one step above Tailwind Typography's 1rem default. Participants read
+   these articles on phones, and 16px in a wide measure was testing as too tight. Headings
+   below are absolute, so raising the base does not drag them up with it. */
+.prose {
+	font-size: var(--type-size-lg);
+	line-height: var(--type-leading-lg);
+}
+
 /* Headings come from the shared type scale rather than Tailwind Typography's em-based
    defaults, so they hold their size whatever `prose-*` modifier the call site uses.
    Mirrored in editor-content.css for `.tiptap` without `.prose`; keep the two in step. */
+/* Every rank has to clear the 18px body: the old h3 sat at 20px and read as bold body.
+   Ranks step by 4px below the md breakpoint and 6px above it, because a 36px h1 at 375px
+   wraps a short title onto three lines and pushes the body off the fold. 22, 26 and 30 are
+   off the shared scale on purpose; it jumps 24 straight to 36, which leaves nowhere to put
+   an h2 between h3 and h1. */
 .prose h1 {
-	/* 3xl is a desktop size: at 375px it wraps a short title onto three lines and pushes
-	   the body off the fold. Off-scale on purpose, so a mobile h1 still outranks the 2xl h2. */
-	font-size: 1.75rem;
-	line-height: 2.25rem;
+	font-size: 1.875rem; /* 30 */
+	line-height: 2.375rem; /* 38 */
+}
+
+.prose h2 {
+	font-size: 1.625rem; /* 26 */
+	line-height: 2.125rem; /* 34 */
+}
+
+.prose h3 {
+	font-size: 1.375rem; /* 22 */
+	line-height: 1.875rem; /* 30 */
 }
 
 @media (width >= 48rem) {
@@ -61,16 +82,23 @@ body {
 		font-size: var(--type-size-3xl);
 		line-height: var(--type-leading-3xl);
 	}
+
+	.prose h2 {
+		font-size: 1.875rem; /* 30 */
+		line-height: 2.375rem; /* 38 */
+	}
+
+	.prose h3 {
+		font-size: var(--type-size-2xl);
+		line-height: var(--type-leading-2xl);
+	}
 }
 
-.prose h2 {
-	font-size: var(--type-size-2xl);
-	line-height: var(--type-leading-2xl);
-}
-
-.prose h3 {
-	font-size: var(--type-size-xl);
-	line-height: var(--type-leading-xl);
+/* Typography drops tables to 0.875em. Table cells carry the same body copy as the
+   paragraphs around them, so they hold the base size. `.tiptap table` already does this
+   for rich-text content; this covers the plain `.prose` pages (about, privacy, markdown). */
+.prose table {
+	font-size: inherit;
 }
 
 /* Used to apply prose styles to markdown editors */

@@ -149,7 +149,7 @@
 							{/each}
 						</ol>
 					{:else if page.content}
-						<div class="prose prose-p:text-base w-full max-w-none text-base">
+						<div class="prose w-full max-w-none">
 							<ContentRenderer
 								content={page.content}
 								{availableDocuments}

@@ -32,7 +32,6 @@
 
 	let { data }: PageData = $props();
 
-
 	let showAll = $state(false);
 	let markingAllAsRead = $state(false);
 	let markingAsRead = $state(new Set<string>());
@@ -265,8 +264,8 @@
 									conversation_id={notification.notification.contextId}
 								/>
 							{/if}
-							<div class="prose prose-sm max-w-none">
-								<p class="text-muted-foreground text-sm whitespace-pre-wrap">
+							<div class="prose max-w-none">
+								<p class="text-muted-foreground whitespace-pre-wrap">
 									{notification.notification.content}
 								</p>
 							</div>

@@ -31,7 +31,7 @@
 					{#if section.html}
 						<!-- Trusted static copy from tool_guides.ts -->
 						<div
-							class="text-foreground prose prose-sm max-w-none text-lg leading-8 [&_a]:underline [&_li]:my-1 [&_p]:my-0 [&_ul]:list-disc [&_ul]:pl-6"
+							class="text-foreground prose max-w-none text-lg leading-8 [&_a]:underline [&_li]:my-1 [&_p]:my-0 [&_ul]:list-disc [&_ul]:pl-6"
 						>
 							{@html section.html}
 						</div>
