@@ -35,8 +35,8 @@ wall of text, and the reader always knows which page they are on.
 
 The pages stay in the ordinary scroll rather than being mounted one at a time, and the
 scroll snaps to them, so one swipe down lands on one page rather than between two. Scrolling
-down walks them in order, the lit chip follows the reader, and swiping is the same move as
-scrolling to the next page (ADR-0018). The strip is the shortcut, not the only way through.
+down walks them in order and the lit chip follows the reader. The strip is the shortcut, not
+the only way through. (The horizontal swipe this originally carried is gone: ADR-0029.)
 
 Position is reported by a scroll cue at the foot of the page rather than by a row of dots.
 The dots sat under a page that is mostly whitespace, far enough from the text to read as
@@ -110,8 +110,8 @@ the same button led through the completion screen.
 - Snapping belongs to the scroll container, which here is the document, so the landing page
   sets it on the root element for as long as it is mounted. The cover carries a snap point
   of its own, so arriving at the top of the page is already on one.
-- `SlideDots` is no longer used by the deck. It stays where it is: the step brief still
-  reports its position that way, over slides that fill their screen.
+- `SlideDots` is no longer used by the deck. The step brief dropped it too (ADR-0029), so
+  its only remaining caller is the lived experience tool.
 - The completion screen is now the end of a step that was done, not of every step. The
   `done` phase is reached from a tool finishing, never from Skip.
 - `StepCoverNav` is deleted. An optional step can no longer be skipped from its cover, only

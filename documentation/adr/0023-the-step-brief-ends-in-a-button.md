@@ -1,7 +1,8 @@
 # ADR-0023: The step brief ends in a button, and the hint takes the whole screen
 
 **Status:** proposed (part 3 superseded by
-[ADR-0024](0024-before-you-start-is-a-deck-you-can-come-back-to.md))
+[ADR-0024](0024-before-you-start-is-a-deck-you-can-come-back-to.md); dots and swipe amended
+by [ADR-0029](0029-the-brief-is-pages-with-a-button-not-a-carousel.md))
 **Date:** 2026-09-01
 **Branch:** `mobile-exploration/participant-step-chrome`
 **Supersedes:** the Start label in part 4 of

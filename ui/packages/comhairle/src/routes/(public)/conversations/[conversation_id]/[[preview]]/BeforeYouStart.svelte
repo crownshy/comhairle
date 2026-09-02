@@ -3,13 +3,12 @@
 	 * Before you start: everything about a conversation that is not the cover, as pages a
 	 * participant reads one screen at a time (ADR-0024).
 	 *
-	 * The pages sit in the ordinary scroll and the scroll snaps to them, so one swipe down is
+	 * The pages sit in the ordinary scroll and the scroll snaps to them, so one scroll down is
 	 * one page and a page is never left half on screen. The chips are the shortcut, not the
 	 * only way through.
 	 */
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import { carouselSwipe } from '$lib/components/participant/carouselSwipe';
 	import type { BeforeYouStartPage } from '$lib/components/participant/beforeYouStart';
 	import type { StepPreview } from '$lib/components/participant/stepPreview';
 	import { ChevronDown } from 'lucide-svelte';
@@ -35,13 +34,6 @@
 		if (index < 0 || index >= pages.length) return;
 		document.getElementById(pages[index].id)?.scrollIntoView({ behavior: 'smooth' });
 	}
-
-	// Swiping is the same move as scrolling to the next page, for a thumb that is already
-	// holding the phone. Vertical drags are left alone, so it never fights the scroll.
-	const swipe = carouselSwipe(
-		() => show(activeIndex - 1),
-		() => show(activeIndex + 1)
-	);
 
 	/**
 	 * Snapping belongs to the scroll container, which for this page is the document, so it
@@ -109,9 +101,6 @@
 				id={page.id}
 				class="mx-auto flex min-h-[100dvh] w-full max-w-5xl snap-start flex-col px-5 pt-20 pb-24 md:px-6"
 				aria-label={page.label}
-				onpointerdown={swipe.onpointerdown}
-				onpointerup={swipe.onpointerup}
-				onpointercancel={swipe.onpointercancel}
 			>
 				<!-- `m-auto` rather than centring the section: a page taller than the screen
 					then grows downwards instead of losing its first lines off the top.

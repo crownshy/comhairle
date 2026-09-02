@@ -469,8 +469,6 @@
 					toolConfig={metaToolConfig}
 					{availableDocuments}
 					conversationId={conversation.id}
-					onPrev={goBack}
-					onNext={goForward}
 				/>
 			{:else}
 				<div
@@ -584,12 +582,7 @@
 		{#if phase === 'done'}
 			<StepProceedBar loading={isSubmitting} onProceed={proceed} />
 		{:else if phase === 'cover'}
-			<StepBriefBar
-				index={slideIndex}
-				count={briefSlides.length}
-				label={coverForwardLabel}
-				onForward={goForward}
-			/>
+			<StepBriefBar label={coverForwardLabel} onForward={goForward} />
 		{:else}
 			<StepPager
 				{forwardMode}

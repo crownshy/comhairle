@@ -3,7 +3,6 @@
 	import SlideView from './SlideView.svelte';
 	import StepBriefBar from './StepBriefBar.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { carouselSwipe } from './carouselSwipe';
 	import type { MetaToolConfig } from '$lib/step-brief/slideMeta';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
@@ -26,24 +25,16 @@
 	let index = $state(0);
 	let slide = $derived(slides[index] ?? '');
 	let isLast = $derived(index >= slides.length - 1);
-	// The hint has nowhere to send the reader but back to the step, so its last slide closes.
+	// The hint has nowhere to send the reader but back to the step, so its last page closes.
 	let label = $derived(isLast ? m.step_brief_close() : m.pager_next());
-
-	function goTo(next: number) {
-		index = Math.max(0, Math.min(slides.length - 1, next));
-	}
 
 	function forward() {
 		if (isLast) onClose();
-		else goTo(index + 1);
+		else index = Math.min(slides.length - 1, index + 1);
 	}
-
-	const swipe = carouselSwipe(() => goTo(index - 1), forward);
 
 	function onkeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') onClose();
-		if (event.key === 'ArrowLeft') goTo(index - 1);
-		if (event.key === 'ArrowRight') forward();
 	}
 </script>
 
@@ -70,14 +61,7 @@
 		</button>
 	</div>
 
-	<div
-		class="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-8"
-		role="group"
-		aria-roledescription="carousel"
-		onpointerdown={swipe.onpointerdown}
-		onpointerup={swipe.onpointerup}
-		onpointercancel={swipe.onpointercancel}
-	>
+	<div class="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-8">
 		{#key index}
 			<SlideView
 				{slide}
@@ -91,5 +75,5 @@
 		{/key}
 	</div>
 
-	<StepBriefBar {index} count={slides.length} {label} onForward={forward} />
+	<StepBriefBar {label} onForward={forward} />
 </div>
