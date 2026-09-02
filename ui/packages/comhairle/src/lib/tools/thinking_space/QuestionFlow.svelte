@@ -198,6 +198,13 @@
 							{m.thinking_space_question_done()}
 						</Button>
 					</div>
+				{:else if optional}
+					<div class="flex justify-end">
+						<Button variant="outline" onclick={() => flow.continueNow()}>
+							<Check class="size-4" />
+							{flow.isLastQuestion ? m.finish() : m.thinking_space_next_question()}
+						</Button>
+					</div>
 				{/if}
 			{/if}
 		</div>
@@ -206,11 +213,16 @@
 		     said is recapped on the summary, not here. On a phone the pair sits at the bottom so
 		     the composer stays under the thumb and above the keyboard; on a wide screen there is
 		     no thumb to reach and no keyboard to dodge, so it centres instead of leaving a void
-		     over it. -->
+		     over it.
+
+		     The keyboard leaves a short strip of screen and the question has to stay in it, so
+		     the phone sizes are the tight ones: smaller type, less air, and a question that
+		     scrolls inside its own box rather than pushing itself off the top. The cap is that
+		     strip, near enough half the screen, less the height of the box itself. -->
 		<div
-			class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-end gap-8 py-8 sm:justify-center"
+			class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-end gap-4 py-4 sm:justify-center sm:gap-8 sm:py-8"
 		>
-			<div>
+			<div class="max-h-[calc(50svh-8rem)] min-h-0 shrink overflow-y-auto sm:max-h-none">
 				{#if isRoot}
 					<p class="text-primary text-base font-medium">
 						{m.question()}
@@ -224,7 +236,7 @@
 					</p>
 				{/if}
 				<h2
-					class="text-foreground mt-2 text-2xl leading-snug font-semibold sm:text-3xl sm:leading-tight"
+					class="text-foreground mt-1.5 text-xl leading-snug font-semibold sm:mt-2 sm:text-3xl sm:leading-tight"
 				>
 					{#if isRoot}
 						{flow.currentQuestion.text || '(unnamed question)'}

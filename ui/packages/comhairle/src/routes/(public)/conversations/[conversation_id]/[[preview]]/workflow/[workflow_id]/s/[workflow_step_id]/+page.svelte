@@ -44,6 +44,8 @@
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
+	import { keyboardOpen } from '$lib/utils/keyboardOpen.svelte';
+	import { cn } from '$lib/utils';
 	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
 	import { learningAssistantAvailable } from '$lib/components/LearningAssistant/availability';
 
@@ -214,6 +216,15 @@
 		void workflowStep.id;
 		touchFlowTiming(conversation.id);
 	});
+
+	/**
+	 * Typing is its own mode. A phone keyboard leaves a strip barely taller than the question
+	 * and the box under it, and the shell was spending the bottom of that strip on the pager
+	 * and the scroll's own padding, which pushed the question off the top. While the keyboard
+	 * is up the bar stands down: the keyboard is the bottom of the screen, and navigating is
+	 * something you do once you have stopped writing.
+	 */
+	let typing = keyboardOpen();
 
 	let canProceed = $state(false);
 	let isSubmitting = $state(false);
@@ -454,7 +465,10 @@
 		     the end and never dims the last line. -->
 		<main
 			data-step-scroll
-			class="flex min-h-0 w-full flex-col overflow-y-auto mask-b-from-[calc(100%-2.5rem)] pb-10"
+			class={cn(
+				'flex min-h-0 w-full flex-col overflow-y-auto',
+				!typing.current && 'mask-b-from-[calc(100%-2.5rem)] pb-10'
+			)}
 		>
 			{#if phase === 'done'}
 				<StepComplete />
@@ -579,7 +593,9 @@
 			{/if}
 		</main>
 
-		{#if phase === 'done'}
+		{#if typing.current}
+			<!-- The keyboard has the bottom of the screen. -->
+		{:else if phase === 'done'}
 			<StepProceedBar loading={isSubmitting} onProceed={proceed} />
 		{:else if phase === 'cover'}
 			<StepBriefBar label={coverForwardLabel} onForward={goForward} />
