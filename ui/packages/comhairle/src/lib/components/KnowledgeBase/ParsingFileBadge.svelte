@@ -8,8 +8,9 @@
 	import { Tween } from 'svelte/motion';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { onDestroy, onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		document: ComhairleDocument;
@@ -59,7 +60,7 @@
 		if (timeout) {
 			clearTimeout(timeout);
 			timeout = null;
-			await invalidateAll();
+			await invalidate(key('knowledge-base/documents'));
 		}
 	}
 
@@ -89,7 +90,7 @@
 			});
 			console.error(e);
 		} finally {
-			await invalidateAll();
+			await invalidate(key('knowledge-base/documents'));
 		}
 	}
 </script>

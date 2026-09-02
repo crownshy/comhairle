@@ -3,7 +3,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { Trash2, LoaderCircle } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import type {
@@ -28,6 +28,7 @@
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		conversation_id: string;
@@ -108,7 +109,7 @@
 					}
 				}
 			);
-			await invalidateAll();
+			await invalidate(key('conversation/workflow'));
 		} catch (e) {
 			notifications.send({ message: `Failed to update ${field} status`, priority: 'ERROR' });
 		}
@@ -136,7 +137,7 @@
 			notifications.send({ priority: 'INFO', message: 'Step deleted' });
 			deleteOpen = false;
 			await goto(`/admin/conversations/${conversation_id}/design`, {
-				invalidate: ['conversation:workflow']
+				invalidate: [key('conversation/workflow')]
 			});
 		} catch (e) {
 			console.error(e);
@@ -338,7 +339,7 @@
 	<Dialog.Root
 		bind:open
 		onOpenChange={(isOpen) => {
-			if (!isOpen) invalidateAll();
+			if (!isOpen) invalidate(key('conversation/workflow'));
 		}}
 	>
 		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">

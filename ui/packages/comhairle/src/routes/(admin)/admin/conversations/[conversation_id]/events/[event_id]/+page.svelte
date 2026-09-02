@@ -31,7 +31,7 @@
 	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import FacilitatorRoleList from './FacilitatorRoleList.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
@@ -48,6 +48,7 @@
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
+	import { key } from '$lib/utils/invalidationKey.js';
 
 	let url = $derived(page.url);
 	let { data } = $props();
@@ -194,7 +195,7 @@
 				}
 			});
 
-			await invalidateAll();
+			await invalidate(key('conversation/events'));
 			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
@@ -290,7 +291,7 @@
 					}
 				}
 			);
-			await invalidateAll();
+			await invalidate(key('conversation/events'));
 			agendaDirty = false;
 			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
 		} catch (e) {
@@ -319,7 +320,7 @@
 				message: 'Role updated'
 			});
 
-			await invalidateAll();
+			await invalidate(key('conversation/events'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -330,7 +331,7 @@
 	}
 
 	async function emailInvitesSubmitted() {
-		await invalidateAll();
+		await invalidate(key('conversation/events'));
 	}
 </script>
 

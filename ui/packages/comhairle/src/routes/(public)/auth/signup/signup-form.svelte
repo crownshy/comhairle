@@ -10,6 +10,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { backTo } = $props();
 	let responseMessage = $state(null);
@@ -38,11 +39,11 @@
 						email
 					});
 					if (user.auth_type === 'annon') {
-						await goto(backTo ?? '/', { invalidateAll: true });
+						await goto(backTo ?? '/', { invalidate: [key('user')] });
 					} else {
 						await goto(
 							`/auth/verification-message?backTo=${encodeURIComponent(backTo ?? '/')}`,
-							{ invalidateAll: true }
+							{ invalidate: [key('user')] }
 						);
 					}
 				} catch (e) {

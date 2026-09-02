@@ -1,4 +1,4 @@
-import { invalidateAll } from '$app/navigation';
+import { invalidate } from '$app/navigation';
 import { apiClient } from '@crownshy/api-client/client';
 import type {
 	PartialWorkflowStep,
@@ -17,6 +17,7 @@ import type {
 	DraftTranslatableJsonField,
 	WorkflowStepInput
 } from './types';
+import { key } from '$lib/utils/invalidationKey';
 
 /** API + DTO mapping */
 
@@ -275,7 +276,7 @@ async function putToolConfig(opts: {
 		}
 	});
 
-	await invalidateAll();
+	await invalidate(key('conversation/workflow'));
 }
 
 /* ---------- Responses ---------- */

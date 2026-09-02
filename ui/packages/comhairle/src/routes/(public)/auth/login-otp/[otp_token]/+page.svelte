@@ -5,8 +5,9 @@
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { key } from '$lib/utils/invalidationKey.js';
 
 	let { data }: { data: PageData } = $props();
 	const { backTo, jwt } = data;
@@ -17,7 +18,7 @@
 		try {
 			await apiClient.LoginOtpToken({ token: jwt });
 
-			await goto(resolve(backTo), { invalidateAll: true });
+			await goto(resolve(backTo), { invalidate: [key('user')] });
 		} catch (e) {
 			console.error(e);
 			error = 'Failed to verify one-time-passcode';

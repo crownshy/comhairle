@@ -27,6 +27,7 @@
 	import { basic_learn_config } from '$lib/workflow_templates';
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import * as Alert from '$lib/components/ui/alert';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { data } = $props();
 	let { form: formDefaults, conversation, user } = data;
@@ -167,7 +168,9 @@
 				priority: 'INFO'
 			});
 
-			goto(`/admin/conversations/${conversation.id}/events`, { invalidateAll: true });
+			goto(`/admin/conversations/${conversation.id}/events`, {
+				invalidate: [key('conversation')]
+			});
 		} catch (e) {
 			console.error(e);
 			submitError = 'Something went wrong creating the event.';

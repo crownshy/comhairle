@@ -11,11 +11,12 @@
 	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import LoadingButton from './ui/button/loading-button.svelte';
 	import type { ConversationDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
 	import { LucideCircleX } from 'lucide-svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		conversation: ConversationDto;
@@ -35,7 +36,7 @@
 					{ params: { conversation_id: conversation.id } }
 				);
 				open = false;
-				invalidateAll();
+				invalidate(key('conversation'));
 
 				notifications.send({
 					message: isComplete ? 'Conversation now ended' : 'Conversation re-opened',

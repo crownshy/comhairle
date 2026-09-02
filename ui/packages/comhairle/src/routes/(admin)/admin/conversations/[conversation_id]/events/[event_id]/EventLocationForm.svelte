@@ -6,8 +6,9 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
+	import { key } from '$lib/utils/invalidationKey.js';
 
 	let { event }: { event: LocalizedEventDto } = $props();
 
@@ -76,7 +77,7 @@
 				}
 			);
 
-			await invalidateAll();
+			await invalidate(key('conversation/events'));
 			notifications.send({ message: 'Updated event location', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);

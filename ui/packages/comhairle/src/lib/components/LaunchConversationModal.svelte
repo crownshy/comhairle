@@ -11,8 +11,9 @@
 	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import LoadingButton from './ui/button/loading-button.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		conversation_id: string;
@@ -26,9 +27,9 @@
 	async function launch() {
 		await loader.run(async () => {
 			try {
-				await apiClient.LaunchConversation({}, { params: { conversation_id } });
+				await apiClient.LaunchConversation(undefined, { params: { conversation_id } });
 				open = false;
-				invalidateAll();
+				await invalidate(key('conversation'));
 			} catch (e) {
 				console.error(e);
 				open = false;
