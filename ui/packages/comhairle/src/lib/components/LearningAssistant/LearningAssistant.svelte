@@ -22,7 +22,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import type { ReferenceChunk } from '$lib/api/chatClient.svelte';
 	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
-	import LearningAssistantSkeleton from './LearningAssistantSkeleton.svelte';
+	import AssistantAnswerSkeleton from './AssistantAnswerSkeleton.svelte';
 	import AssistantAnswer from './AssistantAnswer.svelte';
 	import AssistantLearnMore from './AssistantLearnMore.svelte';
 	import {
@@ -221,7 +221,8 @@
 				</div>
 			</div>
 		{:else if assistant.loadingHistory}
-			<LearningAssistantSkeleton />
+			<!-- The ask bar above is already real, so only the answer card is missing. -->
+			<AssistantAnswerSkeleton />
 		{:else if focused}
 			{@const ts = formatTimestamp(focused.timestamp)}
 			<article class="bg-card border-border rounded-2xl border p-5 shadow-sm">
