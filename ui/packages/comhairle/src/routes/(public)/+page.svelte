@@ -3,9 +3,14 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Info } from 'lucide-svelte';
+	// PROTOTYPE - throwaway, remove with ./prototype-cookie-consent.
+	import { page } from '$app/state';
+	import CookieConsentPrototype from './prototype-cookie-consent/CookieConsentPrototype.svelte';
 
 	let { data } = $props();
 	let { isCommunity } = data;
+
+	let prototyping = $derived(page.url.searchParams.has('variant'));
 
 	let topPadding = $derived(isCommunity ? 'pt-6 sm:pt-36' : 'pt-26 sm:pt-50');
 </script>
@@ -69,3 +74,7 @@
 		</Button>
 	</div>
 </div>
+
+{#if prototyping}
+	<CookieConsentPrototype />
+{/if}
