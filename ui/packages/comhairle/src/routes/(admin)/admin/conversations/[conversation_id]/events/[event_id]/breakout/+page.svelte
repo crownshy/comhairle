@@ -7,6 +7,7 @@
 	import type { BreakoutPlanDto } from '@crownshy/api-client/api';
 	import CreateBreakoutDialog from '$lib/components/LiveEvent/CreateBreakoutDialog.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	const { data, params } = $props();
 	const { conversation_id, event_id } = $derived(params);
@@ -22,33 +23,44 @@
 
 	async function loadPlan() {
 		loading = true;
-		try {
-			plan = await apiClient.GetEventBreakoutPlan({
+
+		const result = await tryCatchAsync(() =>
+			apiClient.GetEventBreakoutPlan({
 				params: { conversation_id, event_id }
-			});
-		} catch (e) {
-			console.error(e);
+			})
+		);
+
+		loading = false;
+
+		if (result.err !== null) {
+			console.error(result.err);
 			notifications.send({ message: 'Failed to load breakout plan', priority: 'ERROR' });
-		} finally {
-			loading = false;
 		}
+
+		plan = result.ok;
 	}
 
 	onMount(loadPlan);
 
 	async function handleSeed() {
 		seeding = true;
-		try {
-			plan = await apiClient.SeedEventBreakoutPlan(undefined, {
+
+		const result = await tryCatchAsync(() =>
+			apiClient.SeedEventBreakoutPlan(undefined, {
 				params: { conversation_id, event_id }
-			});
-			notifications.send({ message: 'Breakout rooms auto-assigned', priority: 'INFO' });
-		} catch (e) {
-			console.error(e);
+			})
+		);
+
+		seeding = false;
+
+		if (result.err !== null) {
+			console.error(result.err);
 			notifications.send({ message: 'Failed to auto-assign rooms', priority: 'ERROR' });
-		} finally {
-			seeding = false;
+			return;
 		}
+
+		plan = result.ok;
+		notifications.send({ message: 'Breakout rooms auto-assigned', priority: 'INFO' });
 	}
 
 	/** Plan seats → dialog participant pills (one pill per seat). */
@@ -92,18 +104,19 @@
 			})
 		}));
 
-		try {
-			plan = await apiClient.SaveEventBreakoutPlan(
-				{ rooms },
-				{ params: { conversation_id, event_id } }
-			);
-			notifications.send({ message: 'Breakout plan saved', priority: 'INFO' });
-		} catch (e) {
-			console.error(e);
+		const result = await tryCatchAsync(() =>
+			apiClient.SaveEventBreakoutPlan({ rooms }, { params: { conversation_id, event_id } })
+		);
+
+		saving = false;
+
+		if (result.err !== null) {
+			console.error(result.err);
 			notifications.send({ message: 'Failed to save breakout plan', priority: 'ERROR' });
-		} finally {
-			saving = false;
 		}
+
+		plan = result.ok;
+		notifications.send({ message: 'Breakout plan saved', priority: 'INFO' });
 	}
 </script>
 
