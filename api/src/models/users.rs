@@ -231,8 +231,7 @@ pub async fn create_guest_user(db: &PgPool) -> Result<User, ComhairleError> {
         let (sql, values) = Query::insert()
             .into_table(UserIden::Table)
             .columns([UserIden::GuestCode, UserIden::AuthType])
-            .values([sudo_random_code.into(), UserAuthType::Guest.into()])
-            .unwrap()
+            .values([sudo_random_code.into(), UserAuthType::Guest.into()])?
             .returning(Query::returning().columns(DEFAULT_COLUMNS))
             .build_sqlx(PostgresQueryBuilder);
 
@@ -261,9 +260,43 @@ pub async fn create_guest_user(db: &PgPool) -> Result<User, ComhairleError> {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
-    match &user.username {
-        Some(username) => create_otp_user_with_username(&user.email, username, db).await,
-        None => create_otp_user_random_username(&user.email, db).await,
+    let username = user
+        .username
+        .as_deref()
+        .or_else(|| user.email.split_once("@").map(|(local, _)| local))
+        .ok_or_else(|| ComhairleError::BadRequest("Invalid email address".to_string()))?;
+
+    let columns = vec![UserIden::AuthType, UserIden::Email, UserIden::Username];
+    let values = vec![
+        UserAuthType::Otp.into(),
+        user.email.clone().into(),
+        username.into(),
+    ];
+
+    let (sql, values) = Query::insert()
+        .into_table(UserIden::Table)
+        .columns(columns)
+        .values(values)?
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await;
+
+    match user_result {
+        Ok(user) => return Ok(user),
+        Err(sqlx::Error::Database(db_err)) => {
+            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
+            if pg_err.code() == "23505"
+                && let Some(constraint) = pg_err.constraint()
+                && constraint.contains("email")
+            {
+                return Err(ComhairleError::DuplicateEmail(user.email.to_string()));
+            }
+            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
+        }
+        Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
 }
 
@@ -318,67 +351,6 @@ pub async fn create_organization_admin_user(
     .await?;
 
     Ok(user)
-}
-
-async fn create_otp_user_with_username(
-    email: &str,
-    username: &str,
-    db: &PgPool,
-) -> Result<User, ComhairleError> {
-    insert_otp_user(email, username, db)
-        .await?
-        .ok_or_else(|| ComhairleError::DuplicateGuestCode(username.to_string()))
-}
-
-async fn create_otp_user_random_username(email: &str, db: &PgPool) -> Result<User, ComhairleError> {
-    for _ in 0..5 {
-        let sudo_random_name = gen_id();
-        match insert_otp_user(email, &sudo_random_name, db).await? {
-            Some(user) => return Ok(user),
-            None => continue, // username collision so retry
-        }
-    }
-    Err(ComhairleError::DuplicateGuestCode(
-        "too many retries".to_string(),
-    ))
-}
-
-/// Returns Ok(Some(user)) on success, Ok(None) on duplicate username,
-/// Err on duplicate email or any other DB error.
-#[instrument(err(Debug), skip(db))]
-async fn insert_otp_user(
-    email: &str,
-    username: &str,
-    db: &PgPool,
-) -> Result<Option<User>, ComhairleError> {
-    let (sql, values) = Query::insert()
-        .into_table(UserIden::Table)
-        .columns([UserIden::AuthType, UserIden::Email, UserIden::Username])
-        .values([UserAuthType::Otp.into(), email.into(), username.into()])?
-        .returning(Query::returning().columns(DEFAULT_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
-        .await;
-
-    match user_result {
-        Ok(user) => Ok(Some(user)),
-        Err(sqlx::Error::Database(db_err)) => {
-            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505"
-                && let Some(constraint) = pg_err.constraint()
-            {
-                if constraint.contains("username") {
-                    return Ok(None);
-                } else if constraint.contains("email") {
-                    return Err(ComhairleError::DuplicateEmail(email.to_string()));
-                }
-            }
-            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
-        }
-        Err(e) => Err(ComhairleError::DatabaseError(e)),
-    }
 }
 
 /// Record the client IP and browser signature (User-Agent) for a freshly

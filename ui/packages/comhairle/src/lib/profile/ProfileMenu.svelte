@@ -36,7 +36,7 @@
 				{#if user.authType === 'guest'}
 					Guest
 				{:else}
-					{user.guestCode}
+					{user.username}
 				{/if}
 			</p>
 			{#if notificationService.unreadCount > 0}
