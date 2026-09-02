@@ -5,7 +5,7 @@
 	import {
 		ThumbsUp,
 		ThumbsDown,
-		PenLine,
+		CheckCircle2,
 		ChevronRight,
 		MessageSquare,
 		AlertTriangle,
@@ -91,6 +91,9 @@
 
 	const initialData = getVoteData(user_id, voteScopeKey);
 	let totalVotes = $state(initialData.totalVotes);
+	// `totalVotes` restarts at every prompt, because it is what the threshold counts against.
+	// The prompt wants the other number: everything this participant has voted on so far.
+	let votesSoFar = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
 	let waitingForNext = $state(false);
@@ -161,6 +164,10 @@
 		opinionCounter(anchoredTotal ?? polisTotal, anchoredRemaining ?? polisRemaining)
 	);
 
+	// What is still unvoted, for the prompt: the same number the "Opinion x of y" counter
+	// is built from, said the other way round.
+	const opinionsLeft = $derived(Math.max(0, anchoredRemaining ?? polisRemaining));
+
 	const poolExhausted = $derived(
 		polisReady && !polisLoading && !polisError && !polisCurrentStatement
 	);
@@ -178,6 +185,7 @@
 
 		polis.submitVote(type);
 		totalVotes++;
+		votesSoFar++;
 
 		if (anchoredRemaining !== null && anchoredRemaining > 0) {
 			anchoredRemaining--;
@@ -426,39 +434,54 @@
 			{/if}
 		</div>
 	{:else if screen === 'continue-prompt'}
-		<!-- Do you want to continue? Centred in the card: there is nothing else on this
-		     screen, so it reads as a single decision rather than a page to scan. -->
+		<!-- The threshold is met, so this is a fork and not a gate. It says what has been counted
+		     and what each way on does, and gives the two of them the same weight: the participant
+		     is not being asked to admit they are giving up. -->
 		<div
 			class="flex w-full max-w-[808px] flex-1 flex-col items-center justify-center gap-[clamp(1.5rem,4vh,2.5rem)] px-6 py-[clamp(1rem,2.5vh,3rem)] text-center md:px-16"
 			in:fade={{ duration: 300 }}
 		>
-			<div class="flex flex-col items-center gap-4">
-				<PenLine class="text-card-foreground size-8" />
+			<div class="flex flex-col items-center gap-3">
+				<CheckCircle2 class="text-primary size-8" />
 				<h2
-					class="text-card-foreground max-w-[16ch] text-[clamp(1.5rem,4vh,2rem)] leading-tight font-semibold"
+					class="text-card-foreground max-w-[20ch] text-[clamp(1.5rem,4vh,2rem)] leading-tight font-semibold"
 				>
-					{m.polis_do_you_want_to_continue()}
+					{votesSoFar === 1
+						? m.polis_votes_counted_one({ count: votesSoFar })
+						: m.polis_votes_counted({ count: votesSoFar })}
 				</h2>
+				<p class="text-muted-foreground max-w-[36ch] text-base">
+					{opinionsLeft > 0
+						? m.polis_continue_prompt_body()
+						: m.polis_nothing_left_to_vote_on()}
+				</p>
 			</div>
 
-			<div class="flex w-full max-w-[320px] flex-col items-center gap-3">
-				<Button
-					variant="default"
-					size="lg"
-					onclick={resumeVoting}
-					class="w-full px-6 py-4 text-lg"
-				>
-					{m.polis_continue_voting()}
-				</Button>
+			<div class="flex w-full max-w-[360px] flex-col items-stretch gap-3">
+				{#if opinionsLeft > 0}
+					<Button
+						variant="default"
+						onclick={resumeVoting}
+						class="h-auto w-full flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
+					>
+						<span class="text-lg font-semibold">{m.polis_keep_voting()}</span>
+						<span class="text-primary-foreground/80 text-base font-normal">
+							{opinionsLeft === 1
+								? m.polis_keep_voting_hint_one({ count: opinionsLeft })
+								: m.polis_keep_voting_hint({ count: opinionsLeft })}
+						</span>
+					</Button>
+				{/if}
 				<LoadingButton
-					variant="ghost"
-					size="lg"
+					variant={opinionsLeft > 0 ? 'outline' : 'default'}
 					loading={continuing}
-					class="text-muted-foreground hover:text-foreground flex w-full items-center justify-center gap-2 px-6 py-4 text-lg font-medium transition-colors"
+					class="h-auto w-full flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
 					onclick={handleContinue}
 				>
-					{m.polis_continue_to_next_step()}
-					{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+					<span class="text-lg font-semibold">{m.polis_finish_voting()}</span>
+					<span class="text-base font-normal opacity-80"
+						>{m.polis_finish_voting_hint()}</span
+					>
 				</LoadingButton>
 			</div>
 		</div>
