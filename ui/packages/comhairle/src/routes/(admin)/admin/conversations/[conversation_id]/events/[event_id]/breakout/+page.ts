@@ -7,15 +7,12 @@ export const load: PageLoad = async ({ parent, params }) => {
 
 	return {
 		attendees: tryCatchAsync(() =>
-			api.ListEventAttendances({
-				params: { conversation_id, event_id },
-				queries: { limit: 1000 }
-			})
-		).then((result) => {
-			if (result.err !== null) {
-				return result;
-			}
-			return { ok: result.ok.records, err: null };
-		})
+			api
+				.ListEventAttendances({
+					params: { conversation_id, event_id },
+					queries: { limit: 1000 }
+				})
+				.then((result) => result.records)
+		)
 	};
 };
