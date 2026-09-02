@@ -1,6 +1,6 @@
 <script lang="ts">
 	import CommonStepConfig from '$lib/components/CommonStepConfig/CommonStepConfig.svelte';
-	import ParticipantViewSplit from '$lib/components/admin/ParticipantViewSplit.svelte';
+	import ParticipantView from '$lib/components/admin/ParticipantView.svelte';
 	import ParticipantScreen from '$lib/components/admin/ParticipantScreen.svelte';
 	import StepShell from '$lib/components/participant/StepShell.svelte';
 	import StepCover from '$lib/components/participant/StepCover.svelte';
@@ -63,22 +63,20 @@
 </script>
 
 {#if step}
-	<ParticipantViewSplit
+	<div class="max-w-3xl">
+		<CommonStepConfig
+			conversation_id={conversation.id}
+			{conversation}
+			{step}
+			inline
+			availableDocuments={data.availableDocuments}
+			onDraftDescriptionChange={(value) => (typedDescription = value)}
+		/>
+	</div>
+
+	<ParticipantView
 		description="The step brief, one screen per slide. Slide breaks appear as you type."
 	>
-		{#snippet editor()}
-			<div class="max-w-3xl">
-				<CommonStepConfig
-					conversation_id={conversation.id}
-					{conversation}
-					{step}
-					inline
-					availableDocuments={data.availableDocuments}
-					onDraftDescriptionChange={(value) => (typedDescription = value)}
-				/>
-			</div>
-		{/snippet}
-
 		{#snippet screens({ device, scale })}
 			{#each slideIndexes as index (index)}
 				<ParticipantScreen {device} {scale}>
@@ -119,5 +117,5 @@
 				</ParticipantScreen>
 			{/each}
 		{/snippet}
-	</ParticipantViewSplit>
+	</ParticipantView>
 {/if}

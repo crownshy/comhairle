@@ -18,17 +18,37 @@
 		pages,
 		steps,
 		conversationId,
-		availableDocuments = []
+		availableDocuments = [],
+		embedded = false,
+		page
 	}: {
 		pages: BeforeYouStartPage[];
 		steps: StepPreview[];
 		conversationId: string;
 		availableDocuments?: ComhairleDocument[];
+		/**
+		 * Whether this is rendered inside something else rather than owning the page, which
+		 * today means an admin participant view. The deck's snapping is set on the root
+		 * element because the page's scroll container is the document; embedded, that root
+		 * belongs to the admin page and is not ours to touch. See ADR-0030 on why `inert`
+		 * does not cover this: it blocks input, not what a component does on mount.
+		 */
+		embedded?: boolean;
+		/**
+		 * Show one page rather than the whole deck. A participant scrolls the deck, so the
+		 * route leaves this off; an admin participant view renders one screen per page, which
+		 * is what a participant has in front of them at each snap position. The chip strip
+		 * still shows every page, because that is what they would see too.
+		 */
+		page?: number;
 	} = $props();
 
 	// Which chip is lit. Without it the strip is a row of identical buttons and reads as a
 	// menu rather than as a position in the deck.
-	let activeIndex = $state(0);
+	let scrolledIndex = $state(0);
+	let activeIndex = $derived(page ?? scrolledIndex);
+
+	let visiblePages = $derived(page === undefined ? pages : pages.slice(page, page + 1));
 
 	function show(index: number) {
 		if (index < 0 || index >= pages.length) return;
@@ -44,12 +64,13 @@
 	 * on one and nothing jumps out from under the reader on load.
 	 */
 	$effect(() => {
-		if (!pages.length) return;
+		if (embedded || !pages.length) return;
 		document.documentElement.classList.add('deck-snap');
 		return () => document.documentElement.classList.remove('deck-snap');
 	});
 
 	$effect(() => {
+		if (page !== undefined) return;
 		const nodes = pages
 			.map((page) => document.getElementById(page.id))
 			.filter((node): node is HTMLElement => !!node);
@@ -59,8 +80,8 @@
 			(entries) => {
 				const visible = entries.find((entry) => entry.isIntersecting);
 				if (!visible) return;
-				const index = pages.findIndex((page) => page.id === visible.target.id);
-				if (index >= 0) activeIndex = index;
+				const index = pages.findIndex((p) => p.id === visible.target.id);
+				if (index >= 0) scrolledIndex = index;
 			},
 			// A band just under the sticky strip, so exactly one page is active at a time.
 			{ rootMargin: '-96px 0px -70% 0px' }
@@ -96,22 +117,25 @@
 
 		<!-- Every page reserves the call to action's height at the foot and the sticky strip's
 			at the head, so a snapped page sits clear of both and the cue is always in view. -->
-		{#each pages as page, index (page.id)}
+		{#each visiblePages as visible, offset (visible.id)}
+			{@const index = (page ?? 0) + offset}
 			<section
-				id={page.id}
-				class="mx-auto flex min-h-[100dvh] w-full max-w-5xl snap-start flex-col px-5 pt-20 pb-24 md:px-6"
-				aria-label={page.label}
+				id={visible.id}
+				class="mx-auto flex w-full max-w-5xl snap-start flex-col px-5 pt-20 pb-24 md:px-6 {embedded
+					? 'min-h-full'
+					: 'min-h-[100dvh]'}"
+				aria-label={visible.label}
 			>
 				<!-- `m-auto` rather than centring the section: a page taller than the screen
 					then grows downwards instead of losing its first lines off the top.
 					The column is centred and capped at `max-w-prose`, but its text stays ragged
 					right: centred body text costs the reader the left edge they return to. -->
 				<div class="m-auto w-full max-w-prose">
-					{#if page.heading}
-						<h2 class="mb-4 text-2xl font-semibold">{page.heading}</h2>
+					{#if visible.heading}
+						<h2 class="mb-4 text-2xl font-semibold">{visible.heading}</h2>
 					{/if}
 
-					{#if page.kind === 'steps'}
+					{#if visible.kind === 'steps'}
 						<ol class="flex flex-col gap-4">
 							{#each steps as step, stepIndex (step.id)}
 								{@const StepIcon = step.icon}
@@ -137,10 +161,10 @@
 								</li>
 							{/each}
 						</ol>
-					{:else if page.content}
+					{:else if visible.content}
 						<div class="prose w-full max-w-none">
 							<ContentRenderer
-								content={page.content}
+								content={visible.content}
 								{availableDocuments}
 								{conversationId}
 							/>

@@ -16,6 +16,13 @@
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
 	import ExampleDialog from './ExampleDialog.svelte';
+	import ParticipantView from '$lib/components/admin/ParticipantView.svelte';
+	import ParticipantScreen from '$lib/components/admin/ParticipantScreen.svelte';
+	import LandingShell from '$lib/components/participant/LandingShell.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { stepPreviews } from '$lib/components/participant/stepPreview';
+	import { beforeYouStartPages } from '$lib/components/participant/beforeYouStart';
+	import * as m from '$lib/paraglide/messages';
 	import GlossaryEditor from './GlossaryEditor.svelte';
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
@@ -29,11 +36,13 @@
 	import type {
 		ComhairleDocument,
 		ConversationWithTranslations,
+		LocalizedConversationDto,
 		MediaDto,
 		OrganizationWithPermissionDto,
 		UserDto,
 		UserWithPermissionDto,
-		WorkflowDto
+		WorkflowDto,
+		WorkflowStepsListResponse
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { Image as ImageIcon, Info } from 'lucide-svelte';
@@ -56,9 +65,35 @@
 			usersWithPermission: UserWithPermissionDto[];
 			configureTabs: { id: string; label: string }[];
 			availableDocuments: ComhairleDocument[];
+			workflowSteps: WorkflowStepsListResponse;
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
+
+	/**
+	 * The landing page as a participant meets it. Unlike the step brief's participant view,
+	 * this reads saved data rather than what is being typed: the landing page is built from
+	 * most of this form rather than one field, and every field here autosaves and then
+	 * refreshes, so the view follows about a second behind instead of per keystroke.
+	 */
+	/*
+	 * The admin route is handed `ConversationWithTranslations` where the participant
+	 * components take `LocalizedConversationDto`. They describe the same record from two
+	 * generated paths, which svelte-check reports as unrelated types; this is the one place
+	 * the two worlds meet, so the cast is confined to it rather than loosening the
+	 * components that participants actually render.
+	 */
+	let landingConversation = $derived(conversation as unknown as LocalizedConversationDto);
+	let landingSteps = $derived(stepPreviews(data.workflowSteps));
+	let landingPages = $derived(beforeYouStartPages(landingConversation, landingSteps));
+
+	/**
+	 * One screen per viewport: step zero, then each Before you start page. A `---` in the
+	 * description splits it into more of them, the same gesture as a step brief's slides, so
+	 * the view has to show them side by side rather than stacked behind a scroll nobody can
+	 * reach in an inert screen.
+	 */
+	let landingViewports = $derived(landingPages.map((_, index) => index + 1));
 	// Parsed knowledge base documents, for the "Insert Source Document" control in the Content-tab
 	// rich fields (both the picker and, via the same list, the inserted badge's name/size/download).
 	let availableDocuments = $derived(data.availableDocuments);
@@ -1120,3 +1155,28 @@
 	title={exampleEntry?.title ?? ''}
 	src={exampleEntry?.src ?? null}
 />
+
+<ParticipantView description="The landing page, as it looks once these settings are saved.">
+	{#snippet screens({ device, scale })}
+		{#each [0, ...landingViewports] as viewport (viewport)}
+			<ParticipantScreen {device} {scale}>
+				<div class="h-full overflow-hidden">
+					<LandingShell
+						conversation={landingConversation}
+						steps={landingSteps}
+						pages={landingPages}
+						availableDocuments={data.availableDocuments}
+						embedded
+						page={viewport}
+					>
+						{#snippet callToAction()}
+							<Button class="h-12 w-full text-base md:mx-auto md:w-80">
+								{conversation.callToAction || m.join_the_conversation()}
+							</Button>
+						{/snippet}
+					</LandingShell>
+				</div>
+			</ParticipantScreen>
+		{/each}
+	{/snippet}
+</ParticipantView>

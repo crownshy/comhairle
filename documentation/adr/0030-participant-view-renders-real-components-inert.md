@@ -83,12 +83,47 @@ later as a presentation nicety, for tools that want to show sample data.
 **8. Tool components receive the admin's own user id.** Reads on mount are then scoped to
 someone with no answers, which yields the empty first-time state a preview should show.
 
-**9. It is docked beside the editor, expandable to fullscreen.** Phone and desktop
-proportions. In phone mode the brief's slides render as a scaled contact sheet: each at a
-real 390px so the layout computes correctly, then CSS-scaled down so several sit together,
-because the question Configure is asking is where the breaks fell, and that is about the set
-rather than any one slide. Desktop mode shows one screen at a time, since a 1400px render
-scaled into a dock is unreadable.
+**9. It is summoned from a button and opens as a full-screen overlay.** Settled after
+three attempts, and the failures are the argument.
+
+A panel docked beside the editor put the view on screen whether or not anyone was looking at
+it. A right-edge drawer fixed that but was too narrow for the one thing Configure's view
+exists to do: at 544px only two slides fit in a row, so a five-slide brief became a scroll. A
+bottom sheet gave back the width but rationed height instead, which is the same squeeze
+turned ninety degrees, and it still shared the window with a form nobody was reading while
+the view was open.
+
+The overlay has no such budget. Every screen renders near life size, and a surface with
+several of them lays them out side by side. Screens are fitted to the depth under the
+header, capped at life size, and the row scrolls sideways if it has to.
+
+Summoning it also removed the split component. Pages render their editor as ordinary content
+and mount the view beside it, so there is no two-column layout to own and no breakpoint below
+which a panel does not fit.
+
+**10. One screen per viewport, wherever a surface has more than one.** A step brief splits
+at `---` into slides and gets a screen each. The conversation description splits at `---`
+the same way, into Before you start pages, and gets a screen each too, with step zero first.
+A Learn step's pages get a screen each as well. A participant reaches all of these by
+scrolling or paging; a participant view cannot, because its screens are `inert` and
+`pointer-events-none`, so anything past the first would be rendered and unreachable. Showing
+each viewport as its own screen is both the honest rendering and the only one that works.
+
+Which means the unit is not "the screen a participant lands on" but "every screen this
+surface can show", laid out at once. That is what makes the view answerable at a glance: the
+question an admin is asking on Configure is where the breaks fell, and on Setup it is
+whether the pages read in order.
+
+**11. A view shows unsaved work, not just what has been saved.** `LearnManage` reports its
+pages as they stand, so the view renders the text being typed rather than the last saved
+version. `LearnUI` takes the page to show as a prop, so a participant still starts at the
+first page and walks from there while a view renders each page directly.
+
+It does not track which page the editor has open. That was tried and removed: an overlay
+covers the editor, so the two are never on screen together, and a selection you cannot change
+while looking at the view is not worth marking. This is the price of decision 9. A docked
+panel could have tracked the editor, and could not have shown the pages side by side, which
+is what the view is for.
 
 ## Considered options
 
@@ -107,10 +142,10 @@ scaled into a dock is unreadable.
 
 ## Scope
 
-In: a Step's Configure and Setup. Out for now: HeyForm, whose participant UI is a
-third-party iframe with no component to render, and the conversation landing page, which
-uses a scroll-snap deck rather than the step grid and so needs its own extraction rather
-than a third call site.
+In: a Step's Configure, a Step's Setup, and the conversation landing page. The landing page
+uses a scroll-snap deck rather than the step grid, so it reuses nothing from `StepShell` and
+gets its own `LandingShell`. Out: HeyForm, whose participant UI is a third-party iframe with
+no component to render inert.
 
 ## Consequences
 
@@ -138,6 +173,20 @@ than a third call site.
 - **The participant step route is refactored twice on a demo branch.** Decision 6 is two
   pure extractions with no behaviour change, but that route is the highest-risk file here
   and each wants its own commit.
+- **`inert` did not cover the first component that needed covering.** `BeforeYouStart` adds
+  a `deck-snap` class to `document.documentElement`, because the landing page's scroll
+  container is the document. Mounted in a participant view that root belongs to the admin
+  page, so it now takes an `embedded` prop that skips it. This is the mount-time side effect
+  the isolation consequence above predicted, and the first use of decision 7's escape hatch.
+  It arrived on the third surface, not in some distant future.
+- **`StepZeroScreen` and `BeforeYouStart` are promoted out of the landing route** into
+  `lib/components/participant`, since they are now rendered by admin too. Route-local until
+  reused is the repo's rule and this is the reuse.
+- **The landing view follows saved data, not typing.** The step brief reads one field, whose
+  editor already exposes an optimistic overlay. The landing page is built from most of the
+  Configure form, and every field there autosaves and then refreshes, so the view lags by
+  about a second instead of updating per keystroke. Two surfaces of one feature behave
+  differently, and nothing on screen says so.
 - **`StepToolBody` types its step, conversation and tool config as `any`,** because the
   admin and participant routes are handed nominally different generated types for the same
   data. The tool switch carried around 23 pre-existing type errors while it lived in the

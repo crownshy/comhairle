@@ -29,9 +29,14 @@
 		conversation: ConversationWithTranslations;
 		workflowStep: WorkflowStepWithTranslationsAndTool<'learn'>;
 		isLive: boolean;
+		/**
+		 * Fires with the pages as they stand, for the participant view: it renders a screen
+		 * per page and shows each as edited rather than as last saved.
+		 */
+		onPagesChange?: (pages: ExtendedLocalizedPage[][]) => void;
 	}
 
-	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
+	let { conversationId, conversation, workflowStep, isLive, onPagesChange }: Props = $props();
 
 	let isInitialLoad = $state(true);
 	let primaryLocale = $derived<Locale>((conversation.primaryLocale as Locale) ?? 'en');
@@ -48,6 +53,10 @@
 	);
 
 	const pages = new Pages();
+
+	$effect(() => {
+		onPagesChange?.(pages.toLocalizedPages());
+	});
 
 	// Learn's page model plugs into the shared TranslatableField via this adapter (ADR-0005): the
 	// field renders the current page as if it were any other translatable field.

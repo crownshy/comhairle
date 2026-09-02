@@ -17,12 +17,18 @@
 
 	let {
 		pages,
+		page = 0,
 		onSequenceChange,
 		conversation,
 		availableDocuments = [],
 		hasKnowledgeBaseDocs = false
 	}: {
 		pages: Array<Page>;
+		/**
+		 * Which page to show. A participant always starts at the first and walks from there;
+		 * an admin participant view follows whichever page is open in the editor beside it.
+		 */
+		page?: number;
 		onSequenceChange?: OnSequenceChange;
 		conversation?: LocalizedConversationDto;
 		availableDocuments?: ComhairleDocument[];
@@ -39,7 +45,10 @@
 			hasKnowledgeBaseDocs
 	);
 
-	let currentPageNo = $state(0);
+	// Writable $derived rather than $effect: it resets when the page is chosen from outside,
+	// and is also assigned to directly by next/prev. See AGENTS.md on mirroring state. On the
+	// participant route `page` never changes, so this behaves exactly as $state(0) did.
+	let currentPageNo = $derived(page);
 	let currentPage = $derived(pages[currentPageNo]);
 	let currentPageTranslation = $derived(
 		(currentPage ?? []).filter((p) => p.lang === getLocale())

@@ -9,11 +9,8 @@
 	import { page } from '$app/state';
 	import { loginRedirect, signupRedirect } from '$lib/urls.js';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
-	import StepChrome from '$lib/components/participant/StepChrome.svelte';
-	import type { StepItem } from '$lib/components/participant/stepItems';
+	import LandingShell from '$lib/components/participant/LandingShell.svelte';
 	import { stepPreviews } from '$lib/components/participant/stepPreview';
-	import StepZeroScreen from './StepZeroScreen.svelte';
-	import BeforeYouStart from './BeforeYouStart.svelte';
 	import { beforeYouStartPages } from '$lib/components/participant/beforeYouStart';
 	import { routeProgress } from '$lib/stores/routeProgress.svelte';
 
@@ -131,24 +128,6 @@
 	let steps = $derived(stepPreviews(data.workflowSteps));
 	let pages = $derived(beforeYouStartPages(conversation, steps));
 
-	/**
-	 * The landing page is Step zero: the progress bar carries its own segment ahead of the
-	 * workflow's, so a participant sees the shape of the whole journey before joining and the
-	 * bar does not appear out of nowhere on the first Step (ADR-0021).
-	 *
-	 * The intro segment is excluded from "Step N of M", so adding it here cannot change the
-	 * number of steps a participant is quoted.
-	 */
-	let stepItems = $derived<StepItem[]>([
-		{
-			id: 'landing',
-			name: m.landing_before_you_start(),
-			status: 'current',
-			isIntro: true
-		},
-		...steps.map((step) => ({ id: step.id, name: step.name, status: 'upcoming' as const }))
-	]);
-
 	function scrollToDetail() {
 		document
 			.getElementById('conversation-detail')
@@ -171,37 +150,15 @@
 		<Button class="w-fit" href="/conversations">{m.conversation_closed_link()}</Button>
 	</div>
 {:else}
-	<!-- The cover owns the first viewport: chrome, cover, call to action, nothing below the
-	     fold until you scroll. `min-h` rather than a fixed height because the chrome grows on
-	     a narrow screen and the cover must be allowed to push past the fold rather than clip. -->
-	<div class="flex min-h-[100dvh] snap-start flex-col pb-28">
-		<StepChrome
-			steps={stepItems}
-			currentIndex={0}
-			label={m.landing_before_you_start()}
-			fill={0}
-			showSupport={false}
-			{preview}
-		/>
-
-		<StepZeroScreen
-			{conversation}
-			{steps}
-			onReadMore={pages.length ? scrollToDetail : undefined}
-		/>
-	</div>
-
-	<BeforeYouStart
-		{pages}
+	<LandingShell
+		{conversation}
 		{steps}
-		conversationId={conversation.id}
+		{pages}
 		availableDocuments={data.availableDocuments}
-	/>
-
-	<!-- Fixed rather than sticky: the call to action has to survive the whole scroll through
-	     the detail, not just the cover. Both blocks above reserve its height. -->
-	<div class="bg-background fixed inset-x-0 bottom-0 z-30 border-t">
-		<div class="mx-auto flex w-full max-w-5xl flex-col gap-2 px-5 pt-3 pb-5 md:px-6">
+		{preview}
+		onReadMore={pages.length ? scrollToDetail : undefined}
+	>
+		{#snippet callToAction()}
 			{#if user && participation}
 				<Button
 					class="h-12 w-full text-base md:mx-auto md:w-80"
@@ -245,8 +202,8 @@
 					{m.login_to_take_part()}
 				</Button>
 			{/if}
-		</div>
-	</div>
+		{/snippet}
+	</LandingShell>
 
 	<PrivacyPolicyDialog
 		{conversation}

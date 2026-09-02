@@ -14,24 +14,16 @@ export const DEVICE_SIZES = {
 
 export type Device = keyof typeof DEVICE_SIZES;
 
-/** How far a phone shrinks in the docked panel, chosen so several slides sit together. */
-const DOCK_PHONE_SCALE = 0.45;
-
 /**
- * The scale for one screen.
+ * The scale for one screen, fitted to the height it has.
  *
- * A phone holds a fixed contact-sheet scale in the dock and goes full size when expanded:
- * on Configure the question is where the slide breaks fell, which is about the set rather
- * than any one slide. A desktop screen is always fitted to the width it has, because 1400px
- * never fits anywhere at full size and a fixed fraction of it would be arbitrary.
+ * Height is the binding constraint: the view is a strip across the bottom of the page, so
+ * the screens run along it and it is the sheet's depth that decides how big they can be.
+ * Width then costs nothing, which is the point of the strip. Nothing is scaled up past life
+ * size, so expanding to full height stops at 1 rather than blowing a phone up to a wall.
  */
-export function screenScale(options: {
-	device: Device;
-	available: number;
-	expanded: boolean;
-}): number {
-	const { device, available, expanded } = options;
-	if (device === 'phone') return expanded ? 1 : DOCK_PHONE_SCALE;
-	if (available <= 0) return DOCK_PHONE_SCALE;
-	return Math.min(1, available / DEVICE_SIZES.desktop.width);
+export function screenScale(options: { device: Device; availableHeight: number }): number {
+	const { device, availableHeight } = options;
+	if (availableHeight <= 0) return 1;
+	return Math.min(1, availableHeight / DEVICE_SIZES[device].height);
 }

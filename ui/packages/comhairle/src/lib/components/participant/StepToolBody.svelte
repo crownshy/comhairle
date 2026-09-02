@@ -17,6 +17,7 @@
 		userId,
 		availableDocuments = [],
 		hasKnowledgeBaseDocs = false,
+		page = 0,
 		preview = false,
 		permissionToShareWithOrganizers = null,
 		onDone = () => {},
@@ -49,6 +50,8 @@
 		userId: string;
 		availableDocuments?: ComhairleDocument[];
 		hasKnowledgeBaseDocs?: boolean;
+		/** Which page within the tool to show, where the tool has pages. Learn only, today. */
+		page?: number;
 		preview?: boolean;
 		permissionToShareWithOrganizers?: boolean | null;
 		onDone?: () => void;
@@ -73,6 +76,7 @@
 		{#key workflowStep.id}
 			<Learn.UserUI
 				pages={toolConfig.pages}
+				{page}
 				{onSequenceChange}
 				{conversation}
 				{availableDocuments}

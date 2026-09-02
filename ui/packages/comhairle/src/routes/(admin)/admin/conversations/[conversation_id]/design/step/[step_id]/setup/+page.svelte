@@ -9,7 +9,7 @@
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
-	import ParticipantViewSplit from '$lib/components/admin/ParticipantViewSplit.svelte';
+	import ParticipantView from '$lib/components/admin/ParticipantView.svelte';
 	import ParticipantScreen from '$lib/components/admin/ParticipantScreen.svelte';
 	import StepShell from '$lib/components/participant/StepShell.svelte';
 	import StepToolBody from '$lib/components/participant/StepToolBody.svelte';
@@ -31,6 +31,30 @@
 	 * HeyForm's participant UI is a third-party iframe, so there is no component to render
 	 * inert and nothing a participant view could honestly show (ADR-0030).
 	 */
+	/**
+	 * Learn's pages as the editor has them, and which one is open. Null until the editor
+	 * reports, so the view falls back to the saved config rather than blanking for a frame.
+	 */
+	let learnPages = $state<unknown[] | null>(null);
+
+	/** The tool config the view renders: Learn's live pages over the saved ones. */
+	let viewToolConfig = $derived(
+		learnPages && toolConfig?.type === Learn.TOOL_NAME
+			? { ...toolConfig, pages: learnPages }
+			: toolConfig
+	);
+
+	/**
+	 * Learn is pages the way a step brief is slides, so each gets its own screen rather than
+	 * hiding behind a pager nobody can press (ADR-0030). Every other tool is one screen.
+	 */
+	let screenCount = $derived(
+		toolConfig?.type === Learn.TOOL_NAME
+			? Math.max(1, ((learnPages ?? toolConfig.pages ?? []) as unknown[]).length)
+			: 1
+	);
+	let screenIndexes = $derived(Array.from({ length: screenCount }, (_, index) => index));
+
 	let previewable = $derived(
 		toolConfig?.type !== undefined && toolConfig.type !== HeyForm.TOOL_NAME
 	);
@@ -147,52 +171,59 @@
 	{/if}
 {/snippet}
 
+{@render manage()}
+
 {#if previewable && step}
-	<ParticipantViewSplit
+	<ParticipantView
 		description="The step as a participant meets it, before they have done anything."
 	>
-		{#snippet editor()}
-			{@render manage()}
-		{/snippet}
-
 		{#snippet screens({ device, scale })}
-			<ParticipantScreen {device} {scale}>
-				<StepShell
-					class="h-full"
-					chrome={{
-						steps: chromeSteps,
-						currentIndex: viewedIndex + 1,
-						label: stepLabel,
-						fill: segmentFill({ phase: 'body', slideIndex: 0, slideCount: 1 }),
-						assistantAvailable,
-						showSupport: false,
-						onBrief: hasBrief ? () => {} : undefined
-					}}
-				>
-					{#snippet content()}
-						<StepToolBody
-							{toolConfig}
-							{conversation}
-							workflowStep={step}
-							userId={data.user.id}
-							{availableDocuments}
-							{hasKnowledgeBaseDocs}
-						/>
-					{/snippet}
+			{#each screenIndexes as index (index)}
+				<ParticipantScreen {device} {scale}>
+					<StepShell
+						class="h-full"
+						chrome={{
+							steps: chromeSteps,
+							currentIndex: viewedIndex + 1,
+							label: stepLabel,
+							fill: segmentFill({
+								phase: 'body',
+								slideIndex: 0,
+								slideCount: 1,
+								// What Learn itself reports as it is paged through, so the bar
+								// moves across the screens the way it would for a participant.
+								toolProgress:
+									screenCount > 1 ? (index + 1) / screenCount : undefined
+							}),
+							assistantAvailable,
+							showSupport: false,
+							onBrief: hasBrief ? () => {} : undefined
+						}}
+					>
+						{#snippet content()}
+							<StepToolBody
+								toolConfig={viewToolConfig}
+								page={index}
+								{conversation}
+								workflowStep={step}
+								userId={data.user.id}
+								{availableDocuments}
+								{hasKnowledgeBaseDocs}
+							/>
+						{/snippet}
 
-					{#snippet bar()}
-						<StepPager
-							{forwardMode}
-							canGoBack={true}
-							canGoForward={canProceed || !step.required}
-							onBack={() => {}}
-							onForward={() => {}}
-						/>
-					{/snippet}
-				</StepShell>
-			</ParticipantScreen>
+						{#snippet bar()}
+							<StepPager
+								{forwardMode}
+								canGoBack={true}
+								canGoForward={canProceed || !step.required}
+								onBack={() => {}}
+								onForward={() => {}}
+							/>
+						{/snippet}
+					</StepShell>
+				</ParticipantScreen>
+			{/each}
 		{/snippet}
-	</ParticipantViewSplit>
-{:else}
-	{@render manage()}
+	</ParticipantView>
 {/if}

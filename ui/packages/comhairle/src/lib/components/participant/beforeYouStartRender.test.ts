@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'svelte/server';
 import BeforeYouStart from './BeforeYouStart.svelte';
-import type { BeforeYouStartPage } from '$lib/components/participant/beforeYouStart';
+import type { BeforeYouStartPage } from './beforeYouStart';
 
 const pages: BeforeYouStartPage[] = [
 	{
