@@ -9,7 +9,7 @@ import { resolve } from '$app/paths';
 export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	depends(key('conversation/event'));
 
-	const { api, conversation } = await parent();
+	const { api } = await parent();
 	const { conversation_id, event_id } = params;
 
 	const event = await tryCatchAsync(() =>
@@ -27,26 +27,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 		);
 	}
 
-	// All registered attendees (any role), so the facilitators tab can list
-	// everyone and let an admin promote/demote them per person. Large limit to
-	// pull the whole roster in one page.
-	const attendees = await api.ListEventAttendances({
-		params: { conversation_id, event_id },
-		queries: { limit: 1000 }
-	});
-
-	const invites = await api.ListInvitesForEvent({
-		params: { conversation_id: conversation.id, event_id }
-	});
-
-	const recordings = await api.ListAudioRecordings({
-		params: { conversation_id, event_id }
-	});
-
 	return {
-		event: event.ok,
-		attendees: attendees.records,
-		invites,
-		recordings
+		event: event.ok
 	};
 };
