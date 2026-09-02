@@ -1,6 +1,5 @@
 import type { LayoutServerLoad } from './$types.js';
 import { env } from '$env/dynamic/public';
-import { resolveThemeName } from '$lib/types/theme';
 import { serverApiBaseUrl } from '$lib/apiBaseUrl';
 
 export const load: LayoutServerLoad = async (event) => {
@@ -8,7 +7,6 @@ export const load: LayoutServerLoad = async (event) => {
 
 	const tk = event.cookies.get('auth-token');
 	const common = {
-		themeName: resolveThemeName(env.PUBLIC_THEME),
 		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true'
 	};
 

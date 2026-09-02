@@ -1,3 +1,5 @@
+import { env } from '$env/dynamic/public';
+import { resolveThemeName } from '$lib/types/theme';
 import type { Theme, ThemeName, ThemeMode } from '$lib/types/theme';
 
 const MODE_STORAGE_KEY = 'comhairle-theme-mode';
@@ -10,7 +12,13 @@ function getInitialMode(): ThemeMode {
 }
 
 class ThemeStore {
-	private _theme = $state<Theme>({ name: 'comhairle', mode: getInitialMode() });
+	// Resolved from the env var on both server and client so the first server render already
+	// picks the right logo. Deferring this to hydration flashed the Comhairle mark on themed
+	// deployments.
+	private _theme = $state<Theme>({
+		name: resolveThemeName(env.PUBLIC_THEME),
+		mode: getInitialMode()
+	});
 
 	get theme(): Theme {
 		return this._theme;
@@ -26,11 +34,6 @@ class ThemeStore {
 
 	get isDark(): boolean {
 		return this._theme.mode === 'dark';
-	}
-
-	/** Called once from +layout.svelte with the server-provided theme name */
-	initFromServer(name: ThemeName) {
-		this._theme.name = name;
 	}
 
 	setMode(mode: ThemeMode) {
