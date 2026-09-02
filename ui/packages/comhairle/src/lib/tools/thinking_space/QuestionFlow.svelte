@@ -8,6 +8,7 @@
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import type { ToolSequence } from '$lib/step-brief/toolSequence';
 	import FollowUpLoading from './FollowUpLoading.svelte';
+	import QuestionHandoff from './QuestionHandoff.svelte';
 
 	type Props = {
 		workflowStepId: string;
@@ -39,17 +40,22 @@
 		mode
 	});
 
-	// Reported up so the chrome's bar can show it, and so the pager's back arrow steps out of a
-	// picked follow-up before it leaves the step. This is the only place that knows how far
-	// through the root answer and follow-up rounds a participant is.
-	$effect(() => {
-		onSequence?.({
-			progress: flow.progress / 100,
-			prev: flow.currentState.phase === 'answering' ? () => flow.backToPicker() : undefined
-		});
+	// The back arrow always undoes the last forward move: out of a picked follow-up, or off the
+	// handoff card back onto the question it followed.
+	let stepBack = $derived.by(() => {
+		if (flow.handoff === 'next') return () => flow.backToPreviousQuestion();
+		if (flow.currentState.phase === 'answering') return () => flow.backToPicker();
+		return undefined;
 	});
 
-	let answering = $derived(flow.currentState.phase !== 'picking');
+	// Reported up so the chrome's bar can show it, and so the pager's back arrow can step
+	// inside the tool before it leaves the step. This is the only place that knows how far
+	// through the root answer and follow-up rounds a participant is.
+	$effect(() => {
+		onSequence?.({ progress: flow.progress / 100, prev: stepBack });
+	});
+
+	let answering = $derived(flow.handoff === null && flow.currentState.phase !== 'picking');
 	let isRoot = $derived(flow.currentState.phase === 'root');
 	let draft = $derived(
 		isRoot ? flow.currentState.rootAnswer : flow.currentState.currentPickAnswer
@@ -60,7 +66,7 @@
 	// Land the caret in the box on every new prompt: on a phone the keyboard coming up is the
 	// signal that it is your turn.
 	$effect(() => {
-		const prompt = `${flow.currentQuestionIndex}:${flow.currentState.phase}:${flow.followUpsDone}`;
+		const prompt = `${flow.currentQuestionIndex}:${flow.currentState.phase}:${flow.followUpsDone}:${flow.handoff}`;
 		untrack(async () => {
 			await tick();
 			if (answering) composerEl?.focus();
@@ -72,7 +78,7 @@
 		// Extension mode starts in the root picker; loadPicker fires when the
 		// participant enters a root via enterRoot().
 		if (flow.mode === 'extension') return;
-		if (flow.currentState.phase === 'picking' && flow.followUpCount > 0) {
+		if (flow.currentState.phase === 'picking' && flow.followUpCount > 0 && !flow.handoff) {
 			flow.loadPicker(flow.currentQuestionIndex);
 		}
 	});
@@ -110,7 +116,16 @@
 </script>
 
 <div class="flex min-h-0 w-full flex-1 flex-col">
-	{#if inExtensionPicker}
+	{#if flow.handoff}
+		<QuestionHandoff
+			variant={flow.handoff}
+			questionNumber={flow.currentQuestionIndex + 1}
+			total={questions.length}
+			question={flow.currentQuestion.text || '(unnamed question)'}
+			followUpCount={flow.followUpCount}
+			onStart={() => flow.startQuestion()}
+		/>
+	{:else if inExtensionPicker}
 		<div class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 py-8">
 			<header>
 				<h2 class="text-foreground text-2xl leading-snug font-semibold">
@@ -177,15 +192,23 @@
 					</div>
 				</div>
 			{:else}
-				<h2 class="text-foreground text-xl leading-snug font-semibold">
-					{m.thinking_space_pick_follow_up()}
-				</h2>
-				<div class="space-y-3">
+				{@const optional = flow.followUpMinimumMet}
+				<header>
+					<h2 class="text-foreground text-xl leading-snug font-semibold">
+						{optional
+							? m.thinking_space_more_heading()
+							: m.thinking_space_pick_follow_up()}
+					</h2>
+					<p class="text-muted-foreground mt-2 text-base leading-relaxed">
+						{optional ? m.thinking_space_more_desc() : m.thinking_space_pick_desc()}
+					</p>
+				</header>
+				<div class="flex min-h-0 flex-1 flex-col gap-3">
 					{#each flow.currentState.picker as followUpQuestion (followUpQuestion)}
 						<button
 							type="button"
 							onclick={() => flow.pickFollowUp(followUpQuestion)}
-							class="border-border bg-card hover:border-primary hover:bg-accent w-full rounded-xl border px-4 py-4 text-left text-base leading-relaxed transition-colors"
+							class="border-border bg-card hover:border-primary hover:bg-accent flex flex-1 items-center rounded-xl border px-4 py-4 text-left text-base leading-relaxed transition-colors"
 						>
 							{followUpQuestion}
 						</button>
@@ -247,7 +270,7 @@
 			</div>
 
 			<div
-				class="border-input bg-background focus-within:border-ring focus-within:ring-ring/30 rounded-2xl border px-4 pt-3 pb-2 transition-colors focus-within:ring-2"
+				class="border-input bg-background focus-within:border-ring focus-within:ring-ring/30 shrink-0 rounded-2xl border px-4 pt-3 pb-2 transition-colors focus-within:ring-2"
 			>
 				<textarea
 					bind:this={composerEl}

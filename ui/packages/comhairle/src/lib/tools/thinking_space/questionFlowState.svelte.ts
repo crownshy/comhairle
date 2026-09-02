@@ -12,6 +12,13 @@ export type Phase = 'root' | 'picking' | 'answering';
  */
 export type ExtensionPhase = 'root-picker' | 'in-chain';
 
+/**
+ * The card that sits between questions rather than swapping the next one in under a
+ * just-sent answer. 'intro' opens the flow and says how the whole thing works; 'next'
+ * names the question coming up. Null while a question is on screen.
+ */
+export type Handoff = 'intro' | 'next' | null;
+
 export type LocalQuestionState = {
 	rootAnswer: string;
 	rootSubmitted: boolean;
@@ -70,6 +77,8 @@ export class QuestionFlowState {
 	submitting = $state(false);
 	// Extension-mode navigation phase. Unused in initial mode.
 	extensionPhase = $state<ExtensionPhase>('root-picker');
+	// The between-questions card, when one is open. See Handoff.
+	handoff = $state<Handoff>(null);
 
 	constructor(init: Init) {
 		this.questions = init.questions;
@@ -80,6 +89,10 @@ export class QuestionFlowState {
 
 		this.states = init.questions.map((_, i) => this.initialStateFor(i, init.initialAnswers));
 		this.currentQuestionIndex = this.resumeIndex(init.initialAnswers);
+		// Only on a first run. Someone resuming has already read it and wants their question
+		// back, and extension mode has its own hub.
+		const untouched = this.states.every((state) => !state.rootSubmitted);
+		if (this.mode === 'initial' && untouched) this.handoff = 'intro';
 	}
 
 	private initialStateFor(
@@ -145,6 +158,12 @@ export class QuestionFlowState {
 		return this.currentState.followUps.length;
 	}
 
+	// The configured follow-up count is a floor, not a ceiling: once it's met the picker stays
+	// open and offers a way out, so a participant with more to say can keep answering.
+	get followUpMinimumMet(): boolean {
+		return this.followUpsDone >= this.followUpCount;
+	}
+
 	get isLastQuestion(): boolean {
 		return this.currentQuestionIndex === this.questions.length - 1;
 	}
@@ -189,14 +208,28 @@ export class QuestionFlowState {
 		return lines.join('\n');
 	}
 
-	// Move to the next root question, or hand the finished set to the summary. Every screen in
-	// this flow swaps in place, so this one does too rather than fading through a blank.
+	// Move to the next root question, or hand the finished set to the summary. The next
+	// question is not shown straight away: the index moves and the handoff card names it, so
+	// nobody is dropped into a fresh question one tap after sending an answer.
 	continueNow() {
 		if (this.isLastQuestion) {
 			this.onComplete(this.buildAnswers());
 			return;
 		}
 		this.currentQuestionIndex = this.currentQuestionIndex + 1;
+		if (this.mode === 'initial') this.handoff = 'next';
+	}
+
+	// Leave the handoff card for the question it names.
+	startQuestion() {
+		this.handoff = null;
+	}
+
+	// Back out of a 'next' handoff to the question it followed, which is sitting on its picker.
+	backToPreviousQuestion() {
+		if (this.handoff !== 'next' || this.currentQuestionIndex === 0) return;
+		this.currentQuestionIndex = this.currentQuestionIndex - 1;
+		this.handoff = null;
 	}
 
 	async loadPicker(questionIndex: number) {
@@ -342,15 +375,9 @@ export class QuestionFlowState {
 				picker: [],
 				phase: 'picking'
 			};
-			// The round is a fixed length in initial mode: once the follow-ups are answered the
-			// flow moves on by itself. Going deeper is offered on the summary instead, so the
-			// participant is never asked mid-round whether they want more. Extension mode is the
-			// other side of that: the chain keeps going until they say they are done with it.
-			if (this.mode === 'extension' || this.followUpsDone < this.followUpCount) {
-				this.loadPicker(this.currentQuestionIndex);
-			} else {
-				this.continueNow();
-			}
+			// The chain never ends on its own. Past the configured count the picker comes back
+			// with a way out next to it, so moving on is the participant's call in both modes.
+			this.loadPicker(this.currentQuestionIndex);
 		} catch (e) {
 			console.error(e);
 			notifications.send({

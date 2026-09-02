@@ -34,7 +34,31 @@
 	});
 </script>
 
-<section class="space-y-4">
+<!-- Same three-card frame the picker lands in, stretched over the same height, so the wait reads
+     as the questions arriving rather than as a separate screen. -->
+<section class="flex min-h-0 flex-1 flex-col gap-6">
+	<header>
+		<h2 class="text-foreground text-xl leading-snug font-semibold">
+			{m.thinking_space_generating_heading()}
+		</h2>
+		<p class="text-muted-foreground mt-2 text-base leading-relaxed">
+			{m.thinking_space_generating_desc()}
+		</p>
+	</header>
+
+	<div class="flex min-h-0 flex-1 flex-col gap-3" aria-hidden="true">
+		{#each lineLayouts as layout, i (i)}
+			<div
+				class="border-border flex flex-1 flex-col justify-center gap-2 rounded-xl border px-4 py-4"
+			>
+				<Skeleton class="h-4 {layout.first}" />
+				{#if layout.second}
+					<Skeleton class="h-4 {layout.second}" />
+				{/if}
+			</div>
+		{/each}
+	</div>
+
 	<div class="flex items-start gap-2">
 		<Sparkles class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
 		<p
@@ -45,16 +69,5 @@
 		>
 			{messages[index]}
 		</p>
-	</div>
-
-	<div class="space-y-3" aria-hidden="true">
-		{#each lineLayouts as layout, i (i)}
-			<div class="border-border rounded-xl border px-4 py-4">
-				<Skeleton class="h-4 {layout.first}" />
-				{#if layout.second}
-					<Skeleton class="mt-2 h-4 {layout.second}" />
-				{/if}
-			</div>
-		{/each}
 	</div>
 </section>
