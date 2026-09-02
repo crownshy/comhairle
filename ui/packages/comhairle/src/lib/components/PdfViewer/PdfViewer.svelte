@@ -351,8 +351,8 @@
 				const cssScale = THUMB_WIDTH / base.width;
 				const viewport = page.getViewport({ scale: cssScale * dpr });
 
-				// Backing store only; CSS sizes the display so the rail can shrink
-				// thumbnails on mobile without re-rendering, staying crisp on HiDPI.
+				// Backing store only; CSS sizes the display, so a thumbnail stays
+				// crisp on HiDPI without re-rendering when the rail resizes.
 				canvas.width = Math.floor(viewport.width);
 				canvas.height = Math.floor(viewport.height);
 
@@ -502,15 +502,13 @@
 		</div>
 	</div>
 
-	<div class="relative flex min-h-0 flex-1 max-sm:flex-col">
+	<div class="relative flex min-h-0 flex-1">
 		{#if !loading && !error && pages.length > 0}
 			<div
-				class="border-border bg-background flex w-45 shrink-0 flex-col gap-2 overflow-y-auto border-r p-3 max-sm:order-2 max-sm:w-full max-sm:flex-row max-sm:items-center max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-t max-sm:border-r-0 max-sm:px-3 max-sm:py-2.5"
+				class="border-border bg-background flex w-45 shrink-0 flex-col gap-2 overflow-y-auto border-r p-3 max-sm:hidden"
 			>
-				<span class="text-muted-foreground px-1 text-sm font-medium max-sm:hidden"
-					>Pages</span
-				>
-				<div class="flex flex-col gap-3 max-sm:flex-row max-sm:gap-2.5">
+				<span class="text-muted-foreground px-1 text-sm font-medium">Pages</span>
+				<div class="flex flex-col gap-3">
 					{#each pages as page, i (page.pageNumber)}
 						<button
 							type="button"
@@ -525,7 +523,7 @@
 						>
 							<span
 								class={cn(
-									'block w-29 overflow-hidden rounded-lg border-2 bg-white transition-colors max-sm:w-16',
+									'block w-29 overflow-hidden rounded-lg border-2 bg-white transition-colors',
 									currentPage === i + 1
 										? 'border-primary'
 										: 'border-border group-hover:border-muted-foreground'
@@ -544,7 +542,7 @@
 
 		<div
 			bind:this={scrollContainer}
-			class="bg-muted flex min-h-0 flex-1 flex-col gap-4 overflow-auto py-4 [scrollbar-gutter:stable] max-sm:order-1"
+			class="bg-muted flex min-h-0 flex-1 flex-col gap-4 overflow-auto py-4 [scrollbar-gutter:stable]"
 		>
 			{#if sourceUnavailable}
 				<p class="text-muted-foreground m-auto max-w-prose p-8 text-center text-base">
