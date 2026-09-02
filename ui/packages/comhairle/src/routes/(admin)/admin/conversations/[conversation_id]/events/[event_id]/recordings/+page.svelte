@@ -212,7 +212,7 @@
 			// Keep failed rows so the user can fix and retry; drop successful ones.
 			rows = rows.filter((r) => r.state !== 'done');
 			if (rows.length === 0) rows = [makeRow()];
-			await invalidate(key('conversation/events'));
+			await invalidate(key('event/recordings'));
 		}
 	}
 
@@ -228,7 +228,7 @@
 				params: { conversation_id, event_id, recording_id: recording.id }
 			});
 			notifications.send({ message: `Deleted "${recording.name}"`, priority: 'INFO' });
-			await invalidate(key('conversation/events'));
+			await invalidate(key('event/recordings'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
