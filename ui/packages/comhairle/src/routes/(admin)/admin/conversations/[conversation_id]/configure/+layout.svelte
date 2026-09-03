@@ -16,8 +16,9 @@
 		href={resolve(`/(admin)/admin/conversations/[conversation_id]/configure/${tab}`, {
 			conversation_id: params.conversation_id
 		})}
-		label={capitalise(tab)}
-	/>
+	>
+		{capitalise(tab)}
+	</TabStripItem>
 {/snippet}
 
 <TabStripShell ariaLabel="Configure sections">
