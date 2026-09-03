@@ -50,8 +50,19 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 			'geolocation=(), camera=(self, https://jitsi.comhairle.scot), microphone=(self, https://jitsi.comhairle.scot)'
 		);
 	} else {
-		// Deny framing everywhere else
-		response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+		// Deny framing everywhere else except ummami if active
+		let umami_url = env.PUBLIC_UMAMI_SRC;
+		let umami_domain = '';
+		if (umami_url) {
+			try {
+				umami_domain = `'${new URL(umami_url).host}'`;
+			} catch (e) {
+				console.warn('Badly formatted umami domain');
+			}
+		}
+
+		let frameAncestors = "frame-ancestors 'self' " + umami_domain;
+		response.headers.set('Content-Security-Policy', frameAncestors);
 		response.headers.set('X-Frame-Options', 'DENY');
 		response.headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
 	}
