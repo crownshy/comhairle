@@ -16,7 +16,9 @@
 
 	const umamiWebsiteID = env.PUBLIC_UMAMI_WEBSITE_ID;
 	const umamiSrcURL = env.PUBLIC_UMAMI_SRC;
+	const umamiRecorderSrcURL = env.PUBLIC_UMAMI_RECORDER_SRC;
 	const umamiEnabled = $derived(browser && !!umamiWebsiteID && !!umamiSrcURL);
+	const umamiRecordingEnabled = $derived(umamiEnabled && !!umamiRecorderSrcURL);
 
 	// Send the logged-in user's id to Umami once the script has loaded, and
 	// re-run whenever the user (login/logout) or script status changes.
@@ -46,6 +48,15 @@
 
 {#if umamiEnabled}
 	<UmamiAnalytics websiteID={umamiWebsiteID!} srcURL={umamiSrcURL!} />
+{/if}
+
+{#if umamiRecordingEnabled}
+	<!-- Session replay / heatmap recorder. Loaded alongside the analytics
+	     tracker above: recorder.js only POSTs replay data to /api/record and
+	     does NOT send pageviews, so both scripts are required. -->
+	<svelte:head>
+		<script async defer src={umamiRecorderSrcURL} data-website-id={umamiWebsiteID}></script>
+	</svelte:head>
 {/if}
 
 <ThemeProvider>
