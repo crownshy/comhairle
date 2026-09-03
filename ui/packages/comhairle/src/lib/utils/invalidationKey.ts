@@ -15,6 +15,7 @@ type InputKey =
 	| 'event/facilitators'
 	| 'event/recordings'
 	| 'documents'
+	| 'design/step/configure/documents'
 	| 'participation'
 	| 'email-template-config'
 	| 'workflow-steps';

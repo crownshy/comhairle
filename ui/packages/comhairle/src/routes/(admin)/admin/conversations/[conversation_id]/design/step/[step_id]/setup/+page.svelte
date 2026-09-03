@@ -7,12 +7,10 @@
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import * as Prioritization from '$lib/tools/prioritization';
 
-	let { data } = $props();
+	const { data } = $props();
+	const { conversation, step, toolConfig } = $derived(data);
 
-	let conversation = $derived(data.conversation);
-	let step = $derived(data.step);
 	let workflow = $derived(data.workflows[0]);
-	let toolConfig = $derived(data.toolConfig);
 </script>
 
 {#if step && toolConfig?.type === 'learn'}

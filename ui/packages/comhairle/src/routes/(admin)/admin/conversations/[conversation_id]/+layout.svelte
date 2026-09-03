@@ -8,8 +8,6 @@
 
 	const { data, params, children } = $props();
 
-	console.log(page.route.id?.split('conversations/[conversation_id]/'));
-
 	let conversation = $derived(data.conversation);
 	let displayTitle = $derived(
 		getTextInLocale(
