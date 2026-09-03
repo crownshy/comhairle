@@ -1,3 +1,4 @@
+pub mod auth_service;
 pub mod bot_service;
 pub mod bulk_storage_service;
 pub mod categorization_service;
@@ -43,13 +44,13 @@ use translation_service::TranslationService;
 use websockets::WebSocketService;
 use websockets::handlers::video_call::VideoCallMessageHandler;
 
-use crate::bulk_storage_service::BulkStorageService;
 use crate::categorization_service::CategorizationService;
 use crate::redis_connection::RedisConnection;
 use crate::routes::workflows::WorkflowRouterContext;
 use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;
+use crate::{auth_service::AuthService, bulk_storage_service::BulkStorageService};
 
 #[cfg(test)]
 // sqlx::test expands every migration into the test binary for every invocation.
@@ -67,6 +68,7 @@ pub struct ComhairleState {
     /// routes can push updates to participants currently on a call (e.g. agenda changes).
     pub video_call_handler: Arc<VideoCallMessageHandler>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
+    pub auth_service: Option<Arc<dyn AuthService>>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub wiki_poll_service: Arc<dyn WikiPollService>,
     pub bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
