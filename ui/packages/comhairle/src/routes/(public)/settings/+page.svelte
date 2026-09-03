@@ -29,13 +29,13 @@
 	<div class="mt-1 flex flex-col gap-y-10">
 		<section id="your_details" class="border-border border-b py-5">
 			<h2 class="mb-6 text-3xl">Your Details</h2>
-			{#if user.authType === 'annon'}
+			{#if user.authType === 'guest'}
 				<div class="space-y-6">
 					<div class="text-center">
 						<div class="text-muted-foreground mb-4">
-							You are currently signed in as an anonymous account with ID:
+							You are currently signed in as a guest account with ID:
 						</div>
-						<h3 class="my-4 text-center text-2xl font-bold">{user.username}</h3>
+						<h3 class="my-4 text-center text-2xl font-bold">{user.guestCode}</h3>
 					</div>
 
 					<div class=" bg-card p-6">
@@ -67,7 +67,7 @@
 				<h2 class="text-2xl font-semibold">{conversation.title}</h2>
 				<UserConversationPreferencesForm
 					conversationId={conversation.id}
-					isAnnon={user.authType === 'annon'}
+					isGuest={user.authType === 'guest'}
 				/>
 			{/each}
 		</section>

@@ -5,7 +5,7 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 	import * as m from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { page } from '$app/state';
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
@@ -34,7 +34,7 @@
 
 	function doJoin() {
 		if (!user && firstWorkflow.autoLogin) {
-			registerAnnonUserSignupAndRedirect();
+			registerGuestUserSignupAndRedirect();
 		} else {
 			registerUser();
 		}
@@ -68,10 +68,10 @@
 		loginRedirect(url.pathname, 'Login to join the conversation');
 	}
 
-	// Register a new annon user, sign them up for
+	// Register a new guest user, sign them up for
 	// the workflow and redirect to it
-	async function registerAnnonUserSignupAndRedirect() {
-		await apiClient.SignupAnnonUser(undefined, {});
+	async function registerGuestUserSignupAndRedirect() {
+		await apiClient.SignupGuestUser(undefined, {});
 
 		await apiClient.RegisterUserForConversationWorkflow(undefined, {
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }

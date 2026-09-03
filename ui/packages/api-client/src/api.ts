@@ -7,12 +7,12 @@ import {
 } from "@zodios/core";
 import { z } from "zod";
 
-export const AnnonLoginRequest = z
-  .object({ username: z.string() })
+export const GuestLoginRequest = z
+  .object({ guest_code: z.string() })
   .passthrough();
-export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
+export type GuestLoginRequest = z.infer<typeof GuestLoginRequest>;
 export const UserAuthType = z.enum([
-  "annon",
+  "guest",
   "email_password",
   "otp",
   "scot_account",
@@ -24,6 +24,7 @@ export const UserDto = z
     avatarUrl: z.union([z.string(), z.null()]).optional(),
     email: z.union([z.string(), z.null()]).optional(),
     emailVerified: z.boolean(),
+    guestCode: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     username: z.union([z.string(), z.null()]).optional(),
@@ -2002,7 +2003,7 @@ export const InviteType = z.union([
 export type InviteType = z.infer<typeof InviteType>;
 export const LoginBehaviour = z.union([
   z.literal("manual"),
-  z.literal("auto_create_annon"),
+  z.literal("auto_create_guest"),
 ]);
 export type LoginBehaviour = z.infer<typeof LoginBehaviour>;
 export const InviteStatus = z.union([
@@ -3054,7 +3055,7 @@ export const UserWithPermissionDto = z
 export type UserWithPermissionDto = z.infer<typeof UserWithPermissionDto>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
-  AnnonLoginRequest,
+  GuestLoginRequest,
   UserAuthType,
   UserDto,
   LoginRequest,
@@ -3442,15 +3443,15 @@ const endpoints = makeApi([
   },
   {
     method: "post",
-    path: "/auth/login_annon",
-    alias: "LoginAnnonUser",
+    path: "/auth/login_guest",
+    alias: "LoginGuestUser",
     requestFormat: "json",
     parameters: [
       {
         name: "body",
-        description: `Expected payload for an annon login request`,
+        description: `Expected payload for an guest login request`,
         type: "Body",
-        schema: z.object({ username: z.string() }).passthrough(),
+        schema: z.object({ guest_code: z.string() }).passthrough(),
       },
     ],
     response: UserDto,
@@ -3550,8 +3551,8 @@ const endpoints = makeApi([
   },
   {
     method: "post",
-    path: "/auth/signup_annon",
-    alias: "SignupAnnonUser",
+    path: "/auth/signup_guest",
+    alias: "SignupGuestUser",
     requestFormat: "json",
     response: UserDto,
   },

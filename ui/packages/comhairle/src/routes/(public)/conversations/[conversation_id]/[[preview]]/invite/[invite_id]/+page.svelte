@@ -4,7 +4,7 @@
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	import { loginRedirect, signupRedirect, signupAnnonRedirect } from '$lib/urls.js';
+	import { loginRedirect, signupRedirect, signupGuestRedirect } from '$lib/urls.js';
 
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -41,11 +41,11 @@
 		signupRedirect(url.toString(), 'Signup to accept invite');
 	}
 
-	function take_part_annon() {
-		signupAnnonRedirect(url.toString(), 'Signup to accept invite');
+	function take_part_guest() {
+		signupGuestRedirect(url.toString(), 'Signup to accept invite');
 	}
 
-	function showAnnonPrivacy() {
+	function showGuestPrivacy() {
 		loginType = 'automatic';
 		privacyPolicyOpen = true;
 	}
@@ -57,7 +57,7 @@
 	async function handlePrivacyPolicyAccept() {
 		try {
 			if (loginType === 'automatic') {
-				await apiClient.SignupAnnonUser(undefined, {});
+				await apiClient.SignupGuestUser(undefined, {});
 				await acceptInvite();
 				await goto(firstWorkflowPath + url.search, {
 					invalidate: ['user', 'app:participation']
@@ -136,7 +136,7 @@
 							<div class="flex flex-col gap-2">
 								<Button onclick={login}>Login</Button>
 								<Button onclick={create_account}>Create an account</Button>
-								<Button onclick={take_part_annon}>Take part anonymously</Button>
+								<Button onclick={take_part_guest}>Take part as guest</Button>
 							</div>
 						{/if}
 					{/if}
@@ -147,8 +147,9 @@
 						>
 					{/if}
 
-					{#if !user && (invite.loginBehaviour === 'auto_create_annon' || firstWorkflow.autoLogin)}
-						<Button onclick={showAnnonPrivacy}
+					<!-- Temporarily check for `auto_create_annon` for backwards support after rename migration -->
+					{#if !user && (invite.loginBehaviour === 'auto_create_annon' || invite.loginBehaviour === 'auto_create_guest' || firstWorkflow.autoLogin)}
+						<Button onclick={showGuestPrivacy}
 							>{conversation.callToAction || m.join_the_conversation()}</Button
 						>
 					{/if}
