@@ -2,8 +2,13 @@ name: tests
 
 ## run tests on push to all branches
 on:
-  push: 
+  push:
   workflow_dispatch:  # Allows manual triggering
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
     
 jobs:
   changes:
