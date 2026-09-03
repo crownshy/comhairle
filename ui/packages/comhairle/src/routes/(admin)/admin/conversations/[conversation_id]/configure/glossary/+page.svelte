@@ -1,6 +1,6 @@
 <script lang="ts">
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Progress } from '$lib/components/ui/progress';
@@ -28,6 +28,8 @@
 	import type { LocalizedGlossary } from '$lib/glossary/types';
 	import type { Locale } from '$lib/paraglide/runtime';
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
 	const { data } = $props();
 	const { conversation } = $derived(data);
@@ -116,6 +118,10 @@
 
 	// Warn before leaving (in-app nav or full refresh) while an edit hasn't been saved yet.
 	guardUnsavedChanges(() => dirty);
+
+	onMount(() => {
+		invalidate(key('conversation'));
+	});
 
 	/** Rows -> a clean translatable glossary, dropping empties and splitting the terms per locale. */
 	function toLocalizedGlossary(): LocalizedGlossary {
