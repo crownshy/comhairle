@@ -130,12 +130,3 @@
 		{@render children()}
 	</div>
 </div>
-
-<style>
-	.scrollbar-none {
-		scrollbar-width: none;
-	}
-	.scrollbar-none::-webkit-scrollbar {
-		display: none;
-	}
-</style>
