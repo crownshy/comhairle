@@ -1456,7 +1456,11 @@ export const WorkflowStats = z
   .passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
 export const DemographicCount = z
-  .object({ count: z.number().int(), value: z.string() })
+  .object({
+    count: z.number().int(),
+    displayName: z.string(),
+    value: z.string(),
+  })
   .passthrough();
 export type DemographicCount = z.infer<typeof DemographicCount>;
 export const DemographicReport = z
@@ -3061,7 +3065,7 @@ export type DemographicsQuestionResponseType = z.infer<
 export const DemographicsQuestion = z
   .object({
     bucketConfig: z.union([z.array(ValueBuckets), z.null()]).optional(),
-    displayName: z.union([z.string(), z.null()]).optional(),
+    displayName: z.string(),
     responseType: DemographicsQuestionResponseType,
     slug: z.string(),
   })
@@ -3075,8 +3079,8 @@ export type PaginatedResults_for_DemographicsQuestion = z.infer<
 >;
 export const CreateDemographicsQuestion = z
   .object({
-    bucketConfig: z.unknown().optional(),
-    displayName: z.union([z.string(), z.null()]).optional(),
+    bucketConfig: z.union([z.array(ValueBuckets), z.null()]).optional(),
+    displayName: z.string(),
     responseType: DemographicsQuestionResponseType,
     slug: z.string(),
   })

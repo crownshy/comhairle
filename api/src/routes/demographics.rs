@@ -267,9 +267,3 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .with_state(state.clone())
 }
-
-#[cfg(test)]
-mod tests {
-    // GH TODO: Tests for the demographics routes would go here.
-    // There isn't much to test here yet, as the routes are primarily thin wrappers around the model functions.
-}

@@ -1,54 +1,46 @@
 <!-- src/lib/components/UserDemographicsForm/UserDemographicsForm.svelte -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
-	import { z } from 'zod';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import type { DemographicsQuestion, DemographicsResponse } from '@crownshy/api-client/api';
-	import { invalidateAll } from '$app/navigation';
 
-	let {
-		questions,
-		responses,
-		userId
-	}: {
+	type Props = {
 		questions: DemographicsQuestion[];
 		responses: DemographicsResponse[];
 		userId: string;
-	} = $props();
+		onSaved: () => Promise<void>;
+	};
+
+	let { questions, responses, userId, onSaved }: Props = $props();
 
 	let saving = $state(false);
 
-	// 1. Build initial data and dynamic Zod schema based on the provided questions
-	const buildFormConfig = () => {
+	const buildInitialData = () => {
 		const initialData: Record<string, string> = {};
-		const schemaShape: Record<string, z.ZodTypeAny> = {};
 
 		for (const q of questions) {
 			// Find existing answer if it exists
 			const existingResponse = responses.find((r) => r.questionSlug === q.slug);
 			initialData[q.slug] = existingResponse ? existingResponse.value : '';
-
-			// Require strings but allow empty values to represent deletion
-			schemaShape[q.slug] = z.string().nullable().optional();
 		}
 
-		return {
-			initialData,
-			schema: z.object(schemaShape)
-		};
+		return initialData;
 	};
 
-	const config = buildFormConfig();
+	const form = untrack(() => {
+		const initialData = buildInitialData();
 
-	const form = superForm(config.initialData, {
-		validators: zodClient(config.schema),
-		taintedMessage: false,
-		validationMethod: 'onsubmit'
+		return superForm(initialData, {
+			validators: false,
+			taintedMessage: false,
+			validationMethod: 'onsubmit'
+		});
 	});
 
 	const { form: formData, validateForm, errors } = form;
@@ -70,7 +62,7 @@
 			return;
 		}
 
-		try {
+		let apiCalls = await tryCatchAsync(async () => {
 			saving = true;
 
 			// 2. Iterate dynamically over the available questions to dispatch API calls
@@ -91,12 +83,15 @@
 					});
 				} else if (hasNewValue && existing && existing.value !== stringVal) {
 					// Update
-					return apiClient.UpdateDemographicsResponse(slug, userId, {
-						value: stringVal
-					});
+					return apiClient.UpdateDemographicsResponse(
+						{ value: stringVal },
+						{ params: { question_slug: slug, user_id: userId } }
+					);
 				} else if (!hasNewValue && existing) {
 					// Delete (user cleared the field)
-					return apiClient.DeleteDemographicsResponse(slug, userId);
+					return apiClient.DeleteDemographicsResponse(undefined, {
+						params: { question_slug: slug, user_id: userId }
+					});
 				}
 
 				return Promise.resolve();
@@ -110,25 +105,27 @@
 			});
 			$errors = {};
 
-			// Re-run the page load function to sync fresh responses into the UI state
-			await invalidateAll();
-		} catch (error: any) {
-			console.error('Demographics Save Error:', error?.response?.data || error); // <-- Add this to see the exact backend rejection
+			await onSaved();
+		});
+
+		if (apiCalls.err !== null) {
+			const error = apiCalls.err;
+			const errorMessage =
+				error instanceof Error
+					? error.message
+					: 'Failed to update demographics. Please try again.';
 
 			notifications.send({
-				message:
-					error?.response?.data?.err ||
-					error?.response?.data?.message ||
-					'Failed to update demographics. Please try again.',
+				message: errorMessage,
 				priority: 'ERROR'
 			});
-		} finally {
-			saving = false;
 		}
+
+		saving = false;
 	}
 </script>
 
-<div class="space-y-6 border-t pt-8">
+<div class="space-y-6 border-b py-5">
 	<div>
 		<h3 class="text-lg font-medium">Demographics</h3>
 		<p class="text-muted-foreground text-sm">
@@ -147,15 +144,13 @@
 				<div class="space-y-2">
 					<!-- Use question.label or question.text if your backend provides it, otherwise format the slug -->
 					<Label for={question.slug}>
-						{(question as any).label ||
-							(question as any).text ||
-							formatSlugLabel(question.slug)}
+						{(question as any).label || (question as any).text || question.displayName}
 					</Label>
 
 					<Input
 						id={question.slug}
 						bind:value={$formData[question.slug]}
-						placeholder={`Enter ${formatSlugLabel(question.slug).toLowerCase()}`}
+						placeholder={`Enter ${question.displayName.toLowerCase()}`}
 						disabled={saving}
 					/>
 

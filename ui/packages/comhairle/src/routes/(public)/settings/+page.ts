@@ -1,7 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ parent }) => {
+export const load: PageLoad = async ({ parent, depends }) => {
+	depends('settings:demographics');
 	const { user, api } = await parent();
 
 	if (!user) {
@@ -26,7 +27,7 @@ export const load: PageLoad = async ({ parent }) => {
 			demographicQuestions: questionsRes.records || [],
 			demographicResponses: responsesRes.records || []
 		};
-	} catch (e) {
-		return { error: e };
+	} catch (error) {
+		throw error;
 	}
 };
