@@ -1,4 +1,4 @@
 import { deLocalizeUrl } from '$lib/paraglide/runtime';
+import type { Reroute } from '@sveltejs/kit';
 
-export const reroute = (request) => deLocalizeUrl(request.url).pathname;
-
+export const reroute: Reroute = (request) => deLocalizeUrl(request.url).pathname;

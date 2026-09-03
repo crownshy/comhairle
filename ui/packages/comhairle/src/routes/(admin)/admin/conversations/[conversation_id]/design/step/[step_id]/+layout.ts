@@ -1,4 +1,8 @@
+import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
+import { HttpStatus } from '$lib/utils/constants';
+import { resolve } from '$app/paths';
+import { notifications } from '$lib/notifications.svelte';
 
 /**
  * Shared shell for a single workflow step. Derives the step's sub-tab list from its
@@ -7,11 +11,23 @@ import type { LayoutLoad } from './$types';
  * page injecting it post-hydration via an `$effect`. Setup (the tool work) leads; it's
  * the canonical landing and the most-visited tab.
  */
-export const load: LayoutLoad = async (event) => {
-	const step_id = event.params.step_id;
-	const { conversation, workflowSteps } = await event.parent();
+export const load: LayoutLoad = async ({ parent, params }) => {
+	const { conversation, workflowSteps } = await parent();
+	const { step_id, conversation_id } = params;
 
 	const step = workflowSteps?.find((s) => s.id === step_id);
+
+	if (!step) {
+		notifications.addFlash({
+			message: 'Could not find step',
+			priority: 'ERROR'
+		});
+		redirect(
+			HttpStatus.TemporaryRedirect,
+			resolve('/(admin)/admin/conversations/[conversation_id]/design', { conversation_id })
+		);
+	}
+
 	const toolConfig = step
 		? conversation.isLive
 			? step.toolConfig
@@ -40,5 +56,5 @@ export const load: LayoutLoad = async (event) => {
 
 	// `step` and `toolConfig` are shared by every sub-tab page (Configure/Setup/Moderation/
 	// Insights), so they resolve once here and each page reads them from merged layout data.
-	return { step_id, step, toolConfig, subtabItems };
+	return { step, toolConfig, subtabItems };
 };

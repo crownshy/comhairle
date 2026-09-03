@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
+	import type { WorkflowStepWithTranslationsDto } from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -10,7 +10,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { toolMeta, toolInfoUrl } from '$lib/tool_meta';
+	import { toolMeta, toolInfoUrl, type ToolType } from '$lib/tool_meta';
 	import type { ConversationTemplate } from '$lib/conversation_templates';
 	import TemplatePickerDialog from '$lib/components/TemplatePickerDialog.svelte';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
@@ -29,32 +29,24 @@
 		GripVertical,
 		Info
 	} from 'lucide-svelte';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
-
-	let conversation = $derived(data.conversation);
+	let { conversation, workflowSteps } = $derived(data);
 	let workflow = $derived(data.workflows[0]);
-	let workflowSteps = $derived<WorkflowStepWithTranslations[] | undefined>(data.workflowSteps);
-
-	// `undefined` = steps not loaded yet (show a skeleton); `[]` = genuinely no steps.
-	let loadingSteps = $derived(workflowSteps === undefined);
 
 	// Writable derived: seeds from the loaded steps and re-seeds whenever they change (e.g.
 	// after `invalidate`), while a drag/reorder can still assign to it locally in between.
 	// Using $derived (not $state + $effect) means SSR renders the real order too, so a slow
 	// client no longer flashes the empty state before hydration. (See CLAUDE.md.)
-	let reorderedSteps = $derived(
-		workflowSteps ? [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder) : []
+	let reorderedSteps = $derived<WorkflowStepWithTranslationsDto[]>(
+		workflowSteps ? workflowSteps.toSorted((a, b) => a.stepOrder - b.stepOrder) : []
 	);
 
 	// --- Ephemeral UI state ---
 	let editingId = $state<string | null>(null);
 	let editValue = $state('');
 	let boardEl = $state<HTMLDivElement | null>(null);
-
-	function stepUrl(step: WorkflowStepWithTranslations): string {
-		return `/admin/conversations/${conversation.id}/design/step/${step.id}`;
-	}
 
 	// --- Templates (re-seed the whole workflow) ---
 	// The workflow doesn't persist which template it came from, and steps drift once
@@ -135,11 +127,11 @@
 		}
 	}
 
-	function stepType(step: WorkflowStepWithTranslations): string | undefined {
+	function stepType(step: WorkflowStepWithTranslationsDto): ToolType | undefined {
 		return step.previewToolConfig?.type ?? step.toolConfig?.type;
 	}
 
-	async function patchStep(step: WorkflowStepWithTranslations, body: Record<string, unknown>) {
+	async function patchStep(step: WorkflowStepWithTranslationsDto, body: Record<string, unknown>) {
 		await apiClient.UpdateConversationWorkflowStep(body, {
 			params: {
 				conversation_id: conversation.id,
@@ -150,10 +142,10 @@
 	}
 
 	// --- Reorder (drag + buttons share the same commit) ---
-	function handleReorder(next: WorkflowStepWithTranslations[]) {
+	function handleReorder(next: WorkflowStepWithTranslationsDto[]) {
 		reorderedSteps = next;
 	}
-	async function handleCommit(next: WorkflowStepWithTranslations[]) {
+	async function handleCommit(next: WorkflowStepWithTranslationsDto[]) {
 		for (let i = 0; i < next.length; i++) {
 			const step = next[i];
 			if (step.stepOrder !== i + 1) {
@@ -178,11 +170,11 @@
 	}
 
 	// --- Inline name edit ---
-	function startEdit(step: WorkflowStepWithTranslations) {
+	function startEdit(step: WorkflowStepWithTranslationsDto) {
 		editingId = step.id;
 		editValue = step.name;
 	}
-	async function commitEdit(step: WorkflowStepWithTranslations) {
+	async function commitEdit(step: WorkflowStepWithTranslationsDto) {
 		const name = editValue.trim();
 		editingId = null;
 		if (!name || name === step.name) return;
@@ -203,7 +195,7 @@
 	}
 
 	// --- Delete ---
-	async function deleteStep(step: WorkflowStepWithTranslations) {
+	async function deleteStep(step: WorkflowStepWithTranslationsDto) {
 		try {
 			await apiClient.DeleteConversationWorkflowStep(undefined, {
 				params: {
@@ -286,7 +278,7 @@
 				</DropdownMenu.Root>
 			</div>
 
-			{#if loadingSteps}
+			{#if workflowSteps === undefined}
 				<StepListSkeleton />
 			{:else if reorderedSteps.length === 0}
 				<div
@@ -350,7 +342,10 @@
 									/>
 								{:else}
 									<a
-										href={stepUrl(step)}
+										href={resolve(
+											'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
+											{ conversation_id: conversation.id, step_id: step.id }
+										)}
 										class="text-foreground group-hover:text-primary truncate text-lg font-medium transition-colors outline-none after:absolute after:inset-0 after:content-['']"
 									>
 										{step.name}

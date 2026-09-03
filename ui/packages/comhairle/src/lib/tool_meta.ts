@@ -262,12 +262,12 @@ export const PALETTE_TOOLS: PaletteItem[] = [
 	TOOL_META.stories
 ];
 
-export function toolMeta(type: string | undefined | null): ToolMeta | undefined {
+export function toolMeta(type: ToolType | undefined | null): ToolMeta | undefined {
 	if (!type) return undefined;
-	return TOOL_META[type as ToolType];
+	return TOOL_META[type];
 }
 
-export function toolInfoUrl(type: string | undefined | null): string {
+export function toolInfoUrl(type: ToolType | undefined | null): string {
 	const meta = toolMeta(type);
 	return meta ? `/admin/info/tools/${meta.infoSlug}` : '/admin/info/tools';
 }

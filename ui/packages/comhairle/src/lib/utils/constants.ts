@@ -1,3 +1,5 @@
+import type { Locale } from '$lib/paraglide/runtime';
+
 /**
  * Reserved knowledge-base document name for the auto-synced learn-step content.
  * Mirrors `LEARN_CONTENT_DOCUMENT_NAME` in the API (`api/src/routes/documents.rs`).
@@ -5,6 +7,7 @@
 export const LEARN_CONTENT_DOCUMENT_NAME = 'comhairle_learning_step_material.pdf';
 
 export enum HttpStatus {
+	Found = 302,
 	TemporaryRedirect = 307,
 	PermanentRedirect = 308,
 	BadRequest = 400,
@@ -15,3 +18,8 @@ export enum HttpStatus {
 	UnprocessableContent = 422,
 	InternalServerError = 500
 }
+
+// In px
+export const MOBILE_BREAKPOINT = 1_024;
+
+export const DEFAULT_LOCALE: Locale = 'en';

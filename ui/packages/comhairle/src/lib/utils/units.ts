@@ -5,6 +5,7 @@ export const MB = 1_000 * KB;
 export const GB = 1_000 * MB;
 
 // Time
+export const Ms = 1;
 export const Second = 1_000;
 export const Minute = 60 * Second;
 export const Hour = 60 * Minute;
