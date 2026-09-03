@@ -506,13 +506,15 @@ pub async fn get_guest_user_by_code(guest_code: &str, db: &PgPool) -> Result<Use
         .map_err(|_| ComhairleError::NoUserFound)
 }
 
-/// Return a user by username
+/// Return a non-guest user by username. Guest users do not have unique constraint
+/// on usernames so should be selected by `guest_code`.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Username).eq(username))
+        .and_where(Expr::col(UserIden::AuthType).not().eq(UserAuthType::Guest))
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_as_with::<_, User, _>(&sql, values)
