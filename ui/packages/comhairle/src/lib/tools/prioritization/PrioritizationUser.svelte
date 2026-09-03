@@ -683,8 +683,8 @@
 					class="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
 				>
 					<p class="text-muted-foreground text-base">
-						Click the 'Submit &amp; continue' button above to review the next proposal.
-						If you'd like to move on rather than reviewing any more proposals, click
+						Click the 'Submit &amp; continue' button above to review the next principle.
+						If you'd like to move on rather than reviewing any more principles, click
 						'Skip this step'.
 					</p>
 					<Button
