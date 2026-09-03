@@ -45,14 +45,6 @@
 
 	const { form: formData, validateForm, errors } = form;
 
-	// Helper to format slugs like "political_party" into "Political Party"
-	const formatSlugLabel = (slug: string) => {
-		return slug
-			.split('_')
-			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-			.join(' ');
-	};
-
 	async function saveDemographics(e: Event) {
 		e.preventDefault();
 		const result = await validateForm({ update: false });
