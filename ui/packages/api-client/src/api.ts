@@ -445,6 +445,10 @@ export const WikiPollReport = z
   })
   .passthrough();
 export type WikiPollReport = z.infer<typeof WikiPollReport>;
+export const VoteCountResponse = z
+  .object({ vote_count: z.number().int().gte(0) })
+  .passthrough();
+export type VoteCountResponse = z.infer<typeof VoteCountResponse>;
 export const UpdatePolisConfigRequest = z
   .object({
     description: z.union([z.string(), z.null()]).optional(),
@@ -3105,6 +3109,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PcaPosition,
   ParticipantReportData,
   WikiPollReport,
+  VoteCountResponse,
   UpdatePolisConfigRequest,
   WikiPoll,
   PostSeedRequest,
@@ -6014,6 +6019,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.array(ThemeStatistic),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/vote_count",
+    alias: "PolisGetUserVoteCount",
+    description: `Counts the votes the authenticated participant has cast in the Polis poll for the given workflow step, mapping their comhairle user id to the Polis participant via xids. Used to seed the required-votes progress from server data.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.object({ vote_count: z.number().int().gte(0) }).passthrough(),
   },
   {
     method: "get",

@@ -4,7 +4,7 @@
 		type ComhairleDocument
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
@@ -70,11 +70,7 @@
 	// until a save succeeds (and after a failed save), so this covers the mid-save refresh case.
 	guardUnsavedChanges(() => pages.areDirty);
 
-	type SaveToServerOptions = { invalidate?: boolean };
-	async function save(
-		pagesToSave: ExtendedLocalizedPage[][],
-		{ invalidate = true }: SaveToServerOptions = {}
-	) {
+	async function save(pagesToSave: ExtendedLocalizedPage[][]) {
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
 			pages: pagesToSave
@@ -100,13 +96,19 @@
 			throw response.err;
 		}
 
-		if (invalidate) await invalidateAll();
+		// Every save refreshes the step list, content edits included. This step's config is served
+		// from the conversation layout's `workflowSteps`, and that load keys off `conversation_id`
+		// alone, so hopping between steps never refetches it. A save that skipped this left the
+		// cache holding pre-edit pages: leave the step, come back, and the editor remounts from
+		// stale props and the next autosave writes them back over the real content.
+		//
+		// Ordering matters. Invalidating before markSaved() means the fresh props land while
+		// `areDirty` is still true, so the reload effect below leaves the editor alone.
+		await invalidate('conversation:workflow');
 		pages.markSaved();
 	}
 
-	pages.saveHandler((options) =>
-		save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true })
-	);
+	pages.saveHandler(() => save(pages.toLocalizedPages()));
 
 	pages.onMarkSaved(() => {
 		lastPropsConfig = JSON.stringify({

@@ -12,10 +12,16 @@
 		Sprout,
 		Info
 	} from 'lucide-svelte';
+	import { onMount } from 'svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import PolisVotingSkeleton from './PolisVotingSkeleton.svelte';
 	import PolisAddOpinion from './PolisAddOpinion.svelte';
-	import { getVoteData, incrementVotes, resetVoteCount } from './polisVoteStore';
+	import {
+		getVoteData,
+		incrementVotes,
+		reconcileServerVotes,
+		resetVoteCount
+	} from './polisVoteStore';
 	import { hasSeenOpinionGuidance, markOpinionGuidanceSeen } from './polisGuidance';
 	import { opinionCounter } from './polisCounter';
 	import * as m from '$lib/paraglide/messages';
@@ -23,6 +29,7 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	type Props = {
 		polis_id: string;
@@ -96,6 +103,27 @@
 	let votesSoFar = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
+
+	// Seed progress from the server so the required-votes threshold is correct
+	// across devices, not just this browser. Best-effort: on failure we keep the
+	// local count seeded above.
+	onMount(async () => {
+		const result = await tryCatchAsync(() =>
+			apiClient.PolisGetUserVoteCount({ queries: { workflow_step_id: stepId } })
+		);
+		if (result.err !== null) {
+			console.error('[PolisEmbed] Failed to load server vote count:', result.err);
+			return;
+		}
+		const data = reconcileServerVotes(
+			user_id,
+			voteScopeKey,
+			result.ok.vote_count,
+			safeRequiredVotes
+		);
+		totalVotes = data.totalVotes;
+		hasMetThreshold = data.hasMetThreshold;
+	});
 	let waitingForNext = $state(false);
 	let voteCooldown = $state(false);
 	let opinionText = $state('');
