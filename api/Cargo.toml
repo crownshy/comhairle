@@ -21,6 +21,8 @@ path = "src/data_loader/main.rs"
 
 [dependencies]
 axum = { version = "0.8.3", features = ["ws", "multipart"] }
+keycloak = "26.7.300"
+axum-keycloak-auth = "0.8.3"
 async-trait = { workspace = true }
 config = "0.15.8"
 sea-query = { version = "0.32.3", features = [

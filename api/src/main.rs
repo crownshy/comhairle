@@ -1,4 +1,5 @@
 use aws_config::BehaviorVersion;
+use comhairle::auth_service::{AuthService, keycloak::KeycloakClient};
 use comhairle::redis_connection::RedisImpl;
 use comhairle::{
     ComhairleState,
@@ -72,6 +73,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     google_config.api_key.to_owned(),
                 )) as Arc<dyn comhairle::translation_service::TranslationService>
             });
+
+    // Setup Auth Service
+    let auth_service = if let Some(auth_config) = &config.auth_service {
+        let keycloak = KeycloakClient::new(
+            &auth_config.url,
+            &auth_config.admin_user,
+            &auth_config.admin_password,
+            &auth_config.realm,
+        )
+        .await?;
+        Some(Arc::new(keycloak) as Arc<dyn AuthService>)
+    } else {
+        None
+    };
 
     // Setup Bulk Storage Service
     let bulk_storage_service = if let Some(bulk_storage_config) = &config.bulk_storage_service {
@@ -151,6 +166,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         translation_service,
         transcription_service,
         bot_service,
+        auth_service,
         wiki_poll_service,
         worker_service,
         bulk_storage_service,
