@@ -15,3 +15,5 @@ export enum HttpStatus {
 	UnprocessableContent = 422,
 	InternalServerError = 500
 }
+
+export const DEFAULT_LOCALE = 'en';
