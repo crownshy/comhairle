@@ -49,11 +49,6 @@ pub async fn upsert_profile(
                 &existing.id,
                 &PartialUserProfile {
                     consented: request.consented,
-                    ethnicity: request.ethnicity,
-                    age: request.age,
-                    gender: request.gender,
-                    zipcode: request.zipcode,
-                    political_party: request.political_party,
                 },
             )
             .await?
@@ -134,22 +129,6 @@ mod tests {
 
         let profile: UserProfileDto = serde_json::from_value(response)?;
         assert!(profile.consented, "incorrect consented");
-        assert_eq!(
-            profile.ethnicity,
-            Some("Asian".to_string()),
-            "incorrect ethnicity"
-        );
-        assert_eq!(profile.age, Some(28), "incorrect age");
-        assert_eq!(
-            profile.gender,
-            Some("Female".to_string()),
-            "incorrect gender"
-        );
-        assert_eq!(
-            profile.zipcode,
-            Some("12345".to_string()),
-            "incorrect zipcode"
-        );
         assert_eq!(profile.user_id, session.id.unwrap(), "incorrect user_id");
 
         Ok(())
@@ -178,12 +157,6 @@ mod tests {
 
         let profile: UserProfileDto = serde_json::from_value(response)?;
         assert!(profile.consented, "incorrect consented");
-        assert_eq!(
-            profile.ethnicity,
-            Some("Hispanic".to_string()),
-            "incorrect ethnicity"
-        );
-        assert_eq!(profile.age, Some(30), "incorrect age");
 
         Ok(())
     }
@@ -225,22 +198,6 @@ mod tests {
             "should be same profile"
         );
         assert!(updated_profile.consented, "consented not updated");
-        assert_eq!(
-            updated_profile.ethnicity,
-            Some("Black".to_string()),
-            "ethnicity not updated"
-        );
-        assert_eq!(updated_profile.age, Some(35), "age not updated");
-        assert_eq!(
-            updated_profile.gender,
-            Some("Non-binary".to_string()),
-            "gender not updated"
-        );
-        assert_eq!(
-            updated_profile.zipcode,
-            Some("54321".to_string()),
-            "zipcode not updated"
-        );
 
         Ok(())
     }
@@ -296,22 +253,9 @@ mod tests {
         let (_, response, _) = session2.put(&app, "/user/profile", body.into()).await?;
         let profile2: UserProfileDto = serde_json::from_value(response)?;
 
-        // Verify user 2's profile has different data than user 1's
-        assert_eq!(
-            profile2.ethnicity,
-            Some("Hispanic".to_string()),
-            "user 2 should have their own profile data"
-        );
-        assert_eq!(profile2.age, Some(30), "user 2 should have their own age");
-
         // Get user 1's profile again to ensure it's unchanged
         let (_, response, _) = session1.get(&app, "/user/profile").await?;
         let profile1: UserProfileDto = serde_json::from_value(response)?;
-        assert_eq!(
-            profile1.ethnicity,
-            Some("Asian".to_string()),
-            "user 1 profile should be unchanged"
-        );
         assert_eq!(
             profile1.user_id,
             session1.id.unwrap(),

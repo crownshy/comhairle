@@ -1,17 +1,27 @@
 <script lang="ts">
 	import { Settings } from 'lucide-svelte';
+	import { invalidate } from '$app/navigation';
 	import type { PageProps } from './$types';
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
+	import UserDemographicsForm from './UserDemographicsForm/UserDemographicsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import type { UserDto } from '@crownshy/api-client/api';
 
 	let { data }: PageProps = $props();
-	let participation = $derived(data.participation);
-	let user = $state(data.user) as UserDto;
+	let {
+		participation,
+		user,
+		demographicQuestions = [],
+		demographicResponses = []
+	} = $derived(data);
 
 	function handleUpgradeSuccess(upgradedUser: UserDto) {
 		user = upgradedUser;
+	}
+
+	async function refreshDemographics() {
+		await invalidate('settings:demographics');
 	}
 </script>
 
@@ -27,7 +37,7 @@
 		</div>
 	</div>
 	<div class="mt-1 flex flex-col gap-y-10">
-		<section id="your_details" class="border-border border-b py-5">
+		<section id="your_details">
 			<h2 class="mb-6 text-3xl">Your Details</h2>
 			{#if user.authType === 'guest'}
 				<div class="space-y-6">
@@ -55,6 +65,14 @@
 				</div>
 			{:else}
 				<UserDetailsForm {user} />
+				{#key demographicResponses}
+					<UserDemographicsForm
+						questions={demographicQuestions}
+						responses={demographicResponses}
+						userId={user.id}
+						onSaved={refreshDemographics}
+					/>
+				{/key}
 			{/if}
 		</section>
 
