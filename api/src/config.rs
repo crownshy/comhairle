@@ -1,6 +1,7 @@
 use config::{Config, Environment, File};
 use serde::Deserialize;
 
+pub use crate::auth_service::config::AuthServiceConfig;
 pub use crate::bot_service::config::BotServiceConfig;
 pub use crate::bulk_storage_service::config::BulkStorageServiceConfig;
 use crate::categorization_service::config::CategorizationConfig;
@@ -70,6 +71,7 @@ pub struct ComhairleConfig {
     pub mailer: MailerConfig,
     pub domain: String,
     pub translator: Option<TranslatorConfig>,
+    pub auth_service: Option<AuthServiceConfig>,
     pub bot_service: Option<BotServiceConfig>,
     pub whitelisted_domains: Option<Vec<String>>,
     pub enable_rate_limiting: bool,
