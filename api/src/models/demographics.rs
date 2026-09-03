@@ -951,8 +951,8 @@ mod tests {
         )?;
 
         // Create a second user for testing
-        let mut other_session = UserSession::new_anon();
-        let (status, other_user_dto, _) = other_session.signup_annon(&app).await?;
+        let mut other_session = UserSession::new_guest();
+        let (status, other_user_dto, _) = other_session.signup_guest(&app).await?;
         assert!(status.is_success(), "Failed to create random user");
         let other_user_id: Uuid = serde_json::from_value(
             other_user_dto
