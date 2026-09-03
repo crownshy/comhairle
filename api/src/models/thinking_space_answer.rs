@@ -335,7 +335,7 @@ mod tests {
             .await?;
         let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
 
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
 
         let create_answer = CreateAnswer {
             question: "A test question".to_string(),
@@ -379,7 +379,7 @@ mod tests {
             .await?;
         let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
 
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
 
         let root_create = CreateAnswer {
             question: "A root question".to_string(),
@@ -453,7 +453,7 @@ mod tests {
             .await?;
         let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
 
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
 
         let create_answer = CreateAnswer {
             question: "A test question".to_string(),
@@ -494,7 +494,7 @@ mod tests {
         let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
 
         // User a
-        let user_a = users::create_annon_user(&pool).await?;
+        let user_a = users::create_guest_user(&pool).await?;
         let create_a_a = CreateAnswer {
             question: "A root question".to_string(),
             answer: "A root answer".to_string(),
@@ -520,7 +520,7 @@ mod tests {
         let answer_a_c = create(&pool, &workflow_step.id, &user_a.id, &create_a_c).await?;
 
         // User b
-        let user_b = users::create_annon_user(&pool).await?;
+        let user_b = users::create_guest_user(&pool).await?;
         let create_b_a = CreateAnswer {
             question: "A root question".to_string(),
             answer: "A root answer".to_string(),
@@ -597,7 +597,7 @@ mod tests {
             .await?;
         let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
 
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
 
         let create_answer = CreateAnswer {
             question: "A test question".to_string(),
@@ -647,7 +647,7 @@ mod tests {
             .await?;
         let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
 
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
 
         let create_answer = CreateAnswer {
             question: "A test question".to_string(),

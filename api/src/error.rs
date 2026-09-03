@@ -106,8 +106,8 @@ pub enum ComhairleError {
     #[error("CSS inliner error: {0}")]
     CssInlinerError(#[from] css_inline::error::InlineError),
 
-    #[error("Username {0} already taken")]
-    DuplicateUsername(String),
+    #[error("Guest code {0} already taken")]
+    DuplicateGuestCode(String),
 
     #[error("Email {0} already taken")]
     DuplicateEmail(String),
@@ -169,8 +169,8 @@ pub enum ComhairleError {
     #[error("Update request contained no valid parameters")]
     NoValidUpdates,
 
-    #[error("Failed to create annon user")]
-    FailedToCreateAnnonUser,
+    #[error("Failed to create guest user")]
+    FailedToCreateGuestUser,
 
     #[error("Cant log this type of user in with this flow")]
     WrongUserType,
@@ -371,7 +371,7 @@ pub struct ComhairleErrorResponse {
 impl IntoResponse for ComhairleError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match self {
-            ComhairleError::DuplicateUsername(_)
+            ComhairleError::DuplicateGuestCode(_)
             | ComhairleError::DuplicateEmail(_)
             | ComhairleError::ConversationAlreadyLive
             | ComhairleError::EmailAlreadyVerified

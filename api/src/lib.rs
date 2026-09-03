@@ -305,6 +305,7 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
         )
         .nest_api_service("/permissions", routes::permissions::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
+        .nest_api_service("/demographics", routes::demographics::router(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),

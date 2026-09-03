@@ -153,8 +153,8 @@
 				{/if}
 
 				{#if conversation.showThankYouPageAnnonInstructions}
-					{#if user.authType === 'annon'}
-						<p>{m.thank_you_anonymous_id({ id: user.username })}</p>
+					{#if user.authType === 'guest'}
+						<p>{m.thank_you_anonymous_id({ id: user.guestCode })}</p>
 					{:else}
 						<p>{m.thank_you_results_note()}</p>
 					{/if}
@@ -224,7 +224,7 @@
 						/>
 					</Collapsible.Trigger>
 					<Collapsible.Content class="flex flex-col gap-4 pt-6 text-left">
-						{#if user.authType === 'annon'}
+						{#if user.authType === 'guest'}
 							<p class="text-muted-foreground text-base">
 								{m.thank_you_keep_informed_anonymous()}
 							</p>
@@ -236,7 +236,7 @@
 							</p>
 							<UserConversationPreferencesForm
 								conversationId={conversation.id}
-								isAnnon={user.authType === 'annon'}
+								isGuest={user.authType === 'guest'}
 							/>
 						{/if}
 					</Collapsible.Content>

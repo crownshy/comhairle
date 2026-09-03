@@ -380,7 +380,7 @@ mod tests {
 
             let steps =
                 add_steps(&app, &mut session, &conversation_id, &workflow, step_count).await?;
-            let user = users::create_annon_user(pool).await?;
+            let user = users::create_guest_user(pool).await?;
 
             Ok(Self {
                 app,

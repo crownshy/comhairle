@@ -1,17 +1,27 @@
 <script lang="ts">
 	import { Settings } from 'lucide-svelte';
+	import { invalidate } from '$app/navigation';
 	import type { PageProps } from './$types';
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
+	import UserDemographicsForm from './UserDemographicsForm/UserDemographicsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import type { UserDto } from '@crownshy/api-client/api';
 
 	let { data }: PageProps = $props();
-	let participation = $derived(data.participation);
-	let user = $state(data.user) as UserDto;
+	let {
+		participation,
+		user,
+		demographicQuestions = [],
+		demographicResponses = []
+	} = $derived(data);
 
 	function handleUpgradeSuccess(upgradedUser: UserDto) {
 		user = upgradedUser;
+	}
+
+	async function refreshDemographics() {
+		await invalidate('settings:demographics');
 	}
 </script>
 
@@ -27,15 +37,15 @@
 		</div>
 	</div>
 	<div class="mt-1 flex flex-col gap-y-10">
-		<section id="your_details" class="border-border border-b py-5">
+		<section id="your_details">
 			<h2 class="mb-6 text-3xl">Your Details</h2>
-			{#if user.authType === 'annon'}
+			{#if user.authType === 'guest'}
 				<div class="space-y-6">
 					<div class="text-center">
 						<div class="text-muted-foreground mb-4">
-							You are currently signed in as an anonymous account with ID:
+							You are currently signed in as a guest account with ID:
 						</div>
-						<h3 class="my-4 text-center text-2xl font-bold">{user.username}</h3>
+						<h3 class="my-4 text-center text-2xl font-bold">{user.guestCode}</h3>
 					</div>
 
 					<div class=" bg-card p-6">
@@ -55,6 +65,14 @@
 				</div>
 			{:else}
 				<UserDetailsForm {user} />
+				{#key demographicResponses}
+					<UserDemographicsForm
+						questions={demographicQuestions}
+						responses={demographicResponses}
+						userId={user.id}
+						onSaved={refreshDemographics}
+					/>
+				{/key}
 			{/if}
 		</section>
 
@@ -67,7 +85,7 @@
 				<h2 class="text-2xl font-semibold">{conversation.title}</h2>
 				<UserConversationPreferencesForm
 					conversationId={conversation.id}
-					isAnnon={user.authType === 'annon'}
+					isGuest={user.authType === 'guest'}
 				/>
 			{/each}
 		</section>

@@ -1020,15 +1020,14 @@
 								<div class="flex flex-col gap-1">
 									<div class="flex items-center gap-1.5">
 										<Form.Label class="text-sm font-medium"
-											>Show thank you page anonymous instructions</Form.Label
+											>Show thank you page guest instructions</Form.Label
 										>
 										{@render infoPreview(
 											'On the thank-you page, shows anonymous participants their temporary ID and how to log back in later to see the results.'
 										)}
 									</div>
 									<p class="text-muted-foreground text-sm">
-										Display instructions for anonymous users on the thank you
-										page.
+										Display instructions for guest users on the thank you page.
 									</p>
 								</div>
 								<Switch
