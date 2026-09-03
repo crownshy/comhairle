@@ -7,7 +7,7 @@ export const load: PageServerLoad = ({ params }) => {
 	const { conversation_id } = params;
 
 	redirect(
-		HttpStatus.Found,
+		HttpStatus.PermanentRedirect,
 		resolve('/(admin)/admin/conversations/[conversation_id]/configure/details', {
 			conversation_id
 		})
