@@ -12,6 +12,12 @@ import { stepScroller } from '$lib/utils/stepScroll';
 
 export type ListenStatus = 'idle' | 'playing' | 'paused';
 
+/**
+ * Temporarily off. Nothing offers or plays while this is false: the offer button and the
+ * bar's transport both hang off `available`, and `play()` refuses, so status stays idle.
+ */
+const LISTEN_ENABLED = false;
+
 /** The speeds the transport cycles through, in tap order. */
 export const LISTEN_RATES = [1, 1.25, 1.5, 0.75] as const;
 export type ListenRate = (typeof LISTEN_RATES)[number];
@@ -210,7 +216,7 @@ export const listen = {
 	 * participant's language, and the attached page has something to read.
 	 */
 	get available() {
-		return voicesKnown && voice !== null && words > 0;
+		return LISTEN_ENABLED && voicesKnown && voice !== null && words > 0;
 	},
 
 	/**
