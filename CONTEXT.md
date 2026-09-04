@@ -323,3 +323,28 @@ A composition of report components. There are exactly four, each a different aud
 4. **End of engagement report** — participant + public, final (frozen snapshot), conversation-level cross-tool; **human-authored**: auto-generated insights that an editor curates in a rich-text (TipTap) document, pulling component blocks in.
 _Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate concern, not one of the four).
 _Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
+
+### Room display
+
+**Room display**:
+The Polis Step's live face on a shared screen: a large-format, per-Step surface a facilitator projects in a room while a Polis conversation is running. Sits alongside [[#insights]] as a per-Step view (not conversation-level like [[#report]]), fed by the same `report_data` plus a live event feed.
+_Avoid_: "live event page" and "live view" (taken: `events/[event_id]/live` is the Jitsi meeting room with breakouts and an agenda). Avoid "presentation mode" for the surface as a whole; that names one [[#room-display-direction]].
+
+**Room display direction**:
+One of the three arrangements of the same report components the Room display can run in, distinguished by *who does the interpreting*: **Board** (everything on one screen, the room interprets), **Deck** (one idea per screen in sequence, the facilitator interprets), **Narrator** (a templated rolling commentary, the machine interprets). Directions are [[#report-view]]s, not separate products, and share one component set.
+
+**Ambient mode / Driven mode**:
+The Room display's two operating modes. **Ambient** is the default and has no pointer: it autoplays and must be legible across a room with no tooltips. **Driven** starts when the facilitator touches anything, making hover and click live, and lapses back to ambient after an idle period. Every Room display component needs both behaviours.
+
+**Accent / Moment**:
+The two classes of live event on the Room display. An **accent** is in-place and non-blocking (a vote lands, the statement ticker scrolls) and must never take the screen; these fire constantly. A **moment** briefly takes the screen and is rare: people joining (anonymous, and burst-merged so a rush is one moment), a [[#reveal-stage]] unlocking, a new [[#opinion-group]] forming. Moments are rate-limited, and structural ones are stability-gated so Polis's oscillating cluster count cannot cry wolf. Vote-count milestones are deliberately not moments.
+
+**Reveal stage**:
+How much of the Room display is unlocked, gated on what Polis's math can actually support: **Empty** (no votes), **Warming** (votes arriving, no clusters yet, so only `overall_votes` bars plus the QR recruitment screen), **Shaped** (Polis has produced opinion groups, so [[#opinion-map]] and [[#consensus-continuum]] unlock), **Rich** (enough scored statements for consensus and divisiveness rankings to mean something). Stages **ratchet**: once reached, never re-locked, because Polis's group count genuinely oscillates. The current threshold is shown to the room as a countdown.
+
+**Opinion map**:
+One dot per **participant**, positioned by `ParticipantReportData.pca_position` and coloured by [[#opinion-group]]. The "who is in the room and where do they sit" view. Distinct from the [[#consensus-continuum]], where one dot is one **statement**. Not built yet.
+_Avoid_: "user clusters", "the beeswarm" (that is the continuum).
+
+**Cross-highlight**:
+Hovering or selecting a statement on the [[#consensus-continuum]] recolours the dots on the [[#opinion-map]] by how each participant voted on that statement. Needs a per-participant vote matrix, which no live endpoint currently returns; `report_data` carries only per-group aggregates. Prototyped against synthetic data, and must be backed by a real endpoint before any public event.
