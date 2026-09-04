@@ -8,10 +8,7 @@
 	} from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
 	import { scrollStepToTop } from '$lib/utils/stepScroll';
-	import { navigating } from '$app/state';
 	import LearningAssistant from '$lib/components/LearningAssistant/LearningAssistant.svelte';
-	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
-	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { resolveGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 
@@ -83,20 +80,6 @@
 		});
 	}
 
-	/** True while SvelteKit is routing to another step. */
-	let isNavigating = $derived(!!navigating.to);
-
-	/**
-	 * Skeleton only, so a step hop that resolves quickly never renders one and can't flash.
-	 * See delayedFlag for the reasoning.
-	 *
-	 * Deliberately not gated on the document fetch, unlike before: the article server-renders
-	 * now, and withholding it for a client-only fetch would blank content that is already on
-	 * screen. A source-document badge instead renders its placeholder label and upgrades in
-	 * place when the fetch lands, which is a far smaller change than hiding the whole article.
-	 */
-	let showSkeleton = delayedFlag(() => isNavigating, 150);
-
 	// Learn's pages are the tool-internal sequence the pager traverses before it reaches the
 	// step boundary (ADR-0018). Undefined `next` on the last page is what pops the pager out.
 	$effect(() => {
@@ -112,12 +95,11 @@
 	<!-- A page shorter than the screen sits in the middle of the step rather than hugging the
 		chrome with dead space beneath it. Auto margins resolve to zero once the page is taller
 		than the screen, so a long article still starts at the top and scrolls normally. The
-		scroller is the step's <main>, not this element. -->
-	<div class="my-auto flex w-full flex-col py-4">
-		<!-- Article content: own loading state (route navigation / content not ready) -->
-		{#if showSkeleton.current}
-			<LearnArticleSkeleton />
-		{:else if content}
+		scroller is the step's <main>, not this element. The padding is what keeps a long
+		article's heading off the progress bar in that case; it scales with the viewport so
+		a phone does not spend a quarter of its strip on it. -->
+	<div class="my-auto flex w-full flex-col py-[clamp(1.5rem,5vh,3rem)]">
+		{#if content}
 			<article class="prose mx-auto w-full">
 				<ContentRenderer
 					{content}
@@ -132,11 +114,7 @@
 
 		{#if tutorAvailable && conversation}
 			<div class="mx-auto mt-6 w-full max-w-[65ch]">
-				<LearningAssistant
-					conversationId={conversation.id}
-					pageTitle={pageHeading}
-					loading={showSkeleton.current}
-				/>
+				<LearningAssistant conversationId={conversation.id} pageTitle={pageHeading} />
 			</div>
 		{/if}
 	</div>

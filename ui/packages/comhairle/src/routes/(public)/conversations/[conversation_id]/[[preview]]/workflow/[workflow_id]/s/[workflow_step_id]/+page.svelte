@@ -2,10 +2,6 @@
 	/* Every destination here is built by the string helpers in $lib/urls, not from a typed
 	   route id, so resolve() has nothing to resolve. */
 	/* eslint-disable svelte/no-navigation-without-resolve */
-	// Skeletons are imported by file, not through the tool barrels: a barrel drags the tool's
-	// manage and report components into this route's preloads. See StepToolBody.
-	import HeyFormEmbedSkeleton from '$lib/tools/heyform/HeyFormEmbedSkeleton.svelte';
-	import PolisEmbedSkeleton from '$lib/tools/polis/PolisEmbedSkeleton.svelte';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -38,11 +34,8 @@
 		conversation_url,
 		workflow_step_url
 	} from '$lib/urls';
-	import { page, navigating } from '$app/state';
-	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
-	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
+	import { page } from '$app/state';
 	import { keyboardOpen } from '$lib/utils/keyboardOpen.svelte';
-	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
 	import { learningAssistantAvailable } from '$lib/components/LearningAssistant/availability';
 
 	const url = $derived(page.url);
@@ -135,26 +128,6 @@
 	let stepLabel = $derived(
 		`${m.step_position_label({ current: currentStepNumber, total: sortedSteps.length })}: ${workflowStep.name}`
 	);
-
-	/**
-	 * Tool type of the step being navigated *to*, or undefined when we aren't navigating to a step.
-	 * Mid-navigation `data` still describes the step we're leaving, so the loading skeleton has to
-	 * be picked from the destination: otherwise a hop into a survey shows an article skeleton and
-	 * then flashes white while the form iframe boots.
-	 */
-	let navigatingToToolType = $derived.by(() => {
-		const targetId = navigating.to?.params?.workflow_step_id;
-		if (!targetId) return undefined;
-		const target = sortedSteps.find((ws) => ws.id === targetId);
-		if (!target) return undefined;
-		return conversation.isLive ? target.toolConfig?.type : target.previewToolConfig?.type;
-	});
-
-	/**
-	 * A step hop that resolves quickly never trips this, so the body skeleton stays hidden and
-	 * the page just swaps content. Only a genuinely slow load shows it. See delayedFlag.
-	 */
-	let showNavigationSkeleton = delayedFlag(() => navigating.to !== null, 150);
 
 	let prevStepHref = $derived.by(() => {
 		if (viewedIndex <= 0) return undefined;
@@ -416,25 +389,9 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-{#snippet navigationSkeleton()}
-	{#if navigatingToToolType === 'heyform'}
-		<HeyFormEmbedSkeleton />
-	{:else if navigatingToToolType === 'polis'}
-		<PolisEmbedSkeleton />
-	{:else}
-		<LearnArticleSkeleton />
-		{#if assistantAvailable}
-			<div class="mx-auto mt-6 w-full max-w-[65ch]">
-				<LearningAssistantSkeleton />
-			</div>
-		{/if}
-	{/if}
-{/snippet}
-
 {#if conversation && workflowStep && user}
 	<StepShell
 		class="h-[100dvh]"
-		masked={!typing.current}
 		chrome={{
 			steps: chromeSteps,
 			currentIndex: viewedIndex + 1,
@@ -476,7 +433,6 @@
 					onDone={stepComplete}
 					onCanContinueChange={handleCanContinueChange}
 					onSequenceChange={handleSequenceChange}
-					loading={showNavigationSkeleton.current ? navigationSkeleton : undefined}
 				/>
 			{/if}
 		{/snippet}

@@ -36,7 +36,6 @@
 </script>
 
 <script lang="ts">
-	import type { Snippet } from 'svelte';
 	import type { ToolSequence } from '$lib/step-brief/toolSequence';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
@@ -55,8 +54,7 @@
 		permissionToShareWithOrganizers = null,
 		onDone = () => {},
 		onCanContinueChange = () => {},
-		onSequenceChange = () => {},
-		loading
+		onSequenceChange = () => {}
 	}: {
 		/*
 		 * These three are `any` because the two call sites are handed nominally different
@@ -90,8 +88,6 @@
 		onDone?: () => void;
 		onCanContinueChange?: (value: boolean) => void;
 		onSequenceChange?: (next: ToolSequence) => void;
-		/** Rendered instead of the tool while the route is navigating to another step. */
-		loading?: Snippet;
 	} = $props();
 </script>
 
@@ -106,9 +102,7 @@
 <div
 	class="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pb-[clamp(0.5rem,2vh,1.5rem)] md:px-6"
 >
-	{#if loading}
-		{@render loading()}
-	{:else if toolConfig.type === 'learn'}
+	{#if toolConfig.type === 'learn'}
 		{#key workflowStep.id}
 			{#await tool('learn')}
 				<LearnArticleSkeleton />
