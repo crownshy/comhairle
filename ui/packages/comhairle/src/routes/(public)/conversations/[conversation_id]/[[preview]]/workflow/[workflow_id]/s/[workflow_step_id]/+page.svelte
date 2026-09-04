@@ -14,6 +14,8 @@
 	import StepProceedBar from '$lib/components/participant/StepProceedBar.svelte';
 	import StepBriefOverlay from '$lib/components/participant/StepBriefOverlay.svelte';
 	import StepBriefBar from '$lib/components/participant/StepBriefBar.svelte';
+	import ListenTransport from '$lib/components/participant/ListenTransport.svelte';
+	import { listen } from '$lib/components/participant/listen.svelte';
 	import type { StepItem } from '$lib/components/participant/stepItems';
 	import type { SlideDirection } from '$lib/components/participant/slideMotion';
 	import { haptic } from '$lib/utils/haptics';
@@ -405,6 +407,13 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
+<!-- Listen's pause and speed, between Back and Next while a Learn page is being read aloud
+     (ADR-0031). Handed to the pager only then, so the bar is navigation only the rest of the
+     time. Declared out here: a snippet directly inside StepShell would become one of its props. -->
+{#snippet transport()}
+	<ListenTransport />
+{/snippet}
+
 {#if conversation && workflowStep && user}
 	<StepShell
 		class="h-[100dvh]"
@@ -469,6 +478,7 @@
 					loading={isSubmitting}
 					onBack={goBack}
 					onForward={goForward}
+					middle={listen.status === 'idle' ? undefined : transport}
 				/>
 			{/if}
 		{/snippet}

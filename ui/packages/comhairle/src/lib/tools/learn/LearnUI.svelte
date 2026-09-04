@@ -6,11 +6,13 @@
 		LocalizedConversationDto,
 		ComhairleDocument
 	} from '@crownshy/api-client/api';
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { scrollStepToTop } from '$lib/utils/stepScroll';
 	import LearningAssistant from '$lib/components/LearningAssistant/LearningAssistant.svelte';
 	import { resolveGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
+	import { listen } from '$lib/components/participant/listen.svelte';
+	import ListenButton from './ListenButton.svelte';
 
 	let {
 		pages,
@@ -66,6 +68,20 @@
 		(currentPageTranslation[0] as { title?: string } | undefined)?.title ?? ''
 	);
 
+	let articleElement = $state<HTMLElement | null>(null);
+
+	// Listen reads whatever this page rendered (ADR-0031). Re-attaching on every content
+	// change is what stops playback when the pager turns the page, and the cleanup is what
+	// stops it when the step is left. Untracked because attaching reads and writes Listen's
+	// own state, and tracking that would re-run this on its own writes.
+	$effect(() => {
+		void content;
+		const element = articleElement;
+		if (!element) return;
+		untrack(() => listen.attach(element));
+		return () => listen.detach(element);
+	});
+
 	function nextPage() {
 		currentPageNo += 1;
 		tick().then(() => {
@@ -100,7 +116,12 @@
 		a phone does not spend a quarter of its strip on it. -->
 	<div class="my-auto flex w-full flex-col py-[clamp(1.5rem,5vh,3rem)]">
 		{#if content}
-			<article class="prose mx-auto w-full">
+			{#if listen.available}
+				<div class="mx-auto mb-6 w-full max-w-[65ch]">
+					<ListenButton />
+				</div>
+			{/if}
+			<article class="prose mx-auto w-full" bind:this={articleElement}>
 				<ContentRenderer
 					{content}
 					{availableDocuments}
@@ -119,3 +140,13 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	/* The block being read aloud. The attribute is set by Listen on elements rendered by the
+	   content renderer, so the selector has to reach past this component's scope. */
+	article :global([data-listen-current]) {
+		background-color: color-mix(in oklab, var(--primary) 12%, transparent);
+		box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 12%, transparent);
+		border-radius: 0.25rem;
+	}
+</style>

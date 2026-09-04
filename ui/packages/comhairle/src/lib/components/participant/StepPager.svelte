@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import * as m from '$lib/paraglide/messages';
@@ -9,7 +10,8 @@
 		canGoForward,
 		loading = false,
 		onBack,
-		onForward
+		onForward,
+		middle
 	}: {
 		/**
 		 * What the right slot means right now. One thing at a time (ADR-0018): `skip` appears
@@ -22,15 +24,21 @@
 		loading?: boolean;
 		onBack: () => void;
 		onForward: () => void;
+		/**
+		 * What sits between Back and Next. Empty by default (ADR-0025); the one thing allowed
+		 * there is Listen's transport while a page is being read aloud (ADR-0031).
+		 */
+		middle?: Snippet;
 	} = $props();
 
 	let forwardLabel = $derived(forwardMode === 'skip' ? m.pager_skip() : m.pager_next());
 </script>
 
-<!-- The bar is navigation and nothing else (ADR-0025): back on the left, forward on the
-	right, and a middle left empty because a full-width button there means the main move and
-	this phase has none. Both directions carry their label, because a bare chevron next to a
-	tool with its own Next says nothing about which one leaves the step. -->
+<!-- The bar is navigation (ADR-0025): back on the left, forward on the right, and a middle
+	that is empty because a full-width button there means the main move and this phase has
+	none. The one exception is Listen's transport, which rides in the middle while a page is
+	being read aloud (ADR-0031). Both directions carry their label, because a bare chevron
+	next to a tool with its own Next says nothing about which one leaves the step. -->
 <div>
 	<div class="mx-auto flex h-20 w-full max-w-5xl items-center gap-2 px-4 md:px-6">
 		<button
@@ -43,6 +51,12 @@
 		>
 			<ChevronLeft class="size-6 shrink-0" />
 		</button>
+
+		{#if middle}
+			<div class="flex min-w-0 flex-1 items-center justify-center">
+				{@render middle()}
+			</div>
+		{/if}
 
 		<button
 			type="button"
