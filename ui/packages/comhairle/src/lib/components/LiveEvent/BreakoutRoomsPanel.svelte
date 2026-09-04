@@ -7,6 +7,9 @@
 		rooms: BreakoutRoomDisplay[];
 		timeLeftFormatted: string;
 		isModerator: boolean;
+		/** Session is inside its final wrap-up minute, so ending is now immediate. */
+		isWrappingUp: boolean;
+		endDisabled: boolean;
 		onEnterRoom: (roomIndex: number) => void;
 		onUpdateTime: (minutes: number) => void;
 		onEndSession: () => void;
@@ -17,6 +20,8 @@
 		rooms,
 		timeLeftFormatted,
 		isModerator,
+		isWrappingUp,
+		endDisabled,
 		onEnterRoom,
 		onUpdateTime,
 		onEndSession,
@@ -41,8 +46,8 @@
 <div class="flex h-full flex-col overflow-hidden">
 	<!-- Time left + chips -->
 	<div class="flex items-center justify-center gap-2.5 px-5">
-		<span class="text-ring text-sm font-medium">
-			Time left&nbsp;&nbsp;{timeLeftFormatted}
+		<span class="{isWrappingUp ? 'text-destructive' : 'text-ring'} text-sm font-medium">
+			{isWrappingUp ? 'Ending in' : 'Time left'}&nbsp;&nbsp;{timeLeftFormatted}
 		</span>
 		{#if isModerator}
 			<div class="flex items-center gap-1.5">
@@ -126,12 +131,15 @@
 			Broadcast message
 		</Button>
 		<Button
-			variant="outline"
-			class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-10 w-full"
+			variant={isWrappingUp ? 'destructive' : 'outline'}
+			disabled={endDisabled}
+			class={isWrappingUp
+				? 'h-10 w-full'
+				: 'border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-10 w-full'}
 			onclick={onEndSession}
 		>
 			<CircleStop class=" h-4 w-4" />
-			End breakout session
+			{isWrappingUp ? 'End now' : 'End breakout session'}
 		</Button>
 	</div>
 </div>
