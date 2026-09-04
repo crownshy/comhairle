@@ -31,12 +31,12 @@
 	right, and a middle left empty because a full-width button there means the main move and
 	this phase has none. Both directions carry their label, because a bare chevron next to a
 	tool with its own Next says nothing about which one leaves the step. -->
-<div class="bg-background">
+<div>
 	<div class="mx-auto flex h-20 w-full max-w-5xl items-center gap-2 px-4 md:px-6">
 		<button
 			type="button"
 			data-tour="back"
-			class="text-foreground inline-flex items-center gap-1 disabled:opacity-30"
+			class="text-foreground inline-flex items-center gap-1 transition-transform active:scale-90 disabled:opacity-30 motion-reduce:transition-none motion-reduce:active:scale-100"
 			aria-label={m.pager_back()}
 			disabled={!canGoBack || loading}
 			onclick={onBack}
@@ -47,7 +47,7 @@
 		<button
 			type="button"
 			data-tour="forward"
-			class="text-foreground ml-auto inline-flex items-center gap-1 disabled:opacity-30"
+			class="text-foreground ml-auto inline-flex items-center gap-1 transition-transform active:scale-90 disabled:opacity-30 motion-reduce:transition-none motion-reduce:active:scale-100"
 			disabled={!canGoForward || loading}
 			onclick={onForward}
 		>

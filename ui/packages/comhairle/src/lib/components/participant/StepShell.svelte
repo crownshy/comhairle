@@ -7,7 +7,6 @@
 		chrome,
 		content,
 		bar,
-		masked = true,
 		class: className
 	}: {
 		/**
@@ -17,15 +16,16 @@
 		 */
 		chrome: ComponentProps<typeof StepChrome>;
 		content: Snippet;
-		/** The bottom row. Omitted leaves the row collapsed, which is what `auto` gives us. */
+		/** The bottom bar, floated over the end of the scroll. Omitted renders nothing. */
 		bar?: Snippet;
-		/**
-		 * Whether the scroll fades out at the bottom. Off while a phone keyboard is up, where
-		 * the visible strip is short enough that the fade eats the content.
-		 */
-		masked?: boolean;
 		class?: string;
 	} = $props();
+
+	// The bar floats over the scroll, so the scroll reserves the bar's height at its end.
+	// Measured rather than fixed because the bars differ: the pager is 5rem, the brief bar
+	// is taller. A bar that renders nothing (typing on a phone) measures zero and hands the
+	// space back.
+	let barHeight = $state(80);
 </script>
 
 <!-- A step is exactly one screen: chrome on top, bar on the bottom, and the content takes
@@ -39,27 +39,29 @@
      admin participant view gives it a device-sized box. -->
 <div
 	class={cn(
-		'grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] overflow-hidden',
+		'relative grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr] overflow-hidden',
 		className
 	)}
 >
 	<StepChrome {...chrome} />
 
-	<!-- The bottom of the scroll dissolves into the background instead of stopping at a hard
-	     line, so a cut-off paragraph reads as content continuing under the bar. The padding
-	     matches the fade, so the mask sits over empty space once the reader is at the end and
-	     never dims the last line. -->
 	<main
 		data-step-scroll
-		class={cn(
-			'flex min-h-0 w-full flex-col overflow-y-auto',
-			masked && 'mask-b-from-[calc(100%-2.5rem)] pb-10'
-		)}
+		class="flex min-h-0 w-full flex-col overflow-y-auto"
+		style:padding-bottom="{barHeight}px"
 	>
 		{@render content()}
 	</main>
 
+	<!-- The bar is glass over the end of the scroll: content shows through it blurred, so a
+	     cut-off paragraph reads as continuing underneath rather than stopping at a hard line.
+	     The scroll's padding matches the bar, so the last line can still clear it. -->
 	{#if bar}
-		{@render bar()}
+		<div
+			class="bg-background/70 border-border/40 absolute inset-x-0 bottom-0 z-10 border-t backdrop-blur-lg"
+			bind:clientHeight={barHeight}
+		>
+			{@render bar()}
+		</div>
 	{/if}
 </div>
