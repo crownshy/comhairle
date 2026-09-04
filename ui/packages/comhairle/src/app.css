@@ -31,6 +31,19 @@ html {
 	body {
 		@apply bg-background text-foreground;
 	}
+
+	/* Holding a control on a touch screen starts a text selection over its label and pops
+	   the iOS callout menu, so a press that is just slow reads as a failed tap. A control's
+	   label is not content anyone wants to copy, so opt the whole class out. */
+	button,
+	summary,
+	label,
+	[role='button'],
+	[data-slot='button'] {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
 }
 
 /* Make prose respect theme colors in both light and dark mode. Every colour the plugin

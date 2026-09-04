@@ -451,7 +451,7 @@
 				{/if}
 			</div>
 
-			{#if !polisError || true}
+			{#if !polisError}
 				<!-- Adding your own is a different job from voting, so it gets its own band at
 				     the foot of the card rather than a third control in the voting column. -->
 				<div
