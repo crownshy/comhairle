@@ -4,6 +4,7 @@
 	import { Editor } from '@tiptap/core';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import TableInsertControls from './TableInsertControls.svelte';
+	import ImageControls from './ImageControls.svelte';
 	import ReportEmbedControls, { type EmbeddableStep } from './ReportEmbedControls.svelte';
 	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
@@ -241,6 +242,7 @@
 			onToggleMenu={() => (menuExpanded = !menuExpanded)}
 		/>
 		<TableInsertControls {editor} />
+		<ImageControls {editor} />
 		{#if reportEmbedSteps.length > 0}
 			<ReportEmbedControls {editor} steps={reportEmbedSteps} />
 		{/if}

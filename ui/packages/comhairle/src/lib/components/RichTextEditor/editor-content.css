@@ -130,6 +130,53 @@
 	text-align: justify;
 }
 
+/* Images
+   Layout is stored as keys on the node (extensions/image.ts) and rendered as
+   `data-align` / `data-width`. Every image is its own block in the document, so
+   `display: block` plus auto margins is enough to place it; width is a share of the
+   content column so it scales with the phone the participant is reading on. The
+   `.tiptap` prefix lands these in both the editor and the read-only renderer. Keep
+   the keys in sync with the option lists in extensions/image.ts. */
+.tiptap img[data-align] {
+	display: block;
+}
+
+.tiptap img[data-align='left'] {
+	margin-left: 0;
+	margin-right: auto;
+}
+
+.tiptap img[data-align='center'] {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.tiptap img[data-align='right'] {
+	margin-left: auto;
+	margin-right: 0;
+}
+
+.tiptap img[data-width='25'] {
+	width: 25%;
+}
+
+.tiptap img[data-width='50'] {
+	width: 50%;
+}
+
+.tiptap img[data-width='75'] {
+	width: 75%;
+}
+
+.tiptap img[data-width='100'] {
+	width: 100%;
+}
+
+.tiptap img.ProseMirror-selectednode {
+	outline: 3px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
 /* Tables
    Registered via TableKit in editorConfig, so these styles land in both the live
    editor and the read-only renderer (both carry the `.tiptap` + `prose` classes).

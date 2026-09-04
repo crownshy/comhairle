@@ -1,12 +1,12 @@
 import { StarterKit } from '@tiptap/starter-kit';
 import { Link } from '@tiptap/extension-link';
-import { Image } from '@tiptap/extension-image';
 import { Audio } from '@tiptap/extension-audio';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { TableKit, TableCell, TableHeader } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { Color } from '@tiptap/extension-color';
 import { Iframe } from '$lib/components/RichTextEditor/extensions/iframe';
+import { Image } from './extensions/image';
 import { ListItem } from '@tiptap/extension-list-item';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Underline } from '@tiptap/extension-underline';
@@ -81,6 +81,7 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 			openOnClick: isRenderer,
 			HTMLAttributes: isRenderer ? RENDERER_LINK_ATTRIBUTES : EDITOR_HTML_ATTRIBUTES.link
 		}),
+		// Stock image node plus `align` / `width` layout attributes (see extensions/image.ts).
 		Image.configure({
 			HTMLAttributes: EDITOR_HTML_ATTRIBUTES.image
 		}),
