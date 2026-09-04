@@ -13,6 +13,7 @@ type InputKey =
 	| 'notifications'
 	| 'event'
 	| 'event/facilitators'
+	| 'event/recordings'
 	| 'documents'
 	| 'participation'
 	| 'email-template-config'
