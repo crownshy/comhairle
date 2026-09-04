@@ -4,14 +4,14 @@
 	import type { Snippet } from 'svelte';
 
 	interface Props {
-		tab: string;
 		href: ResolvedPathname;
+		isActive: (pathname: string) => boolean;
 		children: Snippet;
 	}
 
-	const { tab, href, children }: Props = $props();
+	const { href, isActive, children }: Props = $props();
 
-	const active = $derived(page.route.id?.endsWith(tab));
+	const active = $derived(isActive(page.url.pathname));
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -->

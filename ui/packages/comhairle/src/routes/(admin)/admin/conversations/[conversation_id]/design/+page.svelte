@@ -6,7 +6,6 @@
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { saveTranslation } from '$lib/components/Translation/translationUtils';
 	import DraggableList from '$lib/components/DraggableList.svelte';
-	import StepListSkeleton from './StepListSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';

@@ -12,10 +12,10 @@
 
 {#snippet Tab(tab: (typeof tabs)[number] | 'team')}
 	<TabStripItem
-		{tab}
 		href={resolve(`/(admin)/admin/conversations/[conversation_id]/configure/${tab}`, {
 			conversation_id: params.conversation_id
 		})}
+		isActive={(pathname) => pathname.endsWith(tab)}
 	>
 		{capitalise(tab)}
 	</TabStripItem>

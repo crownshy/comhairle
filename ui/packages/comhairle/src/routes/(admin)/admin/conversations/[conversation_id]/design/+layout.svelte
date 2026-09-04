@@ -12,8 +12,7 @@
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import TabStripItem from '$lib/components/TabStripItem.svelte';
 
-	let { data, children, params } = $props();
-	let { step_id } = $derived(params);
+	let { data, children } = $props();
 	let { conversation, workflowSteps = [] } = $derived(data);
 
 	let workflow = $derived(data.workflows[0]);
@@ -73,12 +72,12 @@
 
 <TabStripShell ariaLabel="Workflow steps">
 	<TabStripItem
-		tab="design"
 		href={resolve('/(admin)/admin/conversations/[conversation_id]/design', {
 			conversation_id: conversation.id
 		})}
+		isActive={(pathname) => pathname.endsWith('design')}
 	>
-		<Settings2 class="size-4" />
+		<Settings2 class="mr-1 size-4" />
 		Design
 	</TabStripItem>
 	{#if loading}
@@ -89,23 +88,15 @@
 		{/each}
 	{:else}
 		{#each orderedSteps as step (step.id)}
-			{@const active = step.id === step_id}
-			<li>
-				<a
-					href={resolve(
-						'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
-						{ conversation_id: conversation.id, step_id: step.id }
-					)}
-					title={step.name || 'Unnamed step'}
-					class="text-foreground inline-flex h-9 max-w-55 items-center px-3.5 text-sm font-medium transition-opacity"
-					class:text-primary={active}
-					class:opacity-70={!active}
-					class:hover:opacity-100={!active}
-					aria-current={active ? 'page' : undefined}
-				>
-					<span class="truncate">{step.name || 'Unnamed step'}</span>
-				</a>
-			</li>
+			<TabStripItem
+				href={resolve(
+					'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
+					{ conversation_id: conversation.id, step_id: step.id }
+				)}
+				isActive={(pathname) => pathname.includes(step.id)}
+			>
+				<span class="truncate">{step.name || 'Unnamed step'}</span>
+			</TabStripItem>
 		{/each}
 		<li>
 			<button
