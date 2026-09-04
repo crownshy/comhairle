@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { notifications } from '$lib/notifications.svelte.js';
@@ -8,26 +7,20 @@
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import AddStepDialog from './AddStepDialog.svelte';
+	import { Plus, Settings2 } from 'lucide-svelte';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import TabStripShell from '$lib/components/TabStripShell.svelte';
+	import TabStripItem from '$lib/components/TabStripItem.svelte';
 
 	let { data, children } = $props();
+	let { conversation, workflowSteps = [] } = $derived(data);
 
-	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
-	let workflowSteps = $derived(data.workflowSteps ?? []);
+
+	let orderedSteps = $derived(workflowSteps.toSorted((a, b) => a.stepOrder - b.stepOrder));
+	let loading = $derived(workflowSteps === undefined);
 
 	let adding = $state(false);
-
-	// The workflow step strip (Row 3) is rendered by the shared conversation layout, not
-	// injected from here: rendering it there from `data.workflowSteps` puts it on the SSR
-	// path instead of a post-hydration `$effect`, so it no longer lags the page content.
-
-	// Deep link: /design?addStep=true opens the dialog, then drops the query param.
-	$effect(() => {
-		if (page.url.searchParams.get('addStep') === 'true') {
-			addStepDialog.open = true;
-			goto(page.url.pathname, { replaceState: true });
-		}
-	});
 
 	async function addStep(creationKey: CreationKey) {
 		if (adding) return;
@@ -76,5 +69,47 @@
 </script>
 
 <AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
+
+<TabStripShell ariaLabel="Workflow steps">
+	{@const slug = 'design'}
+	<TabStripItem
+		href={resolve(`/(admin)/admin/conversations/[conversation_id]/${slug}`, {
+			conversation_id: conversation.id
+		})}
+		isActive={(pathname) => pathname.endsWith(slug)}
+	>
+		<Settings2 class="mr-1 size-4" />
+		Design
+	</TabStripItem>
+	{#if loading}
+		{#each [1, 2, 3] as i (i)}
+			<li class="px-3.5 py-1.5">
+				<Skeleton class="h-5 w-24" />
+			</li>
+		{/each}
+	{:else}
+		{#each orderedSteps as step (step.id)}
+			<TabStripItem
+				href={resolve(
+					'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
+					{ conversation_id: conversation.id, step_id: step.id }
+				)}
+				isActive={(pathname) => pathname.includes(step.id)}
+			>
+				<span class="truncate">{step.name || 'Unnamed step'}</span>
+			</TabStripItem>
+		{/each}
+		<li>
+			<button
+				type="button"
+				onclick={() => (addStepDialog.open = true)}
+				class="text-foreground/40 hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap"
+			>
+				<Plus class="size-4" />
+				Add step
+			</button>
+		</li>
+	{/if}
+</TabStripShell>
 
 {@render children()}
