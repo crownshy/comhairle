@@ -8,6 +8,7 @@ type InputKey =
 	| 'conversation/invites'
 	| 'conversation/documents'
 	| 'conversation/events'
+	| 'conversation/event'
 	| 'knowledge-base/documents'
 	| 'notifications'
 	| 'event'
