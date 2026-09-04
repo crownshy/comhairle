@@ -23,7 +23,13 @@
 		aria-hidden="true"
 	>
 		{#each dots as dot (dot)}
-			<span class={cn('size-2 rounded-full', dot === index ? 'bg-primary' : 'bg-accent')}
+			<!-- The current dot stretches into a pill and the width tweens, so the marker slides
+				along the row instead of blinking from one dot to the next. -->
+			<span
+				class={cn(
+					'h-2 rounded-full transition-[width,background-color] duration-300 motion-reduce:transition-none',
+					dot === index ? 'bg-primary w-5' : 'bg-accent w-2'
+				)}
 			></span>
 		{/each}
 	</div>

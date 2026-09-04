@@ -19,6 +19,7 @@
 	import EmailRegistrationForm from '$lib/components/EmailRegistrationForm/EmailRegistrationForm.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import ThankYouStats from './ThankYouStats.svelte';
+	import { haptic } from '$lib/utils/haptics';
 	import * as m from '$lib/paraglide/messages';
 
 	let { data }: PageProps = $props();
@@ -58,6 +59,8 @@
 	onMount(() => {
 		minutes = minutesInFlow(conversation.id);
 		mounted = true;
+		// Only the finish line buzzes: someone who came back to reread gets nothing.
+		if (hasStats) haptic('success');
 	});
 
 	let assistantAvailable = $derived(

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import SlideView from './SlideView.svelte';
 	import type { MetaToolConfig } from '$lib/step-brief/slideMeta';
+	import type { SlideDirection } from './slideMotion';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	let {
@@ -9,7 +10,8 @@
 		title,
 		toolConfig,
 		availableDocuments = [],
-		conversationId
+		conversationId,
+		direction = 1
 	}: {
 		slides: string[];
 		index: number;
@@ -17,6 +19,7 @@
 		toolConfig?: MetaToolConfig | null;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
+		direction?: SlideDirection;
 	} = $props();
 
 	let slide = $derived(slides[index] ?? '');
@@ -36,6 +39,7 @@
 			{toolConfig}
 			{availableDocuments}
 			{conversationId}
+			{direction}
 		/>
 	{/key}
 </section>

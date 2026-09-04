@@ -3,6 +3,9 @@
 	import SlideView from './SlideView.svelte';
 	import StepBriefBar from './StepBriefBar.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { fade } from 'svelte/transition';
+	import { haptic } from '$lib/utils/haptics';
+	import { prefersReducedMotion } from '$lib/utils/reducedMotion';
 	import type { MetaToolConfig } from '$lib/step-brief/slideMeta';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
@@ -29,9 +32,12 @@
 	let label = $derived(isLast ? m.step_brief_close() : m.pager_next());
 
 	function forward() {
+		haptic('light');
 		if (isLast) onClose();
 		else index = Math.min(slides.length - 1, index + 1);
 	}
+
+	let fadeDuration = $derived(prefersReducedMotion() ? 0 : 200);
 
 	function onkeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') onClose();
@@ -47,6 +53,7 @@
 	role="dialog"
 	aria-modal="true"
 	aria-label={m.step_brief_carousel_label()}
+	transition:fade={{ duration: fadeDuration }}
 >
 	<div
 		class="mx-auto flex h-[72px] w-full max-w-5xl shrink-0 items-center justify-end px-5 md:h-20 md:px-6"

@@ -15,6 +15,8 @@
 	import StepBriefOverlay from '$lib/components/participant/StepBriefOverlay.svelte';
 	import StepBriefBar from '$lib/components/participant/StepBriefBar.svelte';
 	import type { StepItem } from '$lib/components/participant/stepItems';
+	import type { SlideDirection } from '$lib/components/participant/slideMotion';
+	import { haptic } from '$lib/utils/haptics';
 	import { splitSlides } from '$lib/step-brief/splitSlides';
 	import {
 		isFirstRun,
@@ -156,6 +158,11 @@
 		void workflowStep.id;
 		return false;
 	});
+	/** Which way the last page turn went, so the next slide enters from that side. */
+	let slideDirection = $derived.by<SlideDirection>(() => {
+		void workflowStep.id;
+		return 1;
+	});
 	/** What the mounted tool reports about itself (ADR-0018). Empty until it says otherwise. */
 	let sequence = $derived.by<ToolSequence>(() => {
 		void workflowStep.id;
@@ -233,8 +240,10 @@
 	});
 
 	function goBack() {
+		haptic('light');
 		if (phase === 'cover') {
 			if (slideIndex > 0) {
+				slideDirection = -1;
 				slideIndex -= 1;
 			} else if (prevStepHref) {
 				goto(prevStepHref);
@@ -247,19 +256,24 @@
 			return;
 		}
 		phase = 'cover';
+		slideDirection = -1;
 		slideIndex = briefSlides.length - 1;
 	}
 
 	function goForward() {
 		if (phase === 'cover') {
+			slideDirection = 1;
 			if (isLastSlide) {
+				haptic('medium');
 				phase = 'body';
 			} else {
+				haptic('light');
 				slideIndex += 1;
 			}
 			return;
 		}
 		if (sequence.next) {
+			haptic('light');
 			sequence.next();
 			return;
 		}
@@ -269,6 +283,7 @@
 			proceed();
 			return;
 		}
+		// No buzz here: the completion screen brings its own.
 		stepComplete();
 	}
 
@@ -315,6 +330,7 @@
 
 	async function proceed() {
 		if (isSubmitting) return;
+		haptic('medium');
 		isSubmitting = true;
 
 		if (isRevisiting) {
@@ -419,6 +435,7 @@
 					toolConfig={metaToolConfig}
 					{availableDocuments}
 					conversationId={conversation.id}
+					direction={slideDirection}
 				/>
 			{:else}
 				<StepToolBody

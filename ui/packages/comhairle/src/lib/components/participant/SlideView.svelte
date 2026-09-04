@@ -4,6 +4,8 @@
 	import { stepMeta, type MetaToolConfig } from '$lib/step-brief/slideMeta';
 	import { TOOL_META, type ToolType } from '$lib/tool_meta';
 	import { Clock } from 'lucide-svelte';
+	import { fly } from 'svelte/transition';
+	import { slideIn, type SlideDirection } from './slideMotion';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	let {
@@ -13,7 +15,8 @@
 		showMeta = false,
 		toolConfig,
 		availableDocuments = [],
-		conversationId
+		conversationId,
+		direction = 1
 	}: {
 		slide: string;
 		title?: string;
@@ -24,6 +27,8 @@
 		toolConfig?: MetaToolConfig | null;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
+		/** Which way the reader turned to get here. Only the entrance uses it. */
+		direction?: SlideDirection;
 	} = $props();
 
 	let illustration = $derived(firstImageSrc(slide));
@@ -34,7 +39,10 @@
 	let meta = $derived(showMeta ? stepMeta(toolConfig) : []);
 </script>
 
-<div class="flex w-full max-w-xl flex-col items-center gap-6 text-center">
+<div
+	class="flex w-full max-w-xl flex-col items-center gap-6 text-center"
+	in:fly={slideIn(direction)}
+>
 	{#if illustration}
 		<div class="w-full overflow-hidden rounded-[20px] rounded-br-[100px] bg-black/5">
 			<img src={illustration} alt="" class="h-[156px] w-full object-cover md:h-[220px]" />

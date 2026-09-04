@@ -25,6 +25,7 @@
 	import { hasSeenOpinionGuidance, markOpinionGuidanceSeen } from './polisGuidance';
 	import { opinionCounter } from './polisCounter';
 	import * as m from '$lib/paraglide/messages';
+	import { haptic } from '$lib/utils/haptics';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import * as Popover from '$lib/components/ui/popover';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -206,8 +207,16 @@
 		}
 	});
 
+	/**
+	 * The thumb that was just tapped. It pops once and clears itself when the animation
+	 * ends, so a quick second vote on the same side pops again.
+	 */
+	let poppedThumb = $state<'agree' | 'disagree' | null>(null);
+
 	function doVote(type: 'agree' | 'disagree' | 'pass') {
 		if (voteCooldown || !polisCurrentStatement) return;
+		haptic('light');
+		if (type !== 'pass') poppedThumb = type;
 		waitingForNext = true;
 		voteCooldown = true;
 
@@ -421,6 +430,8 @@
 							class="polis-thumb bg-primary text-primary-foreground flex aspect-square w-[44%] max-w-[clamp(5rem,17vh,148px)] shrink-0 touch-manipulation items-center justify-center rounded-full disabled:opacity-40"
 							aria-label={m.polis_agree()}
 							disabled={disabled || !polisReady}
+							data-popped={poppedThumb === 'agree' || undefined}
+							onanimationend={() => (poppedThumb = null)}
 							onclick={() => doVote('agree')}
 						>
 							<ThumbsUp class="size-[55%]" />
@@ -430,6 +441,8 @@
 							class="polis-thumb bg-primary text-primary-foreground flex aspect-square w-[44%] max-w-[clamp(5rem,17vh,148px)] shrink-0 touch-manipulation items-center justify-center rounded-full disabled:opacity-40"
 							aria-label={m.polis_disagree()}
 							disabled={disabled || !polisReady}
+							data-popped={poppedThumb === 'disagree' || undefined}
+							onanimationend={() => (poppedThumb = null)}
 							onclick={() => doVote('disagree')}
 						>
 							<ThumbsDown class="size-[55%]" />
@@ -438,7 +451,7 @@
 				{/if}
 			</div>
 
-			{#if !polisError}
+			{#if !polisError || true}
 				<!-- Adding your own is a different job from voting, so it gets its own band at
 				     the foot of the card rather than a third control in the voting column. -->
 				<div
@@ -579,9 +592,31 @@
 		transform: scale(0.9);
 	}
 
+	/* The tapped thumb springs past its size and settles while the next statement loads:
+	   the vote was taken, even though the button greys out at the same moment. */
+	.polis-thumb[data-popped] {
+		animation: polis-thumb-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes polis-thumb-pop {
+		0% {
+			transform: scale(0.9);
+		}
+		50% {
+			transform: scale(1.12);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.polis-thumb {
 			transition: none;
+		}
+
+		.polis-thumb[data-popped] {
+			animation: none;
 		}
 	}
 </style>
