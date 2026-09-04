@@ -51,8 +51,9 @@ export type ToolMeta = {
 	/** Key passed to the add-step switch (see {@link import('./createWorkflowStep').createWorkflowStep}). */
 	creationKey: CreationKey;
 	/**
-	 * Hardcoded typical duration in minutes shown on the "Estimated time" pill.
-	 * Placeholder until a real per-step `estimated_minutes` column lands (see CONTEXT.md).
+	 * Typical duration in minutes for the tool as a whole. Only a fallback now: a step's
+	 * quoted time comes from its own config where the config says anything about length
+	 * (see `stepDuration.ts`), and this stands in for the tools whose config does not.
 	 */
 	estimatedMinutes: number;
 	/**

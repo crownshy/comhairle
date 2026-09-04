@@ -1,4 +1,6 @@
 import { TOOL_META, type ToolType } from '$lib/tool_meta';
+import { toMetaToolConfig } from '$lib/step-brief/slideMeta';
+import { estimateMinutes } from '$lib/step-brief/stepDuration';
 import type { Icon } from 'lucide-svelte';
 
 /**
@@ -27,12 +29,15 @@ type RawStep = {
 };
 
 /**
- * A step's tool type, read from its live config and falling back to the draft one. An
- * unlaunched conversation has only the draft, which is what a preview shows.
+ * A step's live config, falling back to the draft one. An unlaunched conversation has only
+ * the draft, which is what a preview shows.
  */
+function configOf(step: RawStep): unknown {
+	return step.toolConfig ?? step.previewToolConfig;
+}
+
 function toolTypeOf(step: RawStep): ToolType | undefined {
-	const config = (step.toolConfig ?? step.previewToolConfig) as { type?: string } | null;
-	const type = config?.type;
+	const type = (configOf(step) as { type?: string } | null)?.type;
 	return type && type in TOOL_META ? (type as ToolType) : undefined;
 }
 
@@ -47,7 +52,7 @@ export function stepPreviews(steps: RawStep[] | null | undefined): StepPreview[]
 				id: step.id,
 				name: step.name,
 				icon: meta?.icon,
-				minutes: meta?.estimatedMinutes,
+				minutes: estimateMinutes(toMetaToolConfig(configOf(step))) ?? undefined,
 				optional: step.required === false
 			};
 		});
@@ -56,10 +61,8 @@ export function stepPreviews(steps: RawStep[] | null | undefined): StepPreview[]
 /**
  * Total estimated minutes across the steps.
  *
- * Each step contributes its tool's hardcoded `TOOL_META.estimatedMinutes`, the same figure
- * the admin design board quotes, because there is no per-step estimate in the data model
- * yet. Two conversations with the same tools therefore quote the same total however
- * differently they are configured. See CONTEXT.md, Estimated time.
+ * Each step contributes the same estimate its own cover quotes, derived from that step's
+ * config by {@link estimateMinutes}. See CONTEXT.md, Estimated time.
  */
 export function totalMinutes(previews: StepPreview[]): number {
 	return previews.reduce((sum, s) => sum + (s.minutes ?? 0), 0);

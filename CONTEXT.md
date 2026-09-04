@@ -24,7 +24,7 @@ _Avoid_: Tool selection modal (being removed).
 
 **Estimated time**:
 A per-Step duration in minutes shown as a card pill when the board's "Estimated time" toggle is on. Distinct from the typical-duration ranges described narratively in the Tools Guide.
-_Status_: Not backed yet — displayed from a hardcoded per-tool default for now; a real editable `estimated_minutes` (nullable) column is deferred pending the same team decision as [[data-protocol]] (flagged on the PR).
+_Status_: Not backed yet. Derived in the frontend from the Step's own config (words on a Learn page, statements a poll asks to be voted on, questions and follow-up rounds a thinking space opens with), falling back to a per-tool default for the tools whose config says nothing about length. See `ui/packages/comhairle/src/lib/step-brief/stepDuration.ts`. A real editable `estimated_minutes` (nullable) column is deferred pending the same team decision as [[data-protocol]] (flagged on the PR).
 
 **Time spent**:
 The minutes the completion screen reports back to a participant. Measured, not estimated: the step pages stamp a clock in the browser and the thank-you page reads it, so it is time in this sitting rather than the sum of the tools' hardcoded defaults. Distinct from [[#estimated-time]], which is what the landing page quotes before anyone starts. Missing or stale stamps drop the figure rather than guess at one (ADR-0027).
