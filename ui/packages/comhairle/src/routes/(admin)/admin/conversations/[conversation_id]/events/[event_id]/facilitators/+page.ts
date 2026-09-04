@@ -2,6 +2,7 @@ import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 import type { InviteDto } from '@crownshy/api-client/api';
+import { typed } from '$lib/utils/types';
 
 type PendingInvite = Pick<InviteDto, 'id' | 'status'> & { email: string };
 
@@ -26,21 +27,21 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 					params: { conversation_id, event_id }
 				})
 				.then((result) =>
-					result.reduce<PendingInvite[]>((acc, invite) => {
-						if (
-							typeof invite.inviteType !== 'string' &&
-							'email' in invite.inviteType &&
-							invite.inviteType.email &&
-							(invite.status === 'pending' || invite.status === 'open')
-						) {
-							acc.push({
+					typed<PendingInvite[]>(
+						result
+							.filter(
+								(invite) =>
+									typeof invite.inviteType !== 'string' &&
+									'email' in invite.inviteType &&
+									invite.inviteType.email &&
+									(invite.status === 'pending' || invite.status === 'open')
+							)
+							.map((invite) => ({
 								id: invite.id,
-								email: invite.inviteType.email,
+								email: (invite.inviteType as { email: string }).email,
 								status: invite.status
-							});
-						}
-						return acc;
-					}, [])
+							}))
+					)
 				)
 		)
 	};
