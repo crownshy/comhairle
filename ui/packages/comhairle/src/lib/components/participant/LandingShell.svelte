@@ -93,7 +93,9 @@
 
 <!-- Fixed rather than sticky: the call to action has to survive the whole scroll through the
      detail, not just the cover. Both blocks above reserve its height. -->
-<div class="bg-background fixed inset-x-0 bottom-0 z-30 border-t">
+<div
+	class="bg-background/70 border-border/40 fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur-lg"
+>
 	<div class="mx-auto flex w-full max-w-5xl flex-col gap-2 px-5 pt-3 pb-5 md:px-6">
 		{@render callToAction()}
 	</div>

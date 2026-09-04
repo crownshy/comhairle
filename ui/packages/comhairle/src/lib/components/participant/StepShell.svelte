@@ -26,6 +26,12 @@
 	// is taller. A bar that renders nothing (typing on a phone) measures zero and hands the
 	// space back.
 	let barHeight = $state(80);
+
+	// Plus a gap, so the last line of content stops short of the glass instead of ending
+	// against its edge. Without it a list or a paragraph that runs to the bottom reads as
+	// cut off rather than scrolled to the end.
+	const BAR_GAP = 24;
+	let scrollPadding = $derived(bar ? barHeight + BAR_GAP : 0);
 </script>
 
 <!-- A step is exactly one screen: chrome on top, bar on the bottom, and the content takes
@@ -45,17 +51,20 @@
 >
 	<StepChrome {...chrome} />
 
+	<!-- Children never shrink: this is a flex column with a definite height, so a page taller
+	     than the screen would otherwise be squeezed down to its min-height and spill its
+	     overflow out the bottom, straight through the padding and under the bar. -->
 	<main
 		data-step-scroll
-		class="flex min-h-0 w-full flex-col overflow-y-auto"
-		style:padding-bottom="{barHeight}px"
+		class="flex min-h-0 w-full flex-col overflow-y-auto *:shrink-0"
+		style:padding-bottom="{scrollPadding}px"
 	>
 		{@render content()}
 	</main>
 
 	<!-- The bar is glass over the end of the scroll: content shows through it blurred, so a
 	     cut-off paragraph reads as continuing underneath rather than stopping at a hard line.
-	     The scroll's padding matches the bar, so the last line can still clear it. -->
+	     The scroll reserves the bar's height plus a gap, so the last line clears it. -->
 	{#if bar}
 		<div
 			class="bg-background/70 border-border/40 absolute inset-x-0 bottom-0 z-10 border-t backdrop-blur-lg"
