@@ -10,8 +10,6 @@
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
-	import EventStrip from '$lib/components/EventStrip.svelte';
-	import { EVENT_SUBTABS } from './events/[event_id]/tabs';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
@@ -28,13 +26,6 @@
 	);
 	let endModalOpen = $state(false);
 	let launchModalOpen = $state(false);
-
-	// Only the design board itself is full-bleed (it renders its own white card + palette
-	// + scroll region). Every other tab — including the design step config pages under
-	// /design/step/* — keeps the padded, max-width reading column.
-	let isDesignBoard = $derived(
-		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
-	);
 
 	// A single workflow step (/design/step/*) owns its own content region: its layout renders
 	// a full-bleed sub-tab strip (Row 4) flush under Row 3, then its own padded reading column.
@@ -64,15 +55,6 @@
 	let isEventDetailPage = $derived.by(() => {
 		const path = page.url.pathname.replace(/\/+$/, '');
 		return path.startsWith(`${eventsBase}/`) && path !== `${eventsBase}/new`;
-	});
-
-	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
-	// step strip. We render it here from `data.workflowSteps` (loaded by this layout) so it's
-	// server-rendered, rather than injected by the design layout's client `$effect`.
-	let isDesignSection = $derived.by(() => {
-		const base = `/admin/conversations/${conversation.id}/design`;
-		const path = page.url.pathname.replace(/\/+$/, '');
-		return path === base || path.startsWith(`${base}/`);
 	});
 
 	// A workflow step's sub-tabs (Configure/Setup/Moderation/Insights) are real routes, so
@@ -271,12 +253,6 @@
 		{/if}
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
-	{:else if isEventsSection}
-		<EventStrip conversationId={conversation.id} events={data.events} />
-	{/if}
-	<!-- Row 4: only the event-detail sub-tabs live here now. -->
-	{#if isEventDetailPage && !showSwitchingSkeleton.current}
-		<SubTabStrip items={EVENT_SUBTABS} defaultValue="details" />
 	{/if}
 
 	{#if conversation.isComplete}
@@ -286,19 +262,7 @@
 	{/if}
 </div>
 
-{#if isDesignBoard}
-	<div class="bg-card flex min-h-0 grow flex-col overflow-hidden">
-		{#if showSwitchingSkeleton.current}
-			<div class="pt-page-top px-gutter">
-				<div class="w-full max-w-300">
-					<TabContentSkeleton />
-				</div>
-			</div>
-		{:else}
-			{@render children()}
-		{/if}
-	</div>
-{:else if isStepPage}
+{#if isStepPage}
 	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
