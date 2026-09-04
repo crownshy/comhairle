@@ -71,11 +71,12 @@
 <AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
 
 <TabStripShell ariaLabel="Workflow steps">
+	{@const slug = 'design'}
 	<TabStripItem
-		href={resolve('/(admin)/admin/conversations/[conversation_id]/design', {
+		href={resolve(`/(admin)/admin/conversations/[conversation_id]/${slug}`, {
 			conversation_id: conversation.id
 		})}
-		isActive={(pathname) => pathname.endsWith('design')}
+		isActive={(pathname) => pathname.endsWith(slug)}
 	>
 		<Settings2 class="mr-1 size-4" />
 		Design
