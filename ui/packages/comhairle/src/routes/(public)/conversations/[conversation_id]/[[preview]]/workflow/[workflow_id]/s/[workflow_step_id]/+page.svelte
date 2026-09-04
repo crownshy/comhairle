@@ -2,10 +2,10 @@
 	/* Every destination here is built by the string helpers in $lib/urls, not from a typed
 	   route id, so resolve() has nothing to resolve. */
 	/* eslint-disable svelte/no-navigation-without-resolve */
-	import * as Polis from '$lib/tools/polis/index.js';
-	import * as HeyForm from '$lib/tools/heyform/index.js';
-	import * as Learn from '$lib/tools/learn/index.js';
-	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
+	// Skeletons are imported by file, not through the tool barrels: a barrel drags the tool's
+	// manage and report components into this route's preloads. See StepToolBody.
+	import HeyFormEmbedSkeleton from '$lib/tools/heyform/HeyFormEmbedSkeleton.svelte';
+	import PolisEmbedSkeleton from '$lib/tools/polis/PolisEmbedSkeleton.svelte';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -216,7 +216,7 @@
 
 	$effect(() => {
 		const type = toolConfig.type;
-		if (type === Learn.TOOL_NAME || type === LivedExperience.TOOL_NAME) {
+		if (type === 'learn' || type === 'stories') {
 			canProceed = true;
 		} else {
 			canProceed = false;
@@ -417,10 +417,10 @@
 </svelte:head>
 
 {#snippet navigationSkeleton()}
-	{#if navigatingToToolType === HeyForm.TOOL_NAME}
-		<HeyForm.UserUISkeleton />
-	{:else if navigatingToToolType === Polis.TOOL_NAME}
-		<Polis.UserUISkeleton />
+	{#if navigatingToToolType === 'heyform'}
+		<HeyFormEmbedSkeleton />
+	{:else if navigatingToToolType === 'polis'}
+		<PolisEmbedSkeleton />
 	{:else}
 		<LearnArticleSkeleton />
 		{#if assistantAvailable}
