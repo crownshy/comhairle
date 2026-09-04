@@ -22,6 +22,13 @@ const config = {
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
+		output: {
+			// Puts one <link rel="preload"> per chunk in the HTML head of every server-rendered
+			// page. The default 'modulepreload' strategy only writes those into the `link`
+			// response header, which the headers hook strips: with 200+ chunks on the heavier
+			// routes it outgrew the ingress's header buffer and nginx answered 502.
+			preloadStrategy: 'preload-mjs'
+		},
 		csp: {
 			mode: 'auto', // uses hashes for prerendered, nonces for SSR
 			directives: {

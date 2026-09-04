@@ -40,6 +40,12 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 	const { pathname } = event.url;
 
+	// SvelteKit repeats every preload hint from the HTML head here, one entry per chunk and
+	// stylesheet. On the heavier routes that is over 200 entries and more than the ingress
+	// buffers for response headers, so nginx answers 502. The head already carries the same
+	// hints (see `output.preloadStrategy` in svelte.config.js), so the header is redundant.
+	response.headers.delete('link');
+
 	if (isEmbeddable(pathname)) {
 		// Allow any site to embed these paths
 		response.headers.set('Content-Security-Policy', 'frame-ancestors *');
