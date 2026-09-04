@@ -66,7 +66,7 @@
 
 {#snippet InviteLink(invite: InviteDto, label: string)}
 	<div class="flex flex-row gap-x-2">
-		<CopyButton copyText={inviteUrl(url, invite, conversation)}>{label}</CopyButton>
+		<CopyButton copyText={inviteUrl(url, invite.id, conversation.id)}>{label}</CopyButton>
 	</div>
 {/snippet}
 
@@ -145,7 +145,7 @@
 								<Table.Cell>
 									<div class="flex justify-center">
 										<QrCode
-											value={inviteUrl(url, invite, conversation)}
+											value={inviteUrl(url, invite.id, conversation.id)}
 											size="512"
 											padding={null}
 											errorCorrection="M"
@@ -156,7 +156,7 @@
 								<Table.Cell>
 									<div class="flex justify-center">
 										<QrCode
-											value={embedInviteUrl(url, invite, conversation)}
+											value={embedInviteUrl(url, invite.id, conversation.id)}
 											size="512"
 											padding={null}
 											errorCorrection="M"
