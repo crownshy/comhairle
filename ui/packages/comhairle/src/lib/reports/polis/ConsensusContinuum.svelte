@@ -35,9 +35,24 @@
 		 * emit plain, settled `<circle>`s, so the snapshot is a finished swarm, not a blank box.
 		 */
 		frozen?: boolean;
+		/**
+		 * Controlled focus. Omit and the plot manages its own selection, which is what
+		 * Insights does. Pass it and the caller owns the focused statement, which is
+		 * what the Room display needs: in ambient mode nobody hovers, so something else
+		 * has to decide what the swarm is pointing at.
+		 */
+		focusedTid?: number | null;
+		/** Fired when a dot is hovered, focused or clicked. */
+		onfocusstatement?: (tid: number) => void;
 	};
 
-	let { comments, groups, frozen = false }: Props = $props();
+	let {
+		comments,
+		groups,
+		frozen = false,
+		focusedTid = undefined,
+		onfocusstatement
+	}: Props = $props();
 
 	const HEIGHT = 144; // h-36, matches the design's plot box
 	const RADIUS = 5; // w-2.5 dots -> 5px radius
@@ -113,7 +128,14 @@
 	// populated. Hover/focus/click a dot to pin a different one; leaving keeps the
 	// last selection (sticky).
 	let selectedTid = $state<number | null>(null);
-	const activeTid = $derived(selectedTid ?? mostDivisiveTid(comments));
+	const activeTid = $derived(
+		focusedTid === undefined ? (selectedTid ?? mostDivisiveTid(comments)) : focusedTid
+	);
+
+	function focusStatement(tid: number) {
+		selectedTid = tid;
+		onfocusstatement?.(tid);
+	}
 	const activeComment = $derived(comments.find((c) => c.tid === activeTid) ?? null);
 </script>
 
@@ -170,13 +192,13 @@
 									fill={isActive ? 'var(--primary)' : 'var(--card-foreground)'}
 									opacity={isActive ? 1 : 0.9}
 									class="cursor-pointer transition-opacity duration-150 focus-visible:outline-none"
-									onmouseenter={() => (selectedTid = n.tid)}
-									onfocus={() => (selectedTid = n.tid)}
-									onclick={() => (selectedTid = n.tid)}
+									onmouseenter={() => focusStatement(n.tid)}
+									onfocus={() => focusStatement(n.tid)}
+									onclick={() => focusStatement(n.tid)}
 									onkeydown={(e) => {
 										if (e.key === 'Enter' || e.key === ' ') {
 											e.preventDefault();
-											selectedTid = n.tid;
+											focusStatement(n.tid);
 										}
 									}}
 								/>
