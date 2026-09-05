@@ -214,5 +214,8 @@ How much of the Room display is unlocked, gated on what Polis's math can actuall
 One dot per **participant**, positioned by `ParticipantReportData.pca_position` and coloured by [[#opinion-group]]. The "who is in the room and where do they sit" view. Distinct from the [[#consensus-continuum]], where one dot is one **statement**. Not built yet.
 _Avoid_: "user clusters", "the beeswarm" (that is the continuum).
 
+**Statement ticker**:
+The Room display's running list of the most recently published statements, ordered by `polis_statement_aux.created_at` (the report payload carries no timestamp). Deliberately **inert**: not clickable, not highlighted, not linked to anything else on the display. It is something the room watches. The only relationship on a Room display is [[#consensus-continuum]] dot to [[#opinion-map]] dot, and the continuum is the one surface a facilitator touches, so focus has a single origin.
+
 **Cross-highlight**:
-Hovering or selecting a statement on the [[#consensus-continuum]] recolours the dots on the [[#opinion-map]] by how each participant voted on that statement. Needs a per-participant vote matrix, which no live endpoint currently returns; `report_data` carries only per-group aggregates. Prototyped against synthetic data, and must be backed by a real endpoint before any public event.
+Hovering or selecting a statement on the [[#consensus-continuum]] recolours the dots on the [[#opinion-map]] by how each participant voted on that statement. The continuum drives the map, which is why it takes an optional controlled `focusedTid`: in [[#ambient-mode--driven-mode|ambient mode]] nobody hovers, so something else has to decide what the swarm is pointing at. Needs a per-participant vote matrix, which no live endpoint currently returns; `report_data` carries only per-group aggregates. Prototyped against synthetic data, and must be backed by a real endpoint before any public event.

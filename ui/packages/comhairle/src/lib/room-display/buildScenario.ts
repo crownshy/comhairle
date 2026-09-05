@@ -27,6 +27,27 @@ export interface BuildScenarioOptions {
 	seed: number;
 	/** Opinion groups to split the room into. */
 	groupCount?: number;
+	/**
+	 * Statements present from the start as moderator seeds.
+	 *
+	 * Matters more than it looks: clustering is reached on vote volume, which a small
+	 * room burns through quickly, so with only a few seeds the display unlocks the
+	 * continuum before any participant statement exists and the swarm is empty at the
+	 * moment it becomes the centrepiece. A seeded conversation really does open with a
+	 * dozen or so, which is also how the roundtable will run.
+	 */
+	seedCount?: number;
+	/**
+	 * Median delay between a statement becoming votable to someone and them voting on
+	 * it. People answer in bursts soon after arriving, so spreading votes uniformly
+	 * across a 4.5 hour run leaves the display stuck on `empty` for an hour, which is
+	 * neither realistic nor watchable.
+	 *
+	 * Defaults to a share of `durationMs` rather than an absolute figure, so a short
+	 * scenario (a test, or a two-minute demo loop) is paced like a compressed session
+	 * instead of one where almost nobody gets round to voting.
+	 */
+	medianResponseMs?: number;
 }
 
 /**
@@ -56,6 +77,8 @@ function drawVote(random: () => number, agrees: number, disagrees: number, passe
 export function buildScenario(options: BuildScenarioOptions): Scenario {
 	const { statements, sourceComments, participantCount, durationMs, seed } = options;
 	const groupCount = options.groupCount ?? 2;
+	const medianResponseMs = options.medianResponseMs ?? durationMs * 0.03;
+	const seedCount = options.seedCount ?? Math.ceil(statements.length * 0.48);
 	const random = makeRandom(seed);
 
 	// Nodes are base clusters holding one member each, which is what Polis produces
@@ -80,7 +103,7 @@ export function buildScenario(options: BuildScenarioOptions): Scenario {
 			...source,
 			tid: i,
 			text,
-			is_seed: i < 6
+			is_seed: i < seedCount
 		};
 	});
 
@@ -139,13 +162,14 @@ export function buildScenario(options: BuildScenarioOptions): Scenario {
 						comment.overall_votes.passes
 					);
 
-			events.push({
-				at: earliest + random() * (durationMs - earliest),
-				kind: 'voteCast',
-				tid: comment.tid,
-				nodeId: node.id,
-				vote
-			});
+			// Exponential response delay: most votes land within a few minutes of the
+			// statement becoming votable, with a long thin tail for people who come
+			// back to it later.
+			const delay = -Math.log(1 - random()) * (medianResponseMs / Math.LN2);
+			const at = earliest + delay;
+			if (at >= durationMs) continue;
+
+			events.push({ at, kind: 'voteCast', tid: comment.tid, nodeId: node.id, vote });
 		}
 	}
 
