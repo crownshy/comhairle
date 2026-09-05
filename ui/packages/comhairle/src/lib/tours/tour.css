@@ -1,0 +1,98 @@
+/*
+ * driver.js ships a white card with grey chrome. This repaints it in the app's tokens so it
+ * belongs to whichever theme is on, and raises its text to the `text-base` floor.
+ *
+ * Everything is scoped under `.comhairle-tour`, the `popoverClass` the runner sets, so a
+ * driver.js instance started anywhere else keeps its own look.
+ */
+
+.driver-popover.comhairle-tour {
+	font-family: inherit;
+	background-color: var(--card);
+	color: var(--card-foreground);
+	border-radius: calc(var(--radius) * 2);
+	max-width: 20rem;
+	padding: 1rem;
+	box-shadow:
+		0 10px 15px -3px rgb(0 0 0 / 0.25),
+		0 4px 6px -4px rgb(0 0 0 / 0.25);
+}
+
+.driver-popover.comhairle-tour .driver-popover-description {
+	font-size: 1rem;
+	line-height: 1.5rem;
+}
+
+.driver-popover.comhairle-tour .driver-popover-footer {
+	gap: 0.75rem;
+	margin-top: 1rem;
+}
+
+.driver-popover.comhairle-tour .driver-popover-progress-text {
+	color: var(--muted-foreground);
+	font-size: 0.875rem;
+}
+
+/* Skip is moved into the footer row by the runner, so it stops being a corner × and
+   becomes a word next to the count. */
+.driver-popover.comhairle-tour .driver-popover-close-btn {
+	position: static;
+	width: auto;
+	height: auto;
+	color: var(--muted-foreground);
+	font-size: 0.875rem;
+	font-weight: 400;
+	text-decoration: underline;
+	text-underline-offset: 4px;
+}
+
+.driver-popover.comhairle-tour .driver-popover-close-btn:hover,
+.driver-popover.comhairle-tour .driver-popover-close-btn:focus {
+	color: var(--card-foreground);
+}
+
+.driver-popover.comhairle-tour .driver-popover-next-btn {
+	background-color: var(--primary);
+	color: var(--primary-foreground);
+	border: none;
+	border-radius: calc(var(--radius) * 1.5);
+	padding: 0.5rem 1rem;
+	font-size: 1rem;
+	font-weight: 500;
+	line-height: 1.5rem;
+}
+
+.driver-popover.comhairle-tour .driver-popover-next-btn:hover,
+.driver-popover.comhairle-tour .driver-popover-next-btn:focus {
+	background-color: color-mix(in oklab, var(--primary) 90%, black);
+}
+
+/* The arrow is one border edge of a zero-sized box, so recolouring it means setting the
+   base colour and then re-hiding the three edges each side variant wants transparent. */
+.driver-popover.comhairle-tour .driver-popover-arrow {
+	border-color: var(--card);
+}
+
+.driver-popover.comhairle-tour .driver-popover-arrow-side-left {
+	border-top-color: transparent;
+	border-bottom-color: transparent;
+	border-right-color: transparent;
+}
+
+.driver-popover.comhairle-tour .driver-popover-arrow-side-right {
+	border-top-color: transparent;
+	border-bottom-color: transparent;
+	border-left-color: transparent;
+}
+
+.driver-popover.comhairle-tour .driver-popover-arrow-side-top {
+	border-bottom-color: transparent;
+	border-left-color: transparent;
+	border-right-color: transparent;
+}
+
+.driver-popover.comhairle-tour .driver-popover-arrow-side-bottom {
+	border-top-color: transparent;
+	border-left-color: transparent;
+	border-right-color: transparent;
+}

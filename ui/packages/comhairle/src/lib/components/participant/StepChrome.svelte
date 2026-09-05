@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
-	import StepDropdown from './StepDropdown.svelte';
+	import StepMenu from './StepMenu.svelte';
 	import StepProgressBar from './StepProgressBar.svelte';
 	import StepLegalSheet from './StepLegalSheet.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -119,7 +119,7 @@
 					{stepBriefLabel()}
 				</button>
 			{/if}
-			<StepDropdown
+			<StepMenu
 				{steps}
 				{currentIndex}
 				{label}

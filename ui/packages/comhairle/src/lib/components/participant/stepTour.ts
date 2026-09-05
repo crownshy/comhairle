@@ -1,11 +1,20 @@
-const STORAGE_KEY = 'comhairle-step-tour';
+import * as m from '$lib/paraglide/messages';
+import type { Tour } from '$lib/tours/types';
 
-// Keyed by conversation. Finding your way around the chrome is learned once, but a
-// participant who has only ever done one conversation has not necessarily learned it, and
-// the cost of offering it a second time is one tap.
-function storageKey(conversationId: string): string {
-	return `${STORAGE_KEY}-${conversationId}`;
-}
+/**
+ * The chrome's fixed places, circled one at a time on the first run through a conversation
+ * (ADR-0026). The captions name their place in words rather than relying on the ring, so
+ * they carry the same meaning read aloud.
+ */
+export const stepTour: Tour = {
+	id: 'participant-step',
+	stops: [
+		{ target: 'intro', text: () => m.step_tour_before_you_start() },
+		{ target: 'brief', text: () => m.step_tour_brief() },
+		{ target: 'back', text: () => m.step_tour_back() },
+		{ target: 'forward', text: () => m.step_tour_forward() }
+	]
+};
 
 type ProgressLike = { progressStatus?: string | null };
 
@@ -18,22 +27,4 @@ type ProgressLike = { progressStatus?: string | null };
 export function isFirstRun(steps: ProgressLike[] | null | undefined): boolean {
 	if (!steps?.length) return false;
 	return !steps.some((step) => step.progressStatus === 'done');
-}
-
-export function hasSeenStepTour(conversationId: string): boolean {
-	if (typeof window === 'undefined') return false;
-	try {
-		return localStorage.getItem(storageKey(conversationId)) === 'seen';
-	} catch {
-		return false;
-	}
-}
-
-export function markStepTourSeen(conversationId: string): void {
-	if (typeof window === 'undefined') return;
-	try {
-		localStorage.setItem(storageKey(conversationId), 'seen');
-	} catch {
-		/* ignore */
-	}
 }

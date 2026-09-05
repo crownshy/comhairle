@@ -9,7 +9,7 @@
 	import StepToolBody from '$lib/components/participant/StepToolBody.svelte';
 	import StepPager from '$lib/components/participant/StepPager.svelte';
 	import StepCover from '$lib/components/participant/StepCover.svelte';
-	import StepTour from '$lib/components/participant/StepTour.svelte';
+	import Tour from '$lib/tours/Tour.svelte';
 	import StepComplete from '$lib/components/participant/StepComplete.svelte';
 	import StepProceedBar from '$lib/components/participant/StepProceedBar.svelte';
 	import StepBriefOverlay from '$lib/components/participant/StepBriefOverlay.svelte';
@@ -20,11 +20,8 @@
 	import type { SlideDirection } from '$lib/components/participant/slideMotion';
 	import { haptic } from '$lib/utils/haptics';
 	import { splitSlides } from '$lib/step-brief/splitSlides';
-	import {
-		isFirstRun,
-		hasSeenStepTour,
-		markStepTourSeen
-	} from '$lib/components/participant/stepTour';
+	import { isFirstRun, stepTour } from '$lib/components/participant/stepTour';
+	import { hasSeenTour } from '$lib/tours/seen';
 	import { touchFlowTiming } from '$lib/components/participant/flowTiming';
 	import { toMetaToolConfig } from '$lib/step-brief/slideMeta';
 	import { segmentFill } from '$lib/step-brief/segmentFill';
@@ -308,14 +305,9 @@
 	$effect(() => {
 		if (phase !== 'body') return;
 		if (!isFirstRun(workflowSteps)) return;
-		if (hasSeenStepTour(conversation.id)) return;
+		if (hasSeenTour(stepTour.id, conversation.id)) return;
 		tourOpen = true;
 	});
-
-	function dismissTour() {
-		markStepTourSeen(conversation.id);
-		tourOpen = false;
-	}
 
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString);
@@ -485,7 +477,8 @@
 	</StepShell>
 
 	{#if tourOpen}
-		<StepTour onDismiss={dismissTour} />
+		<!-- The tour writes its own dismissal down; this only takes it off the screen. -->
+		<Tour tour={stepTour} scope={conversation.id} onDone={() => (tourOpen = false)} />
 	{/if}
 
 	{#if briefOpen}
