@@ -3,6 +3,7 @@ import {
 	computeStage,
 	ratchet,
 	nextUnlock,
+	describeUnlock,
 	voterCount,
 	scoredCount,
 	DEFAULT_THRESHOLDS,
@@ -144,5 +145,25 @@ describe('nextUnlock', () => {
 
 	it('is null once rich is reached', () => {
 		expect(nextUnlock(state(10, 6, 20), 'rich')).toBeNull();
+	});
+});
+
+describe('describeUnlock', () => {
+	it('uses the singular for one', () => {
+		expect(describeUnlock({ stage: 'warming', metric: 'voters', remaining: 1 })).toBe(
+			'1 more voter'
+		);
+		expect(describeUnlock({ stage: 'shaped', metric: 'votes', remaining: 1 })).toBe(
+			'1 more vote'
+		);
+		expect(describeUnlock({ stage: 'rich', metric: 'statements', remaining: 1 })).toBe(
+			'1 more statement'
+		);
+	});
+
+	it('uses the plural for anything else', () => {
+		expect(describeUnlock({ stage: 'warming', metric: 'voters', remaining: 4 })).toBe(
+			'4 more voters'
+		);
 	});
 });

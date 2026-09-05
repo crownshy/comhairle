@@ -21,6 +21,11 @@
 	// trailing segment and a regex here would disagree with the route in those cases.
 	const isParticipantChrome = $derived(page.data.participantChrome === true);
 
+	// A Room display is projected in a room, so it renders no site chrome at all and
+	// fills the viewport: a NavBar and Footer would both steal space from an eight-metre
+	// read and shift the layout as the page settles. See CONTEXT.md, "Room display".
+	const isRoomDisplay = $derived(page.url.pathname.includes('room-display'));
+
 	let isAdmin = $derived(
 		data.userRoles
 			? data.userRoles.find((ur) => ur.resource === 'Site')?.roles.includes('Admin')
@@ -29,10 +34,12 @@
 </script>
 
 <div class="flex min-h-dvh w-full flex-col {isReportPage ? 'bg-primary/10' : ''}">
-	{#if !isEmbed && !isAuthPage && !isLivePage && !isWorkflowPage && !isParticipantChrome}
+	{#if !isEmbed && !isAuthPage && !isLivePage && !isWorkflowPage && !isParticipantChrome && !isRoomDisplay}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
-	{#if isAuthPage || isReportPage}
+	{#if isRoomDisplay}
+		{@render children()}
+	{:else if isAuthPage || isReportPage}
 		<div class="grow">
 			{@render children()}
 		</div>
@@ -45,7 +52,7 @@
 			{@render children()}
 		</div>
 	{/if}
-	{#if !isEmbed && !isLivePage && !isWorkflowPage && !isParticipantChrome}
+	{#if !isEmbed && !isLivePage && !isWorkflowPage && !isParticipantChrome && !isRoomDisplay}
 		<Footer />
 	{/if}
 </div>

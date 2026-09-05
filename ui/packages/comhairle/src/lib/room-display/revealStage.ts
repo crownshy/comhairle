@@ -141,3 +141,14 @@ export function nextUnlock(
 
 	return null;
 }
+
+/** Countdown copy for the room, e.g. "1 more voter until the map appears". */
+export function describeUnlock(unlock: NextUnlock): string {
+	const nouns: Record<NextUnlock['metric'], [string, string]> = {
+		voters: ['voter', 'voters'],
+		votes: ['vote', 'votes'],
+		statements: ['statement', 'statements']
+	};
+	const [singular, plural] = nouns[unlock.metric];
+	return `${unlock.remaining} more ${unlock.remaining === 1 ? singular : plural}`;
+}
