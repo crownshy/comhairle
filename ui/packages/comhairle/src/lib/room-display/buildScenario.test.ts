@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { buildScenario, type BuildScenarioOptions } from './buildScenario';
-import { stateAt } from './scenario';
-import { computeStage, ratchet } from './revealStage';
+import { stateAt, stageTimeline } from './scenario';
+import { PLACEHOLDER_STATEMENTS } from './placeholderStatements';
+import { buildPlaceholderComments } from './placeholderReport';
+import { computeStage, ratchet, STAGE_ORDER } from './revealStage';
 import type { ReportComment } from '$lib/tools/polis/reportTypes';
 import type { RevealStage } from './types';
 
@@ -102,5 +104,92 @@ describe('buildScenario', () => {
 		}
 		expect(seen[0]).toBe('empty');
 		expect(reached === 'shaped' || reached === 'rich').toBe(true);
+	});
+});
+
+describe('vote pacing', () => {
+	it('lands votes soon after a statement becomes votable, not spread across the run', () => {
+		const s = buildScenario(options);
+		const joinAt = new Map<number, number>();
+		const publishAt = new Map<number, number>();
+		for (const e of s.events) {
+			if (e.kind === 'participantJoined' && !joinAt.has(e.nodeId)) joinAt.set(e.nodeId, e.at);
+			if (e.kind === 'statementPublished' && !publishAt.has(e.tid))
+				publishAt.set(e.tid, e.at);
+		}
+
+		const delays = s.events
+			.filter((e) => e.kind === 'voteCast')
+			.map((e) => e.at - Math.max(joinAt.get(e.nodeId) ?? 0, publishAt.get(e.tid) ?? 0))
+			.sort((a, b) => a - b);
+
+		// Half of all votes should arrive within roughly the configured median, which
+		// is what keeps the display moving rather than stalled on `empty`.
+		const median = delays[Math.floor(delays.length / 2)];
+		expect(median).toBeLessThan(s.durationMs * 0.06);
+	});
+
+	it('paces a short run proportionally, not with an absolute delay', () => {
+		const short = buildScenario({ ...options, durationMs: 60_000 });
+		const votes = short.events.filter((e) => e.kind === 'voteCast');
+		expect(votes.length).toBeGreaterThan(0);
+	});
+});
+
+describe("the prototype route's own scenario", () => {
+	// Guards the harness config directly, using the same data the route builds from:
+	// if this run never clusters, "jump to shaped" silently rewinds to zero, which is
+	// exactly how it failed in the browser.
+	const routeScenario = () =>
+		buildScenario({
+			statements: PLACEHOLDER_STATEMENTS,
+			sourceComments: buildPlaceholderComments(PLACEHOLDER_STATEMENTS),
+			participantCount: 28,
+			durationMs: 4.5 * 60 * 60 * 1000,
+			seed: 20261007
+		});
+
+	it('clusters at some point, so jumping to shaped lands somewhere real', () => {
+		const timeline = stageTimeline(routeScenario());
+		// At least shaped, by rank: a heavily seeded run can skip straight to rich.
+		expect(
+			timeline.some((s) => STAGE_ORDER.indexOf(s.stage) >= STAGE_ORDER.indexOf('shaped'))
+		).toBe(true);
+	});
+
+	it('reaches rich', () => {
+		expect(stageTimeline(routeScenario()).some((s) => s.stage === 'rich')).toBe(true);
+	});
+
+	it('carries a spread of divisiveness through to the scenario comments', () => {
+		const scores = routeScenario().comments.map((c) => c.divisiveness);
+		expect(new Set(scores).size).toBeGreaterThan(20);
+	});
+});
+
+describe('statement supply', () => {
+	// The continuum is the centrepiece, so it must have something to plot by the time
+	// the room clusters. A near-empty swarm at the moment of unlock is the failure.
+	it('has a populated swarm by the time the display reaches shaped', () => {
+		const scenario = buildScenario({
+			statements: PLACEHOLDER_STATEMENTS,
+			sourceComments: buildPlaceholderComments(PLACEHOLDER_STATEMENTS),
+			participantCount: 28,
+			durationMs: 4.5 * 60 * 60 * 1000,
+			seed: 20261007
+		});
+		const shapedAt = stageTimeline(scenario).find(
+			(s) => STAGE_ORDER.indexOf(s.stage) >= STAGE_ORDER.indexOf('shaped')
+		)?.atMs;
+		expect(shapedAt).toBeDefined();
+		expect(stateAt(scenario, shapedAt ?? 0).published.length).toBeGreaterThanOrEqual(10);
+	});
+
+	it('publishes every statement before the run ends', () => {
+		const scenario = buildScenario(options);
+		const published = new Set(
+			scenario.events.filter((e) => e.kind === 'statementPublished').map((e) => e.tid)
+		);
+		expect(published.size).toBe(scenario.comments.length);
 	});
 });

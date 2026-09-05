@@ -15,6 +15,7 @@
  */
 
 import { stateAt, stageAt, stageTimeline } from './scenario';
+import { STAGE_ORDER } from './revealStage';
 import {
 	advance,
 	initialMomentState,
@@ -30,6 +31,25 @@ const MOMENT_DURATION_MS = 4500;
 
 /** How often the moments reducer is asked whether anything should fire. */
 const OBSERVATION_INTERVAL_MS = 2000;
+
+/**
+ * Whether a frame loop can run at all. False during SSR, where the page renders the
+ * scenario's opening frame and the client picks up the clock on hydration. Feature
+ * detection rather than `$app/environment` keeps this module runnable under plain
+ * node, which is how its callers are unit-tested.
+ */
+const canAnimate = typeof requestAnimationFrame === 'function';
+
+/**
+ * Largest scenario time a single frame may advance, before the playback rate.
+ *
+ * Browsers stop firing `requestAnimationFrame` while a page is hidden, so the first
+ * frame after the facilitator switches back carries a gap of however long they were
+ * away. Uncapped, that lurches the display minutes forward in one frame, skipping
+ * every moment in between. Clamping makes the display resume where it paused rather
+ * than teleport.
+ */
+const MAX_FRAME_MS = 250;
 
 export interface DriverOptions {
 	scenario: Scenario;
@@ -132,7 +152,8 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 		if (!playing) return;
 
 		if (lastTickMs !== null) {
-			const next = playheadMs + (now - lastTickMs) * rate;
+			const frameMs = Math.min(now - lastTickMs, MAX_FRAME_MS);
+			const next = playheadMs + frameMs * rate;
 			// Looping keeps an unattended booth screen alive. `seek` resets the moments
 			// reducer, so the second pass replays the beats rather than treating every
 			// stage as already announced.
@@ -142,19 +163,19 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 		lastTickMs = now;
 
 		observe();
-		frame = requestAnimationFrame(tick);
+		if (canAnimate) frame = requestAnimationFrame(tick);
 	}
 
 	function play() {
 		if (playing) return;
 		playing = true;
 		lastTickMs = null;
-		frame = requestAnimationFrame(tick);
+		if (canAnimate) frame = requestAnimationFrame(tick);
 	}
 
 	function pause() {
 		playing = false;
-		if (frame !== null) cancelAnimationFrame(frame);
+		if (frame !== null && canAnimate) cancelAnimationFrame(frame);
 		frame = null;
 	}
 
@@ -199,10 +220,18 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 		pause,
 		toggle: () => (playing ? pause() : play()),
 		seek,
-		/** Jumps to the first instant the given stage is reached. */
+		/**
+		 * Jumps to the first instant the display is at least the given stage.
+		 *
+		 * Matched by rank, not equality: a run can skip a stage outright (a heavily
+		 * seeded conversation is `rich` the moment it clusters, never passing through
+		 * `shaped`), and an exact match would find nothing and silently rewind to the
+		 * start.
+		 */
 		seekToStage(target: RevealStage) {
-			const sample = timeline.find((s) => s.stage === target);
-			seek(sample ? sample.atMs : 0);
+			const wanted = STAGE_ORDER.indexOf(target);
+			const sample = timeline.find((s) => STAGE_ORDER.indexOf(s.stage) >= wanted);
+			seek(sample ? sample.atMs : scenario.durationMs);
 		},
 		/** Puts a moment on screen on cue, for rehearsal and for showing one beat. */
 		forceMoment(next: Moment) {
