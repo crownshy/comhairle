@@ -42,7 +42,12 @@
 
 	let composer = $state<HTMLTextAreaElement | null>(null);
 
-	const canSubmit = $derived(value.trim().length > 0);
+	// Polis statements are voted on one at a time, so they have to stay short enough to read
+	// at a glance. Enforced here as well as by maxlength, since a bound value can arrive long.
+	const MAX_LENGTH = 200;
+
+	const remaining = $derived(MAX_LENGTH - value.length);
+	const canSubmit = $derived(value.trim().length > 0 && value.length <= MAX_LENGTH);
 
 	function goBack() {
 		if (showingGuidance && !guidanceIsEntry) {
@@ -183,8 +188,19 @@
 						bind:value
 						oninput={onEdit}
 						placeholder={m.polis_opinion_placeholder()}
+						maxlength={MAX_LENGTH}
 						class="bg-card text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 min-h-[160px] w-full flex-1 resize-none rounded-2xl border p-5 text-lg outline-none focus:ring-2"
 					></textarea>
+					<p
+						class="self-end text-base {remaining <= 0
+							? 'text-destructive'
+							: 'text-muted-foreground'}"
+						aria-live="polite"
+					>
+						{remaining === 1
+							? m.polis_characters_left_one({ count: remaining })
+							: m.polis_characters_left({ count: remaining })}
+					</p>
 				</div>
 			</div>
 

@@ -170,6 +170,8 @@
 	"polis_guidance_reopen": "Tips",
 	"polis_opinion_submitted": "Added. Other people can now vote on it.",
 	"polis_opinion_placeholder": "Write your opinion here",
+	"polis_characters_left": "{count} characters left",
+	"polis_characters_left_one": "{count} character left",
 	"polis_submit_opinion": "Add my opinion",
 	"polis_submit_and_add_another": "Add it and write another",
 	"polis_back_to_voting": "Back to voting",
