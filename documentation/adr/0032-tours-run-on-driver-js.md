@@ -33,8 +33,8 @@ What stays ours, in `src/lib/tours/`:
 
 - **`types.ts`** — a `Tour` is an id and a list of stops. A stop names its target
   (`target: 'brief'`, matched against `data-tour="brief"` in the markup), carries a caption
-  as a function so paraglide resolves it at run time, and can open whatever it points inside
-  via `before` + `waitMs`.
+  as a function so paraglide resolves it at run time, can wait for a control that mounts late
+  (`waitMs`), and can open whatever it points inside (`before`).
 - **`Tour.svelte`** — the runner. Drops a stop whose control is not on this screen, builds
   the driver config, applies our copy, and writes the dismissal down when the tour ends
   however it ends.
@@ -74,15 +74,20 @@ Rejected:
 - The spotlight is now an SVG path with a `stageRadius`, not a ring with a huge box shadow.
   It is still a plain black overlay rather than a themed one, for the reason ADR-0026 gives:
   an overlay built from the foreground token inverts in dark mode.
+- `stageRadius` is one number for a whole driver.js instance, and the tour points at both
+  pill chips and wide panels. The runner sets it per beat from the target's own computed
+  corner radius instead, so a pill stays a pill and a panel does not come out as a lozenge.
 - ADR-0026's point 4 ("it circles the real control, measured") is still true, but the
   measuring is driver.js's now. Points 1, 2, 3 and 5 are unchanged; the page underneath is
   blocked with `disableActiveInteraction` rather than a catcher div of our own.
 - The storage key changed from `comhairle-step-tour-<conversation>` to
   `comhairle-tour-participant-step-<conversation>`, so anyone who has already dismissed the
   step tour is offered it once more. One tap, and only on this branch.
-- `before` and `waitMs` are in the type but no tour uses them yet. They exist for the
-  Learning assistant beat, which is the next thing to be built on this, and they are
-  untested until then.
+- `before` is in the type but no tour uses it yet. It exists for a beat that has to open
+  whatever it points inside, and it is untested until one does.
+- Deciding a tour's beats means waiting for controls that mount late, which driver.js's
+  `waitForElement` cannot help with: it waits per step, after the count is already fixed.
+  The runner resolves every stop up front instead (see ADR-0034).
 - Adding driver.js re-normalised peer suffixes throughout `pnpm-lock.yaml`. The lockfile
   diff is much larger than one dependency, and `@zodios/core` needs a `pnpm install` and a
   dev-server restart after the change to pick up its new store path.

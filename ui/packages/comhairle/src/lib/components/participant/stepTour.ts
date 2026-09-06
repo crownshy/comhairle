@@ -2,15 +2,22 @@ import * as m from '$lib/paraglide/messages';
 import type { Tour } from '$lib/tours/types';
 
 /**
- * The chrome's fixed places, circled one at a time on the first run through a conversation
- * (ADR-0026). The captions name their place in words rather than relying on the ring, so
- * they carry the same meaning read aloud.
+ * One run through everything on the screen, in the order a thumb would find it: the two
+ * corners at the top, the assistant in the body, the menu it also lives in, then the two
+ * corners at the bottom (ADR-0026, ADR-0034). The captions name their place in words rather
+ * than relying on the ring, so they carry the same meaning read aloud.
+ *
+ * A beat whose control is not on this screen is dropped, and the count is of what is left.
+ * A step with no brief has no chip, and a step that is not a Learn page has no assistant.
  */
 export const stepTour: Tour = {
 	id: 'participant-step',
 	stops: [
 		{ target: 'intro', text: () => m.step_tour_before_you_start() },
 		{ target: 'brief', text: () => m.step_tour_brief() },
+		// The Learn page mounts after the step transition, so this one is worth waiting for.
+		{ target: 'assistant', text: () => m.step_tour_assistant(), waitMs: 1500 },
+		{ target: 'menu', text: () => m.step_tour_assistant_later(), side: 'bottom', align: 'end' },
 		{ target: 'back', text: () => m.step_tour_back() },
 		{ target: 'forward', text: () => m.step_tour_forward() }
 	]

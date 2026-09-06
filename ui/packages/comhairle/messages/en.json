@@ -464,6 +464,8 @@
 	"step_tour_brief": "Top right: the instructions for this step, whenever you want them again.",
 	"step_tour_back": "Bottom left: back to where you were.",
 	"step_tour_forward": "Bottom right: move on when you are ready.",
+	"step_tour_assistant": "Ask anything about this topic here. It answers from the material the organisers gave it, and from the pages you are reading.",
+	"step_tour_assistant_later": "It is in this menu too, under Learning assistant, whenever you want it again.",
 	"tour_done": "Got it",
 	"tour_next": "Next",
 	"tour_skip": "Skip",

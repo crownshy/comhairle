@@ -3,11 +3,10 @@
 	 * The participant-facing Learning assistant.
 	 *
 	 * One prominent ask bar, and below it exactly one answer at full size. Everything
-	 * asked before collapses into a short list that can be promoted back into focus. The
-	 * standing explanation that used to sit above the input is now an intro shown once per
-	 * conversation, with the rest behind "Learn more" (see ADR-0028).
+	 * asked before collapses into a short list that can be promoted back into focus. What the
+	 * space is for is said by the tour that points at it, not by a panel above it; "What is
+	 * this?" brings the long version back (ADR-0028, amended by ADR-0034).
 	 */
-	import { untrack } from 'svelte';
 	import {
 		Search,
 		ArrowUp,
@@ -25,13 +24,7 @@
 	import AssistantAnswerSkeleton from './AssistantAnswerSkeleton.svelte';
 	import AssistantAnswer from './AssistantAnswer.svelte';
 	import AssistantLearnMore from './AssistantLearnMore.svelte';
-	import {
-		createAssistantState,
-		formatTimestamp,
-		hasSeenIntro,
-		markIntroSeen,
-		uniqueDocs
-	} from './assistantState.svelte';
+	import { createAssistantState, formatTimestamp, uniqueDocs } from './assistantState.svelte';
 
 	type Props = {
 		conversationId: string;
@@ -60,7 +53,8 @@
 	];
 
 	let inputVal = $state('');
-	let introOpen = $state(untrack(() => !hasSeenIntro(conversationId)));
+	/** Closed on arrival: the tour is what introduces the assistant now. */
+	let introOpen = $state(false);
 	let learnMoreOpen = $state(false);
 	let pickedId = $state<string | null>(null);
 
@@ -72,16 +66,15 @@
 	let earlier = $derived(assistant.newestFirst.filter((qa) => qa.id !== focused?.id));
 	let focusedDocs = $derived(uniqueDocs(focused?.reference ?? null));
 
-	function dismissIntro() {
+	function closeIntro() {
 		introOpen = false;
-		markIntroSeen(conversationId);
 	}
 
 	async function submit(question: string) {
 		if (!question.trim()) return;
 		inputVal = '';
 		pickedId = null;
-		dismissIntro();
+		closeIntro();
 		await assistant.ask(question);
 	}
 
@@ -102,7 +95,7 @@
 					type="button"
 					class="text-muted-foreground hover:text-foreground absolute top-3 right-3 rounded-lg p-1 transition-colors"
 					aria-label={m.learning_assistant_intro_dismiss()}
-					onclick={dismissIntro}
+					onclick={closeIntro}
 				>
 					<X class="h-5 w-5" />
 				</button>
@@ -117,15 +110,11 @@
 						</li>
 					{/each}
 				</ul>
-				<p class="text-muted-foreground mt-3 flex items-start gap-2 text-base leading-snug">
-					<Lock class="mt-0.5 h-4 w-4 shrink-0" />
-					{m.learning_assistant_privacy_notice()}
-				</p>
 				<div class="mt-4 flex flex-wrap items-center gap-3">
 					<button
 						type="button"
 						class="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2 text-base font-semibold transition-colors"
-						onclick={dismissIntro}
+						onclick={closeIntro}
 					>
 						{m.learning_assistant_intro_dismiss()}
 					</button>
@@ -200,6 +189,13 @@
 					<ArrowUp class="h-5 w-5" />
 				</button>
 			</div>
+
+			<!-- Under the bar, not behind "What is this?": what not to type is the one line
+			     that has to be read before the first question, not after it. -->
+			<p class="text-muted-foreground mt-2 flex items-start gap-2 text-base leading-snug">
+				<Lock class="mt-1 h-4 w-4 shrink-0" />
+				{m.learning_assistant_privacy_notice()}
+			</p>
 		</div>
 
 		{#if assistant.fatalError}

@@ -174,6 +174,7 @@
 {#if isMobile.current}
 	<Drawer.Root bind:open>
 		<Drawer.Trigger
+			data-tour="menu"
 			class="group text-primary active:bg-primary/10 data-[state=open]:bg-primary/10 -mx-2 flex min-w-0 items-center justify-end gap-2 rounded-full px-2 py-1 text-sm font-medium transition-colors duration-75"
 			aria-label={m.step_dropdown_open()}
 		>
@@ -259,6 +260,7 @@
 		<!-- The trigger answers the tap itself: `data-state` flips in the same frame the menu
 			opens, so the pill and the chevron confirm the press before the panel has animated. -->
 		<DropdownMenu.Trigger
+			data-tour="menu"
 			class="group text-primary active:bg-primary/10 data-[state=open]:bg-primary/10 relative -mx-2 flex min-w-0 items-center justify-end gap-2 rounded-full px-2 py-1 text-base font-medium transition-colors duration-75 data-[state=open]:z-50"
 			aria-label={m.step_dropdown_open()}
 		>

@@ -24,7 +24,11 @@ export type TourStop = {
 	 * two later.
 	 */
 	before?: () => void;
-	/** How long to wait for the target to appear before giving up on this stop. */
+	/**
+	 * How long to keep looking for the target before deciding it is not on this screen. For a
+	 * control that mounts after the screen does: a step transition takes about a second to put
+	 * its tool up, and a stop read for too early loses its beat and its place in the count.
+	 */
 	waitMs?: number;
 };
 

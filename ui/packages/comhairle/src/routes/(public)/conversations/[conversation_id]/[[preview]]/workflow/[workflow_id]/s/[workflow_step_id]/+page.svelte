@@ -297,8 +297,8 @@
 	let canReopenBrief = $derived(phase === 'body' && briefSlides.length > 0);
 
 	/**
-	 * The one-time tour of the chrome. It waits for the body phase because that is the first
-	 * screen where all four places it names exist: the cover has no pager and no brief chip.
+	 * The one-time tour. It waits for the body phase because that is the first screen where
+	 * the places it names exist: the cover has no pager, no brief chip and no assistant.
 	 */
 	let tourOpen = $state(false);
 

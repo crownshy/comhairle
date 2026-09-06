@@ -20,26 +20,6 @@ export type QA = {
 	timestamp: Date | null;
 };
 
-const INTRO_KEY = 'comhairle-assistant-intro';
-
-export function hasSeenIntro(conversationId: string): boolean {
-	if (typeof window === 'undefined') return false;
-	try {
-		return localStorage.getItem(`${INTRO_KEY}-${conversationId}`) === 'seen';
-	} catch {
-		return false;
-	}
-}
-
-export function markIntroSeen(conversationId: string): void {
-	if (typeof window === 'undefined') return;
-	try {
-		localStorage.setItem(`${INTRO_KEY}-${conversationId}`, 'seen');
-	} catch {
-		/* ignore */
-	}
-}
-
 /** Collapse a reference's chunks down to one entry per document. */
 export function uniqueDocs(ref: ChatReference | null): ReferenceChunk[] {
 	if (!ref?.chunks?.length) return [];

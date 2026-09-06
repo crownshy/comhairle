@@ -134,7 +134,7 @@
 		{/if}
 
 		{#if tutorAvailable && conversation}
-			<div class="mx-auto mt-6 w-full max-w-[65ch]">
+			<div class="mx-auto mt-6 w-full max-w-[65ch]" data-tour="assistant">
 				<LearningAssistant conversationId={conversation.id} pageTitle={pageHeading} />
 			</div>
 		{/if}
