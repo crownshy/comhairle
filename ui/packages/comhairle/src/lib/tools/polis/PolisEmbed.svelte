@@ -6,7 +6,6 @@
 		ThumbsUp,
 		ThumbsDown,
 		CheckCircle2,
-		ChevronRight,
 		MessageSquare,
 		AlertTriangle,
 		Sprout,
@@ -26,7 +25,6 @@
 	import { opinionCounter } from './polisCounter';
 	import * as m from '$lib/paraglide/messages';
 	import { haptic } from '$lib/utils/haptics';
-	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import * as Popover from '$lib/components/ui/popover';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
@@ -531,42 +529,50 @@
 			</div>
 		</div>
 	{:else if screen === 'completed'}
-		<!-- Voted everything -->
+		<!-- The pool is empty, so this is the same shape as the fork above: what has been counted,
+		     then the ways on. Finishing is the expected answer here, so it leads; adding an opinion
+		     is the one thing still worth doing in this step and sits under it. -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-8 py-8 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-1 flex-col items-center justify-center gap-[clamp(1.5rem,4vh,2.5rem)] px-6 py-[clamp(1rem,2.5vh,3rem)] text-center md:px-16"
 			in:fade={{ duration: 300 }}
 		>
-			<p class="text-card-foreground text-3xl font-normal">
-				{m.polis_voted_everything()}
-			</p>
-			<p class="text-muted-foreground text-lg">
-				{m.polis_come_back_later()}
-			</p>
-			<Separator orientation="horizontal" />
+			<div class="flex flex-col items-center gap-3">
+				<CheckCircle2 class="text-primary size-8" />
+				<h2
+					class="text-card-foreground max-w-[20ch] text-[clamp(1.5rem,4vh,2rem)] leading-tight font-semibold"
+				>
+					{m.polis_voted_everything()}
+				</h2>
+				<p class="text-muted-foreground max-w-[36ch] text-base">
+					{m.polis_come_back_later()}
+				</p>
+			</div>
 
-			<!-- Add your own opinion -->
-			<Button
-				variant="secondary"
-				class="text-foreground hover:text-foreground flex items-center gap-2 p-5 text-xl font-bold transition-colors"
-				disabled={!polisReady}
-				onclick={openAddOpinion}
-			>
-				<MessageSquare class="h-5 w-5" />
-				<span class="hidden md:inline">{m.polis_add_opinion_long()}</span>
-				<span class="md:hidden">{m.polis_add_your_own_opinion()}</span>
-			</Button>
+			<div class="flex w-full max-w-[360px] flex-col items-stretch gap-3">
+				<LoadingButton
+					variant="default"
+					loading={continuing}
+					class="h-auto w-full flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
+					onclick={handleContinue}
+				>
+					<span class="text-lg font-semibold">{m.polis_finish_voting()}</span>
+					<span class="text-base font-normal opacity-80"
+						>{m.polis_finish_voting_hint()}</span
+					>
+				</LoadingButton>
+				<Button
+					variant="outline"
+					disabled={!polisReady}
+					class="h-auto w-full flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
+					onclick={openAddOpinion}
+				>
+					<span class="text-lg font-semibold">{m.polis_add_your_own_opinion()}</span>
+					<span class="text-base font-normal opacity-80"
+						>{m.polis_add_opinion_hint()}</span
+					>
+				</Button>
+			</div>
 		</div>
-
-		<LoadingButton
-			variant="primaryDark"
-			size="lg"
-			loading={continuing}
-			onclick={handleContinue}
-			class="mb-5 gap-2 px-6 py-4 text-lg"
-		>
-			{m.continue_()}
-			{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
-		</LoadingButton>
 	{/if}
 </div>
 
