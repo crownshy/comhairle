@@ -10,7 +10,7 @@
 	import type { Component, ComponentType, SvelteComponent } from 'svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import { ChevronDown, Check, Lock, Sparkles, Moon, Sun, X } from 'lucide-svelte';
+	import { ChevronDown, Check, Lock, Sparkles, Moon, Sun } from 'lucide-svelte';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import CircleQuestionMark from '$lib/components/icons/CircleQuestionMark.svelte';
@@ -181,21 +181,15 @@
 			{@render triggerInner()}
 		</Drawer.Trigger>
 
-		<Drawer.Content class="max-h-[85vh]">
-			<Drawer.Header class="flex flex-row items-center gap-4 px-5 pt-2 pb-3 text-left">
-				<Drawer.Title class="text-foreground min-w-0 flex-1 text-lg font-bold">
-					{heading}
-				</Drawer.Title>
-				<Drawer.Close
-					class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-10 shrink-0 place-items-center rounded-full transition-colors"
-					aria-label={m.step_menu_close()}
-				>
-					<X class="size-5" />
-				</Drawer.Close>
+		<Drawer.Content class="min-h-[80vh] data-[vaul-drawer-direction=bottom]:max-h-[92vh]">
+			<!-- No close button: the drag handle, the swipe and the overlay all dismiss the sheet. -->
+			<Drawer.Header class="px-5 pt-2 pb-3 text-left">
+				<Drawer.Title class="text-foreground text-lg font-bold">{heading}</Drawer.Title>
 			</Drawer.Header>
 
-			<!-- The sheet is capped at 85vh, so a long conversation scrolls its steps rather than
-				pushing the standing material off the bottom of the screen. -->
+			<!-- The sheet is capped at 92vh, so a long conversation scrolls its steps rather than
+				pushing the standing material off the bottom of the screen. The floor keeps a short
+				conversation from opening as a stub. -->
 			<div
 				class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-[env(safe-area-inset-bottom)]"
 			>

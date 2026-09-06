@@ -422,7 +422,6 @@
 	"step_dropdown_open": "Show steps",
 	"step_dropdown_heading": "Steps",
 	"step_dropdown_support_heading": "About this conversation",
-	"step_menu_close": "Close",
 	"step_position_label": "Step {current} of {total}",
 	"step_status_completed": "completed",
 	"step_status_completed_locked": "completed, locked",
