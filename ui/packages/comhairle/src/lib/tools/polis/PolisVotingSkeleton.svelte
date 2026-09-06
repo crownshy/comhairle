@@ -8,9 +8,10 @@
 	<div
 		class="mx-auto flex w-full max-w-[808px] flex-1 animate-pulse flex-col items-start gap-[clamp(0.75rem,2.2vh,1.5rem)] px-6 py-[clamp(1rem,2.5vh,3rem)] md:px-16"
 	>
-		<!-- Statement -->
+		<!-- Statement. The gap is the statement's leading-tight line box less the bar itself,
+		     so three bars stand exactly as tall as three wrapped lines will. -->
 		<div class="flex w-full flex-1 items-center">
-			<div class="flex w-full flex-col gap-3">
+			<div class="flex w-full flex-col gap-2">
 				<div
 					class="bg-foreground/10 h-[clamp(1.25rem,3.2vh,2rem)] w-full rounded sm:h-[clamp(1.5rem,4vh,2.25rem)]"
 				></div>
@@ -36,10 +37,24 @@
 
 	<!-- Add your own opinion -->
 	<div
-		class="bg-background flex w-full shrink-0 animate-pulse flex-col items-center gap-2 rounded-b-2xl border-t px-6 py-[clamp(0.75rem,2vh,1.25rem)]"
+		class="bg-background flex w-full shrink-0 animate-pulse flex-col items-center gap-1 rounded-b-2xl border-t px-6 py-[clamp(0.75rem,2vh,1.25rem)]"
 	>
-		<div class="bg-foreground/10 h-5 w-56 rounded [@media(max-height:700px)]:hidden"></div>
-		<div class="bg-primary/20 h-6 w-44 rounded"></div>
+		<!-- The prompt wraps to two lines in a phone-width column and sits on one from sm up.
+		     Each bar sits inside its line box rather than filling it, so the band stands at the
+		     height it will be, and it drops on a short viewport exactly as the prompt does. -->
+		<div
+			class="flex w-full max-w-[23rem] flex-col items-center [@media(max-height:700px)]:hidden"
+		>
+			<div class="flex h-6 w-full items-center">
+				<div class="bg-foreground/10 h-[1.125rem] w-full rounded"></div>
+			</div>
+			<div class="flex h-6 w-2/3 items-center sm:hidden">
+				<div class="bg-foreground/10 h-[1.125rem] w-full rounded"></div>
+			</div>
+		</div>
+
+		<!-- The button is a default-size Button: h-9, and round like the one it replaces. -->
+		<div class="bg-primary/20 h-9 w-40 rounded-full"></div>
 	</div>
 
 	<span class="sr-only">Loading opinions…</span>
