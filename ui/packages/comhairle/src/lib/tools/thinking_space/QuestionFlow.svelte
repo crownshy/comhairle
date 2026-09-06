@@ -127,7 +127,11 @@
 		else flow.updateFollowUpDraft(value);
 	}
 
+	// Blur before the textarea is torn down. Submitting swaps the composer for the picker
+	// while the box still has focus, and iOS Chrome then keeps the editing session alive
+	// over a page with nothing to edit: the next drag selects text instead of scrolling.
 	function submitDraft() {
+		composerEl?.blur();
 		if (isRoot) flow.submitRootAnswer();
 		else flow.submitFollowUp();
 	}
