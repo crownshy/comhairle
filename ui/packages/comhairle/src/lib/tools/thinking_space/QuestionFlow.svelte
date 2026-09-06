@@ -3,12 +3,20 @@
 	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { CornerDownRight, Check, RotateCcw, ChevronRight, SendHorizontal } from 'lucide-svelte';
+	import {
+		CornerDownRight,
+		Check,
+		RotateCcw,
+		ChevronRight,
+		ArrowLeft,
+		SendHorizontal
+	} from 'lucide-svelte';
 	import type { QuestionConfig, QuestionAnswers } from './types';
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import type { ToolSequence } from '$lib/step-brief/toolSequence';
 	import FollowUpLoading from './FollowUpLoading.svelte';
 	import QuestionHandoff from './QuestionHandoff.svelte';
+	import QuestionCrossroads from './QuestionCrossroads.svelte';
 
 	type Props = {
 		workflowStepId: string;
@@ -44,7 +52,11 @@
 	// handoff card back onto the question it followed.
 	let stepBack = $derived.by(() => {
 		if (flow.handoff === 'next') return () => flow.backToPreviousQuestion();
+		if (flow.atCrossroads) return undefined;
 		if (flow.currentState.phase === 'answering') return () => flow.backToPicker();
+		// A picker past the minimum was reached by choosing to go deeper, so undoing that
+		// choice puts the fork back.
+		if (flow.followUpMinimumMet) return () => flow.backToCrossroads();
 		return undefined;
 	});
 
@@ -55,7 +67,9 @@
 		onSequence?.({ progress: flow.progress / 100, prev: stepBack });
 	});
 
-	let answering = $derived(flow.handoff === null && flow.currentState.phase !== 'picking');
+	let answering = $derived(
+		flow.handoff === null && !flow.atCrossroads && flow.currentState.phase !== 'picking'
+	);
 	let isRoot = $derived(flow.currentState.phase === 'root');
 	let draft = $derived(
 		isRoot ? flow.currentState.rootAnswer : flow.currentState.currentPickAnswer
@@ -63,10 +77,21 @@
 
 	let composerEl = $state<HTMLTextAreaElement | null>(null);
 
+	// The box grows with the answer rather than scrolling two fixed rows: on a phone what you
+	// typed a second ago was disappearing off the top of a box that still looked half empty.
+	// Past the cap it scrolls, so a long answer can't push the question off the screen.
+	$effect(() => {
+		const el = composerEl;
+		if (!el) return;
+		void draft;
+		el.style.height = 'auto';
+		el.style.height = `${el.scrollHeight}px`;
+	});
+
 	// Land the caret in the box on every new prompt: on a phone the keyboard coming up is the
 	// signal that it is your turn.
 	$effect(() => {
-		const prompt = `${flow.currentQuestionIndex}:${flow.currentState.phase}:${flow.followUpsDone}:${flow.handoff}`;
+		const prompt = `${flow.currentQuestionIndex}:${flow.currentState.phase}:${flow.followUpsDone}:${flow.handoff}:${flow.atCrossroads}`;
 		untrack(async () => {
 			await tick();
 			if (answering) composerEl?.focus();
@@ -124,6 +149,16 @@
 			question={flow.currentQuestion.text || '(unnamed question)'}
 			followUpCount={flow.followUpCount}
 			onStart={() => flow.startQuestion()}
+		/>
+	{:else if flow.atCrossroads}
+		<QuestionCrossroads
+			mode={flow.mode}
+			questionNumber={flow.currentQuestionIndex + 1}
+			total={questions.length}
+			followUpsDone={flow.followUpsDone}
+			isLastQuestion={flow.isLastQuestion}
+			onDeeper={() => flow.goDeeper()}
+			onMoveOn={() => (inExtensionChain ? flow.doneWithRoot() : flow.continueNow())}
 		/>
 	{:else if inExtensionPicker}
 		<div class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 py-8">
@@ -214,18 +249,11 @@
 						</button>
 					{/each}
 				</div>
-				{#if inExtensionChain}
+				{#if optional}
 					<div class="flex justify-end">
-						<Button variant="outline" onclick={() => flow.doneWithRoot()}>
-							<Check class="size-4" />
-							{m.thinking_space_question_done()}
-						</Button>
-					</div>
-				{:else if optional}
-					<div class="flex justify-end">
-						<Button variant="outline" onclick={() => flow.continueNow()}>
-							<Check class="size-4" />
-							{flow.isLastQuestion ? m.finish() : m.thinking_space_next_question()}
+						<Button variant="outline" onclick={() => flow.backToCrossroads()}>
+							<ArrowLeft class="size-4" />
+							{m.back()}
 						</Button>
 					</div>
 				{/if}
@@ -279,7 +307,7 @@
 					onkeydown={handleKeydown}
 					placeholder={m.thinking_space_write_thoughts()}
 					rows={2}
-					class="text-foreground placeholder:text-muted-foreground w-full resize-none bg-transparent text-base leading-relaxed outline-none"
+					class="text-foreground placeholder:text-muted-foreground max-h-40 min-h-13 w-full resize-none overflow-y-auto bg-transparent text-base leading-relaxed outline-none sm:max-h-56"
 				></textarea>
 				<div class="flex justify-end">
 					<button

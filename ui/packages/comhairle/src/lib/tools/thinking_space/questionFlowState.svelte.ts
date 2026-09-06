@@ -79,6 +79,12 @@ export class QuestionFlowState {
 	extensionPhase = $state<ExtensionPhase>('root-picker');
 	// The between-questions card, when one is open. See Handoff.
 	handoff = $state<Handoff>(null);
+	/**
+	 * The fork the participant reaches once the follow-up minimum is met: another round on
+	 * this question, or on to the next one. Held here rather than inferred from the picker
+	 * because the picker is only fetched once they choose to go deeper.
+	 */
+	atCrossroads = $state(false);
 
 	constructor(init: Init) {
 		this.questions = init.questions;
@@ -93,6 +99,11 @@ export class QuestionFlowState {
 		// back, and extension mode has its own hub.
 		const untouched = this.states.every((state) => !state.rootSubmitted);
 		if (this.mode === 'initial' && untouched) this.handoff = 'intro';
+		// Someone resuming on a question that already has its follow-ups lands on the fork,
+		// not on a picker they never asked for.
+		if (this.mode === 'initial' && !untouched && this.followUpCount > 0) {
+			this.atCrossroads = this.currentState.rootSubmitted && this.followUpMinimumMet;
+		}
 	}
 
 	private initialStateFor(
@@ -212,6 +223,7 @@ export class QuestionFlowState {
 	// question is not shown straight away: the index moves and the handoff card names it, so
 	// nobody is dropped into a fresh question one tap after sending an answer.
 	continueNow() {
+		this.atCrossroads = false;
 		if (this.isLastQuestion) {
 			this.onComplete(this.buildAnswers());
 			return;
@@ -223,6 +235,18 @@ export class QuestionFlowState {
 	// Leave the handoff card for the question it names.
 	startQuestion() {
 		this.handoff = null;
+	}
+
+	// Chose another round at the fork. The picker is fetched now rather than up front, so
+	// nobody waits on a round of follow-ups they were about to walk away from.
+	goDeeper() {
+		this.atCrossroads = false;
+		if (this.currentState.picker.length === 0) this.loadPicker(this.currentQuestionIndex);
+	}
+
+	// The picker's only backwards move: it was reached from the fork, so it returns there.
+	backToCrossroads() {
+		this.atCrossroads = true;
 	}
 
 	// Back out of a 'next' handoff to the question it followed, which is sitting on its picker.
@@ -375,9 +399,11 @@ export class QuestionFlowState {
 				picker: [],
 				phase: 'picking'
 			};
-			// The chain never ends on its own. Past the configured count the picker comes back
-			// with a way out next to it, so moving on is the participant's call in both modes.
-			this.loadPicker(this.currentQuestionIndex);
+			// The chain never ends on its own. Once the configured count is met the fork comes
+			// up instead of another picker, so moving on is a decision the participant is
+			// asked to make rather than one they have to go looking for.
+			if (this.followUpMinimumMet) this.atCrossroads = true;
+			else this.loadPicker(this.currentQuestionIndex);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -397,6 +423,7 @@ export class QuestionFlowState {
 	enterRoot(questionIndex: number) {
 		this.currentQuestionIndex = questionIndex;
 		this.extensionPhase = 'in-chain';
+		this.atCrossroads = false;
 		// Reset picker so we always fetch fresh follow-ups using full chain.
 		this.states[questionIndex] = {
 			...this.states[questionIndex],
@@ -409,10 +436,12 @@ export class QuestionFlowState {
 	}
 
 	doneWithRoot() {
+		this.atCrossroads = false;
 		this.extensionPhase = 'root-picker';
 	}
 
 	finishExtension() {
+		this.atCrossroads = false;
 		this.onComplete(this.buildAnswers());
 	}
 
