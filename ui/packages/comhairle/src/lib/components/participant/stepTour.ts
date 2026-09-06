@@ -8,20 +8,37 @@ import type { Tour } from '$lib/tours/types';
  * than relying on the ring, so they carry the same meaning read aloud.
  *
  * A beat whose control is not on this screen is dropped, and the count is of what is left.
- * A step with no brief has no chip, and a step that is not a Learn page has no assistant.
+ *
+ * The assistant is the one beat that cannot be settled by looking: it mounts a moment after
+ * the step body does, so the caller passes what the page already knows about it rather than
+ * making the tour wait and find out.
  */
-export const stepTour: Tour = {
-	id: 'participant-step',
-	stops: [
-		{ target: 'intro', text: () => m.step_tour_before_you_start() },
-		{ target: 'brief', text: () => m.step_tour_brief() },
-		// The Learn page mounts after the step transition, so this one is worth waiting for.
-		{ target: 'assistant', text: () => m.step_tour_assistant(), waitMs: 1500 },
-		{ target: 'menu', text: () => m.step_tour_assistant_later(), side: 'bottom', align: 'end' },
-		{ target: 'back', text: () => m.step_tour_back() },
-		{ target: 'forward', text: () => m.step_tour_forward() }
-	]
-};
+export function stepTour({ assistant }: { assistant: boolean }): Tour {
+	return {
+		id: 'participant-step',
+		stops: [
+			{ target: 'intro', text: () => m.step_tour_before_you_start() },
+			{ target: 'brief', text: () => m.step_tour_brief() },
+			...(assistant
+				? [
+						{
+							target: 'assistant',
+							text: () => m.step_tour_assistant(),
+							mountsLate: true
+						}
+					]
+				: []),
+			{
+				target: 'menu',
+				text: () => m.step_tour_assistant_later(),
+				side: 'bottom' as const,
+				align: 'end' as const
+			},
+			{ target: 'back', text: () => m.step_tour_back() },
+			{ target: 'forward', text: () => m.step_tour_forward() }
+		]
+	};
+}
 
 type ProgressLike = { progressStatus?: string | null };
 

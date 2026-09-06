@@ -299,13 +299,20 @@
 	/**
 	 * The one-time tour. It waits for the body phase because that is the first screen where
 	 * the places it names exist: the cover has no pager, no brief chip and no assistant.
+	 *
+	 * The assistant beat is decided here, from the same two things that decide whether the
+	 * assistant renders, so the tour draws its first beat immediately instead of spending a
+	 * second looking for a control this step may never have.
 	 */
+	let tour = $derived(
+		stepTour({ assistant: toolConfig?.type === 'learn' && assistantAvailable })
+	);
 	let tourOpen = $state(false);
 
 	$effect(() => {
 		if (phase !== 'body') return;
 		if (!isFirstRun(workflowSteps)) return;
-		if (hasSeenTour(stepTour.id, conversation.id)) return;
+		if (hasSeenTour(tour.id, conversation.id)) return;
 		tourOpen = true;
 	});
 
@@ -478,7 +485,7 @@
 
 	{#if tourOpen}
 		<!-- The tour writes its own dismissal down; this only takes it off the screen. -->
-		<Tour tour={stepTour} scope={conversation.id} onDone={() => (tourOpen = false)} />
+		<Tour {tour} scope={conversation.id} onDone={() => (tourOpen = false)} />
 	{/if}
 
 	{#if briefOpen}

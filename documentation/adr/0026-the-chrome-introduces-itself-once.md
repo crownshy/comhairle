@@ -53,6 +53,12 @@ reachable and is not. The alternative is a participant pressing the Next it has 
 shown, navigating to the following step, and leaving the tour pointing at controls that have
 moved on without it.
 
+**6. It ends by finishing it or by pressing Skip. A tap outside does nothing.** The overlay is
+the whole screen minus one control, most of it under a thumb that was reaching for the step,
+so dismiss-on-outside-tap is an accident waiting to happen, and the tour is offered once: a
+participant who loses it that way cannot ask for it back. Escape still ends it, because
+pressing Escape is a decision rather than a slip, and Skip says in a word what it does.
+
 ## Consequences
 
 - An admin previewing a conversation sees it once too. Preview has no progress, so it is

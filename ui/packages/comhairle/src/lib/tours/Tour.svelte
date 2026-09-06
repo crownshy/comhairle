@@ -31,8 +31,6 @@
 
 	/** Breathing room between the ring and the control it circles. */
 	const PADDING = 10;
-	/** How often to look again for a control that is still mounting. */
-	const POLL_MS = 60;
 
 	let ended = false;
 
@@ -60,56 +58,29 @@
 		onDone?.();
 	}
 
-	onMount(() => {
-		let cancelled = false;
-		let teardown: (() => void) | undefined;
-
-		start().then((stop) => {
-			if (cancelled) stop?.();
-			else teardown = stop;
-		});
-
-		return () => {
-			cancelled = true;
-			teardown?.();
-		};
-	});
+	onMount(start);
 
 	function target(stop: TourStop): HTMLElement | null {
 		return document.querySelector<HTMLElement>(`[data-tour="${stop.target}"]`);
 	}
 
 	/**
-	 * Whether this stop's control is on the screen. A stop that gives itself a `waitMs` is
-	 * allowed to still be mounting: a step transition takes about a second to put its tool up,
-	 * so a control read for too early is read as absent and loses its beat.
+	 * Whether this beat is in this run. Read once, synchronously, so the first beat is drawn in
+	 * the frame the tour opens rather than after a wait the participant spends starting the
+	 * step (ADR-0026).
+	 *
+	 * A control on the screen is in. So is one the caller has said mounts late, and one that
+	 * opens its own target, since neither has anything to find yet. Everything else is out: a
+	 * tour that circles an empty corner is worse than one that says less.
 	 */
-	function present(stop: TourStop): Promise<boolean> {
-		if (target(stop)) return Promise.resolve(true);
-		if (!stop.waitMs) return Promise.resolve(false);
-		return new Promise((resolve) => {
-			const deadline = performance.now() + stop.waitMs!;
-			const look = () => {
-				if (target(stop)) resolve(true);
-				else if (performance.now() >= deadline) resolve(false);
-				else setTimeout(look, POLL_MS);
-			};
-			setTimeout(look, POLL_MS);
-		});
+	function included(stop: TourStop): boolean {
+		return Boolean(stop.before || stop.mountsLate || target(stop));
 	}
 
-	async function start(): Promise<(() => void) | undefined> {
-		/**
-		 * Only the beats whose control is on this screen: a step with no brief has no chip, a
-		 * step that is not a Learn page has no assistant, and a tour that circles an empty
-		 * corner is worse than one that says less. A beat that opens its own target is kept
-		 * regardless, since it has nothing to find yet.
-		 *
-		 * Resolved before anything is drawn, because the count the participant reads is of the
-		 * beats that survive this.
-		 */
-		const found = await Promise.all(tour.stops.map(present));
-		const stops = tour.stops.filter((stop, index) => stop.before || found[index]);
+	function start(): (() => void) | undefined {
+		// Before anything is drawn, because the count the participant reads is of the beats
+		// that survive this.
+		const stops = tour.stops.filter(included);
 		if (stops.length === 0) {
 			// Not marked seen: nothing was shown, so a tour whose screen has not come up yet is
 			// still owed to the participant when it does.
@@ -121,6 +92,8 @@
 		let instance: Driver | undefined;
 
 		const steps: DriveStep[] = stops.map((stop, index) => ({
+			// A selector rather than the node: driver.js resolves it when the beat comes up, so a
+			// control that mounts late is found by the time the tour reaches it.
 			element: `[data-tour="${stop.target}"]`,
 			onHighlightStarted: (element) => {
 				stop.before?.();
@@ -166,7 +139,16 @@
 			// shown would navigate to the following step and leave the tour pointing at controls
 			// that have moved on without it.
 			disableActiveInteraction: true,
-			overlayClickBehavior: 'close',
+			// A no-op rather than 'close': the tour ends by finishing it or by pressing Skip, and
+			// nothing else. driver.js runs a function here and does nothing further, so a tap
+			// outside is inert. The whole screen is a dismiss target otherwise, most of it under
+			// a thumb that was reaching for the step, and a tour dismissed by accident is one a
+			// participant cannot ask for again.
+			//
+			// Not `allowClose: false`, which reads like the same thing and is not: driver.js puts
+			// Escape and the close button on one handler and drops `close` from the button list,
+			// so it would take Skip with it.
+			overlayClickBehavior: () => {},
 			onPopoverRender: (popover) => {
 				// driver.js gives its dismissal an unlabelled × in the corner. The tour is four
 				// taps long and the way out should say what it does, so it becomes a word in the

@@ -37,10 +37,18 @@ is the one line that has to be read before the first question rather than after 
 notice about not typing your name is not something to hide behind a disclosure. Everything
 else that was in the card is in the tour or behind "What is this?".
 
-**4. Which beats exist is resolved before anything is drawn.** The count a participant reads
-is of the beats that survive, so the runner cannot start and then discover a seventh. A step
-transition takes about a second to put its tool up, so the assistant beat carries a
-`waitMs`: the runner keeps looking for that long before deciding it is not on this screen.
+**4. Which beats exist is resolved before anything is drawn, from config rather than from the
+DOM.** The count a participant reads is of the beats that survive, so the runner cannot start
+and then discover a seventh. Every other beat's control is on the screen the moment the body
+opens; the assistant's mounts a moment later, so the page decides that beat from the same two
+things that decide whether the assistant renders and marks it `mountsLate`. The runner takes
+that on trust and driver.js resolves the selector when the beat comes up, two Nexts later.
+
+Rejected: waiting for the control to appear, which is what this did first. The runner polled
+for it for a second and a half, and because the count has to be settled before the first beat
+is drawn, every step paid that wait, including the ones with no assistant at all. A second
+and a half is long enough to read the screen and start answering it, so the tour arrived as
+an interruption to work already in progress rather than as an introduction to it.
 
 **5. A tour with nothing to show is not recorded as seen.** Otherwise a tour whose screen has
 not come up yet would be quietly spent on the wrong step.
@@ -56,6 +64,9 @@ not come up yet would be quietly spent on the wrong step.
   rejected, so it would be a reversal rather than an addition.
 - The support drawer has no tour, so the assistant there is introduced only by "What is
   this?". That is the same control it has always had, and the drawer's tab already names it.
+- The page's `assistant` flag and LearnUI's `tutorAvailable` have to keep agreeing. They are
+  both `learningAssistantAvailable` on the conversation plus a parsed knowledge base; if they
+  drift, the tour circles nothing for one beat rather than failing loudly.
 - The tour reaches the assistant by scrolling the step's `<main>`. driver.js repositions its
   spotlight on window scroll only, so the runner listens for scroll on the document in the
   capture phase and refreshes on any scroller. Without that the hole stays where the target
