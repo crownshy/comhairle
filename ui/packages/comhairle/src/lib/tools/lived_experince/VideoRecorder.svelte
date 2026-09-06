@@ -95,7 +95,7 @@
 	}
 </script>
 
-<div class="flex min-h-0 grow flex-col gap-4">
+<div class="mx-auto flex min-h-0 w-full max-w-xl grow flex-col gap-4 py-3">
 	<!-- Sized off the height that is left over rather than the column's width, so the frame
 		never grows past the screen and pushes the actions under it out of reach. -->
 	<div class="relative min-h-0 grow">

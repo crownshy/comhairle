@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import SlideDots from '$lib/components/participant/SlideDots.svelte';
 	import VideoRecorder from './VideoRecorder.svelte';
-	import { Mic, Info } from 'lucide-svelte';
+	import { Mic, Info, Play } from 'lucide-svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 
@@ -47,6 +46,16 @@
 
 	let clip = $derived(clips[index] ?? null);
 
+	let videoEl = $state<HTMLVideoElement | null>(null);
+
+	// Writable $derived rather than an effect: the overlay belongs to the clip on screen, so
+	// stepping to another one puts its play button back. The {#key} above swaps the DOM but
+	// leaves this component mounted, so the flag has to be tied to the index itself.
+	let playing = $derived.by(() => {
+		void index;
+		return false;
+	});
+
 	function goTo(next: number) {
 		index = Math.max(0, Math.min(recordIndex, next));
 	}
@@ -71,57 +80,92 @@
 	});
 </script>
 
-<!-- The dots are the tool's position, in the margin beside the content rather than under it,
-	so the bottom of the screen stays free for the record prompt's own two actions. -->
-<div class="relative mx-auto flex w-full max-w-xl grow flex-col px-4 py-3">
-	<div class="pointer-events-none absolute top-1/2 right-0 z-10 -translate-y-1/2">
-		<SlideDots {index} count={recordIndex + 1} orientation="vertical" />
-	</div>
-
+<!-- No position marker of its own: the chrome's progress bar already fills as the clips
+	advance, and a second one beside the video said the same thing twice. -->
+<div class="mx-auto flex w-full grow flex-col px-4">
 	{#if clip}
-		<!-- The clip is sized off the height it has rather than the column's width: asked to be
-			as wide as the text, a portrait video comes out taller than the screen and its
-			bottom (the audio player with it) vanishes under the pager's fade. Absolutely
-			positioned so the aspect box has a definite height to take 100% of. -->
+		<!-- One frame, shared by every clip, taking the whole height that is left, and no
+			reading-width cap: on a tall screen that cap, not the space left over, is what
+			would decide how big the clip gets. Sized off the height rather than the width: a
+			portrait video asked to be as wide as the text comes out taller than the screen
+			and its controls vanish under the pager's fade. Absolutely positioned so the frame
+			has a definite height to take 100% of, and no padding of its own, unlike the
+			screens that have actions under them.
+
+			2:3 is the widest ratio the clips are shot in. Letting each video set its own
+			footprint made them jump in size from slide to slide, and a narrower frame would
+			shrink the wider clips to fit rather than the other way round, so the odd ones
+			out letterbox inside this one instead. The frame takes the page's own background
+			rather than black, so those bars read as space around the clip instead of as a
+			player with the picture sitting off-centre in it. -->
 		<div class="relative min-h-0 grow">
 			<div class="absolute inset-0 flex items-center justify-center">
-				<div
-					class="relative aspect-[9/16] h-full max-w-full overflow-hidden rounded-2xl bg-black"
-				>
-					{#key index}
-						{#if clip.audio}
-							<!-- A contribution with no picture. The frame says why it is black,
-								and the player sits where a video's control bar would be. -->
+				{#key index}
+					{#if clip.audio}
+						<!-- A contribution with no picture. Sized to what it holds rather than
+							filling the clip frame: a portrait box of empty black reads as a
+							video that failed to load. -->
+						<div
+							class="bg-card border-border flex w-80 max-w-full flex-col items-center gap-4 rounded-2xl border px-6 py-8"
+						>
 							<div
-								class="flex size-full flex-col items-center justify-center gap-3 text-white"
+								class="bg-accent text-accent-foreground flex size-16 items-center justify-center rounded-full"
 							>
-								<Mic class="size-12" aria-hidden="true" />
-								<p class="text-xl leading-8 font-medium">
-									{m.lived_experience_audio_only()}
-								</p>
+								<Mic class="size-8" aria-hidden="true" />
 							</div>
-							<audio
-								controls
-								src={clip.src}
-								class="absolute inset-x-4 bottom-4 w-[calc(100%-2rem)]"
-							></audio>
-						{:else}
+							<p class="text-xl leading-8 font-medium">
+								{m.lived_experience_audio_only()}
+							</p>
+							<audio controls src={clip.src} class="w-full"></audio>
+						</div>
+					{:else}
+						<div
+							class="bg-background relative aspect-[2/3] h-full max-w-full overflow-hidden rounded-2xl"
+						>
 							<!-- svelte-ignore a11y_media_has_caption -->
+							<!-- Metadata only: enough for the browser to paint the first frame
+								and know the duration, without pulling the whole clip down for
+								someone who steps straight past it. The native controls arrive
+								with playback. Before that the frame is a still, and the button
+								over it is the only thing to press. -->
 							<video
-								controls
+								bind:this={videoEl}
+								controls={playing}
 								playsinline
+								preload="metadata"
 								src={clip.src}
+								onplay={() => (playing = true)}
 								class="size-full object-contain"
 							></video>
-						{/if}
-					{/key}
-				</div>
+
+							{#if !playing}
+								<button
+									type="button"
+									onclick={() => videoEl?.play()}
+									class="focus-visible:ring-ring absolute inset-0 flex items-center justify-center focus-visible:ring-2 focus-visible:outline-none"
+								>
+									<span class="sr-only">{m.lived_experience_play_clip()}</span>
+									<span
+										class="bg-primary text-primary-foreground flex size-20 items-center justify-center rounded-full shadow-lg"
+									>
+										<!-- Nudged right by an eighth: a triangle centred on its
+											bounding box reads as sitting left of centre. -->
+										<Play
+											class="size-9 translate-x-0.5 fill-current"
+											aria-hidden="true"
+										/>
+									</span>
+								</button>
+							{/if}
+						</div>
+					{/if}
+				{/key}
 			</div>
 		</div>
 	{:else if recording}
 		<VideoRecorder onDone={() => onDone()} onCancel={() => (recording = false)} />
 	{:else}
-		<div class="flex min-h-0 grow flex-col gap-4">
+		<div class="mx-auto flex w-full max-w-xl grow flex-col gap-4 py-3">
 			<div class="flex grow flex-col justify-center gap-6">
 				<p class="text-lg leading-7">{m.lived_experience_record_prompt()}</p>
 				<button
@@ -157,8 +201,5 @@
 				{m.lived_experience_privacy_body()}
 			</Dialog.Description>
 		</Dialog.Header>
-		<div class="flex justify-center">
-			<SlideDots {index} count={recordIndex + 1} />
-		</div>
 	</Dialog.Content>
 </Dialog.Root>
