@@ -98,10 +98,13 @@
 
 	The pending branches show the tool's skeleton, where it has one, for the first load of a
 	tool's module in a session. After that `tool()` returns synchronously and they never show.
+
+	Nothing at the bottom: StepShell already reserves a gap between the content and the pager,
+	and a second one here was stacking on top of it, which a tool that fills its height (a
+	video, an iframe) pays for in size. Just enough at the top to keep a tool from starting
+	hard against the progress bar.
 -->
-<div
-	class="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pb-[clamp(0.5rem,2vh,1.5rem)] md:px-6"
->
+<div class="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-2 md:px-6">
 	{#if toolConfig.type === 'learn'}
 		{#key workflowStep.id}
 			{#await tool('learn')}

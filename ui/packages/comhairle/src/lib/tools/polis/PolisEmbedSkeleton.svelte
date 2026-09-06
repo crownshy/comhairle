@@ -7,7 +7,7 @@
 	so the swap to the real thing is a content change and not a layout change.
 -->
 <div
-	class="bg-muted/50 flex min-h-0 w-full flex-1 flex-col items-center gap-8 overflow-y-auto rounded-2xl py-[clamp(0.25rem,1vh,1rem)] md:py-0"
+	class="bg-muted/50 flex min-h-0 w-full flex-1 flex-col items-center gap-8 overflow-y-auto rounded-2xl"
 >
 	<PolisVotingSkeleton />
 </div>
