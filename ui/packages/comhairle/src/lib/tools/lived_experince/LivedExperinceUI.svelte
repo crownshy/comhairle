@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import VideoRecorder from './VideoRecorder.svelte';
-	import { Mic, Info, Play } from 'lucide-svelte';
+	import { Mic, Info } from 'lucide-svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 
@@ -45,16 +45,6 @@
 	});
 
 	let clip = $derived(clips[index] ?? null);
-
-	let videoEl = $state<HTMLVideoElement | null>(null);
-
-	// Writable $derived rather than an effect: the overlay belongs to the clip on screen, so
-	// stepping to another one puts its play button back. The {#key} above swaps the DOM but
-	// leaves this component mounted, so the flag has to be tied to the index itself.
-	let playing = $derived.by(() => {
-		void index;
-		return false;
-	});
 
 	function goTo(next: number) {
 		index = Math.max(0, Math.min(recordIndex, next));
@@ -119,45 +109,25 @@
 							<audio controls src={clip.src} class="w-full"></audio>
 						</div>
 					{:else}
-						<div
-							class="bg-background relative aspect-[2/3] h-full max-w-full overflow-hidden rounded-2xl"
-						>
-							<!-- svelte-ignore a11y_media_has_caption -->
-							<!-- Metadata only: enough for the browser to paint the first frame
-								and know the duration, without pulling the whole clip down for
-								someone who steps straight past it. The native controls arrive
-								with playback. Before that the frame is a still, and the button
-								over it is the only thing to press. -->
-							<video
-								bind:this={videoEl}
-								controls={playing}
-								playsinline
-								preload="metadata"
-								src={clip.src}
-								onplay={() => (playing = true)}
-								class="size-full object-contain"
-							></video>
+						<!-- svelte-ignore a11y_media_has_caption -->
+						<!-- No play button of our own: every browser draws a big centred one
+							over a video it has not started yet, and the native controls take
+							over from there.
 
-							{#if !playing}
-								<button
-									type="button"
-									onclick={() => videoEl?.play()}
-									class="focus-visible:ring-ring absolute inset-0 flex items-center justify-center focus-visible:ring-2 focus-visible:outline-none"
-								>
-									<span class="sr-only">{m.lived_experience_play_clip()}</span>
-									<span
-										class="bg-primary text-primary-foreground flex size-20 items-center justify-center rounded-full shadow-lg"
-									>
-										<!-- Nudged right by an eighth: a triangle centred on its
-											bounding box reads as sitting left of centre. -->
-										<Play
-											class="size-9 translate-x-0.5 fill-current"
-											aria-hidden="true"
-										/>
-									</span>
-								</button>
-							{/if}
-						</div>
+							`#t=0.1` is what gets a still on screen. `preload="metadata"` only
+							promises the browser fetches the duration and dimensions, not that
+							it decodes a frame, so on its own it left the frame blank. Asking
+							for a timestamp makes it seek, and seeking means painting. A tenth
+							of a second in, so playback still starts on the clip's first words.
+							Proper `poster` stills would be better, but they would have to be
+							generated and hosted alongside the clips. -->
+						<video
+							controls
+							playsinline
+							preload="metadata"
+							src="{clip.src}#t=0.1"
+							class="bg-background aspect-[2/3] h-full max-w-full rounded-2xl object-contain"
+						></video>
 					{/if}
 				{/key}
 			</div>
