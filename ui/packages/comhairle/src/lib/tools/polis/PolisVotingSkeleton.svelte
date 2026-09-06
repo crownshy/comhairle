@@ -6,11 +6,12 @@
 -->
 <div class="flex w-full flex-1 flex-col" aria-busy="true" aria-live="polite">
 	<div
-		class="mx-auto flex w-full max-w-[808px] flex-1 animate-pulse flex-col items-start gap-[clamp(0.75rem,2.2vh,1.5rem)] px-6 py-[clamp(1rem,2.5vh,3rem)] md:px-16"
+		class="mx-auto flex w-full max-w-[808px] flex-1 animate-pulse flex-col items-start gap-[clamp(0.75rem,2.2vh,1.5rem)] px-6 py-[clamp(1rem,2.5vh,3rem)] md:justify-center md:gap-14 md:px-16"
 	>
 		<!-- Statement. The gap is the statement's leading-tight line box less the bar itself,
-		     so three bars stand exactly as tall as three wrapped lines will. -->
-		<div class="flex w-full flex-1 items-center">
+		     so three bars stand exactly as tall as three wrapped lines will. From md up the band
+		     stops flexing, as the real one does, so the thumbs stand under it and not at the foot. -->
+		<div class="flex w-full flex-1 items-center md:flex-none">
 			<div class="flex w-full flex-col gap-2">
 				<div
 					class="bg-foreground/10 h-[clamp(1.25rem,3.2vh,2rem)] w-full rounded sm:h-[clamp(1.5rem,4vh,2.25rem)]"

@@ -349,14 +349,18 @@
 		<!-- Voting Screen -->
 		<div class="flex w-full flex-1 flex-col" in:fade={{ duration: 300 }}>
 			<div
-				class="mx-auto flex w-full max-w-[808px] flex-1 flex-col items-start gap-[clamp(0.75rem,2.2vh,1.5rem)] px-6 py-[clamp(1rem,2.5vh,3rem)] md:px-16"
+				class="mx-auto flex w-full max-w-[808px] flex-1 flex-col items-start gap-[clamp(0.75rem,2.2vh,1.5rem)] px-6 py-[clamp(1rem,2.5vh,3rem)] md:justify-center md:gap-14 md:px-16"
 			>
 				<!-- Statement text: one opinion at a time, sized to be the thing you read. The
 			     statement is the only band that flexes, because it is the only one whose height
 			     changes with the content; the vote controls and "add your own" below it hold
 			     their place at the bottom of the card. Every vertical measure is a vh clamp, so
-			     a short viewport shrinks the screen instead of pushing the buttons off it. -->
-				<div class="flex w-full flex-1 items-center">
+			     a short viewport shrinks the screen instead of pushing the buttons off it.
+
+			     That bottom anchoring is for a thumb. From md up the statement band stops
+			     flexing and the column centres, so the thumbs sit under the statement as one
+			     group instead of a screen's height away from it. -->
+				<div class="flex w-full flex-1 items-center md:flex-none">
 					{#if polisReady && polisError}
 						<div
 							class="border-destructive/20 bg-destructive/5 flex w-full flex-col items-center gap-4 rounded-lg border p-6 text-center"
