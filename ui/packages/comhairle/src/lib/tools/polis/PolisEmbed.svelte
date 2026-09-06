@@ -273,7 +273,7 @@
 			return false;
 		}
 		await createStatementAux(result, text, visibleTid);
-		opinionText = '';
+		haptic('success');
 
 		polis.fetchNextStatement();
 		return true;
@@ -285,11 +285,10 @@
 		if (!(await submitOpinion(text))) return;
 		opinionSubmitted = true;
 		returningToVoting = true;
-		setTimeout(() => {
-			addOpinionOpen = false;
-			opinionSubmitted = false;
-			returningToVoting = false;
-		}, 2000);
+		// The composer stays up for the confirmation beat. The text is cleared as it closes,
+		// not on submit: a box that empties itself under the banner reads as the words being
+		// lost rather than sent.
+		setTimeout(closeAddOpinion, 2000);
 	}
 
 	async function handleSubmitAndAddAnother() {
@@ -297,6 +296,8 @@
 		if (!text || opinionSubmitting) return;
 		if (!(await submitOpinion(text))) return;
 
+		// Here the next opinion starts in the same box, so it does empty at once.
+		opinionText = '';
 		opinionSubmitted = true;
 		setTimeout(() => {
 			opinionSubmitted = false;
@@ -313,6 +314,13 @@
 	}
 
 	function closeAddOpinion() {
+		// A draft survives Back so it is there on reopening. Sent text does not: it would
+		// come back looking unsent.
+		if (opinionSubmitted) {
+			opinionText = '';
+			opinionSubmitted = false;
+			returningToVoting = false;
+		}
 		addOpinionOpen = false;
 		if (polis.state.remaining === 0) {
 			screen = 'completed';

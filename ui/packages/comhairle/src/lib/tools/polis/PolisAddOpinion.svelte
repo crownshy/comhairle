@@ -2,7 +2,7 @@
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { Portal } from 'bits-ui';
 	import { fade } from 'svelte/transition';
-	import { ChevronLeft } from 'lucide-svelte';
+	import { ChevronLeft, Check } from 'lucide-svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -165,30 +165,17 @@
 						{m.polis_add_opinion()}
 					</h2>
 
-					{#if submitted}
-						<div
-							class="bg-primary/10 text-primary w-full rounded-lg p-4 text-base font-medium"
-							role="status"
-						>
-							{m.polis_opinion_submitted()}
-						</div>
-					{:else if error}
-						<div
-							class="bg-destructive/10 text-destructive w-full rounded-lg p-4 text-base font-medium"
-							role="alert"
-						>
-							{m.something_went_wrong()}
-						</div>
-					{/if}
-
 					<!-- The box takes whatever height is left, so a long opinion has room and a
 					     short screen still shows the whole thing without the box scrolling. -->
+					<!-- Read-only while a submit is in flight and through the confirmation beat, so
+					     the words stay on screen as sent rather than editable and about to vanish. -->
 					<textarea
 						bind:this={composer}
 						bind:value
 						oninput={onEdit}
 						placeholder={m.polis_opinion_placeholder()}
 						maxlength={MAX_LENGTH}
+						readonly={submitting}
 						class="bg-card text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 min-h-[160px] w-full flex-1 resize-none rounded-2xl border p-5 text-lg outline-none focus:ring-2"
 					></textarea>
 					<p
@@ -207,27 +194,63 @@
 			<div
 				class="bg-background shrink-0 border-t px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
 			>
+				<!-- Every state of the bar is the same two rows at the same heights, so nothing
+				     above it moves when a submit lands or fails. The confirmation sits where the
+				     tap did: the button becomes the receipt, in the completion green rather than
+				     the primary it was a moment ago, and the second row says what happens next.
+				     A failure takes the second row too, with the button left in place to retry. -->
 				<div class="mx-auto flex w-full max-w-[520px] flex-col items-center gap-2">
-					<LoadingButton
-						variant="default"
-						size="lg"
-						loading={submitting}
-						disabled={!canSubmit}
-						onclick={onSubmit}
-						class="h-12 w-full text-base"
-					>
-						{m.polis_submit_opinion()}
-					</LoadingButton>
-					<LoadingButton
-						variant="link"
-						size="lg"
-						loading={submitting}
-						disabled={!canSubmit}
-						onclick={onSubmitAndAddAnother}
-						class="text-base font-medium"
-					>
-						{m.polis_submit_and_add_another()}
-					</LoadingButton>
+					{#if submitted}
+						<!-- The same Button, so the pill does not change shape under the tap. Inert
+						     rather than disabled: disabled would fade it, and this is the one moment
+						     it should be at full strength. -->
+						<Button
+							variant="default"
+							size="lg"
+							tabindex={-1}
+							aria-hidden="true"
+							class="bg-step-complete text-step-complete-foreground hover:bg-step-complete pointer-events-none h-12 w-full text-base font-semibold"
+						>
+							<Check class="size-5" strokeWidth={3} />
+							{m.polis_opinion_added()}
+						</Button>
+					{:else}
+						<LoadingButton
+							variant="default"
+							size="lg"
+							loading={submitting}
+							disabled={!canSubmit}
+							onclick={onSubmit}
+							class="h-12 w-full text-base"
+						>
+							{m.polis_submit_opinion()}
+						</LoadingButton>
+					{/if}
+					<div class="flex h-10 w-full items-center justify-center" aria-live="polite">
+						{#if submitted}
+							<p class="text-muted-foreground text-center text-base" role="status">
+								{m.polis_opinion_submitted()}
+							</p>
+						{:else if error}
+							<p
+								class="text-destructive text-center text-base font-medium"
+								role="alert"
+							>
+								{m.something_went_wrong()}
+							</p>
+						{:else}
+							<LoadingButton
+								variant="link"
+								size="lg"
+								loading={submitting}
+								disabled={!canSubmit}
+								onclick={onSubmitAndAddAnother}
+								class="text-base font-medium"
+							>
+								{m.polis_submit_and_add_another()}
+							</LoadingButton>
+						{/if}
+					</div>
 				</div>
 			</div>
 		{/if}
