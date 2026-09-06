@@ -172,6 +172,40 @@
 	width: 100%;
 }
 
+/* Placeholder for an image that has not loaded yet. ContentRenderer sets `data-loaded`
+   once it has; until then the element stands in for itself as a skeleton block, styled
+   like the Skeleton component, so the text around it is laid out roughly where it will
+   end up instead of being shoved down when the image lands. The ratio is a guess: nothing
+   in the stored document says how tall the image is. Learn's pager preloads the images of
+   the page it is turning to, so in practice this is the first paint of a page. An image
+   with no author width gets the content column, which is what an article image almost
+   always is; a small inline one briefly reads wider than it ends up.
+
+   Read-only content only. The editor draws its own images and nothing marks them loaded,
+   so an unscoped rule would leave a placeholder box behind every image while authoring. */
+.content-renderer .tiptap img:not([data-loaded]) {
+	aspect-ratio: 3 / 2;
+	background-color: var(--accent);
+	border-radius: 0.5rem;
+	animation: tiptap-image-loading 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.content-renderer .tiptap img:not([data-loaded]):not([data-width]) {
+	width: 100%;
+}
+
+@keyframes tiptap-image-loading {
+	50% {
+		opacity: 0.5;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.content-renderer .tiptap img:not([data-loaded]) {
+		animation: none;
+	}
+}
+
 .tiptap img.ProseMirror-selectednode {
 	outline: 3px solid var(--color-primary);
 	outline-offset: 2px;

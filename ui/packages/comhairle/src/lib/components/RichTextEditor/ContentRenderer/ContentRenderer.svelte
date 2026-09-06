@@ -90,6 +90,29 @@
 		return () => el.removeEventListener('click', handleContentClick);
 	});
 
+	// An <img> has no size until it loads, so content that opens with one drew its text and
+	// then shoved it down when the image arrived. Marking each image `data-loaded` lets
+	// editor-content.css hold a placeholder box in the meantime. Load does not bubble, hence
+	// the capturing listener; images already in the cache (or server-rendered) never fire it
+	// at all, so they are marked directly.
+	$effect(() => {
+		void html;
+		const el = contentElement;
+		if (!el) return;
+
+		const mark = (image: HTMLImageElement) => image.setAttribute('data-loaded', '');
+		const onLoad = (event: Event) => {
+			const target = event.target;
+			if (target instanceof HTMLImageElement) mark(target);
+		};
+
+		for (const image of el.querySelectorAll('img')) {
+			if (image.complete) mark(image);
+		}
+		el.addEventListener('load', onLoad, true);
+		return () => el.removeEventListener('load', onLoad, true);
+	});
+
 	function showGlossaryTooltip(trigger: HTMLElement) {
 		const el = glossaryTooltipEl;
 		if (!el) return;

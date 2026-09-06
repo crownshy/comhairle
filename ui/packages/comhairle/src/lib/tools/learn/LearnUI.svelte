@@ -12,6 +12,8 @@
 	import { resolveGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
 	import { listen } from '$lib/components/participant/listen.svelte';
+	import { imageSourcesIn, preloadImages } from '$lib/utils/richTextImages';
+	import { prefersReducedMotion } from '$lib/utils/reducedMotion';
 	import ListenButton from './ListenButton.svelte';
 
 	let {
@@ -53,6 +55,11 @@
 		(currentPage ?? []).filter((p) => p.lang === getLocale())
 	);
 	let content = $derived(currentPageTranslation[0]?.content);
+	/** The same lookup for a page the reader has not arrived at yet, to preload its images. */
+	function contentOf(pageNo: number) {
+		const translations: Array<{ lang: string; content?: string }> = pages[pageNo] ?? [];
+		return translations.find((translation) => translation.lang === getLocale())?.content;
+	}
 	// Glossary is stored on the conversation's metadata jsonb (edited in the admin Configure ->
 	// Glossary tab); terms get an auto tooltip in the rendered article, resolved to the
 	// participant's current locale (falling back to the conversation's primary locale).
@@ -82,18 +89,42 @@
 		return () => listen.detach(element);
 	});
 
+	/** How long the column takes to fade out, and back in once the new page is in place. */
+	const FADE_MS = 150;
+
+	let turning = $state(false);
+
+	/**
+	 * Turn to another page: fade the column out, swap while it is invisible, fade back in.
+	 *
+	 * The fade is not decoration. The old page turn swapped the article in the same frame it
+	 * scrolled back to the top, and any image on the new page then landed a moment later and
+	 * shoved the text it had already drawn. Fading covers the scroll, and the incoming page's
+	 * images are fetched during the same window, so by the time the markup is visible they
+	 * paint at their real size. A page whose images are already cached turns in FADE_MS flat.
+	 */
+	async function turnTo(pageNo: number) {
+		if (turning) return;
+		turning = true;
+
+		const faded = prefersReducedMotion() ? 0 : FADE_MS;
+		await Promise.all([
+			preloadImages(imageSourcesIn(contentOf(pageNo))),
+			new Promise((resolve) => setTimeout(resolve, faded))
+		]);
+
+		currentPageNo = pageNo;
+		await tick();
+		scrollStepToTop();
+		turning = false;
+	}
+
 	function nextPage() {
-		currentPageNo += 1;
-		tick().then(() => {
-			scrollStepToTop();
-		});
+		turnTo(currentPageNo + 1);
 	}
 
 	function prevPage() {
-		currentPageNo -= 1;
-		tick().then(() => {
-			scrollStepToTop();
-		});
+		turnTo(currentPageNo - 1);
 	}
 
 	// Learn's pages are the tool-internal sequence the pager traverses before it reaches the
@@ -114,7 +145,10 @@
 		scroller is the step's <main>, not this element. The padding is what keeps a long
 		article's heading off the progress bar in that case; it scales with the viewport so
 		a phone does not spend a quarter of its strip on it. -->
-	<div class="my-auto flex w-full flex-col py-[clamp(1.5rem,5vh,3rem)]">
+	<div
+		class="my-auto flex w-full flex-col py-[clamp(1.5rem,5vh,3rem)] transition-opacity duration-150 ease-out motion-reduce:transition-none"
+		class:opacity-0={turning}
+	>
 		{#if content}
 			{#if listen.available}
 				<div class="mx-auto mb-6 w-full max-w-[65ch]">
