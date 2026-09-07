@@ -18,6 +18,8 @@
 {:then invites}
 	{#if invites.err !== null}
 		<span class="text-muted-foreground font-bold">Could not load invites please try again</span>
+	{:else if invites.ok.emailInvites.length === 0}
+		<span class="text-muted-foreground font-bold">No email invites</span>
 	{:else}
 		<EmailInvitesList emailInvites={invites.ok.emailInvites}>
 			{#snippet inviteLink(invite)}
