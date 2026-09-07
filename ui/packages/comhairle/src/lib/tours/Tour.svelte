@@ -142,8 +142,8 @@
 			// A no-op rather than 'close': the tour ends by finishing it or by pressing Skip, and
 			// nothing else. driver.js runs a function here and does nothing further, so a tap
 			// outside is inert. The whole screen is a dismiss target otherwise, most of it under
-			// a thumb that was reaching for the step, and a tour dismissed by accident is one a
-			// participant cannot ask for again.
+			// a thumb that was reaching for the step. The menu can bring the tour back, but the
+			// participant who lost it to a slip does not know that yet.
 			//
 			// Not `allowClose: false`, which reads like the same thing and is not: driver.js puts
 			// Escape and the close button on one handler and drops `close` from the button list,

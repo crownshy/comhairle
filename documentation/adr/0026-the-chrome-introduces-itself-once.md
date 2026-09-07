@@ -55,9 +55,14 @@ moved on without it.
 
 **6. It ends by finishing it or by pressing Skip. A tap outside does nothing.** The overlay is
 the whole screen minus one control, most of it under a thumb that was reaching for the step,
-so dismiss-on-outside-tap is an accident waiting to happen, and the tour is offered once: a
-participant who loses it that way cannot ask for it back. Escape still ends it, because
+so dismiss-on-outside-tap is an accident waiting to happen. Escape still ends it, because
 pressing Escape is a decision rather than a slip, and Skip says in a word what it does.
+
+**7. It can be asked for again.** The step menu carries "Take the tour again" under About
+this conversation, on any step body. The tour opens itself only on a first run, but a
+participant who skipped it, or lost it to a slip, is not stuck with what they remember of it.
+The row is not offered on a cover or a completion screen, where most of what it circles is
+not on the screen.
 
 ## Consequences
 
@@ -66,9 +71,10 @@ pressing Escape is a decision rather than a slip, and Skip says in a word what i
   preview.
 - Storage that refuses to be written (private browsing, blocked site data) means the tour can
   appear again on the next visit. Shown twice was chosen over never shown at all.
-- Each caption names its place in words ("Top left: ...") rather than relying on the ring, so
-  it carries the same meaning read aloud. The card is a labelled dialog and focus moves to it
-  on every beat, which is what announces the new place; the ring is decorative and hidden.
+- Each caption names the control by the word on it ("Open **Hint** anytime...") rather than
+  relying on the ring, so it carries the same meaning read aloud. The card is a labelled
+  dialog and focus moves to it on every beat, which is what announces the new place; the ring
+  is decorative and hidden.
 - The four captions are copy that has to stay true to the chrome. If a control moves, the
   caption moves with it, and CONTEXT.md's Hint entry is where the wording is settled.
 - A control that is not on the screen is not in the tour, so a step with no brief gets three

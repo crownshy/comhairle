@@ -297,8 +297,9 @@
 	let canReopenBrief = $derived(phase === 'body' && briefSlides.length > 0);
 
 	/**
-	 * The one-time tour. It waits for the body phase because that is the first screen where
-	 * the places it names exist: the cover has no pager, no brief chip and no assistant.
+	 * The tour. It waits for the body phase because that is the first screen where the places
+	 * it names exist: the cover has no pager, no brief chip and no assistant. It opens itself
+	 * once, on a first run, and after that only when asked for from the step menu.
 	 *
 	 * The assistant beat is decided here, from the same two things that decide whether the
 	 * assistant renders, so the tour draws its first beat immediately instead of spending a
@@ -315,6 +316,9 @@
 		if (hasSeenTour(tour.id, conversation.id)) return;
 		tourOpen = true;
 	});
+
+	/** Offered in the menu only where the tour has something to circle. */
+	let replayTour = $derived(phase === 'body' ? () => (tourOpen = true) : undefined);
 
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString);
@@ -426,6 +430,7 @@
 			introUrl,
 			briefOpen,
 			onBrief: canReopenBrief ? toggleBrief : undefined,
+			onReplayTour: replayTour,
 			preview: isPreview
 		}}
 	>

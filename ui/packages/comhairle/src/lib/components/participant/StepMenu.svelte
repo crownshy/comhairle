@@ -10,7 +10,7 @@
 	import type { Component, ComponentType, SvelteComponent } from 'svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import { ChevronDown, Check, Lock, Sparkles, Moon, Sun } from 'lucide-svelte';
+	import { ChevronDown, Check, Lock, Sparkles, Moon, Sun, Compass } from 'lucide-svelte';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import CircleQuestionMark from '$lib/components/icons/CircleQuestionMark.svelte';
@@ -26,6 +26,7 @@
 		label,
 		onOpenLegal,
 		onOpenSupport,
+		onReplayTour,
 		assistantAvailable = false
 	}: {
 		steps: StepItem[];
@@ -36,6 +37,11 @@
 		onOpenLegal?: (doc: LegalDocId) => void;
 		/** Opens the support panel on a tab. Omitted, the support section is hidden. */
 		onOpenSupport?: (tab: SupportPanelTab) => void;
+		/**
+		 * Runs the step tour again. Omitted on a screen the tour has nothing to circle, which
+		 * is everything but a step body.
+		 */
+		onReplayTour?: () => void;
 		/** Whether this conversation has a Learning Assistant to offer. */
 		assistantAvailable?: boolean;
 	} = $props();
@@ -78,20 +84,19 @@
 		run: () => void;
 	};
 
-	let supportActions = $derived<MenuAction[]>(
-		!onOpenSupport
-			? []
-			: [
-					...(assistantAvailable
-						? [
-								{
-									id: 'assistant',
-									label: m.learning_assistant(),
-									icon: Sparkles,
-									run: () => onOpenSupport?.('learningAssistant')
-								}
-							]
-						: []),
+	let supportActions = $derived<MenuAction[]>([
+		...(onOpenSupport && assistantAvailable
+			? [
+					{
+						id: 'assistant',
+						label: m.learning_assistant(),
+						icon: Sparkles,
+						run: () => onOpenSupport?.('learningAssistant')
+					}
+				]
+			: []),
+		...(onOpenSupport
+			? [
 					{
 						id: 'faqs',
 						label: m.faq(),
@@ -99,7 +104,21 @@
 						run: () => onOpenSupport?.('faqs')
 					}
 				]
-	);
+			: []),
+		// Last in the section: the tour is the least often wanted of the three. The menu closes
+		// before it runs, since the tour's first beat is elsewhere and its menu beat wants the
+		// trigger, not an open list.
+		...(onReplayTour
+			? [
+					{
+						id: 'tour',
+						label: m.step_tour_replay(),
+						icon: Compass,
+						run: () => onReplayTour?.()
+					}
+				]
+			: [])
+	]);
 
 	// Keep the menu open: the mode is a thing you look at, and closing the menu to show the
 	// result means reopening it to change your mind.

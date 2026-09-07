@@ -21,6 +21,7 @@
 		introUrl,
 		briefOpen = false,
 		onBrief,
+		onReplayTour,
 		preview = false
 	}: {
 		steps: StepItem[];
@@ -48,6 +49,8 @@
 		 * landing page and a step with no description.
 		 */
 		onBrief?: () => void;
+		/** Runs the step tour again, from the menu. Omitted where there is no tour to run. */
+		onReplayTour?: () => void;
 		/**
 		 * Whether this is an admin's preview rather than the live conversation. Marked here,
 		 * in the chrome every participant page shares, instead of the full-width banner the
@@ -126,6 +129,7 @@
 				{assistantAvailable}
 				onOpenLegal={openLegal}
 				onOpenSupport={showSupport ? openSupport : undefined}
+				{onReplayTour}
 			/>
 		</div>
 	</div>
