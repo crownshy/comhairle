@@ -10,15 +10,19 @@
 		x = 'label',
 		y = 'value',
 		height = 300,
+		config = { primary: 'Label', secondary: 'Label' },
 		props: BarProps,
 		context = $bindable(),
 		...props
 	}: TwoAxisChartValues = $props();
 
-	const chartConfig = {
-		desktop: { label: 'label', color: 'var(--chart-1)' },
-		mobile: { label: 'label', color: 'var(--chart-2)' }
-	} satisfies Chart.ChartConfig;
+	let chartConfig = $derived.by<Chart.ChartConfig>(
+		() =>
+			({
+				key1: { label: config.primary, color: 'var(--chart-1)' },
+				key2: { label: config.secondary, color: 'var(--chart-2)' }
+			}) satisfies Chart.ChartConfig
+	);
 </script>
 
 <Chart.Container config={chartConfig}>

@@ -5,7 +5,6 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
-	import InviteLabelDialog from '$lib/components/InviteLabelDialog.svelte';
 
 	import { formatDistanceToNow } from 'date-fns';
 	import QrCode from 'svelte-qrcode';
@@ -13,7 +12,6 @@
 
 	import * as Table from '$lib/components/ui/table/index.js';
 	import CopyButton from '$lib/components/CopyButton.svelte';
-	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
 	import { inviteUrl, embedInviteUrl } from '$lib/utils/invites.js';
 	import { key } from '$lib/utils/invalidationKey.js';
@@ -131,12 +129,7 @@
 										: 'Never'}
 								</Table.Cell>
 
-								<Table.Cell>
-									<OpenInviteStatsBarChart
-										conversation_id={conversation.id}
-										invite_id={invite.id}
-									/>
-								</Table.Cell>
+								<Table.Cell></Table.Cell>
 
 								<Table.Cell class="text-center font-medium tabular-nums">
 									{invite.acceptCount}
@@ -174,10 +167,3 @@
 {:else if activeTab === 'physical'}
 	<h2>Generate physical QR Codes for an inperson event</h2>
 {/if}
-
-<InviteLabelDialog
-	bind:open={labelDialogOpen}
-	invite={selectedInvite}
-	conversationId={conversation.id}
-	onSave={handleLabelSaved}
-/>

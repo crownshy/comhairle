@@ -1,24 +1,20 @@
 <script lang="ts">
 	import { scaleBand, scaleUtc } from 'd3-scale';
 	import { BarChart, type ChartContextValue } from 'layerchart';
-	import TrendingUpIcon from '@lucide/svelte/icons/trending-up';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { cubicInOut } from 'svelte/easing';
-	import { Spinner } from './ui/spinner';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { DailyResponseStats } from '@crownshy/api-client/api';
 	import { parseISO } from 'date-fns';
-
-	let chartData: undefined | Array<DailyResponseStats> = $state();
-	let loading = $state(false);
 
 	type Props = {
 		invite_id: string;
 		conversation_id: string;
 	};
 
-	let { invite_id, conversation_id } = $props();
+	let { invite_id, conversation_id }: Props = $props();
 
 	$effect(() => {
 		loading = true;
@@ -33,6 +29,9 @@
 				chartData = transformed_stats;
 			});
 	});
+
+	let chartData: undefined | Array<DailyResponseStats> = $state();
+	let loading = $state(false);
 
 	const chartConfig = {
 		accepts: { label: 'Accepts', color: 'var(--secondary)' },

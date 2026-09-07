@@ -16,4 +16,5 @@ export interface TwoAxisChartValues<T = Record<string, unknown>> extends Omit<
 	data: T[] | undefined;
 	x: keyof T;
 	y: keyof T;
+	config?: { primary: string; secondary: string };
 }
