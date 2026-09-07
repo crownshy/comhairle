@@ -32,8 +32,8 @@ use crate::{
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep},
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
-use crate::models::{self, conversation, user_participation};
+use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::models::{self, conversation};
 use axum::extract::{FromRequestParts, Query};
 
 #[derive(Deserialize, JsonSchema, Debug, Default)]
@@ -154,11 +154,16 @@ fn collect_tool_config_text_content_ids<T: WithToolConfig>(steps: &[T]) -> Vec<T
     ids.into_iter().collect()
 }
 
-/// List workflows handler
+/// List workflow steps.
+///
+/// Visitors who have not signed in can read the step list of a live conversation: the landing
+/// page shows what taking part involves before anyone is asked to join. They get the same
+/// sanitised list a signed-in non-owner does. Translations and per-user progress still need a
+/// user, and translations need an admin.
 #[instrument(err(Debug), skip(state))]
 async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
+    OptionalUser(user): OptionalUser,
     SourcePathCtx {
         conversation_id,
         event_id: _,
@@ -168,14 +173,19 @@ async fn list_workflows_step(
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<WorkflowStepsListResponse>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    let conversation_owner = user.id == conversation.owner_id;
 
-    user_participation::get(&state.db, &user.id, &workflow_id)
-        .await
-        .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
+    if user.is_none() && !conversation.is_live {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
 
-    let should_return_with_translations =
-        query.with_translations && is_user_admin(&state, &user).await;
+    let conversation_owner = user
+        .as_ref()
+        .is_some_and(|user| user.id == conversation.owner_id);
+
+    let should_return_with_translations = match &user {
+        Some(user) => query.with_translations && is_user_admin(&state, user).await,
+        None => false,
+    };
 
     if should_return_with_translations {
         let steps = workflow_step::list_with_translations(&state.db, &workflow_id, &locale).await?;
@@ -198,7 +208,7 @@ async fn list_workflows_step(
                 steps_with_full_translations,
             )),
         ))
-    } else if query.with_user_progress {
+    } else if let (true, Some(user)) = (query.with_user_progress, &user) {
         let steps_with_progress =
             workflow_step::list_localized_with_progress(&state.db, &workflow_id, &locale, &user.id)
                 .await?;
@@ -336,9 +346,9 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                         "
 List the workflow steps associated with this workflow.\n
 Use query param withTranslations=true to get the translation data for each step.\n
-Use query param withUserProgress=true to get the active user's progress status for each step.",
+Use query param withUserProgress=true to get the active user's progress status for each step.\n
+Signing in is optional: visitors get the sanitised step list of a live conversation.",
                     )
-                    .security_requirement("JWT")
                     .response::<200, Json<WorkflowStepsListResponse>>()
             }),
         )
