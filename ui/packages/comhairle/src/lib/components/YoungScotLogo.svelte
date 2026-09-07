@@ -5,16 +5,16 @@
 		/** Wordmark lines. `subtitle` is the Gaelic line; empty drops it. */
 		title?: string;
 		subtitle?: string;
-		domain?: string;
+		secondTitle?: string;
 		class?: string;
 	};
 
 	let {
 		showText = true,
 		logoSize = 'md',
-		title = 'Young Scot',
+		title = 'Testing with',
 		subtitle = '',
-		domain = 'young.scot',
+		secondTitle = 'Scottish Government',
 		class: className = ''
 	}: Props = $props();
 
@@ -34,7 +34,7 @@
 
 <span
 	role="img"
-	aria-label={[title, subtitle, domain].filter(Boolean).join(', ')}
+	aria-label={[title, subtitle, secondTitle].filter(Boolean).join(', ')}
 	class="inline-flex shrink-0 items-center gap-2 {className}"
 >
 	<svg
@@ -62,7 +62,7 @@
 				{#if subtitle}
 					<span class="opacity-60">{subtitle}</span>
 				{/if}
-				<span class="font-semibold">{domain}</span>
+				<span class="font-semibold">{secondTitle}</span>
 			</span>
 		</span>
 	{/if}
