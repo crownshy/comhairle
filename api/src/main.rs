@@ -1,4 +1,8 @@
 use aws_config::BehaviorVersion;
+use axum_keycloak_auth::{
+    Url,
+    instance::{KeycloakAuthInstance, KeycloakConfig},
+};
 use comhairle::auth_service::{AuthService, keycloak::KeycloakClient};
 use comhairle::redis_connection::RedisImpl;
 use comhairle::{
@@ -157,6 +161,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let video_call_handler = Arc::new(VideoCallMessageHandler::new());
 
+    let keycloak_auth_instance = Arc::new(KeycloakAuthInstance::new(
+        KeycloakConfig::builder()
+            .server(Url::parse(&config.auth_service.clone().unwrap().url).unwrap())
+            .realm(config.auth_service.clone().unwrap().realm)
+            .build(),
+    ));
+
     let state = Arc::new(ComhairleState {
         db,
         mailer,
@@ -167,6 +178,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         transcription_service,
         bot_service,
         auth_service,
+        keycloak_auth_instance,
         wiki_poll_service,
         worker_service,
         bulk_storage_service,
