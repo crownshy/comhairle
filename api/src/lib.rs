@@ -27,6 +27,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::{HeaderValue, Method, header},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use bot_service::ComhairleBotService;
 use clap::Parser;
 use config::ComhairleConfig;
@@ -69,6 +70,7 @@ pub struct ComhairleState {
     pub video_call_handler: Arc<VideoCallMessageHandler>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub auth_service: Option<Arc<dyn AuthService>>,
+    pub keycloak_auth_instance: Arc<KeycloakAuthInstance>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub wiki_poll_service: Arc<dyn WikiPollService>,
     pub bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
