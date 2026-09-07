@@ -1245,24 +1245,35 @@ mod tests {
         calls.insert(event_id, state);
     }
 
+    /// Waits for the agenda update, skipping any other frame that arrives first.
+    ///
+    /// The pubsub channel is shared with every other test talking to the same Redis, and
+    /// nextest runs each test in its own process, so `#[serial]` cannot keep a concurrent
+    /// test's `broadcast_to_all` notification out of this receiver.
     async fn assert_received_agenda_update(
         receiver: &mut mpsc::UnboundedReceiver<Message>,
         who: &str,
     ) {
-        let msg = tokio::time::timeout(std::time::Duration::from_millis(1000), receiver.recv())
-            .await
-            .unwrap_or_else(|_| panic!("{who} timed out waiting for a message"))
-            .unwrap_or_else(|| panic!("{who} channel closed"));
-        let text = msg.to_text().expect("text frame");
-        let ws_msg: WebSocketMessage = serde_json::from_str(text).expect("parse ws message");
-        match ws_msg {
-            WebSocketMessage::Custom { event, .. } => {
-                assert_eq!(
-                    event, "video_call:agenda_updated",
-                    "{who} received wrong event"
-                );
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_millis(1000);
+        loop {
+            let msg = tokio::time::timeout_at(deadline, receiver.recv())
+                .await
+                .unwrap_or_else(|_| panic!("{who} timed out waiting for the agenda update"))
+                .unwrap_or_else(|| panic!("{who} channel closed"));
+            let text = msg.to_text().expect("text frame");
+            let ws_msg: WebSocketMessage = serde_json::from_str(text).expect("parse ws message");
+            match ws_msg {
+                WebSocketMessage::Custom { event, .. } => {
+                    assert_eq!(
+                        event, "video_call:agenda_updated",
+                        "{who} received wrong event"
+                    );
+                    return;
+                }
+                other => {
+                    eprintln!("{who} skipping unrelated frame from a concurrent test: {other:?}")
+                }
             }
-            other => panic!("{who} expected Custom message, got {other:?}"),
         }
     }
 
