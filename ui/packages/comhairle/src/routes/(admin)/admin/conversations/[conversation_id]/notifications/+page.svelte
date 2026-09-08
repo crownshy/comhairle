@@ -19,34 +19,14 @@
 	import { jsonToHtml } from '$lib/utils/rich-text';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import TabContent from '../TabContent.svelte';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
-	let { params } = $props();
+	const { data, params } = $props();
 
-	let participantCount = $state<number | null>(null);
-	let emailRecipients = $state<string[]>([]);
 	let recipientsError = $state<string | null>(null);
 	let recipientsLoading = $state(true);
 	let recipientsOpen = $state(false);
-
-	async function loadRecipients() {
-		recipientsLoading = true;
-		recipientsError = null;
-		try {
-			const response = await apiClient.GetNotificationRecipients({
-				params: { conversation_id: params.conversation_id }
-			});
-			participantCount = response.participantCount;
-			emailRecipients = response.emailRecipients;
-		} catch (error: any) {
-			recipientsError = error?.response?.data?.message || 'Could not load recipient preview.';
-		} finally {
-			recipientsLoading = false;
-		}
-	}
-
-	$effect(() => {
-		loadRecipients();
-	});
 
 	const notificationForm = superForm(
 		{
@@ -132,7 +112,7 @@
 			}
 
 			reset({ data: { title: '', content: '', delivery_method: $form.delivery_method } });
-			loadRecipients();
+			invalidate(key('conversation/notifications/recipients'));
 		} catch (error: any) {
 			notifications.send({
 				message:
@@ -340,20 +320,23 @@
 					<h2 class="text-sm font-semibold">Recipients preview</h2>
 				</div>
 
-				{#if recipientsLoading}
-					<p class="text-muted-foreground text-sm">Loading…</p>
-				{:else if recipientsError}
-					<p class="text-destructive text-sm">{recipientsError}</p>
-				{:else if isEmail}
-					{#if emailRecipients.length === 0}
+				{#await data.streamedRecipients}
+					<span class="text-muted-foreground text-sm">Loading…</span>
+				{:then recipients}
+					{#if recipients.err !== null}
+						<span class="text-destructive text-sm">{recipients.err}</span>
+					{:else if recipients.ok.emailRecipients.length === 0}
 						<p class="text-muted-foreground text-sm">
 							No participants have opted in to email updates yet.
 						</p>
-					{:else}
+					{:else if recipients.ok.emailRecipients.length > 0}
 						<p class="text-sm">
 							This email will be sent to
-							<span class="font-semibold">{emailRecipients.length}</span>
-							{emailRecipients.length === 1 ? 'recipient' : 'recipients'}.
+							<span class="font-semibold">{recipients.ok.emailRecipients.length}</span
+							>
+							{recipients.ok.emailRecipients.length === 1
+								? 'recipient'
+								: 'recipients'}.
 						</p>
 						<Collapsible.Root bind:open={recipientsOpen} class="mt-2">
 							<Collapsible.Trigger
@@ -370,24 +353,26 @@
 								<ul
 									class="bg-muted/40 mt-2 max-h-64 list-inside list-disc overflow-y-auto rounded-md p-3 font-mono text-xs"
 								>
-									{#each emailRecipients as email (email)}
+									{#each recipients.ok.emailRecipients as email (email)}
 										<li>{email}</li>
 									{/each}
 								</ul>
 							</Collapsible.Content>
 						</Collapsible.Root>
+					{:else if recipients.ok.participantCount === 0}
+						<p class="text-muted-foreground text-sm">
+							No participants have joined any workflows in this conversation yet.
+						</p>
+					{:else}
+						<p class="text-sm">
+							This notification will be sent to
+							<span class="font-semibold">{recipients.ok.participantCount}</span>
+							workflow {recipients.ok.participantCount === 1
+								? 'participant'
+								: 'participants'}.
+						</p>
 					{/if}
-				{:else if participantCount === 0}
-					<p class="text-muted-foreground text-sm">
-						No participants have joined any workflows in this conversation yet.
-					</p>
-				{:else}
-					<p class="text-sm">
-						This notification will be sent to
-						<span class="font-semibold">{participantCount}</span>
-						workflow {participantCount === 1 ? 'participant' : 'participants'}.
-					</p>
-				{/if}
+				{/await}
 			</div>
 
 			{#if failedRecipients.length > 0}

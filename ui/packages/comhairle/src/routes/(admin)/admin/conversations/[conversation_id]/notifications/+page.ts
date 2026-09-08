@@ -1,7 +1,10 @@
 import type { PageLoad } from './$types';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { key } from '$lib/utils/invalidationKey';
 
-export const load: PageLoad = async ({ parent, params }) => {
+export const load: PageLoad = async ({ parent, params, depends }) => {
+	depends(key('conversation/notifications/recipients'));
+
 	const { api } = await parent();
 
 	return {
