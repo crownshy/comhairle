@@ -17,9 +17,19 @@ export const load: PageLoad = async ({ parent, params }) => {
 					invites.ok.openInvites.map((openInvite) => [
 						openInvite.id,
 						tryCatchAsync(() =>
-							api.GetInviteStats({
-								params: { conversation_id, invite_id: openInvite.id }
-							})
+							api
+								.GetInviteStats({
+									params: { conversation_id, invite_id: openInvite.id }
+								})
+								.then((stats) =>
+									stats.map((s) => ({
+										...s,
+										day: new Date(s.day).toLocaleDateString('en-US', {
+											month: 'short',
+											day: '2-digit'
+										})
+									}))
+								)
 						)
 					])
 				)
