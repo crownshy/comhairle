@@ -9,7 +9,7 @@ export const load: LayoutLoad = async ({ parent, depends, params }) => {
 	const { conversation_id } = params;
 
 	return {
-		invites: tryCatchAsync(() =>
+		streamedInvites: tryCatchAsync(() =>
 			api
 				.ListInvitesForConversation({
 					params: { conversation_id }

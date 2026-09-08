@@ -13,8 +13,8 @@
 	conversationId={data.conversation.id}
 	onDone={() => void invalidate(key('conversation/invites'))}
 />
-{#await data.invites}
-	<Skeleton />
+{#await data.streamedInvites}
+	<Skeleton class="h-42 w-full" />
 {:then invites}
 	{#if invites.err !== null}
 		<span class="text-muted-foreground font-bold">Could not load invites please try again</span>
