@@ -16,7 +16,10 @@ type Series<T> = {
 };
 
 // TODO: Try and get type-safety
-export type TwoAxisChartValues<T extends object> = Omit<BarChartProps<T>, 'data' | 'x' | 'y'> & {
+export type TwoAxisChartValues<T = Record<string, unknown>> = Omit<
+	BarChartProps<T>,
+	'data' | 'x' | 'y'
+> & {
 	config:
 		| {
 				type: 'normal';

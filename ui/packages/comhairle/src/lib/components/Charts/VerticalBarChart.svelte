@@ -13,13 +13,10 @@
 		...props
 	}: TwoAxisChartValues = $props();
 
-	let chartConfig = $derived.by<Chart.ChartConfig>(
-		() =>
-			({
-				key1: { label: 'Label', color: 'var(--chart-1)' },
-				key2: { label: 'Value', color: 'var(--chart-2)' }
-			}) satisfies Chart.ChartConfig
-	);
+	let chartConfig = {
+		key1: { label: 'Label', color: 'var(--chart-1)' },
+		key2: { label: 'Value', color: 'var(--chart-2)' }
+	} satisfies Chart.ChartConfig;
 </script>
 
 <Chart.Container config={chartConfig}>
