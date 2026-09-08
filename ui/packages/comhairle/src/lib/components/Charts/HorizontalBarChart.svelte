@@ -6,8 +6,7 @@
 	import VerticalBarChart from './VerticalBarChart.svelte';
 
 	let {
-		x = 'value',
-		y = 'label',
+		config,
 		props: BarProps,
 		...props
 	}: Omit<ComponentProps<typeof VerticalBarChart>, 'orientation'> = $props();
@@ -37,8 +36,7 @@
 		}
 	}}
 	orientation="horizontal"
-	{y}
-	{x}
+	{config}
 	labels
 	xScale={undefined}
 	yScale={scaleBand().paddingOuter(0.4).paddingInner(0.4)}

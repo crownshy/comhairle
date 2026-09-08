@@ -6,11 +6,8 @@
 	import type { TwoAxisChartValues } from '$lib/components/Charts/types';
 
 	let {
-		data,
-		x = 'label',
-		y = 'value',
+		config,
 		height = 300,
-		config = { primary: 'Label', secondary: 'Label' },
 		props: BarProps,
 		context = $bindable(),
 		...props
@@ -19,8 +16,8 @@
 	let chartConfig = $derived.by<Chart.ChartConfig>(
 		() =>
 			({
-				key1: { label: config.primary, color: 'var(--chart-1)' },
-				key2: { label: config.secondary, color: 'var(--chart-2)' }
+				key1: { label: 'Label', color: 'var(--chart-1)' },
+				key2: { label: 'Value', color: 'var(--chart-2)' }
 			}) satisfies Chart.ChartConfig
 	);
 </script>
@@ -28,9 +25,10 @@
 <Chart.Container config={chartConfig}>
 	<BarChart
 		bind:context
-		{data}
-		{x}
-		{y}
+		data={config.data}
+		x={config.x}
+		y={config.y}
+		series={config.series}
 		props={{
 			bars: {
 				stroke: 'none',

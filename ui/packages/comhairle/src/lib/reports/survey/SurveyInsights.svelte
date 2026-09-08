@@ -53,9 +53,12 @@
 						<Doughnut data={section.answers} key="label" value="count" />
 					{:else}
 						<SurveyBarChart
-							data={section.answers}
-							x="label"
-							y="count"
+							config={{
+								type: 'normal',
+								data: section.answers,
+								x: 'label',
+								y: 'count'
+							}}
 							kind={section.kind}
 						/>
 					{/if}

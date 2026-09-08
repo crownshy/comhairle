@@ -120,7 +120,21 @@
 															<VerticalBarChart
 																data={inviteStats.ok}
 																x="day"
-																y=""
+																y={undefined}
+																axis="x"
+																height={100}
+																series={[
+																	{
+																		key: 'accepts',
+																		label: 'Accepts',
+																		color: "var(--chart-1)"
+																	},
+																	{
+																		key: 'rejects',
+																		label: 'Rejects',
+																		color: "var(--chart-2)"
+																	}
+																]}
 																config={{
 																	primary: 'Rejected',
 																	secondary: 'Accepted'
