@@ -8,8 +8,6 @@
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
-	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
-	import { INVITE_SUBTABS } from './invites/tabs';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
@@ -35,27 +33,6 @@
 			.replace(/\/+$/, '')
 			.startsWith(`/admin/conversations/${conversation.id}/design/step/`)
 	);
-
-	// Recruit (invites) is the same shape as Configure: a static `?subtab=` strip over one page,
-	// so we server-render it here from INVITE_SUBTABS instead of a client `$effect`.
-	let isInvitesSection = $derived(
-		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/invites`
-	);
-
-	// The Events section shows the events strip (Row 3) on every /events* page, rendered from
-	// `data.events` like the workflow step strip. Event *detail* pages additionally show a static
-	// `?subtab=` strip (Row 4). Both are server-rendered here rather than injected via `$effect`.
-	let eventsBase = $derived(`/admin/conversations/${conversation.id}/events`);
-	let isEventsSection = $derived.by(() => {
-		const path = page.url.pathname.replace(/\/+$/, '');
-		return path === eventsBase || path.startsWith(`${eventsBase}/`);
-	});
-	// A single event: /events/<id> (not the list, not /events/new). Its detail sub-tabs are the
-	// only thing on Row 4 here now.
-	let isEventDetailPage = $derived.by(() => {
-		const path = page.url.pathname.replace(/\/+$/, '');
-		return path.startsWith(`${eventsBase}/`) && path !== `${eventsBase}/new`;
-	});
 
 	// A workflow step's sub-tabs (Configure/Setup/Moderation/Insights) are real routes, so
 	// navigating between them changes the pathname. That's *not* a section switch: Row 3, Row 4
@@ -251,8 +228,6 @@
 				widths={primaryStripSkeleton.widths}
 			/>
 		{/if}
-	{:else if isInvitesSection}
-		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
 	{/if}
 
 	{#if conversation.isComplete}
