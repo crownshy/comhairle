@@ -12,7 +12,7 @@ export interface OneAxisChartValues<T = Record<string, unknown>> extends Omit<
 type Series<T> = {
 	key: T;
 	label: string;
-	colour: 'primary' | 'secondary' | 'tertiary' | 'quarternary' | 'quinary';
+	color: string;
 };
 
 // TODO: Try and get type-safety

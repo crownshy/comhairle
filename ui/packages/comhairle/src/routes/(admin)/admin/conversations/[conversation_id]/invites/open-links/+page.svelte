@@ -135,7 +135,6 @@
 																		}
 																	]
 																}}
-																data={inviteStats.ok}
 																height={100}
 															/>
 														</Card.Content>
