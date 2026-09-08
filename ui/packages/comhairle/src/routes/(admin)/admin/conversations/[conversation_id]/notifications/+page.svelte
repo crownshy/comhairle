@@ -21,11 +21,11 @@
 	import TabContent from '../TabContent.svelte';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { SendEmailNotificationResponse, type ApiError } from '@crownshy/api-client/api';
 
 	const { data, params } = $props();
 
-	let recipientsError = $state<string | null>(null);
-	let recipientsLoading = $state(true);
 	let recipientsOpen = $state(false);
 
 	const notificationForm = superForm(
@@ -50,9 +50,12 @@
 
 	let submitting = $state<boolean>(false);
 
-	let failedRecipients = $state<string[]>([]);
-	let lastSendMessage = $state<string | null>(null);
-	let lastSendStatus = $state<'partial' | 'failed' | null>(null);
+	type Failed = {
+		recipients: string[];
+		error: string;
+		status: 'partial' | 'failed';
+	};
+	let failed = $state<Failed | null>(null);
 
 	async function sendNotification({ cancel }: { cancel: () => void }) {
 		// Prevent SvelteKit's default form submission — this page has no
@@ -63,64 +66,56 @@
 		const result = await validateForm({ update: true });
 		if (!result.valid) return;
 
-		// Clear any prior failure state at the start of a fresh attempt.
-		failedRecipients = [];
-		lastSendMessage = null;
-		lastSendStatus = null;
+		failed = null;
 
 		const isEmail = $form.delivery_method === 'email';
-		try {
-			const payload = {
-				title: $form.title,
-				content: $form.content,
-				notification_type: 'info' as const,
-				delivery_method: $form.delivery_method,
-				...(isEmail ? { html_content: jsonToHtml($form.content) } : {})
-			};
 
-			const response = await apiClient.SendNotificationToParticipants(payload, {
+		const payload = {
+			title: $form.title,
+			content: $form.content,
+			notification_type: 'info' as const,
+			delivery_method: $form.delivery_method,
+			...(isEmail ? { html_content: jsonToHtml($form.content) } : {})
+		};
+
+		const response = await tryCatchAsync<SendEmailNotificationResponse, ApiError>(() =>
+			apiClient.SendNotificationToParticipants(payload, {
 				params: { conversation_id: params.conversation_id }
-			});
+			})
+		);
 
-			const failed = response.failedRecipients ?? [];
-			const sentCount = response.participantsNotified ?? 0;
-
-			if (failed.length > 0 && sentCount === 0) {
-				failedRecipients = failed;
-				lastSendMessage = response.message;
-				lastSendStatus = 'failed';
-				notifications.send({
-					message: response.message,
-					priority: 'ERROR'
-				});
-				return;
-			}
-
-			if (failed.length > 0) {
-				failedRecipients = failed;
-				lastSendMessage = response.message;
-				lastSendStatus = 'partial';
-				notifications.send({
-					message: response.message,
-					priority: 'WARNING'
-				});
-			} else {
-				notifications.send({
-					message: response.message || 'Sent successfully!',
-					priority: 'SUCCESS'
-				});
-			}
-
-			reset({ data: { title: '', content: '', delivery_method: $form.delivery_method } });
-			invalidate(key('conversation/notifications/recipients'));
-		} catch (error: any) {
+		if (response.err !== null) {
 			notifications.send({
 				message:
-					error?.response?.data?.message ||
+					response.err.message ||
 					`Failed to send ${isEmail ? 'email' : 'notification'}. Please try again.`,
 				priority: 'ERROR'
 			});
+			return;
 		}
+
+		const { failedRecipients, participantsNotified } = response.ok;
+
+		if (failedRecipients.length > 0) {
+			failed = {
+				recipients: failedRecipients,
+				error: response.ok.message,
+				status: participantsNotified === 0 ? 'failed' : 'partial'
+			};
+			notifications.send({
+				message: response.ok.message,
+				priority: participantsNotified === 0 ? 'ERROR' : 'WARNING'
+			});
+			return;
+		}
+
+		notifications.send({
+			message: response.ok.message || 'Sent successfully!',
+			priority: 'SUCCESS'
+		});
+
+		reset({ data: { title: '', content: '', delivery_method: $form.delivery_method } });
+		invalidate(key('conversation/notifications/recipients'));
 	}
 
 	let testDialogOpen = $state(false);
@@ -146,8 +141,9 @@
 		}
 
 		testSending = true;
-		try {
-			const response = await apiClient.SendNotificationToParticipants(
+
+		const response = await tryCatchAsync<SendEmailNotificationResponse, ApiError>(() =>
+			apiClient.SendNotificationToParticipants(
 				{
 					title: $form.title,
 					content: $form.content,
@@ -157,21 +153,23 @@
 					test_email_recipient: recipient
 				},
 				{ params: { conversation_id: params.conversation_id } }
-			);
+			)
+		);
 
-			notifications.send({
-				message: response.message || `Test email sent to ${recipient}`,
-				priority: 'SUCCESS'
-			});
+		testSending = false;
 
-			testDialogOpen = false;
-			testEmailAddress = '';
-		} catch (error: any) {
-			testEmailError =
-				error?.response?.data?.message || 'Failed to send test email. Please try again.';
-		} finally {
-			testSending = false;
+		if (response.err !== null) {
+			testEmailError = response.err.message || 'Failed to send test email. Please try again.';
+			return;
 		}
+
+		notifications.send({
+			message: response.ok.message || `Test email sent to ${recipient}`,
+			priority: 'SUCCESS'
+		});
+
+		testDialogOpen = false;
+		testEmailAddress = '';
 	}
 
 	let isEmail = $derived($form.delivery_method === 'email');
@@ -181,9 +179,7 @@
 		if ($form.delivery_method !== lastDeliveryMethod) {
 			lastDeliveryMethod = $form.delivery_method;
 			$form.content = '';
-			failedRecipients = [];
-			lastSendMessage = null;
-			lastSendStatus = null;
+			failed = null;
 		}
 	});
 </script>
@@ -375,24 +371,22 @@
 				{/await}
 			</div>
 
-			{#if failedRecipients.length > 0}
+			{#if failed !== null}
 				<Alert.Root variant="destructive">
 					<AlertTriangle class="h-4 w-4" />
 					<Alert.Title>
-						{lastSendStatus === 'failed'
+						{failed.status === 'failed'
 							? 'Email delivery failed'
 							: 'Some recipients did not receive the email'}
 					</Alert.Title>
 					<Alert.Description>
-						{#if lastSendMessage}
-							<p class="mb-2">{lastSendMessage}</p>
-						{/if}
+						<p class="mb-2">{failed.error}</p>
 						<p class="font-medium">
-							{failedRecipients.length}
-							{failedRecipients.length === 1 ? 'address' : 'addresses'} could not be reached:
+							{failed.recipients.length}
+							{failed.recipients.length === 1 ? 'address' : 'addresses'} could not be reached:
 						</p>
 						<ul class="mt-1 list-inside list-disc font-mono text-sm">
-							{#each failedRecipients as email (email)}
+							{#each failed.recipients as email (email)}
 								<li>{email}</li>
 							{/each}
 						</ul>
