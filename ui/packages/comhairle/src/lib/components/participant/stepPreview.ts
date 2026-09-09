@@ -57,13 +57,3 @@ export function stepPreviews(steps: RawStep[] | null | undefined): StepPreview[]
 			};
 		});
 }
-
-/**
- * Total estimated minutes across the steps.
- *
- * Each step contributes the same estimate its own cover quotes, derived from that step's
- * config by {@link estimateMinutes}. See CONTEXT.md, Estimated time.
- */
-export function totalMinutes(previews: StepPreview[]): number {
-	return previews.reduce((sum, s) => sum + (s.minutes ?? 0), 0);
-}

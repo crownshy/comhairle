@@ -11,36 +11,18 @@
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import * as m from '$lib/paraglide/messages';
 	import { ChevronDown } from 'lucide-svelte';
-	import { totalMinutes, type StepPreview } from '$lib/components/participant/stepPreview';
 	import { conversationImageUrl } from '$lib/utils/conversationImage';
 
 	let {
 		conversation,
-		steps,
 		onReadMore
 	}: {
 		conversation: LocalizedConversationDto;
-		steps: StepPreview[];
 		/** Scrolls to the detail below. Omitted when there is no detail to scroll to. */
 		onReadMore?: () => void;
 	} = $props();
 
-	let minutes = $derived(totalMinutes(steps));
-
 	let imageUrl = $derived(conversationImageUrl(conversation.imageUrl));
-
-	let metaLine = $derived(
-		[
-			steps.length
-				? steps.length === 1
-					? m.landing_step_count_one({ count: steps.length })
-					: m.landing_step_count({ count: steps.length })
-				: null,
-			minutes > 0 ? m.landing_approx_minutes({ count: minutes }) : null
-		]
-			.filter(Boolean)
-			.join('  ·  ')
-	);
 </script>
 
 <section

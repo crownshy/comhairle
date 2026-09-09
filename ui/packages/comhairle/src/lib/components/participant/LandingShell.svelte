@@ -76,7 +76,7 @@
 			{preview}
 		/>
 
-		<StepZeroScreen {conversation} {steps} {onReadMore} />
+		<StepZeroScreen {conversation} {onReadMore} />
 	</div>
 {/if}
 
