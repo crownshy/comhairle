@@ -96,7 +96,7 @@ pub struct SseEvent {
     pub message_id: String,
     pub created_at: i64,
     pub task_id: String,
-    pub session_id: String,
+    pub session_id: Option<String>,
     pub data: SseData,
 }
 
@@ -108,6 +108,8 @@ pub struct SseData {
     pub outputs: Option<SseOutputs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub component_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
