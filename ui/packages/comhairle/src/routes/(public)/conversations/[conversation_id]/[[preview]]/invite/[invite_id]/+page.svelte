@@ -65,7 +65,7 @@
 				});
 			} else {
 				await acceptInvite();
-				await goto(firstWorkflowPath + url.search, { invalidate: ['app:participation'] });
+				await goto(firstWorkflowPath + url.search, { invalidate: [key('participation')] });
 			}
 		} catch (e) {
 			console.error(e);
