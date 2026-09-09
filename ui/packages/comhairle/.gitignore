@@ -27,3 +27,9 @@ vite.config.ts.timestamp-*
 src/lib/paraglide
 
 *storybook.log
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

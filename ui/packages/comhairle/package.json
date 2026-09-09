@@ -14,6 +14,8 @@
 		"test:unit": "vitest --run",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
+		"test:e2e:debug": "playwright test --debug",
+		"test:e2e:generate": "playwright codegen localhost:4173",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},
@@ -25,7 +27,7 @@
 		"@iconify/svelte": "^5.0.1",
 		"@inlang/paraglide-js": "^2.20.2",
 		"@lucide/svelte": "^0.544.0",
-		"@playwright/test": "^1.49.1",
+		"@playwright/test": "^1.63.0",
 		"@sinclair/typebox": ">=0.32.30 <1",
 		"@storybook/addon-docs": "^9.1.6",
 		"@storybook/addon-svelte-csf": "^5.0.8",
