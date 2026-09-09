@@ -92,7 +92,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-6 border-b py-5">
 	<div>
 		<h3 class="text-lg font-medium">Account Details</h3>
 		<p class="text-muted-foreground text-sm">Update your username and password here.</p>

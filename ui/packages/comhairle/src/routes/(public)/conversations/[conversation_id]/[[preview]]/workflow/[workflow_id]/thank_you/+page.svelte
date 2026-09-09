@@ -32,9 +32,9 @@
 	{/if}
 
 	{#if conversation.showThankYouPageAnnonInstructions}
-		{#if user.authType === 'annon'}
-			<p>You are currently signed in as an anonymous user. Use your anonymous id</p>
-			<h2 class="text-center">{user.username}</h2>
+		{#if user.authType === 'guest'}
+			<p>You are currently signed in as a guest user. Use your guest id</p>
+			<h2 class="text-center">{user.guestCode}</h2>
 			<p>to log back in at a later time to see the results of the conversations.</p>
 		{:else}
 			<p>
@@ -90,7 +90,7 @@
 
 		<h2>Keep informed</h2>
 
-		{#if user.authType === 'annon'}
+		{#if user.authType === 'guest'}
 			<p>
 				To receive updates on this conversation and future conversations, either update to a
 				full account
@@ -110,7 +110,7 @@
 			</p>
 			<UserConversationPreferencesForm
 				conversationId={conversation.id}
-				isAnnon={user.authType === 'annon'}
+				isGuest={user.authType === 'guest'}
 			/>
 		{/if}
 	{:else}
