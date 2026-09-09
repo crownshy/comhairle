@@ -14,7 +14,7 @@
 	import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
 
-	export type TFBaseProps = {
+	export type TranslatableFieldBaseProps = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
 		source: TranslationSource;
 		primaryLocale: Locale;
@@ -40,7 +40,7 @@
 	// `inputProps` is typed against whichever underlying element `inputType` selects, so callers
 	// get element-correct autocomplete/checking at the call site. TS can't carry that correlation
 	// through the `$props()` destructure (see the cast at the spread below).
-	export type TFInputProps =
+	export type TranslatableFieldInputProps =
 		| { inputType?: 'input'; inputProps?: ComponentProps<typeof Input> }
 		| { inputType?: 'textarea'; inputProps?: ComponentProps<typeof Textarea> };
 
@@ -60,7 +60,7 @@
 		availableDocuments = [],
 		conversationId,
 		reportEmbedSteps = []
-	}: TFBaseProps & TFInputProps = $props();
+	}: TranslatableFieldBaseProps & TranslatableFieldInputProps = $props();
 
 	let dialogOpen = $state(false);
 	let clickedLang = $state<Locale | undefined>(undefined);

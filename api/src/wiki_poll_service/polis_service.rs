@@ -753,6 +753,33 @@ impl WikiPollService for PolisClient {
         Ok(xids)
     }
 
+    #[instrument(err(Debug), skip(self, auth_cookies))]
+    async fn get_participant_vote_count(
+        &self,
+        poll_id: &str,
+        pid: u32,
+        auth_cookies: &str,
+    ) -> Result<u32, WikiPollServiceError> {
+        let url = format!(
+            "https://{}/api/v3/votes?conversation_id={poll_id}&pid={pid}",
+            self.base_url
+        );
+
+        // Polis returns one object per vote. We only need the tally, so parse
+        // loosely and count rather than modelling every vote field.
+        let votes: Vec<serde_json::Value> = self
+            .client
+            .get(url)
+            .header(COOKIE, auth_cookies)
+            .send()
+            .await?
+            .json()
+            .await
+            .map_err(|e| PolisError::FailedToGetVotes(e.to_string()))?;
+
+        Ok(votes.len() as u32)
+    }
+
     async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError> {
         // Fetch all the data that powers the report page
         let math_pca = self.get_math_pca(poll_id).await?;

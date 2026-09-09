@@ -1,15 +1,15 @@
 <script lang="ts">
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import TranslatableField, {
-		type TFBaseProps,
-		type TFInputProps
+		type TranslatableFieldBaseProps,
+		type TranslatableFieldInputProps
 	} from './TranslatableField.svelte';
 	import type { ErrorType, Result } from '$lib/utils/errorHandling';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
-	type Props = Omit<TFBaseProps, 'availableDocuments'> & {
+	type Props = Omit<TranslatableFieldBaseProps, 'availableDocuments'> & {
 		streamedAvailableDocuments: Promise<Result<'ok', ComhairleDocument[], ErrorType>>;
-	} & TFInputProps;
+	} & TranslatableFieldInputProps;
 
 	let { streamedAvailableDocuments, ...props }: Props = $props();
 </script>

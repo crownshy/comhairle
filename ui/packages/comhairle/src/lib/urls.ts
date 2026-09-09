@@ -69,9 +69,9 @@ export function signupRedirect(backTo: string, message?: string) {
 	goto(`/auth/signup?backTo=${encodeURIComponent(backTo)}`);
 }
 
-// Redirect to the signup annon page with a link back to the current
+// Redirect to the signup guest page with a link back to the current
 // context.
-export function signupAnnonRedirect(backTo: string, message?: string) {
+export function signupGuestRedirect(backTo: string, message?: string) {
 	if (message) {
 		notifications.addFlash({ message, priority: 'INFO' });
 	}
