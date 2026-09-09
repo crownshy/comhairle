@@ -305,6 +305,15 @@ impl wiki_poll_service::WikiPollService for DummyWikiPollService {
     ) -> Result<WikiPoll, WikiPollServiceError> {
         todo!()
     }
+
+    async fn get_participant_vote_count(
+        &self,
+        _poll_id: &str,
+        _pid: u32,
+        _auth_cookies: &str,
+    ) -> Result<u32, WikiPollServiceError> {
+        todo!()
+    }
 }
 
 pub(crate) unsafe fn create_dummy_state() -> ComhairleState {

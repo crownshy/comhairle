@@ -822,7 +822,20 @@ pub async fn parse_sse_stream(
         ComhairleError::CorruptedData("Invalid UTF-8 in bot service response".to_string())
     })?;
 
-    Ok(parse_sse_str(&raw_str))
+    let chunks = parse_sse_str(&raw_str);
+
+    if let Some(error) = chunks
+        .iter()
+        .find(|chunk| chunk.data.error.is_some())
+        .map(|chunk| chunk.data.error.as_ref())
+        .and_then(|error| error)
+    {
+        return Err(ComhairleError::StreamChunkError(format!(
+            "Chunk contains ragflow '**ERROR**:' message: {error}"
+        )));
+    }
+
+    Ok(chunks)
 }
 
 pub fn parse_sse_str(sse_str: &str) -> Vec<SseEvent> {
@@ -1359,6 +1372,26 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn error_chunks_caught_during_parsing() -> Result<(), Box<dyn Error>> {
+        let chunks = stream::iter(vec![
+            Ok(sse_stream_chunk_ext("Some safe text")),
+            Ok(sse_stream_chunk_ext("Some safe text")),
+            Ok(sse_stream_error_chunk_ext("**ERROR**: (Some bad text)")),
+            Ok(sse_stream_chunk_ext("Some safe text")),
+        ]);
+        let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
+
+        let result = parse_sse_stream(boxed).await.unwrap_err();
+
+        assert!(
+            matches!(result, ComhairleError::StreamChunkError(_)),
+            "incorrect error type"
+        );
+
+        Ok(())
+    }
+
     fn msg(role: &str, id: &str, ref_ids: Option<Vec<&str>>) -> ComhairleSessionMessage {
         ComhairleSessionMessage {
             id: id.to_string(),
@@ -1422,6 +1455,22 @@ mod tests {
 
     fn sse_stream_chunk(answer: &str) -> Bytes {
         Bytes::from(format!(r#"data:{{"data": {{"answer": "{answer}"}}}}"#))
+    }
+
+    fn sse_stream_chunk_ext(content: &str) -> Bytes {
+        Bytes::from(
+            format!(
+                r#"data:{{"event":"1","message_id":"1","created_at":918273912,"task_id":"askdjha","session_id":"aksjdha","data": {{"content": "{content}"}}}}"#
+            ) + "\n\n",
+        )
+    }
+
+    fn sse_stream_error_chunk_ext(error: &str) -> Bytes {
+        Bytes::from(
+            format!(
+                r#"data:{{"event":"1","message_id":"1","created_at":918273912,"task_id":"askdjha","session_id":"aksjdha","data": {{"error": "{error}"}}}}"#
+            ) + "\n\n",
+        )
     }
 
     #[test]
