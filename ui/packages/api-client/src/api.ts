@@ -1313,6 +1313,10 @@ export const LocalizedPage = z
 export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
 export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
+export const StoryClip = z
+  .object({ audio: z.boolean(), media_id: z.string().uuid(), url: z.string() })
+  .passthrough();
+export type StoryClip = z.infer<typeof StoryClip>;
 export const Category = z
   .object({ label: z.string().uuid(), value: z.number() })
   .passthrough();
@@ -1391,6 +1395,7 @@ export const ToolConfig = z.union([
     .passthrough(),
   z
     .object({
+      clips: z.array(StoryClip).optional().default([]),
       max_time: z.number().int(),
       to_see: z.number().int(),
       type: z.literal("stories"),
@@ -1597,6 +1602,7 @@ export const ToolConfigWithTranslations = z.union([
     .passthrough(),
   z
     .object({
+      clips: z.array(StoryClip).optional().default([]),
       max_time: z.number().int(),
       to_see: z.number().int(),
       type: z.literal("stories"),
@@ -1736,6 +1742,7 @@ export const LocalizedToolConfig = z.union([
     .passthrough(),
   z
     .object({
+      clips: z.array(StoryClip).optional().default([]),
       max_time: z.number().int(),
       to_see: z.number().int(),
       type: z.literal("stories"),
@@ -1865,6 +1872,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
+      clips: z.array(StoryClip).optional().default([]),
       max_time: z.number().int(),
       to_see: z.number().int(),
       type: z.literal("stories"),
@@ -3313,6 +3321,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LearnPage,
   LocalizedPage,
   LearnPageEntry,
+  StoryClip,
   Category,
   QuestionType,
   Question,
@@ -4438,7 +4447,9 @@ List the workflow steps associated with this workflow.
 
 Use query param withTranslations&#x3D;true to get the translation data for each step.
 
-Use query param withUserProgress&#x3D;true to get the active user&#x27;s progress status for each step.`,
+Use query param withUserProgress&#x3D;true to get the active user&#x27;s progress status for each step.
+
+Signing in is optional: visitors get the sanitised step list of a live conversation.`,
     requestFormat: "json",
     parameters: [
       {
@@ -4917,7 +4928,9 @@ List the workflow steps associated with this workflow.
 
 Use query param withTranslations&#x3D;true to get the translation data for each step.
 
-Use query param withUserProgress&#x3D;true to get the active user&#x27;s progress status for each step.`,
+Use query param withUserProgress&#x3D;true to get the active user&#x27;s progress status for each step.
+
+Signing in is optional: visitors get the sanitised step list of a live conversation.`,
     requestFormat: "json",
     parameters: [
       {

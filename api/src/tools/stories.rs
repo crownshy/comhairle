@@ -18,10 +18,23 @@ use crate::{ComhairleState, error::ComhairleError};
 
 use super::{ToolConfigSanitize, ToolImpl};
 
+/// A clip participants watch before they are asked to record their own. Points at a
+/// media library upload; the URL is copied in so the participant UI needs no extra fetch.
+#[derive(Debug, JsonSchema, Serialize, Deserialize, Clone, PartialEq)]
+pub struct StoryClip {
+    pub media_id: Uuid,
+    pub url: String,
+    /// Audio-only contribution: rendered with an audio player rather than a video frame.
+    pub audio: bool,
+}
+
 #[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone, PartialEq)]
 pub struct StoriesToolConfig {
     pub max_time: i32,
     pub to_see: i32,
+    /// Defaulted so configs saved before clips existed still deserialize.
+    #[serde(default)]
+    pub clips: Vec<StoryClip>,
 }
 
 #[derive(PartialEq, Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
@@ -31,12 +44,15 @@ pub struct StoriesReport;
 pub struct StoriesToolSetup {
     pub max_time: i32,
     pub to_see: i32,
+    #[serde(default)]
+    pub clips: Vec<StoryClip>,
 }
 
 async fn stories_setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, ComhairleError> {
     Ok(StoriesToolConfig {
         max_time: config.max_time,
         to_see: config.to_see,
+        clips: config.clips.clone(),
     })
 }
 
