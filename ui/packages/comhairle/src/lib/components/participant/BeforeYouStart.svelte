@@ -115,13 +115,14 @@
 			</nav>
 		</div>
 
-		<!-- Every page reserves the call to action's height at the foot and the sticky strip's
-			at the head, so a snapped page sits clear of both and the cue is always in view. -->
+		<!-- Every page reserves the call to action's measured height (`--cta-clearance`, set
+			by LandingShell) at the foot and the sticky strip's at the head, so a snapped page
+			sits clear of both and the cue is always in view. -->
 		{#each visiblePages as visible, offset (visible.id)}
 			{@const index = (page ?? 0) + offset}
 			<section
 				id={visible.id}
-				class="mx-auto flex w-full max-w-5xl snap-start flex-col px-5 pt-20 pb-24 md:px-6 {embedded
+				class="mx-auto flex w-full max-w-5xl snap-start flex-col px-5 pt-20 pb-[var(--cta-clearance,6rem)] md:px-6 {embedded
 					? 'min-h-full'
 					: 'min-h-[100dvh]'}"
 				aria-label={visible.label}

@@ -36,10 +36,14 @@
 
 	<p class="text-foreground max-w-xl text-lg md:text-xl">{conversation.shortDescription}</p>
 
+	<!-- Sticky above the call to action bar: on a short screen the stack above runs past the
+		fold, and without this the cue is the part that goes under the bar, so the deck below
+		looks like it is not there. Once the stack fits it sits in the flow like anything else.
+		The backing is for the overflow case, where it floats over the description. -->
 	{#if onReadMore}
 		<button
 			type="button"
-			class="text-foreground mt-2 inline-flex items-center gap-1.5 text-base underline underline-offset-4"
+			class="text-foreground bg-background/80 sticky bottom-[var(--cta-clearance,7rem)] mt-2 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-base underline underline-offset-4 backdrop-blur"
 			onclick={onReadMore}
 		>
 			{m.landing_what_is_this_about()}

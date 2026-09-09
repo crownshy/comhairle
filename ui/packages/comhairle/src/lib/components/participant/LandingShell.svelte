@@ -60,43 +60,61 @@
 		},
 		...steps.map((step) => ({ id: step.id, name: step.name, status: 'upcoming' as const }))
 	]);
+
+	/**
+	 * The call to action bar is fixed over the foot of every screen, and its height depends
+	 * on what is in it: a visitor who is signed out gets a second button. Each screen pads
+	 * its foot by the measured height rather than a guess, so what sits at the bottom of a
+	 * screen (the next-page cue) is never under the bar. Before hydration the bar has not
+	 * been measured, so the fallback is the taller two-button case.
+	 */
+	let callToActionHeight = $state(0);
+	let clearance = $derived(callToActionHeight ? `calc(${callToActionHeight}px + 1rem)` : '9rem');
 </script>
 
-<!-- Step zero owns the first viewport: chrome, cover, call to action, nothing below the fold
+<!-- `--cta-clearance` is read by every screen below and by the cover's cue. -->
+<div style="--cta-clearance: {clearance}">
+	<!-- Step zero owns the first viewport: chrome, cover, call to action, nothing below the fold
      until you scroll. `min-h` rather than a fixed height because the chrome grows on a narrow
      screen and the cover must be allowed to push past the fold rather than clip. -->
-{#if page === undefined || page === 0}
-	<div class="flex snap-start flex-col pb-28 {embedded ? 'min-h-full' : 'min-h-[100dvh]'}">
-		<StepChrome
-			steps={stepItems}
-			currentIndex={0}
-			label={m.landing_before_you_start()}
-			fill={0}
-			showSupport={false}
-			{preview}
+	{#if page === undefined || page === 0}
+		<div
+			class="flex snap-start flex-col pb-(--cta-clearance) {embedded
+				? 'min-h-full'
+				: 'min-h-[100dvh]'}"
+		>
+			<StepChrome
+				steps={stepItems}
+				currentIndex={0}
+				label={m.landing_before_you_start()}
+				fill={0}
+				showSupport={false}
+				{preview}
+			/>
+
+			<StepZeroScreen {conversation} {onReadMore} />
+		</div>
+	{/if}
+
+	{#if page === undefined || page > 0}
+		<BeforeYouStart
+			{pages}
+			{steps}
+			conversationId={conversation.id}
+			{availableDocuments}
+			{embedded}
+			page={page === undefined ? undefined : page - 1}
 		/>
+	{/if}
 
-		<StepZeroScreen {conversation} {onReadMore} />
-	</div>
-{/if}
-
-{#if page === undefined || page > 0}
-	<BeforeYouStart
-		{pages}
-		{steps}
-		conversationId={conversation.id}
-		{availableDocuments}
-		{embedded}
-		page={page === undefined ? undefined : page - 1}
-	/>
-{/if}
-
-<!-- Fixed rather than sticky: the call to action has to survive the whole scroll through the
-     detail, not just the cover. Both blocks above reserve its height. -->
-<div
-	class="bg-background/70 border-border/40 fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur-lg"
->
-	<div class="mx-auto flex w-full max-w-5xl flex-col gap-2 px-5 pt-3 pb-5 md:px-6">
-		{@render callToAction()}
+	<!-- Fixed rather than sticky: the call to action has to survive the whole scroll through the
+     detail, not just the cover. Both blocks above reserve its measured height. -->
+	<div
+		class="bg-background/70 border-border/40 fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur-lg"
+		bind:clientHeight={callToActionHeight}
+	>
+		<div class="mx-auto flex w-full max-w-5xl flex-col gap-2 px-5 pt-3 pb-5 md:px-6">
+			{@render callToAction()}
+		</div>
 	</div>
 </div>
