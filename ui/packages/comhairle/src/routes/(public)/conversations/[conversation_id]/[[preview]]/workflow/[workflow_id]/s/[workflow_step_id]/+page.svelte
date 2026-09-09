@@ -113,6 +113,27 @@
 	 * (ADR-0024). It is not one of the workflow's steps, so `isIntro` keeps it out of
 	 * "Step N of M" and out of the index the pager walks.
 	 */
+	/**
+	 * The thank-you screen gets a row once the participant has finished, so someone who came
+	 * back to reread a step has a way home that is not the browser's back button. Before
+	 * then the row would be a shortcut past the last step, so it stays away. Preview records
+	 * no progress, so it shows the row always, as the thank-you page shows full marks.
+	 */
+	let flowFinished = $derived(
+		isPreview || sortedSteps.every((ws) => ws.progressStatus === 'done')
+	);
+	let outroItem = $derived<StepItem | null>(
+		flowFinished
+			? {
+					id: 'thank-you',
+					name: m.thank_you_label(),
+					status: 'completed',
+					href: thank_you_page(conversation.id, workflow_id, isPreview) + queryString,
+					isOutro: true
+				}
+			: null
+	);
+
 	let chromeSteps = $derived<StepItem[]>([
 		{
 			id: 'landing',
@@ -121,7 +142,8 @@
 			href: introUrl,
 			isIntro: true
 		},
-		...stepItems
+		...stepItems,
+		...(outroItem ? [outroItem] : [])
 	]);
 
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));

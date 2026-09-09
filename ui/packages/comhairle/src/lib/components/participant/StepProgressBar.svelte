@@ -14,12 +14,16 @@
 	} = $props();
 
 	let fillPercent = $derived(Math.min(100, Math.max(0, fill * 100)));
+
+	// The thank-you screen is a row in the menu but not a segment on the bar (ADR-0027). It
+	// is always the last item, so dropping it leaves `currentIndex` pointing where it did.
+	let segments = $derived(steps.filter((s) => !s.isOutro));
 </script>
 
 <!-- Stubs for the other steps, a flexible track for the current one. Completed stubs read
 	filled so the bar carries the status the old stepper carried. -->
 <div class="flex items-center gap-1.5 px-3 md:px-6" aria-hidden="true">
-	{#each steps as step, index (step.id)}
+	{#each segments as step, index (step.id)}
 		{#if index === currentIndex}
 			<div class="bg-accent relative h-2 min-w-0 flex-1 rounded-full">
 				<div

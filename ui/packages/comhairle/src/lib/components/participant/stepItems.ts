@@ -15,4 +15,10 @@ export type StepItem = {
 	 * M" so adding it cannot change the count participants are quoted.
 	 */
 	isIntro?: boolean;
+	/**
+	 * The segment after the last step: the thank-you screen. Like the intro it is excluded
+	 * from "Step N of M", and it gets no segment on the progress bar (ADR-0027), so it must
+	 * be the last item: the bar drops it and every index before it has to stay put.
+	 */
+	isOutro?: boolean;
 };

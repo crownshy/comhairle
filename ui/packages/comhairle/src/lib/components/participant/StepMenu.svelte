@@ -51,17 +51,24 @@
 
 	let open = $state(false);
 
-	/** Positions count workflow steps only; the intro segment is not one of them. */
-	let realSteps = $derived(steps.filter((s) => !s.isIntro));
+	/** Positions count workflow steps only; the intro and outro segments are not among them. */
+	let realSteps = $derived(steps.filter((s) => !s.isIntro && !s.isOutro));
+
+	/**
+	 * Where the participant is. `currentIndex` is the bar's notion, which on the thank-you
+	 * page still points at the last step (the outro has no segment there), so a row marked
+	 * current wins over it.
+	 */
+	let currentItem = $derived(steps.find((s) => s.status === 'current') ?? steps[currentIndex]);
 
 	/**
 	 * The count belongs in the heading, not on every row: repeating "Step N of M" down the
-	 * list made the menu read as six variations on the same sentence. On the intro segment
-	 * there is no position to state, so the heading falls back to its plain name.
+	 * list made the menu read as six variations on the same sentence. On the intro and outro
+	 * segments there is no position to state, so the heading falls back to its plain name.
 	 */
 	let heading = $derived.by(() => {
-		const current = steps[currentIndex];
-		if (!current || current.isIntro) return m.step_dropdown_heading();
+		const current = currentItem;
+		if (!current || current.isIntro || current.isOutro) return m.step_dropdown_heading();
 		return m.step_position_label({
 			current: realSteps.indexOf(current) + 1,
 			total: realSteps.length
@@ -212,8 +219,9 @@
 			<div
 				class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-[env(safe-area-inset-bottom)]"
 			>
-				{#each steps as step, index (step.id)}
-					{@const position = step.isIntro ? null : realSteps.indexOf(step) + 1}
+				{#each steps as step (step.id)}
+					{@const position =
+						step.isIntro || step.isOutro ? null : realSteps.indexOf(step) + 1}
 					{#if step.href}
 						<a
 							href={step.href}
@@ -226,7 +234,7 @@
 						<!-- Inert rather than absent: an unreachable step still tells you where you are. -->
 						<div
 							class="flex min-h-14 items-center px-3"
-							aria-current={index === currentIndex ? 'step' : undefined}
+							aria-current={step === currentItem ? 'step' : undefined}
 						>
 							{@render stepRow(step, position)}
 						</div>
@@ -287,8 +295,9 @@
 				<DropdownMenu.GroupHeading class="text-sm">
 					{heading}
 				</DropdownMenu.GroupHeading>
-				{#each steps as step, index (step.id)}
-					{@const position = step.isIntro ? null : realSteps.indexOf(step) + 1}
+				{#each steps as step (step.id)}
+					{@const position =
+						step.isIntro || step.isOutro ? null : realSteps.indexOf(step) + 1}
 					{#if step.href}
 						<DropdownMenu.Item class="py-2.5">
 							{#snippet child({ props })}
@@ -305,7 +314,7 @@
 						<!-- Inert rather than absent: an unreachable step still tells you where you are. -->
 						<div
 							class="px-2 py-2.5"
-							aria-current={index === currentIndex ? 'step' : undefined}
+							aria-current={step === currentItem ? 'step' : undefined}
 						>
 							{@render stepRow(step, position)}
 						</div>

@@ -94,12 +94,15 @@
 			href: introUrl,
 			isIntro: true
 		},
-		...stepItems
+		...stepItems,
+		// This screen's own row, so the menu says where you are. Inert: you are already here.
+		{ id: 'thank-you', name: m.thank_you_label(), status: 'current', isOutro: true }
 	]);
 
 	/**
-	 * The last step's segment, full. There is no thank-you segment of its own: adding one
-	 * would change the "Step N of M" every step quotes.
+	 * The last step's segment, full. There is no thank-you segment of its own on the bar:
+	 * adding one would change the "Step N of M" every step quotes. The menu marks the outro
+	 * row current from its status, not from this index.
 	 */
 	let currentIndex = $derived(steps.length);
 

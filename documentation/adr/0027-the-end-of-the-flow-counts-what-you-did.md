@@ -23,6 +23,13 @@ conversation, so the page should not look like a different site.
 The bar gets no segment of its own for the thank-you screen. The count every step quotes is
 "Step N of M", and adding a segment would change M.
 
+The menu does get a row for it, once the flow is finished. Without one, a participant who
+went back to reread a step had no way home but the browser's back button or walking to the
+last step and pressing Next. The row is kept out of the count the same way the intro row is
+(ADR-0021, part 2): `StepItem` gains `isOutro`, the menu numbers neither, and the bar drops
+the outro item. It appears only when every step is done, so it is never a shortcut past the
+last step; preview, which records no progress, shows it always.
+
 **2. It opens on one line and a few numbers that count themselves up.** The counting is the
 animation: reduced motion, and a tab that is not being looked at, get the finished number
 rather than a shortened count.
