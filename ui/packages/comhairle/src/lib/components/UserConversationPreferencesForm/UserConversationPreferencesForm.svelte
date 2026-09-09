@@ -11,10 +11,10 @@
 
 	let {
 		conversationId,
-		isAnnon
+		isGuest
 	}: {
 		conversationId: string;
-		isAnnon: boolean;
+		isGuest: boolean;
 	} = $props();
 
 	let loading = $state(true);
@@ -136,7 +136,7 @@
 						{/snippet}
 					</Form.Control>
 				</Form.Field>
-				{#if !isAnnon}
+				{#if !isGuest}
 					<Form.Field {form} name="receiveUpdatesByEmail" class="space-y-2">
 						<Form.Control>
 							{#snippet children({ props })}
@@ -189,7 +189,7 @@
 					</Form.Control>
 				</Form.Field>
 
-				{#if !isAnnon}
+				{#if !isGuest}
 					<Form.Field
 						{form}
 						name="receive_similar_conversation_updates_by_email"
