@@ -1319,8 +1319,8 @@ mod tests {
         let (_, value, _) = session.create_random_conversation(&app).await?;
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
-        let user_a = users::create_annon_user(&state.db).await?;
-        let user_b = users::create_annon_user(&state.db).await?;
+        let user_a = users::create_guest_user(&state.db).await?;
+        let user_b = users::create_guest_user(&state.db).await?;
 
         let grant_request_a_a = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),
