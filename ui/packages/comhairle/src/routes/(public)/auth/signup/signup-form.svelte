@@ -7,7 +7,7 @@
 	import { signupFormSchema } from '$lib/profile';
 	import * as m from '$lib/paraglide/messages';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { key } from '$lib/utils/invalidationKey';
@@ -38,7 +38,7 @@
 						password,
 						email
 					});
-					if (user.auth_type === 'annon') {
+					if (user.auth_type === 'guest') {
 						await goto(backTo ?? '/', { invalidate: [key('user')] });
 					} else {
 						await goto(
