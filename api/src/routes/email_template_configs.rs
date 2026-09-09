@@ -10,6 +10,9 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::{
+    PassthroughMode, instance::KeycloakAuthInstance, layer::KeycloakAuthLayer,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
@@ -143,7 +146,7 @@ async fn preview(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(state: Arc<ComhairleState>, auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
@@ -232,6 +235,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("EmailTemplateConfig")
                     .response::<200, Json<PreviewEmailTemplateConfigResponse>>()
             }),
+        )
+        .layer(
+            KeycloakAuthLayer::<String>::builder()
+                .instance(auth_instance)
+                .passthrough_mode(PassthroughMode::Block)
+                .persist_raw_claims(false)
+                .expected_audiences(vec![]) // TODO:
+                .build(),
         )
         .with_state(state)
 }

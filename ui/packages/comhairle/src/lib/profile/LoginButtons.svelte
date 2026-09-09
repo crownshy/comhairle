@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils';
+	import { Button } from '$lib/components/ui/button';
 	import * as m from '$lib/paraglide/messages';
 </script>
 
@@ -8,7 +7,7 @@
 	<Button href="/auth/signup" class="text-primary-foreground text-base" variant="link"
 		>{m.signup()}</Button
 	>
-	<Button href="/auth/login" class="text-primary-foreground text-base" variant="link"
+	<Button href="/api/auth/keycloak-login" class="text-primary-foreground text-base" variant="link"
 		>{m.login()}</Button
 	>
 </div>
