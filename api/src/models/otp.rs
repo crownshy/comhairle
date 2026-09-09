@@ -78,7 +78,7 @@ pub async fn create(
 ) -> Result<Otp, ComhairleError> {
     let user = users::get_user_by_id(user_id, db).await?;
 
-    if user.auth_type == UserAuthType::Annon {
+    if user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -222,8 +222,8 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_fail_otp_create_for_annon_users(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let user = users::create_annon_user(&pool).await?;
+    async fn should_fail_otp_create_for_guest_users(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = users::create_guest_user(&pool).await?;
 
         let error = create(&pool, &user.id, None, None).await.unwrap_err();
 
