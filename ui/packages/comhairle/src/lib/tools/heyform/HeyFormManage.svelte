@@ -10,8 +10,9 @@
 		workspace_id: string;
 		project_id: string;
 		conversation_id: string;
-		workflow_id: string;
-		workflow_step_id: string;
+		// Absent for a conversation's feedback survey, which belongs to no step.
+		workflow_id?: string;
+		workflow_step_id?: string;
 	};
 	let { survey_id, survey_url, admin_user, admin_password, workspace_id, project_id }: Props =
 		$props();

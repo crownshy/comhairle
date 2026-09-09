@@ -285,3 +285,21 @@ export async function surveyInsightsLoader(
 
 	return { survey: response.ok.questions.map(normalise).filter((q) => q !== undefined) };
 }
+
+/** The same shape for the survey attached to a conversation's thank-you page. */
+export async function feedbackSurveyInsightsLoader(
+	apiClient: ApiClient,
+	conversationId: string
+): Promise<{ survey: SurveyQuestion[] }> {
+	const response = await tryCatchAsync(() =>
+		apiClient.GetFeedbackSurveyInsights({
+			params: { conversation_id: conversationId }
+		})
+	);
+
+	if (response.err !== null) {
+		return { survey: [] as SurveyQuestion[] };
+	}
+
+	return { survey: response.ok.questions.map(normalise).filter((q) => q !== undefined) };
+}

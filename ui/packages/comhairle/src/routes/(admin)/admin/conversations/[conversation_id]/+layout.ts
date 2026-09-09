@@ -58,7 +58,8 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			{ id: 'details', label: 'Details' },
 			{ id: 'content', label: 'Content' },
 			{ id: 'glossary', label: 'Glossary' },
-			{ id: 'access', label: 'Access' }
+			{ id: 'access', label: 'Access' },
+			{ id: 'feedback', label: 'Feedback' }
 		];
 
 		let usersWithPermission: UserWithPermissionDto[] = [];

@@ -12,6 +12,7 @@
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
 	import CohostManager from './CohostManager.svelte';
+	import FeedbackSurveySection from './FeedbackSurveySection.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
@@ -36,6 +37,7 @@
 	import type {
 		ComhairleDocument,
 		ConversationWithTranslations,
+		FeedbackSurveyDto,
 		LocalizedConversationDto,
 		MediaDto,
 		OrganizationWithPermissionDto,
@@ -52,6 +54,7 @@
 	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import type { SurveyQuestion } from '$lib/reports/survey/insights-loader';
 
 	let {
 		data
@@ -66,6 +69,8 @@
 			configureTabs: { id: string; label: string }[];
 			availableDocuments: ComhairleDocument[];
 			workflowSteps: WorkflowStepsListResponse;
+			feedbackSurvey: FeedbackSurveyDto | null;
+			feedbackSurveyInsights: SurveyQuestion[] | null;
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
@@ -123,6 +128,10 @@
 				"Define terms once and their explanation appears as a hover tooltip wherever the term shows up in this conversation's Learn steps. Add synonyms of the same term, separated by commas, and they'll all share one explanation."
 		},
 		access: { title: 'Access', description: 'Visibility, invites and participation.' },
+		feedback: {
+			title: 'Feedback',
+			description: 'A short survey about the experience, asked on the thank-you page.'
+		},
 		team: { title: 'Team', description: 'Manage collaborators.' }
 	};
 	let activeTab = $derived(page.url.searchParams.get('tab') ?? data.configureTabs[0].id);
@@ -1134,6 +1143,15 @@
 			primaryLocale={primaryLanguage}
 			{supportedLanguages}
 			initial={localizedGlossaryFromMetadata(conversation.metadata, primaryLanguage)}
+		/>
+	{/if}
+
+	{#if activeTab === 'feedback'}
+		<FeedbackSurveySection
+			{conversation}
+			workflowId={workflow?.id}
+			survey={data.feedbackSurvey}
+			insights={data.feedbackSurveyInsights}
 		/>
 	{/if}
 
