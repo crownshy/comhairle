@@ -3528,6 +3528,21 @@ const endpoints = makeApi([
     response: z.object({ key: z.string() }).passthrough(),
   },
   {
+    method: "get",
+    path: "/auth/callback",
+    alias: "getAuthcallback",
+    description: `Receives a temporary token after successful login which is exchanged for access, identity and refresh tokens via authorization service API`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "code",
+        type: "Query",
+        schema: z.string(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
     method: "post",
     path: "/auth/create_otp",
     alias: "CreateOtp",
@@ -3547,6 +3562,14 @@ const endpoints = makeApi([
     alias: "CurrentUser",
     requestFormat: "json",
     response: UserDto,
+  },
+  {
+    method: "get",
+    path: "/auth/keycloak-login",
+    alias: "KeycloakLogin",
+    description: `Login via auth_service`,
+    requestFormat: "json",
+    response: z.void(),
   },
   {
     method: "post",
