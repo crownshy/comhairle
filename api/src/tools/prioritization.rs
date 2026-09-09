@@ -1097,7 +1097,7 @@ mod tests {
         // Two distinct users each respond to both proposals, so each proposal
         // ends up with two responses. Same-user re-posts now upsert (single row
         // per (proposal, user)) so duplicate users would collapse.
-        session.signup_annon(&app).await?;
+        session.signup_guest(&app).await?;
         session
             .post(
                 &app,
@@ -1119,7 +1119,7 @@ mod tests {
             )
             .await?;
 
-        session.signup_annon(&app).await?;
+        session.signup_guest(&app).await?;
         session
             .post(
                 &app,

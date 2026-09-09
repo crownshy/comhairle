@@ -625,6 +625,11 @@ impl From<ThinkingSpaceAnswer> for ThinkingSpaceSummaryQa {
     }
 }
 
+#[derive(Deserialize)]
+struct ThinkingSpaceContentSummary {
+    summary: String,
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn generate_thinking_space_summary(
     State(state): State<Arc<ComhairleState>>,
@@ -698,15 +703,19 @@ async fn generate_thinking_space_summary(
             ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
         })?;
 
-    let summary_content = final_event
-        .clone()
+    let summary_event = final_event
         .content
-        .ok_or(ComhairleError::CorruptedData(
-            "Missing summary from bot service agent".to_string(),
-        ))?;
+        .as_deref()
+        .ok_or_else(|| {
+            ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
+        })
+        .and_then(|content| {
+            serde_json::from_str::<ThinkingSpaceContentSummary>(content)
+                .map_err(|e| ComhairleError::CorruptedData(format!("Invalid summary payload: {e}")))
+        })?;
 
     let create_summary = CreateSummary {
-        summary: summary_content,
+        summary: summary_event.summary,
         is_ai_generated: Some(true),
     };
     let summary = thinking_space_summary::create(

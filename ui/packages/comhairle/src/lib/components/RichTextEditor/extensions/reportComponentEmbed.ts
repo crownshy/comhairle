@@ -1,24 +1,23 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { mount, unmount } from 'svelte';
+import ReportEmbedLive from '$lib/reports/polis/ReportEmbedLive.svelte';
 
 /**
  * A report component embedded into the report's `summary` document.
  *
- * Per ADR-0012 the node stores BOTH a reference (`toolStepId` / `componentType` / `config`)
- * and the `frozenHtml` snapshot rendered from that component at insert time. The frozen HTML
- * is what renders everywhere:
- * - in the editor, via the node view below (a plain DOM node whose innerHTML is the snapshot);
- * - on the published page, via a `nodeMapping` entry in `renderRichTextToHtml` that returns
- *   `frozenHtml` straight into the static-renderer string (no DOM, no JS needed).
+ * Per ADR-0012 the node stores ONLY a reference (`toolStepId` / `componentType` / `config`).
+ * There is no baked HTML — every surface mounts the real, live component against current data:
+ * - in the editor, the node view below mounts `ReportEmbedLive`;
+ * - on the published page, the report renderer walks the document and interleaves
+ *   `ReportEmbedLive` at each embed node (see the public report page).
  *
- * The reference is the recipe: it is what a future "refresh snapshot" re-freezes from, and the
- * hook a future live-component upgrade would attach to. Because the HTML is baked in, deleting
- * the source Step never blanks the report — only refresh is affected.
+ * The static-renderer path (`renderRichTextToHtml`, used for no-JS surfaces like email) can't
+ * mount a component, so it emits a placeholder via a `nodeMapping` entry there.
  */
 export interface ReportComponentEmbedAttrs {
 	toolStepId: string | null;
 	componentType: string | null;
 	config: Record<string, unknown>;
-	frozenHtml: string;
 }
 
 declare module '@tiptap/core' {
@@ -28,7 +27,6 @@ declare module '@tiptap/core' {
 				toolStepId: string;
 				componentType: string;
 				config?: Record<string, unknown>;
-				frozenHtml: string;
 			}) => ReturnType;
 		};
 	}
@@ -73,17 +71,6 @@ export const ReportComponentEmbed = Node.create({
 					if (!config || Object.keys(config).length === 0) return {};
 					return { 'data-config': JSON.stringify(config) };
 				}
-			},
-			// The frozen snapshot. Kept in a data attribute so it survives a round-trip through
-			// storage and parseHTML; the node view and the renderer are what turn it back into
-			// visible markup.
-			frozenHtml: {
-				default: '',
-				parseHTML: (element) => {
-					const holder = element.querySelector('[data-frozen-html]');
-					return holder ? holder.innerHTML : '';
-				},
-				renderHTML: () => ({})
 			}
 		};
 	},
@@ -93,12 +80,11 @@ export const ReportComponentEmbed = Node.create({
 	},
 
 	renderHTML({ HTMLAttributes }) {
-		// Structural only. The published render path substitutes the frozen HTML via
-		// `nodeMapping` (see renderRichText.ts); this spec is the fallback container.
+		// Structural marker only. The editor and the published page mount the live component;
+		// this is the storage/round-trip form and the fallback container for no-JS renderers.
 		return [
 			'div',
-			mergeAttributes(HTMLAttributes, { 'data-report-embed': '', class: 'report-embed' }),
-			['div', { 'data-frozen-html': '' }]
+			mergeAttributes(HTMLAttributes, { 'data-report-embed': '', class: 'report-embed' })
 		];
 	},
 
@@ -108,11 +94,6 @@ export const ReportComponentEmbed = Node.create({
 			dom.classList.add('report-embed', 'report-embed--editor');
 			dom.setAttribute('data-report-embed', '');
 			dom.contentEditable = 'false';
-
-			const body = document.createElement('div');
-			body.classList.add('report-embed__body');
-			body.setAttribute('data-frozen-html', '');
-			body.innerHTML = (node.attrs.frozenHtml as string) ?? '';
 
 			const remove = document.createElement('button');
 			remove.type = 'button';
@@ -133,14 +114,30 @@ export const ReportComponentEmbed = Node.create({
 					.run();
 			});
 
+			const body = document.createElement('div');
+			body.classList.add('report-embed__body');
+
 			dom.appendChild(remove);
 			dom.appendChild(body);
 
+			const component = mount(ReportEmbedLive, {
+				target: body,
+				props: {
+					toolStepId: (node.attrs.toolStepId as string) ?? '',
+					componentType: (node.attrs.componentType as string) ?? ''
+				}
+			});
+
 			return {
 				dom,
-				// Atom node: no editable content hole, and ignore mutations from our own
-				// innerHTML writes so ProseMirror doesn't try to re-parse the snapshot.
-				ignoreMutation: () => true
+				// Atom node: no editable content, and ignore mutations from the mounted
+				// component so ProseMirror doesn't try to re-parse it.
+				ignoreMutation: () => true,
+				// The reference is stable for an embed, so keep the node view on update.
+				update: (updatedNode) => updatedNode.type.name === node.type.name,
+				destroy: () => {
+					unmount(component);
+				}
 			};
 		};
 	},
@@ -155,8 +152,7 @@ export const ReportComponentEmbed = Node.create({
 						attrs: {
 							toolStepId: options.toolStepId,
 							componentType: options.componentType,
-							config: options.config ?? {},
-							frozenHtml: options.frozenHtml
+							config: options.config ?? {}
 						}
 					})
 		};
