@@ -75,6 +75,10 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 	// Belt-and-braces frame-ancestors if you have prerendered pages:
 	// response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
 
+	if (pathname.includes('/auth')) {
+		response.headers.set('Access-Control-Allow-Origin', 'http://localhost:8080');
+	}
+
 	return response;
 };
 

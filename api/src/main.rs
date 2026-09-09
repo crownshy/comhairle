@@ -80,13 +80,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup Auth Service
     let auth_service = if let Some(auth_config) = &config.auth_service {
-        let keycloak = KeycloakClient::new(
-            &auth_config.url,
-            &auth_config.admin_user,
-            &auth_config.admin_password,
-            &auth_config.realm,
-        )
-        .await?;
+        let keycloak = KeycloakClient::new(auth_config).await?;
         Some(Arc::new(keycloak) as Arc<dyn AuthService>)
     } else {
         None
@@ -161,6 +155,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let video_call_handler = Arc::new(VideoCallMessageHandler::new());
 
+    // TODO: move this onto one part of the state
     let keycloak_auth_instance = Arc::new(KeycloakAuthInstance::new(
         KeycloakConfig::builder()
             .server(Url::parse(&config.auth_service.clone().unwrap().url).unwrap())

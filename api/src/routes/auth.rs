@@ -3,9 +3,10 @@ use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
+use axum::response::Redirect;
 use axum::{
     Extension, RequestPartsExt,
-    extract::{FromRequestParts, Json, Path, State},
+    extract::{FromRequestParts, Json, Path, Query, State},
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
@@ -1076,6 +1077,48 @@ pub async fn current_user(
     Ok((StatusCode::OK, Json(user)))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn authentication_login(
+    State(state): State<Arc<ComhairleState>>,
+) -> Result<Redirect, ComhairleError> {
+    // TODO: unwrap
+    let auth_config = state.config.auth_service.as_ref().unwrap();
+
+    let redirect_url = format!("{}/api/auth/callback", state.config.domain);
+    let authentication_url = format!(
+        "{}/realms/{}/protocol/openid-connect/auth?client_id={}&response_type=code&scope=openid&redirect_uri={}",
+        auth_config.url, auth_config.realm, auth_config.client_id, redirect_url
+    );
+
+    Ok(Redirect::to(&authentication_url))
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+struct KeycloakCallbackQuery {
+    code: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn authentication_callback(
+    State(state): State<Arc<ComhairleState>>,
+    Query(query): Query<KeycloakCallbackQuery>,
+) -> Result<Redirect, ComhairleError> {
+    let auth_service = state
+        .auth_service
+        .as_ref()
+        .ok_or_else(|| ComhairleError::BadRequest("Missing auth service".to_string()))?;
+
+    let redirect_url = format!("{}/api/auth/callback", state.config.domain);
+
+    // TODO: add cookies from result
+    let token_result = auth_service
+        .get_authorization_tokens(&query.code, &redirect_url)
+        .await?;
+
+    // TODO: handle backTo paths, maybe via redis
+    Ok(Redirect::to(&state.config.domain))
+}
+
 /// Handler for testing RequiresRole
 pub async fn test_requires_roles(
     RequiredRole(_, _, _): RequiredRole<Conversation, (Owner, (Contributor,))>,
@@ -1281,6 +1324,27 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Get the current user")
                     .response::<200, Json<UserDto>>()
+            }),
+        )
+        .api_route(
+            "/keycloak-login",
+            get_with(authentication_login, |op| {
+                op.id("KeycloakLogin")
+                    .tag("Auth")
+                    .summary("Login via auth_service")
+                    .description("Login via auth_service")
+            }),
+        )
+        .api_route(
+            "/callback",
+            get_with(authentication_callback, |op| {
+                op.tag("Auth")
+                    .summary("Authorization service callback endpoint")
+                    .description(
+                        "Receives a temporary token after successful \
+                        login which is exchanged for access, identity and \
+                        refresh tokens via authorization service API",
+                    )
             }),
         )
         // TODO: this route is used for testing only. Once we have authorisation logic locekd down

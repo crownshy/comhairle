@@ -25,6 +25,7 @@
 	import { userInitials } from '$lib/utils';
 	import { Separator } from '$lib/components/ui/separator';
 	import { notificationService } from '$lib/services/notifications.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
 
 	let links = [
 		{
