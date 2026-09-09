@@ -250,6 +250,10 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
                     routes::feedback::router(state.clone()),
                 )
                 .nest_api_service(
+                    "/{conversation_id}/feedback_survey",
+                    routes::feedback_survey::router(state.clone()),
+                )
+                .nest_api_service(
                     "/{conversation_id}/chats",
                     routes::chats::router(state.clone()),
                 )

@@ -279,18 +279,7 @@ impl ToolImpl for HeyFormTool {
         _state: &Arc<ComhairleState>,
         _workflow_step_id: &Uuid,
     ) -> Result<(), ComhairleError> {
-        let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
-
-        client
-            .login(LoginInput {
-                email: config.admin_user.clone(),
-                password: config.admin_password.clone(),
-            })
-            .await?;
-
-        client.delete_poll(&config.survey_id).await?;
-
-        Ok(())
+        delete_form(config).await
     }
 
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
@@ -825,6 +814,13 @@ pub async fn insights(
     Path(workflow_step_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<SurveyInsights>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
+    let survey_insights = survey_insights(&config).await?;
+
+    Ok((StatusCode::OK, Json(survey_insights)))
+}
+
+/// A client logged in as the form's admin user.
+async fn admin_client(config: &HeyFormToolConfig) -> Result<HeyFormClient, ComhairleError> {
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
 
     client
@@ -834,6 +830,14 @@ pub async fn insights(
         })
         .await?;
 
+    Ok(client)
+}
+
+/// Labelled insights for any HeyForm config, whether it belongs to a workflow step or to a
+/// conversation's feedback survey.
+pub async fn survey_insights(config: &HeyFormToolConfig) -> Result<SurveyInsights, ComhairleError> {
+    let client = admin_client(config).await?;
+
     // Fetch the form definition, aggregate report, and full submissions concurrently.
     let (form, report, submissions) = tokio::try_join!(
         client.get_form(&config.survey_id),
@@ -841,9 +845,14 @@ pub async fn insights(
         fetch_all_submissions(&client, &config.survey_id, "inbox"),
     )?;
 
-    let survey_insights = build_survey_insights(&form, &report, &submissions);
+    Ok(build_survey_insights(&form, &report, &submissions))
+}
 
-    Ok((StatusCode::OK, Json(survey_insights)))
+/// Deletes the form on the HeyForm server. Its submissions go with it.
+pub async fn delete_form(config: &HeyFormToolConfig) -> Result<(), ComhairleError> {
+    let client = admin_client(config).await?;
+    client.delete_poll(&config.survey_id).await?;
+    Ok(())
 }
 
 #[cfg(test)]

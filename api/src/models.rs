@@ -14,6 +14,7 @@ pub mod email_template_config;
 pub mod event;
 pub mod event_attendance;
 pub mod feedback;
+pub mod feedback_survey;
 pub mod invite_response;
 pub mod invites;
 pub mod job;

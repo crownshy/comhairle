@@ -10,6 +10,7 @@ pub mod email_template_configs;
 pub mod event_attendances;
 pub mod events;
 pub mod feedback;
+pub mod feedback_survey;
 pub mod invites;
 pub mod jobs;
 pub mod media;

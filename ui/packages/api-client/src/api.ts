@@ -2209,6 +2209,14 @@ export const PartialFeedback = z
   .partial()
   .passthrough();
 export type PartialFeedback = z.infer<typeof PartialFeedback>;
+export const FeedbackSurveyDto = z
+  .object({
+    completed: z.boolean(),
+    conversationId: z.string().uuid(),
+    toolConfig: ToolConfig,
+  })
+  .passthrough();
+export type FeedbackSurveyDto = z.infer<typeof FeedbackSurveyDto>;
 export const ComhairleLlm = z
   .object({ model_name: z.union([z.string(), z.null()]) })
   .partial()
@@ -3397,6 +3405,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   FeedbackDto,
   CreateFeedbackDTO,
   PartialFeedback,
+  FeedbackSurveyDto,
   ComhairleLlm,
   ComhairlePrompt,
   ComhairleChat,
@@ -4527,6 +4536,43 @@ Signing in is optional: visitors get the sanitised step list of a live conversat
       },
     ],
     response: FeedbackDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/feedback_survey",
+    alias: "GetFeedbackSurvey",
+    description: `Null when the conversation has none. Admins receive the form&#x27;s credentials; everyone else receives a sanitized config.`,
+    requestFormat: "json",
+    response: z.union([FeedbackSurveyDto, z.null()]),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/feedback_survey",
+    alias: "CreateFeedbackSurvey",
+    description: `Creates a HeyForm form and attaches it. Returns the existing survey if there already is one.`,
+    requestFormat: "json",
+    response: FeedbackSurveyDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/feedback_survey",
+    alias: "DeleteFeedbackSurvey",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/feedback_survey/completion",
+    alias: "CompleteFeedbackSurvey",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/feedback_survey/insights",
+    alias: "GetFeedbackSurveyInsights",
+    requestFormat: "json",
+    response: SurveyInsights,
   },
   {
     method: "put",
