@@ -44,15 +44,10 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 
 	const conversation = conversationResponse.ok as ConversationWithTranslations;
 
-	const workflowsResponse = tryCatchAsync(() =>
+	const workflows = await tryCatchAsync(() =>
 		api.ListConversationWorkflows({ params: { conversation_id } })
 	);
 
-	const cohostOrganizationsResponse = tryCatchAsync(() =>
-		api.ListConversationCoHostOrganizations({ params: { conversation_id } })
-	);
-
-	const workflows = await workflowsResponse;
 	if (workflows.err !== null) {
 		console.error(workflows.err);
 		notifications.addFlash({
@@ -62,19 +57,8 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 		redirect(HttpStatus.Found, '/admin');
 	}
 
-	const cohostOrganizations = await cohostOrganizationsResponse;
-	if (cohostOrganizations.err !== null) {
-		console.error(cohostOrganizations.err);
-		notifications.addFlash({
-			message: 'Problem loading workflows',
-			priority: 'WARNING'
-		});
-		redirect(HttpStatus.Found, '/admin');
-	}
-
 	return {
 		conversation,
-		workflows: workflows.ok,
-		cohostOrganizations: cohostOrganizations.ok
+		workflows: workflows.ok
 	};
 };
