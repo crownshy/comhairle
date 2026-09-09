@@ -289,6 +289,10 @@ A statement all opinion groups agree on, ranked by Polis's `group_informed_conse
 **Area of Difference** (shown as "Area of disagreement" in Insights):
 A statement the opinion groups split hardest on, ranked by Polis's `divisiveness`, highest first, read straight off `report_data` (not recomputed).
 
+**Feedback survey**:
+A HeyForm survey attached to a conversation rather than to a Step, asked on the thank-you page once a participant has finished the flow. About the experience (was the information useful, did they feel heard, what to change), not the topic. Not a Step: it is not counted in "Step N of M", never required, and its responses are kept apart from the conversation's data. One per conversation, created and written in the Configure > Feedback tab, read there as Insights. See [ADR-0036](documentation/adr/0036-feedback-about-the-flow-is-asked-on-the-thank-you-page.md).
+_Avoid_: feedback step, exit survey, the old free-text "Give feedback" box (which it supersedes).
+
 ### Reporting
 
 **Report component**:

@@ -511,5 +511,9 @@
 	"thank_you_more_body": "You can go back to any earlier step and update what you said.",
 	"thank_you_keep_informed": "Keep informed",
 	"thank_you_keep_informed_body": "Choose what you want to hear about. You can change this later on your settings page.",
-	"thank_you_keep_informed_anonymous": "Upgrade to a full account, or leave an email address, and we will let you know how this conversation ends."
+	"thank_you_keep_informed_anonymous": "Upgrade to a full account, or leave an email address, and we will let you know how this conversation ends.",
+	"thank_you_feedback_body": "You just did the whole thing, so you are the best person to tell us how it went. A few quick questions help us make the next one better.",
+	"thank_you_feedback_cta": "Tell us how it went",
+	"thank_you_feedback_done_title": "Thanks, that helps",
+	"thank_you_feedback_done_body": "We read every answer, and it shapes how the next conversation is built."
 }

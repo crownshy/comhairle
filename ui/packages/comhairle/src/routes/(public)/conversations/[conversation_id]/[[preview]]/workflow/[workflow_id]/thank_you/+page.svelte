@@ -19,6 +19,7 @@
 	import EmailRegistrationForm from '$lib/components/EmailRegistrationForm/EmailRegistrationForm.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import ThankYouStats from './ThankYouStats.svelte';
+	import FeedbackSurveyCard from './FeedbackSurveyCard.svelte';
 	import { haptic } from '$lib/utils/haptics';
 	import * as m from '$lib/paraglide/messages';
 
@@ -48,6 +49,12 @@
 	// Nothing finished means someone arrived here without doing the flow. There is no
 	// achievement to count up, so the row stays away rather than reporting zero.
 	let hasStats = $derived(stepsDone > 0);
+
+	/**
+	 * When the stats row has finished: the last tile's stagger (ThankYouStats) plus the count
+	 * itself (CountUp). Anything asked for after this is not competing with the numbers.
+	 */
+	const STATS_SETTLED_MS = 1500;
 
 	/**
 	 * Minutes come from a clock kept in the browser, so there is nothing to render on the
@@ -106,7 +113,17 @@
 	 */
 	let currentIndex = $derived(steps.length);
 
-	let showFeedback = $derived(conversation.showThankyouPageFeedbackButton);
+	/**
+	 * The survey attached to this conversation, if any. Only a HeyForm config can be
+	 * embedded; anything else is treated as no survey rather than a broken card.
+	 */
+	let feedbackSurvey = $derived.by(() => {
+		const config = data.feedbackSurvey?.toolConfig;
+		return config?.type === 'heyform' ? config : null;
+	});
+
+	// The structured survey supersedes the free-text box: one ask, not two.
+	let showFeedback = $derived(conversation.showThankyouPageFeedbackButton && !feedbackSurvey);
 	let showMore = $derived(hasRevisitableSteps || showFeedback);
 </script>
 
@@ -145,6 +162,21 @@
 
 			{#if mounted && hasStats}
 				<ThankYouStats {minutes} {stepsDone} {percentComplete} />
+			{/if}
+
+			<!-- Asked here, while finishing is still the moment, rather than folded away with
+				the rest (ADR-0036). Everything below it is still optional. It waits for the
+				stats to stop counting, so the ask arrives after what it is asking about. -->
+			{#if feedbackSurvey}
+				<FeedbackSurveyCard
+					conversationId={conversation.id}
+					userId={user.id}
+					surveyId={feedbackSurvey.survey_id}
+					serverUrl={feedbackSurvey.server_url}
+					surveyUrl={feedbackSurvey.survey_url}
+					completed={data.feedbackSurvey?.completed ?? false}
+					appearDelayMs={hasStats ? STATS_SETTLED_MS : 0}
+				/>
 			{/if}
 
 			<div class="prose w-full max-w-none">
