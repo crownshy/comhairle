@@ -96,9 +96,7 @@
 		pages.markSaved();
 	}
 
-	pages.saveHandler((options) =>
-		save(pages.toLocalizedPages(), { shouldInvalidate: options?.invalidate ?? true })
-	);
+	pages.saveHandler(() => save(pages.toLocalizedPages()));
 
 	pages.onMarkSaved(() => {
 		lastPropsConfig = JSON.stringify({
