@@ -7,18 +7,23 @@ import {
 } from "@zodios/core";
 import { z } from "zod";
 
-export const GuestLoginRequest = z
-  .object({ guest_code: z.string() })
-  .passthrough();
-export type GuestLoginRequest = z.infer<typeof GuestLoginRequest>;
-export const UserAuthType = z.enum([
+const _GuestLoginRequest = z.object({ guest_code: z.string() }).passthrough();
+export type GuestLoginRequest = z.infer<typeof _GuestLoginRequest>;
+export const GuestLoginRequest: z.ZodType<
+  GuestLoginRequest,
+  z.ZodTypeDef,
+  any
+> = _GuestLoginRequest;
+const _UserAuthType = z.enum([
   "guest",
   "email_password",
   "otp",
   "scot_account",
 ]);
-export type UserAuthType = z.infer<typeof UserAuthType>;
-export const UserDto = z
+export type UserAuthType = z.infer<typeof _UserAuthType>;
+export const UserAuthType: z.ZodType<UserAuthType, z.ZodTypeDef, any> =
+  _UserAuthType;
+const _UserDto = z
   .object({
     authType: UserAuthType,
     avatarUrl: z.union([z.string(), z.null()]).optional(),
@@ -30,16 +35,21 @@ export const UserDto = z
     username: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type UserDto = z.infer<typeof UserDto>;
-export const LoginRequest = z
+export type UserDto = z.infer<typeof _UserDto>;
+export const UserDto: z.ZodType<UserDto, z.ZodTypeDef, any> = _UserDto;
+const _LoginRequest = z
   .object({ email: z.string(), password: z.string() })
   .passthrough();
-export type LoginRequest = z.infer<typeof LoginRequest>;
-export const OtpLoginRequest = z
+export type LoginRequest = z.infer<typeof _LoginRequest>;
+export const LoginRequest: z.ZodType<LoginRequest, z.ZodTypeDef, any> =
+  _LoginRequest;
+const _OtpLoginRequest = z
   .object({ code: z.string(), email: z.string() })
   .passthrough();
-export type OtpLoginRequest = z.infer<typeof OtpLoginRequest>;
-export const SignupRequest = z
+export type OtpLoginRequest = z.infer<typeof _OtpLoginRequest>;
+export const OtpLoginRequest: z.ZodType<OtpLoginRequest, z.ZodTypeDef, any> =
+  _OtpLoginRequest;
+const _SignupRequest = z
   .object({
     avatar_url: z.union([z.string(), z.null()]).optional(),
     email: z.string(),
@@ -47,42 +57,64 @@ export const SignupRequest = z
     username: z.string(),
   })
   .passthrough();
-export type SignupRequest = z.infer<typeof SignupRequest>;
-export const OtpSignupRequest = z
+export type SignupRequest = z.infer<typeof _SignupRequest>;
+export const SignupRequest: z.ZodType<SignupRequest, z.ZodTypeDef, any> =
+  _SignupRequest;
+const _OtpSignupRequest = z
   .object({
     email: z.string(),
     username: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type OtpSignupRequest = z.infer<typeof OtpSignupRequest>;
-export const CreateOtpRequest = z
+export type OtpSignupRequest = z.infer<typeof _OtpSignupRequest>;
+export const OtpSignupRequest: z.ZodType<OtpSignupRequest, z.ZodTypeDef, any> =
+  _OtpSignupRequest;
+const _CreateOtpRequest = z
   .object({
     email: z.string(),
     redirect_url: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type CreateOtpRequest = z.infer<typeof CreateOtpRequest>;
-export const VerifyOtpTokenRequest = z
-  .object({ token: z.string() })
-  .passthrough();
-export type VerifyOtpTokenRequest = z.infer<typeof VerifyOtpTokenRequest>;
-export const VerifyEmailTokenRequest = z
-  .object({ token: z.string() })
-  .passthrough();
-export type VerifyEmailTokenRequest = z.infer<typeof VerifyEmailTokenRequest>;
-export const ResendVerificationEmailRequest = z
+export type CreateOtpRequest = z.infer<typeof _CreateOtpRequest>;
+export const CreateOtpRequest: z.ZodType<CreateOtpRequest, z.ZodTypeDef, any> =
+  _CreateOtpRequest;
+const _VerifyOtpTokenRequest = z.object({ token: z.string() }).passthrough();
+export type VerifyOtpTokenRequest = z.infer<typeof _VerifyOtpTokenRequest>;
+export const VerifyOtpTokenRequest: z.ZodType<
+  VerifyOtpTokenRequest,
+  z.ZodTypeDef,
+  any
+> = _VerifyOtpTokenRequest;
+const _VerifyEmailTokenRequest = z.object({ token: z.string() }).passthrough();
+export type VerifyEmailTokenRequest = z.infer<typeof _VerifyEmailTokenRequest>;
+export const VerifyEmailTokenRequest: z.ZodType<
+  VerifyEmailTokenRequest,
+  z.ZodTypeDef,
+  any
+> = _VerifyEmailTokenRequest;
+const _ResendVerificationEmailRequest = z
   .object({ id: z.string() })
   .passthrough();
 export type ResendVerificationEmailRequest = z.infer<
-  typeof ResendVerificationEmailRequest
+  typeof _ResendVerificationEmailRequest
 >;
-export const CreatePasswordResetRequest = z
+export const ResendVerificationEmailRequest: z.ZodType<
+  ResendVerificationEmailRequest,
+  z.ZodTypeDef,
+  any
+> = _ResendVerificationEmailRequest;
+const _CreatePasswordResetRequest = z
   .object({ email: z.string() })
   .passthrough();
 export type CreatePasswordResetRequest = z.infer<
-  typeof CreatePasswordResetRequest
+  typeof _CreatePasswordResetRequest
 >;
-export const PasswordResetUpdateRequest = z
+export const CreatePasswordResetRequest: z.ZodType<
+  CreatePasswordResetRequest,
+  z.ZodTypeDef,
+  any
+> = _CreatePasswordResetRequest;
+const _PasswordResetUpdateRequest = z
   .object({
     confirm_password: z.string(),
     password: z.string(),
@@ -90,20 +122,30 @@ export const PasswordResetUpdateRequest = z
   })
   .passthrough();
 export type PasswordResetUpdateRequest = z.infer<
-  typeof PasswordResetUpdateRequest
+  typeof _PasswordResetUpdateRequest
 >;
-export const ResourceType = z.union([
+export const PasswordResetUpdateRequest: z.ZodType<
+  PasswordResetUpdateRequest,
+  z.ZodTypeDef,
+  any
+> = _PasswordResetUpdateRequest;
+const _ResourceType = z.union([
   z.literal("Site"),
   z.object({ Conversation: z.string().uuid() }),
 ]);
-export type ResourceType = z.infer<typeof ResourceType>;
-export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
-export type ResourceRole = z.infer<typeof ResourceRole>;
-export const UserRoles = z
+export type ResourceType = z.infer<typeof _ResourceType>;
+export const ResourceType: z.ZodType<ResourceType, z.ZodTypeDef, any> =
+  _ResourceType;
+const _ResourceRole = z.enum(["Admin", "SuperAdmin"]);
+export type ResourceRole = z.infer<typeof _ResourceRole>;
+export const ResourceRole: z.ZodType<ResourceRole, z.ZodTypeDef, any> =
+  _ResourceRole;
+const _UserRoles = z
   .object({ resource: ResourceType, roles: z.array(ResourceRole) })
   .passthrough();
-export type UserRoles = z.infer<typeof UserRoles>;
-export const LocalizedConversationDto = z
+export type UserRoles = z.infer<typeof _UserRoles>;
+export const UserRoles: z.ZodType<UserRoles, z.ZodTypeDef, any> = _UserRoles;
+const _LocalizedConversationDto = z
   .object({
     allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
@@ -135,25 +177,44 @@ export const LocalizedConversationDto = z
     videoUrl: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type LocalizedConversationDto = z.infer<typeof LocalizedConversationDto>;
-export const created_after = z.union([z.string(), z.null()]).optional();
-export type created_after = z.infer<typeof created_after>;
-export const is_complete = z.union([z.boolean(), z.null()]).optional();
-export type is_complete = z.infer<typeof is_complete>;
-export const limit = z.union([z.number(), z.null()]).optional();
-export type limit = z.infer<typeof limit>;
-export const PaginatedResults_for_LocalizedConversationDto = z
+export type LocalizedConversationDto = z.infer<
+  typeof _LocalizedConversationDto
+>;
+export const LocalizedConversationDto: z.ZodType<
+  LocalizedConversationDto,
+  z.ZodTypeDef,
+  any
+> = _LocalizedConversationDto;
+const _created_after = z.union([z.string(), z.null()]).optional();
+export type created_after = z.infer<typeof _created_after>;
+export const created_after: z.ZodType<created_after, z.ZodTypeDef, any> =
+  _created_after;
+const _is_complete = z.union([z.boolean(), z.null()]).optional();
+export type is_complete = z.infer<typeof _is_complete>;
+export const is_complete: z.ZodType<is_complete, z.ZodTypeDef, any> =
+  _is_complete;
+const _limit = z.union([z.number(), z.null()]).optional();
+export type limit = z.infer<typeof _limit>;
+export const limit: z.ZodType<limit, z.ZodTypeDef, any> = _limit;
+const _PaginatedResults_for_LocalizedConversationDto = z
   .object({
     records: z.array(LocalizedConversationDto),
     total: z.number().int(),
   })
   .passthrough();
 export type PaginatedResults_for_LocalizedConversationDto = z.infer<
-  typeof PaginatedResults_for_LocalizedConversationDto
+  typeof _PaginatedResults_for_LocalizedConversationDto
 >;
-export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
-export type OrganizationType = z.infer<typeof OrganizationType>;
-export const LocalizedOrganizationDto = z
+export const PaginatedResults_for_LocalizedConversationDto: z.ZodType<
+  PaginatedResults_for_LocalizedConversationDto,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_LocalizedConversationDto;
+const _OrganizationType = z.enum(["non_profit", "governmental", "other"]);
+export type OrganizationType = z.infer<typeof _OrganizationType>;
+export const OrganizationType: z.ZodType<OrganizationType, z.ZodTypeDef, any> =
+  _OrganizationType;
+const _LocalizedOrganizationDto = z
   .object({
     contactEmail: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
@@ -167,8 +228,15 @@ export const LocalizedOrganizationDto = z
     regions: z.array(z.string().uuid()),
   })
   .passthrough();
-export type LocalizedOrganizationDto = z.infer<typeof LocalizedOrganizationDto>;
-export const UserOrganizationAccess = z
+export type LocalizedOrganizationDto = z.infer<
+  typeof _LocalizedOrganizationDto
+>;
+export const LocalizedOrganizationDto: z.ZodType<
+  LocalizedOrganizationDto,
+  z.ZodTypeDef,
+  any
+> = _LocalizedOrganizationDto;
+const _UserOrganizationAccess = z
   .object({
     canDelete: z.boolean(),
     canManageTeam: z.boolean(),
@@ -177,17 +245,27 @@ export const UserOrganizationAccess = z
     organization: LocalizedOrganizationDto,
   })
   .passthrough();
-export type UserOrganizationAccess = z.infer<typeof UserOrganizationAccess>;
-export const UserOrganizationsResponse = z
+export type UserOrganizationAccess = z.infer<typeof _UserOrganizationAccess>;
+export const UserOrganizationAccess: z.ZodType<
+  UserOrganizationAccess,
+  z.ZodTypeDef,
+  any
+> = _UserOrganizationAccess;
+const _UserOrganizationsResponse = z
   .object({
     canCreateOrganization: z.boolean(),
     organizations: z.array(UserOrganizationAccess),
   })
   .passthrough();
 export type UserOrganizationsResponse = z.infer<
-  typeof UserOrganizationsResponse
+  typeof _UserOrganizationsResponse
 >;
-export const UpdateUserRequest = z
+export const UserOrganizationsResponse: z.ZodType<
+  UserOrganizationsResponse,
+  z.ZodTypeDef,
+  any
+> = _UserOrganizationsResponse;
+const _UpdateUserRequest = z
   .object({
     email_verified: z.union([z.boolean(), z.null()]),
     organization_id: z.union([z.string(), z.null()]),
@@ -196,12 +274,22 @@ export const UpdateUserRequest = z
   })
   .partial()
   .passthrough();
-export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
-export const UpgradeAccountRequest = z
+export type UpdateUserRequest = z.infer<typeof _UpdateUserRequest>;
+export const UpdateUserRequest: z.ZodType<
+  UpdateUserRequest,
+  z.ZodTypeDef,
+  any
+> = _UpdateUserRequest;
+const _UpgradeAccountRequest = z
   .object({ email: z.string(), password: z.string(), username: z.string() })
   .passthrough();
-export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
-export const UserConversationPreferencesDto = z
+export type UpgradeAccountRequest = z.infer<typeof _UpgradeAccountRequest>;
+export const UpgradeAccountRequest: z.ZodType<
+  UpgradeAccountRequest,
+  z.ZodTypeDef,
+  any
+> = _UpgradeAccountRequest;
+const _UserConversationPreferencesDto = z
   .object({
     conversationId: z.string().uuid(),
     id: z.string().uuid(),
@@ -213,9 +301,14 @@ export const UserConversationPreferencesDto = z
   })
   .passthrough();
 export type UserConversationPreferencesDto = z.infer<
-  typeof UserConversationPreferencesDto
+  typeof _UserConversationPreferencesDto
 >;
-export const UpdateUserConversationPreferences = z
+export const UserConversationPreferencesDto: z.ZodType<
+  UserConversationPreferencesDto,
+  z.ZodTypeDef,
+  any
+> = _UserConversationPreferencesDto;
+const _UpdateUserConversationPreferences = z
   .object({
     receiveSimilarConversationUpdatesByEmail: z.union([z.boolean(), z.null()]),
     receiveSimilarConversationUpdatesByNotification: z.union([
@@ -228,9 +321,14 @@ export const UpdateUserConversationPreferences = z
   .partial()
   .passthrough();
 export type UpdateUserConversationPreferences = z.infer<
-  typeof UpdateUserConversationPreferences
+  typeof _UpdateUserConversationPreferences
 >;
-export const UserProfileDto = z
+export const UpdateUserConversationPreferences: z.ZodType<
+  UpdateUserConversationPreferences,
+  z.ZodTypeDef,
+  any
+> = _UpdateUserConversationPreferences;
+const _UserProfileDto = z
   .object({
     consented: z.boolean(),
     createdAt: z.string().datetime({ offset: true }),
@@ -239,8 +337,10 @@ export const UserProfileDto = z
     userId: z.string().uuid(),
   })
   .passthrough();
-export type UserProfileDto = z.infer<typeof UserProfileDto>;
-export const UpsertUserProfileRequest = z
+export type UserProfileDto = z.infer<typeof _UserProfileDto>;
+export const UserProfileDto: z.ZodType<UserProfileDto, z.ZodTypeDef, any> =
+  _UserProfileDto;
+const _UpsertUserProfileRequest = z
   .object({
     age: z.union([z.number(), z.null()]),
     consented: z.union([z.boolean(), z.null()]),
@@ -251,14 +351,30 @@ export const UpsertUserProfileRequest = z
   })
   .partial()
   .passthrough();
-export type UpsertUserProfileRequest = z.infer<typeof UpsertUserProfileRequest>;
-export const DeliveryMethod = z.enum(["in_app", "email"]);
-export type DeliveryMethod = z.infer<typeof DeliveryMethod>;
-export const NotificationContextType = z.enum(["site", "conversation"]);
-export type NotificationContextType = z.infer<typeof NotificationContextType>;
-export const NotificationType = z.enum(["info", "warning", "error", "success"]);
-export type NotificationType = z.infer<typeof NotificationType>;
-export const NotificationDto = z
+export type UpsertUserProfileRequest = z.infer<
+  typeof _UpsertUserProfileRequest
+>;
+export const UpsertUserProfileRequest: z.ZodType<
+  UpsertUserProfileRequest,
+  z.ZodTypeDef,
+  any
+> = _UpsertUserProfileRequest;
+const _DeliveryMethod = z.enum(["in_app", "email"]);
+export type DeliveryMethod = z.infer<typeof _DeliveryMethod>;
+export const DeliveryMethod: z.ZodType<DeliveryMethod, z.ZodTypeDef, any> =
+  _DeliveryMethod;
+const _NotificationContextType = z.enum(["site", "conversation"]);
+export type NotificationContextType = z.infer<typeof _NotificationContextType>;
+export const NotificationContextType: z.ZodType<
+  NotificationContextType,
+  z.ZodTypeDef,
+  any
+> = _NotificationContextType;
+const _NotificationType = z.enum(["info", "warning", "error", "success"]);
+export type NotificationType = z.infer<typeof _NotificationType>;
+export const NotificationType: z.ZodType<NotificationType, z.ZodTypeDef, any> =
+  _NotificationType;
+const _NotificationDto = z
   .object({
     content: z.string(),
     contextId: z.union([z.string(), z.null()]).optional(),
@@ -269,8 +385,10 @@ export const NotificationDto = z
     title: z.string(),
   })
   .passthrough();
-export type NotificationDto = z.infer<typeof NotificationDto>;
-export const NotificationWithDelivery = z
+export type NotificationDto = z.infer<typeof _NotificationDto>;
+export const NotificationDto: z.ZodType<NotificationDto, z.ZodTypeDef, any> =
+  _NotificationDto;
+const _NotificationWithDelivery = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
     deliveredAt: z.string().datetime({ offset: true }),
@@ -282,19 +400,33 @@ export const NotificationWithDelivery = z
     userId: z.string().uuid(),
   })
   .passthrough();
-export type NotificationWithDelivery = z.infer<typeof NotificationWithDelivery>;
-export const PaginatedResults_for_NotificationWithDelivery = z
+export type NotificationWithDelivery = z.infer<
+  typeof _NotificationWithDelivery
+>;
+export const NotificationWithDelivery: z.ZodType<
+  NotificationWithDelivery,
+  z.ZodTypeDef,
+  any
+> = _NotificationWithDelivery;
+const _PaginatedResults_for_NotificationWithDelivery = z
   .object({
     records: z.array(NotificationWithDelivery),
     total: z.number().int(),
   })
   .passthrough();
 export type PaginatedResults_for_NotificationWithDelivery = z.infer<
-  typeof PaginatedResults_for_NotificationWithDelivery
+  typeof _PaginatedResults_for_NotificationWithDelivery
 >;
-export const UnreadCount = z.object({ count: z.number().int() }).passthrough();
-export type UnreadCount = z.infer<typeof UnreadCount>;
-export const NotificationDelivery = z
+export const PaginatedResults_for_NotificationWithDelivery: z.ZodType<
+  PaginatedResults_for_NotificationWithDelivery,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_NotificationWithDelivery;
+const _UnreadCount = z.object({ count: z.number().int() }).passthrough();
+export type UnreadCount = z.infer<typeof _UnreadCount>;
+export const UnreadCount: z.ZodType<UnreadCount, z.ZodTypeDef, any> =
+  _UnreadCount;
+const _NotificationDelivery = z
   .object({
     created_at: z.string().datetime({ offset: true }),
     delivered_at: z.string().datetime({ offset: true }),
@@ -306,30 +438,45 @@ export const NotificationDelivery = z
     user_id: z.string().uuid(),
   })
   .passthrough();
-export type NotificationDelivery = z.infer<typeof NotificationDelivery>;
-export const TextFormat = z.union([
+export type NotificationDelivery = z.infer<typeof _NotificationDelivery>;
+export const NotificationDelivery: z.ZodType<
+  NotificationDelivery,
+  z.ZodTypeDef,
+  any
+> = _NotificationDelivery;
+const _TextFormat = z.union([
   z.literal("plain"),
   z.literal("markdown"),
   z.literal("rich"),
 ]);
-export type TextFormat = z.infer<typeof TextFormat>;
-export const CreateTextContentRequest = z
+export type TextFormat = z.infer<typeof _TextFormat>;
+export const TextFormat: z.ZodType<TextFormat, z.ZodTypeDef, any> = _TextFormat;
+const _CreateTextContentRequest = z
   .object({
     content: z.string(),
     format: TextFormat,
     primary_locale: z.string(),
   })
   .passthrough();
-export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
-export const TextContentDto = z
+export type CreateTextContentRequest = z.infer<
+  typeof _CreateTextContentRequest
+>;
+export const CreateTextContentRequest: z.ZodType<
+  CreateTextContentRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateTextContentRequest;
+const _TextContentDto = z
   .object({
     format: TextFormat,
     id: z.string().uuid(),
     primaryLocale: z.string(),
   })
   .passthrough();
-export type TextContentDto = z.infer<typeof TextContentDto>;
-export const TextTranslationDto = z
+export type TextContentDto = z.infer<typeof _TextContentDto>;
+export const TextContentDto: z.ZodType<TextContentDto, z.ZodTypeDef, any> =
+  _TextContentDto;
+const _TextTranslationDto = z
   .object({
     aiGenerated: z.boolean(),
     content: z.string(),
@@ -339,8 +486,13 @@ export const TextTranslationDto = z
     requiresValidation: z.boolean(),
   })
   .passthrough();
-export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
-export const TextContentWithTranslations = z
+export type TextTranslationDto = z.infer<typeof _TextTranslationDto>;
+export const TextTranslationDto: z.ZodType<
+  TextTranslationDto,
+  z.ZodTypeDef,
+  any
+> = _TextTranslationDto;
+const _TextContentWithTranslations = z
   .object({
     format: TextFormat,
     id: z.string().uuid(),
@@ -349,17 +501,27 @@ export const TextContentWithTranslations = z
   })
   .passthrough();
 export type TextContentWithTranslations = z.infer<
-  typeof TextContentWithTranslations
+  typeof _TextContentWithTranslations
 >;
-export const UpdateTextContent = z
+export const TextContentWithTranslations: z.ZodType<
+  TextContentWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _TextContentWithTranslations;
+const _UpdateTextContent = z
   .object({
     format: z.union([TextFormat, z.null()]),
     primary_locale: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();
-export type UpdateTextContent = z.infer<typeof UpdateTextContent>;
-export const UpdateTextTranslation = z
+export type UpdateTextContent = z.infer<typeof _UpdateTextContent>;
+export const UpdateTextContent: z.ZodType<
+  UpdateTextContent,
+  z.ZodTypeDef,
+  any
+> = _UpdateTextContent;
+const _UpdateTextTranslation = z
   .object({
     ai_generated: z.union([z.boolean(), z.null()]),
     content: z.union([z.string(), z.null()]),
@@ -368,8 +530,13 @@ export const UpdateTextTranslation = z
   })
   .partial()
   .passthrough();
-export type UpdateTextTranslation = z.infer<typeof UpdateTextTranslation>;
-export const CreateOrUpdateTextTranslationRequest = z
+export type UpdateTextTranslation = z.infer<typeof _UpdateTextTranslation>;
+export const UpdateTextTranslation: z.ZodType<
+  UpdateTextTranslation,
+  z.ZodTypeDef,
+  any
+> = _UpdateTextTranslation;
+const _CreateOrUpdateTextTranslationRequest = z
   .object({
     ai_generated: z.union([z.boolean(), z.null()]).optional(),
     content: z.string(),
@@ -377,9 +544,14 @@ export const CreateOrUpdateTextTranslationRequest = z
   })
   .passthrough();
 export type CreateOrUpdateTextTranslationRequest = z.infer<
-  typeof CreateOrUpdateTextTranslationRequest
+  typeof _CreateOrUpdateTextTranslationRequest
 >;
-export const GroupVoteCounts = z
+export const CreateOrUpdateTextTranslationRequest: z.ZodType<
+  CreateOrUpdateTextTranslationRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateOrUpdateTextTranslationRequest;
+const _GroupVoteCounts = z
   .object({
     agrees: z.number().int().gte(0),
     disagrees: z.number().int().gte(0),
@@ -387,16 +559,19 @@ export const GroupVoteCounts = z
     passes: z.number().int().gte(0),
   })
   .passthrough();
-export type GroupVoteCounts = z.infer<typeof GroupVoteCounts>;
-export const VoteCounts = z
+export type GroupVoteCounts = z.infer<typeof _GroupVoteCounts>;
+export const GroupVoteCounts: z.ZodType<GroupVoteCounts, z.ZodTypeDef, any> =
+  _GroupVoteCounts;
+const _VoteCounts = z
   .object({
     agrees: z.number().int().gte(0),
     disagrees: z.number().int().gte(0),
     passes: z.number().int().gte(0),
   })
   .passthrough();
-export type VoteCounts = z.infer<typeof VoteCounts>;
-export const CommentReportData = z
+export type VoteCounts = z.infer<typeof _VoteCounts>;
+export const VoteCounts: z.ZodType<VoteCounts, z.ZodTypeDef, any> = _VoteCounts;
+const _CommentReportData = z
   .object({
     divisiveness: z.union([z.number(), z.null()]).optional(),
     group_informed_consensus: z.union([z.number(), z.null()]).optional(),
@@ -407,12 +582,22 @@ export const CommentReportData = z
     tid: z.number().int().gte(0),
   })
   .passthrough();
-export type CommentReportData = z.infer<typeof CommentReportData>;
-export const RepresentativeComment = z
+export type CommentReportData = z.infer<typeof _CommentReportData>;
+export const CommentReportData: z.ZodType<
+  CommentReportData,
+  z.ZodTypeDef,
+  any
+> = _CommentReportData;
+const _RepresentativeComment = z
   .object({ text: z.string(), tid: z.number().int().gte(0) })
   .passthrough();
-export type RepresentativeComment = z.infer<typeof RepresentativeComment>;
-export const GroupReportData = z
+export type RepresentativeComment = z.infer<typeof _RepresentativeComment>;
+export const RepresentativeComment: z.ZodType<
+  RepresentativeComment,
+  z.ZodTypeDef,
+  any
+> = _RepresentativeComment;
+const _GroupReportData = z
   .object({
     group_id: z.number().int().gte(0),
     members: z.array(z.number().int().gte(0)),
@@ -420,32 +605,46 @@ export const GroupReportData = z
     total_members: z.number().int().gte(0),
   })
   .passthrough();
-export type GroupReportData = z.infer<typeof GroupReportData>;
-export const PcaPosition = z
-  .object({ x: z.number(), y: z.number() })
-  .passthrough();
-export type PcaPosition = z.infer<typeof PcaPosition>;
-export const ParticipantReportData = z
+export type GroupReportData = z.infer<typeof _GroupReportData>;
+export const GroupReportData: z.ZodType<GroupReportData, z.ZodTypeDef, any> =
+  _GroupReportData;
+const _PcaPosition = z.object({ x: z.number(), y: z.number() }).passthrough();
+export type PcaPosition = z.infer<typeof _PcaPosition>;
+export const PcaPosition: z.ZodType<PcaPosition, z.ZodTypeDef, any> =
+  _PcaPosition;
+const _ParticipantReportData = z
   .object({
     group_id: z.union([z.number(), z.null()]).optional(),
     pca_position: z.union([PcaPosition, z.null()]).optional(),
     pid: z.number().int().gte(0),
   })
   .passthrough();
-export type ParticipantReportData = z.infer<typeof ParticipantReportData>;
-export const WikiPollReport = z
+export type ParticipantReportData = z.infer<typeof _ParticipantReportData>;
+export const ParticipantReportData: z.ZodType<
+  ParticipantReportData,
+  z.ZodTypeDef,
+  any
+> = _ParticipantReportData;
+const _WikiPollReport = z
   .object({
     comments: z.array(CommentReportData),
     groups: z.array(GroupReportData),
     participants: z.array(ParticipantReportData),
   })
   .passthrough();
-export type WikiPollReport = z.infer<typeof WikiPollReport>;
-export const VoteCountResponse = z
+export type WikiPollReport = z.infer<typeof _WikiPollReport>;
+export const WikiPollReport: z.ZodType<WikiPollReport, z.ZodTypeDef, any> =
+  _WikiPollReport;
+const _VoteCountResponse = z
   .object({ vote_count: z.number().int().gte(0) })
   .passthrough();
-export type VoteCountResponse = z.infer<typeof VoteCountResponse>;
-export const UpdatePolisConfigRequest = z
+export type VoteCountResponse = z.infer<typeof _VoteCountResponse>;
+export const VoteCountResponse: z.ZodType<
+  VoteCountResponse,
+  z.ZodTypeDef,
+  any
+> = _VoteCountResponse;
+const _UpdatePolisConfigRequest = z
   .object({
     description: z.union([z.string(), z.null()]).optional(),
     is_active: z.union([z.boolean(), z.null()]).optional(),
@@ -454,25 +653,39 @@ export const UpdatePolisConfigRequest = z
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
-export type UpdatePolisConfigRequest = z.infer<typeof UpdatePolisConfigRequest>;
-export const WikiPoll = z
+export type UpdatePolisConfigRequest = z.infer<
+  typeof _UpdatePolisConfigRequest
+>;
+export const UpdatePolisConfigRequest: z.ZodType<
+  UpdatePolisConfigRequest,
+  z.ZodTypeDef,
+  any
+> = _UpdatePolisConfigRequest;
+const _WikiPoll = z
   .object({
     is_active: z.union([z.boolean(), z.null()]).optional(),
     poll_id: z.string(),
   })
   .passthrough();
-export type WikiPoll = z.infer<typeof WikiPoll>;
-export const PostSeedRequest = z
+export type WikiPoll = z.infer<typeof _WikiPoll>;
+export const WikiPoll: z.ZodType<WikiPoll, z.ZodTypeDef, any> = _WikiPoll;
+const _PostSeedRequest = z
   .object({ statement_text: z.string(), workflow_step_id: z.string().uuid() })
   .passthrough();
-export type PostSeedRequest = z.infer<typeof PostSeedRequest>;
-export const PostSeedResponse = z
+export type PostSeedRequest = z.infer<typeof _PostSeedRequest>;
+export const PostSeedRequest: z.ZodType<PostSeedRequest, z.ZodTypeDef, any> =
+  _PostSeedRequest;
+const _PostSeedResponse = z
   .object({ polis_statement_id: z.string() })
   .passthrough();
-export type PostSeedResponse = z.infer<typeof PostSeedResponse>;
-export const ModerationStatus = z.enum(["accepted", "rejected", "pending"]);
-export type ModerationStatus = z.infer<typeof ModerationStatus>;
-export const PolisStatementAux = z
+export type PostSeedResponse = z.infer<typeof _PostSeedResponse>;
+export const PostSeedResponse: z.ZodType<PostSeedResponse, z.ZodTypeDef, any> =
+  _PostSeedResponse;
+const _ModerationStatus = z.enum(["accepted", "rejected", "pending"]);
+export type ModerationStatus = z.infer<typeof _ModerationStatus>;
+export const ModerationStatus: z.ZodType<ModerationStatus, z.ZodTypeDef, any> =
+  _ModerationStatus;
+const _PolisStatementAux = z
   .object({
     created_at: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -493,8 +706,13 @@ export const PolisStatementAux = z
     zid: z.number().int(),
   })
   .passthrough();
-export type PolisStatementAux = z.infer<typeof PolisStatementAux>;
-export const CreatePolisStatementAux = z
+export type PolisStatementAux = z.infer<typeof _PolisStatementAux>;
+export const PolisStatementAux: z.ZodType<
+  PolisStatementAux,
+  z.ZodTypeDef,
+  any
+> = _PolisStatementAux;
+const _CreatePolisStatementAux = z
   .object({
     is_seed: z.boolean(),
     moderation_reason: z.union([z.string(), z.null()]).optional(),
@@ -510,8 +728,13 @@ export const CreatePolisStatementAux = z
     zid: z.number().int(),
   })
   .passthrough();
-export type CreatePolisStatementAux = z.infer<typeof CreatePolisStatementAux>;
-export const UpdatePolisStatementAux = z
+export type CreatePolisStatementAux = z.infer<typeof _CreatePolisStatementAux>;
+export const CreatePolisStatementAux: z.ZodType<
+  CreatePolisStatementAux,
+  z.ZodTypeDef,
+  any
+> = _CreatePolisStatementAux;
+const _UpdatePolisStatementAux = z
   .object({
     moderation_reason: z.union([z.string(), z.null()]),
     moderation_status: z.union([ModerationStatus, z.null()]),
@@ -521,39 +744,70 @@ export const UpdatePolisStatementAux = z
   })
   .partial()
   .passthrough();
-export type UpdatePolisStatementAux = z.infer<typeof UpdatePolisStatementAux>;
-export const SyncStatementAuxRequest = z
+export type UpdatePolisStatementAux = z.infer<typeof _UpdatePolisStatementAux>;
+export const UpdatePolisStatementAux: z.ZodType<
+  UpdatePolisStatementAux,
+  z.ZodTypeDef,
+  any
+> = _UpdatePolisStatementAux;
+const _SyncStatementAuxRequest = z
   .object({ workflow_step_id: z.string().uuid() })
   .passthrough();
-export type SyncStatementAuxRequest = z.infer<typeof SyncStatementAuxRequest>;
-export const SyncStatementAuxResponse = z
+export type SyncStatementAuxRequest = z.infer<typeof _SyncStatementAuxRequest>;
+export const SyncStatementAuxRequest: z.ZodType<
+  SyncStatementAuxRequest,
+  z.ZodTypeDef,
+  any
+> = _SyncStatementAuxRequest;
+const _SyncStatementAuxResponse = z
   .object({
     skipped_invalid_xid: z.number().int().gte(0),
     statements: z.array(PolisStatementAux),
     synced: z.number().int().gte(0),
   })
   .passthrough();
-export type SyncStatementAuxResponse = z.infer<typeof SyncStatementAuxResponse>;
-export const ThemeStatistic = z
+export type SyncStatementAuxResponse = z.infer<
+  typeof _SyncStatementAuxResponse
+>;
+export const SyncStatementAuxResponse: z.ZodType<
+  SyncStatementAuxResponse,
+  z.ZodTypeDef,
+  any
+> = _SyncStatementAuxResponse;
+const _ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
-export type ThemeStatistic = z.infer<typeof ThemeStatistic>;
-export const ThemeRequest = z.object({ theme: z.string() }).passthrough();
-export type ThemeRequest = z.infer<typeof ThemeRequest>;
-export const ModerationDecisionRequest = z.enum(["accept", "reject"]);
+export type ThemeStatistic = z.infer<typeof _ThemeStatistic>;
+export const ThemeStatistic: z.ZodType<ThemeStatistic, z.ZodTypeDef, any> =
+  _ThemeStatistic;
+const _ThemeRequest = z.object({ theme: z.string() }).passthrough();
+export type ThemeRequest = z.infer<typeof _ThemeRequest>;
+export const ThemeRequest: z.ZodType<ThemeRequest, z.ZodTypeDef, any> =
+  _ThemeRequest;
+const _ModerationDecisionRequest = z.enum(["accept", "reject"]);
 export type ModerationDecisionRequest = z.infer<
-  typeof ModerationDecisionRequest
+  typeof _ModerationDecisionRequest
 >;
-export const ModerateStatementAuxRequest = z
+export const ModerationDecisionRequest: z.ZodType<
+  ModerationDecisionRequest,
+  z.ZodTypeDef,
+  any
+> = _ModerationDecisionRequest;
+const _ModerateStatementAuxRequest = z
   .object({
     decision: ModerationDecisionRequest,
     moderation_reason: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type ModerateStatementAuxRequest = z.infer<
-  typeof ModerateStatementAuxRequest
+  typeof _ModerateStatementAuxRequest
 >;
-export const ModerateStatementAuxBatchRequest = z
+export const ModerateStatementAuxRequest: z.ZodType<
+  ModerateStatementAuxRequest,
+  z.ZodTypeDef,
+  any
+> = _ModerateStatementAuxRequest;
+const _ModerateStatementAuxBatchRequest = z
   .object({
     decision: ModerationDecisionRequest,
     ids: z.array(z.string().uuid()),
@@ -561,33 +815,58 @@ export const ModerateStatementAuxBatchRequest = z
   })
   .passthrough();
 export type ModerateStatementAuxBatchRequest = z.infer<
-  typeof ModerateStatementAuxBatchRequest
+  typeof _ModerateStatementAuxBatchRequest
 >;
-export const ModerateBatchFailure = z
+export const ModerateStatementAuxBatchRequest: z.ZodType<
+  ModerateStatementAuxBatchRequest,
+  z.ZodTypeDef,
+  any
+> = _ModerateStatementAuxBatchRequest;
+const _ModerateBatchFailure = z
   .object({ error: z.string(), id: z.string().uuid() })
   .passthrough();
-export type ModerateBatchFailure = z.infer<typeof ModerateBatchFailure>;
-export const ModerateStatementAuxBatchResponse = z
+export type ModerateBatchFailure = z.infer<typeof _ModerateBatchFailure>;
+export const ModerateBatchFailure: z.ZodType<
+  ModerateBatchFailure,
+  z.ZodTypeDef,
+  any
+> = _ModerateBatchFailure;
+const _ModerateStatementAuxBatchResponse = z
   .object({
     failed: z.array(ModerateBatchFailure),
     succeeded: z.array(PolisStatementAux),
   })
   .passthrough();
 export type ModerateStatementAuxBatchResponse = z.infer<
-  typeof ModerateStatementAuxBatchResponse
+  typeof _ModerateStatementAuxBatchResponse
 >;
-export const SplitStatementRequest = z
+export const ModerateStatementAuxBatchResponse: z.ZodType<
+  ModerateStatementAuxBatchResponse,
+  z.ZodTypeDef,
+  any
+> = _ModerateStatementAuxBatchResponse;
+const _SplitStatementRequest = z
   .object({ replacements: z.array(z.string()) })
   .passthrough();
-export type SplitStatementRequest = z.infer<typeof SplitStatementRequest>;
-export const SplitStatementResponse = z
+export type SplitStatementRequest = z.infer<typeof _SplitStatementRequest>;
+export const SplitStatementRequest: z.ZodType<
+  SplitStatementRequest,
+  z.ZodTypeDef,
+  any
+> = _SplitStatementRequest;
+const _SplitStatementResponse = z
   .object({
     original: PolisStatementAux,
     replacements: z.array(PolisStatementAux),
   })
   .passthrough();
-export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
-export const FormField = z
+export type SplitStatementResponse = z.infer<typeof _SplitStatementResponse>;
+export const SplitStatementResponse: z.ZodType<
+  SplitStatementResponse,
+  z.ZodTypeDef,
+  any
+> = _SplitStatementResponse;
+const _FormField = z
   .object({
     description: z.unknown().optional(),
     frozen: z.union([z.boolean(), z.null()]).optional(),
@@ -607,8 +886,9 @@ export const FormField = z
     width: z.union([z.number(), z.null()]).optional(),
   })
   .passthrough();
-export type FormField = z.infer<typeof FormField>;
-export const FormSettings = z
+export type FormField = z.infer<typeof _FormField>;
+export const FormField: z.ZodType<FormField, z.ZodTypeDef, any> = _FormField;
+const _FormSettings = z
   .object({
     active: z.union([z.boolean(), z.null()]),
     allowArchive: z.union([z.boolean(), z.null()]),
@@ -618,8 +898,10 @@ export const FormSettings = z
   })
   .partial()
   .passthrough();
-export type FormSettings = z.infer<typeof FormSettings>;
-export const FormTheme = z
+export type FormSettings = z.infer<typeof _FormSettings>;
+export const FormSettings: z.ZodType<FormSettings, z.ZodTypeDef, any> =
+  _FormSettings;
+const _FormTheme = z
   .object({
     answerTextColor: z.union([z.string(), z.null()]),
     backgroundBrightness: z.union([z.number(), z.null()]),
@@ -634,13 +916,16 @@ export const FormTheme = z
   })
   .partial()
   .passthrough();
-export type FormTheme = z.infer<typeof FormTheme>;
-export const ThemeSettings = z
+export type FormTheme = z.infer<typeof _FormTheme>;
+export const FormTheme: z.ZodType<FormTheme, z.ZodTypeDef, any> = _FormTheme;
+const _ThemeSettings = z
   .object({ theme: z.union([FormTheme, z.null()]) })
   .partial()
   .passthrough();
-export type ThemeSettings = z.infer<typeof ThemeSettings>;
-export const Form = z
+export type ThemeSettings = z.infer<typeof _ThemeSettings>;
+export const ThemeSettings: z.ZodType<ThemeSettings, z.ZodTypeDef, any> =
+  _ThemeSettings;
+const _Form = z
   .object({
     description: z.union([z.string(), z.null()]).optional(),
     draft: z.union([z.boolean(), z.null()]).optional(),
@@ -656,8 +941,9 @@ export const Form = z
     themeSettings: z.union([ThemeSettings, z.null()]).optional(),
   })
   .passthrough();
-export type Form = z.infer<typeof Form>;
-export const FormReportResponse = z
+export type Form = z.infer<typeof _Form>;
+export const Form: z.ZodType<Form, z.ZodTypeDef, any> = _Form;
+const _FormReportResponse = z
   .object({
     average: z.number(),
     chooses: z.union([z.array(z.unknown()), z.null()]).optional(),
@@ -668,8 +954,13 @@ export const FormReportResponse = z
     total: z.number().int().gte(0),
   })
   .passthrough();
-export type FormReportResponse = z.infer<typeof FormReportResponse>;
-export const FormReportAnswer = z
+export type FormReportResponse = z.infer<typeof _FormReportResponse>;
+export const FormReportResponse: z.ZodType<
+  FormReportResponse,
+  z.ZodTypeDef,
+  any
+> = _FormReportResponse;
+const _FormReportAnswer = z
   .object({
     endAt: z.number().int(),
     kind: z.string(),
@@ -677,34 +968,47 @@ export const FormReportAnswer = z
     value: z.unknown().optional(),
   })
   .passthrough();
-export type FormReportAnswer = z.infer<typeof FormReportAnswer>;
-export const FormReportSubmission = z
+export type FormReportAnswer = z.infer<typeof _FormReportAnswer>;
+export const FormReportAnswer: z.ZodType<FormReportAnswer, z.ZodTypeDef, any> =
+  _FormReportAnswer;
+const _FormReportSubmission = z
   .object({ _id: z.string(), answers: z.array(FormReportAnswer) })
   .passthrough();
-export type FormReportSubmission = z.infer<typeof FormReportSubmission>;
-export const FormReport = z
+export type FormReportSubmission = z.infer<typeof _FormReportSubmission>;
+export const FormReportSubmission: z.ZodType<
+  FormReportSubmission,
+  z.ZodTypeDef,
+  any
+> = _FormReportSubmission;
+const _FormReport = z
   .object({
     responses: z.array(FormReportResponse),
     submissions: z.array(FormReportSubmission),
   })
   .passthrough();
-export type FormReport = z.infer<typeof FormReport>;
-export const SubmissionCategory = z.enum([
-  "inbox",
-  "spam",
-  "starred",
-  "archive",
-]);
-export type SubmissionCategory = z.infer<typeof SubmissionCategory>;
-export const HiddenFieldAnswer = z
+export type FormReport = z.infer<typeof _FormReport>;
+export const FormReport: z.ZodType<FormReport, z.ZodTypeDef, any> = _FormReport;
+const _SubmissionCategory = z.enum(["inbox", "spam", "starred", "archive"]);
+export type SubmissionCategory = z.infer<typeof _SubmissionCategory>;
+export const SubmissionCategory: z.ZodType<
+  SubmissionCategory,
+  z.ZodTypeDef,
+  any
+> = _SubmissionCategory;
+const _HiddenFieldAnswer = z
   .object({
     id: z.string(),
     name: z.string(),
     value: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type HiddenFieldAnswer = z.infer<typeof HiddenFieldAnswer>;
-export const Submission = z
+export type HiddenFieldAnswer = z.infer<typeof _HiddenFieldAnswer>;
+export const HiddenFieldAnswer: z.ZodType<
+  HiddenFieldAnswer,
+  z.ZodTypeDef,
+  any
+> = _HiddenFieldAnswer;
+const _Submission = z
   .object({
     answers: z.array(z.object({}).partial().passthrough()),
     category: z.union([SubmissionCategory, z.null()]).optional(),
@@ -715,24 +1019,34 @@ export const Submission = z
     variables: z.union([z.array(z.unknown()), z.null()]).optional(),
   })
   .passthrough();
-export type Submission = z.infer<typeof Submission>;
-export const Submissions = z
+export type Submission = z.infer<typeof _Submission>;
+export const Submission: z.ZodType<Submission, z.ZodTypeDef, any> = _Submission;
+const _Submissions = z
   .object({ submissions: z.array(Submission), total: z.number().int().gte(0) })
   .passthrough();
-export type Submissions = z.infer<typeof Submissions>;
-export const InsightChoice = z
+export type Submissions = z.infer<typeof _Submissions>;
+export const Submissions: z.ZodType<Submissions, z.ZodTypeDef, any> =
+  _Submissions;
+const _InsightChoice = z
   .object({ count: z.number().int(), id: z.string(), label: z.string() })
   .passthrough();
-export type InsightChoice = z.infer<typeof InsightChoice>;
-export const InsightSubmission = z
+export type InsightChoice = z.infer<typeof _InsightChoice>;
+export const InsightChoice: z.ZodType<InsightChoice, z.ZodTypeDef, any> =
+  _InsightChoice;
+const _InsightSubmission = z
   .object({
     submission_id: z.string(),
     submitted_at: z.union([z.number(), z.null()]).optional(),
     value: z.unknown(),
   })
   .passthrough();
-export type InsightSubmission = z.infer<typeof InsightSubmission>;
-export const InsightQuestion = z
+export type InsightSubmission = z.infer<typeof _InsightSubmission>;
+export const InsightSubmission: z.ZodType<
+  InsightSubmission,
+  z.ZodTypeDef,
+  any
+> = _InsightSubmission;
+const _InsightQuestion = z
   .object({
     answered: z.number().int().gte(0),
     choices: z.union([z.array(InsightChoice), z.null()]).optional(),
@@ -746,12 +1060,16 @@ export const InsightQuestion = z
     total: z.number().int().gte(0),
   })
   .passthrough();
-export type InsightQuestion = z.infer<typeof InsightQuestion>;
-export const SurveyInsights = z
+export type InsightQuestion = z.infer<typeof _InsightQuestion>;
+export const InsightQuestion: z.ZodType<InsightQuestion, z.ZodTypeDef, any> =
+  _InsightQuestion;
+const _SurveyInsights = z
   .object({ questions: z.array(InsightQuestion) })
   .passthrough();
-export type SurveyInsights = z.infer<typeof SurveyInsights>;
-export const Story = z
+export type SurveyInsights = z.infer<typeof _SurveyInsights>;
+export const SurveyInsights: z.ZodType<SurveyInsights, z.ZodTypeDef, any> =
+  _SurveyInsights;
+const _Story = z
   .object({
     id: z.string().uuid(),
     transcript_id: z.union([z.string(), z.null()]).optional(),
@@ -760,8 +1078,9 @@ export const Story = z
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
-export type Story = z.infer<typeof Story>;
-export const ComhairleMessageReference = z
+export type Story = z.infer<typeof _Story>;
+export const Story: z.ZodType<Story, z.ZodTypeDef, any> = _Story;
+const _ComhairleMessageReference = z
   .object({
     content: z.string(),
     dataset_id: z.string(),
@@ -772,9 +1091,14 @@ export const ComhairleMessageReference = z
   })
   .passthrough();
 export type ComhairleMessageReference = z.infer<
-  typeof ComhairleMessageReference
+  typeof _ComhairleMessageReference
 >;
-export const ComhairleSessionMessage = z
+export const ComhairleMessageReference: z.ZodType<
+  ComhairleMessageReference,
+  z.ZodTypeDef,
+  any
+> = _ComhairleMessageReference;
+const _ComhairleSessionMessage = z
   .object({
     content: z.string(),
     id: z.string(),
@@ -784,8 +1108,13 @@ export const ComhairleSessionMessage = z
     role: z.string(),
   })
   .passthrough();
-export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
-export const ComhairleAgentSession = z
+export type ComhairleSessionMessage = z.infer<typeof _ComhairleSessionMessage>;
+export const ComhairleSessionMessage: z.ZodType<
+  ComhairleSessionMessage,
+  z.ZodTypeDef,
+  any
+> = _ComhairleSessionMessage;
+const _ComhairleAgentSession = z
   .object({
     agent_id: z.string(),
     configuration: z.unknown(),
@@ -793,19 +1122,29 @@ export const ComhairleAgentSession = z
     messages: z.array(ComhairleSessionMessage),
   })
   .passthrough();
-export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
-export const ConversationRequest = z
-  .object({ question: z.string() })
-  .passthrough();
-export type ConversationRequest = z.infer<typeof ConversationRequest>;
-export const Translation2 = z
+export type ComhairleAgentSession = z.infer<typeof _ComhairleAgentSession>;
+export const ComhairleAgentSession: z.ZodType<
+  ComhairleAgentSession,
+  z.ZodTypeDef,
+  any
+> = _ComhairleAgentSession;
+const _ConversationRequest = z.object({ question: z.string() }).passthrough();
+export type ConversationRequest = z.infer<typeof _ConversationRequest>;
+export const ConversationRequest: z.ZodType<
+  ConversationRequest,
+  z.ZodTypeDef,
+  any
+> = _ConversationRequest;
+const _Translation2 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation2 = z.infer<typeof Translation2>;
-export const SectionWithTranslationsDto = z
+export type Translation2 = z.infer<typeof _Translation2>;
+export const Translation2: z.ZodType<Translation2, z.ZodTypeDef, any> =
+  _Translation2;
+const _SectionWithTranslationsDto = z
   .object({
     body: z.string(),
     bodyTranslations: Translation2,
@@ -814,16 +1153,23 @@ export const SectionWithTranslationsDto = z
   })
   .passthrough();
 export type SectionWithTranslationsDto = z.infer<
-  typeof SectionWithTranslationsDto
+  typeof _SectionWithTranslationsDto
 >;
-export const Translation = z
+export const SectionWithTranslationsDto: z.ZodType<
+  SectionWithTranslationsDto,
+  z.ZodTypeDef,
+  any
+> = _SectionWithTranslationsDto;
+const _Translation = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation = z.infer<typeof Translation>;
-export const ProposalWithTranslationsDto = z
+export type Translation = z.infer<typeof _Translation>;
+export const Translation: z.ZodType<Translation, z.ZodTypeDef, any> =
+  _Translation;
+const _ProposalWithTranslationsDto = z
   .object({
     id: z.string().uuid(),
     sections: z.array(SectionWithTranslationsDto),
@@ -833,9 +1179,14 @@ export const ProposalWithTranslationsDto = z
   })
   .passthrough();
 export type ProposalWithTranslationsDto = z.infer<
-  typeof ProposalWithTranslationsDto
+  typeof _ProposalWithTranslationsDto
 >;
-export const LocalizedProposalSectionDto = z
+export const ProposalWithTranslationsDto: z.ZodType<
+  ProposalWithTranslationsDto,
+  z.ZodTypeDef,
+  any
+> = _ProposalWithTranslationsDto;
+const _LocalizedProposalSectionDto = z
   .object({
     body: z.string(),
     id: z.string().uuid(),
@@ -843,9 +1194,14 @@ export const LocalizedProposalSectionDto = z
   })
   .passthrough();
 export type LocalizedProposalSectionDto = z.infer<
-  typeof LocalizedProposalSectionDto
+  typeof _LocalizedProposalSectionDto
 >;
-export const LocalizedProposalDto = z
+export const LocalizedProposalSectionDto: z.ZodType<
+  LocalizedProposalSectionDto,
+  z.ZodTypeDef,
+  any
+> = _LocalizedProposalSectionDto;
+const _LocalizedProposalDto = z
   .object({
     id: z.string().uuid(),
     sections: z.array(LocalizedProposalSectionDto),
@@ -853,29 +1209,49 @@ export const LocalizedProposalDto = z
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
-export type LocalizedProposalDto = z.infer<typeof LocalizedProposalDto>;
-export const ProposalsListResponse = z.union([
+export type LocalizedProposalDto = z.infer<typeof _LocalizedProposalDto>;
+export const LocalizedProposalDto: z.ZodType<
+  LocalizedProposalDto,
+  z.ZodTypeDef,
+  any
+> = _LocalizedProposalDto;
+const _ProposalsListResponse = z.union([
   z.array(ProposalWithTranslationsDto),
   z.array(LocalizedProposalDto),
 ]);
-export type ProposalsListResponse = z.infer<typeof ProposalsListResponse>;
-export const CreateProposalRequest = z
+export type ProposalsListResponse = z.infer<typeof _ProposalsListResponse>;
+export const ProposalsListResponse: z.ZodType<
+  ProposalsListResponse,
+  z.ZodTypeDef,
+  any
+> = _ProposalsListResponse;
+const _CreateProposalRequest = z
   .object({
     sections: z.array(z.string()).optional().default([]),
     title: z.string(),
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
-export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
-export const ProposalSectionDto = z
+export type CreateProposalRequest = z.infer<typeof _CreateProposalRequest>;
+export const CreateProposalRequest: z.ZodType<
+  CreateProposalRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateProposalRequest;
+const _ProposalSectionDto = z
   .object({
     body: z.string().uuid(),
     id: z.string().uuid(),
     position: z.number().int(),
   })
   .passthrough();
-export type ProposalSectionDto = z.infer<typeof ProposalSectionDto>;
-export const ProposalDto = z
+export type ProposalSectionDto = z.infer<typeof _ProposalSectionDto>;
+export const ProposalSectionDto: z.ZodType<
+  ProposalSectionDto,
+  z.ZodTypeDef,
+  any
+> = _ProposalSectionDto;
+const _ProposalDto = z
   .object({
     id: z.string().uuid(),
     sections: z.array(ProposalSectionDto),
@@ -883,27 +1259,42 @@ export const ProposalDto = z
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
-export type ProposalDto = z.infer<typeof ProposalDto>;
-export const CreateSectionRequest = z
+export type ProposalDto = z.infer<typeof _ProposalDto>;
+export const ProposalDto: z.ZodType<ProposalDto, z.ZodTypeDef, any> =
+  _ProposalDto;
+const _CreateSectionRequest = z
   .object({
     body: z.string(),
     position: z.union([z.number(), z.null()]).optional().default(null),
   })
   .passthrough();
-export type CreateSectionRequest = z.infer<typeof CreateSectionRequest>;
-export const ResponseValue = z.union([z.number(), z.string()]);
-export type ResponseValue = z.infer<typeof ResponseValue>;
-export const Response = z
+export type CreateSectionRequest = z.infer<typeof _CreateSectionRequest>;
+export const CreateSectionRequest: z.ZodType<
+  CreateSectionRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateSectionRequest;
+const _ResponseValue = z.union([z.number(), z.string()]);
+export type ResponseValue = z.infer<typeof _ResponseValue>;
+export const ResponseValue: z.ZodType<ResponseValue, z.ZodTypeDef, any> =
+  _ResponseValue;
+const _Response = z
   .object({
     question_id: z.string().uuid(),
     section_id: z.union([z.string(), z.null()]).optional(),
     value: ResponseValue,
   })
   .passthrough();
-export type Response = z.infer<typeof Response>;
-export const QuestionResponses = z.array(Response);
-export type QuestionResponses = z.infer<typeof QuestionResponses>;
-export const ProposalResponseDto = z
+export type Response = z.infer<typeof _Response>;
+export const Response: z.ZodType<Response, z.ZodTypeDef, any> = _Response;
+const _QuestionResponses = z.array(Response);
+export type QuestionResponses = z.infer<typeof _QuestionResponses>;
+export const QuestionResponses: z.ZodType<
+  QuestionResponses,
+  z.ZodTypeDef,
+  any
+> = _QuestionResponses;
+const _ProposalResponseDto = z
   .object({
     id: z.string().uuid(),
     proposalId: z.string().uuid(),
@@ -911,12 +1302,19 @@ export const ProposalResponseDto = z
     userId: z.string().uuid(),
   })
   .passthrough();
-export type ProposalResponseDto = z.infer<typeof ProposalResponseDto>;
-export const CreateResponse = z
+export type ProposalResponseDto = z.infer<typeof _ProposalResponseDto>;
+export const ProposalResponseDto: z.ZodType<
+  ProposalResponseDto,
+  z.ZodTypeDef,
+  any
+> = _ProposalResponseDto;
+const _CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
-export type CreateResponse = z.infer<typeof CreateResponse>;
-export const RankedProposal = z
+export type CreateResponse = z.infer<typeof _CreateResponse>;
+export const CreateResponse: z.ZodType<CreateResponse, z.ZodTypeDef, any> =
+  _CreateResponse;
+const _RankedProposal = z
   .object({
     alignmentRating: z.number(),
     id: z.string().uuid(),
@@ -926,14 +1324,21 @@ export const RankedProposal = z
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
-export type RankedProposal = z.infer<typeof RankedProposal>;
-export const PrioritizationInsightsResponse = z
+export type RankedProposal = z.infer<typeof _RankedProposal>;
+export const RankedProposal: z.ZodType<RankedProposal, z.ZodTypeDef, any> =
+  _RankedProposal;
+const _PrioritizationInsightsResponse = z
   .object({ rankedProposals: z.array(RankedProposal) })
   .passthrough();
 export type PrioritizationInsightsResponse = z.infer<
-  typeof PrioritizationInsightsResponse
+  typeof _PrioritizationInsightsResponse
 >;
-export const ConversationRequest2 = z
+export const PrioritizationInsightsResponse: z.ZodType<
+  PrioritizationInsightsResponse,
+  z.ZodTypeDef,
+  any
+> = _PrioritizationInsightsResponse;
+const _ConversationRequest2 = z
   .object({
     history: z.string(),
     question_intent: z.string(),
@@ -941,12 +1346,20 @@ export const ConversationRequest2 = z
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
-export type ConversationRequest2 = z.infer<typeof ConversationRequest2>;
-export const AnswerStatus = z.enum(["pending", "approved", "declined"]);
-export type AnswerStatus = z.infer<typeof AnswerStatus>;
-export const status = z.union([AnswerStatus, z.null()]).optional();
-export type status = z.infer<typeof status>;
-export const ThinkingSpaceAnswerDto = z
+export type ConversationRequest2 = z.infer<typeof _ConversationRequest2>;
+export const ConversationRequest2: z.ZodType<
+  ConversationRequest2,
+  z.ZodTypeDef,
+  any
+> = _ConversationRequest2;
+const _AnswerStatus = z.enum(["pending", "approved", "declined"]);
+export type AnswerStatus = z.infer<typeof _AnswerStatus>;
+export const AnswerStatus: z.ZodType<AnswerStatus, z.ZodTypeDef, any> =
+  _AnswerStatus;
+const _status = z.union([AnswerStatus, z.null()]).optional();
+export type status = z.infer<typeof _status>;
+export const status: z.ZodType<status, z.ZodTypeDef, any> = _status;
+const _ThinkingSpaceAnswerDto = z
   .object({
     answer: z.string(),
     id: z.string().uuid(),
@@ -958,8 +1371,13 @@ export const ThinkingSpaceAnswerDto = z
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
-export type ThinkingSpaceAnswerDto = z.infer<typeof ThinkingSpaceAnswerDto>;
-export const CreateAnswerRequest = z
+export type ThinkingSpaceAnswerDto = z.infer<typeof _ThinkingSpaceAnswerDto>;
+export const ThinkingSpaceAnswerDto: z.ZodType<
+  ThinkingSpaceAnswerDto,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceAnswerDto;
+const _CreateAnswerRequest = z
   .object({
     answer: z.string(),
     is_follow_up: z.union([z.boolean(), z.null()]).optional(),
@@ -969,22 +1387,34 @@ export const CreateAnswerRequest = z
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
-export type CreateAnswerRequest = z.infer<typeof CreateAnswerRequest>;
-export const UpdateAnswer = z
+export type CreateAnswerRequest = z.infer<typeof _CreateAnswerRequest>;
+export const CreateAnswerRequest: z.ZodType<
+  CreateAnswerRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateAnswerRequest;
+const _UpdateAnswer = z
   .object({
     answer: z.union([z.string(), z.null()]),
     status: z.union([AnswerStatus, z.null()]),
   })
   .partial()
   .passthrough();
-export type UpdateAnswer = z.infer<typeof UpdateAnswer>;
-export const GenerateThinkingSpaceSummary = z
+export type UpdateAnswer = z.infer<typeof _UpdateAnswer>;
+export const UpdateAnswer: z.ZodType<UpdateAnswer, z.ZodTypeDef, any> =
+  _UpdateAnswer;
+const _GenerateThinkingSpaceSummary = z
   .object({ workflow_step_id: z.string().uuid() })
   .passthrough();
 export type GenerateThinkingSpaceSummary = z.infer<
-  typeof GenerateThinkingSpaceSummary
+  typeof _GenerateThinkingSpaceSummary
 >;
-export const ThinkingSpaceSummaryDto = z
+export const GenerateThinkingSpaceSummary: z.ZodType<
+  GenerateThinkingSpaceSummary,
+  z.ZodTypeDef,
+  any
+> = _GenerateThinkingSpaceSummary;
+const _ThinkingSpaceSummaryDto = z
   .object({
     aiGeneratedSummary: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
@@ -994,8 +1424,13 @@ export const ThinkingSpaceSummaryDto = z
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
-export type ThinkingSpaceSummaryDto = z.infer<typeof ThinkingSpaceSummaryDto>;
-export const UpdateCreateThinkingSpace = z
+export type ThinkingSpaceSummaryDto = z.infer<typeof _ThinkingSpaceSummaryDto>;
+export const ThinkingSpaceSummaryDto: z.ZodType<
+  ThinkingSpaceSummaryDto,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceSummaryDto;
+const _UpdateCreateThinkingSpace = z
   .object({
     summary: z.string(),
     summary_id: z.union([z.string(), z.null()]).optional(),
@@ -1003,9 +1438,14 @@ export const UpdateCreateThinkingSpace = z
   })
   .passthrough();
 export type UpdateCreateThinkingSpace = z.infer<
-  typeof UpdateCreateThinkingSpace
+  typeof _UpdateCreateThinkingSpace
 >;
-export const ThinkingSpaceFollowUpQuestionDto = z
+export const UpdateCreateThinkingSpace: z.ZodType<
+  UpdateCreateThinkingSpace,
+  z.ZodTypeDef,
+  any
+> = _UpdateCreateThinkingSpace;
+const _ThinkingSpaceFollowUpQuestionDto = z
   .object({
     followUpQuestions: z.array(z.string()),
     id: z.string().uuid(),
@@ -1015,28 +1455,45 @@ export const ThinkingSpaceFollowUpQuestionDto = z
   })
   .passthrough();
 export type ThinkingSpaceFollowUpQuestionDto = z.infer<
-  typeof ThinkingSpaceFollowUpQuestionDto
+  typeof _ThinkingSpaceFollowUpQuestionDto
 >;
-export const CreateFollowUpQuestions = z
+export const ThinkingSpaceFollowUpQuestionDto: z.ZodType<
+  ThinkingSpaceFollowUpQuestionDto,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceFollowUpQuestionDto;
+const _CreateFollowUpQuestions = z
   .object({
     follow_up_questions: z.array(z.string()),
     root_question_id: z.string().uuid(),
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
-export type CreateFollowUpQuestions = z.infer<typeof CreateFollowUpQuestions>;
-export const UpdateFollowUpQuestions = z
+export type CreateFollowUpQuestions = z.infer<typeof _CreateFollowUpQuestions>;
+export const CreateFollowUpQuestions: z.ZodType<
+  CreateFollowUpQuestions,
+  z.ZodTypeDef,
+  any
+> = _CreateFollowUpQuestions;
+const _UpdateFollowUpQuestions = z
   .object({ follow_up_questions: z.array(z.string()) })
   .passthrough();
-export type UpdateFollowUpQuestions = z.infer<typeof UpdateFollowUpQuestions>;
-export const AnswersByRoot = z
+export type UpdateFollowUpQuestions = z.infer<typeof _UpdateFollowUpQuestions>;
+export const UpdateFollowUpQuestions: z.ZodType<
+  UpdateFollowUpQuestions,
+  z.ZodTypeDef,
+  any
+> = _UpdateFollowUpQuestions;
+const _AnswersByRoot = z
   .object({
     followUps: z.array(ThinkingSpaceAnswerDto),
     root: ThinkingSpaceAnswerDto,
   })
   .passthrough();
-export type AnswersByRoot = z.infer<typeof AnswersByRoot>;
-export const ThinkingSpaceUserInsights = z
+export type AnswersByRoot = z.infer<typeof _AnswersByRoot>;
+export const AnswersByRoot: z.ZodType<AnswersByRoot, z.ZodTypeDef, any> =
+  _AnswersByRoot;
+const _ThinkingSpaceUserInsights = z
   .object({
     answers: z.array(AnswersByRoot),
     summary: ThinkingSpaceSummaryDto,
@@ -1044,15 +1501,25 @@ export const ThinkingSpaceUserInsights = z
   })
   .passthrough();
 export type ThinkingSpaceUserInsights = z.infer<
-  typeof ThinkingSpaceUserInsights
+  typeof _ThinkingSpaceUserInsights
 >;
-export const ThinkingSpaceInsightsResponse = z
+export const ThinkingSpaceUserInsights: z.ZodType<
+  ThinkingSpaceUserInsights,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceUserInsights;
+const _ThinkingSpaceInsightsResponse = z
   .object({ users: z.array(ThinkingSpaceUserInsights) })
   .passthrough();
 export type ThinkingSpaceInsightsResponse = z.infer<
-  typeof ThinkingSpaceInsightsResponse
+  typeof _ThinkingSpaceInsightsResponse
 >;
-export const CreateConversation = z
+export const ThinkingSpaceInsightsResponse: z.ZodType<
+  ThinkingSpaceInsightsResponse,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceInsightsResponse;
+const _CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
@@ -1070,8 +1537,13 @@ export const CreateConversation = z
     video_url: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type CreateConversation = z.infer<typeof CreateConversation>;
-export const ConversationDto = z
+export type CreateConversation = z.infer<typeof _CreateConversation>;
+export const CreateConversation: z.ZodType<
+  CreateConversation,
+  z.ZodTypeDef,
+  any
+> = _CreateConversation;
+const _ConversationDto = z
   .object({
     allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
@@ -1103,15 +1575,19 @@ export const ConversationDto = z
     videoUrl: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type ConversationDto = z.infer<typeof ConversationDto>;
-export const Translation3 = z
+export type ConversationDto = z.infer<typeof _ConversationDto>;
+export const ConversationDto: z.ZodType<ConversationDto, z.ZodTypeDef, any> =
+  _ConversationDto;
+const _Translation3 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation3 = z.infer<typeof Translation3>;
-export const ConversationTranslations = z
+export type Translation3 = z.infer<typeof _Translation3>;
+export const Translation3: z.ZodType<Translation3, z.ZodTypeDef, any> =
+  _Translation3;
+const _ConversationTranslations = z
   .object({
     callToAction: z.union([Translation3, z.null()]).optional(),
     description: Translation3,
@@ -1123,8 +1599,15 @@ export const ConversationTranslations = z
     title: Translation3,
   })
   .passthrough();
-export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
-export const ConversationWithTranslations = z
+export type ConversationTranslations = z.infer<
+  typeof _ConversationTranslations
+>;
+export const ConversationTranslations: z.ZodType<
+  ConversationTranslations,
+  z.ZodTypeDef,
+  any
+> = _ConversationTranslations;
+const _ConversationWithTranslations = z
   .object({
     allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
@@ -1162,14 +1645,24 @@ export const ConversationWithTranslations = z
   })
   .passthrough();
 export type ConversationWithTranslations = z.infer<
-  typeof ConversationWithTranslations
+  typeof _ConversationWithTranslations
 >;
-export const ConversationResponse = z.union([
+export const ConversationWithTranslations: z.ZodType<
+  ConversationWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _ConversationWithTranslations;
+const _ConversationResponse = z.union([
   ConversationWithTranslations,
   LocalizedConversationDto,
 ]);
-export type ConversationResponse = z.infer<typeof ConversationResponse>;
-export const PartialConversation = z
+export type ConversationResponse = z.infer<typeof _ConversationResponse>;
+export const ConversationResponse: z.ZodType<
+  ConversationResponse,
+  z.ZodTypeDef,
+  any
+> = _ConversationResponse;
+const _PartialConversation = z
   .object({
     allow_revisit_after_finishing: z.union([z.boolean(), z.null()]),
     call_to_action: z.union([z.string(), z.null()]),
@@ -1202,18 +1695,29 @@ export const PartialConversation = z
   })
   .partial()
   .passthrough();
-export type PartialConversation = z.infer<typeof PartialConversation>;
-export const OrganizationWithPermissionDto = z
+export type PartialConversation = z.infer<typeof _PartialConversation>;
+export const PartialConversation: z.ZodType<
+  PartialConversation,
+  z.ZodTypeDef,
+  any
+> = _PartialConversation;
+const _OrganizationWithPermissionDto = z
   .object({ id: z.string().uuid(), name: z.string(), roleName: z.string() })
   .passthrough();
 export type OrganizationWithPermissionDto = z.infer<
-  typeof OrganizationWithPermissionDto
+  typeof _OrganizationWithPermissionDto
 >;
-export const CohostInfo = z
+export const OrganizationWithPermissionDto: z.ZodType<
+  OrganizationWithPermissionDto,
+  z.ZodTypeDef,
+  any
+> = _OrganizationWithPermissionDto;
+const _CohostInfo = z
   .object({ organization_id: z.string().uuid() })
   .passthrough();
-export type CohostInfo = z.infer<typeof CohostInfo>;
-export const SendNotificationRequest = z
+export type CohostInfo = z.infer<typeof _CohostInfo>;
+export const CohostInfo: z.ZodType<CohostInfo, z.ZodTypeDef, any> = _CohostInfo;
+const _SendNotificationRequest = z
   .object({
     content: z.string(),
     delivery_method: z.union([DeliveryMethod, z.null()]).optional(),
@@ -1223,8 +1727,13 @@ export const SendNotificationRequest = z
     title: z.string(),
   })
   .passthrough();
-export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
-export const SendEmailNotificationResponse = z
+export type SendNotificationRequest = z.infer<typeof _SendNotificationRequest>;
+export const SendNotificationRequest: z.ZodType<
+  SendNotificationRequest,
+  z.ZodTypeDef,
+  any
+> = _SendNotificationRequest;
+const _SendEmailNotificationResponse = z
   .object({
     failedRecipients: z.array(z.string()).optional().default([]),
     message: z.string(),
@@ -1233,9 +1742,14 @@ export const SendEmailNotificationResponse = z
   })
   .passthrough();
 export type SendEmailNotificationResponse = z.infer<
-  typeof SendEmailNotificationResponse
+  typeof _SendEmailNotificationResponse
 >;
-export const NotificationRecipientsResponse = z
+export const SendEmailNotificationResponse: z.ZodType<
+  SendEmailNotificationResponse,
+  z.ZodTypeDef,
+  any
+> = _SendEmailNotificationResponse;
+const _NotificationRecipientsResponse = z
   .object({
     emailRecipientCount: z.number().int(),
     emailRecipients: z.array(z.string()),
@@ -1243,17 +1757,27 @@ export const NotificationRecipientsResponse = z
   })
   .passthrough();
 export type NotificationRecipientsResponse = z.infer<
-  typeof NotificationRecipientsResponse
+  typeof _NotificationRecipientsResponse
 >;
-export const RegisterEmailRequest = z
+export const NotificationRecipientsResponse: z.ZodType<
+  NotificationRecipientsResponse,
+  z.ZodTypeDef,
+  any
+> = _NotificationRecipientsResponse;
+const _RegisterEmailRequest = z
   .object({
     email: z.string(),
     receive_similar_conversation_updates_by_email: z.boolean(),
     receive_updates_by_email: z.boolean(),
   })
   .passthrough();
-export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
-export const RegisterEmailResponse = z
+export type RegisterEmailRequest = z.infer<typeof _RegisterEmailRequest>;
+export const RegisterEmailRequest: z.ZodType<
+  RegisterEmailRequest,
+  z.ZodTypeDef,
+  any
+> = _RegisterEmailRequest;
+const _RegisterEmailResponse = z
   .object({
     conversationId: z.string().uuid(),
     email: z.string(),
@@ -1261,8 +1785,13 @@ export const RegisterEmailResponse = z
     message: z.string(),
   })
   .passthrough();
-export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
-export const WorkflowDto = z
+export type RegisterEmailResponse = z.infer<typeof _RegisterEmailResponse>;
+export const RegisterEmailResponse: z.ZodType<
+  RegisterEmailResponse,
+  z.ZodTypeDef,
+  any
+> = _RegisterEmailResponse;
+const _WorkflowDto = z
   .object({
     autoLogin: z.boolean(),
     conversationId: z.union([z.string(), z.null()]).optional(),
@@ -1276,8 +1805,10 @@ export const WorkflowDto = z
     regionId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type WorkflowDto = z.infer<typeof WorkflowDto>;
-export const CreateWorkflow = z
+export type WorkflowDto = z.infer<typeof _WorkflowDto>;
+export const WorkflowDto: z.ZodType<WorkflowDto, z.ZodTypeDef, any> =
+  _WorkflowDto;
+const _CreateWorkflow = z
   .object({
     auto_login: z.boolean(),
     description: z.string(),
@@ -1287,8 +1818,10 @@ export const CreateWorkflow = z
     region_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
-export const PartialWorkflow = z
+export type CreateWorkflow = z.infer<typeof _CreateWorkflow>;
+export const CreateWorkflow: z.ZodType<CreateWorkflow, z.ZodTypeDef, any> =
+  _CreateWorkflow;
+const _PartialWorkflow = z
   .object({
     auto_login: z.union([z.boolean(), z.null()]),
     description: z.union([z.string(), z.null()]),
@@ -1300,24 +1833,34 @@ export const PartialWorkflow = z
   })
   .partial()
   .passthrough();
-export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
-export const ActivationRule = z.literal("manual");
-export type ActivationRule = z.infer<typeof ActivationRule>;
-export const LearnPage = z
+export type PartialWorkflow = z.infer<typeof _PartialWorkflow>;
+export const PartialWorkflow: z.ZodType<PartialWorkflow, z.ZodTypeDef, any> =
+  _PartialWorkflow;
+const _ActivationRule = z.literal("manual");
+export type ActivationRule = z.infer<typeof _ActivationRule>;
+export const ActivationRule: z.ZodType<ActivationRule, z.ZodTypeDef, any> =
+  _ActivationRule;
+const _LearnPage = z
   .object({ text_content_id: z.string().uuid() })
   .passthrough();
-export type LearnPage = z.infer<typeof LearnPage>;
-export const LocalizedPage = z
+export type LearnPage = z.infer<typeof _LearnPage>;
+export const LearnPage: z.ZodType<LearnPage, z.ZodTypeDef, any> = _LearnPage;
+const _LocalizedPage = z
   .object({ content: z.string(), type: z.literal("markdown") })
   .passthrough();
-export type LocalizedPage = z.infer<typeof LocalizedPage>;
-export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
-export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
-export const Category = z
+export type LocalizedPage = z.infer<typeof _LocalizedPage>;
+export const LocalizedPage: z.ZodType<LocalizedPage, z.ZodTypeDef, any> =
+  _LocalizedPage;
+const _LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
+export type LearnPageEntry = z.infer<typeof _LearnPageEntry>;
+export const LearnPageEntry: z.ZodType<LearnPageEntry, z.ZodTypeDef, any> =
+  _LearnPageEntry;
+const _Category = z
   .object({ label: z.string().uuid(), value: z.number() })
   .passthrough();
-export type Category = z.infer<typeof Category>;
-export const QuestionType = z.union([
+export type Category = z.infer<typeof _Category>;
+export const Category: z.ZodType<Category, z.ZodTypeDef, any> = _Category;
+const _QuestionType = z.union([
   z.literal("text"),
   z.object({
     likert_scale: z.object({ categories: z.array(Category) }).passthrough(),
@@ -1334,24 +1877,32 @@ export const QuestionType = z.union([
       .passthrough(),
   }),
 ]);
-export type QuestionType = z.infer<typeof QuestionType>;
-export const Question = z
+export type QuestionType = z.infer<typeof _QuestionType>;
+export const QuestionType: z.ZodType<QuestionType, z.ZodTypeDef, any> =
+  _QuestionType;
+const _Question = z
   .object({
     id: z.string().uuid(),
     text: z.string().uuid(),
     type: QuestionType,
   })
   .passthrough();
-export type Question = z.infer<typeof Question>;
-export const ThinkingSpaceQuestion = z
+export type Question = z.infer<typeof _Question>;
+export const Question: z.ZodType<Question, z.ZodTypeDef, any> = _Question;
+const _ThinkingSpaceQuestion = z
   .object({
     id: z.string().uuid(),
     intent: z.string().uuid(),
     text: z.string().uuid(),
   })
   .passthrough();
-export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
-export const ToolConfig = z.union([
+export type ThinkingSpaceQuestion = z.infer<typeof _ThinkingSpaceQuestion>;
+export const ThinkingSpaceQuestion: z.ZodType<
+  ThinkingSpaceQuestion,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceQuestion;
+const _ToolConfig = z.union([
   z
     .object({
       admin_password: z.string(),
@@ -1421,8 +1972,9 @@ export const ToolConfig = z.union([
     })
     .passthrough(),
 ]);
-export type ToolConfig = z.infer<typeof ToolConfig>;
-export const WorkflowStep = z
+export type ToolConfig = z.infer<typeof _ToolConfig>;
+export const ToolConfig: z.ZodType<ToolConfig, z.ZodTypeDef, any> = _ToolConfig;
+const _WorkflowStep = z
   .object({
     activation_rule: ActivationRule,
     can_revisit: z.boolean(),
@@ -1440,46 +1992,64 @@ export const WorkflowStep = z
     workflow_id: z.string().uuid(),
   })
   .passthrough();
-export type WorkflowStep = z.infer<typeof WorkflowStep>;
-export const DailySignupStats = z
+export type WorkflowStep = z.infer<typeof _WorkflowStep>;
+export const WorkflowStep: z.ZodType<WorkflowStep, z.ZodTypeDef, any> =
+  _WorkflowStep;
+const _DailySignupStats = z
   .object({
     day: z.string().datetime({ offset: true }),
     users: z.number().int(),
   })
   .passthrough();
-export type DailySignupStats = z.infer<typeof DailySignupStats>;
-export const WorkflowStepStats = z
+export type DailySignupStats = z.infer<typeof _DailySignupStats>;
+export const DailySignupStats: z.ZodType<DailySignupStats, z.ZodTypeDef, any> =
+  _DailySignupStats;
+const _WorkflowStepStats = z
   .object({
     completed: z.number().int(),
     id: z.string().uuid(),
     started: z.number().int(),
   })
   .passthrough();
-export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
-export const WorkflowStats = z
+export type WorkflowStepStats = z.infer<typeof _WorkflowStepStats>;
+export const WorkflowStepStats: z.ZodType<
+  WorkflowStepStats,
+  z.ZodTypeDef,
+  any
+> = _WorkflowStepStats;
+const _WorkflowStats = z
   .object({
     signupStats: z.array(DailySignupStats),
     stepStats: z.array(WorkflowStepStats),
     totalUsers: z.number().int(),
   })
   .passthrough();
-export type WorkflowStats = z.infer<typeof WorkflowStats>;
-export const DemographicCount = z
+export type WorkflowStats = z.infer<typeof _WorkflowStats>;
+export const WorkflowStats: z.ZodType<WorkflowStats, z.ZodTypeDef, any> =
+  _WorkflowStats;
+const _DemographicCount = z
   .object({
     count: z.number().int(),
     displayName: z.string(),
     value: z.string(),
   })
   .passthrough();
-export type DemographicCount = z.infer<typeof DemographicCount>;
-export const DemographicReport = z
+export type DemographicCount = z.infer<typeof _DemographicCount>;
+export const DemographicCount: z.ZodType<DemographicCount, z.ZodTypeDef, any> =
+  _DemographicCount;
+const _DemographicReport = z
   .object({
     categories: z.record(z.array(DemographicCount)),
     totalParticipants: z.number().int(),
   })
   .passthrough();
-export type DemographicReport = z.infer<typeof DemographicReport>;
-export const UserParticipation = z
+export type DemographicReport = z.infer<typeof _DemographicReport>;
+export const DemographicReport: z.ZodType<
+  DemographicReport,
+  z.ZodTypeDef,
+  any
+> = _DemographicReport;
+const _UserParticipation = z
   .object({
     created_at: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -1488,8 +2058,13 @@ export const UserParticipation = z
     workflow_id: z.string().uuid(),
   })
   .passthrough();
-export type UserParticipation = z.infer<typeof UserParticipation>;
-export const UserParticipationDto = z
+export type UserParticipation = z.infer<typeof _UserParticipation>;
+export const UserParticipation: z.ZodType<
+  UserParticipation,
+  z.ZodTypeDef,
+  any
+> = _UserParticipation;
+const _UserParticipationDto = z
   .object({
     created_at: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -1499,25 +2074,44 @@ export const UserParticipationDto = z
     workflow_id: z.string().uuid(),
   })
   .passthrough();
-export type UserParticipationDto = z.infer<typeof UserParticipationDto>;
-export const TranslationDto = z
+export type UserParticipationDto = z.infer<typeof _UserParticipationDto>;
+export const UserParticipationDto: z.ZodType<
+  UserParticipationDto,
+  z.ZodTypeDef,
+  any
+> = _UserParticipationDto;
+const _TranslationDto = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type TranslationDto = z.infer<typeof TranslationDto>;
-export const JsonFieldWithTranslations = z
+export type TranslationDto = z.infer<typeof _TranslationDto>;
+export const TranslationDto: z.ZodType<TranslationDto, z.ZodTypeDef, any> =
+  _TranslationDto;
+const _JsonFieldWithTranslations = z
   .object({ localized: z.string(), translations: TranslationDto })
   .passthrough();
 export type JsonFieldWithTranslations = z.infer<
-  typeof JsonFieldWithTranslations
+  typeof _JsonFieldWithTranslations
 >;
-export const CategoryWithTranslations = z
+export const JsonFieldWithTranslations: z.ZodType<
+  JsonFieldWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _JsonFieldWithTranslations;
+const _CategoryWithTranslations = z
   .object({ label: JsonFieldWithTranslations, value: z.number() })
   .passthrough();
-export type CategoryWithTranslations = z.infer<typeof CategoryWithTranslations>;
-export const QuestionTypeWithTranslations = z.union([
+export type CategoryWithTranslations = z.infer<
+  typeof _CategoryWithTranslations
+>;
+export const CategoryWithTranslations: z.ZodType<
+  CategoryWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _CategoryWithTranslations;
+const _QuestionTypeWithTranslations = z.union([
   z.literal("text"),
   z.object({
     likert_scale: z
@@ -1537,17 +2131,29 @@ export const QuestionTypeWithTranslations = z.union([
   }),
 ]);
 export type QuestionTypeWithTranslations = z.infer<
-  typeof QuestionTypeWithTranslations
+  typeof _QuestionTypeWithTranslations
 >;
-export const QuestionWithTranslations = z
+export const QuestionTypeWithTranslations: z.ZodType<
+  QuestionTypeWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _QuestionTypeWithTranslations;
+const _QuestionWithTranslations = z
   .object({
     id: z.string().uuid(),
     text: JsonFieldWithTranslations,
     type: QuestionTypeWithTranslations,
   })
   .passthrough();
-export type QuestionWithTranslations = z.infer<typeof QuestionWithTranslations>;
-export const ThinkingSpaceQuestionWithTranslations = z
+export type QuestionWithTranslations = z.infer<
+  typeof _QuestionWithTranslations
+>;
+export const QuestionWithTranslations: z.ZodType<
+  QuestionWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _QuestionWithTranslations;
+const _ThinkingSpaceQuestionWithTranslations = z
   .object({
     id: z.string().uuid(),
     intent: JsonFieldWithTranslations,
@@ -1555,9 +2161,14 @@ export const ThinkingSpaceQuestionWithTranslations = z
   })
   .passthrough();
 export type ThinkingSpaceQuestionWithTranslations = z.infer<
-  typeof ThinkingSpaceQuestionWithTranslations
+  typeof _ThinkingSpaceQuestionWithTranslations
 >;
-export const ToolConfigWithTranslations = z.union([
+export const ThinkingSpaceQuestionWithTranslations: z.ZodType<
+  ThinkingSpaceQuestionWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceQuestionWithTranslations;
+const _ToolConfigWithTranslations = z.union([
   z
     .object({
       admin_password: z.string(),
@@ -1625,20 +2236,34 @@ export const ToolConfigWithTranslations = z.union([
     .passthrough(),
 ]);
 export type ToolConfigWithTranslations = z.infer<
-  typeof ToolConfigWithTranslations
+  typeof _ToolConfigWithTranslations
 >;
-export const Translation4 = z
+export const ToolConfigWithTranslations: z.ZodType<
+  ToolConfigWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _ToolConfigWithTranslations;
+const _Translation4 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation4 = z.infer<typeof Translation4>;
-export const WorkflowStepTranslations = z
+export type Translation4 = z.infer<typeof _Translation4>;
+export const Translation4: z.ZodType<Translation4, z.ZodTypeDef, any> =
+  _Translation4;
+const _WorkflowStepTranslations = z
   .object({ description: Translation4, name: Translation4 })
   .passthrough();
-export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
-export const WorkflowStepWithTranslationsDto = z
+export type WorkflowStepTranslations = z.infer<
+  typeof _WorkflowStepTranslations
+>;
+export const WorkflowStepTranslations: z.ZodType<
+  WorkflowStepTranslations,
+  z.ZodTypeDef,
+  any
+> = _WorkflowStepTranslations;
+const _WorkflowStepWithTranslationsDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
@@ -1656,13 +2281,23 @@ export const WorkflowStepWithTranslationsDto = z
   })
   .passthrough();
 export type WorkflowStepWithTranslationsDto = z.infer<
-  typeof WorkflowStepWithTranslationsDto
+  typeof _WorkflowStepWithTranslationsDto
 >;
-export const LocalizedCategory = z
+export const WorkflowStepWithTranslationsDto: z.ZodType<
+  WorkflowStepWithTranslationsDto,
+  z.ZodTypeDef,
+  any
+> = _WorkflowStepWithTranslationsDto;
+const _LocalizedCategory = z
   .object({ label: z.string(), value: z.number() })
   .passthrough();
-export type LocalizedCategory = z.infer<typeof LocalizedCategory>;
-export const LocalizedQuestionType = z.union([
+export type LocalizedCategory = z.infer<typeof _LocalizedCategory>;
+export const LocalizedCategory: z.ZodType<
+  LocalizedCategory,
+  z.ZodTypeDef,
+  any
+> = _LocalizedCategory;
+const _LocalizedQuestionType = z.union([
   z.literal("text"),
   z.object({
     likert_scale: z
@@ -1681,22 +2316,37 @@ export const LocalizedQuestionType = z.union([
       .passthrough(),
   }),
 ]);
-export type LocalizedQuestionType = z.infer<typeof LocalizedQuestionType>;
-export const LocalizedQuestion = z
+export type LocalizedQuestionType = z.infer<typeof _LocalizedQuestionType>;
+export const LocalizedQuestionType: z.ZodType<
+  LocalizedQuestionType,
+  z.ZodTypeDef,
+  any
+> = _LocalizedQuestionType;
+const _LocalizedQuestion = z
   .object({
     id: z.string().uuid(),
     text: z.string(),
     type: LocalizedQuestionType,
   })
   .passthrough();
-export type LocalizedQuestion = z.infer<typeof LocalizedQuestion>;
-export const LocalizedThinkingSpaceQuestion = z
+export type LocalizedQuestion = z.infer<typeof _LocalizedQuestion>;
+export const LocalizedQuestion: z.ZodType<
+  LocalizedQuestion,
+  z.ZodTypeDef,
+  any
+> = _LocalizedQuestion;
+const _LocalizedThinkingSpaceQuestion = z
   .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
   .passthrough();
 export type LocalizedThinkingSpaceQuestion = z.infer<
-  typeof LocalizedThinkingSpaceQuestion
+  typeof _LocalizedThinkingSpaceQuestion
 >;
-export const LocalizedToolConfig = z.union([
+export const LocalizedThinkingSpaceQuestion: z.ZodType<
+  LocalizedThinkingSpaceQuestion,
+  z.ZodTypeDef,
+  any
+> = _LocalizedThinkingSpaceQuestion;
+const _LocalizedToolConfig = z.union([
   z
     .object({
       admin_password: z.string(),
@@ -1763,10 +2413,17 @@ export const LocalizedToolConfig = z.union([
     })
     .passthrough(),
 ]);
-export type LocalizedToolConfig = z.infer<typeof LocalizedToolConfig>;
-export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
-export type ProgressStatus = z.infer<typeof ProgressStatus>;
-export const LocalizedWorkflowStepWithProgressDto = z
+export type LocalizedToolConfig = z.infer<typeof _LocalizedToolConfig>;
+export const LocalizedToolConfig: z.ZodType<
+  LocalizedToolConfig,
+  z.ZodTypeDef,
+  any
+> = _LocalizedToolConfig;
+const _ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
+export type ProgressStatus = z.infer<typeof _ProgressStatus>;
+export const ProgressStatus: z.ZodType<ProgressStatus, z.ZodTypeDef, any> =
+  _ProgressStatus;
+const _LocalizedWorkflowStepWithProgressDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
@@ -1784,9 +2441,14 @@ export const LocalizedWorkflowStepWithProgressDto = z
   })
   .passthrough();
 export type LocalizedWorkflowStepWithProgressDto = z.infer<
-  typeof LocalizedWorkflowStepWithProgressDto
+  typeof _LocalizedWorkflowStepWithProgressDto
 >;
-export const LocalizedWorkflowStepDto = z
+export const LocalizedWorkflowStepWithProgressDto: z.ZodType<
+  LocalizedWorkflowStepWithProgressDto,
+  z.ZodTypeDef,
+  any
+> = _LocalizedWorkflowStepWithProgressDto;
+const _LocalizedWorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
@@ -1802,20 +2464,34 @@ export const LocalizedWorkflowStepDto = z
     workflowId: z.string().uuid(),
   })
   .passthrough();
-export type LocalizedWorkflowStepDto = z.infer<typeof LocalizedWorkflowStepDto>;
-export const WorkflowStepsListResponse = z.union([
+export type LocalizedWorkflowStepDto = z.infer<
+  typeof _LocalizedWorkflowStepDto
+>;
+export const LocalizedWorkflowStepDto: z.ZodType<
+  LocalizedWorkflowStepDto,
+  z.ZodTypeDef,
+  any
+> = _LocalizedWorkflowStepDto;
+const _WorkflowStepsListResponse = z.union([
   z.array(WorkflowStepWithTranslationsDto),
   z.array(LocalizedWorkflowStepWithProgressDto),
   z.array(LocalizedWorkflowStepDto),
 ]);
 export type WorkflowStepsListResponse = z.infer<
-  typeof WorkflowStepsListResponse
+  typeof _WorkflowStepsListResponse
 >;
-export const SetupCategory = z
+export const WorkflowStepsListResponse: z.ZodType<
+  WorkflowStepsListResponse,
+  z.ZodTypeDef,
+  any
+> = _WorkflowStepsListResponse;
+const _SetupCategory = z
   .object({ label: z.string(), value: z.number() })
   .passthrough();
-export type SetupCategory = z.infer<typeof SetupCategory>;
-export const SetupQuestionType = z.union([
+export type SetupCategory = z.infer<typeof _SetupCategory>;
+export const SetupCategory: z.ZodType<SetupCategory, z.ZodTypeDef, any> =
+  _SetupCategory;
+const _SetupQuestionType = z.union([
   z.literal("text"),
   z.object({
     likert_scale: z
@@ -1834,18 +2510,30 @@ export const SetupQuestionType = z.union([
       .passthrough(),
   }),
 ]);
-export type SetupQuestionType = z.infer<typeof SetupQuestionType>;
-export const SetupQuestion = z
+export type SetupQuestionType = z.infer<typeof _SetupQuestionType>;
+export const SetupQuestionType: z.ZodType<
+  SetupQuestionType,
+  z.ZodTypeDef,
+  any
+> = _SetupQuestionType;
+const _SetupQuestion = z
   .object({ text: z.string(), type: SetupQuestionType })
   .passthrough();
-export type SetupQuestion = z.infer<typeof SetupQuestion>;
-export const ThinkingSpaceSetupQuestion = z
+export type SetupQuestion = z.infer<typeof _SetupQuestion>;
+export const SetupQuestion: z.ZodType<SetupQuestion, z.ZodTypeDef, any> =
+  _SetupQuestion;
+const _ThinkingSpaceSetupQuestion = z
   .object({ intent: z.string(), text: z.string() })
   .passthrough();
 export type ThinkingSpaceSetupQuestion = z.infer<
-  typeof ThinkingSpaceSetupQuestion
+  typeof _ThinkingSpaceSetupQuestion
 >;
-export const ToolSetup = z.union([
+export const ThinkingSpaceSetupQuestion: z.ZodType<
+  ThinkingSpaceSetupQuestion,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceSetupQuestion;
+const _ToolSetup = z.union([
   z
     .object({
       required_votes: z.union([z.number(), z.null()]).optional(),
@@ -1888,8 +2576,9 @@ export const ToolSetup = z.union([
     })
     .passthrough(),
 ]);
-export type ToolSetup = z.infer<typeof ToolSetup>;
-export const CreateWorkflowStep = z
+export type ToolSetup = z.infer<typeof _ToolSetup>;
+export const ToolSetup: z.ZodType<ToolSetup, z.ZodTypeDef, any> = _ToolSetup;
+const _CreateWorkflowStep = z
   .object({
     activation_rule: ActivationRule,
     description: z.string(),
@@ -1900,8 +2589,13 @@ export const CreateWorkflowStep = z
     tool_setup: ToolSetup,
   })
   .passthrough();
-export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
-export const WorkflowStepDto = z
+export type CreateWorkflowStep = z.infer<typeof _CreateWorkflowStep>;
+export const CreateWorkflowStep: z.ZodType<
+  CreateWorkflowStep,
+  z.ZodTypeDef,
+  any
+> = _CreateWorkflowStep;
+const _WorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
@@ -1917,8 +2611,10 @@ export const WorkflowStepDto = z
     workflowId: z.string().uuid(),
   })
   .passthrough();
-export type WorkflowStepDto = z.infer<typeof WorkflowStepDto>;
-export const PartialWorkflowStep = z
+export type WorkflowStepDto = z.infer<typeof _WorkflowStepDto>;
+export const WorkflowStepDto: z.ZodType<WorkflowStepDto, z.ZodTypeDef, any> =
+  _WorkflowStepDto;
+const _PartialWorkflowStep = z
   .object({
     activation_rule: z.union([ActivationRule, z.null()]),
     can_revisit: z.union([z.boolean(), z.null()]),
@@ -1933,8 +2629,13 @@ export const PartialWorkflowStep = z
   })
   .partial()
   .passthrough();
-export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
-export const UserProgressDto = z
+export type PartialWorkflowStep = z.infer<typeof _PartialWorkflowStep>;
+export const PartialWorkflowStep: z.ZodType<
+  PartialWorkflowStep,
+  z.ZodTypeDef,
+  any
+> = _PartialWorkflowStep;
+const _UserProgressDto = z
   .object({
     id: z.string().uuid(),
     permissionToShareWithOrganizers: z.boolean(),
@@ -1943,8 +2644,10 @@ export const UserProgressDto = z
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
-export type UserProgressDto = z.infer<typeof UserProgressDto>;
-export const UpdateUserProgress = z
+export type UserProgressDto = z.infer<typeof _UserProgressDto>;
+export const UserProgressDto: z.ZodType<UserProgressDto, z.ZodTypeDef, any> =
+  _UserProgressDto;
+const _UpdateUserProgress = z
   .object({
     permission_to_share_with_organizers: z.union([z.boolean(), z.null()]),
     permission_to_share_with_other_participants: z.union([
@@ -1955,8 +2658,13 @@ export const UpdateUserProgress = z
   })
   .partial()
   .passthrough();
-export type UpdateUserProgress = z.infer<typeof UpdateUserProgress>;
-export const RecruitmentTargetDto = z
+export type UpdateUserProgress = z.infer<typeof _UpdateUserProgress>;
+export const UpdateUserProgress: z.ZodType<
+  UpdateUserProgress,
+  z.ZodTypeDef,
+  any
+> = _UpdateUserProgress;
+const _RecruitmentTargetDto = z
   .object({
     bucket: z.string(),
     createdAt: z.string().datetime({ offset: true }),
@@ -1967,16 +2675,26 @@ export const RecruitmentTargetDto = z
     workflowId: z.string().uuid(),
   })
   .passthrough();
-export type RecruitmentTargetDto = z.infer<typeof RecruitmentTargetDto>;
-export const CreateRecruitmentTarget = z
+export type RecruitmentTargetDto = z.infer<typeof _RecruitmentTargetDto>;
+export const RecruitmentTargetDto: z.ZodType<
+  RecruitmentTargetDto,
+  z.ZodTypeDef,
+  any
+> = _RecruitmentTargetDto;
+const _CreateRecruitmentTarget = z
   .object({
     bucket: z.string(),
     metric: z.string(),
     target_count: z.number().int(),
   })
   .passthrough();
-export type CreateRecruitmentTarget = z.infer<typeof CreateRecruitmentTarget>;
-export const PartialRecruitmentTarget = z
+export type CreateRecruitmentTarget = z.infer<typeof _CreateRecruitmentTarget>;
+export const CreateRecruitmentTarget: z.ZodType<
+  CreateRecruitmentTarget,
+  z.ZodTypeDef,
+  any
+> = _CreateRecruitmentTarget;
+const _PartialRecruitmentTarget = z
   .object({
     bucket: z.union([z.string(), z.null()]),
     metric: z.union([z.string(), z.null()]),
@@ -1984,28 +2702,40 @@ export const PartialRecruitmentTarget = z
   })
   .partial()
   .passthrough();
-export type PartialRecruitmentTarget = z.infer<typeof PartialRecruitmentTarget>;
-export const InviteType = z.union([
+export type PartialRecruitmentTarget = z.infer<
+  typeof _PartialRecruitmentTarget
+>;
+export const PartialRecruitmentTarget: z.ZodType<
+  PartialRecruitmentTarget,
+  z.ZodTypeDef,
+  any
+> = _PartialRecruitmentTarget;
+const _InviteType = z.union([
   z.object({ email: z.string() }),
   z.object({ user: z.string().uuid() }),
   z.literal("singleuse"),
   z.literal("open"),
 ]);
-export type InviteType = z.infer<typeof InviteType>;
-export const LoginBehaviour = z.union([
+export type InviteType = z.infer<typeof _InviteType>;
+export const InviteType: z.ZodType<InviteType, z.ZodTypeDef, any> = _InviteType;
+const _LoginBehaviour = z.union([
   z.literal("manual"),
   z.literal("auto_create_guest"),
 ]);
-export type LoginBehaviour = z.infer<typeof LoginBehaviour>;
-export const InviteStatus = z.union([
+export type LoginBehaviour = z.infer<typeof _LoginBehaviour>;
+export const LoginBehaviour: z.ZodType<LoginBehaviour, z.ZodTypeDef, any> =
+  _LoginBehaviour;
+const _InviteStatus = z.union([
   z.literal("pending"),
   z.literal("open"),
   z.literal("accepted"),
   z.literal("rejected"),
   z.literal("expired"),
 ]);
-export type InviteStatus = z.infer<typeof InviteStatus>;
-export const InviteDto = z
+export type InviteStatus = z.infer<typeof _InviteStatus>;
+export const InviteStatus: z.ZodType<InviteStatus, z.ZodTypeDef, any> =
+  _InviteStatus;
+const _InviteDto = z
   .object({
     acceptCount: z.number().int(),
     conversationId: z.string().uuid(),
@@ -2023,8 +2753,9 @@ export const InviteDto = z
     workflowStepId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type InviteDto = z.infer<typeof InviteDto>;
-export const CreateInviteDTO = z
+export type InviteDto = z.infer<typeof _InviteDto>;
+export const InviteDto: z.ZodType<InviteDto, z.ZodTypeDef, any> = _InviteDto;
+const _CreateInviteDTO = z
   .object({
     event_id: z.union([z.string(), z.null()]).optional(),
     expires_at: z.union([z.string(), z.null()]).optional(),
@@ -2033,8 +2764,10 @@ export const CreateInviteDTO = z
     login_behaviour: LoginBehaviour.optional(),
   })
   .passthrough();
-export type CreateInviteDTO = z.infer<typeof CreateInviteDTO>;
-export const PartialInvite = z
+export type CreateInviteDTO = z.infer<typeof _CreateInviteDTO>;
+export const CreateInviteDTO: z.ZodType<CreateInviteDTO, z.ZodTypeDef, any> =
+  _CreateInviteDTO;
+const _PartialInvite = z
   .object({
     accept_count: z.union([z.number(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
@@ -2050,30 +2783,60 @@ export const PartialInvite = z
   })
   .partial()
   .passthrough();
-export type PartialInvite = z.infer<typeof PartialInvite>;
-export const DailyResponseStats = z
+export type PartialInvite = z.infer<typeof _PartialInvite>;
+export const PartialInvite: z.ZodType<PartialInvite, z.ZodTypeDef, any> =
+  _PartialInvite;
+const _DailyResponseStats = z
   .object({
     accept: z.number().int(),
     day: z.string().datetime({ offset: true }),
     reject: z.number().int(),
   })
   .passthrough();
-export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
-export const PolisReport = z.null();
-export type PolisReport = z.infer<typeof PolisReport>;
-export const HeyFormReport = z.null();
-export type HeyFormReport = z.infer<typeof HeyFormReport>;
-export const LearnReport = z.null();
-export type LearnReport = z.infer<typeof LearnReport>;
-export const StoriesReport = z.null();
-export type StoriesReport = z.infer<typeof StoriesReport>;
-export const ElicitationBotReport = z.null();
-export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
-export const PrioritizationReport = z.null();
-export type PrioritizationReport = z.infer<typeof PrioritizationReport>;
-export const ThinkingSpaceReport = z.null();
-export type ThinkingSpaceReport = z.infer<typeof ThinkingSpaceReport>;
-export const ReportConfig = z.union([
+export type DailyResponseStats = z.infer<typeof _DailyResponseStats>;
+export const DailyResponseStats: z.ZodType<
+  DailyResponseStats,
+  z.ZodTypeDef,
+  any
+> = _DailyResponseStats;
+const _PolisReport = z.null();
+export type PolisReport = z.infer<typeof _PolisReport>;
+export const PolisReport: z.ZodType<PolisReport, z.ZodTypeDef, any> =
+  _PolisReport;
+const _HeyFormReport = z.null();
+export type HeyFormReport = z.infer<typeof _HeyFormReport>;
+export const HeyFormReport: z.ZodType<HeyFormReport, z.ZodTypeDef, any> =
+  _HeyFormReport;
+const _LearnReport = z.null();
+export type LearnReport = z.infer<typeof _LearnReport>;
+export const LearnReport: z.ZodType<LearnReport, z.ZodTypeDef, any> =
+  _LearnReport;
+const _StoriesReport = z.null();
+export type StoriesReport = z.infer<typeof _StoriesReport>;
+export const StoriesReport: z.ZodType<StoriesReport, z.ZodTypeDef, any> =
+  _StoriesReport;
+const _ElicitationBotReport = z.null();
+export type ElicitationBotReport = z.infer<typeof _ElicitationBotReport>;
+export const ElicitationBotReport: z.ZodType<
+  ElicitationBotReport,
+  z.ZodTypeDef,
+  any
+> = _ElicitationBotReport;
+const _PrioritizationReport = z.null();
+export type PrioritizationReport = z.infer<typeof _PrioritizationReport>;
+export const PrioritizationReport: z.ZodType<
+  PrioritizationReport,
+  z.ZodTypeDef,
+  any
+> = _PrioritizationReport;
+const _ThinkingSpaceReport = z.null();
+export type ThinkingSpaceReport = z.infer<typeof _ThinkingSpaceReport>;
+export const ThinkingSpaceReport: z.ZodType<
+  ThinkingSpaceReport,
+  z.ZodTypeDef,
+  any
+> = _ThinkingSpaceReport;
+const _ReportConfig = z.union([
   z.object({ Polis: PolisReport }),
   z.object({ HeyForm: HeyFormReport }),
   z.object({ Learn: LearnReport }),
@@ -2082,8 +2845,10 @@ export const ReportConfig = z.union([
   z.object({ Prioritization: PrioritizationReport }),
   z.object({ ThinkingSpace: ThinkingSpaceReport }),
 ]);
-export type ReportConfig = z.infer<typeof ReportConfig>;
-export const ReportSectionConfig = z
+export type ReportConfig = z.infer<typeof _ReportConfig>;
+export const ReportConfig: z.ZodType<ReportConfig, z.ZodTypeDef, any> =
+  _ReportConfig;
+const _ReportSectionConfig = z
   .object({
     ai_generated: z.boolean(),
     config: ReportConfig,
@@ -2091,21 +2856,36 @@ export const ReportSectionConfig = z
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
-export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
-export const ReportSectionConfigs = z.array(ReportSectionConfig);
-export type ReportSectionConfigs = z.infer<typeof ReportSectionConfigs>;
-export const Translation5 = z
+export type ReportSectionConfig = z.infer<typeof _ReportSectionConfig>;
+export const ReportSectionConfig: z.ZodType<
+  ReportSectionConfig,
+  z.ZodTypeDef,
+  any
+> = _ReportSectionConfig;
+const _ReportSectionConfigs = z.array(ReportSectionConfig);
+export type ReportSectionConfigs = z.infer<typeof _ReportSectionConfigs>;
+export const ReportSectionConfigs: z.ZodType<
+  ReportSectionConfigs,
+  z.ZodTypeDef,
+  any
+> = _ReportSectionConfigs;
+const _Translation5 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation5 = z.infer<typeof Translation5>;
-export const ReportTranslations = z
-  .object({ summary: Translation5 })
-  .passthrough();
-export type ReportTranslations = z.infer<typeof ReportTranslations>;
-export const ReportWithTranslations = z
+export type Translation5 = z.infer<typeof _Translation5>;
+export const Translation5: z.ZodType<Translation5, z.ZodTypeDef, any> =
+  _Translation5;
+const _ReportTranslations = z.object({ summary: Translation5 }).passthrough();
+export type ReportTranslations = z.infer<typeof _ReportTranslations>;
+export const ReportTranslations: z.ZodType<
+  ReportTranslations,
+  z.ZodTypeDef,
+  any
+> = _ReportTranslations;
+const _ReportWithTranslations = z
   .object({
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -2117,8 +2897,13 @@ export const ReportWithTranslations = z
     updatedAt: z.string().datetime({ offset: true }),
   })
   .passthrough();
-export type ReportWithTranslations = z.infer<typeof ReportWithTranslations>;
-export const LocalizedReportDto = z
+export type ReportWithTranslations = z.infer<typeof _ReportWithTranslations>;
+export const ReportWithTranslations: z.ZodType<
+  ReportWithTranslations,
+  z.ZodTypeDef,
+  any
+> = _ReportWithTranslations;
+const _LocalizedReportDto = z
   .object({
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -2128,13 +2913,17 @@ export const LocalizedReportDto = z
     summary: z.string(),
   })
   .passthrough();
-export type LocalizedReportDto = z.infer<typeof LocalizedReportDto>;
-export const FullReportDto = z.union([
-  ReportWithTranslations,
+export type LocalizedReportDto = z.infer<typeof _LocalizedReportDto>;
+export const LocalizedReportDto: z.ZodType<
   LocalizedReportDto,
-]);
-export type FullReportDto = z.infer<typeof FullReportDto>;
-export const PartialReport = z
+  z.ZodTypeDef,
+  any
+> = _LocalizedReportDto;
+const _FullReportDto = z.union([ReportWithTranslations, LocalizedReportDto]);
+export type FullReportDto = z.infer<typeof _FullReportDto>;
+export const FullReportDto: z.ZodType<FullReportDto, z.ZodTypeDef, any> =
+  _FullReportDto;
+const _PartialReport = z
   .object({
     conversation_id: z.union([z.string(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
@@ -2142,8 +2931,10 @@ export const PartialReport = z
   })
   .partial()
   .passthrough();
-export type PartialReport = z.infer<typeof PartialReport>;
-export const ReportDto = z
+export type PartialReport = z.infer<typeof _PartialReport>;
+export const PartialReport: z.ZodType<PartialReport, z.ZodTypeDef, any> =
+  _PartialReport;
+const _ReportDto = z
   .object({
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -2153,8 +2944,9 @@ export const ReportDto = z
     summary: z.string().uuid(),
   })
   .passthrough();
-export type ReportDto = z.infer<typeof ReportDto>;
-export const ReportImpactDto = z
+export type ReportDto = z.infer<typeof _ReportDto>;
+export const ReportDto: z.ZodType<ReportDto, z.ZodTypeDef, any> = _ReportDto;
+const _ReportImpactDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
     createdBy: z.string().uuid(),
@@ -2165,8 +2957,10 @@ export const ReportImpactDto = z
     title: z.string(),
   })
   .passthrough();
-export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
-export const PartialReportImpact = z
+export type ReportImpactDto = z.infer<typeof _ReportImpactDto>;
+export const ReportImpactDto: z.ZodType<ReportImpactDto, z.ZodTypeDef, any> =
+  _ReportImpactDto;
+const _PartialReportImpact = z
   .object({
     created_at: z.union([z.string(), z.null()]),
     created_by: z.union([z.string(), z.null()]),
@@ -2179,34 +2973,50 @@ export const PartialReportImpact = z
   })
   .partial()
   .passthrough();
-export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
-export const CreateImpactDTO = z
+export type PartialReportImpact = z.infer<typeof _PartialReportImpact>;
+export const PartialReportImpact: z.ZodType<
+  PartialReportImpact,
+  z.ZodTypeDef,
+  any
+> = _PartialReportImpact;
+const _CreateImpactDTO = z
   .object({ details: z.string(), kind: z.string(), title: z.string() })
   .passthrough();
-export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
-export const FeedbackDto = z
+export type CreateImpactDTO = z.infer<typeof _CreateImpactDTO>;
+export const CreateImpactDTO: z.ZodType<CreateImpactDTO, z.ZodTypeDef, any> =
+  _CreateImpactDTO;
+const _FeedbackDto = z
   .object({
     content: z.string(),
     conversationId: z.string().uuid(),
     id: z.string().uuid(),
   })
   .passthrough();
-export type FeedbackDto = z.infer<typeof FeedbackDto>;
-export const CreateFeedbackDTO = z
-  .object({ content: z.string() })
-  .passthrough();
-export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
-export const PartialFeedback = z
+export type FeedbackDto = z.infer<typeof _FeedbackDto>;
+export const FeedbackDto: z.ZodType<FeedbackDto, z.ZodTypeDef, any> =
+  _FeedbackDto;
+const _CreateFeedbackDTO = z.object({ content: z.string() }).passthrough();
+export type CreateFeedbackDTO = z.infer<typeof _CreateFeedbackDTO>;
+export const CreateFeedbackDTO: z.ZodType<
+  CreateFeedbackDTO,
+  z.ZodTypeDef,
+  any
+> = _CreateFeedbackDTO;
+const _PartialFeedback = z
   .object({ content: z.union([z.string(), z.null()]) })
   .partial()
   .passthrough();
-export type PartialFeedback = z.infer<typeof PartialFeedback>;
-export const ComhairleLlm = z
+export type PartialFeedback = z.infer<typeof _PartialFeedback>;
+export const PartialFeedback: z.ZodType<PartialFeedback, z.ZodTypeDef, any> =
+  _PartialFeedback;
+const _ComhairleLlm = z
   .object({ model_name: z.union([z.string(), z.null()]) })
   .partial()
   .passthrough();
-export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
-export const ComhairlePrompt = z
+export type ComhairleLlm = z.infer<typeof _ComhairleLlm>;
+export const ComhairleLlm: z.ZodType<ComhairleLlm, z.ZodTypeDef, any> =
+  _ComhairleLlm;
+const _ComhairlePrompt = z
   .object({
     cross_languages: z.union([z.array(z.string()), z.null()]),
     empty_response: z.union([z.string(), z.null()]),
@@ -2215,8 +3025,10 @@ export const ComhairlePrompt = z
   })
   .partial()
   .passthrough();
-export type ComhairlePrompt = z.infer<typeof ComhairlePrompt>;
-export const ComhairleChat = z
+export type ComhairlePrompt = z.infer<typeof _ComhairlePrompt>;
+export const ComhairlePrompt: z.ZodType<ComhairlePrompt, z.ZodTypeDef, any> =
+  _ComhairlePrompt;
+const _ComhairleChat = z
   .object({
     id: z.string(),
     knowledge_base_ids: z.array(z.string()),
@@ -2225,8 +3037,10 @@ export const ComhairleChat = z
     prompt: z.union([ComhairlePrompt, z.null()]).optional(),
   })
   .passthrough();
-export type ComhairleChat = z.infer<typeof ComhairleChat>;
-export const UpdateChatRequest = z
+export type ComhairleChat = z.infer<typeof _ComhairleChat>;
+export const ComhairleChat: z.ZodType<ComhairleChat, z.ZodTypeDef, any> =
+  _ComhairleChat;
+const _UpdateChatRequest = z
   .object({
     knowledge_base_ids: z.union([z.array(z.string()), z.null()]),
     llm_model: z.union([ComhairleLlm, z.null()]),
@@ -2235,8 +3049,13 @@ export const UpdateChatRequest = z
   })
   .partial()
   .passthrough();
-export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
-export const ComhairleChatSession = z
+export type UpdateChatRequest = z.infer<typeof _UpdateChatRequest>;
+export const UpdateChatRequest: z.ZodType<
+  UpdateChatRequest,
+  z.ZodTypeDef,
+  any
+> = _UpdateChatRequest;
+const _ComhairleChatSession = z
   .object({
     chat_id: z.string(),
     id: z.string(),
@@ -2244,17 +3063,25 @@ export const ComhairleChatSession = z
     name: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type ComhairleChatSession = z.infer<typeof ComhairleChatSession>;
-export const ChatConversationRequest = z
+export type ComhairleChatSession = z.infer<typeof _ComhairleChatSession>;
+export const ComhairleChatSession: z.ZodType<
+  ComhairleChatSession,
+  z.ZodTypeDef,
+  any
+> = _ComhairleChatSession;
+const _ChatConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
-export type ChatConversationRequest = z.infer<typeof ChatConversationRequest>;
-export const page_size = z
-  .union([z.number(), z.null()])
-  .optional()
-  .default(400);
-export type page_size = z.infer<typeof page_size>;
-export const ComhairleDocument = z
+export type ChatConversationRequest = z.infer<typeof _ChatConversationRequest>;
+export const ChatConversationRequest: z.ZodType<
+  ChatConversationRequest,
+  z.ZodTypeDef,
+  any
+> = _ChatConversationRequest;
+const _page_size = z.union([z.number(), z.null()]).optional().default(400);
+export type page_size = z.infer<typeof _page_size>;
+export const page_size: z.ZodType<page_size, z.ZodTypeDef, any> = _page_size;
+const _ComhairleDocument = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -2263,16 +3090,26 @@ export const ComhairleDocument = z
     size: z.number().int(),
   })
   .passthrough();
-export type ComhairleDocument = z.infer<typeof ComhairleDocument>;
-export const UploadFileResponse = z
+export type ComhairleDocument = z.infer<typeof _ComhairleDocument>;
+export const ComhairleDocument: z.ZodType<
+  ComhairleDocument,
+  z.ZodTypeDef,
+  any
+> = _ComhairleDocument;
+const _UploadFileResponse = z
   .object({
     document: ComhairleDocument,
     job_id: z.string().uuid(),
     message: z.string(),
   })
   .passthrough();
-export type UploadFileResponse = z.infer<typeof UploadFileResponse>;
-export const SyncLearningContentResponse = z
+export type UploadFileResponse = z.infer<typeof _UploadFileResponse>;
+export const UploadFileResponse: z.ZodType<
+  UploadFileResponse,
+  z.ZodTypeDef,
+  any
+> = _UploadFileResponse;
+const _SyncLearningContentResponse = z
   .object({
     document: z.union([ComhairleDocument, z.null()]).optional(),
     job_id: z.union([z.string(), z.null()]).optional(),
@@ -2280,41 +3117,72 @@ export const SyncLearningContentResponse = z
   })
   .passthrough();
 export type SyncLearningContentResponse = z.infer<
-  typeof SyncLearningContentResponse
+  typeof _SyncLearningContentResponse
 >;
-export const LearnContentPage = z
+export const SyncLearningContentResponse: z.ZodType<
+  SyncLearningContentResponse,
+  z.ZodTypeDef,
+  any
+> = _SyncLearningContentResponse;
+const _LearnContentPage = z
   .object({ content: z.string(), is_rich: z.boolean() })
   .passthrough();
-export type LearnContentPage = z.infer<typeof LearnContentPage>;
-export const LearnContentSection = z
+export type LearnContentPage = z.infer<typeof _LearnContentPage>;
+export const LearnContentPage: z.ZodType<LearnContentPage, z.ZodTypeDef, any> =
+  _LearnContentPage;
+const _LearnContentSection = z
   .object({ heading: z.string(), pages: z.array(LearnContentPage) })
   .passthrough();
-export type LearnContentSection = z.infer<typeof LearnContentSection>;
-export const LearnContentResponse = z
+export type LearnContentSection = z.infer<typeof _LearnContentSection>;
+export const LearnContentSection: z.ZodType<
+  LearnContentSection,
+  z.ZodTypeDef,
+  any
+> = _LearnContentSection;
+const _LearnContentResponse = z
   .object({ sections: z.array(LearnContentSection) })
   .passthrough();
-export type LearnContentResponse = z.infer<typeof LearnContentResponse>;
-export const Order = z.enum(["asc", "desc"]);
-export type Order = z.infer<typeof Order>;
-export const created_at = z.union([Order, z.null()]).optional();
-export type created_at = z.infer<typeof created_at>;
-export const CapacityStatus = z.enum(["full", "available"]);
-export type CapacityStatus = z.infer<typeof CapacityStatus>;
-export const capacity_status = z.union([CapacityStatus, z.null()]).optional();
-export type capacity_status = z.infer<typeof capacity_status>;
-export const TimeStatus = z.enum(["past", "future"]);
-export type TimeStatus = z.infer<typeof TimeStatus>;
-export const time_status = z.union([TimeStatus, z.null()]).optional();
-export type time_status = z.infer<typeof time_status>;
-export const BasicEventAgendaItem = z
+export type LearnContentResponse = z.infer<typeof _LearnContentResponse>;
+export const LearnContentResponse: z.ZodType<
+  LearnContentResponse,
+  z.ZodTypeDef,
+  any
+> = _LearnContentResponse;
+const _Order = z.enum(["asc", "desc"]);
+export type Order = z.infer<typeof _Order>;
+export const Order: z.ZodType<Order, z.ZodTypeDef, any> = _Order;
+const _created_at = z.union([Order, z.null()]).optional();
+export type created_at = z.infer<typeof _created_at>;
+export const created_at: z.ZodType<created_at, z.ZodTypeDef, any> = _created_at;
+const _CapacityStatus = z.enum(["full", "available"]);
+export type CapacityStatus = z.infer<typeof _CapacityStatus>;
+export const CapacityStatus: z.ZodType<CapacityStatus, z.ZodTypeDef, any> =
+  _CapacityStatus;
+const _capacity_status = z.union([CapacityStatus, z.null()]).optional();
+export type capacity_status = z.infer<typeof _capacity_status>;
+export const capacity_status: z.ZodType<capacity_status, z.ZodTypeDef, any> =
+  _capacity_status;
+const _TimeStatus = z.enum(["past", "future"]);
+export type TimeStatus = z.infer<typeof _TimeStatus>;
+export const TimeStatus: z.ZodType<TimeStatus, z.ZodTypeDef, any> = _TimeStatus;
+const _time_status = z.union([TimeStatus, z.null()]).optional();
+export type time_status = z.infer<typeof _time_status>;
+export const time_status: z.ZodType<time_status, z.ZodTypeDef, any> =
+  _time_status;
+const _BasicEventAgendaItem = z
   .object({
     description: z.string(),
     estimated_time: z.number().int().gte(0),
     title: z.string(),
   })
   .passthrough();
-export type BasicEventAgendaItem = z.infer<typeof BasicEventAgendaItem>;
-export const BreakoutRoomAgendaItem = z
+export type BasicEventAgendaItem = z.infer<typeof _BasicEventAgendaItem>;
+export const BasicEventAgendaItem: z.ZodType<
+  BasicEventAgendaItem,
+  z.ZodTypeDef,
+  any
+> = _BasicEventAgendaItem;
+const _BreakoutRoomAgendaItem = z
   .object({
     estimated_time: z.number().int().gte(0),
     instructions: z.string(),
@@ -2323,15 +3191,24 @@ export const BreakoutRoomAgendaItem = z
     time_limit: z.union([z.number(), z.null()]).optional(),
   })
   .passthrough();
-export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
-export const EventAgendaItem = z.union([
+export type BreakoutRoomAgendaItem = z.infer<typeof _BreakoutRoomAgendaItem>;
+export const BreakoutRoomAgendaItem: z.ZodType<
+  BreakoutRoomAgendaItem,
+  z.ZodTypeDef,
+  any
+> = _BreakoutRoomAgendaItem;
+const _EventAgendaItem = z.union([
   z.object({ Basic: BasicEventAgendaItem }),
   z.object({ BreakoutRoom: BreakoutRoomAgendaItem }),
 ]);
-export type EventAgendaItem = z.infer<typeof EventAgendaItem>;
-export const EventFormat = z.enum(["online", "in_person"]);
-export type EventFormat = z.infer<typeof EventFormat>;
-export const EventLocation = z
+export type EventAgendaItem = z.infer<typeof _EventAgendaItem>;
+export const EventAgendaItem: z.ZodType<EventAgendaItem, z.ZodTypeDef, any> =
+  _EventAgendaItem;
+const _EventFormat = z.enum(["online", "in_person"]);
+export type EventFormat = z.infer<typeof _EventFormat>;
+export const EventFormat: z.ZodType<EventFormat, z.ZodTypeDef, any> =
+  _EventFormat;
+const _EventLocation = z
   .object({
     address_line_1: z.string(),
     address_line_2: z.union([z.string(), z.null()]).optional(),
@@ -2343,8 +3220,10 @@ export const EventLocation = z
     venue_name: z.string(),
   })
   .passthrough();
-export type EventLocation = z.infer<typeof EventLocation>;
-export const LocalizedEventDto = z
+export type EventLocation = z.infer<typeof _EventLocation>;
+export const EventLocation: z.ZodType<EventLocation, z.ZodTypeDef, any> =
+  _EventLocation;
+const _LocalizedEventDto = z
   .object({
     agenda: z.array(EventAgendaItem),
     capacity: z.union([z.number(), z.null()]).optional(),
@@ -2364,14 +3243,24 @@ export const LocalizedEventDto = z
     videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type LocalizedEventDto = z.infer<typeof LocalizedEventDto>;
-export const PaginatedResults_for_LocalizedEventDto = z
+export type LocalizedEventDto = z.infer<typeof _LocalizedEventDto>;
+export const LocalizedEventDto: z.ZodType<
+  LocalizedEventDto,
+  z.ZodTypeDef,
+  any
+> = _LocalizedEventDto;
+const _PaginatedResults_for_LocalizedEventDto = z
   .object({ records: z.array(LocalizedEventDto), total: z.number().int() })
   .passthrough();
 export type PaginatedResults_for_LocalizedEventDto = z.infer<
-  typeof PaginatedResults_for_LocalizedEventDto
+  typeof _PaginatedResults_for_LocalizedEventDto
 >;
-export const CreateEvent = z
+export const PaginatedResults_for_LocalizedEventDto: z.ZodType<
+  PaginatedResults_for_LocalizedEventDto,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_LocalizedEventDto;
+const _CreateEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).optional(),
     capacity: z.union([z.number(), z.null()]).optional(),
@@ -2385,8 +3274,10 @@ export const CreateEvent = z
     start_time: z.string().datetime({ offset: true }),
   })
   .passthrough();
-export type CreateEvent = z.infer<typeof CreateEvent>;
-export const EventDto = z
+export type CreateEvent = z.infer<typeof _CreateEvent>;
+export const CreateEvent: z.ZodType<CreateEvent, z.ZodTypeDef, any> =
+  _CreateEvent;
+const _EventDto = z
   .object({
     agenda: z.array(EventAgendaItem),
     capacity: z.union([z.number(), z.null()]).optional(),
@@ -2405,8 +3296,9 @@ export const EventDto = z
     videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type EventDto = z.infer<typeof EventDto>;
-export const BreakoutSeat = z
+export type EventDto = z.infer<typeof _EventDto>;
+export const EventDto: z.ZodType<EventDto, z.ZodTypeDef, any> = _EventDto;
+const _BreakoutSeat = z
   .object({
     invite_id: z.union([z.string(), z.null()]),
     is_moderator: z.boolean().default(false),
@@ -2414,24 +3306,35 @@ export const BreakoutSeat = z
   })
   .partial()
   .passthrough();
-export type BreakoutSeat = z.infer<typeof BreakoutSeat>;
-export const BreakoutPlanRoom = z
+export type BreakoutSeat = z.infer<typeof _BreakoutSeat>;
+export const BreakoutSeat: z.ZodType<BreakoutSeat, z.ZodTypeDef, any> =
+  _BreakoutSeat;
+const _BreakoutPlanRoom = z
   .object({ seats: z.array(BreakoutSeat).default([]) })
   .partial()
   .passthrough();
-export type BreakoutPlanRoom = z.infer<typeof BreakoutPlanRoom>;
-export const Translation6 = z
+export type BreakoutPlanRoom = z.infer<typeof _BreakoutPlanRoom>;
+export const BreakoutPlanRoom: z.ZodType<BreakoutPlanRoom, z.ZodTypeDef, any> =
+  _BreakoutPlanRoom;
+const _Translation6 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation6 = z.infer<typeof Translation6>;
-export const EventTranslations = z
+export type Translation6 = z.infer<typeof _Translation6>;
+export const Translation6: z.ZodType<Translation6, z.ZodTypeDef, any> =
+  _Translation6;
+const _EventTranslations = z
   .object({ description: Translation6, name: Translation6 })
   .passthrough();
-export type EventTranslations = z.infer<typeof EventTranslations>;
-export const EventWithTranslations = z
+export type EventTranslations = z.infer<typeof _EventTranslations>;
+export const EventTranslations: z.ZodType<
+  EventTranslations,
+  z.ZodTypeDef,
+  any
+> = _EventTranslations;
+const _EventWithTranslations = z
   .object({
     agenda: z.array(EventAgendaItem),
     breakoutPlan: z.array(BreakoutPlanRoom),
@@ -2454,13 +3357,17 @@ export const EventWithTranslations = z
     videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type EventWithTranslations = z.infer<typeof EventWithTranslations>;
-export const EventResponse = z.union([
-  LocalizedEventDto,
+export type EventWithTranslations = z.infer<typeof _EventWithTranslations>;
+export const EventWithTranslations: z.ZodType<
   EventWithTranslations,
-]);
-export type EventResponse = z.infer<typeof EventResponse>;
-export const PartialEvent = z
+  z.ZodTypeDef,
+  any
+> = _EventWithTranslations;
+const _EventResponse = z.union([LocalizedEventDto, EventWithTranslations]);
+export type EventResponse = z.infer<typeof _EventResponse>;
+export const EventResponse: z.ZodType<EventResponse, z.ZodTypeDef, any> =
+  _EventResponse;
+const _PartialEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).default(null),
     capacity: z.union([z.number(), z.null()]),
@@ -2477,12 +3384,16 @@ export const PartialEvent = z
   })
   .partial()
   .passthrough();
-export type PartialEvent = z.infer<typeof PartialEvent>;
-export const JwtResponse = z
+export type PartialEvent = z.infer<typeof _PartialEvent>;
+export const PartialEvent: z.ZodType<PartialEvent, z.ZodTypeDef, any> =
+  _PartialEvent;
+const _JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
-export type JwtResponse = z.infer<typeof JwtResponse>;
-export const BreakoutSeatDto = z
+export type JwtResponse = z.infer<typeof _JwtResponse>;
+export const JwtResponse: z.ZodType<JwtResponse, z.ZodTypeDef, any> =
+  _JwtResponse;
+const _BreakoutSeatDto = z
   .object({
     inviteId: z.union([z.string(), z.null()]).optional(),
     isModerator: z.boolean(),
@@ -2491,20 +3402,31 @@ export const BreakoutSeatDto = z
     userId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type BreakoutSeatDto = z.infer<typeof BreakoutSeatDto>;
-export const BreakoutRoomDto = z
+export type BreakoutSeatDto = z.infer<typeof _BreakoutSeatDto>;
+export const BreakoutSeatDto: z.ZodType<BreakoutSeatDto, z.ZodTypeDef, any> =
+  _BreakoutSeatDto;
+const _BreakoutRoomDto = z
   .object({ seats: z.array(BreakoutSeatDto) })
   .passthrough();
-export type BreakoutRoomDto = z.infer<typeof BreakoutRoomDto>;
-export const BreakoutPlanDto = z
+export type BreakoutRoomDto = z.infer<typeof _BreakoutRoomDto>;
+export const BreakoutRoomDto: z.ZodType<BreakoutRoomDto, z.ZodTypeDef, any> =
+  _BreakoutRoomDto;
+const _BreakoutPlanDto = z
   .object({ rooms: z.array(BreakoutRoomDto) })
   .passthrough();
-export type BreakoutPlanDto = z.infer<typeof BreakoutPlanDto>;
-export const SaveBreakoutPlanRequest = z
+export type BreakoutPlanDto = z.infer<typeof _BreakoutPlanDto>;
+export const BreakoutPlanDto: z.ZodType<BreakoutPlanDto, z.ZodTypeDef, any> =
+  _BreakoutPlanDto;
+const _SaveBreakoutPlanRequest = z
   .object({ rooms: z.array(BreakoutPlanRoom) })
   .passthrough();
-export type SaveBreakoutPlanRequest = z.infer<typeof SaveBreakoutPlanRequest>;
-export const EventAttendanceEtx = z
+export type SaveBreakoutPlanRequest = z.infer<typeof _SaveBreakoutPlanRequest>;
+export const SaveBreakoutPlanRequest: z.ZodType<
+  SaveBreakoutPlanRequest,
+  z.ZodTypeDef,
+  any
+> = _SaveBreakoutPlanRequest;
+const _EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
     email: z.union([z.string(), z.null()]).optional(),
@@ -2515,23 +3437,38 @@ export const EventAttendanceEtx = z
     userId: z.string().uuid(),
   })
   .passthrough();
-export type EventAttendanceEtx = z.infer<typeof EventAttendanceEtx>;
-export const PaginatedResults_for_EventAttendanceEtx = z
+export type EventAttendanceEtx = z.infer<typeof _EventAttendanceEtx>;
+export const EventAttendanceEtx: z.ZodType<
+  EventAttendanceEtx,
+  z.ZodTypeDef,
+  any
+> = _EventAttendanceEtx;
+const _PaginatedResults_for_EventAttendanceEtx = z
   .object({ records: z.array(EventAttendanceEtx), total: z.number().int() })
   .passthrough();
 export type PaginatedResults_for_EventAttendanceEtx = z.infer<
-  typeof PaginatedResults_for_EventAttendanceEtx
+  typeof _PaginatedResults_for_EventAttendanceEtx
 >;
-export const CreateEventAttendanceRequest = z
+export const PaginatedResults_for_EventAttendanceEtx: z.ZodType<
+  PaginatedResults_for_EventAttendanceEtx,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_EventAttendanceEtx;
+const _CreateEventAttendanceRequest = z
   .object({
     role: z.string(),
     user_email: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type CreateEventAttendanceRequest = z.infer<
-  typeof CreateEventAttendanceRequest
+  typeof _CreateEventAttendanceRequest
 >;
-export const EventAttendanceDto = z
+export const CreateEventAttendanceRequest: z.ZodType<
+  CreateEventAttendanceRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateEventAttendanceRequest;
+const _EventAttendanceDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
     eventId: z.string().uuid(),
@@ -2540,19 +3477,34 @@ export const EventAttendanceDto = z
     userId: z.string().uuid(),
   })
   .passthrough();
-export type EventAttendanceDto = z.infer<typeof EventAttendanceDto>;
-export const UpdateEventAttendanceRequest = z
+export type EventAttendanceDto = z.infer<typeof _EventAttendanceDto>;
+export const EventAttendanceDto: z.ZodType<
+  EventAttendanceDto,
+  z.ZodTypeDef,
+  any
+> = _EventAttendanceDto;
+const _UpdateEventAttendanceRequest = z
   .object({ role: z.union([z.string(), z.null()]) })
   .partial()
   .passthrough();
 export type UpdateEventAttendanceRequest = z.infer<
-  typeof UpdateEventAttendanceRequest
+  typeof _UpdateEventAttendanceRequest
 >;
-export const CreateFacilitatorRequest = z
-  .object({ email: z.string() })
-  .passthrough();
-export type CreateFacilitatorRequest = z.infer<typeof CreateFacilitatorRequest>;
-export const AudioFormat = z.enum([
+export const UpdateEventAttendanceRequest: z.ZodType<
+  UpdateEventAttendanceRequest,
+  z.ZodTypeDef,
+  any
+> = _UpdateEventAttendanceRequest;
+const _CreateFacilitatorRequest = z.object({ email: z.string() }).passthrough();
+export type CreateFacilitatorRequest = z.infer<
+  typeof _CreateFacilitatorRequest
+>;
+export const CreateFacilitatorRequest: z.ZodType<
+  CreateFacilitatorRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateFacilitatorRequest;
+const _AudioFormat = z.enum([
   "wav",
   "mp3",
   "m4a",
@@ -2561,8 +3513,10 @@ export const AudioFormat = z.enum([
   "flac",
   "webm",
 ]);
-export type AudioFormat = z.infer<typeof AudioFormat>;
-export const AudioRecordingStatus = z.union([
+export type AudioFormat = z.infer<typeof _AudioFormat>;
+export const AudioFormat: z.ZodType<AudioFormat, z.ZodTypeDef, any> =
+  _AudioFormat;
+const _AudioRecordingStatus = z.union([
   z.literal("awaiting_upload"),
   z.literal("transcribing"),
   z.literal("categorizing"),
@@ -2570,8 +3524,13 @@ export const AudioRecordingStatus = z.union([
   z.literal("transcription_failed"),
   z.literal("categorization_failed"),
 ]);
-export type AudioRecordingStatus = z.infer<typeof AudioRecordingStatus>;
-export const AudioRecordingDto = z
+export type AudioRecordingStatus = z.infer<typeof _AudioRecordingStatus>;
+export const AudioRecordingStatus: z.ZodType<
+  AudioRecordingStatus,
+  z.ZodTypeDef,
+  any
+> = _AudioRecordingStatus;
+const _AudioRecordingDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
     eventId: z.string().uuid(),
@@ -2583,71 +3542,132 @@ export const AudioRecordingDto = z
     updatedAt: z.string().datetime({ offset: true }),
   })
   .passthrough();
-export type AudioRecordingDto = z.infer<typeof AudioRecordingDto>;
-export const CreateRecordingRequest = z
+export type AudioRecordingDto = z.infer<typeof _AudioRecordingDto>;
+export const AudioRecordingDto: z.ZodType<
+  AudioRecordingDto,
+  z.ZodTypeDef,
+  any
+> = _AudioRecordingDto;
+const _CreateRecordingRequest = z
   .object({ fileExtension: AudioFormat, name: z.string() })
   .passthrough();
-export type CreateRecordingRequest = z.infer<typeof CreateRecordingRequest>;
-export const CreateRecordingResponse = z
+export type CreateRecordingRequest = z.infer<typeof _CreateRecordingRequest>;
+export const CreateRecordingRequest: z.ZodType<
+  CreateRecordingRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateRecordingRequest;
+const _CreateRecordingResponse = z
   .object({ recording: AudioRecordingDto, uploadUrl: z.string() })
   .passthrough();
-export type CreateRecordingResponse = z.infer<typeof CreateRecordingResponse>;
-export const RecordingDownloadUrls = z
+export type CreateRecordingResponse = z.infer<typeof _CreateRecordingResponse>;
+export const CreateRecordingResponse: z.ZodType<
+  CreateRecordingResponse,
+  z.ZodTypeDef,
+  any
+> = _CreateRecordingResponse;
+const _RecordingDownloadUrls = z
   .object({
     recordingUrl: z.string(),
     reportUrl: z.string(),
     transcriptUrl: z.string(),
   })
   .passthrough();
-export type RecordingDownloadUrls = z.infer<typeof RecordingDownloadUrls>;
-export const RecordingDetailResponse = z
+export type RecordingDownloadUrls = z.infer<typeof _RecordingDownloadUrls>;
+export const RecordingDownloadUrls: z.ZodType<
+  RecordingDownloadUrls,
+  z.ZodTypeDef,
+  any
+> = _RecordingDownloadUrls;
+const _RecordingDetailResponse = z
   .object({ downloads: RecordingDownloadUrls, recording: AudioRecordingDto })
   .passthrough();
-export type RecordingDetailResponse = z.infer<typeof RecordingDetailResponse>;
-export const DeleteRecordingResponse = z
+export type RecordingDetailResponse = z.infer<typeof _RecordingDetailResponse>;
+export const RecordingDetailResponse: z.ZodType<
+  RecordingDetailResponse,
+  z.ZodTypeDef,
+  any
+> = _RecordingDetailResponse;
+const _DeleteRecordingResponse = z
   .object({ recording: AudioRecordingDto })
   .passthrough();
-export type DeleteRecordingResponse = z.infer<typeof DeleteRecordingResponse>;
-export const ProcessRecordingResponse = z
+export type DeleteRecordingResponse = z.infer<typeof _DeleteRecordingResponse>;
+export const DeleteRecordingResponse: z.ZodType<
+  DeleteRecordingResponse,
+  z.ZodTypeDef,
+  any
+> = _DeleteRecordingResponse;
+const _ProcessRecordingResponse = z
   .object({ jobId: z.string().uuid(), message: z.string() })
   .passthrough();
-export type ProcessRecordingResponse = z.infer<typeof ProcessRecordingResponse>;
-export const SubmitReportResponse = z
+export type ProcessRecordingResponse = z.infer<
+  typeof _ProcessRecordingResponse
+>;
+export const ProcessRecordingResponse: z.ZodType<
+  ProcessRecordingResponse,
+  z.ZodTypeDef,
+  any
+> = _ProcessRecordingResponse;
+const _SubmitReportResponse = z
   .object({ success: z.boolean(), url: z.string() })
   .passthrough();
-export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
-export const WebSocketStats = z
+export type SubmitReportResponse = z.infer<typeof _SubmitReportResponse>;
+export const SubmitReportResponse: z.ZodType<
+  SubmitReportResponse,
+  z.ZodTypeDef,
+  any
+> = _SubmitReportResponse;
+const _WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
     total_connections: z.number().int().gte(0),
   })
   .passthrough();
-export type WebSocketStats = z.infer<typeof WebSocketStats>;
-export const BroadcastMessage = z
+export type WebSocketStats = z.infer<typeof _WebSocketStats>;
+export const WebSocketStats: z.ZodType<WebSocketStats, z.ZodTypeDef, any> =
+  _WebSocketStats;
+const _BroadcastMessage = z
   .object({
     authenticated_only: z.union([z.boolean(), z.null()]).optional(),
     message: z.string(),
   })
   .passthrough();
-export type BroadcastMessage = z.infer<typeof BroadcastMessage>;
-export const BroadcastResponse = z
+export type BroadcastMessage = z.infer<typeof _BroadcastMessage>;
+export const BroadcastMessage: z.ZodType<BroadcastMessage, z.ZodTypeDef, any> =
+  _BroadcastMessage;
+const _BroadcastResponse = z
   .object({ message: z.string(), sent_to: z.number().int().gte(0) })
   .passthrough();
-export type BroadcastResponse = z.infer<typeof BroadcastResponse>;
-export const SendToUserMessage = z
+export type BroadcastResponse = z.infer<typeof _BroadcastResponse>;
+export const BroadcastResponse: z.ZodType<
+  BroadcastResponse,
+  z.ZodTypeDef,
+  any
+> = _BroadcastResponse;
+const _SendToUserMessage = z
   .object({ message: z.string(), user_id: z.string().uuid() })
   .passthrough();
-export type SendToUserMessage = z.infer<typeof SendToUserMessage>;
-export const PaginatedResults_for_LocalizedOrganizationDto = z
+export type SendToUserMessage = z.infer<typeof _SendToUserMessage>;
+export const SendToUserMessage: z.ZodType<
+  SendToUserMessage,
+  z.ZodTypeDef,
+  any
+> = _SendToUserMessage;
+const _PaginatedResults_for_LocalizedOrganizationDto = z
   .object({
     records: z.array(LocalizedOrganizationDto),
     total: z.number().int(),
   })
   .passthrough();
 export type PaginatedResults_for_LocalizedOrganizationDto = z.infer<
-  typeof PaginatedResults_for_LocalizedOrganizationDto
+  typeof _PaginatedResults_for_LocalizedOrganizationDto
 >;
-export const CreateOrganization = z
+export const PaginatedResults_for_LocalizedOrganizationDto: z.ZodType<
+  PaginatedResults_for_LocalizedOrganizationDto,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_LocalizedOrganizationDto;
+const _CreateOrganization = z
   .object({
     contact_email: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
@@ -2658,8 +3678,13 @@ export const CreateOrganization = z
     regions: z.union([z.array(z.string().uuid()), z.null()]).optional(),
   })
   .passthrough();
-export type CreateOrganization = z.infer<typeof CreateOrganization>;
-export const OrganizationDto = z
+export type CreateOrganization = z.infer<typeof _CreateOrganization>;
+export const CreateOrganization: z.ZodType<
+  CreateOrganization,
+  z.ZodTypeDef,
+  any
+> = _CreateOrganization;
+const _OrganizationDto = z
   .object({
     contactEmail: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
@@ -2673,8 +3698,10 @@ export const OrganizationDto = z
     regions: z.array(z.string().uuid()),
   })
   .passthrough();
-export type OrganizationDto = z.infer<typeof OrganizationDto>;
-export const UpdateOrganizationBody = z
+export type OrganizationDto = z.infer<typeof _OrganizationDto>;
+export const OrganizationDto: z.ZodType<OrganizationDto, z.ZodTypeDef, any> =
+  _OrganizationDto;
+const _UpdateOrganizationBody = z
   .object({
     contact_email: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
@@ -2687,10 +3714,20 @@ export const UpdateOrganizationBody = z
   })
   .partial()
   .passthrough();
-export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
-export const OrganizationTeamRole = z.enum(["member", "admin"]);
-export type OrganizationTeamRole = z.infer<typeof OrganizationTeamRole>;
-export const OrganizationTeamUserDto = z
+export type UpdateOrganizationBody = z.infer<typeof _UpdateOrganizationBody>;
+export const UpdateOrganizationBody: z.ZodType<
+  UpdateOrganizationBody,
+  z.ZodTypeDef,
+  any
+> = _UpdateOrganizationBody;
+const _OrganizationTeamRole = z.enum(["member", "admin"]);
+export type OrganizationTeamRole = z.infer<typeof _OrganizationTeamRole>;
+export const OrganizationTeamRole: z.ZodType<
+  OrganizationTeamRole,
+  z.ZodTypeDef,
+  any
+> = _OrganizationTeamRole;
+const _OrganizationTeamUserDto = z
   .object({
     email: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
@@ -2698,14 +3735,24 @@ export const OrganizationTeamUserDto = z
     username: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type OrganizationTeamUserDto = z.infer<typeof OrganizationTeamUserDto>;
-export const OrganizationTeamResponseDto = z
+export type OrganizationTeamUserDto = z.infer<typeof _OrganizationTeamUserDto>;
+export const OrganizationTeamUserDto: z.ZodType<
+  OrganizationTeamUserDto,
+  z.ZodTypeDef,
+  any
+> = _OrganizationTeamUserDto;
+const _OrganizationTeamResponseDto = z
   .object({ members: z.array(OrganizationTeamUserDto) })
   .passthrough();
 export type OrganizationTeamResponseDto = z.infer<
-  typeof OrganizationTeamResponseDto
+  typeof _OrganizationTeamResponseDto
 >;
-export const UpsertOrganizationUserBody = z
+export const OrganizationTeamResponseDto: z.ZodType<
+  OrganizationTeamResponseDto,
+  z.ZodTypeDef,
+  any
+> = _OrganizationTeamResponseDto;
+const _UpsertOrganizationUserBody = z
   .object({
     allow_create_user: z.union([z.boolean(), z.null()]).optional(),
     email: z.string(),
@@ -2713,9 +3760,14 @@ export const UpsertOrganizationUserBody = z
   })
   .passthrough();
 export type UpsertOrganizationUserBody = z.infer<
-  typeof UpsertOrganizationUserBody
+  typeof _UpsertOrganizationUserBody
 >;
-export const UpsertOrganizationUserResponseDto = z
+export const UpsertOrganizationUserBody: z.ZodType<
+  UpsertOrganizationUserBody,
+  z.ZodTypeDef,
+  any
+> = _UpsertOrganizationUserBody;
+const _UpsertOrganizationUserResponseDto = z
   .object({
     createdAccount: z.boolean(),
     emailed: z.boolean(),
@@ -2723,17 +3775,28 @@ export const UpsertOrganizationUserResponseDto = z
   })
   .passthrough();
 export type UpsertOrganizationUserResponseDto = z.infer<
-  typeof UpsertOrganizationUserResponseDto
+  typeof _UpsertOrganizationUserResponseDto
 >;
-export const UpdateOrganizationMemberRoleBody = z
+export const UpsertOrganizationUserResponseDto: z.ZodType<
+  UpsertOrganizationUserResponseDto,
+  z.ZodTypeDef,
+  any
+> = _UpsertOrganizationUserResponseDto;
+const _UpdateOrganizationMemberRoleBody = z
   .object({ role: OrganizationTeamRole })
   .passthrough();
 export type UpdateOrganizationMemberRoleBody = z.infer<
-  typeof UpdateOrganizationMemberRoleBody
+  typeof _UpdateOrganizationMemberRoleBody
 >;
-export const RegionType = z.enum(["custom", "official"]);
-export type RegionType = z.infer<typeof RegionType>;
-export const LocalizedRegionDto = z
+export const UpdateOrganizationMemberRoleBody: z.ZodType<
+  UpdateOrganizationMemberRoleBody,
+  z.ZodTypeDef,
+  any
+> = _UpdateOrganizationMemberRoleBody;
+const _RegionType = z.enum(["custom", "official"]);
+export type RegionType = z.infer<typeof _RegionType>;
+export const RegionType: z.ZodType<RegionType, z.ZodTypeDef, any> = _RegionType;
+const _LocalizedRegionDto = z
   .object({
     created_at: z.string().datetime({ offset: true }),
     description: z.string(),
@@ -2744,14 +3807,24 @@ export const LocalizedRegionDto = z
     region_type: RegionType,
   })
   .passthrough();
-export type LocalizedRegionDto = z.infer<typeof LocalizedRegionDto>;
-export const PaginatedResults_for_LocalizedRegionDto = z
+export type LocalizedRegionDto = z.infer<typeof _LocalizedRegionDto>;
+export const LocalizedRegionDto: z.ZodType<
+  LocalizedRegionDto,
+  z.ZodTypeDef,
+  any
+> = _LocalizedRegionDto;
+const _PaginatedResults_for_LocalizedRegionDto = z
   .object({ records: z.array(LocalizedRegionDto), total: z.number().int() })
   .passthrough();
 export type PaginatedResults_for_LocalizedRegionDto = z.infer<
-  typeof PaginatedResults_for_LocalizedRegionDto
+  typeof _PaginatedResults_for_LocalizedRegionDto
 >;
-export const CreateRegion = z
+export const PaginatedResults_for_LocalizedRegionDto: z.ZodType<
+  PaginatedResults_for_LocalizedRegionDto,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_LocalizedRegionDto;
+const _CreateRegion = z
   .object({
     description: z.string(),
     name: z.string(),
@@ -2759,8 +3832,10 @@ export const CreateRegion = z
     region_type: RegionType,
   })
   .passthrough();
-export type CreateRegion = z.infer<typeof CreateRegion>;
-export const RegionDto = z
+export type CreateRegion = z.infer<typeof _CreateRegion>;
+export const CreateRegion: z.ZodType<CreateRegion, z.ZodTypeDef, any> =
+  _CreateRegion;
+const _RegionDto = z
   .object({
     created_at: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
@@ -2771,8 +3846,9 @@ export const RegionDto = z
     region_type: RegionType,
   })
   .passthrough();
-export type RegionDto = z.infer<typeof RegionDto>;
-export const PartialRegion = z
+export type RegionDto = z.infer<typeof _RegionDto>;
+export const RegionDto: z.ZodType<RegionDto, z.ZodTypeDef, any> = _RegionDto;
+const _PartialRegion = z
   .object({
     metadata: z.unknown(),
     official_id: z.union([z.string(), z.null()]),
@@ -2780,38 +3856,57 @@ export const PartialRegion = z
   })
   .partial()
   .passthrough();
-export type PartialRegion = z.infer<typeof PartialRegion>;
-export const RegionAreaLinksDto = z
+export type PartialRegion = z.infer<typeof _PartialRegion>;
+export const PartialRegion: z.ZodType<PartialRegion, z.ZodTypeDef, any> =
+  _PartialRegion;
+const _RegionAreaLinksDto = z
   .object({
     area_ids: z.array(z.string().uuid()),
     region_id: z.string().uuid(),
   })
   .passthrough();
-export type RegionAreaLinksDto = z.infer<typeof RegionAreaLinksDto>;
-export const RegionAreaLinksRequestDto = z
+export type RegionAreaLinksDto = z.infer<typeof _RegionAreaLinksDto>;
+export const RegionAreaLinksDto: z.ZodType<
+  RegionAreaLinksDto,
+  z.ZodTypeDef,
+  any
+> = _RegionAreaLinksDto;
+const _RegionAreaLinksRequestDto = z
   .object({ area_ids: z.array(z.string().uuid()) })
   .passthrough();
 export type RegionAreaLinksRequestDto = z.infer<
-  typeof RegionAreaLinksRequestDto
+  typeof _RegionAreaLinksRequestDto
 >;
-export const RegionAreaDto = z
+export const RegionAreaLinksRequestDto: z.ZodType<
+  RegionAreaLinksRequestDto,
+  z.ZodTypeDef,
+  any
+> = _RegionAreaLinksRequestDto;
+const _RegionAreaDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
     zipPrefix: z.string(),
   })
   .passthrough();
-export type RegionAreaDto = z.infer<typeof RegionAreaDto>;
-export const CreateRegionArea = z
-  .object({ zip_prefix: z.string() })
-  .passthrough();
-export type CreateRegionArea = z.infer<typeof CreateRegionArea>;
-export const PartialRegionArea = z
+export type RegionAreaDto = z.infer<typeof _RegionAreaDto>;
+export const RegionAreaDto: z.ZodType<RegionAreaDto, z.ZodTypeDef, any> =
+  _RegionAreaDto;
+const _CreateRegionArea = z.object({ zip_prefix: z.string() }).passthrough();
+export type CreateRegionArea = z.infer<typeof _CreateRegionArea>;
+export const CreateRegionArea: z.ZodType<CreateRegionArea, z.ZodTypeDef, any> =
+  _CreateRegionArea;
+const _PartialRegionArea = z
   .object({ zip_prefix: z.union([z.string(), z.null()]) })
   .partial()
   .passthrough();
-export type PartialRegionArea = z.infer<typeof PartialRegionArea>;
-export const MediaContentType = z.enum([
+export type PartialRegionArea = z.infer<typeof _PartialRegionArea>;
+export const PartialRegionArea: z.ZodType<
+  PartialRegionArea,
+  z.ZodTypeDef,
+  any
+> = _PartialRegionArea;
+const _MediaContentType = z.enum([
   "image/jpeg",
   "image/png",
   "image/gif",
@@ -2825,10 +3920,14 @@ export const MediaContentType = z.enum([
   "audio/wav",
   "audio/ogg",
 ]);
-export type MediaContentType = z.infer<typeof MediaContentType>;
-export const content_type = z.union([MediaContentType, z.null()]).optional();
-export type content_type = z.infer<typeof content_type>;
-export const MediaDto = z
+export type MediaContentType = z.infer<typeof _MediaContentType>;
+export const MediaContentType: z.ZodType<MediaContentType, z.ZodTypeDef, any> =
+  _MediaContentType;
+const _content_type = z.union([MediaContentType, z.null()]).optional();
+export type content_type = z.infer<typeof _content_type>;
+export const content_type: z.ZodType<content_type, z.ZodTypeDef, any> =
+  _content_type;
+const _MediaDto = z
   .object({
     alt: z.string(),
     contentType: MediaContentType,
@@ -2842,22 +3941,33 @@ export const MediaDto = z
     url: z.string(),
   })
   .passthrough();
-export type MediaDto = z.infer<typeof MediaDto>;
-export const PaginatedResults_for_MediaDto = z
+export type MediaDto = z.infer<typeof _MediaDto>;
+export const MediaDto: z.ZodType<MediaDto, z.ZodTypeDef, any> = _MediaDto;
+const _PaginatedResults_for_MediaDto = z
   .object({ records: z.array(MediaDto), total: z.number().int() })
   .passthrough();
 export type PaginatedResults_for_MediaDto = z.infer<
-  typeof PaginatedResults_for_MediaDto
+  typeof _PaginatedResults_for_MediaDto
 >;
-export const MediaEditableFields = z
+export const PaginatedResults_for_MediaDto: z.ZodType<
+  PaginatedResults_for_MediaDto,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_MediaDto;
+const _MediaEditableFields = z
   .object({
     alt: z.union([z.string(), z.null()]),
     name: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();
-export type MediaEditableFields = z.infer<typeof MediaEditableFields>;
-export const Job = z
+export type MediaEditableFields = z.infer<typeof _MediaEditableFields>;
+export const MediaEditableFields: z.ZodType<
+  MediaEditableFields,
+  z.ZodTypeDef,
+  any
+> = _MediaEditableFields;
+const _Job = z
   .object({
     completion_message: z.union([z.string(), z.null()]).optional(),
     created_at: z.string().datetime({ offset: true }),
@@ -2869,39 +3979,62 @@ export const Job = z
     step: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type Job = z.infer<typeof Job>;
-export const PaginatedResults_for_Job = z
+export type Job = z.infer<typeof _Job>;
+export const Job: z.ZodType<Job, z.ZodTypeDef, any> = _Job;
+const _PaginatedResults_for_Job = z
   .object({ records: z.array(Job), total: z.number().int() })
   .passthrough();
-export type PaginatedResults_for_Job = z.infer<typeof PaginatedResults_for_Job>;
-export const CreateJob = z
+export type PaginatedResults_for_Job = z.infer<
+  typeof _PaginatedResults_for_Job
+>;
+export const PaginatedResults_for_Job: z.ZodType<
+  PaginatedResults_for_Job,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_Job;
+const _CreateJob = z
   .object({
     progress: z.union([z.number(), z.null()]),
     step: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();
-export type CreateJob = z.infer<typeof CreateJob>;
-export const ComhairleServices = z
+export type CreateJob = z.infer<typeof _CreateJob>;
+export const CreateJob: z.ZodType<CreateJob, z.ZodTypeDef, any> = _CreateJob;
+const _ComhairleServices = z
   .object({ botService: z.boolean(), translationService: z.boolean() })
   .passthrough();
-export type ComhairleServices = z.infer<typeof ComhairleServices>;
-export const CreateApiKeyRequest = z
+export type ComhairleServices = z.infer<typeof _ComhairleServices>;
+export const ComhairleServices: z.ZodType<
+  ComhairleServices,
+  z.ZodTypeDef,
+  any
+> = _ComhairleServices;
+const _CreateApiKeyRequest = z
   .object({ name: z.string(), prefix: z.string() })
   .passthrough();
-export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequest>;
-export const CreateResponse2 = z.object({ key: z.string() }).passthrough();
-export type CreateResponse2 = z.infer<typeof CreateResponse2>;
-export const EmailType = z.enum([
+export type CreateApiKeyRequest = z.infer<typeof _CreateApiKeyRequest>;
+export const CreateApiKeyRequest: z.ZodType<
+  CreateApiKeyRequest,
+  z.ZodTypeDef,
+  any
+> = _CreateApiKeyRequest;
+const _CreateResponse2 = z.object({ key: z.string() }).passthrough();
+export type CreateResponse2 = z.infer<typeof _CreateResponse2>;
+export const CreateResponse2: z.ZodType<CreateResponse2, z.ZodTypeDef, any> =
+  _CreateResponse2;
+const _EmailType = z.enum([
   "conversation_invite",
   "event_registration_invite",
   "event_registration_confirmation",
   "event_reminder",
 ]);
-export type EmailType = z.infer<typeof EmailType>;
-export const email_type = z.union([EmailType, z.null()]).optional();
-export type email_type = z.infer<typeof email_type>;
-export const EmailTemplateSlots = z.union([
+export type EmailType = z.infer<typeof _EmailType>;
+export const EmailType: z.ZodType<EmailType, z.ZodTypeDef, any> = _EmailType;
+const _email_type = z.union([EmailType, z.null()]).optional();
+export type email_type = z.infer<typeof _email_type>;
+export const email_type: z.ZodType<email_type, z.ZodTypeDef, any> = _email_type;
+const _EmailTemplateSlots = z.union([
   z
     .object({
       body: z.string(),
@@ -2939,8 +4072,13 @@ export const EmailTemplateSlots = z.union([
     })
     .passthrough(),
 ]);
-export type EmailTemplateSlots = z.infer<typeof EmailTemplateSlots>;
-export const EmailTemplateConfigDto = z
+export type EmailTemplateSlots = z.infer<typeof _EmailTemplateSlots>;
+export const EmailTemplateSlots: z.ZodType<
+  EmailTemplateSlots,
+  z.ZodTypeDef,
+  any
+> = _EmailTemplateSlots;
+const _EmailTemplateConfigDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
@@ -2951,17 +4089,27 @@ export const EmailTemplateConfigDto = z
     subject: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type EmailTemplateConfigDto = z.infer<typeof EmailTemplateConfigDto>;
-export const CreateEmailTemplateConfig = z
+export type EmailTemplateConfigDto = z.infer<typeof _EmailTemplateConfigDto>;
+export const EmailTemplateConfigDto: z.ZodType<
+  EmailTemplateConfigDto,
+  z.ZodTypeDef,
+  any
+> = _EmailTemplateConfigDto;
+const _CreateEmailTemplateConfig = z
   .object({
     slots: EmailTemplateSlots,
     subject: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type CreateEmailTemplateConfig = z.infer<
-  typeof CreateEmailTemplateConfig
+  typeof _CreateEmailTemplateConfig
 >;
-export const UpdateEmailTemplateConfig = z
+export const CreateEmailTemplateConfig: z.ZodType<
+  CreateEmailTemplateConfig,
+  z.ZodTypeDef,
+  any
+> = _CreateEmailTemplateConfig;
+const _UpdateEmailTemplateConfig = z
   .object({
     slots: z.union([EmailTemplateSlots, z.null()]),
     subject: z.union([z.string(), z.null()]),
@@ -2969,11 +4117,18 @@ export const UpdateEmailTemplateConfig = z
   .partial()
   .passthrough();
 export type UpdateEmailTemplateConfig = z.infer<
-  typeof UpdateEmailTemplateConfig
+  typeof _UpdateEmailTemplateConfig
 >;
-export const ContentType = z.enum(["plain_text", "rich_text"]);
-export type ContentType = z.infer<typeof ContentType>;
-export const SlotSchemaDefinition = z
+export const UpdateEmailTemplateConfig: z.ZodType<
+  UpdateEmailTemplateConfig,
+  z.ZodTypeDef,
+  any
+> = _UpdateEmailTemplateConfig;
+const _ContentType = z.enum(["plain_text", "rich_text"]);
+export type ContentType = z.infer<typeof _ContentType>;
+export const ContentType: z.ZodType<ContentType, z.ZodTypeDef, any> =
+  _ContentType;
+const _SlotSchemaDefinition = z
   .object({
     content_type: ContentType,
     default_content: z.string(),
@@ -2982,8 +4137,13 @@ export const SlotSchemaDefinition = z
     label: z.string(),
   })
   .passthrough();
-export type SlotSchemaDefinition = z.infer<typeof SlotSchemaDefinition>;
-export const EmailTypeSchema = z
+export type SlotSchemaDefinition = z.infer<typeof _SlotSchemaDefinition>;
+export const SlotSchemaDefinition: z.ZodType<
+  SlotSchemaDefinition,
+  z.ZodTypeDef,
+  any
+> = _SlotSchemaDefinition;
+const _EmailTypeSchema = z
   .object({
     default_subject: z.string(),
     email_type: EmailType,
@@ -2992,20 +4152,32 @@ export const EmailTypeSchema = z
     variables: z.array(z.string()),
   })
   .passthrough();
-export type EmailTypeSchema = z.infer<typeof EmailTypeSchema>;
-export const PreviewEmailTemplateConfigRequest = z
+export type EmailTypeSchema = z.infer<typeof _EmailTypeSchema>;
+export const EmailTypeSchema: z.ZodType<EmailTypeSchema, z.ZodTypeDef, any> =
+  _EmailTypeSchema;
+const _PreviewEmailTemplateConfigRequest = z
   .object({ slots: EmailTemplateSlots })
   .passthrough();
 export type PreviewEmailTemplateConfigRequest = z.infer<
-  typeof PreviewEmailTemplateConfigRequest
+  typeof _PreviewEmailTemplateConfigRequest
 >;
-export const PreviewEmailTemplateConfigResponse = z
+export const PreviewEmailTemplateConfigRequest: z.ZodType<
+  PreviewEmailTemplateConfigRequest,
+  z.ZodTypeDef,
+  any
+> = _PreviewEmailTemplateConfigRequest;
+const _PreviewEmailTemplateConfigResponse = z
   .object({ html: z.string() })
   .passthrough();
 export type PreviewEmailTemplateConfigResponse = z.infer<
-  typeof PreviewEmailTemplateConfigResponse
+  typeof _PreviewEmailTemplateConfigResponse
 >;
-export const ResourcePermission = z
+export const PreviewEmailTemplateConfigResponse: z.ZodType<
+  PreviewEmailTemplateConfigResponse,
+  z.ZodTypeDef,
+  any
+> = _PreviewEmailTemplateConfigResponse;
+const _ResourcePermission = z
   .object({
     grant_reason: z.string(),
     granted_at: z.string().datetime({ offset: true }),
@@ -3018,14 +4190,24 @@ export const ResourcePermission = z
     user_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type ResourcePermission = z.infer<typeof ResourcePermission>;
-export const PaginatedResults_for_ResourcePermission = z
+export type ResourcePermission = z.infer<typeof _ResourcePermission>;
+export const ResourcePermission: z.ZodType<
+  ResourcePermission,
+  z.ZodTypeDef,
+  any
+> = _ResourcePermission;
+const _PaginatedResults_for_ResourcePermission = z
   .object({ records: z.array(ResourcePermission), total: z.number().int() })
   .passthrough();
 export type PaginatedResults_for_ResourcePermission = z.infer<
-  typeof PaginatedResults_for_ResourcePermission
+  typeof _PaginatedResults_for_ResourcePermission
 >;
-export const GrantPermissionBody = z
+export const PaginatedResults_for_ResourcePermission: z.ZodType<
+  PaginatedResults_for_ResourcePermission,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_ResourcePermission;
+const _GrantPermissionBody = z
   .object({
     grant_reason: z.string(),
     organization_id: z.union([z.string(), z.null()]).optional(),
@@ -3034,8 +4216,13 @@ export const GrantPermissionBody = z
     user_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type GrantPermissionBody = z.infer<typeof GrantPermissionBody>;
-export const UserWithPermissionDto = z
+export type GrantPermissionBody = z.infer<typeof _GrantPermissionBody>;
+export const GrantPermissionBody: z.ZodType<
+  GrantPermissionBody,
+  z.ZodTypeDef,
+  any
+> = _GrantPermissionBody;
+const _UserWithPermissionDto = z
   .object({
     email: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
@@ -3043,42 +4230,67 @@ export const UserWithPermissionDto = z
     username: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type UserWithPermissionDto = z.infer<typeof UserWithPermissionDto>;
-export const ConversationDemographics = z
+export type UserWithPermissionDto = z.infer<typeof _UserWithPermissionDto>;
+export const UserWithPermissionDto: z.ZodType<
+  UserWithPermissionDto,
+  z.ZodTypeDef,
+  any
+> = _UserWithPermissionDto;
+const _ConversationDemographics = z
   .object({ conversationId: z.string().uuid(), questionSlug: z.string() })
   .passthrough();
-export type ConversationDemographics = z.infer<typeof ConversationDemographics>;
-export const PaginatedResults_for_ConversationDemographics = z
+export type ConversationDemographics = z.infer<
+  typeof _ConversationDemographics
+>;
+export const ConversationDemographics: z.ZodType<
+  ConversationDemographics,
+  z.ZodTypeDef,
+  any
+> = _ConversationDemographics;
+const _PaginatedResults_for_ConversationDemographics = z
   .object({
     records: z.array(ConversationDemographics),
     total: z.number().int(),
   })
   .passthrough();
 export type PaginatedResults_for_ConversationDemographics = z.infer<
-  typeof PaginatedResults_for_ConversationDemographics
+  typeof _PaginatedResults_for_ConversationDemographics
 >;
-export const CreateConversationDemographics = z
+export const PaginatedResults_for_ConversationDemographics: z.ZodType<
+  PaginatedResults_for_ConversationDemographics,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_ConversationDemographics;
+const _CreateConversationDemographics = z
   .object({ conversationId: z.string().uuid(), questionSlug: z.string() })
   .passthrough();
 export type CreateConversationDemographics = z.infer<
-  typeof CreateConversationDemographics
+  typeof _CreateConversationDemographics
 >;
-export const NumericBucket = z
+export const CreateConversationDemographics: z.ZodType<
+  CreateConversationDemographics,
+  z.ZodTypeDef,
+  any
+> = _CreateConversationDemographics;
+const _NumericBucket = z
   .object({
     label: z.string(),
     max: z.union([z.number(), z.null()]).optional(),
     min: z.union([z.number(), z.null()]).optional(),
   })
   .passthrough();
-export type NumericBucket = z.infer<typeof NumericBucket>;
-export const TextBucket = z
+export type NumericBucket = z.infer<typeof _NumericBucket>;
+export const NumericBucket: z.ZodType<NumericBucket, z.ZodTypeDef, any> =
+  _NumericBucket;
+const _TextBucket = z
   .object({
     label: z.string(),
     values: z.union([z.array(z.string()), z.null()]).optional(),
   })
   .passthrough();
-export type TextBucket = z.infer<typeof TextBucket>;
-export const ValueBuckets = z.union([
+export type TextBucket = z.infer<typeof _TextBucket>;
+export const TextBucket: z.ZodType<TextBucket, z.ZodTypeDef, any> = _TextBucket;
+const _ValueBuckets = z.union([
   z
     .object({ buckets: z.array(NumericBucket), type: z.literal("numeric") })
     .passthrough(),
@@ -3086,12 +4298,19 @@ export const ValueBuckets = z.union([
     .object({ buckets: z.array(TextBucket), type: z.literal("text") })
     .passthrough(),
 ]);
-export type ValueBuckets = z.infer<typeof ValueBuckets>;
-export const DemographicsQuestionResponseType = z.enum(["string", "number"]);
+export type ValueBuckets = z.infer<typeof _ValueBuckets>;
+export const ValueBuckets: z.ZodType<ValueBuckets, z.ZodTypeDef, any> =
+  _ValueBuckets;
+const _DemographicsQuestionResponseType = z.enum(["string", "number"]);
 export type DemographicsQuestionResponseType = z.infer<
-  typeof DemographicsQuestionResponseType
+  typeof _DemographicsQuestionResponseType
 >;
-export const DemographicsQuestion = z
+export const DemographicsQuestionResponseType: z.ZodType<
+  DemographicsQuestionResponseType,
+  z.ZodTypeDef,
+  any
+> = _DemographicsQuestionResponseType;
+const _DemographicsQuestion = z
   .object({
     bucketConfig: z.union([z.array(ValueBuckets), z.null()]).optional(),
     displayName: z.string(),
@@ -3099,14 +4318,24 @@ export const DemographicsQuestion = z
     slug: z.string(),
   })
   .passthrough();
-export type DemographicsQuestion = z.infer<typeof DemographicsQuestion>;
-export const PaginatedResults_for_DemographicsQuestion = z
+export type DemographicsQuestion = z.infer<typeof _DemographicsQuestion>;
+export const DemographicsQuestion: z.ZodType<
+  DemographicsQuestion,
+  z.ZodTypeDef,
+  any
+> = _DemographicsQuestion;
+const _PaginatedResults_for_DemographicsQuestion = z
   .object({ records: z.array(DemographicsQuestion), total: z.number().int() })
   .passthrough();
 export type PaginatedResults_for_DemographicsQuestion = z.infer<
-  typeof PaginatedResults_for_DemographicsQuestion
+  typeof _PaginatedResults_for_DemographicsQuestion
 >;
-export const CreateDemographicsQuestion = z
+export const PaginatedResults_for_DemographicsQuestion: z.ZodType<
+  PaginatedResults_for_DemographicsQuestion,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_DemographicsQuestion;
+const _CreateDemographicsQuestion = z
   .object({
     bucketConfig: z.union([z.array(ValueBuckets), z.null()]).optional(),
     displayName: z.string(),
@@ -3115,9 +4344,14 @@ export const CreateDemographicsQuestion = z
   })
   .passthrough();
 export type CreateDemographicsQuestion = z.infer<
-  typeof CreateDemographicsQuestion
+  typeof _CreateDemographicsQuestion
 >;
-export const PartialDemographicsQuestion = z
+export const CreateDemographicsQuestion: z.ZodType<
+  CreateDemographicsQuestion,
+  z.ZodTypeDef,
+  any
+> = _CreateDemographicsQuestion;
+const _PartialDemographicsQuestion = z
   .object({
     bucketConfig: z.union([z.array(ValueBuckets), z.null()]),
     displayName: z.union([z.string(), z.null()]),
@@ -3126,9 +4360,14 @@ export const PartialDemographicsQuestion = z
   .partial()
   .passthrough();
 export type PartialDemographicsQuestion = z.infer<
-  typeof PartialDemographicsQuestion
+  typeof _PartialDemographicsQuestion
 >;
-export const DemographicsResponse = z
+export const PartialDemographicsQuestion: z.ZodType<
+  PartialDemographicsQuestion,
+  z.ZodTypeDef,
+  any
+> = _PartialDemographicsQuestion;
+const _DemographicsResponse = z
   .object({
     id: z.string().uuid(),
     questionSlug: z.string(),
@@ -3136,14 +4375,24 @@ export const DemographicsResponse = z
     value: z.string(),
   })
   .passthrough();
-export type DemographicsResponse = z.infer<typeof DemographicsResponse>;
-export const PaginatedResults_for_DemographicsResponse = z
+export type DemographicsResponse = z.infer<typeof _DemographicsResponse>;
+export const DemographicsResponse: z.ZodType<
+  DemographicsResponse,
+  z.ZodTypeDef,
+  any
+> = _DemographicsResponse;
+const _PaginatedResults_for_DemographicsResponse = z
   .object({ records: z.array(DemographicsResponse), total: z.number().int() })
   .passthrough();
 export type PaginatedResults_for_DemographicsResponse = z.infer<
-  typeof PaginatedResults_for_DemographicsResponse
+  typeof _PaginatedResults_for_DemographicsResponse
 >;
-export const CreateDemographicsResponse = z
+export const PaginatedResults_for_DemographicsResponse: z.ZodType<
+  PaginatedResults_for_DemographicsResponse,
+  z.ZodTypeDef,
+  any
+> = _PaginatedResults_for_DemographicsResponse;
+const _CreateDemographicsResponse = z
   .object({
     questionSlug: z.string(),
     userId: z.string().uuid(),
@@ -3151,15 +4400,25 @@ export const CreateDemographicsResponse = z
   })
   .passthrough();
 export type CreateDemographicsResponse = z.infer<
-  typeof CreateDemographicsResponse
+  typeof _CreateDemographicsResponse
 >;
-export const PartialDemographicsResponse = z
+export const CreateDemographicsResponse: z.ZodType<
+  CreateDemographicsResponse,
+  z.ZodTypeDef,
+  any
+> = _CreateDemographicsResponse;
+const _PartialDemographicsResponse = z
   .object({ value: z.union([z.string(), z.null()]) })
   .partial()
   .passthrough();
 export type PartialDemographicsResponse = z.infer<
-  typeof PartialDemographicsResponse
+  typeof _PartialDemographicsResponse
 >;
+export const PartialDemographicsResponse: z.ZodType<
+  PartialDemographicsResponse,
+  z.ZodTypeDef,
+  any
+> = _PartialDemographicsResponse;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   GuestLoginRequest,
@@ -3512,7 +4771,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PartialDemographicsResponse,
 };
 
-const endpoints = makeApi([
+const endpoints: ZodiosEndpointDefinitions = makeApi([
   {
     method: "post",
     path: "/api_keys",

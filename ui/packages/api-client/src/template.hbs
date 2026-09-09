@@ -8,8 +8,9 @@ import { {{{@key}}} } from "./{{{this}}}"
 {{/if}}
 
 {{#each schemas}}
-export const {{@key}} = {{{this}}};
-export type {{@key}} = z.infer<typeof {{@key}}>;
+const _{{@key}} = {{{this}}};
+export type {{@key}} = z.infer<typeof _{{@key}}>;
+export const {{@key}}: z.ZodType<{{@key}}, z.ZodTypeDef, any> = _{{@key}};
 {{/each}}
 
 
@@ -21,7 +22,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
 };
 {{/ifNotEmptyObj}}
 
-const endpoints = makeApi([
+const endpoints: ZodiosEndpointDefinitions = makeApi([
 {{#each endpoints}}
 	{
 		method: "{{method}}",

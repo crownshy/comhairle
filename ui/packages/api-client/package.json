@@ -8,7 +8,7 @@
 	"scripts": {
 		"generateAPI": "openapi-zod-client \"../../../open-api-spec.json\" -o src/api.ts -t src/template.hbs",
 		"ts": "tsc",
-		"build": "pnpm run generateAPI",
+		"build": "pnpm run generateAPI && tsc",
 		"prepublishOnly": "pnpm run build"
 	},
 	"devDependencies": {
@@ -20,8 +20,14 @@
 		"typescript": "^5.9.3"
 	},
 	"exports": {
-		"./api": "./src/api.ts",
-		"./client": "./src/client.ts"
+		"./api": {
+			"types": "./dist/api.d.ts",
+			"import": "./dist/api.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts",
+			"import": "./dist/client.js"
+		}
 	},
 	"publishConfig": {
 		"access": "public"
