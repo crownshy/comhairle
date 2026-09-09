@@ -83,7 +83,8 @@ export const basic_thinking_space_config = () => ({
 export const basic_lived_experience_config = {
 	type: 'stories',
 	max_time: 10,
-	to_see: 3
+	to_see: 3,
+	clips: []
 };
 
 export const basic_prioritization_config = {

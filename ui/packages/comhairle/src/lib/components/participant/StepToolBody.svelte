@@ -156,7 +156,7 @@
 	{:else if toolConfig.type === 'stories'}
 		{#key workflowStep.id}
 			{#await tool('stories') then LivedExperienceUI}
-				<LivedExperienceUI {onDone} {onSequenceChange} />
+				<LivedExperienceUI clips={toolConfig.clips ?? []} {onDone} {onSequenceChange} />
 			{/await}
 		{/key}
 	{:else if toolConfig.type === 'thinkingspace'}

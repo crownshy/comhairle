@@ -5,19 +5,23 @@
 	import { Mic, Info } from 'lucide-svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { OnSequenceChange } from '$lib/step-brief/toolSequence';
+	import type { StoryClip } from '@crownshy/api-client/api';
 
 	type Props = {
 		onDone: () => void;
 		onSequenceChange?: OnSequenceChange;
+		/** Clips chosen in the step's setup page. Empty falls back to the placeholders. */
+		clips?: StoryClip[];
 	};
 
-	let { onDone, onSequenceChange }: Props = $props();
+	let { onDone, onSequenceChange, clips: configuredClips = [] }: Props = $props();
 
 	/**
-	 * Placeholder recordings. This tool has never had a config: the three clips are hardcoded
-	 * on S3 and nothing a participant records is persisted. Left as it was found, restyled.
+	 * Placeholder recordings from before the tool had a config, still shown when nothing has
+	 * been chosen so an unconfigured step is not a blank screen. Nothing a participant
+	 * records is persisted.
 	 */
-	const clips = [
+	const placeholderClips = [
 		{
 			src: 'https://crownshy.s3.eu-west-2.amazonaws.com/alpha_resources/pro.mp4',
 			audio: false
@@ -32,8 +36,14 @@
 		}
 	];
 
+	let clips = $derived(
+		configuredClips.length > 0
+			? configuredClips.map((clip) => ({ src: clip.url, audio: clip.audio }))
+			: placeholderClips
+	);
+
 	/** The clips, then the record prompt. The step's own completion screen ends it (ADR-0022). */
-	const recordIndex = clips.length;
+	let recordIndex = $derived(clips.length);
 	let index = $state(0);
 	let privacyOpen = $state(false);
 

@@ -138,8 +138,13 @@
 		/>
 	{/if}
 
-	{#if toolConfig?.type === 'stories'}
-		<LivedExperienceManage />
+	{#if step && toolConfig?.type === 'stories'}
+		<LivedExperienceManage
+			conversationId={conversation.id}
+			workflowId={step.workflowId}
+			workflowStep={step}
+			isLive={conversation.isLive}
+		/>
 	{/if}
 
 	{#if step && toolConfig?.type === 'thinkingspace'}
