@@ -249,7 +249,7 @@ mod tests {
             .await?;
         let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
 
-        let user = users::create_annon_user(pool).await?;
+        let user = users::create_guest_user(pool).await?;
 
         let tool_config = match workflow_step.preview_tool_config {
             ToolConfig::ThinkingSpace(config) => config,
@@ -356,7 +356,7 @@ mod tests {
         let (user_a_id, workflow_step_id, tool_config) =
             create_thinking_space_resources(&pool).await?;
 
-        let user_b = users::create_annon_user(&pool).await?;
+        let user_b = users::create_guest_user(&pool).await?;
 
         let params_a = CreateFollowUpQuestions {
             root_question_id: tool_config.root_questions.first().unwrap().id,
