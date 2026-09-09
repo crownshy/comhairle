@@ -208,9 +208,9 @@ pub enum LoginBehaviour {
     /// to finish the login
     #[default]
     Manual,
-    /// If the user is logged out, automatically create an annon
+    /// If the user is logged out, automatically create a guest
     /// account to let them access the system  
-    AutoCreateAnnon,
+    AutoCreateGuest,
 }
 
 #[instrument(err(Debug), skip(db))]
@@ -416,6 +416,7 @@ mod tests {
             avatar_url: Some("".into()),
             auth_type: users::UserAuthType::EmailPassword,
             email: Some("TestEmail@gmail.com".into()),
+            guest_code: None,
             email_verified: false,
             organization_id: None,
             created_at: Utc::now(),
