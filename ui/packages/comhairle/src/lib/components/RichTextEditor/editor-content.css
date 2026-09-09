@@ -323,6 +323,15 @@
 	color: white;
 }
 
+/* Shown only on no-JS surfaces (email/print), where the live component can't mount. */
+.report-embed--placeholder {
+	border: 1px dashed var(--color-border);
+	border-radius: 0.75rem;
+	padding: 1rem;
+	color: var(--color-muted-foreground);
+	font-style: italic;
+}
+
 /* Source document badge styles (renderer / customer view) */
 .source-document-badge {
 	display: inline-flex;

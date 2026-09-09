@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getVoteData, incrementVotes, resetVoteCount } from './polisVoteStore';
+import {
+	getVoteData,
+	incrementVotes,
+	reconcileServerVotes,
+	resetVoteCount
+} from './polisVoteStore';
 
 const USER = 'user-1';
 
@@ -41,6 +46,32 @@ describe('polisVoteStore', () => {
 		expect(getVoteData(USER, 'preview-step-a')).toEqual({
 			totalVotes: 0,
 			hasMetThreshold: false
+		});
+	});
+
+	describe('reconcileServerVotes', () => {
+		it('adopts the server count when it is ahead (votes from another device)', () => {
+			const data = reconcileServerVotes(USER, 'live-step-a', 8, 10);
+			expect(data.totalVotes).toBe(8);
+			expect(data.hasMetThreshold).toBe(false);
+		});
+
+		it('keeps the local count when it is ahead of a lagging server', () => {
+			incrementVotes(USER, 'live-step-a', 10);
+			incrementVotes(USER, 'live-step-a', 10);
+			incrementVotes(USER, 'live-step-a', 10);
+			const data = reconcileServerVotes(USER, 'live-step-a', 1, 10);
+			expect(data.totalVotes).toBe(3);
+		});
+
+		it('flags the threshold once the merged count reaches it', () => {
+			const data = reconcileServerVotes(USER, 'live-step-a', 10, 10);
+			expect(data).toEqual({ totalVotes: 10, hasMetThreshold: true });
+		});
+
+		it('persists the reconciled count', () => {
+			reconcileServerVotes(USER, 'live-step-a', 5, 10);
+			expect(getVoteData(USER, 'live-step-a').totalVotes).toBe(5);
 		});
 	});
 

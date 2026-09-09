@@ -35,7 +35,7 @@
 
 	function doJoin() {
 		if (!user && firstWorkflow.autoLogin) {
-			registerAnnonUserSignupAndRedirect();
+			registerGuestUserSignupAndRedirect();
 		} else {
 			registerUser();
 		}
@@ -69,10 +69,10 @@
 		loginRedirect(url.pathname, 'Login to join the conversation');
 	}
 
-	// Register a new annon user, sign them up for
+	// Register a new guest user, sign them up for
 	// the workflow and redirect to it
-	async function registerAnnonUserSignupAndRedirect() {
-		await apiClient.SignupAnnonUser(undefined, {});
+	async function registerGuestUserSignupAndRedirect() {
+		await apiClient.SignupGuestUser(undefined, {});
 
 		await apiClient.RegisterUserForConversationWorkflow(undefined, {
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
