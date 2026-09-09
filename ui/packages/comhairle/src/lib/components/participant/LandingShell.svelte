@@ -24,6 +24,7 @@
 		availableDocuments = [],
 		preview = false,
 		embedded = false,
+		secondaryAction = false,
 		onReadMore,
 		page,
 		callToAction
@@ -36,6 +37,11 @@
 		preview?: boolean;
 		/** Whether this is rendered inside something else. See BeforeYouStart. */
 		embedded?: boolean;
+		/**
+		 * Whether the call to action has a second, ghost button under the main one (the
+		 * signed-out case). Decides how much foot room to reserve before the bar is measured.
+		 */
+		secondaryAction?: boolean;
 		onReadMore?: () => void;
 		/**
 		 * Show one viewport rather than the whole scrolling page: 0 is step zero, and 1 and up
@@ -65,11 +71,19 @@
 	 * The call to action bar is fixed over the foot of every screen, and its height depends
 	 * on what is in it: a visitor who is signed out gets a second button. Each screen pads
 	 * its foot by the measured height rather than a guess, so what sits at the bottom of a
-	 * screen (the next-page cue) is never under the bar. Before hydration the bar has not
-	 * been measured, so the fallback is the taller two-button case.
+	 * screen (the next-page cue) is never under the bar.
+	 *
+	 * Before hydration the bar has not been measured, so the fallback is worked out from what
+	 * the bar is made of: the main button (h-12), the ghost one under it when there is one
+	 * (gap-2 + h-10), the bar's own padding (pt-3 + pb-5) and its border, plus the same 1rem
+	 * of air. Getting this right matters: a fallback that is off is a visible jump on load,
+	 * because the cover is centred in whatever the padding leaves it.
 	 */
 	let callToActionHeight = $state(0);
-	let clearance = $derived(callToActionHeight ? `calc(${callToActionHeight}px + 1rem)` : '9rem');
+	let fallbackClearance = $derived(secondaryAction ? 'calc(9rem + 1px)' : 'calc(6rem + 1px)');
+	let clearance = $derived(
+		callToActionHeight ? `calc(${callToActionHeight}px + 1rem)` : fallbackClearance
+	);
 </script>
 
 <!-- `--cta-clearance` is read by every screen below and by the cover's cue. -->

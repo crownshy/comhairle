@@ -156,6 +156,7 @@
 		{pages}
 		availableDocuments={data.availableDocuments}
 		{preview}
+		secondaryAction={!user && !firstWorkflow.autoLogin}
 		onReadMore={pages.length ? scrollToDetail : undefined}
 	>
 		{#snippet callToAction()}

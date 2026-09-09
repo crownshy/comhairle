@@ -28,7 +28,13 @@
 <section
 	class="mx-auto flex w-full max-w-5xl grow flex-col items-center justify-center gap-6 px-6 py-8 text-center"
 >
-	<img class="max-h-[24vh] w-full max-w-md rounded-2xl object-cover" src={imageUrl} alt="" />
+	<!-- The box is sized by aspect ratio rather than by the file, so the cover has its shape
+		before the image arrives and nothing below it moves when it does. -->
+	<img
+		class="aspect-video max-h-[24vh] w-full max-w-md rounded-2xl object-cover"
+		src={imageUrl}
+		alt=""
+	/>
 
 	<h1 class="max-w-2xl text-4xl leading-tight font-semibold md:text-5xl">
 		{conversation.title}
