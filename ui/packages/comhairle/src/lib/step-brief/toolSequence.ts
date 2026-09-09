@@ -3,8 +3,9 @@
  * speak for it (ADR-0018).
  *
  * A tool that reports nothing is a single page whose progress is step-granular, which is
- * how six of the seven tools behaved before this existed. HeyForm is a cross-origin iframe
- * and can never implement it.
+ * how six of the seven tools behaved before this existed. HeyForm is a cross-origin iframe,
+ * so it cannot implement `next` / `prev`, but its fork posts the active question's position
+ * out of the frame and HeyFormEmbed turns that into `progress`.
  */
 export type ToolSequence = {
 	/** Advance within the tool. Undefined means the tool is at its end, so forward completes the step. */

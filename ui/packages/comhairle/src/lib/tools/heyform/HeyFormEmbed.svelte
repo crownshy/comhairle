@@ -4,16 +4,19 @@
 	import { fade } from 'svelte/transition';
 	import HeyFormEmbedSkeleton from './HeyFormEmbedSkeleton.svelte';
 	import { browser } from '$app/environment';
+	import { clampProgress, type OnSequenceChange } from '$lib/step-brief/toolSequence';
 
 	type Props = {
 		onDone: () => void;
+		onSequenceChange?: OnSequenceChange;
 		surveyId: string;
 		surveyURL: string;
 		serverURL: string;
 		userId: string;
 		extraSurveyParams?: Record<string, string>;
 	};
-	let { onDone, surveyId, userId, serverURL, extraSurveyParams }: Props = $props();
+	let { onDone, onSequenceChange, surveyId, userId, serverURL, extraSurveyParams }: Props =
+		$props();
 
 	/**
 	 * The iframe's `load` fires when the form *document* arrives, but the renderer then boots its
@@ -85,7 +88,7 @@
 	 *
 	 * Contract with the fork (see its `sendMessageToParent`), all tagged `source: 'HEYFORM'`:
 	 *   FORM_RESIZE      { height: <px> }                    height the frame needs for this question
-	 *   FORM_STEP_CHANGE {}                                  a new question became active
+	 *   FORM_STEP_CHANGE { index, total, percentage }        a new question became active
 	 *   HIDE_EMBED_MODAL {}                                  the form finished
 	 * And the one message we send back, tagged `source: 'COMHAIRLE'`:
 	 *   REQUEST_RESIZE   {}                                  asks the fork to re-emit FORM_RESIZE now
@@ -157,6 +160,21 @@
 		alignTimer = setTimeout(alignFrameTop, ALIGN_AFTER_STEP_CHANGE_MS);
 	}
 
+	/**
+	 * Progress for the chrome's bar (ADR-0018). The fork reports the active question's position
+	 * in its logic-applied field list, thank-you screen included, so `index / total` is how far
+	 * through the form the participant is. The form's own answered-questions `percentage` also
+	 * rides along in the message but is not used: it moves on typing rather than on paging, and
+	 * a form where some questions are optional never reaches 100 on it.
+	 *
+	 * A fork that predates the payload posts the event with no numbers; the bar then holds at
+	 * the handover point exactly as before.
+	 */
+	function reportProgress(index: unknown, total: unknown) {
+		if (typeof index !== 'number' || typeof total !== 'number' || total <= 0) return;
+		onSequenceChange?.({ progress: clampProgress(index / total) });
+	}
+
 	function onFrameMessage(e: MessageEvent) {
 		const data = e.data;
 		// HeyForm tags every message it posts; ignore anything else on the page (HMR, analytics, ...).
@@ -175,6 +193,7 @@
 				break;
 			case 'FORM_STEP_CHANGE':
 				requestFrameTopAlign();
+				reportProgress(data.index, data.total);
 				break;
 		}
 	}

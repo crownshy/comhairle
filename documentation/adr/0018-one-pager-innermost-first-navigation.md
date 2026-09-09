@@ -76,3 +76,9 @@ setting keeps working rather than becoming dead config.
 - HeyForm remains the known exception at every level: no internal sequence, no progress, no
   restyle. Its interior lives in the fork at `../heyform` and any change there is a paired
   change plus a deploy.
+
+  *Update, 2026-09-09.* The progress gap is closed. The fork now includes the active
+  question's index and the field count in the `FORM_STEP_CHANGE` message it already posted
+  to the parent, and `HeyFormEmbed` reports `index / total` through the contract above. The
+  sequence and restyle limits stand: the pager still cannot drive the form's own Next and
+  Back, and the bar holds at the handover point against a fork build without the payload.

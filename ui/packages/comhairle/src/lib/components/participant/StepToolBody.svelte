@@ -150,6 +150,7 @@
 					surveyURL={toolConfig.survey_url}
 					serverURL={toolConfig.server_url}
 					{onDone}
+					{onSequenceChange}
 				/>
 			{/await}
 		{/key}
