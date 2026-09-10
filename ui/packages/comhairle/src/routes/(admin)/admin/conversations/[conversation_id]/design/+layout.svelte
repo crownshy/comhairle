@@ -11,29 +11,27 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import TabStripItem from '$lib/components/TabStripItem.svelte';
+	import { key } from '$lib/utils/invalidationKey';
+	import type { WorkflowDto } from '@crownshy/api-client/api';
+	import { onMount } from 'svelte';
 
-	let { data, children } = $props();
-	let { conversation, workflowSteps = [] } = $derived(data);
-
-	let workflow = $derived(data.workflows[0]);
-
-	let orderedSteps = $derived(workflowSteps.toSorted((a, b) => a.stepOrder - b.stepOrder));
-	let loading = $derived(workflowSteps === undefined);
+	const { data, children, params } = $props();
+	const { conversation_id } = $derived(params);
 
 	let adding = $state(false);
 
-	async function addStep(creationKey: CreationKey) {
+	async function addStep(creationKey: CreationKey, workflowId: WorkflowDto['id']) {
 		if (adding) return;
 		adding = true;
 		try {
 			const created = await createWorkflowStep({
-				conversation,
-				workflowId: workflow.id,
+				conversation: data.conversation,
+				workflowId,
 				creationKey,
 				existingSteps: workflowSteps
 			});
 			if (!created) return;
-			await invalidate('conversation:workflow');
+			await invalidate(key('conversation/design/workflow'));
 			notifications.send({ priority: 'INFO', message: 'Step added' });
 			newStepHighlight.flag(created.id);
 			addStepDialog.open = false;
@@ -44,7 +42,7 @@
 			// the operator sees exactly which step was just created instead of landing in its editor.
 			await goto(
 				resolve('/(admin)/admin/conversations/[conversation_id]/design', {
-					conversation_id: conversation.id
+					conversation_id
 				})
 			);
 		} catch (e) {
@@ -62,54 +60,71 @@
 		addStepDialog.open = false;
 		goto(
 			resolve('/(admin)/admin/conversations/[conversation_id]/events/new', {
-				conversation_id: conversation.id
+				conversation_id
 			})
 		);
 	}
 </script>
 
-<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
-
 <TabStripShell ariaLabel="Workflow steps">
 	{@const slug = 'design'}
 	<TabStripItem
 		href={resolve(`/(admin)/admin/conversations/[conversation_id]/${slug}`, {
-			conversation_id: conversation.id
+			conversation_id
 		})}
 		isActive={(pathname) => pathname.endsWith(slug)}
 	>
 		<Settings2 class="mr-1 size-4" />
 		Design
 	</TabStripItem>
-	{#if loading}
+	{#await data.streamedWorkflows}
 		{#each [1, 2, 3] as i (i)}
 			<li class="px-3.5 py-1.5">
 				<Skeleton class="h-5 w-24" />
 			</li>
 		{/each}
-	{:else}
-		{#each orderedSteps as step (step.id)}
-			<TabStripItem
-				href={resolve(
-					'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
-					{ conversation_id: conversation.id, step_id: step.id }
-				)}
-				isActive={(pathname) => pathname.includes(step.id)}
-			>
-				<span class="truncate">{step.name || 'Unnamed step'}</span>
-			</TabStripItem>
-		{/each}
-		<li>
-			<button
-				type="button"
-				onclick={() => (addStepDialog.open = true)}
-				class="text-foreground/40 hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap"
-			>
-				<Plus class="size-4" />
-				Add step
-			</button>
-		</li>
-	{/if}
+	{:then workflows}
+		{#if workflows.err !== null}
+			{console.error(workflows.err)}
+			{notifications.addFlash({
+				message: 'Could not load workflows, please try again',
+				priority: 'ERROR'
+			})}
+		{:else}
+			{#each workflows.ok.current.steps as step (step.id)}
+				<TabStripItem
+					href={resolve(
+						'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
+						{ conversation_id, step_id: step.id }
+					)}
+					isActive={(pathname) => pathname.includes(step.id)}
+				>
+					<span class="truncate" title={step.name}>{step.name || 'Unnamed step'}</span>
+				</TabStripItem>
+			{/each}
+			<li>
+				<button
+					type="button"
+					onclick={() => (addStepDialog.open = true)}
+					class="text-foreground/40 hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap"
+				>
+					<Plus class="size-4" />
+					Add step
+				</button>
+			</li>
+		{/if}
+	{/await}
 </TabStripShell>
+
+{#await data.streamedWorkflows then workflows}
+	{#if workflows.ok !== null}
+		<AddStepDialog
+			bind:open={addStepDialog.open}
+			{adding}
+			onAdd={(creationKey) => addStep(creationKey, workflows.ok.current.workflow.id)}
+			onAddEvent={addEvent}
+		/>
+	{/if}
+{/await}
 
 {@render children()}

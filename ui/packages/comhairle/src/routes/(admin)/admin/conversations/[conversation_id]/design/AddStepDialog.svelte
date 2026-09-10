@@ -97,7 +97,7 @@
 							class="bg-muted border-border relative flex h-28 flex-1 items-center justify-center overflow-hidden rounded-lg border"
 						>
 							<span
-								class="text-primary/70 border-primary/40 -rotate-[30deg] rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
+								class="text-primary/70 border-primary/40 -rotate-30 rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
 							>
 								Example
 							</span>
