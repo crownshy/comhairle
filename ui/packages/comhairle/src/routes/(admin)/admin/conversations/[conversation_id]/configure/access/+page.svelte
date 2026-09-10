@@ -341,14 +341,14 @@
 			{#if data.canManageCohosts}
 				<div class="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center">
 					{#await data.streamedCohostOrganizations}
-						<Skeleton />
+						<Skeleton class="h-12 w-full" />
 					{:then cohostOrganizations}
 						{#if cohostOrganizations.err !== null}
 							{notifications.addFlash({
 								message: 'Could not load cohost organizations, please try again',
 								priority: 'ERROR'
 							})}
-							<span class="text-muted-foreground text-sm"
+							<span class="text-destructive text-sm"
 								>Could not load cohost organizations, please try again</span
 							>
 						{:else}
@@ -382,12 +382,12 @@
 			{/if}
 
 			<Card.Root>
-				<Card.Content class="pt-6">
+				<Card.Content>
 					{#await data.streamedCohostOrganizations}
-						<Skeleton />
+						<Skeleton class="h-20	w-full" />
 					{:then cohostOrganizations}
 						{#if cohostOrganizations.err !== null}
-							<span class="text-destructive-foreground text-sm">
+							<span class="text-destructive text-sm">
 								Could not load cohost organizations, please try again
 							</span>
 						{:else if cohostOrganizations.ok.length === 0}
