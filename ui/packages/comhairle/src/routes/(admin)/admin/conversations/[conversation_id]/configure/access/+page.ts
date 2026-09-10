@@ -1,14 +1,14 @@
 import type { PageLoad } from './$types';
 import { tryCatchAsync, type ErrorType, type Result } from '$lib/utils/errorHandling';
 import { typed } from '$lib/utils/types';
-import type { OrganizationDto } from '@crownshy/api-client/api';
+import type { OrganizationDto, OrganizationWithPermissionDto } from '@crownshy/api-client/api';
 import BinaryTree from '$lib/data-structures/BinaryTree';
 
-type CohostOrganizations = { id: string; name: string };
+type CohostOrganization = OrganizationWithPermissionDto;
 
 type AccessData = {
 	canManageCohosts: boolean;
-	streamedCohostOrganizations: Promise<Result<'ok', CohostOrganizations[], ErrorType>>;
+	streamedCohostOrganizations: Promise<Result<'ok', CohostOrganization[], ErrorType>>;
 };
 
 export const load: PageLoad = async ({ parent, params }) => {
@@ -18,16 +18,17 @@ export const load: PageLoad = async ({ parent, params }) => {
 	if (!canManageCohosts) {
 		return typed<AccessData>({
 			canManageCohosts: false,
-			streamedCohostOrganizations: tryCatchAsync<CohostOrganizations[], ErrorType>(
-				async (ok) => ok<CohostOrganizations[]>([])
+			streamedCohostOrganizations: tryCatchAsync<CohostOrganization[], ErrorType>(
+				async (ok) => ok<CohostOrganization[]>([])
 			)
 		});
 	}
 
 	return typed<AccessData>({
 		canManageCohosts: true,
-		streamedCohostOrganizations: tryCatchAsync<CohostOrganizations[], ErrorType>(
+		streamedCohostOrganizations: tryCatchAsync<CohostOrganization[], ErrorType>(
 			async (ok, err) => {
+				// NOTE: This logic should maybe be moved to the backend
 				const organizations = await tryCatchAsync(() =>
 					api
 						.ListOrganizations({
@@ -54,7 +55,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 					(c) => c.id
 				);
 
-				const binaryTree = new BinaryTree<string, CohostOrganizations>();
+				const binaryTree = new BinaryTree<string, CohostOrganization>();
 
 				for (const organization of organizations.ok) {
 					if (
@@ -64,10 +65,14 @@ export const load: PageLoad = async ({ parent, params }) => {
 						continue;
 					}
 
-					binaryTree.insert(organization.name, {
-						id: organization.id,
-						name: organization.name
-					});
+					const cohostOrganization = cohostOrganizations.ok.find(
+						(c) => c.id === organization.id
+					);
+					if (!cohostOrganization) {
+						continue;
+					}
+
+					binaryTree.insert(cohostOrganization.name, cohostOrganization);
 				}
 
 				return ok(binaryTree.toArray());

@@ -409,7 +409,7 @@
 									{#each cohostOrganizations.ok as organization (organization.id)}
 										<Table.Row>
 											<Table.Cell>{organization.name}</Table.Cell>
-											<Table.Cell>{organization.name}</Table.Cell>
+											<Table.Cell>{organization.roleName}</Table.Cell>
 											{#if data.canManageCohosts}
 												<Table.Cell>
 													<Button
