@@ -3,8 +3,8 @@
 // (
 //    slug TEXT PK,                               - Unique identifier for the demographics question
 //    display_name TEXT NOT NULL,                 - Human-readable name for the demographics question
-//    response_type 'string' | 'number' NOT NULL, - The type of response expected for the demographics question
-//    bucket_config JSONB                         - Configuration for how responses should be bucketed (e.g., age ranges)
+//    response_type 'number' | 'string' NOT NULL, - The type of response expected for the demographics question
+//    bucket_config JSONB                         - For 'number': bucket ranges (e.g. age ranges). For 'string': the configurable set of selectable options.
 // )
 // 2. `demographics_response`                     - Represents a user's response to a demographics question
 // (
@@ -30,6 +30,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 use crate::models::pagination::{PageOptions, PaginatedResults};
 
 // ============================================================================
@@ -97,13 +98,13 @@ impl ConversationDemographicsFilterOptions {
     }
 }
 
-/// Represents demographics question response type (either 'string' or 'number').
+/// Represents demographics question response type (either 'number' or 'string').
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum DemographicsQuestionResponseType {
-    String,
     Number,
+    String,
 }
 
 impl Into<SimpleExpr> for DemographicsQuestionResponseType {
@@ -115,8 +116,8 @@ impl Into<SimpleExpr> for DemographicsQuestionResponseType {
 impl AsRef<str> for DemographicsQuestionResponseType {
     fn as_ref(&self) -> &str {
         match self {
-            Self::String => "string",
             Self::Number => "number",
+            Self::String => "string",
         }
     }
 }
@@ -127,8 +128,8 @@ impl Decode<'_, Postgres> for DemographicsQuestionResponseType {
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let s = row.as_str()?;
         match s {
-            "string" => return Ok(DemographicsQuestionResponseType::String),
             "number" => return Ok(DemographicsQuestionResponseType::Number),
+            "string" => return Ok(DemographicsQuestionResponseType::String),
             _ => {
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
@@ -153,10 +154,11 @@ pub struct NumericBucket {
     pub label: String,
 }
 
+/// A single selectable answer for a 'string' demographics question.
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
 #[cfg_attr(test, derive(PartialEq))]
-pub struct TextBucket {
-    pub values: Option<Vec<String>>,
+pub struct StringOption {
+    pub value: String,
     pub label: String,
 }
 
@@ -165,7 +167,18 @@ pub struct TextBucket {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ValueBuckets {
     Numeric { buckets: Vec<NumericBucket> },
-    Text { buckets: Vec<TextBucket> },
+    String { options: Vec<StringOption> },
+}
+
+impl ValueBuckets {
+    pub fn accepts_value(&self, value: &str) -> bool {
+        match self {
+            ValueBuckets::Numeric { .. } => value.parse::<i64>().is_ok(),
+            ValueBuckets::String { options } => {
+                options.is_empty() || options.iter().any(|option| option.value == value)
+            }
+        }
+    }
 }
 
 /// Safely maps a raw value into a defined category bucket label based on the provided bucket configuration.
@@ -184,15 +197,13 @@ pub fn resolve_category_bucket(value: &str, buckets: &ValueBuckets) -> String {
                 }
             }
         }
-        ValueBuckets::Text {
-            buckets: text_buckets,
-        } => {
-            for bucket in text_buckets {
-                if let Some(values) = &bucket.values {
-                    if values.contains(&value.to_string()) {
-                        return bucket.label.clone();
-                    }
-                }
+        ValueBuckets::String { options } => {
+            // No options configured yet: report the raw value rather than hiding it.
+            if options.is_empty() {
+                return value.to_string();
+            }
+            if let Some(option) = options.iter().find(|option| option.value == value) {
+                return option.label.clone();
             }
         }
     }
@@ -210,7 +221,7 @@ pub struct DemographicsQuestion {
     pub slug: String,
     pub display_name: String,
     pub response_type: DemographicsQuestionResponseType,
-    #[schemars(with = "Option<Vec<ValueBuckets>>")]
+    #[schemars(with = "Option<ValueBuckets>")]
     pub bucket_config: Option<sqlx::types::Json<ValueBuckets>>,
 }
 
@@ -227,7 +238,7 @@ pub struct CreateDemographicsQuestion {
     pub slug: String,
     pub display_name: String,
     pub response_type: DemographicsQuestionResponseType,
-    #[schemars(with = "Option<Vec<ValueBuckets>>")]
+    #[schemars(with = "Option<ValueBuckets>")]
     pub bucket_config: Option<sqlx::types::Json<ValueBuckets>>,
 }
 
@@ -260,9 +271,10 @@ impl PartialDemographicsQuestion {
         }
 
         if let Some(bucket_config) = self.bucket_config {
-            let json_expr = bucket_config
-                .map(|json| serde_json::to_value(json.0).unwrap())
-                .into();
+            let json_expr: SimpleExpr = match bucket_config {
+                Some(json) => Expr::val(serde_json::to_value(json.0).unwrap()).into(),
+                None => sea_query::Keyword::Null.into(),
+            };
 
             values.push((DemographicsQuestionIden::BucketConfig, json_expr));
         }
@@ -301,8 +313,18 @@ impl DemographicsQuestionsFilterOptions {
     }
 }
 
+/// A demographics response value is always a JSON number or string on the wire, never
+/// stored/parsed as arbitrary JSON. Schema-only type: response bodies still serialize
+/// `value` as a plain `String` internally.
+#[derive(Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum TypedValue {
+    Number(i64),
+    Text(String),
+}
+
 /// Represents a demographics response from a user to a specific demographics question.
-#[derive(Serialize, Deserialize, Partial, Debug, FromRow, Clone, JsonSchema)]
+#[derive(Deserialize, Partial, Debug, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "demographics_response")]
 #[partially(derive(Serialize, Deserialize, Debug, JsonSchema, Default))]
 #[serde(rename_all = "camelCase")]
@@ -314,7 +336,38 @@ pub struct DemographicsResponse {
     pub question_slug: String,
     #[partially(omit)]
     pub user_id: Option<Uuid>,
+    #[schemars(with = "TypedValue")]
     pub value: String,
+}
+
+impl Serialize for DemographicsResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut state = serializer.serialize_struct("DemographicsResponse", 4)?;
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("questionSlug", &self.question_slug)?;
+        state.serialize_field("userId", &self.user_id)?;
+        match self.value.parse::<i64>() {
+            Ok(number) => state.serialize_field("value", &number)?,
+            Err(_) => state.serialize_field("value", &self.value)?,
+        }
+        state.end()
+    }
+}
+
+/// Accepts either a JSON number or JSON string for a response value and stores it as text.
+fn deserialize_typed_value<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(match TypedValue::deserialize(deserializer)? {
+        TypedValue::Number(number) => number.to_string(),
+        TypedValue::Text(text) => text,
+    })
 }
 
 const DEMOGRAPHICS_RESPONSE_COLUMNS: [DemographicsResponseIden; 4] = [
@@ -329,6 +382,8 @@ const DEMOGRAPHICS_RESPONSE_COLUMNS: [DemographicsResponseIden; 4] = [
 pub struct CreateDemographicsResponse {
     pub question_slug: String,
     pub user_id: Uuid,
+    #[serde(deserialize_with = "deserialize_typed_value")]
+    #[schemars(with = "TypedValue")]
     pub value: String,
 }
 
@@ -416,6 +471,7 @@ pub async fn get_conversation_demographics(
 ) -> Result<PaginatedResults<ConversationDemographics>, ComhairleError> {
     let mut query = sea_query::Query::select()
         .columns(CONVERSATION_DEMOGRAPHICS_COLUMNS)
+        .from(ConversationDemographicsIden::Table)
         .to_owned();
 
     query = filters.apply(query);
@@ -441,8 +497,7 @@ pub async fn create_conversation_demographics(
 
     let created = sqlx::query_as_with::<_, ConversationDemographics, _>(&sql, values)
         .fetch_one(db)
-        .await
-        .map_err(|e| ComhairleError::DatabaseError(e))?;
+        .await?;
 
     Ok(created)
 }
@@ -464,7 +519,7 @@ pub async fn delete_conversation_demographics(
     let deleted = sqlx::query_as_with::<_, ConversationDemographics, _>(&sql, values)
         .fetch_optional(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))?;
+        .resolve_db_err("conversation_demographics")?;
 
     Ok(deleted)
 }
@@ -472,6 +527,26 @@ pub async fn delete_conversation_demographics(
 // ============================================================================
 // Demographics questions - CRUD
 // ============================================================================
+
+/// Get a single demographics question by its slug.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_demographics_question_by_slug(
+    db: &PgPool,
+    slug: &str,
+) -> Result<DemographicsQuestion, ComhairleError> {
+    let (sql, values) = sea_query::Query::select()
+        .columns(DEMOGRAPHICS_QUESTION_COLUMNS)
+        .from(DemographicsQuestionIden::Table)
+        .and_where(Expr::col(DemographicsQuestionIden::Slug).eq(slug))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("demographics_question")?;
+
+    Ok(question)
+}
 
 /// Get a demographics questions with optional filters.
 #[instrument(err(Debug), skip(db))]
@@ -509,7 +584,7 @@ pub async fn create_demographics_question(
     let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))?;
+        .resolve_db_err("demographics_question")?;
 
     Ok(question)
 }
@@ -521,9 +596,15 @@ pub async fn update_demographics_question(
     slug: String,
     updated_demographics_question: PartialDemographicsQuestion,
 ) -> Result<DemographicsQuestion, ComhairleError> {
+    let update_values = updated_demographics_question.to_values();
+
+    if update_values.is_empty() {
+        return get_demographics_question_by_slug(db, &slug).await;
+    }
+
     let (sql, values) = sea_query::Query::update()
         .table(DemographicsQuestionIden::Table)
-        .values(updated_demographics_question.to_values())
+        .values(update_values)
         .and_where(Expr::col(DemographicsQuestionIden::Slug).eq(slug))
         .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_QUESTION_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
@@ -531,7 +612,7 @@ pub async fn update_demographics_question(
     let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))?;
+        .resolve_db_err("demographics_question")?;
 
     Ok(question)
 }
@@ -551,7 +632,7 @@ pub async fn delete_demographics_question(
     let deleted_question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
         .fetch_optional(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))?;
+        .resolve_db_err("demographics_question")?;
 
     Ok(deleted_question)
 }
@@ -586,12 +667,37 @@ pub async fn get_demographics_responses(
     Ok(responses)
 }
 
+async fn validate_response_value(
+    db: &PgPool,
+    question_slug: &str,
+    value: &str,
+) -> Result<(), ComhairleError> {
+    let question = get_demographics_question_by_slug(db, question_slug).await?;
+
+    if let Some(bucket_config) = &question.bucket_config {
+        if !bucket_config.0.accepts_value(value) {
+            return Err(ComhairleError::BadRequest(format!(
+                "'{value}' is not a valid answer for question '{question_slug}'"
+            )));
+        }
+    }
+
+    Ok(())
+}
+
 /// Add a new response for a specific demographics question and user.
 #[instrument(err(Debug), skip(db))]
 pub async fn create_demographics_response(
     db: &PgPool,
     new_demographics_response: CreateDemographicsResponse,
 ) -> Result<DemographicsResponse, ComhairleError> {
+    validate_response_value(
+        db,
+        &new_demographics_response.question_slug,
+        &new_demographics_response.value,
+    )
+    .await?;
+
     let (sql, values) = sea_query::Query::insert()
         .into_table(DemographicsResponseIden::Table)
         .columns(DEMOGRAPHICS_RESPONSE_COLUMNS)
@@ -602,7 +708,7 @@ pub async fn create_demographics_response(
     let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))?;
+        .resolve_db_err("demographics_response")?;
 
     Ok(response)
 }
@@ -615,9 +721,31 @@ pub async fn update_demographics_response(
     user_id: Uuid,
     updated_demographics_response: PartialDemographicsResponse,
 ) -> Result<DemographicsResponse, ComhairleError> {
+    if let Some(value) = &updated_demographics_response.value {
+        validate_response_value(db, &question_slug, value).await?;
+    }
+
+    let update_values = updated_demographics_response.to_values();
+
+    if update_values.is_empty() {
+        let (sql, query_values) = sea_query::Query::select()
+            .columns(DEMOGRAPHICS_RESPONSE_COLUMNS)
+            .from(DemographicsResponseIden::Table)
+            .and_where(Expr::col(DemographicsResponseIden::QuestionSlug).eq(question_slug))
+            .and_where(Expr::col(DemographicsResponseIden::UserId).eq(user_id))
+            .build_sqlx(PostgresQueryBuilder);
+
+        let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, query_values)
+            .fetch_one(db)
+            .await
+            .resolve_db_err("demographics_response")?;
+
+        return Ok(response);
+    }
+
     let (sql, values) = sea_query::Query::update()
         .table(DemographicsResponseIden::Table)
-        .values(updated_demographics_response.to_values())
+        .values(update_values)
         .and_where(Expr::col(DemographicsResponseIden::QuestionSlug).eq(question_slug))
         .and_where(Expr::col(DemographicsResponseIden::UserId).eq(user_id))
         .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_RESPONSE_COLUMNS))
@@ -626,7 +754,7 @@ pub async fn update_demographics_response(
     let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))?;
+        .resolve_db_err("demographics_response")?;
 
     Ok(response)
 }
@@ -648,7 +776,7 @@ pub async fn delete_demographics_response(
     let deleted = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
         .fetch_optional(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))?;
+        .resolve_db_err("demographics_response")?;
 
     Ok(deleted)
 }
@@ -695,11 +823,17 @@ mod tests {
         assert_eq!(response.total, 1, "Question should exist after creation");
         assert_eq!(vec![question], response.records);
 
-        // Update the demographics question and ensure the changes are reflected
+        // Update the demographics question with bucket_config and ensure the changes are reflected
+        let string_options = ValueBuckets::String {
+            options: vec![StringOption {
+                value: "opt1".to_string(),
+                label: "Option 1".to_string(),
+            }],
+        };
         let update = PartialDemographicsQuestion {
             display_name: Some("Updated Display Name".to_string()),
             response_type: Some(DemographicsQuestionResponseType::String),
-            bucket_config: None,
+            bucket_config: Some(Some(sqlx::types::Json(string_options))),
         };
         let updated_question = update_demographics_question(&db, slug.clone(), update).await?;
         assert_eq!(
@@ -712,11 +846,28 @@ mod tests {
             "Updated Display Name".to_string(),
             "Question display name should be updated correctly"
         );
+        assert!(
+            updated_question.bucket_config.is_some(),
+            "Bucket config should be set"
+        );
+
+        // Update with bucket_config: Some(None) to clear all options (set bucket_config to NULL)
+        let clear_update = PartialDemographicsQuestion {
+            display_name: None,
+            response_type: None,
+            bucket_config: Some(None),
+        };
+        let cleared_question =
+            update_demographics_question(&db, slug.clone(), clear_update).await?;
+        assert!(
+            cleared_question.bucket_config.is_none(),
+            "Bucket config should be cleared to NULL"
+        );
 
         // Delete the demographics question and ensure it is removed successfully
         let response = delete_demographics_question(&db, slug.clone()).await?;
         assert_eq!(
-            Some(updated_question),
+            Some(cleared_question),
             response,
             "Question should be deleted successfully"
         );

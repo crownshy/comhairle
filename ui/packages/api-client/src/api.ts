@@ -3071,29 +3071,26 @@ export const NumericBucket = z
   })
   .passthrough();
 export type NumericBucket = z.infer<typeof NumericBucket>;
-export const TextBucket = z
-  .object({
-    label: z.string(),
-    values: z.union([z.array(z.string()), z.null()]).optional(),
-  })
+export const StringOption = z
+  .object({ label: z.string(), value: z.string() })
   .passthrough();
-export type TextBucket = z.infer<typeof TextBucket>;
+export type StringOption = z.infer<typeof StringOption>;
 export const ValueBuckets = z.union([
   z
     .object({ buckets: z.array(NumericBucket), type: z.literal("numeric") })
     .passthrough(),
   z
-    .object({ buckets: z.array(TextBucket), type: z.literal("text") })
+    .object({ options: z.array(StringOption), type: z.literal("string") })
     .passthrough(),
 ]);
 export type ValueBuckets = z.infer<typeof ValueBuckets>;
-export const DemographicsQuestionResponseType = z.enum(["string", "number"]);
+export const DemographicsQuestionResponseType = z.enum(["number", "string"]);
 export type DemographicsQuestionResponseType = z.infer<
   typeof DemographicsQuestionResponseType
 >;
 export const DemographicsQuestion = z
   .object({
-    bucketConfig: z.union([z.array(ValueBuckets), z.null()]).optional(),
+    bucketConfig: z.union([ValueBuckets, z.null()]).optional(),
     displayName: z.string(),
     responseType: DemographicsQuestionResponseType,
     slug: z.string(),
@@ -3108,7 +3105,7 @@ export type PaginatedResults_for_DemographicsQuestion = z.infer<
 >;
 export const CreateDemographicsQuestion = z
   .object({
-    bucketConfig: z.union([z.array(ValueBuckets), z.null()]).optional(),
+    bucketConfig: z.union([ValueBuckets, z.null()]).optional(),
     displayName: z.string(),
     responseType: DemographicsQuestionResponseType,
     slug: z.string(),
@@ -3119,7 +3116,7 @@ export type CreateDemographicsQuestion = z.infer<
 >;
 export const PartialDemographicsQuestion = z
   .object({
-    bucketConfig: z.union([z.array(ValueBuckets), z.null()]),
+    bucketConfig: z.union([ValueBuckets, z.null()]),
     displayName: z.union([z.string(), z.null()]),
     responseType: z.union([DemographicsQuestionResponseType, z.null()]),
   })
@@ -3128,12 +3125,14 @@ export const PartialDemographicsQuestion = z
 export type PartialDemographicsQuestion = z.infer<
   typeof PartialDemographicsQuestion
 >;
+export const TypedValue = z.union([z.number(), z.string()]);
+export type TypedValue = z.infer<typeof TypedValue>;
 export const DemographicsResponse = z
   .object({
     id: z.string().uuid(),
     questionSlug: z.string(),
     userId: z.union([z.string(), z.null()]).optional(),
-    value: z.string(),
+    value: TypedValue,
   })
   .passthrough();
 export type DemographicsResponse = z.infer<typeof DemographicsResponse>;
@@ -3147,15 +3146,14 @@ export const CreateDemographicsResponse = z
   .object({
     questionSlug: z.string(),
     userId: z.string().uuid(),
-    value: z.string(),
+    value: TypedValue,
   })
   .passthrough();
 export type CreateDemographicsResponse = z.infer<
   typeof CreateDemographicsResponse
 >;
 export const PartialDemographicsResponse = z
-  .object({ value: z.union([z.string(), z.null()]) })
-  .partial()
+  .object({ value: TypedValue })
   .passthrough();
 export type PartialDemographicsResponse = z.infer<
   typeof PartialDemographicsResponse
@@ -3499,13 +3497,14 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_ConversationDemographics,
   CreateConversationDemographics,
   NumericBucket,
-  TextBucket,
+  StringOption,
   ValueBuckets,
   DemographicsQuestionResponseType,
   DemographicsQuestion,
   PaginatedResults_for_DemographicsQuestion,
   CreateDemographicsQuestion,
   PartialDemographicsQuestion,
+  TypedValue,
   DemographicsResponse,
   PaginatedResults_for_DemographicsResponse,
   CreateDemographicsResponse,
@@ -5026,14 +5025,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "DeleteConversationDemographicsByQuestion",
     description: `Delete demographics responses for a specific conversation and question`,
     requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: z.array(z.unknown()).min(2).max(2),
-      },
-    ],
-    response: PaginatedResults_for_ConversationDemographics,
+    response: z.union([ConversationDemographics, z.null()]),
   },
   {
     method: "get",
