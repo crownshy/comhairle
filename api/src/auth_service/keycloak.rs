@@ -1,4 +1,6 @@
-use crate::{config::AuthServiceConfig, models::users::User};
+use crate::{
+    auth_service::GetAuthorizationTokensResponse, config::AuthServiceConfig, models::users::User,
+};
 
 use super::{AuthService, error::AuthServiceError};
 
@@ -105,7 +107,7 @@ impl AuthService for KeycloakClient {
         &self,
         code: &str,
         redirect_uri: &str,
-    ) -> Result<serde_json::Value, AuthServiceError> {
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
         let url = format!(
             "{}/realms/{}/protocol/openid-connect/token",
             self.domain, self.realm_name
@@ -128,12 +130,18 @@ impl AuthService for KeycloakClient {
         let status = response.status();
 
         if !status.is_success() {
-            println!();
-            println!("    >>>>    Do some error handling cause token request has failed: {status}");
-            println!();
+            let text = response.text().await.map_err(|_| {
+                AuthServiceError::AccessTokenFailure(format!("Failed with status code {}", status))
+            })?;
+            return Err(AuthServiceError::AccessTokenFailure(
+                json!({ "status": status.to_string(), "message": text }).to_string(),
+            ));
         }
 
-        let json: serde_json::Value = response.json().await.expect("Json not parsable");
+        let json: GetAuthorizationTokensResponse = response
+            .json()
+            .await
+            .map_err(|e| AuthServiceError::AccessTokenFailure(e.to_string()))?;
 
         Ok(json)
     }

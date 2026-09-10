@@ -3,6 +3,8 @@ pub mod error;
 pub mod keycloak;
 
 use async_trait::async_trait;
+use schemars::JsonSchema;
+use serde::Deserialize;
 
 #[cfg(test)]
 use mockall::automock;
@@ -23,5 +25,17 @@ pub trait AuthService: Send + Sync {
         &self,
         code: &str,
         redirect_uri: &str,
-    ) -> Result<serde_json::Value, AuthServiceError>;
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError>;
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+pub struct GetAuthorizationTokensResponse {
+    pub access_token: String,
+    pub expires_in: i32,
+    pub id_token: String,
+    pub refresh_expires_in: i32,
+    pub refresh_token: String,
+    pub scope: String,
+    pub session_state: String,
+    pub token_type: String,
 }
