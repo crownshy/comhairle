@@ -5,6 +5,8 @@
 	import HeyFormEmbedSkeleton from './HeyFormEmbedSkeleton.svelte';
 	import { browser } from '$app/environment';
 	import { clampProgress, type OnSequenceChange } from '$lib/step-brief/toolSequence';
+	import { readEmbedTheme } from './embedTheme';
+	import { themeStore } from '$lib/stores/theme.svelte';
 
 	type Props = {
 		onDone: () => void;
@@ -74,9 +76,60 @@
 
 	function handleLoad() {
 		requestResizeUntilAnswered();
+		framePalette = bootKey;
+		frameListening = false;
 		if (!firstLoad) return;
 		firstLoad = false;
 		setTimeout(() => (ready = true), RENDERER_BOOT_GRACE_MS);
+	}
+
+	/**
+	 * Keeping the form in our colours (see embedTheme). The URL the frame boots with already carries
+	 * the palette, so this is only for the palette changing under a form that is already open: the
+	 * viewer hits the light / dark toggle halfway through answering. Rebuilding the URL would be the
+	 * obvious move and the wrong one, because changing `src` reloads the frame and throws away
+	 * everything they have typed. So the colours go over the same postMessage channel as the resize
+	 * handshake and the fork repaints in place.
+	 *
+	 * `framePalette` is what the frame is currently showing, so a toggle back and forth, or a rerun
+	 * of the effect for any other reason, does not post anything. It resets on load because a fresh
+	 * document is showing whatever its URL asked for.
+	 *
+	 * `frameListening` is the race this would otherwise lose. Our `load` fires when the document
+	 * arrives, but the renderer attaches its message listener when it mounts, some way after that, so
+	 * a theme posted at `load` can land before anything is listening and be dropped. The frame's own
+	 * messages are the proof it is up: the first one it sends comes from a mounted renderer, and the
+	 * REQUEST_RESIZE ping guarantees one arrives even if the mount emit was missed. So we hold the
+	 * palette until we hear from it.
+	 */
+	let framePalette: string | undefined;
+	let frameListening = false;
+
+	/** What the palette hangs off. Both are settled before any component runs (see bootPalette). */
+	function paletteKey() {
+		return `${themeStore.name}:${themeStore.mode}`;
+	}
+
+	function currentPalette() {
+		const styles = getComputedStyle(document.documentElement);
+
+		return readEmbedTheme((token) => styles.getPropertyValue(token));
+	}
+
+	function syncFrameTheme(key: string) {
+		if (!frameListening || key === framePalette) return;
+
+		const theme = currentPalette();
+
+		if (!Object.keys(theme).length) return;
+
+		framePalette = key;
+		// '*' for the same reason as the resize ping: the fork gates on `source: 'COMHAIRLE'`, and a
+		// survey origin that redirects would silently swallow a message addressed to base_url.
+		iframeEl?.contentWindow?.postMessage(
+			{ source: 'COMHAIRLE', eventName: 'SET_THEME', theme },
+			'*'
+		);
 	}
 
 	/**
@@ -90,8 +143,9 @@
 	 *   FORM_RESIZE      { height: <px> }                    height the frame needs for this question
 	 *   FORM_STEP_CHANGE { index, total, percentage }        a new question became active
 	 *   HIDE_EMBED_MODAL {}                                  the form finished
-	 * And the one message we send back, tagged `source: 'COMHAIRLE'`:
+	 * And the messages we send back, tagged `source: 'COMHAIRLE'`:
 	 *   REQUEST_RESIZE   {}                                  asks the fork to re-emit FORM_RESIZE now
+	 *   SET_THEME        { theme: { <colour>: <hex>, ... } } repaints the form in our palette
 	 *
 	 * `measuredHeight` stays null until FORM_RESIZE arrives, so the iframe falls back to the bounded
 	 * viewport height in the markup. That keeps this correct against a fork that hasn't shipped the
@@ -180,6 +234,10 @@
 		// HeyForm tags every message it posts; ignore anything else on the page (HMR, analytics, ...).
 		if (!data || data.source !== 'HEYFORM') return;
 
+		// Anything from the frame means its renderer has mounted, so a theme will be heard now.
+		frameListening = true;
+		syncFrameTheme(paletteKey());
+
 		switch (data.eventName) {
 			case 'HIDE_EMBED_MODAL':
 				setTimeout(() => onDone(), 2000);
@@ -208,6 +266,29 @@
 		};
 	});
 
+	/**
+	 * Read once, at setup, and deliberately not reactive: it goes into the iframe's `src`, and a
+	 * palette that changed the URL would reload the form under whoever is filling it in. Live changes
+	 * go through syncFrameTheme instead.
+	 *
+	 * Reading this early is safe because app.html sets the `dark` class in a pre-paint script and the
+	 * server stamps `data-theme` onto the document, so the palette is settled before any component
+	 * runs.
+	 */
+	const bootPalette = browser ? currentPalette() : {};
+	const bootKey = paletteKey();
+
+	$effect(() => {
+		// Reading the key here is what makes a mode flip or a theme swap rerun this effect. The
+		// colours are taken a frame later rather than now: ThemeProvider writes the `dark` class and
+		// `data-theme` in an effect of its own, and this way we never sample the outgoing palette if
+		// that effect happens to run after this one.
+		const key = paletteKey();
+		const frame = requestAnimationFrame(() => syncFrameTheme(key));
+
+		return () => cancelAnimationFrame(frame);
+	});
+
 	const base_url = $derived.by(() =>
 		serverURL.startsWith('https://') ? serverURL : `https://${serverURL}`
 	);
@@ -217,19 +298,20 @@
 	);
 
 	let fullUrl = $derived.by(() => {
-		if (extraSurveyParams) {
-			let params = new URLSearchParams(extraSurveyParams).toString();
-			return url + '&' + params;
-		}
-		return url;
+		// Caller params last: a step that wants a specific colour outranks the ambient palette.
+		const params = new URLSearchParams({ ...bootPalette, ...extraSurveyParams }).toString();
+		return params ? url + '&' + params : url;
 	});
 </script>
 
-<!-- The form renderer is a white, self-themed UI inside a cross-origin iframe: we can't restyle its
-	internals or match comhairle's light/dark per viewer. So we frame it as a centered white card
-	(bg-white is deliberate, matching the form's own paper) rather than a full-bleed slab, so it
-	reads as an intentional embedded form on any background, dark mode included. The max-width is
-	tunable.
+<!-- The form is a self-themed UI inside a cross-origin iframe, so we can't reach in and style it.
+	Instead we hand it our palette and it themes itself: on the URL for the first paint, over
+	postMessage for a change after that (see embedTheme and syncFrameTheme). It follows light / dark
+	and the deployment's theme without us touching its internals.
+
+	It is still framed as a centered card rather than a full-bleed slab, so it reads as an embedded
+	form rather than as the page. That is why the palette maps the form's background to `--card` and
+	not `--background`. The max-width is tunable.
 
 	Height: once the fork reports its content height (measuredHeight, see the FORM_RESIZE handler) we
 	size the iframe to exactly that. Until then we fall back to a compact fixed height that matches the
