@@ -1,6 +1,6 @@
 use crate::{
-    bulk_storage_service::error::BulkStorageError, tools::polis::PolisError,
-    transcription_service::error::TranscriptionServiceError,
+    auth_service::error::AuthServiceError, bulk_storage_service::error::BulkStorageError,
+    tools::polis::PolisError, transcription_service::error::TranscriptionServiceError,
     translation_service::error::TranslationError, websockets::error::WebsocketError,
     wiki_poll_service::error::WikiPollServiceError, worker_service::error::WorkerServiceError,
 };
@@ -33,6 +33,9 @@ pub enum ComhairleError {
 
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
+
+    #[error("Auth service error: {0}")]
+    AuthServiceError(#[from] AuthServiceError),
 
     #[error("Polis error: {0}")]
     PolisError(#[from] PolisError),

@@ -201,6 +201,21 @@ export const UpgradeAccountRequest = z
   .object({ email: z.string(), password: z.string(), username: z.string() })
   .passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
+export const SyncKcUsersRequest = z
+  .object({ user_ids: z.array(z.string().uuid()) })
+  .passthrough();
+export type SyncKcUsersRequest = z.infer<typeof SyncKcUsersRequest>;
+export const SkippedUser = z
+  .object({ reason: z.string(), user_id: z.string().uuid() })
+  .passthrough();
+export type SkippedUser = z.infer<typeof SkippedUser>;
+export const SyncKcUserResponse = z
+  .object({
+    skipped_users: z.array(SkippedUser),
+    synced_users: z.array(z.string().uuid()),
+  })
+  .passthrough();
+export type SyncKcUserResponse = z.infer<typeof SyncKcUserResponse>;
 export const UserConversationPreferencesDto = z
   .object({
     conversationId: z.string().uuid(),
@@ -3189,6 +3204,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserOrganizationsResponse,
   UpdateUserRequest,
   UpgradeAccountRequest,
+  SyncKcUsersRequest,
+  SkippedUser,
+  SyncKcUserResponse,
   UserConversationPreferencesDto,
   UpdateUserConversationPreferences,
   UserProfileDto,
@@ -7106,6 +7124,21 @@ This struct contains optional fields that can be updated on a TextTranslation re
     description: `Gets a list of roles the current user has`,
     requestFormat: "json",
     response: z.array(UserRoles),
+  },
+  {
+    method: "post",
+    path: "/user/sync_kc",
+    alias: "SyncKcUsers",
+    description: `Sync comhairle_users from postgres to Keycloak`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SyncKcUsersRequest,
+      },
+    ],
+    response: SyncKcUserResponse,
   },
   {
     method: "put",
