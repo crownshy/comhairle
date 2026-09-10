@@ -1,3 +1,4 @@
+use crate::auth_service::error::AuthServiceError;
 use crate::bulk_storage_service::error::BulkStorageError;
 use crate::models::refresh_token::RefreshFailure;
 use crate::tools::polis::PolisError;
@@ -36,6 +37,9 @@ pub enum ComhairleError {
 
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
+
+    #[error("Auth service error: {0}")]
+    AuthServiceError(#[from] AuthServiceError),
 
     #[error("Polis error: {0}")]
     PolisError(#[from] PolisError),
