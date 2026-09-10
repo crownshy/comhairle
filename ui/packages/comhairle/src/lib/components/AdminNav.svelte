@@ -13,7 +13,8 @@
 		Images,
 		PanelLeftClose,
 		PanelLeftOpen,
-		Plus
+		Plus,
+		FlaskConical
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
 	import NewConversationButton from './NewConversationButton.svelte';
@@ -158,6 +159,17 @@
 								<a {...btnProps} href="/admin/media-library">
 									<Images class="size-4" />
 									Media library
+								</a>
+							{/snippet}
+						</SideBar.MenuButton>
+					</SideBar.MenuItem>
+					<!-- Enable to set demographics for dev -->
+					<SideBar.MenuItem>
+						<SideBar.MenuButton>
+							{#snippet child({ props: btnProps })}
+								<a {...btnProps} href="/admin/dev/demographics">
+									<FlaskConical class="size-4" />
+									Demographics (dev)
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>
