@@ -2236,6 +2236,25 @@ export const UpdateChatRequest = z
   .partial()
   .passthrough();
 export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
+export const ChatInstructionsDto = z
+  .object({
+    conversationId: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    maxLength: z.union([z.number(), z.null()]).optional(),
+    targetReadingAge: z.union([z.number(), z.null()]).optional(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type ChatInstructionsDto = z.infer<typeof ChatInstructionsDto>;
+export const UpsertChatInstructions = z
+  .object({
+    max_length: z.union([z.number(), z.null()]),
+    target_reading_age: z.union([z.number(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpsertChatInstructions = z.infer<typeof UpsertChatInstructions>;
 export const ComhairleChatSession = z
   .object({
     chat_id: z.string(),
@@ -3392,6 +3411,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairlePrompt,
   ComhairleChat,
   UpdateChatRequest,
+  ChatInstructionsDto,
+  UpsertChatInstructions,
   ComhairleChatSession,
   ChatConversationRequest,
   page_size,
@@ -3837,6 +3858,29 @@ const endpoints = makeApi([
     description: `Delete the conversation and all related content`,
     requestFormat: "json",
     response: ConversationDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/chat_instructions",
+    alias: "GetConversationChatInstructions",
+    description: `Get chat instructions by conversation_id`,
+    requestFormat: "json",
+    response: ChatInstructionsDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/chat_instructions",
+    alias: "UpsertConversationChatInstructions",
+    description: `Creates a new chat instructions record for a conversation or updates and existing record`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpsertChatInstructions,
+      },
+    ],
+    response: ChatInstructionsDto,
   },
   {
     method: "get",
