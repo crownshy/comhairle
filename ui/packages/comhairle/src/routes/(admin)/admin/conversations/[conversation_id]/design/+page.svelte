@@ -3,7 +3,7 @@
 	import { tick } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { notifications } from '$lib/notifications.svelte.js';
+	import { notifications } from '$lib/notifications.svelte';
 	import { saveTranslation } from '$lib/components/Translation/translationUtils';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -12,7 +12,6 @@
 	import { toolMeta, toolInfoUrl, type ToolType } from '$lib/tool_meta';
 	import type { ConversationTemplate } from '$lib/conversation_templates';
 	import TemplatePickerDialog from '$lib/components/TemplatePickerDialog.svelte';
-	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import { moveItem } from '$lib/utils/reorder';
 	import { cn } from '$lib/utils';
@@ -30,6 +29,7 @@
 	} from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { getAddStepDialogContext } from './context';
 
 	const { data } = $props();
 	let { conversation, workflowSteps } = $derived(data);
@@ -241,6 +241,8 @@
 			if (highlightedStepId === pending) highlightedStepId = null;
 		}, 2500);
 	});
+
+	const addStepDialogContext = getAddStepDialogContext();
 </script>
 
 <svelte:head>
@@ -300,7 +302,7 @@
 					class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 				>
 					<p class="text-sm">No steps yet. Add your first step to get started.</p>
-					<Button onclick={() => (addStepDialog.open = true)}>
+					<Button onclick={() => addStepDialogContext.open()}>
 						<Plus class="size-4" />
 						Add step
 					</Button>
@@ -452,7 +454,7 @@
 				</DraggableList>
 
 				<div>
-					<Button variant="outline" onclick={() => (addStepDialog.open = true)}>
+					<Button variant="outline" onclick={() => addStepDialogContext.open()}>
 						<Plus class="size-4" />
 						Add step
 					</Button>
