@@ -7,12 +7,11 @@
 	import { PALETTE_TOOLS, isEventPaletteItem, type CreationKey } from '$lib/tool_meta';
 	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
-	import { createWorkflowStep } from '$lib/createWorkflowStep';
+	import { createWorkflowStep } from './createWorkflowStep';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import { key } from '$lib/utils/invalidationKey';
-	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
+	import type { ConversationDto, WorkflowDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	/**
 	 * The "Add a step" dialog: a two-column picker (step-type list on the left, rich
@@ -24,10 +23,11 @@
 	 */
 	type Props = {
 		workflowId: WorkflowDto['id'];
-		conversation: ConversationWithTranslations;
+		conversationId: ConversationDto['id'];
+		highestStepOrder: number;
 		open?: boolean;
 	};
-	let { workflowId, conversation, open = $bindable(false) }: Props = $props();
+	let { workflowId, conversationId, highestStepOrder, open = $bindable(false) }: Props = $props();
 
 	let adding = $state<boolean>(false);
 
@@ -40,14 +40,12 @@
 		if (adding) return;
 		adding = true;
 
-		const created = await tryCatchAsync(() =>
-			createWorkflowStep({
-				conversation,
-				workflowId,
-				creationKey,
-				existingSteps: [{ stepOrder: 1 }]
-			})
-		);
+		const created = await createWorkflowStep({
+			creationKey,
+			conversationId,
+			workflowId,
+			highestStepOrder
+		});
 
 		adding = false;
 
@@ -68,7 +66,7 @@
 		// the operator sees exactly which step was just created instead of landing in its editor.
 		await goto(
 			resolve('/(admin)/admin/conversations/[conversation_id]/design', {
-				conversation_id: conversation.id
+				conversation_id: conversationId
 			})
 		);
 	}
@@ -80,7 +78,7 @@
 		open = false;
 		goto(
 			resolve('/(admin)/admin/conversations/[conversation_id]/events/new', {
-				conversation_id: conversation.id
+				conversation_id: conversationId
 			})
 		);
 	}

@@ -7,6 +7,7 @@
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import TabStripItem from '$lib/components/TabStripItem.svelte';
 	import { setAddStepDialogContext } from './context';
+	import { max } from '$lib/utils/maths';
 
 	const { data, children, params } = $props();
 	const { conversation_id } = $derived(params);
@@ -69,7 +70,8 @@
 	{#if workflows.ok !== null}
 		<AddStepDialog
 			workflowId={workflows.ok.current.workflow.id}
-			conversation={data.conversation}
+			conversationId={conversation_id}
+			highestStepOrder={max(workflows.ok.current.steps, (s) => s.stepOrder)}
 			bind:open={addStepDialogOpen}
 		/>
 	{/if}
