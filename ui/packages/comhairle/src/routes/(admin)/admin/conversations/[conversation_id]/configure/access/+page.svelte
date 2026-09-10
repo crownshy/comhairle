@@ -14,17 +14,15 @@
 	import InfoHover from '../InfoHover.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
-	import type { LocalizedOrganizationDto } from '@crownshy/api-client/api';
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import { onMount } from 'svelte';
+	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
 
 	const { data } = $props();
-	const { conversation, workflows, cohostOrganizations } = $derived(data);
+	const { conversation, workflows } = $derived(data);
 	const workflow = $derived(workflows[0]);
-	const canManageCohosts = $derived(data.user.id === conversation.ownerId);
 
 	let accessForm = superForm(
 		{
@@ -88,52 +86,16 @@
 	}
 
 	let adding = $state(false);
-	let loadingOrganizations = $state(false);
 	let removingOrganizationId = $state<string | null>(null);
 	let selectedOrganization = $state<{ value: string; label: string } | undefined>(undefined);
-	let organizations = $state<LocalizedOrganizationDto[]>([]);
-
-	onMount(async () => {
-		if (!canManageCohosts) return;
-
-		loadingOrganizations = true;
-		const response = await tryCatchAsync(() =>
-			apiClient.ListOrganizations({
-				queries: { limit: 500 }
-			})
-		);
-		loadingOrganizations = false;
-
-		if (response.err !== null) {
-			console.error(response.err);
-			notifications.send({
-				message: 'Failed to load organizations',
-				priority: 'ERROR'
-			});
-			return;
-		}
-
-		organizations = response.ok.records;
-	});
-
-	const cohostOrganizationIds = $derived(
-		new Set(cohostOrganizations.map((organization) => organization.id))
-	);
-	const availableOptions = $derived(
-		organizations
-			.filter((organization) => organization.id !== conversation.organizationId)
-			.filter((organization) => !cohostOrganizationIds.has(organization.id))
-			.map((organization) => ({ value: organization.id, label: organization.name }))
-			.sort((left, right) => left.label.localeCompare(right.label))
-	);
 
 	async function addCohost() {
-		if (!selectedOrganization) return;
+		if (selectedOrganization === undefined) return;
 
 		adding = true;
 		const response = await tryCatchAsync(() =>
 			apiClient.AddConversationCoHostOrganization(
-				{ organization_id: selectedOrganization.value },
+				{ organization_id: selectedOrganization!.value },
 				{ params: { conversation_id: conversation.id } }
 			)
 		);
@@ -376,80 +338,106 @@
 				</p>
 			</div>
 
-			{#if canManageCohosts}
+			{#if data.canManageCohosts}
 				<div class="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center">
-					<div class="min-w-0 flex-1">
-						<Combobox
-							items={availableOptions}
-							selectedItem={selectedOrganization}
-							placeholder="Search organizations by name"
-							emptyMessage={loadingOrganizations
-								? 'Loading organizations...'
-								: 'No organizations available'}
-							onSelect={(item) => {
-								selectedOrganization = item;
-							}}
-						/>
-					</div>
-					<Button
-						type="button"
-						disabled={!selectedOrganization || adding || loadingOrganizations}
-						onclick={addCohost}
-					>
-						{#if adding}
-							<LoaderCircle class="mr-2 size-4 animate-spin" />
+					{#await data.streamedCohostOrganizations}
+						<Skeleton class="h-12 w-full" />
+					{:then cohostOrganizations}
+						{#if cohostOrganizations.err !== null}
+							{notifications.addFlash({
+								message: 'Could not load cohost organizations, please try again',
+								priority: 'ERROR'
+							})}
+							<span class="text-destructive text-sm"
+								>Could not load cohost organizations, please try again</span
+							>
+						{:else}
+							<div class="min-w-0 flex-1">
+								<Combobox
+									items={cohostOrganizations.ok.map((c) => ({
+										value: c.id,
+										label: c.name
+									}))}
+									selectedItem={selectedOrganization}
+									placeholder="Search organizations by name"
+									emptyMessage="No organizations available"
+									onSelect={(item) => {
+										selectedOrganization = item;
+									}}
+								/>
+							</div>
+							<Button
+								type="button"
+								disabled={!selectedOrganization || adding}
+								onclick={addCohost}
+							>
+								{#if adding}
+									<LoaderCircle class="mr-2 size-4 animate-spin" />
+								{/if}
+								Add co-host
+							</Button>
 						{/if}
-						Add co-host
-					</Button>
+					{/await}
 				</div>
 			{/if}
 
 			<Card.Root>
-				<Card.Content class="pt-6">
-					{#if cohostOrganizations.length === 0}
-						<p class="text-muted-foreground text-sm">
-							No co-hosting organizations added yet.
-						</p>
-					{:else}
-						<Table.Root>
-							<Table.Header>
-								<Table.Row>
-									<Table.Head>Organization</Table.Head>
-									<Table.Head>Role</Table.Head>
-									{#if canManageCohosts}
-										<Table.Head class="w-24">Actions</Table.Head>
-									{/if}
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{#each cohostOrganizations as organization (organization.id)}
+				<Card.Content>
+					{#await data.streamedCohostOrganizations}
+						<Skeleton class="h-20	w-full" />
+					{:then cohostOrganizations}
+						{#if cohostOrganizations.err !== null}
+							<span class="text-destructive text-sm">
+								Could not load cohost organizations, please try again
+							</span>
+						{:else if cohostOrganizations.ok.length === 0}
+							<span class="text-muted-foreground text-sm">
+								No co-hosting organizations added yet.
+							</span>
+						{:else}
+							<Table.Root>
+								<Table.Header>
 									<Table.Row>
-										<Table.Cell>{organization.name}</Table.Cell>
-										<Table.Cell>{organization.roleName}</Table.Cell>
-										{#if canManageCohosts}
-											<Table.Cell>
-												<Button
-													type="button"
-													variant="ghost"
-													size="icon"
-													disabled={removingOrganizationId ===
-														organization.id}
-													onclick={() => removeCohost(organization.id)}
-												>
-													{#if removingOrganizationId === organization.id}
-														<LoaderCircle class="size-4 animate-spin" />
-													{:else}
-														<Trash class="size-4" />
-													{/if}
-													<span class="sr-only">Remove co-host</span>
-												</Button>
-											</Table.Cell>
+										<Table.Head>Organization</Table.Head>
+										<Table.Head>Role</Table.Head>
+										{#if data.canManageCohosts}
+											<Table.Head class="w-24">Actions</Table.Head>
 										{/if}
 									</Table.Row>
-								{/each}
-							</Table.Body>
-						</Table.Root>
-					{/if}
+								</Table.Header>
+								<Table.Body>
+									{#each cohostOrganizations.ok as organization (organization.id)}
+										<Table.Row>
+											<Table.Cell>{organization.name}</Table.Cell>
+											<Table.Cell>{organization.roleName}</Table.Cell>
+											{#if data.canManageCohosts}
+												<Table.Cell>
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon"
+														disabled={removingOrganizationId ===
+															organization.id}
+														onclick={() =>
+															removeCohost(organization.id)}
+													>
+														{#if removingOrganizationId === organization.id}
+															<LoaderCircle
+																class="size-4 animate-spin"
+															/>
+														{:else}
+															<Trash class="size-4" />
+														{/if}
+														<span class="sr-only">Remove co-host</span>
+													</Button>
+												</Table.Cell>
+											{/if}
+										</Table.Row>
+									{/each}
+								</Table.Body>
+							</Table.Root>
+						{/if}
+					{/await}
 				</Card.Content>
 			</Card.Root>
 		</section>
