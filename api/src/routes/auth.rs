@@ -80,6 +80,10 @@ use fake::Dummy;
 /// This is the key that we use in the cookie for the JWT
 pub const AUTH_KEY: &str = "auth-token";
 
+pub const KC_ACCESS_KEY: &str = "kc-access-token";
+pub const KC_IDENTITY_KEY: &str = "kc-id-token";
+pub const KC_REFRESH_KEY: &str = "kc-refresh-token";
+
 /// Validate password strength according to security requirements
 ///
 /// Requirements:
@@ -1101,8 +1105,9 @@ struct KeycloakCallbackQuery {
 #[instrument(err(Debug), skip(state))]
 async fn authentication_callback(
     State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
     Query(query): Query<KeycloakCallbackQuery>,
-) -> Result<Redirect, ComhairleError> {
+) -> Result<(CookieJar, Redirect), ComhairleError> {
     let auth_service = state
         .auth_service
         .as_ref()
@@ -1110,13 +1115,36 @@ async fn authentication_callback(
 
     let redirect_url = format!("{}/api/auth/callback", state.config.domain);
 
-    // TODO: add cookies from result
     let token_result = auth_service
         .get_authorization_tokens(&query.code, &redirect_url)
         .await?;
 
+    let access_cookie = Cookie::build((KC_ACCESS_KEY, token_result.access_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::None)
+        .max_age(Duration::minutes(5));
+    let identity_cookie = Cookie::build((KC_IDENTITY_KEY, token_result.id_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::None)
+        .max_age(Duration::minutes(5));
+    let refresh_cookie = Cookie::build((KC_REFRESH_KEY, token_result.refresh_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::Strict)
+        .max_age(Duration::minutes(30));
+
+    let jar = jar
+        .add(access_cookie)
+        .add(identity_cookie)
+        .add(refresh_cookie);
+
     // TODO: handle backTo paths, maybe via redis
-    Ok(Redirect::to(&state.config.domain))
+    Ok((jar, Redirect::to(&state.config.domain)))
 }
 
 /// Handler for testing RequiresRole
