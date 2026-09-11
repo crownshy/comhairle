@@ -28,6 +28,7 @@
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { key } from '$lib/utils/invalidationKey';
+	import TabContent from '../../TabContent.svelte';
 
 	let { data } = $props();
 	let { form: formDefaults, conversation, user } = data;
@@ -190,302 +191,306 @@
 	<title>Create New Event - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="mb-4 text-3xl font-bold">New Event</h1>
+<TabContent>
+	<h1 class="mb-4 text-3xl font-bold">New Event</h1>
 
-<div class="flex flex-col gap-4">
-	<h2 class="text-card-foreground text-base font-semibold">Edit information</h2>
-</div>
-
-{#if submitError || $errorMessage}
-	<Alert.Root variant="destructive" class="mt-4">
-		<AlertCircle class="size-4" />
-		<Alert.Title>Could not create event</Alert.Title>
-		<Alert.Description>{submitError ?? $errorMessage}</Alert.Description>
-	</Alert.Root>
-{/if}
-
-<form method="POST" class="mt-8 flex flex-col" use:enhance>
-	<!-- Title -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Field {form} name="name" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>Title</Form.Label
-					>
-					<div class="flex-1">
-						<Input {...props} bind:value={$formData.name} placeholder="Title" />
-						<Form.FieldErrors />
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
+	<div class="flex flex-col gap-4">
+		<h2 class="text-card-foreground text-base font-semibold">Edit information</h2>
 	</div>
 
-	<!-- Description -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Field {form} name="description" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>Description</Form.Label
-					>
-					<div class="flex-1">
-						<Input
-							{...props}
-							bind:value={$formData.description}
-							placeholder="Description"
-						/>
-						<Form.FieldErrors />
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
-	</div>
+	{#if submitError || $errorMessage}
+		<Alert.Root variant="destructive" class="mt-4">
+			<AlertCircle class="size-4" />
+			<Alert.Title>Could not create event</Alert.Title>
+			<Alert.Description>{submitError ?? $errorMessage}</Alert.Description>
+		</Alert.Root>
+	{/if}
 
-	<!-- Capacity -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Field {form} name="capacity" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>Capacity</Form.Label
-					>
-					<div class="flex-1">
-						<Input
-							type="number"
-							{...props}
-							placeholder="Capacity"
-							value={$formData.capacity ? $formData.capacity : ''}
-							oninput={(e) => {
-								const n = (e.currentTarget as HTMLInputElement).valueAsNumber;
-								$formData.capacity = Number.isNaN(n) ? 0 : n;
-							}}
-						/>
-						<Form.FieldErrors />
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
-	</div>
-
-	<!-- Default time zone -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Field {form} name="default_time_zone" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label
-						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-					>
-						<span>Default time zone</span>
-						<span class="font-normal">Time zone event is taking place in</span>
-					</Form.Label>
-					<div class="flex-1">
-						<Combobox
-							selectedItem={availableTimeZones.find(
-								(tz) => tz.value === $formData.default_time_zone
-							)}
-							items={availableTimeZones}
-							placeholder="Select a default timezone"
-							onSelect={(item) => ($formData.default_time_zone = item.value)}
-						/>
-						<input
-							hidden
-							{...props}
-							value={$formData.default_time_zone}
-							name="default_time_zone"
-						/>
-						<Form.FieldErrors />
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
-	</div>
-
-	<!-- Event date -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Field {form} name="start_date" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>Event date</Form.Label
-					>
-					<div class="flex-1">
-						<Popover.Root>
-							<Popover.Trigger
-								{...props}
-								class={cn(
-									'bg-background border-input selection:bg-primary dark:bg-input/30 selection:text-primary-background ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-9 w-full min-w-0 items-center rounded-lg border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
-									'max-w-xs justify-start pl-4 text-left font-normal',
-									!startDate && 'text-muted-foreground'
-								)}
-							>
-								{startDate
-									? df.format(startDate.toDate(getLocalTimeZone()))
-									: 'Pick a date'}
-								<CalendarIcon class="ml-auto size-4 opacity-50" />
-							</Popover.Trigger>
-							<Popover.Content class="w-auto p-0" side="top">
-								<Calendar
-									type="single"
-									value={startDate as DateValue}
-									minValue={today(getLocalTimeZone())}
-									calendarLabel="Event Date"
-									onValueChange={(v) => {
-										if (v) {
-											$formData.start_date = v.toString();
-										} else {
-											$formData.start_date = '';
-										}
-									}}
-								/>
-							</Popover.Content>
-						</Popover.Root>
-						<Form.FieldErrors />
-						<input hidden value={$formData.start_date} name="start_date" />
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
-	</div>
-
-	<!-- Time (Start to End range) -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
-		<div class="flex flex-1 flex-col gap-2 2xl:flex-row 2xl:items-center">
-			<TimeRangePicker
-				startName="start_time"
-				endName="end_time"
-				class={cn(
-					'dark:bg-input/30',
-					!$formData.start_time && !$formData.end_time && 'text-muted-foreground'
-				)}
-				bind:startValue={$formData.start_time}
-				bind:endValue={$formData.end_time}
-			/>
-			<Form.Field {form} name="start_time" class="contents">
-				<Form.FieldErrors class="text-destructive text-sm" />
+	<form method="POST" class="mt-8 flex flex-col" use:enhance>
+		<!-- Title -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field {form} name="name" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>Title</Form.Label
+						>
+						<div class="flex-1">
+							<Input {...props} bind:value={$formData.name} placeholder="Title" />
+							<Form.FieldErrors />
+						</div>
+					{/snippet}
+				</Form.Control>
 			</Form.Field>
-			<Form.Field {form} name="end_time" class="contents">
-				<Form.FieldErrors class="text-destructive text-sm" />
-			</Form.Field>
-			{#if $formData.default_time_zone && $formData.default_time_zone !== 'Europe/London' && $formData.start_date && $formData.start_time && $formData.end_time}
-				<div class="text-muted-foreground flex gap-2">
-					<span>{$formData.default_time_zone}</span>
-					<span>-</span>
-					<span
-						>{convertTimeToSelectedZone(
-							$formData.start_date,
-							$formData.start_time,
-							$formData.default_time_zone
-						)}</span
-					>
-					<span>-</span>
-					<span
-						>{convertTimeToSelectedZone(
-							$formData.start_date,
-							$formData.end_time,
-							$formData.default_time_zone
-						)}</span
-					>
-				</div>
-			{/if}
 		</div>
-	</div>
 
-	<!-- Signup mode -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Fieldset {form} name="signup_mode" class="contents">
-			<Form.Legend class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-				>Signup mode</Form.Legend
-			>
-			<div class="flex-1">
-				<RadioGroup.Root
-					bind:value={$formData.signup_mode}
-					class="flex flex-row gap-8"
-					name="signup_mode"
-				>
-					<div class="flex items-center gap-1.5">
-						<Form.Control>
-							{#snippet children({ props })}
-								<RadioGroup.Item value="invite" {...props} />
-								<Form.Label class="font-normal">Invite</Form.Label>
-							{/snippet}
-						</Form.Control>
+		<!-- Description -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field {form} name="description" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>Description</Form.Label
+						>
+						<div class="flex-1">
+							<Input
+								{...props}
+								bind:value={$formData.description}
+								placeholder="Description"
+							/>
+							<Form.FieldErrors />
+						</div>
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
+		</div>
+
+		<!-- Capacity -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field {form} name="capacity" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>Capacity</Form.Label
+						>
+						<div class="flex-1">
+							<Input
+								type="number"
+								{...props}
+								placeholder="Capacity"
+								value={$formData.capacity ? $formData.capacity : ''}
+								oninput={(e) => {
+									const n = (e.currentTarget as HTMLInputElement).valueAsNumber;
+									$formData.capacity = Number.isNaN(n) ? 0 : n;
+								}}
+							/>
+							<Form.FieldErrors />
+						</div>
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
+		</div>
+
+		<!-- Default time zone -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field {form} name="default_time_zone" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label
+							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>
+							<span>Default time zone</span>
+							<span class="font-normal">Time zone event is taking place in</span>
+						</Form.Label>
+						<div class="flex-1">
+							<Combobox
+								selectedItem={availableTimeZones.find(
+									(tz) => tz.value === $formData.default_time_zone
+								)}
+								items={availableTimeZones}
+								placeholder="Select a default timezone"
+								onSelect={(item) => ($formData.default_time_zone = item.value)}
+							/>
+							<input
+								hidden
+								{...props}
+								value={$formData.default_time_zone}
+								name="default_time_zone"
+							/>
+							<Form.FieldErrors />
+						</div>
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
+		</div>
+
+		<!-- Event date -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field {form} name="start_date" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>Event date</Form.Label
+						>
+						<div class="flex-1">
+							<Popover.Root>
+								<Popover.Trigger
+									{...props}
+									class={cn(
+										'bg-background border-input selection:bg-primary dark:bg-input/30 selection:text-primary-background ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-9 w-full min-w-0 items-center rounded-lg border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+										'max-w-xs justify-start pl-4 text-left font-normal',
+										!startDate && 'text-muted-foreground'
+									)}
+								>
+									{startDate
+										? df.format(startDate.toDate(getLocalTimeZone()))
+										: 'Pick a date'}
+									<CalendarIcon class="ml-auto size-4 opacity-50" />
+								</Popover.Trigger>
+								<Popover.Content class="w-auto p-0" side="top">
+									<Calendar
+										type="single"
+										value={startDate as DateValue}
+										minValue={today(getLocalTimeZone())}
+										calendarLabel="Event Date"
+										onValueChange={(v) => {
+											if (v) {
+												$formData.start_date = v.toString();
+											} else {
+												$formData.start_date = '';
+											}
+										}}
+									/>
+								</Popover.Content>
+							</Popover.Root>
+							<Form.FieldErrors />
+							<input hidden value={$formData.start_date} name="start_date" />
+						</div>
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
+		</div>
+
+		<!-- Time (Start to End range) -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
+			<div class="flex flex-1 flex-col gap-2 2xl:flex-row 2xl:items-center">
+				<TimeRangePicker
+					startName="start_time"
+					endName="end_time"
+					class={cn(
+						'dark:bg-input/30',
+						!$formData.start_time && !$formData.end_time && 'text-muted-foreground'
+					)}
+					bind:startValue={$formData.start_time}
+					bind:endValue={$formData.end_time}
+				/>
+				<Form.Field {form} name="start_time" class="contents">
+					<Form.FieldErrors class="text-destructive text-sm" />
+				</Form.Field>
+				<Form.Field {form} name="end_time" class="contents">
+					<Form.FieldErrors class="text-destructive text-sm" />
+				</Form.Field>
+				{#if $formData.default_time_zone && $formData.default_time_zone !== 'Europe/London' && $formData.start_date && $formData.start_time && $formData.end_time}
+					<div class="text-muted-foreground flex gap-2">
+						<span>{$formData.default_time_zone}</span>
+						<span>-</span>
+						<span
+							>{convertTimeToSelectedZone(
+								$formData.start_date,
+								$formData.start_time,
+								$formData.default_time_zone
+							)}</span
+						>
+						<span>-</span>
+						<span
+							>{convertTimeToSelectedZone(
+								$formData.start_date,
+								$formData.end_time,
+								$formData.default_time_zone
+							)}</span
+						>
 					</div>
-					<div class="flex items-center gap-1.5">
-						<Form.Control>
-							{#snippet children({ props })}
-								<RadioGroup.Item value="open" {...props} />
-								<Form.Label class="font-normal">Open</Form.Label>
-							{/snippet}
-						</Form.Control>
-					</div>
-				</RadioGroup.Root>
+				{/if}
 			</div>
-		</Form.Fieldset>
-	</div>
+		</div>
 
-	<!-- Facilitators -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Field {form} name="facilitators" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>Facilitators</Form.Label
+		<!-- Signup mode -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Fieldset {form} name="signup_mode" class="contents">
+				<Form.Legend class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>Signup mode</Form.Legend
+				>
+				<div class="flex-1">
+					<RadioGroup.Root
+						bind:value={$formData.signup_mode}
+						class="flex flex-row gap-8"
+						name="signup_mode"
 					>
-					<div class="flex-1">
-						<BadgeInput
-							{...props}
-							type="email"
-							placeholder="facilitator@example.com"
-							class="gap-3!"
-							badges={($formData.facilitators ?? []).map((email, i) => ({
-								id: String(i),
-								value: email
-							}))}
-							onAddBadge={(value) => {
-								const v = value.trim();
-								if (!v) return;
-								const list = $formData.facilitators ?? [];
-								if (list.includes(v)) return;
-								$formData.facilitators = [...list, v];
-							}}
-							onDeleteBadge={(id) => {
-								const list = $formData.facilitators ?? [];
-								$formData.facilitators = list.filter((_, i) => String(i) !== id);
-							}}
-						/>
-						<Form.FieldErrors />
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
-	</div>
+						<div class="flex items-center gap-1.5">
+							<Form.Control>
+								{#snippet children({ props })}
+									<RadioGroup.Item value="invite" {...props} />
+									<Form.Label class="font-normal">Invite</Form.Label>
+								{/snippet}
+							</Form.Control>
+						</div>
+						<div class="flex items-center gap-1.5">
+							<Form.Control>
+								{#snippet children({ props })}
+									<RadioGroup.Item value="open" {...props} />
+									<Form.Label class="font-normal">Open</Form.Label>
+								{/snippet}
+							</Form.Control>
+						</div>
+					</RadioGroup.Root>
+				</div>
+			</Form.Fieldset>
+		</div>
 
-	<!-- Save Button -->
-	<div class="border-border flex flex-col items-center gap-3 border-t py-6">
-		{#if submitError}
-			<p class="text-destructive text-sm" role="alert">{submitError}</p>
-		{/if}
-		<Form.Button variant="default" class="px-12" disabled={saving || $submitting}>
-			Save changes
-		</Form.Button>
-	</div>
-</form>
+		<!-- Facilitators -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field {form} name="facilitators" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>Facilitators</Form.Label
+						>
+						<div class="flex-1">
+							<BadgeInput
+								{...props}
+								type="email"
+								placeholder="facilitator@example.com"
+								class="gap-3!"
+								badges={($formData.facilitators ?? []).map((email, i) => ({
+									id: String(i),
+									value: email
+								}))}
+								onAddBadge={(value) => {
+									const v = value.trim();
+									if (!v) return;
+									const list = $formData.facilitators ?? [];
+									if (list.includes(v)) return;
+									$formData.facilitators = [...list, v];
+								}}
+								onDeleteBadge={(id) => {
+									const list = $formData.facilitators ?? [];
+									$formData.facilitators = list.filter(
+										(_, i) => String(i) !== id
+									);
+								}}
+							/>
+							<Form.FieldErrors />
+						</div>
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
+		</div>
+
+		<!-- Save Button -->
+		<div class="border-border flex flex-col items-center gap-3 border-t py-6">
+			{#if submitError}
+				<p class="text-destructive text-sm" role="alert">{submitError}</p>
+			{/if}
+			<Form.Button variant="default" class="px-12" disabled={saving || $submitting}>
+				Save changes
+			</Form.Button>
+		</div>
+	</form>
+</TabContent>
