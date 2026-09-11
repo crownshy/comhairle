@@ -1,29 +1,44 @@
-import type { LocalizedConversationDto } from './api/api';
+import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 import type { CreationKey } from './tool_meta';
 
+type CreationData = {
+	name: string;
+	description: string;
+};
 /**
  * Per-tool overrides for a newly created step's name/description. Only tools that need
  * a bespoke default appear here; the rest fall back in {@link createWorkflowStep}.
  * Keyed by {@link CreationKey} so typos and stale keys are caught at compile time.
  */
-export const defaultStepCreationParams: Partial<
-	Record<CreationKey, { name: string; description: string }>
-> = {
-	'Elicitation Bot': {
-		name: 'What do you think?',
-		description:
-			"Explore your opinions with the elicitation bot. The elicitation bot is designed to ask questions that help you explore and shape your views and opinions on a given topic.\nAs you answer the bot's questions it will extract claims from your opinions, which you can either choose to approve, edit or remove."
-	},
-	Prioritization: {
-		name: 'Rate the proposals',
-		description: 'Read each proposal and rate it against the questions provided.'
-	},
-	'Thinking Space': {
-		name: 'Thinking Space',
-		description:
-			"You'll be asked a few questions, and after each one you can pick follow-up questions to dig into. It's a chance to go deeper on what you really think. At the end you'll be able to review and edit your responses before submitting."
+export function defaultStepCreationParams(creationKey: CreationKey): CreationData {
+	switch (creationKey) {
+		case 'Prioritization':
+			return {
+				name: 'Rate the proposals',
+				description: 'Read each proposal and rate it against the questions provided.'
+			};
+		case 'Elicitation Bot':
+			return {
+				name: 'What do you think?',
+				description:
+					"Explore your opinions with the elicitation bot. The elicitation bot is designed to ask questions that help you explore and shape your views and opinions on a given topic.\nAs you answer the bot's questions it will extract claims from your opinions, which you can either choose to approve, edit or remove."
+			};
+		case 'Thinking Space':
+			return {
+				name: 'Thinking Space',
+				description:
+					"You'll be asked a few questions, and after each one you can pick follow-up questions to dig into. It's a chance to go deeper on what you really think. At the end you'll be able to review and edit your responses before submitting."
+			};
+		case 'Learn':
+		case 'Polis':
+		case 'Survey':
+		case 'Lived Experience':
+			return {
+				name: `New ${creationKey} Step`,
+				description: `A new ${creationKey} Step`
+			};
 	}
-};
+}
 
 export const basic_learn_config = {
 	type: 'learn',
@@ -67,10 +82,10 @@ export const basic_survey_config = {
 	type: 'heyform'
 };
 
-export const basic_elicitation_bot_config = (conversation: LocalizedConversationDto) => ({
+export const basic_elicitation_bot_config = (conversationId: LocalizedConversationDto['id']) => ({
 	type: 'elicitationbot',
 	topic: 'comhairle platform',
-	conversation_id: conversation.id
+	conversation_id: conversationId
 });
 
 export const basic_thinking_space_config = () => ({
