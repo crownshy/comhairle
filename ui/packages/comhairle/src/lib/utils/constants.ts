@@ -18,3 +18,6 @@ export enum HttpStatus {
 }
 
 export const DEFAULT_LOCALE = 'en';
+
+// In px
+export const MOBILE_BREAKPOINT = 1_024;

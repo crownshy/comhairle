@@ -16,12 +16,27 @@ const REPORT_CAPABLE_TOOLS: ToolType[] = ['polis'];
 export const load: PageLoad = async ({ parent, depends, params }) => {
 	depends(key('conversation/report'));
 
-	const { api, workflows } = await parent();
+	const { api } = await parent();
 	const { conversation_id } = params;
+
+	const workflows = await tryCatchAsync(() =>
+		api.ListConversationWorkflows({ params: { conversation_id } })
+	);
+
+	if (workflows.err !== null) {
+		notifications.addFlash({
+			message: 'Failed to retrieve workflow, please try again',
+			priority: 'ERROR'
+		});
+		redirect(
+			HttpStatus.Found,
+			resolve('/(admin)/admin/conversations/[conversation_id]/configure', { conversation_id })
+		);
+	}
 
 	const workflowStepsRequest = tryCatchAsync(() =>
 		api.ListConversationWorkflowSteps({
-			params: { conversation_id, workflow_id: workflows[0].id }
+			params: { conversation_id, workflow_id: workflows.ok[0].id }
 		})
 	);
 
