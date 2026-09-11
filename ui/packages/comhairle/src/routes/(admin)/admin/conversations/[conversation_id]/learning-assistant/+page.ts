@@ -1,6 +1,7 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type { LoadEvent } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
+import type { ChatInstructionsDto } from '@crownshy/api-client/api';
 
 export const load: PageLoad = async ({ depends, params, parent }: LoadEvent) => {
 	const { api } = await parent();
@@ -33,5 +34,20 @@ export const load: PageLoad = async ({ depends, params, parent }: LoadEvent) => 
 		return;
 	}
 
-	return { documents: docsResponse.ok, chat: chatResponse.ok };
+	let chatInstructions: ChatInstructionsDto | null = null;
+	const chatInstructionsResponse = await tryCatchAsync(() =>
+		api.GetConversationChatInstructions({ params: { conversation_id } })
+	);
+
+	if (chatInstructionsResponse.err !== null) {
+		console.error(chatResponse.err);
+	} else {
+		chatInstructions = chatInstructionsResponse.ok as ChatInstructionsDto;
+	}
+
+	return {
+		documents: docsResponse.ok,
+		chat: chatResponse.ok,
+		chatInstructions: chatInstructions
+	};
 };

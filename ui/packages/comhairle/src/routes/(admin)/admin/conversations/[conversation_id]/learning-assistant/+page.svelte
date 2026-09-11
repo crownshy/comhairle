@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type {
+		ChatInstructionsDto,
 		ComhairleChat,
 		ComhairleDocument,
 		ConversationWithTranslations
@@ -31,6 +32,8 @@
 	import type { Option } from '$lib/components/ui/mutli-select/multi-select.svelte';
 	import { locales } from '$lib/paraglide/runtime';
 	import { getLanguageName } from '$lib/config/languages';
+	import { Input } from '$lib/components/ui/input';
+	import { useDebounce } from 'runed';
 
 	const MAX_SIZE = 50 * MB;
 
@@ -39,6 +42,7 @@
 			documents: ComhairleDocument[];
 			conversation: ConversationWithTranslations;
 			chat: ComhairleChat;
+			chatInstructions: ChatInstructionsDto | null;
 		};
 	};
 
@@ -46,6 +50,7 @@
 	let conversation = $derived(data.conversation);
 	let chat = $derived(data.chat);
 	let documents = $derived(data.documents);
+	let targetReadingAge = $derived(data.chatInstructions?.targetReadingAge ?? 9);
 
 	// The synced learn-step content is a knowledge-base document like any other, but it is
 	// managed via Sync (not the uploader), so keep it out of the uploaded-files lists and
@@ -303,6 +308,34 @@
 	// 	urlInput = '';
 	// 	await invalidate('knowledge-base:documents');
 	// }
+
+	const updateChatInstructions = useDebounce(async (e: Event) => {
+		const target = e.target as HTMLInputElement;
+
+		const value = target.type === 'number' ? Number(target.value) : target.value;
+
+		const res = await tryCatchAsync(() =>
+			apiClient.UpsertConversationChatInstructions(
+				{ [target.name]: value },
+				{ params: { conversation_id: conversation.id } }
+			)
+		);
+
+		if (res.err !== null) {
+			console.error(res.err);
+			return notifications.send({
+				priority: 'ERROR',
+				message: 'Something went wrong updating chat instructions'
+			});
+		}
+
+		notifications.send({
+			priority: 'INFO',
+			message: 'Successfully updated chat instructions'
+		});
+
+		await invalidate('knowledge-base');
+	}, 500);
 </script>
 
 <svelte:head>
@@ -455,6 +488,31 @@
 					ariaLabel="Supported languages"
 					emptyMessage="No languages found"
 					class="w-full"
+				/>
+			</div>
+		</div>
+	</div>
+
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<div class="lg:w-50 lg:shrink-0 lg:pt-1">
+			<p class="text-sm font-semibold">Target reading age</p>
+		</div>
+		<div class="flex-1 space-y-4">
+			<p class="text-muted-foreground text-base">
+				Sets the reading level the chatbot should aim for when phrasing its answers. The bot
+				will adjust vocabulary and sentence complexity to match this age. Choose an age
+				level between 5-18.
+			</p>
+			<div class="flex max-w-md flex-col gap-3">
+				<Input
+					name="target_reading_age"
+					type="number"
+					min="5"
+					max="18"
+					bind:value={targetReadingAge}
+					oninput={updateChatInstructions}
 				/>
 			</div>
 		</div>
