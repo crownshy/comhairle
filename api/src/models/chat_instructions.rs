@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
@@ -29,6 +31,27 @@ const DEFAULT_COLUMNS: [ChatInstructionsIden; 6] = [
     ChatInstructionsIden::CreatedAt,
     ChatInstructionsIden::UpdatedAt,
 ];
+
+pub trait ChatInstructionsExt {
+    fn to_prompt_variables(&self) -> HashMap<String, String>;
+}
+
+impl ChatInstructionsExt for Option<ChatInstructions> {
+    fn to_prompt_variables(&self) -> HashMap<String, String> {
+        let mut var_map = HashMap::new();
+
+        // Extend with other fields as prompt requirements change
+        var_map.insert(
+            "target_reading_age".to_string(),
+            self.as_ref()
+                .and_then(|inst| inst.target_reading_age)
+                .unwrap_or(9)
+                .to_string(),
+        );
+
+        var_map
+    }
+}
 
 #[derive(Deserialize, Debug, JsonSchema)]
 pub struct UpsertChatInstructions {

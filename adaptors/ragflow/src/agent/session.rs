@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bytes::Bytes;
 use futures::{Stream, TryStreamExt};
 use reqwest::StatusCode;
@@ -7,7 +9,7 @@ use tracing::instrument;
 
 use crate::client::RagflowClient;
 use crate::error::Result;
-use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError, SessionMessage};
+use crate::{DeleteResources, GetQueryParams, RagflowError, SessionMessage};
 
 pub async fn create(client: &RagflowClient, agent_id: &str) -> Result<(StatusCode, AgentSession)> {
     let path = format!("/agents/{agent_id}/sessions");
@@ -46,7 +48,7 @@ pub async fn list(
 pub async fn stream_agent_conversation(
     client: &RagflowClient,
     agent_id: &str,
-    body: ConvoQuestion,
+    body: AgentConvoRequest,
 ) -> Result<impl Stream<Item = Result<Bytes>> + use<>> {
     let url = format!("{}/agents/{agent_id}/completions", client.base_url);
 
@@ -116,6 +118,25 @@ pub struct SseData {
 pub struct SseOutputs {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct AgentConvoRequest {
+    pub question: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inputs: Option<HashMap<String, Input>>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct Input {
+    pub r#type: String,
+    pub value: String,
 }
 
 #[cfg(test)]
@@ -231,7 +252,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let body = ConvoQuestion {
+        let body = AgentConvoRequest {
             question: "hello".to_string(),
             ..Default::default()
         };

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bytes::Bytes;
 use futures::{Stream, TryStreamExt};
 use reqwest::StatusCode;
@@ -5,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::RagflowClient;
 use crate::error::Result;
-use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError, SessionMessage};
+use crate::{DeleteResources, GetQueryParams, RagflowError, SessionMessage};
 
 pub async fn create(
     client: &RagflowClient,
@@ -60,7 +62,7 @@ pub async fn list(
 pub async fn stream_chat_conversation(
     client: &RagflowClient,
     chat_id: &str,
-    body: ConvoQuestion,
+    body: ChatConvoRequest,
 ) -> Result<impl Stream<Item = Result<Bytes>> + use<>> {
     let url = format!("{}/chats/{chat_id}/completions", client.base_url);
 
@@ -119,6 +121,19 @@ pub struct Reference {
 
 #[derive(Serialize, Deserialize)]
 pub struct Chunk;
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ChatConvoRequest {
+    pub question: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub prompt_variables: Option<HashMap<String, String>>,
+}
 
 #[cfg(test)]
 mod tests {

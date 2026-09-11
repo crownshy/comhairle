@@ -8,8 +8,7 @@ use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::stream::{self, Stream, StreamExt};
 use ragflow::{
-    ConvoQuestion, DeleteResources, GetQueryParams, Input, MessageReference, RagflowError,
-    SessionMessage,
+    DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage,
     agent::{session::*, *},
     chat::{session::*, *},
     client::RagflowClient,
@@ -539,7 +538,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     > {
-        let mut body: ConvoQuestion = body.into();
+        let mut body: ChatConvoRequest = body.into();
         body.session_id = Some(session_id.to_string());
 
         let stream =
@@ -718,7 +717,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     > {
-        let mut body: ConvoQuestion = body.into();
+        let mut body: AgentConvoRequest = body.into();
         body.session_id = session_id.map(|id| id.to_string());
 
         let stream =
@@ -1229,14 +1228,14 @@ impl From<UpdateChatSessionRequest> for UpdateChatSession {
     }
 }
 
-impl From<ChatConversationRequest> for ConvoQuestion {
+impl From<ChatConversationRequest> for ChatConvoRequest {
     fn from(input: ChatConversationRequest) -> Self {
         Self {
             question: input.question,
             session_id: None,
             user_id: None,
             stream: Some(true),
-            inputs: None,
+            prompt_variables: input.variables,
         }
     }
 }
@@ -1313,7 +1312,7 @@ impl From<&AgentSession> for ComhairleAgentSession {
     }
 }
 
-impl From<AgentConversationRequest> for ConvoQuestion {
+impl From<AgentConversationRequest> for AgentConvoRequest {
     fn from(a: AgentConversationRequest) -> Self {
         let mut inputs = HashMap::new();
         if let Some(topic) = a.topic {

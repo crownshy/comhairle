@@ -16,16 +16,12 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    bot_service::{ChatConversationRequest, ComhairleChatSession},
-    error::ComhairleError,
-    models::{
-        bot_service_user_session::{self, BotServiceSessionContext},
-        conversation,
-    },
-    routes::auth::RequiredUser,
-};
+use crate::bot_service::{ChatConversationRequest, ComhairleChatSession};
+use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
+use crate::models::chat_instructions::{self, ChatInstructionsExt};
+use crate::models::conversation;
+use crate::routes::auth::RequiredUser;
+use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]
 pub async fn get_session(
@@ -77,11 +73,17 @@ async fn converse(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredUser(user): RequiredUser,
-    Json(payload): Json<ChatConversationRequest>,
+    Json(mut payload): Json<ChatConversationRequest>,
 ) -> Result<StreamBody, ComhairleError> {
     let bot_service = state.required_bot_service()?;
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let chat_instructions = chat_instructions::get_by_conversation_id(&state.db, conversation.id)
+        .await
+        .ok();
+
+    payload.variables = Some(chat_instructions.to_prompt_variables());
+
     let session = bot_service_user_session::get_or_create(
         &state,
         BotServiceSessionContext::QaBot,
@@ -140,6 +142,7 @@ mod tests {
         setup_server,
         test_helpers::{UserSession, test_state},
     };
+    use std::collections::HashMap;
     use std::error::Error;
     use std::{pin::Pin, sync::Arc};
 
@@ -251,6 +254,10 @@ mod tests {
     ) -> Result<(), Box<dyn Error>> {
         let converse_request = ChatConversationRequest {
             question: "Test question?".to_string(),
+            variables: Some(HashMap::from([(
+                "target_reading_age".to_string(),
+                "9".to_string(),
+            )])),
         };
         let chat_session = ComhairleChatSession {
             id: "456".to_string(),

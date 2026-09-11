@@ -2273,7 +2273,10 @@ export const ComhairleChatSession = z
   .passthrough();
 export type ComhairleChatSession = z.infer<typeof ComhairleChatSession>;
 export const ChatConversationRequest = z
-  .object({ question: z.string() })
+  .object({
+    question: z.string(),
+    variables: z.union([z.record(z.string()), z.null()]).optional(),
+  })
   .passthrough();
 export type ChatConversationRequest = z.infer<typeof ChatConversationRequest>;
 export const page_size = z
@@ -3912,7 +3915,7 @@ Use a raw HTTP request and process the response body incrementally.`,
       {
         name: "body",
         type: "Body",
-        schema: z.object({ question: z.string() }).passthrough(),
+        schema: ChatConversationRequest,
       },
     ],
     response: z.void(),
