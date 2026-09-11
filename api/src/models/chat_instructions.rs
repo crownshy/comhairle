@@ -68,7 +68,7 @@ impl UpsertChatInstructions {
 pub async fn upsert_for_conversation(
     db: &PgPool,
     conversation_id: Uuid,
-    payload: UpsertChatInstructions,
+    payload: &UpsertChatInstructions,
 ) -> Result<ChatInstructions, ComhairleError> {
     let mut columns = payload.columns();
     let mut values = payload.values();
@@ -134,7 +134,7 @@ mod tests {
             max_length: Some(500),
         };
 
-        let instructions = upsert_for_conversation(&pool, conversation_id, payload).await?;
+        let instructions = upsert_for_conversation(&pool, conversation_id, &payload).await?;
 
         assert_eq!(
             instructions.conversation_id, conversation_id,
@@ -162,7 +162,7 @@ mod tests {
             max_length: Some(100),
         };
 
-        let new_instructions = upsert_for_conversation(&pool, conversation_id, payload).await?;
+        let new_instructions = upsert_for_conversation(&pool, conversation_id, &payload).await?;
 
         assert_eq!(
             new_instructions.conversation_id, conversation_id,
@@ -184,7 +184,8 @@ mod tests {
             max_length: Some(200),
         };
 
-        let updated_instructions = upsert_for_conversation(&pool, conversation_id, payload).await?;
+        let updated_instructions =
+            upsert_for_conversation(&pool, conversation_id, &payload).await?;
 
         assert_eq!(
             updated_instructions.conversation_id, conversation_id,
@@ -218,7 +219,7 @@ mod tests {
             max_length: Some(500),
         };
 
-        let new_instructions = upsert_for_conversation(&pool, conversation_id, payload).await?;
+        let new_instructions = upsert_for_conversation(&pool, conversation_id, &payload).await?;
 
         let fetched_instructions = get_by_conversation_id(&pool, conversation_id).await?;
 

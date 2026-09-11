@@ -11,8 +11,14 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::chat_instructions::{self, UpsertChatInstructions};
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    bot_service::{ComhairlePrompt, UpdateChatRequest, Variable},
+    models::{
+        chat_instructions::{self, UpsertChatInstructions},
+        conversation,
+    },
+};
 use dto::ChatInstructionsDto;
 
 pub mod dto;
@@ -34,8 +40,60 @@ async fn upsert_for_conversation(
     Path(conversation_id): Path<Uuid>,
     Json(payload): Json<UpsertChatInstructions>,
 ) -> Result<(StatusCode, Json<ChatInstructionsDto>), ComhairleError> {
+    let bot_service = state.required_bot_service()?;
+
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let chat_bot_id = conversation.chat_bot_id.ok_or_else(|| {
+        ComhairleError::CorruptedData(format!(
+            "Missing chat_bot_id on conversation {conversation_id}"
+        ))
+    })?;
+    // Retrieve chat data first as some data needs to be added to update request
+    // or it will be removed
+    let (_, chat) = bot_service.get_chat(&chat_bot_id).await?;
+
     let instructions =
-        chat_instructions::upsert_for_conversation(&state.db, conversation_id, payload).await?;
+        chat_instructions::upsert_for_conversation(&state.db, conversation_id, &payload).await?;
+
+    let mut variables = chat
+        .prompt
+        .and_then(|prompt| prompt.variables)
+        .unwrap_or(vec![Variable {
+            key: "knowledge".to_string(),
+            optional: Some(true),
+        }]);
+    let original_len = variables.len();
+
+    let payload_variables = [
+        (payload.target_reading_age.is_some(), "target_reading_age"),
+        (payload.max_length.is_some(), "max_length"),
+    ];
+
+    for (is_present, key) in payload_variables {
+        if is_present && !variables.iter().any(|var| var.key == key) {
+            variables.push(Variable {
+                key: key.to_string(),
+                optional: Some(true),
+            });
+        }
+    }
+
+    // Only update chat if variables has changed
+    if variables.len() != original_len {
+        let update_chat_payload = UpdateChatRequest {
+            // Include knowledge_base_ids or they will be stripped (Ragflow specific)
+            knowledge_base_ids: Some(chat.knowledge_base_ids),
+            prompt: Some(ComhairlePrompt {
+                variables: Some(variables),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        bot_service
+            .update_chat(&chat_bot_id, update_chat_payload)
+            .await?;
+    }
 
     Ok((StatusCode::OK, Json(instructions.into())))
 }

@@ -311,11 +311,18 @@ pub struct ComhairlePrompt {
     pub opener: Option<String>,
     pub empty_response: Option<String>,
     pub cross_languages: Option<Vec<String>>,
+    pub variables: Option<Vec<Variable>>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]
 pub struct ComhairleLlm {
     pub model_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
+pub struct Variable {
+    pub key: String,
+    pub optional: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]

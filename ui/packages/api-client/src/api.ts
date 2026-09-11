@@ -2206,12 +2206,20 @@ export const ComhairleLlm = z
   .partial()
   .passthrough();
 export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
+export const Variable = z
+  .object({
+    key: z.string(),
+    optional: z.union([z.boolean(), z.null()]).optional(),
+  })
+  .passthrough();
+export type Variable = z.infer<typeof Variable>;
 export const ComhairlePrompt = z
   .object({
     cross_languages: z.union([z.array(z.string()), z.null()]),
     empty_response: z.union([z.string(), z.null()]),
     llm_prompt: z.union([z.string(), z.null()]),
     opener: z.union([z.string(), z.null()]),
+    variables: z.union([z.array(Variable), z.null()]),
   })
   .partial()
   .passthrough();
@@ -3408,6 +3416,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateFeedbackDTO,
   PartialFeedback,
   ComhairleLlm,
+  Variable,
   ComhairlePrompt,
   ComhairleChat,
   UpdateChatRequest,

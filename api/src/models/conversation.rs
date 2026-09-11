@@ -766,6 +766,7 @@ pub async fn create(
                 opener: Some(DEFAULT_CHAT_OPENER.to_string()),
                 empty_response: Some(DEFAULT_CHAT_NOT_FOUND_RESPONSE.to_string()),
                 cross_languages: None,
+                ..Default::default()
             }),
             ..Default::default()
         };
