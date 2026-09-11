@@ -7,6 +7,7 @@ type InputKey =
 	| 'conversation/invites'
 	| 'conversation/documents'
 	| 'conversation/events'
+	| 'conversation/event'
 	| 'conversation/design/workflow'
 	| 'knowledge-base/documents'
 	| 'notifications'
