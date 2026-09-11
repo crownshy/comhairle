@@ -14,7 +14,6 @@ import { key } from '$lib/utils/invalidationKey';
  * Invalidation keys for this load. Each re-runs this fetch; the names let callers
  * express *what* they changed without coupling to load internals.
  * - conversation:meta — conversation record itself (title, description, flags…)
- * - conversation:workflow — workflows + steps + stats (anything step-related)
  * - conversation:events — the events list (create/rename/delete an event)
  *
  * Events are loaded here (not lazily in events/+layout) so the conversation layout can
@@ -24,9 +23,7 @@ import { key } from '$lib/utils/invalidationKey';
  */
 export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	depends(key('conversation'));
-	depends(key('conversation/workflow'));
 	depends('conversation:meta');
-	depends('conversation:workflow');
 	depends('conversation:events');
 
 	const conversation_id = params.conversation_id;
