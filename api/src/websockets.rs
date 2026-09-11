@@ -1032,8 +1032,10 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use redis_test::server::RedisServer;
+    use serial_test::serial;
 
     #[tokio::test]
+    #[serial]
     async fn test_websocket_broadcast_to_all_with_redis_pubsub() {
         // Keep Redis server alive throughout the test (for temporary servers)
         let _redis_server: Option<redis_test::server::RedisServer>;
@@ -1106,6 +1108,7 @@ mod tests {
             email: Some("test@example.com".to_string()),
             username: Some("test_user".to_string()),
             password: None,
+            guest_code: None,
             avatar_url: None,
             email_verified: true,
             auth_type: crate::models::users::UserAuthType::EmailPassword,
@@ -1113,6 +1116,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
 
         let addr = "127.0.0.1:9999".parse().unwrap();
@@ -1209,6 +1213,7 @@ mod tests {
             email: Some("test@example.com".to_string()),
             username: Some("test_user".to_string()),
             password: None,
+            guest_code: None,
             avatar_url: None,
             email_verified: true,
             auth_type: crate::models::users::UserAuthType::EmailPassword,
@@ -1216,6 +1221,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         }
     }
 
@@ -1263,6 +1269,7 @@ mod tests {
     /// A participant connected to a DIFFERENT instance than the one that publishes an
     /// agenda update must still receive it, via Redis fan-out through `broadcast_to_room`.
     #[tokio::test]
+    #[serial]
     async fn test_broadcast_to_room_fans_out_across_instances() {
         use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 

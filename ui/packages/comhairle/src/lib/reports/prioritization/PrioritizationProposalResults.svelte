@@ -12,13 +12,13 @@
 
 	type Props = {
 		proposals: RankedProposal[];
-		toolConfig: ToolConfig;
+		toolConfig: ToolConfig<string>;
 	};
 
 	let { proposals, toolConfig }: Props = $props();
 
 	function extractBarChartData(
-		question: Question,
+		question: Question<string>,
 		proposal: RankedProposal,
 		section?: ProposalSection
 	): ComponentProps<typeof BarChart>['data'] | undefined {
@@ -82,7 +82,11 @@
 	>
 {/snippet}
 
-{#snippet questionType(question: Question, proposal: RankedProposal, section?: ProposalSection)}
+{#snippet questionType(
+	question: Question<string>,
+	proposal: RankedProposal,
+	section?: ProposalSection
+)}
 	{#if question.type.kind === 'likert'}
 		<BarChart
 			data={extractBarChartData(question, proposal, section)}

@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use heyform_sdk::client::HeyFormClient;
 use heyform_sdk::{
     CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, Form, FormField, FormKind,
-    FormReport, FormReportResponse, InteractiveMode, LoginInput, SignUpInput, Submission,
+    FormReport, FormReportResponse, InteractiveMode, LoginInput, Parent, SignUpInput, Submission,
     Submissions,
 };
 use rand::seq::SliceRandom;
@@ -256,6 +256,7 @@ impl ToolImpl for HeyFormTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function
         heyform_setup(setup).await
@@ -452,7 +453,7 @@ pub async fn submissions(
     Ok((
         StatusCode::OK,
         Json(Submissions {
-            total: submissions.len() as i32,
+            total: submissions.len() as u32,
             submissions,
         }),
     ))
@@ -504,8 +505,10 @@ pub struct InsightQuestion {
     /// Human-readable question title extracted from the form schema.
     /// Falls back to the field ID when the schema contains no plain-text title.
     pub title: String,
+    /// Number of times this question was answered.
+    pub answered: u32,
     /// Total number of responses recorded for this question.
-    pub total: i32,
+    pub total: u32,
     /// Field properties
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, serde_json::Value>>,
@@ -570,6 +573,13 @@ fn extract_field_title(title: &serde_json::Value) -> Option<String> {
     if text.is_empty() { None } else { Some(text) }
 }
 
+/// Checks if the HeyForm value is empty (the user skipped the question)
+fn is_empty_value(value: &serde_json::Value) -> bool {
+    let val = value.to_string();
+
+    val == "\"\"" || val == "{\"value\":[]}"
+}
+
 /// Resolves the list of [`InsightChoice`]s for one question.
 ///
 /// The report's `chooses` array already carries `id`, `label`, and `count`
@@ -618,13 +628,53 @@ pub fn build_survey_insights(
     submissions: &[Submission],
 ) -> SurveyInsights {
     // Index form fields by ID so look-ups are O(1).
-    let fields_by_id: HashMap<String, &FormField> = form
-        .fields
-        .as_deref()
-        .unwrap_or_default()
-        .iter()
-        .map(|field| (field.id.clone(), field))
-        .collect();
+    let mut fields_by_id: HashMap<String, FormField> = HashMap::new();
+    for field in form.fields.as_deref().unwrap_or_default().iter() {
+        if matches!(
+            field.kind.as_str(),
+            "statement" | "payment" | "welcome" | "thank_you"
+        ) {
+            continue;
+        }
+
+        fields_by_id.insert(field.id.clone(), field.clone());
+
+        if field.kind == "group" {
+            let fields = field
+                .properties
+                .as_ref()
+                .and_then(|p| p.get("fields"))
+                .and_then(|p| p.as_array());
+
+            let Some(fields) = fields else {
+                continue;
+            };
+
+            let parent = Parent {
+                id: field.id.clone(),
+                title: extract_field_title(field.title.as_ref().unwrap_or_default())
+                    .unwrap_or_default(),
+            };
+
+            for subfield in fields.iter() {
+                let subfield: Result<FormField, serde_json::Error> =
+                    serde_json::from_value(subfield.clone());
+                let Ok(mut subfield) = subfield else {
+                    continue;
+                };
+
+                let properties = subfield.properties.as_mut();
+                if let Some(properties) = properties {
+                    properties.insert(
+                        "parent".to_string(),
+                        serde_json::to_value(parent.clone()).unwrap_or_default(),
+                    );
+                }
+
+                fields_by_id.insert(subfield.id.clone(), subfield);
+            }
+        }
+    }
 
     let mut submissions_by_field: HashMap<String, Vec<InsightSubmission>> = HashMap::new();
     let mut seen_answers: std::collections::HashSet<(String, String)> =
@@ -641,7 +691,7 @@ pub fn build_survey_insights(
         for answer in &submission.answers {
             if let Some(field_id) = answer.get("id").and_then(|v| v.as_str()) {
                 if let Some(val) = answer.get("value") {
-                    if !val.is_null() {
+                    if !val.is_null() && !is_empty_value(val) {
                         let key = (field_id.to_string(), sub_id.clone());
                         if seen_answers.insert(key) {
                             submissions_by_field
@@ -664,7 +714,7 @@ pub fn build_survey_insights(
         let field_id = &report_sub.id;
         for answer in &report_sub.answers {
             if let Some(val) = &answer.value {
-                if !val.is_null() {
+                if !val.is_null() && !is_empty_value(val) {
                     let key = (field_id.clone(), answer.submission_id.clone());
                     if seen_answers.insert(key) {
                         let submitted_at = if answer.end_at != 0 {
@@ -689,32 +739,43 @@ pub fn build_survey_insights(
     let questions = report
         .responses
         .iter()
-        .map(|response| {
-            let field = fields_by_id.get(&response.id);
+        .filter_map(|response| {
+            let Some(field) = fields_by_id.get(&response.id) else {
+                return None;
+            };
 
             // Resolve the question title from the form field, falling back to
             // the field ID when no plain-text title is available.
             let title = field
-                .and_then(|f| f.title.as_ref())
+                .title
+                .as_ref()
                 .and_then(extract_field_title)
                 .unwrap_or_else(|| response.id.clone());
 
             // Build a choice-ID-to-label index from the form field properties
             // so that we can fill gaps left by the report.
             let field_choices_by_id: HashMap<String, String> = field
-                .and_then(|f| f.properties.as_ref())
+                .properties
+                .as_ref()
                 .and_then(|properties| properties.get("choices"))
                 .and_then(|choices| choices.as_array())
                 .map(|choices| {
                     choices
                         .iter()
                         .filter_map(|choice| {
-                            let id = choice.get("id")?.as_str()?.to_owned();
+                            let Some(choice) = choice.as_object() else {
+                                return None;
+                            };
+                            let id = choice
+                                .get("id")
+                                .and_then(|id| id.as_str())
+                                .map(|id| id.to_string())
+                                .unwrap_or_default();
                             let label = choice
                                 .get("label")
                                 .and_then(|l| l.as_str())
-                                .unwrap_or_default()
-                                .to_owned();
+                                .map(|l| l.to_string())
+                                .unwrap_or_default();
                             Some((id, label))
                         })
                         .collect()
@@ -722,6 +783,11 @@ pub fn build_survey_insights(
                 .unwrap_or_default();
 
             let choices = resolve_choices(response, &field_choices_by_id);
+
+            let answered = submissions_by_field
+                .get(&response.id)
+                .unwrap_or(&Vec::new())
+                .len() as u32;
 
             // Attach individual submission answers for non-choice questions.
             // Choice-based questions already have a full aggregate breakdown
@@ -733,21 +799,16 @@ pub fn build_survey_insights(
                 None
             };
 
-            let kind = field
-                .map(|f| f.kind.clone())
-                .or_else(|| response.kind.clone());
-
-            let properties = field.map(|f| f.properties.clone()).unwrap_or_default();
-
-            InsightQuestion {
+            Some(InsightQuestion {
                 id: response.id.clone(),
-                kind,
+                kind: Some(String::from(field.kind.clone())),
                 title,
+                answered,
                 total: response.total,
-                properties,
+                properties: field.properties.clone(),
                 choices,
                 submissions,
-            }
+            })
         })
         .collect();
 
@@ -822,7 +883,7 @@ mod tests {
             responses: vec![FormReportResponse {
                 id: "report-1".to_string(),
                 total: 42,
-                kind: Some("poll".to_string()),
+                kind: Some("multiple_choice".to_string()),
                 title: Some("Test Form Report".to_string()),
                 count: 42,
                 average: 12f64,
@@ -1005,11 +1066,22 @@ mod tests {
                         "interactiveMode": null,
                         "kind": null,
                         "settings": null,
-                        "fields": [],
+                        "fields": [{
+                            "id": "report-1",
+                            "title": "Favourite colour?",
+                            "description": null,
+                            "kind": "multiple_choice",
+                            "validations": null,
+                            "properties": { "choices": [ {"id": "c-red",  "label": "Red"}, {"id": "c-blue", "label": "Blue"} ] },
+                            "layout": null,
+                            "width": null,
+                            "hide": null,
+                            "frozen": null
+                        }],
                         "themeSettings": null,
                         "draft": null,
                         "status": null
-                    }
+                    },
                 }
             }));
         }

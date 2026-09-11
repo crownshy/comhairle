@@ -122,12 +122,8 @@
 			</form>
 			{#if details !== null}
 				<DetailsDialog
-					id={details.id}
+					{...details}
 					type={htmlFromMediaType(details.contentType)}
-					filename={details.filename}
-					name={details.name}
-					src={details.url}
-					alt={details.alt}
 					close={() => (details = null)}
 				/>
 			{/if}

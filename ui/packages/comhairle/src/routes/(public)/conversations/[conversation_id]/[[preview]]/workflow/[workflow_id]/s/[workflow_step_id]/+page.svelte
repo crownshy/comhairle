@@ -15,7 +15,7 @@
 
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
@@ -188,10 +188,16 @@
 					}
 				);
 
-				await invalidate('app:workflow-steps');
-
-				goto(
-					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString
+				/** Deliberately no invalidate() in place. Marking the step done changes
+				 * what this page's own load does: a completed, non-revisitable step
+				 * redirects to /next. Invalidating here re-runs that load, the redirect
+				 * rejects the invalidate, and the catch below fires a spurious error
+				 * toast while the redirect navigates anyway. Navigating with
+				 * invalidateAll refreshes the step list and the participation seal at
+				 * the destination instead. */
+				await goto(
+					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
+					{ invalidateAll: true }
 				);
 			} else {
 				let next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
@@ -225,7 +231,7 @@
 </svelte:head>
 
 <div class="flex flex-col items-center sm:py-2 md:py-10">
-	{#if conversation && workflowStep}
+	{#if conversation && workflowStep && user}
 		<div
 			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:px-0 md:pt-0 md:pb-0"
 		>
@@ -246,7 +252,6 @@
 					onNext={currentNextAction ?? stepComplete}
 					nextDisabled={!canProceed}
 					nextLoading={isSubmitting}
-					boldDescription={toolConfig.type === Polis.TOOL_NAME}
 					{availableDocuments}
 					conversationId={conversation.id}
 				/>
@@ -366,6 +371,7 @@
 								}}
 								participantId={user.id}
 								onDone={stepComplete}
+								onCanContinueChange={handleCanContinueChange}
 							/>
 						{/key}
 					{/if}

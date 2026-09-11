@@ -8,6 +8,7 @@ use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::prelude::FromRow;
+use tracing::instrument;
 use uuid::Uuid;
 
 use aws_sdk_s3::Client;
@@ -125,6 +126,7 @@ impl Resource {
     }
 }
 
+#[instrument(err(Debug), skip(client))]
 pub async fn get_presigned_url(
     target: &str,
     client: &Client,
@@ -141,6 +143,8 @@ pub async fn get_presigned_url(
 
     Ok(url.uri().into())
 }
+
+#[instrument(err(Debug), skip(client))]
 pub async fn get_signed_upload_url(
     target_dest: &str,
     client: &Client,
@@ -168,6 +172,7 @@ pub struct ResourceUploadResponse {
     pub id: Uuid,
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn create_resource(
     db: &PgPool,
     new_resource: CreateResource,
@@ -206,6 +211,7 @@ pub async fn create_resource(
     Ok(resource)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get(db: &PgPool, id: Uuid) -> Result<Resource, ComhairleError> {
     let (sql, values) = sea_query::Query::select()
         .columns(DEFAULT_COLUMNS)

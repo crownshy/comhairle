@@ -1,3 +1,36 @@
+/* Type scale, from the `Base Variables` Figma collection (Text/Size-*, Line-height/*,
+   Weight/*). One mode there, so it is shared by every theme; only the family varies,
+   via each theme's --font-sans below.
+
+   Deliberately NOT declared as `--text-*` inside `@theme`: that namespace regenerates
+   Tailwind's text-xs..text-4xl utilities, and this scale diverges from Tailwind's above
+   `lg` (xl 20/32 vs 20/28, 2xl 24/36 vs 24/32, 3xl 36 vs 30). Keeping it out means
+   consuming it is opt-in, currently prose and the tiptap renderer. */
+:root {
+	--type-size-xs: 0.75rem; /* 12 */
+	--type-size-sm: 0.875rem; /* 14 */
+	--type-size-md: 1rem; /* 16 */
+	--type-size-lg: 1.125rem; /* 18 */
+	--type-size-xl: 1.25rem; /* 20 */
+	--type-size-2xl: 1.5rem; /* 24 */
+	--type-size-3xl: 2.25rem; /* 36 */
+	--type-size-4xl: 3rem; /* 48 */
+
+	--type-leading-xs: 1rem; /* 16 */
+	--type-leading-sm: 1.25rem; /* 20 */
+	--type-leading-md: 1.5rem; /* 24 */
+	--type-leading-lg: 1.75rem; /* 28 */
+	--type-leading-xl: 2rem; /* 32 */
+	--type-leading-2xl: 2.25rem; /* 36 */
+	--type-leading-3xl: 2.5rem; /* 40 */
+	--type-leading-4xl: 3rem; /* 48 */
+
+	--type-weight-regular: 400;
+	--type-weight-medium: 500;
+	--type-weight-semibold: 600;
+	--type-weight-bold: 700;
+}
+
 /* Base Theme (Comhairle — Olive Green, anchored on #171f0f) */
 :root {
 	--background: #ffffff;
@@ -327,11 +360,11 @@
 
 [data-theme='waves'] {
 	--background: #ffffff;
-	--foreground: #333333;
+	--foreground: #444749;
 	--card: #ffffff;
-	--card-foreground: #333333;
+	--card-foreground: #444749;
 	--popover: #ffffff;
-	--popover-foreground: #333333;
+	--popover-foreground: #444749;
 	--primary: #6c6e8e;
 	--primary-foreground: #ffffff;
 	--secondary: #f0f0f4;
@@ -365,7 +398,7 @@
 	--color-brand: #6c6e8e;
 	--color-brand-secondary: #444749;
 
-	--font-sans: Montserrat;
+	--font-sans: Montserrat, sans-serif;
 	--font-serif: Georgia, 'Times New Roman', Times, serif;
 	--font-mono: Roboto Mono, monospace;
 
@@ -400,7 +433,7 @@
 
 	--nav-text: #f0f0f4;
 	--nav-background: #f0f0f4;
-	--admin-background: #f9f9f9;
+	--admin-background: #f5f5f9;
 	--mutted: #444749;
 	--sidebar-radius: 4px;
 
@@ -414,93 +447,75 @@
 	--seed-highlight-bg: #90c46b1a;
 }
 
+/* Deltas only. Fonts, radii, shadows and anything else omitted here fall through to
+   `[data-theme='waves']` above, which still matches in dark mode. Colours are the
+   resolved Waves (Dark) mode of the Figma `Themes` collection. */
 [data-theme='waves'].dark {
-	--background: #ffffff;
-	--foreground: #333333;
-	--card: #ffffff;
-	--card-foreground: #333333;
-	--popover: #ffffff;
-	--popover-foreground: #333333;
-	--primary: #6c6e8e;
-	--primary-foreground: #ffffff;
-	--secondary: #f0f0f4;
-	--secondary-foreground: #444749;
-	--muted: #f0f0f4;
-	--muted-foreground: #8b9ba9;
-	--subtle-foreground: #8b9ba9;
-	--accent: #eaeaf0;
-	--accent-foreground: #444749;
-	--destructive: #dc2626;
+	--background: #18181c;
+	--foreground: #f0f0f4;
+	--card: #222228;
+	--card-foreground: #f0f0f4;
+	--popover: #222228;
+	--popover-foreground: #f0f0f4;
+	--primary: #9492c7;
+	--primary-foreground: #18181c;
+	--secondary: #2a2b2d;
+	--secondary-foreground: #f0f0f4;
+	--muted: #2a2b2d;
+	--muted-foreground: #9ca8b8;
+	--subtle-foreground: #9ca8b8;
+	--accent: #353638;
+	--accent-foreground: #f0f0f4;
+	--destructive: #f87171;
 	--destructive-foreground: #fef2f2;
-	--border: #cecfd0;
-	--input: #cecfd0;
+	--border: #ffffff19;
+	--input: #ffffff26;
 	--ring: #9492c7;
-	--chart-1: #6c6e8e;
+	/* Categorical, not a ramp: only the two hues that fall below contrast on a dark
+	   ground are lifted, the rest carry over from light. */
+	--chart-1: #9492c7;
 	--chart-2: #f1883f;
-	--chart-3: #9492c7;
+	--chart-3: #b5b3dc;
 	--chart-4: #88c6ec;
 	--chart-5: #90c46b;
-	--sidebar: #444749;
+	--sidebar: #121215;
 	--sidebar-foreground: #f0f0f4;
 	--sidebar-primary: #9492c7;
-	--sidebar-primary-foreground: #ffffff;
-	--sidebar-accent: #353638;
+	--sidebar-primary-foreground: #18181c;
+	--sidebar-accent: #2a2b2d;
 	--sidebar-accent-foreground: #f0f0f4;
-	--sidebar-border: #505a5f;
+	--sidebar-border: #ffffff19;
 	--sidebar-ring: #9492c7;
 	--sidebar-secondary: #88c6ec;
-	--sidebar-active-bg: #2a2b2d;
+	--sidebar-active-bg: #0e0e10;
 
-	--color-brand: #6c6e8e;
-	--color-brand-secondary: #444749;
+	--color-brand: #9492c7;
+	--color-brand-secondary: #f0f0f4;
 
-	--font-sans: Montserrat;
-	--font-serif: Georgia, 'Times New Roman', Times, serif;
-	--font-mono: Roboto Mono, monospace;
-
-	--radius: 0.25rem;
-	--radius-xs: calc(0.25rem - 4px);
-	--radius-sm: calc(0.25rem - 2px);
-	--radius-md: 0.25rem;
-	--radius-lg: calc(0.25rem + 2px);
-	--radius-xl: calc(0.25rem + 4px);
-
-	--shadow-2xs: 0px 1px 3px 0px rgb(68 71 73 / 0.02);
-	--shadow-xs: 0px 1px 3px 0px rgb(68 71 73 / 0.02);
-	--shadow-sm: 0px 1px 3px 0px rgb(68 71 73 / 0.04), 0px 1px 2px -1px rgb(68 71 73 / 0.04);
-	--shadow: 0px 1px 3px 0px rgb(68 71 73 / 0.04), 0px 1px 2px -1px rgb(68 71 73 / 0.04);
-	--shadow-md: 0px 1px 3px 0px rgb(68 71 73 / 0.04), 0px 2px 4px -1px rgb(68 71 73 / 0.04);
-	--shadow-lg: 0px 1px 3px 0px rgb(68 71 73 / 0.04), 0px 4px 6px -1px rgb(68 71 73 / 0.04);
-	--shadow-xl: 0px 1px 3px 0px rgb(68 71 73 / 0.04), 0px 8px 10px -1px rgb(68 71 73 / 0.04);
-	--shadow-2xl: 0px 1px 3px 0px rgb(68 71 73 / 0.1);
-
-	--chat-primary: #6c6e8e;
-	--chat-neutral: #8b9ba9;
-	--chat-primary-light: color-mix(in oklch, var(--chat-primary), white 70%);
-	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), white 85%);
-	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), black 20%);
-	--chat-primary-darker: color-mix(in oklch, var(--chat-primary), black 40%);
-	--chat-muted: color-mix(in oklch, var(--chat-neutral), white 40%);
-	--chat-border: color-mix(in oklch, var(--chat-neutral), white 70%);
-	--chat-bg: color-mix(in oklch, var(--chat-neutral), white 92%);
-	--chat-text: color-mix(in oklch, var(--chat-neutral), black 40%);
+	--chat-primary: #9492c7;
+	--chat-neutral: #9ca8b8;
+	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
+	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
+	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), white 20%);
+	--chat-primary-darker: color-mix(in oklch, var(--chat-primary), white 40%);
+	--chat-muted: color-mix(in oklch, var(--chat-neutral), black 40%);
+	--chat-border: color-mix(in oklch, var(--chat-neutral), black 50%);
+	--chat-bg: var(--card);
+	--chat-text: var(--foreground);
 	--chat-text-muted: var(--chat-neutral);
-	--chat-bubble: #ffffff;
+	--chat-bubble: var(--card);
 
-	--nav-text: #f0f0f4;
-	--nav-background: #f0f0f4;
-	--admin-background: #f9f9f9;
-	--mutted: #444749;
-	--sidebar-radius: 4px;
+	--nav-background: #222228;
+	--admin-background: #222228;
+	--mutted: #f0f0f4;
 
-	--auth-gradient-base: #2a2b2d;
-	--auth-gradient-1: #6c6e8e;
-	--auth-gradient-2: #9492c7;
+	--auth-gradient-base: #0e0e10;
+	--auth-gradient-1: #5c5e7a;
+	--auth-gradient-2: #7a78b0;
 	--auth-gradient-3: #88c6ec;
-	--auth-gradient-4: #444749;
+	--auth-gradient-4: #353638;
 
-	--seed-highlight: #90c46b;
-	--seed-highlight-bg: #90c46b1a;
+	--seed-highlight-bg: #90c46b26;
 }
 
 @theme {

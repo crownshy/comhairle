@@ -1,3 +1,4 @@
+import { resolveTranslatableJsonToTextContentIds } from '$lib/components/Translation/translationUtils';
 import { notifications } from '$lib/notifications.svelte';
 import * as api from './prioritizationApi';
 import type { Proposal, ToolConfig } from './types';
@@ -82,11 +83,15 @@ export function createStore(opts: {
 
 	async function saveToolConfig(toolConfig: ToolConfig) {
 		try {
+			// Strip out translations data as update of toolConfig expects only
+			// `textContentIds` for nested translatable fields.
+			const resolvedToolConfig = resolveTranslatableJsonToTextContentIds(toolConfig);
+
 			await api.updateToolConfig({
 				conversationId: opts.conversationId,
 				workflowId: opts.workflowId,
 				workflowStepId: opts.workflowStepId,
-				toolConfig,
+				toolConfig: resolvedToolConfig,
 				isLive: opts.isLive
 			});
 		} catch (e) {

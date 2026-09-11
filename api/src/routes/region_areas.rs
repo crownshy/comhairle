@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -20,6 +21,7 @@ use crate::{
 
 pub mod dto;
 
+#[instrument(err(Debug), skip(state))]
 async fn create_region_area(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
@@ -29,6 +31,7 @@ async fn create_region_area(
     Ok((StatusCode::CREATED, Json(area)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn list_region_areas(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
@@ -41,6 +44,7 @@ async fn list_region_areas(
     Ok((StatusCode::OK, Json(areas)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn get_region_area(
     State(state): State<Arc<ComhairleState>>,
     Path(region_area_id): Path<Uuid>,
@@ -52,6 +56,7 @@ async fn get_region_area(
     Ok((StatusCode::OK, Json(area)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn update_region_area(
     State(state): State<Arc<ComhairleState>>,
     Path(region_area_id): Path<Uuid>,
@@ -64,6 +69,7 @@ async fn update_region_area(
     Ok((StatusCode::OK, Json(area)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn delete_region_area(
     State(state): State<Arc<ComhairleState>>,
     Path(region_area_id): Path<Uuid>,

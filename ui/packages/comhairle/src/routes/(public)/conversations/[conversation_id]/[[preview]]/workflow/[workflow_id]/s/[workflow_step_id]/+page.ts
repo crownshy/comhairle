@@ -1,16 +1,29 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
-import { next_workflow_step_url } from '$lib/urls';
+import { next_workflow_step_url, thank_you_page } from '$lib/urls';
 
 export const load: PageLoad = async (event) => {
-	const { api, conversation, preview, workflowSteps } = await event.parent();
+	const { api, conversation, preview, workflowSteps, sealed } = await event.parent();
 
 	const conversation_id = conversation.id;
 	const { workflow_id, workflow_step_id } = event.params;
 
 	// Preserve query parameters for redirects
 	const queryString = event.url.search;
+
+	// A sealed participant has no reachable step, whatever `canRevisit` says. This has to sit
+	// ahead of everything else, because the guard below it only fires for steps that are NOT
+	// revisitable - and a conversation that wants sealing typically has every step revisitable
+	// so participants can move around freely before they finish. Browser Back from the
+	// thank-you page lands here, not on `/return`, so this is the check that catches it.
+	if (sealed) {
+		notifications.addFlash({
+			message: "You've already finished this conversation",
+			priority: 'INFO'
+		});
+		redirect(302, thank_you_page(conversation_id, workflow_id, preview) + queryString);
+	}
 
 	try {
 		const thisStep =

@@ -13,6 +13,7 @@
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflow);
 	let revisitableSteps = $derived(data.revisitableSteps);
+	let hasRevisitableSteps = $derived(revisitableSteps.length > 0);
 	let isPreview = $derived(data.preview);
 	let availableDocuments = $derived(data.availableDocuments);
 </script>
@@ -31,9 +32,9 @@
 	{/if}
 
 	{#if conversation.showThankYouPageAnnonInstructions}
-		{#if user.authType === 'annon'}
-			<p>You are currently signed in as an anonymous user. Use your anonymous id</p>
-			<h2 class="text-center">{user.username}</h2>
+		{#if user.authType === 'guest'}
+			<p>You are currently signed in as a guest user. Use your guest id</p>
+			<h2 class="text-center">{user.guestCode}</h2>
 			<p>to log back in at a later time to see the results of the conversations.</p>
 		{:else}
 			<p>
@@ -52,7 +53,7 @@
 	{/if}
 
 	{#snippet revisitStepList()}
-		{#if revisitableSteps.length > 0}
+		{#if hasRevisitableSteps}
 			<p>Return to a previous step to update your contribution:</p>
 			<div class="mx-auto mt-4 flex flex-col items-center gap-2 md:flex-row">
 				<p>Click to contribute more:</p>
@@ -70,19 +71,26 @@
 	{/snippet}
 
 	{#if conversation.enableSignupPrompts}
-		<h2>Next steps</h2>
-		You can continue to contribute, let us know what you thought of the process or sign up for updates
-		on this project and others which you might be interested in.
+		{#if hasRevisitableSteps}
+			<h2>Next steps</h2>
+			You can continue to contribute, let us know what you thought of the process or sign up for
+			updates on this project and others which you might be interested in.
+		{:else}
+			Let us know what you thought of the process or sign up for updates on this project and
+			others which you might be interested in.
+		{/if}
 
 		{@render revisitStepList()}
 
-		<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
-			<FeedbackModal conversationId={conversation.id} />
-		</div>
+		{#if conversation.showThankyouPageFeedbackButton}
+			<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
+				<FeedbackModal conversationId={conversation.id} />
+			</div>
+		{/if}
 
 		<h2>Keep informed</h2>
 
-		{#if user.authType === 'annon'}
+		{#if user.authType === 'guest'}
 			<p>
 				To receive updates on this conversation and future conversations, either update to a
 				full account
@@ -102,14 +110,18 @@
 			</p>
 			<UserConversationPreferencesForm
 				conversationId={conversation.id}
-				isAnnon={user.authType === 'annon'}
+				isGuest={user.authType === 'guest'}
 			/>
 		{/if}
 	{:else}
-		<h2>Next steps</h2>
+		{#if hasRevisitableSteps}
+			<h2>Next steps</h2>
+		{/if}
 		{@render revisitStepList()}
-		<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
-			<FeedbackModal conversationId={conversation.id} />
-		</div>
+		{#if conversation.showThankyouPageFeedbackButton}
+			<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
+				<FeedbackModal conversationId={conversation.id} />
+			</div>
+		{/if}
 	{/if}
 </div>

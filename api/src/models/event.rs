@@ -176,6 +176,8 @@ pub struct Event {
     pub default_time_zone: String,
     pub format: EventFormat,
     #[partially(transparent)]
+    pub custom_event_link: Option<String>,
+    #[partially(transparent)]
     pub location: Option<EventLocation>,
     pub metadata: Option<serde_json::Value>,
     #[partially(omit)]
@@ -325,7 +327,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 17] = [
+const DEFAULT_COLUMNS: [EventIden; 18] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -341,6 +343,7 @@ const DEFAULT_COLUMNS: [EventIden; 17] = [
     EventIden::Location,
     EventIden::Metadata,
     EventIden::Format,
+    EventIden::CustomEventLink,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -356,6 +359,7 @@ pub struct CreateEvent {
     pub agenda: Option<EventAgenda>,
     pub location: Option<EventLocation>,
     pub default_time_zone: Option<String>,
+    pub custom_event_link: Option<String>,
 }
 
 impl CreateEvent {
@@ -376,6 +380,10 @@ impl CreateEvent {
 
         if self.default_time_zone.is_some() {
             columns.push(EventIden::DefaultTimeZone)
+        }
+
+        if self.custom_event_link.is_some() {
+            columns.push(EventIden::CustomEventLink)
         }
 
         columns
@@ -400,11 +408,15 @@ impl CreateEvent {
             values.push(value.into());
         }
 
+        if let Some(ref value) = self.custom_event_link {
+            values.push(value.into());
+        }
+
         values
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -478,6 +490,16 @@ impl PartialEvent {
         if let Some(value) = &self.format {
             values.push((EventIden::Format, value.clone().into()));
         }
+        if let Some(value) = &self.custom_event_link {
+            if value.trim().is_empty() {
+                values.push((
+                    EventIden::CustomEventLink,
+                    sea_query::Value::String(None).into(),
+                ));
+            } else {
+                values.push((EventIden::CustomEventLink, value.clone().into()));
+            }
+        }
         if let Some(value) = &self.default_time_zone {
             values.push((EventIden::DefaultTimeZone, value.into()));
         }
@@ -489,7 +511,7 @@ impl PartialEvent {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -700,7 +722,7 @@ pub struct LocalizedEventWithAttendance {
     pub current_attendance: i64,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -728,7 +750,7 @@ pub async fn list(
     Ok(events)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
@@ -746,7 +768,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> 
     Ok(event)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -770,7 +792,7 @@ pub async fn get_localized_by_id(
     Ok(event)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(EventIden::Table)

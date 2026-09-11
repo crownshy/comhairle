@@ -15,7 +15,7 @@
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
-	import { inviteUrl } from '$lib/utils/invites.js';
+	import { inviteUrl, embedInviteUrl } from '$lib/utils/invites.js';
 
 	let labelDialogOpen = $state(false);
 	let selectedInvite = $state<InviteDto | null>(null);
@@ -99,6 +99,7 @@
 							<Table.Head class="min-w-[260px]">Stats</Table.Head>
 							<Table.Head class="w-[90px] text-center">Accepted</Table.Head>
 							<Table.Head class="w-[150px] text-center">QR code</Table.Head>
+							<Table.Head class="w-[150px] text-center">Embed QR code</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -144,6 +145,17 @@
 									<div class="flex justify-center">
 										<QrCode
 											value={inviteUrl(url, invite, conversation)}
+											size="512"
+											padding={null}
+											errorCorrection="M"
+											className="h-28 w-28"
+										/>
+									</div>
+								</Table.Cell>
+								<Table.Cell>
+									<div class="flex justify-center">
+										<QrCode
+											value={embedInviteUrl(url, invite, conversation)}
 											size="512"
 											padding={null}
 											errorCorrection="M"

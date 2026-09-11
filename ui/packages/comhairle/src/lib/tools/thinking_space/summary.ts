@@ -27,7 +27,7 @@ export interface GenerateRoundParams {
 	// kept on the interface so callers can pass what they already have without
 	// the type complaining.
 	topic?: string;
-	questions?: QuestionConfig[];
+	questions?: QuestionConfig<string>[];
 	answers?: QuestionAnswers[];
 }
 

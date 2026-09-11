@@ -44,3 +44,17 @@ jobs:
       dry_run: ${{ inputs.dry_run || false }}
     secrets: inherit
      
+  build-and-push-demo-young-scot:
+    if: github.ref == 'refs/heads/demo/young-scot'
+    uses: ./.github/workflows/api-build-shared.yml
+    with:
+      tags: |
+        crownshy/comhairle_api:${{ github.sha }}
+      cache_from: |
+        type=gha
+        type=registry,ref=crownshy/comhairle_api:demo-young-scot
+        type=registry,ref=crownshy/comhairle_api:latest
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
+     
+

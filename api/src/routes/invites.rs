@@ -16,7 +16,7 @@ use uuid::Uuid;
 use crate::{
     ComhairleState,
     error::ComhairleError,
-    middleware::request_logging::ClientIp,
+    middleware::request_logging::{ClientIp, ClientUserAgent},
     models::{
         self, breakout_plan, conversation, event,
         event_attendance::{self, CreateEventAttendance},
@@ -280,10 +280,11 @@ async fn list_invites_for_event(
     Ok((StatusCode::OK, Json(invites)))
 }
 
-#[instrument(err(Debug), skip(state, client_ip))]
+#[instrument(err(Debug), skip(state, client_ip, user_agent))]
 async fn auto_register_event_attendance(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
     Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<InviteDto>)), ComhairleError> {
@@ -314,10 +315,18 @@ async fn auto_register_event_attendance(
             )
             .await?;
 
-            // Best-effort: record the signup IP for the freshly created account.
-            if let Err(error) = users::set_signup_ip(&new_user.id, &client_ip.0, &state.db).await {
+            // Best-effort: record the signup IP and browser signature for the
+            // freshly created account.
+            if let Err(error) = users::set_signup_metadata(
+                &new_user.id,
+                &client_ip.0,
+                user_agent.0.as_deref(),
+                &state.db,
+            )
+            .await
+            {
                 warn!(
-                    "Failed to record signup IP for user {}: {error}",
+                    "Failed to record signup metadata for user {}: {error}",
                     new_user.id
                 );
             }

@@ -14,7 +14,6 @@
 		onNext?: () => void;
 		nextDisabled?: boolean;
 		nextLoading?: boolean;
-		boldDescription?: boolean;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
 	}
@@ -30,7 +29,6 @@
 		onNext,
 		nextDisabled = false,
 		nextLoading = false,
-		boldDescription = true,
 		availableDocuments = [],
 		conversationId
 	}: StepHeaderProps = $props();
@@ -98,9 +96,7 @@
 		</div>
 
 		{#if description}
-			<div
-				class={`prose-sm prose-p:text-sm   prose-li:text-sm text-muted-foreground mx-auto max-w-3xl text-center ${boldDescription ? '' : 'prose-p:text-muted-foreground prose-li:text-muted-foreground'}`}
-			>
+			<div class="prose-sm prose-p:text-sm prose-li:text-sm mx-auto max-w-3xl text-center">
 				<ContentRenderer content={description} {availableDocuments} {conversationId} />
 			</div>
 		{/if}

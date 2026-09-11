@@ -12,6 +12,7 @@ use axum::{
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::Serialize;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -29,6 +30,7 @@ use super::auth::RequiredUser;
 
 pub mod dto;
 
+#[instrument(err(Debug), skip(state))]
 pub async fn get_unread_notifications(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -51,6 +53,7 @@ pub struct UnreadCount {
     pub count: i64,
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn get_unread_count(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -62,6 +65,7 @@ pub async fn get_unread_count(
     Ok((StatusCode::OK, Json(UnreadCount { count })))
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn mark_notification_as_read(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -94,6 +98,7 @@ pub async fn mark_notification_as_read(
     Ok((StatusCode::OK, Json(updated_delivery)))
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn mark_all_notifications_as_read(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -124,6 +129,7 @@ pub async fn mark_all_notifications_as_read(
     ))
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn get_all_notifications(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,

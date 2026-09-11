@@ -14,6 +14,7 @@ import type {
 	QuestionResponse,
 	QuestionType,
 	ToolConfig,
+	DraftTranslatableJsonField,
 	WorkflowStepInput
 } from './types';
 
@@ -24,12 +25,12 @@ import type {
 /** Backend stores QuestionType as a key-tagged union ({ likert_scale: {...} }),
  * except the unit `Text` variant which serialises as the bare string "text".
  * The tool uses a `kind`-discriminated union. */
-function normaliseQuestionType(raw: unknown): QuestionType {
+function normaliseQuestionType<TText>(raw: unknown): QuestionType<TText> {
 	if (raw === 'text') return { kind: 'text' };
 	if (raw && typeof raw === 'object') {
 		const r = raw as Record<string, unknown>;
 		if ('likert_scale' in r) {
-			const ls = r.likert_scale as { categories?: { label: string; value: number }[] };
+			const ls = r.likert_scale as { categories?: { label: TText; value: number }[] };
 			return { kind: 'likert', categories: ls.categories ?? [] };
 		}
 		if ('continuous' in r) {
@@ -37,33 +38,35 @@ function normaliseQuestionType(raw: unknown): QuestionType {
 				sub_steps?: number;
 				min_value?: number;
 				max_value?: number;
-				min_label?: string;
-				max_label?: string;
+				min_label: TText;
+				max_label: TText;
 			};
 			return {
 				kind: 'continuous',
 				subSteps: c.sub_steps ?? 10,
 				minValue: c.min_value ?? 0,
 				maxValue: c.max_value ?? 10,
-				minLabel: c.min_label ?? '',
-				maxLabel: c.max_label ?? ''
+				minLabel: c.min_label,
+				maxLabel: c.max_label
 			};
 		}
 	}
 	return { kind: 'text' };
 }
 
-function normaliseQuestion(raw: unknown): Question {
-	const r = (raw ?? {}) as { id?: string; text?: string; type?: unknown };
+function normaliseQuestion<TText>(raw: unknown): Question<TText> {
+	const r = (raw ?? {}) as { id?: string; text: TText; type?: unknown };
 	if (!r.id) throw new Error('Question loaded from backend is missing an id.');
 	return {
 		id: r.id,
-		text: r.text ?? '',
+		text: r.text,
 		type: normaliseQuestionType(r.type)
 	};
 }
 
-function denormaliseQuestionType(type: QuestionType): string | Record<string, unknown> {
+function denormaliseQuestionType<TText>(
+	type: QuestionType<TText>
+): string | Record<string, unknown> {
 	switch (type.kind) {
 		case 'text':
 			return 'text';
@@ -82,7 +85,7 @@ function denormaliseQuestionType(type: QuestionType): string | Record<string, un
 	}
 }
 
-function denormaliseQuestion(q: Question): ApiQuestion {
+function denormaliseQuestion<TText>(q: Question<TText>): ApiQuestion {
 	return {
 		id: q.id,
 		text: q.text,
@@ -92,19 +95,34 @@ function denormaliseQuestion(q: Question): ApiQuestion {
 
 /** Resolve a workflow step's tool config into the tool's ToolConfig shape. Live
  * conversations read `toolConfig`; design/preview reads `previewToolConfig`. */
-export function resolveToolConfig(workflowStep: WorkflowStepInput, isLive: boolean): ToolConfig {
+export function resolveToolConfig<TText>(
+	workflowStep: WorkflowStepInput,
+	isLive: boolean
+): ToolConfig<TText> {
 	const raw = (isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as
-		| { type?: string; questions?: unknown[]; randomize_order?: boolean }
+		| {
+				type?: string;
+				questions?: unknown[];
+				randomize_order?: boolean;
+				alignment_question_id?: string;
+				required_reviews?: number | null;
+		  }
 		| null
 		| undefined;
 	if (raw?.type !== 'prioritization')
-		return { questions: [], sectionQuestions: [], randomizeOrder: false };
+		return {
+			questions: [],
+			sectionQuestions: [],
+			randomizeOrder: false,
+			alignmentQuestionId: ''
+		};
 	const withSections = raw as typeof raw & { section_questions?: unknown[] };
 	return {
-		questions: (raw.questions ?? []).map(normaliseQuestion),
-		sectionQuestions: (withSections.section_questions ?? []).map(normaliseQuestion),
+		questions: (raw.questions ?? []).map(normaliseQuestion<TText>),
+		sectionQuestions: (withSections.section_questions ?? []).map(normaliseQuestion<TText>),
 		randomizeOrder: Boolean(raw.randomize_order),
-		alignmentQuestionId: raw.alignment_question_id
+		alignmentQuestionId: raw.alignment_question_id,
+		requiredReviews: raw.required_reviews ?? undefined
 	};
 }
 
@@ -222,7 +240,8 @@ export async function updateToolConfig(opts: {
 		questions: opts.toolConfig.questions.map(denormaliseQuestion),
 		sectionQuestions: opts.toolConfig.sectionQuestions.map(denormaliseQuestion),
 		randomizeOrder: opts.toolConfig.randomizeOrder,
-		alignmentQuestionId: opts.toolConfig.alignmentQuestionId
+		alignmentQuestionId: opts.toolConfig.alignmentQuestionId,
+		requiredReviews: opts.toolConfig.requiredReviews
 	});
 }
 
@@ -235,13 +254,15 @@ async function putToolConfig(opts: {
 	sectionQuestions: ApiQuestion[];
 	randomizeOrder: boolean;
 	alignmentQuestionId?: string;
+	requiredReviews?: number;
 }): Promise<void> {
 	const payload = {
 		type: 'prioritization' as const,
 		questions: opts.questions,
 		section_questions: opts.sectionQuestions,
 		randomize_order: opts.randomizeOrder,
-		...(opts.alignmentQuestionId && { alignment_question_id: opts.alignmentQuestionId })
+		...(opts.alignmentQuestionId && { alignment_question_id: opts.alignmentQuestionId }),
+		...(opts.requiredReviews != null && { required_reviews: opts.requiredReviews })
 	};
 	const body: PartialWorkflowStep = opts.isLive
 		? { tool_config: payload }

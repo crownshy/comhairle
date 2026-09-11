@@ -12,21 +12,30 @@ export function snakeToSentenceCase(str: string) {
 		.replace(/[-_]+(.)/g, (_, c) => ' ' + c.toUpperCase());
 }
 
-export function snakeCaseKeys(obj: { [key: string]: any }) {
+export function snakeToCamel(str: string) {
+	return str.toLowerCase().replace(/[-_][a-z]/g, (group) => group.slice(-1).toUpperCase());
+}
+
+export function recursiveCaseChangeKeys(
+	/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
+	obj: { [key: string]: any },
+	casingCb: (str: string) => string
+) {
+	/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
 	const temp: { [key: string]: any } = {};
 	for (const [key, value] of Object.entries(obj)) {
 		if (value && typeof value === 'object' && !Array.isArray(value)) {
 			// If value is an object recursively call function on value
-			temp[camelToSnakeCase(key)] = snakeCaseKeys(value);
+			temp[casingCb(key)] = recursiveCaseChangeKeys(value, casingCb);
 		} else if (typeof value === 'object' && Array.isArray(value)) {
 			// If value is an array of object recursively call function on entries
-			temp[camelToSnakeCase(key)] = value.map((item) =>
+			temp[casingCb(key)] = value.map((item) =>
 				item && typeof item === 'object' && !Array.isArray(item)
-					? snakeCaseKeys(item)
+					? recursiveCaseChangeKeys(item, casingCb)
 					: item
 			);
 		} else {
-			temp[camelToSnakeCase(key)] = value;
+			temp[casingCb(key)] = value;
 		}
 	}
 	return temp;

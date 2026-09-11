@@ -13,6 +13,13 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+
+	interface Window {
+		umami?: {
+			identify: (id?: string | null | Record<string, unknown>) => Promise<string>;
+			track: (...args: unknown[]) => Promise<string>;
+		};
+	}
 }
 
 export {};

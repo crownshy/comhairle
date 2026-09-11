@@ -68,6 +68,8 @@ pub struct ConversationDto {
     pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    pub show_thankyou_page_feedback_button: bool,
+    pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
 }
 
@@ -127,6 +129,8 @@ pub struct LocalizedConversationDto {
     pub call_to_action: Option<String>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    pub show_thankyou_page_feedback_button: bool,
+    pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
 }
 
@@ -158,6 +162,8 @@ impl From<Conversation> for ConversationDto {
             call_to_action: c.call_to_action,
             enable_signup_prompts: c.enable_signup_prompts,
             show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
+            show_thankyou_page_feedback_button: c.show_thankyou_page_feedback_button,
+            allow_revisit_after_finishing: c.allow_revisit_after_finishing,
             metadata: c.metadata,
         }
     }
@@ -194,6 +200,8 @@ impl FromWithMedia<LocalizedConversation> for LocalizedConversationDto {
             call_to_action: c.call_to_action,
             enable_signup_prompts: c.enable_signup_prompts,
             show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
+            show_thankyou_page_feedback_button: c.show_thankyou_page_feedback_button,
+            allow_revisit_after_finishing: c.allow_revisit_after_finishing,
             metadata: c.metadata,
         }
     }

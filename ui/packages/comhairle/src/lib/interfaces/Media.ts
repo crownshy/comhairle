@@ -1,6 +1,7 @@
 import { validate, type ValidationErr } from '$lib/components/EasyForm';
 import { tryFetch, type FetchErr, type Result } from '$lib/utils/errorHandling';
 import type { Schema } from '$lib/components/EasyForm';
+import { MediaContentType } from '@crownshy/api-client/api';
 
 type Opts = {
 	maxSize?: number; // in bytes
@@ -118,6 +119,56 @@ class Media {
 
 		return `${bytes}B`;
 	}
+
+	static acceptedExtensions(type: 'all' | 'audio' | 'video' | 'image' = 'all'): string {
+		const acceptedExtensions: AcceptedExtensions[] = [];
+
+		for (const mediaContentType of MediaContentType.options) {
+			// mediaContentType.match =  'audio' | 'video' | 'image'
+			if (type === 'all' || mediaContentType.match(/.*(?=\/)/)?.[0] === type) {
+				acceptedExtensions.push(contentTypeToAcceptedExtension(mediaContentType));
+			}
+		}
+
+		return acceptedExtensions.join(',');
+	}
 }
+
+/**
+ * Function to convert content-type into a file extension e.g.
+ * contentTypeToExtension("image/png") = ".png"
+ * contentTypeToExtension("video/webm") = ".webm"
+ * contentTypeToExtension("audio/mpeg") = ".mp3"
+ */
+function contentTypeToAcceptedExtension(contentType: MediaContentType) {
+	switch (contentType) {
+		case 'image/jpeg':
+			return '.jpg,.jpeg';
+		case 'image/png':
+			return '.png';
+		case 'image/gif':
+			return '.gif';
+		case 'image/webp':
+			return '.webp';
+		case 'video/mp4':
+			return '.mp4';
+		case 'video/mpeg':
+			return '.mpeg';
+		case 'video/webm':
+			return '.webm';
+		case 'audio/mpeg':
+			return '.mp3';
+		case 'audio/mp4':
+			return '.m4a';
+		case 'audio/webm':
+			return '.weba';
+		case 'audio/wav':
+			return '.wav';
+		case 'audio/ogg':
+			return '.oga';
+	}
+}
+
+export type AcceptedExtensions = ReturnType<typeof contentTypeToAcceptedExtension>;
 
 export default Media;

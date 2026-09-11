@@ -47,6 +47,7 @@
 	import EventRecordings from './EventRecordings.svelte';
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
+	import type { Locale } from '$lib/paraglide/runtime.js';
 
 	let url = $derived(page.url);
 	let { data } = $props();
@@ -81,8 +82,10 @@
 				status: invite.status
 			}))
 	);
-	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
-	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
+	let primaryLanguage = $derived<Locale>((data.conversation.primaryLocale as Locale) ?? 'en');
+	let supportedLanguages = $derived<Locale[]>(
+		(data.conversation.supportedLanguages as Locale[]) ?? ['en']
+	);
 
 	const timeZone = getLocalTimeZone();
 	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
@@ -102,7 +105,8 @@
 			start_time: utcTimeToLocal(event.startTime, timeZone),
 			end_time: utcTimeToLocal(event.endTime, timeZone),
 			signup_mode: event.signupMode,
-			format: event.format
+			format: event.format,
+			custom_event_link: event.customEventLink ?? ''
 		},
 		{
 			validators: zodClient(EventSchema),
@@ -178,6 +182,7 @@
 		try {
 			const eventParams = {
 				...eventData,
+				custom_event_link: eventData.custom_event_link?.trim() || '',
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
 				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
@@ -552,6 +557,33 @@
 			</Form.Field>
 		</div>
 
+		<!-- Custom Event Link -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field form={eventForm} name="custom_event_link" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label
+							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>
+							<span>Custom event link</span>
+							<span class="font-normal">Override default Jitsi meeting link</span>
+						</Form.Label>
+						<div class="flex-1">
+							<Input
+								{...props}
+								bind:value={$form.custom_event_link}
+								placeholder={`/conversations/${conversation.id}/events/${event.id}/live`}
+								disabled={$form.format !== 'online'}
+							/>
+							<Form.FieldErrors />
+						</div>
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
+		</div>
+
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
@@ -645,7 +677,7 @@
 		<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 	</div>
 {:else if activeTab === 'breakout'}
-	<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} />
+	<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} {attendees} />
 {:else if activeTab === 'recordings'}
 	<EventRecordings conversation_id={conversation.id} event_id={event.id} {recordings} />
 {/if}

@@ -11,16 +11,27 @@ export const load: PageLoad = async ({ depends, params }: LoadEvent) => {
 		return;
 	}
 
-	const response = await tryCatchAsync(() =>
+	const docsResponse = await tryCatchAsync(() =>
 		apiClient.ListDocuments({
 			params: { conversation_id }
 		})
 	);
 
-	if (response.err !== null) {
-		console.error(response.err);
+	if (docsResponse.err !== null) {
+		console.error(docsResponse.err);
 		return;
 	}
 
-	return { documents: response.ok };
+	const chatResponse = await tryCatchAsync(() =>
+		apiClient.GetChat({
+			params: { conversation_id }
+		})
+	);
+
+	if (chatResponse.err !== null) {
+		console.error(chatResponse.err);
+		return;
+	}
+
+	return { documents: docsResponse.ok, chat: chatResponse.ok };
 };

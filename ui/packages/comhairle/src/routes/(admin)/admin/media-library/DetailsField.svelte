@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Input } from '$lib/components/EasyForm';
+	import type { Snippet } from 'svelte';
 	import UpdateSchema from './UpdateSchema';
 
 	interface Props {
@@ -7,15 +8,15 @@
 		field: keyof typeof UpdateSchema;
 		initialValue: string;
 		label: string;
+		readOnlyField: Snippet<[label: string, value: string]>;
 	}
 
-	let { editable, field, initialValue, label }: Props = $props();
+	let { editable, field, initialValue, label, readOnlyField }: Props = $props();
 </script>
 
 <div class="flex flex-col">
 	{#if !editable}
-		<span class="text-muted-foreground mb-1 text-sm font-semibold">{label}</span>
-		<span class="mb-5">{initialValue}</span>
+		{@render readOnlyField(label, initialValue)}
 	{:else}
 		<Input
 			{...UpdateSchema[field]}

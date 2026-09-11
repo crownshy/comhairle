@@ -6,3 +6,4 @@ allowBuilds:
     '@carbon/charts': true
     '@carbon/colors': true
     '@carbon/utils-position': true
+    msw: true

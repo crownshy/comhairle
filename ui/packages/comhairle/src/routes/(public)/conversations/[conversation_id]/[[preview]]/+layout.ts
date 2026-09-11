@@ -22,6 +22,11 @@ export const load: LayoutLoad = async ({
 	preview: any; // TODO:
 }> => {
 	depends('app:documents');
+	// The participation row carries the seal, which the write that finishes the flow brings
+	// into existence. Without its own key, invalidating after that write reruns the workflow
+	// layout but not this one, so `sealed` here would stay false for the rest of the session
+	// and browser Back would walk straight into a step. See ADR-0016.
+	depends('app:participation');
 	const { api, user } = await parent();
 	const conversation_id = params.conversation_id;
 	const preview = params.preview === 'preview';

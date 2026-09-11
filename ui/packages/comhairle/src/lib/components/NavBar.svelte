@@ -99,7 +99,7 @@
 					class="gap-2 rounded-full text-base font-normal"
 				>
 					<Briefcase class="size-4" />
-					Workspace
+					{m.workspace()}
 				</Button>
 			{/if}
 			<ProfileMenu {user} />
@@ -133,7 +133,7 @@
 								</Avatar.Root>
 								<div class="flex flex-col">
 									<span class="text-foreground text-sm font-medium">
-										{#if user.authType === 'annon'}Anonymous{:else}{user.username}{/if}
+										{#if user.authType === 'guest'}Guest{:else}{user.guestCode}{/if}
 									</span>
 									{#if user.email}
 										<span class="text-muted-foreground text-xs"
@@ -194,7 +194,7 @@
 									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
 								>
 									<LayoutGrid class="text-muted-foreground size-5" />
-									Workspace
+									{m.workspace()}
 								</Button>
 							{/if}
 						</div>

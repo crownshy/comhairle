@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Search } from 'lucide-svelte';
 	import { getSearch, setSearch } from './utils';
+	import { m } from '$lib/paraglide/messages';
 
 	let value = $state(getSearch(page.url));
 	let debounceTimer: ReturnType<typeof setTimeout>;
@@ -32,7 +33,7 @@
 	<Input
 		id="conversations-search"
 		type="search"
-		placeholder="Search"
+		placeholder={m.conversations_search()}
 		aria-label="Search conversations"
 		{value}
 		oninput={onInput}

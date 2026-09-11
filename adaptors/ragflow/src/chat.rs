@@ -66,6 +66,8 @@ pub struct Prompt {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub cross_languages: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keywords_similarity_weight: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rerank_model: Option<String>,
@@ -79,12 +81,12 @@ pub struct Prompt {
     pub keyword: Option<bool>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct CreateChatResponse {
     pub data: Chat,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Chat {
     pub name: String,
     pub avatar: Option<String>,

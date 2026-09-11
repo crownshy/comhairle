@@ -62,7 +62,7 @@ impl CreateEventAttendance {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     new_event_attendance: &CreateEventAttendance,
@@ -152,7 +152,7 @@ impl UpdateEventAttendance {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -228,7 +228,7 @@ impl EventAttendanceFilterOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     event_id: Uuid,
@@ -261,7 +261,7 @@ pub async fn list(
 
 /// Every attendee of an event (with email), unpaginated. Used to seed the
 /// pre-assigned breakout plan.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_all_for_event(
     db: &PgPool,
     event_id: &Uuid,
@@ -288,7 +288,7 @@ pub async fn list_all_for_event(
     Ok(attendances)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventAttendanceIden::Table, col)))
@@ -306,7 +306,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhai
     Ok(event_attendance)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_event_and_user(
     db: &PgPool,
     event_id: &Uuid,
@@ -333,7 +333,7 @@ pub async fn get_by_event_and_user(
     Ok(event_attendance)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<EventAttendance, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(EventAttendanceIden::Table)

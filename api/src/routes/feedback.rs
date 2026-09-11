@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, State},
 };
 use hyper::StatusCode;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -25,6 +26,7 @@ use super::auth::{RequiredAdminUser, RequiredUser};
 
 pub mod dto;
 
+#[instrument(err(Debug), skip(state))]
 async fn create_feedback(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
@@ -38,6 +40,7 @@ async fn create_feedback(
     Ok((StatusCode::CREATED, Json(feedback)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn update_feedback(
     State(state): State<Arc<ComhairleState>>,
     Path((_, feedback_id)): Path<(Uuid, Uuid)>,
@@ -50,6 +53,7 @@ async fn update_feedback(
     Ok((StatusCode::OK, Json(feedback)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn list_feedback_for_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,

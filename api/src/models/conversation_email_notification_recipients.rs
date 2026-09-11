@@ -5,6 +5,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
@@ -57,6 +58,7 @@ impl CreateConversationEmailNotificationRecipients {
     }
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     recipient: &CreateConversationEmailNotificationRecipients,
@@ -80,6 +82,7 @@ pub async fn create(
     Ok(recipient)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation_and_email(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -106,6 +109,7 @@ pub async fn get_by_conversation_and_email(
     Ok(recipient)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -127,6 +131,7 @@ pub async fn get_by_conversation(
     Ok(recipients)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn delete_by_conversation_and_email(
     db: &PgPool,
     conversation_id: &Uuid,

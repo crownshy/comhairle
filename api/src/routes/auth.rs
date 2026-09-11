@@ -28,7 +28,7 @@ use time::Duration;
 pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
-        &state,
+        state,
         PermissionRole::Admin.system_triplet(),
         &user.id,
         user.organization_id.as_ref(),
@@ -53,20 +53,22 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
+use tower::util::option_layer;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::middleware::request_logging::ClientIp;
+use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
+use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
     Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
     UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
 };
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-    create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-    get_user_by_username, get_user_resource_roles, set_signup_ip, update_user,
+    create_guest_user, create_otp_user, create_user, get_guest_user_by_code, get_user_by_email,
+    get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
@@ -192,10 +194,10 @@ struct LoginRequest {
     password: String,
 }
 
-/// Expected payload for an annon login request
+/// Expected payload for an guest login request
 #[derive(Deserialize, JsonSchema)]
-struct AnnonLoginRequest {
-    username: String,
+struct GuestLoginRequest {
+    guest_code: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -289,21 +291,30 @@ pub struct SignupRequest {
     pub email: String,
 }
 
-/// Best-effort recording of the client IP on a newly created user. Failures are
-/// logged but never surfaced to the caller, so IP capture can't break signup.
-/// The IP is resolved by the request-logging middleware and passed through the
-/// request extensions as [`ClientIp`].
-async fn record_signup_ip(state: &Arc<ComhairleState>, user_id: &Uuid, client_ip: &ClientIp) {
-    if let Err(error) = set_signup_ip(user_id, &client_ip.0, &state.db).await {
-        warn!("Failed to record signup IP for user {user_id}: {error}");
+/// Best-effort recording of the client IP and browser signature on a newly
+/// created user. Failures are logged but never surfaced to the caller, so
+/// metadata capture can't break signup. Both values are resolved by the
+/// request-logging middleware and passed through the request extensions as
+/// [`ClientIp`] and [`ClientUserAgent`].
+async fn record_signup_metadata(
+    state: &Arc<ComhairleState>,
+    user_id: &Uuid,
+    client_ip: &ClientIp,
+    user_agent: &ClientUserAgent,
+) {
+    if let Err(error) =
+        set_signup_metadata(user_id, &client_ip.0, user_agent.0.as_deref(), &state.db).await
+    {
+        warn!("Failed to record signup metadata for user {user_id}: {error}");
     }
 }
 
 /// Signup handler
-#[instrument(err(Debug), skip(state, client_ip, payload))]
+#[instrument(err(Debug), skip(state, client_ip, user_agent, payload))]
 async fn signup(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
     Json(payload): Json<SignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
@@ -312,7 +323,7 @@ async fn signup(
 
     let user = create_user(&payload, &state.db).await?;
 
-    record_signup_ip(&state, &user.id, &client_ip).await;
+    record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
     send_verification_email(&user, &state)?;
 
@@ -337,16 +348,17 @@ async fn signup(
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
 
-/// Signup handler for annon
-#[instrument(err(Debug), skip(state, client_ip))]
-async fn signup_annon(
+/// Signup handler for guest
+#[instrument(err(Debug), skip(state, client_ip, user_agent))]
+async fn signup_guest(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = create_annon_user(&state.db).await?;
+    let user = create_guest_user(&state.db).await?;
 
-    record_signup_ip(&state, &user.id, &client_ip).await;
+    record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
     let cookie = create_session_cookie(&user, &state);
 
@@ -361,16 +373,17 @@ pub struct OtpSignupRequest {
     pub username: Option<String>,
 }
 
-#[instrument(err(Debug), skip(state, client_ip, payload))]
+#[instrument(err(Debug), skip(state, client_ip, user_agent, payload))]
 async fn signup_otp(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
     Json(payload): Json<OtpSignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_otp_user(&payload, &state.db).await?;
 
-    record_signup_ip(&state, &user.id, &client_ip).await;
+    record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
     send_verification_email(&user, &state)?;
 
@@ -426,20 +439,20 @@ async fn login(
 }
 
 #[instrument(err(Debug), skip(state, payload))]
-async fn login_annon(
+async fn login_guest(
     State(state): State<Arc<ComhairleState>>,
     cookies: CookieJar,
-    Json(payload): Json<AnnonLoginRequest>,
+    Json(payload): Json<GuestLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = get_user_by_username(&payload.username, &state.db).await?;
+    let user = get_guest_user_by_code(&payload.guest_code, &state.db).await?;
 
-    if user.auth_type != UserAuthType::Annon {
+    if user.auth_type != UserAuthType::Guest {
         // return not found to avoid revealing that a correct username has been used.
         return Err(ComhairleError::NoUserFound);
     }
 
     let claims = SessionClaims {
-        username: user.username.clone(),
+        username: user.guest_code.clone(),
         sudo_user: None,
         email_verified: user.email_verified,
         roles: Vec::new(),
@@ -565,7 +578,7 @@ async fn login_otp_token(
     let user = get_user_by_email(&token_data.claims.details.email, &state.db).await?;
     let now = Utc::now();
 
-    if user.auth_type == UserAuthType::Annon {
+    if user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -607,7 +620,7 @@ async fn verify_email_token(
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let current_user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
-    if current_user.auth_type == UserAuthType::Annon {
+    if current_user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -678,7 +691,7 @@ async fn password_reset_update(
 ) -> Result<StatusCode, ComhairleError> {
     let user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
-    if user.auth_type == UserAuthType::Annon {
+    if user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -1124,15 +1137,22 @@ pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> Co
 
 /// Function to set up the auth routes
 pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    // One strict per-IP bucket, shared by every route that takes or issues
+    // credentials, so rotating between login and signup does not buy extra
+    // attempts. Session reads (`current_user`, `logout`) stay off it: they run
+    // on every page render, and limiting them signs people out at random.
+    let credential_limit = option_layer(auth_rate_limiter_if_enabled(&state.config));
+
     ApiRouter::new()
         .api_route(
-            "/login_annon",
-            post_with(login_annon, |op| {
-                op.id("LoginAnnonUser")
+            "/login_guest",
+            post_with(login_guest, |op| {
+                op.id("LoginGuestUser")
                     .tag("Auth")
-                    .summary("Login an annon user")
+                    .summary("Login an guest user")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/login",
@@ -1141,7 +1161,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Login a user")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/login_otp",
@@ -1151,7 +1172,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Login an otp user")
                     .description("Login a user with a one time passcode")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/signup",
@@ -1160,16 +1182,18 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Signup a user with email and password")
                     .response::<201, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
-            "/signup_annon",
-            post_with(signup_annon, |op| {
-                op.id("SignupAnnonUser")
+            "/signup_guest",
+            post_with(signup_guest, |op| {
+                op.id("SignupGuestUser")
                     .tag("Auth")
-                    .summary("Signup and annon user")
+                    .summary("Signup and guest user")
                     .response::<201, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/signup_otp",
@@ -1178,7 +1202,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Signup a one-time-password user with an email")
                     .response::<201, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/create_otp",
@@ -1187,7 +1212,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Create and send a new one time passcode")
                     .response::<201, ()>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/login_otp_token",
@@ -1196,7 +1222,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Verify one-time-passcode from a JWT")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/logout",
@@ -1214,7 +1241,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Verify token from email verification link")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/resend_verification_email",
@@ -1223,7 +1251,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Resend email verification link to user")
                     .response::<200, ()>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/password_reset_create",
@@ -1232,7 +1261,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Create password reset flow by sending reset link to user email")
                     .response::<204, ()>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/password_reset_update",
@@ -1241,7 +1271,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Update password of user in reset flow")
                     .response::<204, ()>()
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/current_user",
@@ -1392,7 +1423,50 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_signup_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let email = "test_email";
+        let email = "test_email@email.com";
+        let username = "test_user";
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+
+        mailer.expect_send_verification_email().times(0);
+        mailer.expect_send_password_reset_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/auth/signup_otp",
+                json!({ "email": email, "username": username })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        let user: UserDto = serde_json::from_value(value)?;
+
+        assert_eq!(user.email, Some(email.to_string()), "incorrect email");
+        assert_eq!(
+            user.username,
+            Some(username.to_string()),
+            "incorrect username"
+        );
+        assert_eq!(user.auth_type, UserAuthType::Otp, "incorrect auth type");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_signup_otp_user_with_email_local_if_no_username(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
 
         let mut mailer = MockComhairleMailer::new();
         mailer
@@ -1418,6 +1492,11 @@ mod tests {
         let user: UserDto = serde_json::from_value(value)?;
 
         assert_eq!(user.email, Some(email.to_string()), "incorrect email");
+        assert_eq!(
+            user.username,
+            Some("test_email".to_string()),
+            "incorrect username"
+        );
         assert_eq!(user.auth_type, UserAuthType::Otp, "incorrect auth type");
 
         Ok(())
@@ -1478,6 +1557,7 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
+            guest_code: None,
             auth_type: UserAuthType::EmailPassword,
             avatar_url: None,
             email_verified: false,
@@ -1485,6 +1565,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1512,7 +1593,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1521,7 +1602,7 @@ mod tests {
         let secret = &state.config.jwt_secret.clone();
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new(username, password, email);
-        let (_, user, _) = session.signup_annon(&app).await?;
+        let (_, user, _) = session.signup_guest(&app).await?;
 
         let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
         let user = User {
@@ -1529,13 +1610,15 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            guest_code: None,
+            auth_type: UserAuthType::Guest,
             avatar_url: None,
             email_verified: false,
             organization_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1553,7 +1636,7 @@ mod tests {
         assert_eq!(
             status,
             StatusCode::INTERNAL_SERVER_ERROR,
-            "cannot verify annonymous user"
+            "cannot verify guest user"
         );
 
         Ok(())
@@ -1584,13 +1667,15 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             avatar_url: None,
             email_verified: user.email_verified,
             organization_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1662,7 +1747,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn other_user_types_should_not_be_able_to_annon_login(
+    fn other_user_types_should_not_be_able_to_guest_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -1675,38 +1760,42 @@ mod tests {
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
         session.logout(&app).await?;
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
-        assert_eq!(status, StatusCode::NOT_FOUND, "API should return NOT_FOUND");
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "API should return NOT_FOUND"
+        );
         Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_should_be_able_to_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_should_be_able_to_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut session = UserSession::new_anon();
-        session.signup_annon(&app).await?;
+        let mut session = UserSession::new_guest();
+        session.signup_guest(&app).await?;
         session.logout(&app).await?;
 
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
         assert_eq!(status, StatusCode::OK, "API should respond OK");
         Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn unknown_username_should_not_be_able_to_annon_login(
+    fn unknown_guest_code_should_not_be_able_to_guest_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut session = UserSession::new_anon();
-        session.username = Some("foo".to_string());
+        let mut session = UserSession::new_guest();
+        session.guest_code = Some("foo".to_string());
 
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
         assert_eq!(
             status,
@@ -1717,7 +1806,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1727,15 +1816,6 @@ mod tests {
 
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
-
-        let mut session = UserSession::new(username, password, "test_email2");
-        let (status, _, _) = session.signup(&app).await?;
-
-        assert_eq!(
-            status,
-            StatusCode::CONFLICT,
-            "Should not be able to have same username"
-        );
 
         let mut session = UserSession::new("test_user2", crate::test_helpers::TEST_PASSWORD, email);
         let (status, _, _) = session.signup(&app).await?;
@@ -1782,34 +1862,34 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_should_by_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_should_be_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut annon_user = UserSession::new_anon();
-        let (status, _, _) = annon_user.signup_annon(&app).await?;
+        let mut guest_user = UserSession::new_guest();
+        let (status, _, _) = guest_user.signup_guest(&app).await?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
 
-        let (status, user_response, _) = annon_user.current_user(&app).await?;
+        let (status, user_response, _) = guest_user.current_user(&app).await?;
 
-        assert_eq!(status, StatusCode::OK, "Should be ok ");
+        assert_eq!(status, StatusCode::OK, "Should be ok");
 
         assert!(
-            user_response.username.is_some(),
-            "current annon user should have a username"
+            user_response.guest_code.is_some(),
+            "current guest user should have a guest_code"
         );
 
         assert_eq!(
             user_response.auth_type,
-            UserAuthType::Annon,
-            "current annon user should have a username"
+            UserAuthType::Guest,
+            "current guest user should have guest auth_type"
         );
 
         assert_ne!(
             user_response.id,
             Uuid::nil(),
-            "current annon user should have an id"
+            "current guest user should have an id"
         );
 
         Ok(())
@@ -1908,12 +1988,14 @@ mod tests {
             password: Some(password.to_string()),
             username: Some(username.to_string()),
             auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             avatar_url: None,
             email_verified: false,
             organization_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -1974,11 +2056,13 @@ mod tests {
             password: Some(password.to_string()),
             avatar_url: None,
             auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             email_verified: false,
             organization_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -2002,33 +2086,34 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let secret = state.config.jwt_secret.clone();
         let app = setup_server(Arc::new(state)).await?;
-        let mut session = UserSession::new_anon();
-        let (_, user, _) = session.signup_annon(&app).await?;
+        let mut session = UserSession::new_guest();
+        let (_, user, _) = session.signup_guest(&app).await?;
 
         let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
-        let username = user
-            .get("username")
+        let guest_code = user
+            .get("guestCode")
             .unwrap()
             .as_ref()
-            .unwrap()
-            .as_str()
+            .and_then(|v| v.as_str())
             .unwrap();
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: None,
             password: None,
-            username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            username: None,
+            auth_type: UserAuthType::Guest,
+            guest_code: Some(guest_code.to_string()),
             avatar_url: None,
             email_verified: false,
             organization_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
         let claims = EmailLinkClaims { email: None };
         let token = generate_jwt()
@@ -2044,7 +2129,7 @@ mod tests {
         assert_eq!(
             status,
             StatusCode::INTERNAL_SERVER_ERROR,
-            "annon users cannot reset password"
+            "guest users cannot reset password"
         );
 
         Ok(())

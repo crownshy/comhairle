@@ -53,6 +53,7 @@ use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 pub mod dto;
 
 /// Create conversation handler
+#[instrument(err(Debug), skip(state))]
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -73,6 +74,7 @@ async fn create_conversation(
 }
 
 /// Update conversation handler
+#[instrument(err(Debug), skip(state))]
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -90,6 +92,7 @@ async fn update_conversation(
 /// Shallow-merge the request body into the conversation's `metadata` jsonb
 /// column. Keys present in the body are written; keys not present are left
 /// untouched. The body must be a JSON object.
+#[instrument(err(Debug), skip(state))]
 async fn patch_conversation_metadata(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
@@ -102,6 +105,7 @@ async fn patch_conversation_metadata(
 }
 
 /// List conversations handler
+#[instrument(err(Debug), skip(state))]
 async fn list_conversations(
     State(state): State<Arc<ComhairleState>>,
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
@@ -140,6 +144,7 @@ async fn list_conversations(
     Ok((StatusCode::OK, Json(results_with_media)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
@@ -351,6 +356,7 @@ async fn remove_conversation_cohost(
 }
 
 /// Delete a specific conversation
+#[instrument(err(Debug), skip(state))]
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -368,7 +374,7 @@ async fn delete_conversation(
     Ok((StatusCode::OK, Json(conversation)))
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize, JsonSchema, Debug)]
 pub struct SendNotificationRequest {
     pub title: String,
     pub content: String,
@@ -383,7 +389,7 @@ pub struct SendNotificationRequest {
     pub test_email_recipient: Option<String>,
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize, JsonSchema, Debug)]
 pub struct RegisterEmailRequest {
     pub email: String,
     pub receive_updates_by_email: bool,
@@ -423,6 +429,7 @@ pub struct NotificationRecipientsResponse {
 }
 
 /// Preview the recipient lists for the notify page (count + email list).
+#[instrument(err(Debug), skip(state))]
 async fn get_notification_recipients(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -451,6 +458,7 @@ async fn get_notification_recipients(
 }
 
 /// Send notification to all conversation participants
+#[instrument(err(Debug), skip(state))]
 async fn send_notification_to_participants(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -675,6 +683,7 @@ async fn send_broadcast_email_to_opted_in(
 }
 
 /// Register email for conversation updates
+#[instrument(err(Debug), skip(state))]
 async fn register_email_for_updates(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
@@ -724,6 +733,7 @@ async fn register_email_for_updates(
     ))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn export_conversation_contacts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
@@ -800,6 +810,7 @@ async fn export_conversation_contacts(
     ))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn export_conversation_demographics(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
@@ -836,11 +847,31 @@ async fn export_conversation_demographics(
         for profile in demographics {
             writer.write_record(&[
                 profile.user_id.to_string(),
-                profile.ethnicity.unwrap_or_default(),
-                profile.age.map(|a| a.to_string()).unwrap_or_default(),
-                profile.gender.unwrap_or_default(),
-                profile.zipcode.unwrap_or_default(),
-                profile.political_party.unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("ethnicity")
+                    .map(|d| d.value.clone())
+                    .unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("age")
+                    .map(|d| d.value.clone())
+                    .unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("gender")
+                    .map(|d| d.value.clone())
+                    .unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("zipcode")
+                    .map(|d| d.value.clone())
+                    .unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("political_party")
+                    .map(|d| d.value.clone())
+                    .unwrap_or_default(),
                 profile.created_at.to_rfc3339(),
             ])?;
         }
@@ -1041,6 +1072,9 @@ mod tests {
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
     use crate::models::conversation::PartialConversation;
+    use crate::models::demographics::{
+        CreateConversationDemographics, create_conversation_demographics,
+    };
     use crate::models::permissions::{
         GrantRoleRequest, OrganizationWithPermissionDto, Role, UserOrOrganizationId, grant_role,
     };
@@ -1058,6 +1092,7 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
+
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
@@ -2056,6 +2091,19 @@ mod tests {
         let workflow: crate::routes::workflows::dto::WorkflowDto =
             serde_json::from_value(workflow)?;
 
+        // Add default demographics to conversation
+        let default_questions = vec!["age", "ethnicity", "gender", "zipcode", "political_party"];
+        for question_slug in default_questions {
+            let _ = create_conversation_demographics(
+                &pool,
+                CreateConversationDemographics {
+                    conversation_id: conversation.id,
+                    question_slug: question_slug.to_string(),
+                },
+            )
+            .await?;
+        }
+
         // Create test users with profiles
         let user1 = crate::models::users::create_user(
             &SignupRequest {
@@ -2128,9 +2176,9 @@ mod tests {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
+        let body = response.into_body().collect().await?.to_bytes();
         assert_eq!(status, StatusCode::OK, "Should export successfully");
 
-        let body = response.into_body().collect().await?.to_bytes();
         let csv_string = String::from_utf8(body.to_vec())?;
 
         // Verify CSV contains expected headers

@@ -24,9 +24,17 @@ jobs:
       tags: crownshy/comhairle_frontend:${{ github.ref_name }}
       dry_run: ${{ inputs.dry_run || false }}
     secrets: inherit
-          
+
   build-and-push-staging:
     if: github.ref == 'refs/heads/staging'
+    uses: ./.github/workflows/frontend-build-shared.yml
+    with:
+      tags: crownshy/comhairle_frontend:${{ github.sha }}
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
+
+  build-and-push-demo-young-scot:
+    if: github.ref == 'refs/heads/demo/young-scot'
     uses: ./.github/workflows/frontend-build-shared.yml
     with:
       tags: crownshy/comhairle_frontend:${{ github.sha }}

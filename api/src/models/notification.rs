@@ -7,6 +7,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -187,7 +188,7 @@ impl NotificationOrderOptions {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[cfg_attr(test, derive(Dummy))]
 pub struct CreateNotification {
     pub title: String,
@@ -226,6 +227,7 @@ impl CreateNotification {
     }
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     notification: &CreateNotification,
@@ -248,6 +250,7 @@ pub async fn create(
     Ok(notification)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -263,6 +266,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Notification, Comhairle
     Ok(notification)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -288,6 +292,7 @@ pub async fn update(
     Ok(notification)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(NotificationIden::Table)
@@ -303,6 +308,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleErr
     Ok(notification)
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,

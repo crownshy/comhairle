@@ -581,6 +581,7 @@ async fn cache_set_role_list(
 }
 
 /// Loads all role names assigned to a specific actor on a specific resource from Postgres.
+#[instrument(err(Debug), skip(db))]
 async fn fetch_actor_roles_for_resource(
     db: &PgPool,
     resource_type: &str,
@@ -617,6 +618,7 @@ async fn fetch_actor_roles_for_resource(
 }
 
 /// Returns role names for an actor on a resource, using Redis cache when available.
+#[instrument(err(Debug), skip(state))]
 async fn get_actor_roles_for_resource(
     state: &Arc<ComhairleState>,
     resource_type: &str,
@@ -655,6 +657,7 @@ async fn get_actor_roles_for_resource(
 /// assigned.
 /// * Returns [`ComhairleError::DatabaseError`] if there is an error interacting
 /// with the database.
+#[instrument(err(Debug), skip(state))]
 pub async fn grant_role(
     state: &Arc<ComhairleState>,
     request: GrantRoleRequest<'_>,
@@ -716,6 +719,7 @@ pub async fn grant_role(
 /// granted.
 /// * Returns [`ComhairleError::DatabaseError`] if there is an error interactin
 /// with the database.
+#[instrument(err(Debug), skip(state))]
 pub async fn revoke_role(
     state: &Arc<ComhairleState>,
     request: RevokeRoleRequest<'_>,
@@ -804,6 +808,7 @@ pub struct ListPermissionsFilters<'request> {
 /// # Errors
 ///
 /// Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
+#[instrument(err(Debug), skip(state))]
 pub async fn list_permissions(
     state: &Arc<ComhairleState>,
     request: ListPermissionsFilters<'_>,
@@ -842,6 +847,7 @@ pub async fn list_permissions(
 }
 
 /// Check whether a user, or their organization, has a specific role on a resource.
+#[instrument(err(Debug), skip(state))]
 pub async fn has_resource_permission(
     state: &Arc<ComhairleState>,
     permission_triplet: PermissionTriplet<'_>,
@@ -881,6 +887,7 @@ pub async fn has_resource_permission(
 }
 
 /// Check whether a user, or their organization, can perform an action on a resource.
+#[instrument(err(Debug), skip(state))]
 pub async fn can_perform_resource_action(
     state: &Arc<ComhairleState>,
     resource_id: &Uuid,
@@ -952,7 +959,7 @@ pub struct OrganizationWithPermissionDto {
     pub role_name: String,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_users_with_permission(
     db: &PgPool,
     resource_type: &str,
@@ -1013,7 +1020,7 @@ pub async fn list_users_with_permission(
     Ok(users_with_permission)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_organizations_with_permission(
     db: &PgPool,
     resource_type: &str,
@@ -1078,6 +1085,47 @@ pub async fn list_organizations_with_permission(
     let organizations_with_permission = query_as_with(&sql, values).fetch_all(db).await?;
 
     Ok(organizations_with_permission)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn list_permissions_by_action(
+    db: &PgPool,
+    user_id: Uuid,
+    organization_id: Option<Uuid>,
+    action: &str,
+) -> Result<Vec<ResourcePermission>, ComhairleError> {
+    let Ok(action_enum) = action.parse::<Action>() else {
+        return Err(ComhairleError::BadRequest(format!(
+            "Invalid action: {}",
+            action
+        )));
+    };
+
+    let roles = Role::for_resource_type(action_enum.resource_type())
+        .filter(|role| role.actions().contains(&action_enum))
+        .map(|role| role.as_ref().to_string())
+        .collect::<Vec<String>>();
+
+    let mut query = Query::select();
+
+    query
+        .from(ResourcePermissionIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(ResourcePermissionIden::RoleName).is_in(roles))
+        .and_where(Expr::col(ResourcePermissionIden::UserId).eq(user_id.to_owned()));
+
+    if let Some(org_id) = organization_id {
+        query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(org_id.to_owned()));
+    }
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let permissions = query_as_with(&sql, values)
+        .fetch_all(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)?;
+
+    Ok(permissions)
 }
 
 #[cfg(test)]
@@ -1562,6 +1610,78 @@ mod tests {
             "role {} should appear exactly once across pages",
             OtherRole::name()
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_list_permissions_by_action(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        // Create three test resources
+        let resource_1_id = Uuid::new_v4(); // Simulated conversation resource
+        let resource_2_id = Uuid::new_v4(); // Simulated conversation resource
+        let resource_3_id = Uuid::new_v4(); // Simulated organization resource
+
+        // Grant the conversation co host and conversation content editor roles to the user for resource_1 and resource_2
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user_id),
+                permission_triplet: Role::ConversationCoHost.triplet(&resource_1_id),
+                granted_by: &session.id.unwrap(),
+                grant_reason: "Testing",
+            },
+        )
+        .await?;
+
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user_id),
+                permission_triplet: Role::ConversationContentEditor.triplet(&resource_2_id),
+                granted_by: &session.id.unwrap(),
+                grant_reason: "Testing",
+            },
+        )
+        .await?;
+
+        // Grant the organization admin role to the user for resource_3
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user_id),
+                permission_triplet: Role::OrganizationAdmin.triplet(&resource_3_id),
+                granted_by: &session.id.unwrap(),
+                grant_reason: "Testing",
+            },
+        )
+        .await?;
+
+        // List permissions which permit the user to perform the "conversation_read" action
+        let permissions =
+            list_permissions_by_action(&state.db, user_id, None, "conversation_read").await?;
+
+        assert_eq!(permissions.len(), 2);
+        assert!(permissions.iter().any(|p| p.resource_id == resource_1_id));
+        assert!(permissions.iter().any(|p| p.resource_id == resource_2_id));
+
+        // List permissions which permit the user to perform the "conversation_update" action
+        let permissions =
+            list_permissions_by_action(&state.db, user_id, None, "conversation_update").await?;
+
+        assert_eq!(permissions.len(), 1);
+        assert_eq!(permissions[0].resource_id, resource_2_id);
+
+        // List permissions which permit the user to perform the "organization_update" action
+        let permissions =
+            list_permissions_by_action(&state.db, user_id, None, "organization_update").await?;
+
+        assert_eq!(permissions.len(), 1);
+        assert_eq!(permissions[0].resource_id, resource_3_id);
 
         Ok(())
     }

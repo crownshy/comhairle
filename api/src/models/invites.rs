@@ -61,7 +61,7 @@ impl Invite {
         }
     }
 
-    #[instrument(err(Debug))]
+    #[instrument(err(Debug), skip(db))]
     pub async fn accept(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
         let new_status = if self.status == InviteStatus::Open {
             InviteStatus::Open
@@ -90,7 +90,7 @@ impl Invite {
         Ok(invite)
     }
 
-    #[instrument(err(Debug))]
+    #[instrument(err(Debug), skip(db))]
     pub async fn reject(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
         let new_status = if self.status == InviteStatus::Pending {
             InviteStatus::Rejected
@@ -208,12 +208,12 @@ pub enum LoginBehaviour {
     /// to finish the login
     #[default]
     Manual,
-    /// If the user is logged out, automatically create an annon
+    /// If the user is logged out, automatically create a guest
     /// account to let them access the system  
-    AutoCreateAnnon,
+    AutoCreateGuest,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_conversation(
     db: &PgPool,
     conversation_id: &Uuid,
@@ -232,7 +232,7 @@ pub async fn list_for_conversation(
     Ok(invites)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list_for_event(db: &PgPool, event_id: &Uuid) -> Result<Vec<Invite>, ComhairleError> {
     let query = Query::select()
         .from(InviteIden::Table)
@@ -249,7 +249,7 @@ pub async fn list_for_event(db: &PgPool, event_id: &Uuid) -> Result<Vec<Invite>,
     Ok(invites)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, invite_id: &Uuid) -> Result<Invite, ComhairleError> {
     let (sql, values) = Query::select()
         .from(InviteIden::Table)
@@ -265,7 +265,7 @@ pub async fn get_by_id(db: &PgPool, invite_id: &Uuid) -> Result<Invite, Comhairl
     Ok(invite)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -291,7 +291,7 @@ pub async fn update(
     Ok(invite)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Invite, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(InviteIden::Table)
@@ -307,7 +307,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Invite, ComhairleError> {
     Ok(invite)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     create_invite: CreateInviteDTO,
@@ -364,6 +364,7 @@ pub struct DailyResponseStats {
     reject: i32,
 }
 
+#[instrument(err(Debug), skip(db))]
 pub async fn get_stats_for_invite(
     db: &PgPool,
     invite_id: &Uuid,
@@ -415,11 +416,13 @@ mod tests {
             avatar_url: Some("".into()),
             auth_type: users::UserAuthType::EmailPassword,
             email: Some("TestEmail@gmail.com".into()),
+            guest_code: None,
             email_verified: false,
             organization_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             signup_ip: None,
+            signup_user_agent: None,
         };
 
         let invite = Invite {

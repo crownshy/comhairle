@@ -310,6 +310,7 @@ pub struct ComhairlePrompt {
     pub llm_prompt: Option<String>,
     pub opener: Option<String>,
     pub empty_response: Option<String>,
+    pub cross_languages: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]

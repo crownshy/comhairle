@@ -82,7 +82,15 @@ export interface VariablePrice {
 	ref: string;
 }
 
+export interface Parent {
+	id: string;
+	title: string;
+}
+
 export interface Properties {
+	// Custom property for checking if it's a nested question
+	parent?: Parent;
+
 	// Statement
 	showButton?: boolean;
 	buttonText?: string;
@@ -179,28 +187,35 @@ export interface FormField {
 	hide?: boolean;
 }
 
-export type HeyFormFullNameValue = { firstName: string; lastName: string };
-export type HeyFormAddressValue = {
-	address1: string;
-	address2: string;
-	county: string;
-	postcode: string;
-	country: string;
-};
-export type HeyFormDateRangeValue = {
-	end: string;
-	start: string;
-};
+export type HeyFormEmptyValue = '' | { value: [] };
+export type HeyFormFullNameValue = { firstName: string; lastName: string } | '';
+export type HeyFormAddressValue =
+	| {
+			address1: string;
+			address2: string;
+			county: string;
+			postcode: string;
+			country: string;
+	  }
+	| '';
+export type HeyFormDateRangeValue =
+	| {
+			end: string;
+			start: string;
+	  }
+	| '';
 export type HeyFormRankedValue = {
 	value: string[];
 };
-export type HeyFormMatrixValue = Record<string, number>;
+export type HeyFormMatrixValue = Record<string, number> | { value: [] };
 export type HeyFormLegalTermsValue = boolean;
-export type HeyFormFileUploadValue = {
-	filename: string;
-	size: number;
-	url: string;
-};
+export type HeyFormFileUploadValue =
+	| {
+			filename: string;
+			size: number;
+			url: string;
+	  }
+	| '';
 
 export type HeyFormChoiceFieldKind = (typeof HEYFORM_CHOICE_FIELD_KIND)[number];
 export type HeyFormNonChoiceFieldKind = (typeof HEYFORM_NON_CHOICE_FIELD_KIND)[number];

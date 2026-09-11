@@ -3,7 +3,7 @@ import type { PageLoad } from './$types';
 import type { ConversationDto, UserProgressDto, WorkflowStepDto } from '@crownshy/api-client/api';
 
 export const load: PageLoad = async ({ parent, params }) => {
-	const { api } = await parent();
+	const { api, sealed } = await parent();
 	const { conversation_id, workflow_id, preview } = params;
 	const isPreview = preview === 'preview';
 
@@ -26,6 +26,13 @@ export const load: PageLoad = async ({ parent, params }) => {
 		console.error(e);
 
 		return { error: e.response?.data?.err || fallbackError };
+	}
+
+	// This is the route behind the "come back to the conversation" links participants are
+	// emailed, so it is the most likely way a sealed participant re-enters. `/next` sends them
+	// on to the thank-you page.
+	if (sealed) {
+		redirect(302, redirectUrl);
 	}
 
 	if (userProgress.length === 0 || userProgress.some((progress) => progress.status !== 'done')) {

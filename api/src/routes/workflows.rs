@@ -12,6 +12,7 @@ use axum::{
     extract::{FromRequestParts, Path, State},
     http::{StatusCode, request::Parts},
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -21,12 +22,13 @@ use crate::{
         conversation::{self, PartialConversation},
         user_participation::{self, UserParticipation},
         user_profile::{self, DemographicReport},
+        user_progress,
         workflow::{self, CreateWorkflow, PartialWorkflow, WorkflowStats},
         workflow_step::{self, WorkflowStep},
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
-        workflows::dto::WorkflowDto,
+        workflows::dto::{UserParticipationDto, WorkflowDto},
     },
 };
 
@@ -111,6 +113,7 @@ impl FromRequestParts<Arc<ComhairleState>> for WorkflowPathCtx {
 
 /// Return the first step in the workflow that is not "done" for the
 /// current user
+#[instrument(err(Debug), skip(state))]
 async fn active_step_for_user(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -125,6 +128,7 @@ async fn active_step_for_user(
 /// This end point will create a user participation
 /// entry and a UserProgress entry for each of the
 /// workflow_steps in this workflow
+#[instrument(err(Debug), skip(state))]
 async fn register_user_for_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -135,6 +139,7 @@ async fn register_user_for_workflow(
 }
 
 /// Remove a user from a given workflow
+#[instrument(err(Debug), skip(state))]
 async fn deregister_user_on_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -146,16 +151,28 @@ async fn deregister_user_on_workflow(
 
 /// Returns the participation
 /// status of a user on a workflow
+#[instrument(err(Debug), skip(state))]
 async fn get_user_participation(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
-) -> Result<(StatusCode, Json<Option<UserParticipation>>), ComhairleError> {
-    let user_participation = user_participation::get(&state.db, &user.id, &workflow_id).await?;
-    Ok((StatusCode::OK, Json(user_participation)))
+) -> Result<(StatusCode, Json<Option<UserParticipationDto>>), ComhairleError> {
+    // No participation row means this user has never started the workflow, so there is
+    // nothing to seal and no seal to look up. Answering with null rather than a synthetic row
+    // keeps the existing contract: the conversation landing page and the invite page both
+    // branch on participation being absent.
+    let Some(participation) = user_participation::get(&state.db, &user.id, &workflow_id).await?
+    else {
+        return Ok((StatusCode::OK, Json(None)));
+    };
+
+    let sealed = user_progress::is_sealed(&state.db, &user.id, &workflow_id).await?;
+
+    Ok((StatusCode::OK, Json(Some(participation.into_dto(sealed)))))
 }
 
 /// Create workflow handler
+#[instrument(err(Debug), skip(state))]
 async fn create_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -197,6 +214,7 @@ async fn create_workflow(
     }
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn get_workflow_stats(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -205,6 +223,7 @@ async fn get_workflow_stats(
     Ok((StatusCode::OK, Json(stats)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn get_participation_report(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -214,6 +233,7 @@ async fn get_participation_report(
 }
 
 /// Update workflow handler
+#[instrument(err(Debug), skip(state))]
 async fn update_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -227,6 +247,7 @@ async fn update_workflow(
 }
 
 /// List workflows handler
+#[instrument(err(Debug), skip(state))]
 async fn list_workflows(
     State(state): State<Arc<ComhairleState>>,
     SourcePathCtx {
@@ -243,6 +264,7 @@ async fn list_workflows(
 }
 
 /// Get a specific workflow
+#[instrument(err(Debug), skip(state))]
 async fn get_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -253,6 +275,7 @@ async fn get_workflow(
 }
 
 /// Delete a specific workflow
+#[instrument(err(Debug), skip(state))]
 async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
@@ -384,7 +407,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                         .tag("Workflow")
                         .security_requirement("JWT")
                         .summary("Returns the status of the current user on this workflow")
-                        .response::<200, Json<Option<UserParticipation>>>()
+                        .response::<200, Json<Option<UserParticipationDto>>>()
                 }),
             ),
         _ => router,

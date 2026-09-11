@@ -8,6 +8,7 @@
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { RefreshCw, Search } from '@lucide/svelte';
 	import AddSeedStatementsDialog from './polis-moderation/AddSeedStatementsDialog.svelte';
+	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 
 	let {
@@ -93,8 +94,31 @@
 	let selected = $state<Record<string, boolean>>({});
 	const selectedVisible = $derived(visible.filter((r) => selected[r.id]));
 
-	function toggleSelect(id: string, checked: boolean) {
+	// The last plainly-clicked row, used as the anchor for shift-click range
+	// selection. Ranges are computed against `visible` so they follow the current
+	// filter/search/sort order, not the raw data order.
+	let anchorId = $state<string | null>(null);
+
+	function toggleSelect(id: string, checked: boolean, range = false) {
+		// Shift-click: select every visible row between the anchor and this row
+		// (inclusive). Falls back to a plain toggle if there's no anchor or it's
+		// no longer visible (e.g. filtered out since it was clicked).
+		if (range && anchorId !== null && anchorId !== id) {
+			const order = visible.map((r) => r.id);
+			const a = order.indexOf(anchorId);
+			const b = order.indexOf(id);
+			if (a !== -1 && b !== -1) {
+				const [lo, hi] = a < b ? [a, b] : [b, a];
+				const next = { ...selected };
+				for (let i = lo; i <= hi; i++) next[order[i]] = true;
+				selected = next;
+				// Keep the anchor put so the range can be re-adjusted with another
+				// shift-click, matching standard file-list behaviour.
+				return;
+			}
+		}
 		selected = { ...selected, [id]: checked };
+		anchorId = id;
 	}
 	function toggleSelectAll(checked: boolean) {
 		const next = { ...selected };
@@ -103,30 +127,38 @@
 	}
 	function clearSelection() {
 		selected = {};
+		anchorId = null;
 	}
 
 	// Which bulk action is in flight (drives the per-button spinner); null when idle.
 	let bulkAction = $state<'accepted' | 'rejected' | null>(null);
 	const bulkWorking = $derived(bulkAction !== null);
 
-	async function bulkModerate(status: 'accepted' | 'rejected') {
+	async function bulkModerate(status: 'accepted' | 'rejected', reason?: string) {
 		const decision = status === 'accepted' ? 'accept' : 'reject';
 		// Skip rows already in the target status.
 		const targets = selectedVisible.filter((r) => r.moderation_status !== status);
 		if (!targets.length || bulkWorking) return;
 		bulkAction = status;
 
-		// Optimistic: flip all targets at once.
+		// Optimistic: flip all targets at once, applying the shared reason (accept
+		// clears it, matching the backend, ADR-0015).
 		const ids = targets.map((t) => t.id);
 		const idSet = new Set(ids);
 		statements = statements.map((s) =>
-			idSet.has(s.id) ? { ...s, moderation_status: status } : s
+			idSet.has(s.id)
+				? { ...s, moderation_status: status, moderation_reason: reason ?? null }
+				: s
 		);
 
 		// One request: the backend logs in to Polis once, moderates every id, and
 		// reports per-row failures rather than failing the whole batch.
 		const result = await tryCatchAsync(() =>
-			apiClient.PolisModerateStatementAuxBatch({ ids, decision })
+			apiClient.PolisModerateStatementAuxBatch({
+				ids,
+				decision,
+				moderation_reason: reason ?? null
+			})
 		);
 
 		bulkAction = null;
@@ -153,31 +185,89 @@
 	// Track in-flight requests per aux row so the buttons can disable mid-call.
 	let pending = $state<Record<string, boolean>>({});
 
-	async function setStatus(row: PolisStatementAux, status: 'accepted' | 'rejected') {
+	async function setStatus(
+		row: PolisStatementAux,
+		status: 'accepted' | 'rejected',
+		reason?: string
+	) {
+		// If the clicked row is part of an active selection, the per-row accept/reject
+		// applies to the whole selection (same as the bulk bar). Clicking a row that
+		// isn't selected stays a single-row action.
+		if (selected[row.id]) return bulkModerate(status, reason);
+
 		if (pending[row.id] || row.moderation_status === status) return;
 		const decision = status === 'accepted' ? 'accept' : 'reject';
 		pending = { ...pending, [row.id]: true };
 
-		// Optimistic update; roll back on failure.
-		const prevStatus = row.moderation_status;
+		// Optimistic update; roll back on failure. Accept clears any prior reason
+		// (matches the backend, ADR-0015); reject shows the new one immediately.
+		const prev = row;
 		statements = statements.map((s) =>
-			s.id === row.id ? { ...s, moderation_status: status } : s
+			s.id === row.id
+				? { ...s, moderation_status: status, moderation_reason: reason ?? null }
+				: s
 		);
 
 		const res = await tryCatchAsync(() =>
-			apiClient.PolisModerateStatementAux({ decision }, { params: { id: row.id } })
+			apiClient.PolisModerateStatementAux(
+				{ decision, moderation_reason: reason ?? null },
+				{ params: { id: row.id } }
+			)
 		);
 		pending = { ...pending, [row.id]: false };
 
 		if (res.err !== null) {
 			console.error('PolisModerateStatementAux failed', res.err);
-			statements = statements.map((s) =>
-				s.id === row.id ? { ...s, moderation_status: prevStatus } : s
-			);
+			statements = statements.map((s) => (s.id === row.id ? prev : s));
 			notifications.send({ priority: 'ERROR', message: 'Failed to update statement' });
 			return;
 		}
 		statements = statements.map((s) => (s.id === row.id ? res.ok : s));
+	}
+
+	// --- Split / reword ---
+	// A derived statement carries `original_statement_id`; the rejected original is
+	// linked back to its replacements. Both directions are resolved here from the
+	// full (unfiltered) list so the row can show "Edited from" / "Replaced by".
+	const lineage = $derived.by(() => {
+		// First pass builds both indexes. The result pass below has to stay
+		// separate: it reads `replacementsByOriginal[s.id]`, which isn't complete
+		// until every statement has been seen (a replacement may sit before or
+		// after its original in the list).
+		const byId = new Map<string, PolisStatementAux>();
+		const replacementsByOriginal: Record<string, string[]> = {};
+		for (const s of statements) {
+			byId.set(s.id, s);
+			if (s.original_statement_id) {
+				(replacementsByOriginal[s.original_statement_id] ??= []).push(s.statement_text);
+			}
+		}
+		const result: Record<string, { editedFrom?: string; replacedBy?: string[] }> = {};
+		for (const s of statements) {
+			const editedFrom = s.original_statement_id
+				? byId.get(s.original_statement_id)?.statement_text
+				: undefined;
+			const replacedBy = replacementsByOriginal[s.id];
+			if (editedFrom || replacedBy) result[s.id] = { editedFrom, replacedBy };
+		}
+		return result;
+	});
+
+	let splitTarget = $state<PolisStatementAux | null>(null);
+	let splitOpen = $state(false);
+
+	// The statement the participant was viewing when they submitted the target, if we
+	// can resolve it. `visible_statement_when_submitted` stores the Polis tid.
+	const splitContext = $derived.by(() => {
+		const tid = splitTarget?.visible_statement_when_submitted;
+		if (!tid) return undefined;
+		const n = Number(tid);
+		return statements.find((s) => s.polis_statement_id === n)?.statement_text;
+	});
+
+	function openSplit(row: PolisStatementAux) {
+		splitTarget = row;
+		splitOpen = true;
 	}
 </script>
 
@@ -236,10 +326,19 @@
 		{selected}
 		{pending}
 		{bulkAction}
+		{lineage}
 		onToggleSelect={toggleSelect}
 		onToggleAll={toggleSelectAll}
 		onClear={clearSelection}
 		onBulkModerate={bulkModerate}
 		onModerate={setStatus}
+		onSplit={openSplit}
 	/>
 </div>
+
+<SplitStatementDialog
+	bind:open={splitOpen}
+	original={splitTarget}
+	viewedContext={splitContext}
+	onDone={() => invalidate('polis:statement-aux')}
+/>

@@ -101,6 +101,13 @@ pub struct FormSettings {
     pub enable_question_list: Option<bool>,
 }
 
+/// Parent property for the parent field of a nested field
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, Default)]
+pub struct Parent {
+    pub id: String,
+    pub title: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FormField {
@@ -219,8 +226,8 @@ pub struct FormReportResponse {
     pub id: String,
     pub kind: Option<String>,
     pub title: Option<String>,
-    pub total: i32,
-    pub count: i32,
+    pub total: u32,
+    pub count: u32,
     pub average: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chooses: Option<Vec<serde_json::Value>>,
@@ -289,7 +296,7 @@ pub struct Submission {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Submissions {
-    pub total: i32,
+    pub total: u32,
     pub submissions: Vec<Submission>,
 }
 

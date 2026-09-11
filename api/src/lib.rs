@@ -140,12 +140,9 @@ pub struct Args {
 async fn health_check() -> &'static str {
     "OK"
 }
-
-pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, ComhairleError> {
-    let args = Args::try_parse().unwrap_or_default();
-
-    tracing::info!("Running with config {:#?}", state.config);
-
+/// Constructs the ApiRouter and extracts the OpenAPI spec.
+/// Note that sub-routers like `routes::auth::router` are async and must be `.await`ed.
+pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi) {
     aide::generate::on_error(|error| {
         println!("{error}");
     });
@@ -163,7 +160,6 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             .unwrap(),
     ];
 
-    // Add whitelisted domains from config
     if let Some(whitelisted_domains) = &state.config.whitelisted_domains {
         for domain in whitelisted_domains {
             if let Ok(header_value) = domain.parse::<HeaderValue>() {
@@ -193,20 +189,12 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         ])
         .allow_origin(allowed_origins);
 
-    // Run migrations
-    run_migrations(&state.db).await?;
-
+    // Rate limiting is applied per route inside the auth router: the strict
+    // limiter belongs on the credential endpoints, not on session reads.
+    // Added `.await` here to resolve the opaque Future issue
     let auth_router = routes::auth::router(state.clone()).await;
 
-    // Apply rate limiting if enabled in config
-    let auth_router = if state.config.enable_rate_limiting {
-        auth_router.layer(middleware::rate_limit::auth_rate_limiter())
-    } else {
-        auth_router
-    };
-
-    // build our application with a route
-    let app = ApiRouter::new()
+    let router = ApiRouter::new()
         .route("/health", axum::routing::get(health_check))
         .nest_api_service("/auth", auth_router)
         .nest_api_service(
@@ -262,6 +250,10 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                     routes::feedback::router(state.clone()),
                 )
                 .nest_api_service(
+                    "/{conversation_id}/chats",
+                    routes::chats::router(state.clone()),
+                )
+                .nest_api_service(
                     "/{conversation_id}/chat_sessions",
                     routes::chat_sessions::router(state.clone()),
                 )
@@ -313,14 +305,27 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         )
         .nest_api_service("/permissions", routes::permissions::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
+        .nest_api_service("/demographics", routes::demographics::router(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::request_logging::log_requests,
         ))
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
-        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
+        .layer(DefaultBodyLimit::max(500 * 1024 * 1024))
         .layer(cors);
+
+    (router, api)
+}
+
+pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, ComhairleError> {
+    let args = Args::try_parse().unwrap_or_default();
+
+    tracing::info!("Running with config {:#?}", state.config);
+
+    run_migrations(&state.db).await?;
+
+    let (app, api) = build_app_and_spec(state).await;
 
     if args.export_api_spec {
         let json = serde_json::to_string_pretty(&api).unwrap();

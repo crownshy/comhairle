@@ -20,8 +20,15 @@ use crate::routes::auth::{AUTH_KEY, user_id_from_session_token};
 #[derive(Debug, Clone)]
 pub struct ClientIp(pub String);
 
-/// Middleware that opens an `api_request` span carrying the client IP, method,
-/// path, and the logged-in user's id (when a valid session cookie is present).
+/// The client browser signature (`User-Agent`) for the current request, stamped
+/// into the request extensions by [`log_requests`] so handlers (e.g. signup) can
+/// persist it. `None` when the header is absent or not valid UTF-8.
+#[derive(Debug, Clone)]
+pub struct ClientUserAgent(pub Option<String>);
+
+/// Middleware that opens an `api_request` span carrying the client IP,
+/// `User-Agent`, method, path, and the logged-in user's id (when a valid session
+/// cookie is present).
 /// Running the handler inside the span stamps those fields onto every
 /// request-scoped log event, giving per-IP / per-user request tracing.
 ///
@@ -42,6 +49,14 @@ pub async fn log_requests(
     let ip = client_ip(req.headers(), addr);
     req.extensions_mut().insert(ClientIp(ip.clone()));
 
+    let user_agent = req
+        .headers()
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_owned());
+    req.extensions_mut()
+        .insert(ClientUserAgent(user_agent.clone()));
+
     let user_id = CookieJar::from_headers(req.headers())
         .get(AUTH_KEY)
         .and_then(|cookie| user_id_from_session_token(cookie.value(), &state.config.jwt_secret));
@@ -52,6 +67,7 @@ pub async fn log_requests(
     let span = tracing::info_span!(
         "api_request",
         %ip,
+        user_agent = user_agent.as_deref().unwrap_or("-"),
         user_id = user_id.as_deref().unwrap_or("-"),
         %method,
         %path,

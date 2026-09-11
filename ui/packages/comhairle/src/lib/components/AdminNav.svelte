@@ -29,6 +29,7 @@
 		UserDto
 	} from '@crownshy/api-client/api';
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
+	import { m } from '$lib/paraglide/messages';
 
 	type Props = {
 		ownedConversations: LocalizedConversationDto[];
@@ -116,7 +117,7 @@
 							{#snippet child({ props: btnProps })}
 								<a {...btnProps} href="/admin/">
 									<LayoutDashboard class="size-4" />
-									Workspace
+									{m.workspace()}
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>

@@ -25,6 +25,7 @@
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import { parseGlossaryCsv } from '$lib/glossary/glossaryCsv';
 	import type { LocalizedGlossary } from '$lib/glossary/types';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	let {
 		conversationId,
@@ -33,8 +34,8 @@
 		initial = []
 	}: {
 		conversationId: string;
-		primaryLocale: string;
-		supportedLanguages: string[];
+		primaryLocale: Locale;
+		supportedLanguages: Locale[];
 		/** The translatable glossary already stored on the conversation, if any. */
 		initial?: LocalizedGlossary;
 	} = $props();
@@ -54,7 +55,7 @@
 		tooltips
 	});
 
-	let rows = $state<Row[]>(
+	let rows = $derived<Row[]>(
 		initial.length > 0
 			? initial.map((entry) =>
 					toRow(
@@ -71,7 +72,7 @@
 	);
 
 	// The language currently being edited. Starts on the primary locale.
-	let activeLocale = $state(primaryLocale);
+	let activeLocale = $derived(primaryLocale);
 	let activeName = $derived(getLanguageName(activeLocale));
 	let primaryName = $derived(getLanguageName(primaryLocale));
 	const isPrimary = $derived(activeLocale === primaryLocale);
@@ -348,7 +349,7 @@
 								: 'text-muted-foreground hover:bg-muted'
 						)}
 					>
-						{getLanguageName(locale)}
+						{getLanguageName(locale as Locale)}
 						{#if locale === primaryLocale}<span class="opacity-70">(primary)</span>{/if}
 					</button>
 				{/each}
@@ -447,7 +448,7 @@
 		Truncated cells reveal their full text on hover via the title attribute. -->
 	<div class="border-border overflow-hidden rounded-lg border">
 		<div class="overflow-x-auto">
-			<div class={cn(isPrimary ? 'min-w-full' : 'min-w-[38rem]')}>
+			<div class={cn(isPrimary ? 'min-w-full' : 'min-w-152')}>
 				<div
 					class={cn(
 						'bg-muted/50 text-muted-foreground border-border grid gap-px border-b text-sm font-medium',

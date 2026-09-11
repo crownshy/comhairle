@@ -7,12 +7,12 @@ import {
 } from "@zodios/core";
 import { z } from "zod";
 
-export const AnnonLoginRequest = z
-  .object({ username: z.string() })
+export const GuestLoginRequest = z
+  .object({ guest_code: z.string() })
   .passthrough();
-export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
+export type GuestLoginRequest = z.infer<typeof GuestLoginRequest>;
 export const UserAuthType = z.enum([
-  "annon",
+  "guest",
   "email_password",
   "otp",
   "scot_account",
@@ -24,6 +24,7 @@ export const UserDto = z
     avatarUrl: z.union([z.string(), z.null()]).optional(),
     email: z.union([z.string(), z.null()]).optional(),
     emailVerified: z.boolean(),
+    guestCode: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     username: z.union([z.string(), z.null()]).optional(),
@@ -104,6 +105,7 @@ export const UserRoles = z
 export type UserRoles = z.infer<typeof UserRoles>;
 export const LocalizedConversationDto = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
@@ -124,6 +126,7 @@ export const LocalizedConversationDto = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -229,16 +232,11 @@ export type UpdateUserConversationPreferences = z.infer<
 >;
 export const UserProfileDto = z
   .object({
-    age: z.union([z.number(), z.null()]).optional(),
     consented: z.boolean(),
     createdAt: z.string().datetime({ offset: true }),
-    ethnicity: z.union([z.string(), z.null()]).optional(),
-    gender: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    politicalParty: z.union([z.string(), z.null()]).optional(),
     updatedAt: z.string().datetime({ offset: true }),
     userId: z.string().uuid(),
-    zipcode: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type UserProfileDto = z.infer<typeof UserProfileDto>;
@@ -443,6 +441,10 @@ export const WikiPollReport = z
   })
   .passthrough();
 export type WikiPollReport = z.infer<typeof WikiPollReport>;
+export const VoteCountResponse = z
+  .object({ vote_count: z.number().int().gte(0) })
+  .passthrough();
+export type VoteCountResponse = z.infer<typeof VoteCountResponse>;
 export const UpdatePolisConfigRequest = z
   .object({
     description: z.union([z.string(), z.null()]).optional(),
@@ -477,6 +479,7 @@ export const PolisStatementAux = z
     is_seed: z.boolean(),
     moderation_reason: z.union([z.string(), z.null()]).optional(),
     moderation_status: ModerationStatus,
+    original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
     statement_text: z.string(),
@@ -554,6 +557,7 @@ export const ModerateStatementAuxBatchRequest = z
   .object({
     decision: ModerationDecisionRequest,
     ids: z.array(z.string().uuid()),
+    moderation_reason: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type ModerateStatementAuxBatchRequest = z.infer<
@@ -572,6 +576,17 @@ export const ModerateStatementAuxBatchResponse = z
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
 >;
+export const SplitStatementRequest = z
+  .object({ replacements: z.array(z.string()) })
+  .passthrough();
+export type SplitStatementRequest = z.infer<typeof SplitStatementRequest>;
+export const SplitStatementResponse = z
+  .object({
+    original: PolisStatementAux,
+    replacements: z.array(PolisStatementAux),
+  })
+  .passthrough();
+export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
 export const FormField = z
   .object({
     description: z.unknown().optional(),
@@ -646,11 +661,11 @@ export const FormReportResponse = z
   .object({
     average: z.number(),
     chooses: z.union([z.array(z.unknown()), z.null()]).optional(),
-    count: z.number().int(),
+    count: z.number().int().gte(0),
     id: z.string(),
     kind: z.union([z.string(), z.null()]).optional(),
     title: z.union([z.string(), z.null()]).optional(),
-    total: z.number().int(),
+    total: z.number().int().gte(0),
   })
   .passthrough();
 export type FormReportResponse = z.infer<typeof FormReportResponse>;
@@ -702,7 +717,7 @@ export const Submission = z
   .passthrough();
 export type Submission = z.infer<typeof Submission>;
 export const Submissions = z
-  .object({ submissions: z.array(Submission), total: z.number().int() })
+  .object({ submissions: z.array(Submission), total: z.number().int().gte(0) })
   .passthrough();
 export type Submissions = z.infer<typeof Submissions>;
 export const InsightChoice = z
@@ -719,6 +734,7 @@ export const InsightSubmission = z
 export type InsightSubmission = z.infer<typeof InsightSubmission>;
 export const InsightQuestion = z
   .object({
+    answered: z.number().int().gte(0),
     choices: z.union([z.array(InsightChoice), z.null()]).optional(),
     id: z.string(),
     kind: z.union([z.string(), z.null()]).optional(),
@@ -727,7 +743,7 @@ export const InsightQuestion = z
       .optional(),
     submissions: z.union([z.array(InsightSubmission), z.null()]).optional(),
     title: z.string(),
-    total: z.number().int(),
+    total: z.number().int().gte(0),
   })
   .passthrough();
 export type InsightQuestion = z.infer<typeof InsightQuestion>;
@@ -1057,6 +1073,7 @@ export const CreateConversation = z
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const ConversationDto = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
@@ -1077,6 +1094,7 @@ export const ConversationDto = z
     shortDescription: z.string().uuid(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -1108,6 +1126,7 @@ export const ConversationTranslations = z
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
 export const ConversationWithTranslations = z
   .object({
+    allowRevisitAfterFinishing: z.boolean(),
     callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
@@ -1131,6 +1150,7 @@ export const ConversationWithTranslations = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -1151,6 +1171,7 @@ export const ConversationResponse = z.union([
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
 export const PartialConversation = z
   .object({
+    allow_revisit_after_finishing: z.union([z.boolean(), z.null()]),
     call_to_action: z.union([z.string(), z.null()]),
     chat_bot_id: z.union([z.string(), z.null()]),
     default_workflow_id: z.union([z.string(), z.null()]),
@@ -1165,11 +1186,13 @@ export const PartialConversation = z
     is_public: z.union([z.boolean(), z.null()]),
     knowledge_base_id: z.union([z.string(), z.null()]),
     metadata: z.unknown(),
+    organization_id: z.union([z.string(), z.null()]),
     primary_locale: z.union([z.string(), z.null()]),
     privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
     short_privacy_policy: z.union([z.string(), z.null()]),
     show_thank_you_page_annon_instructions: z.union([z.boolean(), z.null()]),
+    show_thankyou_page_feedback_button: z.union([z.boolean(), z.null()]),
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),
     tags: z.union([z.array(z.string()), z.null()]),
@@ -1291,7 +1314,7 @@ export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
 export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
 export const Category = z
-  .object({ label: z.string(), value: z.number() })
+  .object({ label: z.string().uuid(), value: z.number() })
   .passthrough();
 export type Category = z.infer<typeof Category>;
 export const QuestionType = z.union([
@@ -1302,23 +1325,30 @@ export const QuestionType = z.union([
   z.object({
     continuous: z
       .object({
-        max_label: z.string().default(""),
-        max_value: z.number().default(10),
-        min_label: z.string().default(""),
-        min_value: z.number().default(0),
-        sub_steps: z.number().int().default(10),
+        max_label: z.string().uuid(),
+        max_value: z.number().optional().default(10),
+        min_label: z.string().uuid(),
+        min_value: z.number().optional().default(0),
+        sub_steps: z.number().int().optional().default(10),
       })
-      .partial()
       .passthrough(),
   }),
 ]);
 export type QuestionType = z.infer<typeof QuestionType>;
 export const Question = z
-  .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
+  .object({
+    id: z.string().uuid(),
+    text: z.string().uuid(),
+    type: QuestionType,
+  })
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
-  .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
+  .object({
+    id: z.string().uuid(),
+    intent: z.string().uuid(),
+    text: z.string().uuid(),
+  })
   .passthrough();
 export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
@@ -1374,6 +1404,10 @@ export const ToolConfig = z.union([
       alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(Question),
       randomize_order: z.boolean(),
+      required_reviews: z
+        .union([z.number(), z.null()])
+        .optional()
+        .default(null),
       section_questions: z.array(Question).optional().default([]),
       type: z.literal("prioritization"),
     })
@@ -1382,7 +1416,7 @@ export const ToolConfig = z.union([
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
       root_questions: z.array(ThinkingSpaceQuestion),
-      topic: z.string(),
+      topic: z.string().uuid(),
       type: z.literal("thinkingspace"),
     })
     .passthrough(),
@@ -1430,22 +1464,18 @@ export const WorkflowStats = z
   })
   .passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
-export const DemographicCategory = z
+export const DemographicCount = z
   .object({
-    category: z.string(),
     count: z.number().int(),
-    value: z.union([z.string(), z.null()]).optional(),
+    displayName: z.string(),
+    value: z.string(),
   })
   .passthrough();
-export type DemographicCategory = z.infer<typeof DemographicCategory>;
+export type DemographicCount = z.infer<typeof DemographicCount>;
 export const DemographicReport = z
   .object({
-    ageRanges: z.array(DemographicCategory),
-    ethnicity: z.array(DemographicCategory),
-    gender: z.array(DemographicCategory),
-    politicalParty: z.array(DemographicCategory),
+    categories: z.record(z.array(DemographicCount)),
     totalParticipants: z.number().int(),
-    zipcodeCounts: z.record(z.number().int()),
   })
   .passthrough();
 export type DemographicReport = z.infer<typeof DemographicReport>;
@@ -1459,6 +1489,144 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
+export const UserParticipationDto = z
+  .object({
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    sealed: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+    user_id: z.string().uuid(),
+    workflow_id: z.string().uuid(),
+  })
+  .passthrough();
+export type UserParticipationDto = z.infer<typeof UserParticipationDto>;
+export const TranslationDto = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type TranslationDto = z.infer<typeof TranslationDto>;
+export const JsonFieldWithTranslations = z
+  .object({ localized: z.string(), translations: TranslationDto })
+  .passthrough();
+export type JsonFieldWithTranslations = z.infer<
+  typeof JsonFieldWithTranslations
+>;
+export const CategoryWithTranslations = z
+  .object({ label: JsonFieldWithTranslations, value: z.number() })
+  .passthrough();
+export type CategoryWithTranslations = z.infer<typeof CategoryWithTranslations>;
+export const QuestionTypeWithTranslations = z.union([
+  z.literal("text"),
+  z.object({
+    likert_scale: z
+      .object({ categories: z.array(CategoryWithTranslations) })
+      .passthrough(),
+  }),
+  z.object({
+    continuous: z
+      .object({
+        max_label: JsonFieldWithTranslations,
+        max_value: z.number(),
+        min_label: JsonFieldWithTranslations,
+        min_value: z.number(),
+        sub_steps: z.number().int(),
+      })
+      .passthrough(),
+  }),
+]);
+export type QuestionTypeWithTranslations = z.infer<
+  typeof QuestionTypeWithTranslations
+>;
+export const QuestionWithTranslations = z
+  .object({
+    id: z.string().uuid(),
+    text: JsonFieldWithTranslations,
+    type: QuestionTypeWithTranslations,
+  })
+  .passthrough();
+export type QuestionWithTranslations = z.infer<typeof QuestionWithTranslations>;
+export const ThinkingSpaceQuestionWithTranslations = z
+  .object({
+    id: z.string().uuid(),
+    intent: JsonFieldWithTranslations,
+    text: JsonFieldWithTranslations,
+  })
+  .passthrough();
+export type ThinkingSpaceQuestionWithTranslations = z.infer<
+  typeof ThinkingSpaceQuestionWithTranslations
+>;
+export const ToolConfigWithTranslations = z.union([
+  z
+    .object({
+      admin_password: z.string(),
+      admin_user: z.string(),
+      description: z.union([z.string(), z.null()]).optional().default(null),
+      is_active: z.union([z.boolean(), z.null()]).optional().default(null),
+      label_seeds_as_conversation_starter: z
+        .boolean()
+        .optional()
+        .default(false),
+      poll_id: z.string(),
+      required_votes: z.union([z.number(), z.null()]).optional(),
+      server_url: z.string(),
+      show_remaining_statements: z.boolean().optional().default(true),
+      strict_moderation: z
+        .union([z.boolean(), z.null()])
+        .optional()
+        .default(null),
+      topic: z.union([z.string(), z.null()]).optional().default(null),
+      type: z.literal("polis"),
+    })
+    .passthrough(),
+  z
+    .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
+    .passthrough(),
+  z
+    .object({
+      admin_password: z.string(),
+      admin_user: z.string(),
+      project_id: z.string(),
+      server_url: z.string().optional().default("forms.comhairle.scot"),
+      survey_id: z.string(),
+      survey_url: z.string(),
+      type: z.literal("heyform"),
+      workspace_id: z.string(),
+    })
+    .passthrough(),
+  z
+    .object({
+      max_time: z.number().int(),
+      to_see: z.number().int(),
+      type: z.literal("stories"),
+    })
+    .passthrough(),
+  z
+    .object({ topic: z.string(), type: z.literal("elicitationbot") })
+    .passthrough(),
+  z
+    .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
+      questions: z.array(QuestionWithTranslations),
+      randomize_order: z.boolean(),
+      required_reviews: z.union([z.number(), z.null()]).optional(),
+      section_questions: z.array(QuestionWithTranslations),
+      type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceQuestionWithTranslations),
+      topic: JsonFieldWithTranslations,
+      type: z.literal("thinkingspace"),
+    })
+    .passthrough(),
+]);
+export type ToolConfigWithTranslations = z.infer<
+  typeof ToolConfigWithTranslations
+>;
 export const Translation4 = z
   .object({
     textContent: TextContentDto,
@@ -1470,28 +1638,132 @@ export const WorkflowStepTranslations = z
   .object({ description: Translation4, name: Translation4 })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
-export const WorkflowStepWithTranslations = z
+export const WorkflowStepWithTranslationsDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
-    createdAt: z.string().datetime({ offset: true }),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
     name: z.string(),
-    previewToolConfig: ToolConfig,
+    previewToolConfig: ToolConfigWithTranslations,
     requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    toolConfig: z.union([ToolConfigWithTranslations, z.null()]).optional(),
     translations: WorkflowStepTranslations,
-    updatedAt: z.string().datetime({ offset: true }),
     workflowId: z.string().uuid(),
   })
   .passthrough();
-export type WorkflowStepWithTranslations = z.infer<
-  typeof WorkflowStepWithTranslations
+export type WorkflowStepWithTranslationsDto = z.infer<
+  typeof WorkflowStepWithTranslationsDto
 >;
+export const LocalizedCategory = z
+  .object({ label: z.string(), value: z.number() })
+  .passthrough();
+export type LocalizedCategory = z.infer<typeof LocalizedCategory>;
+export const LocalizedQuestionType = z.union([
+  z.literal("text"),
+  z.object({
+    likert_scale: z
+      .object({ categories: z.array(LocalizedCategory) })
+      .passthrough(),
+  }),
+  z.object({
+    continuous: z
+      .object({
+        max_label: z.string(),
+        max_value: z.number(),
+        min_label: z.string(),
+        min_value: z.number(),
+        sub_steps: z.number().int(),
+      })
+      .passthrough(),
+  }),
+]);
+export type LocalizedQuestionType = z.infer<typeof LocalizedQuestionType>;
+export const LocalizedQuestion = z
+  .object({
+    id: z.string().uuid(),
+    text: z.string(),
+    type: LocalizedQuestionType,
+  })
+  .passthrough();
+export type LocalizedQuestion = z.infer<typeof LocalizedQuestion>;
+export const LocalizedThinkingSpaceQuestion = z
+  .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
+  .passthrough();
+export type LocalizedThinkingSpaceQuestion = z.infer<
+  typeof LocalizedThinkingSpaceQuestion
+>;
+export const LocalizedToolConfig = z.union([
+  z
+    .object({
+      admin_password: z.string(),
+      admin_user: z.string(),
+      description: z.union([z.string(), z.null()]).optional().default(null),
+      is_active: z.union([z.boolean(), z.null()]).optional().default(null),
+      label_seeds_as_conversation_starter: z
+        .boolean()
+        .optional()
+        .default(false),
+      poll_id: z.string(),
+      required_votes: z.union([z.number(), z.null()]).optional(),
+      server_url: z.string(),
+      show_remaining_statements: z.boolean().optional().default(true),
+      strict_moderation: z
+        .union([z.boolean(), z.null()])
+        .optional()
+        .default(null),
+      topic: z.union([z.string(), z.null()]).optional().default(null),
+      type: z.literal("polis"),
+    })
+    .passthrough(),
+  z
+    .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
+    .passthrough(),
+  z
+    .object({
+      admin_password: z.string(),
+      admin_user: z.string(),
+      project_id: z.string(),
+      server_url: z.string().optional().default("forms.comhairle.scot"),
+      survey_id: z.string(),
+      survey_url: z.string(),
+      type: z.literal("heyform"),
+      workspace_id: z.string(),
+    })
+    .passthrough(),
+  z
+    .object({
+      max_time: z.number().int(),
+      to_see: z.number().int(),
+      type: z.literal("stories"),
+    })
+    .passthrough(),
+  z
+    .object({ topic: z.string(), type: z.literal("elicitationbot") })
+    .passthrough(),
+  z
+    .object({
+      alignment_question_id: z.union([z.string(), z.null()]).optional(),
+      questions: z.array(LocalizedQuestion),
+      randomize_order: z.boolean(),
+      required_reviews: z.union([z.number(), z.null()]).optional(),
+      section_questions: z.array(LocalizedQuestion),
+      type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(LocalizedThinkingSpaceQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
+    })
+    .passthrough(),
+]);
+export type LocalizedToolConfig = z.infer<typeof LocalizedToolConfig>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
 export const LocalizedWorkflowStepWithProgressDto = z
@@ -1502,12 +1774,12 @@ export const LocalizedWorkflowStepWithProgressDto = z
     id: z.string().uuid(),
     isOffline: z.boolean(),
     name: z.string(),
-    previewToolConfig: ToolConfig,
+    previewToolConfig: LocalizedToolConfig,
     progressStatus: ProgressStatus,
     requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    toolConfig: z.union([LocalizedToolConfig, z.null()]).optional(),
     workflowId: z.string().uuid(),
   })
   .passthrough();
@@ -1522,25 +1794,49 @@ export const LocalizedWorkflowStepDto = z
     id: z.string().uuid(),
     isOffline: z.boolean(),
     name: z.string(),
-    previewToolConfig: ToolConfig,
+    previewToolConfig: LocalizedToolConfig,
     requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    toolConfig: z.union([LocalizedToolConfig, z.null()]).optional(),
     workflowId: z.string().uuid(),
   })
   .passthrough();
 export type LocalizedWorkflowStepDto = z.infer<typeof LocalizedWorkflowStepDto>;
 export const WorkflowStepsListResponse = z.union([
-  z.array(WorkflowStepWithTranslations),
+  z.array(WorkflowStepWithTranslationsDto),
   z.array(LocalizedWorkflowStepWithProgressDto),
   z.array(LocalizedWorkflowStepDto),
 ]);
 export type WorkflowStepsListResponse = z.infer<
   typeof WorkflowStepsListResponse
 >;
+export const SetupCategory = z
+  .object({ label: z.string(), value: z.number() })
+  .passthrough();
+export type SetupCategory = z.infer<typeof SetupCategory>;
+export const SetupQuestionType = z.union([
+  z.literal("text"),
+  z.object({
+    likert_scale: z
+      .object({ categories: z.array(SetupCategory) })
+      .passthrough(),
+  }),
+  z.object({
+    continuous: z
+      .object({
+        max_label: z.string(),
+        max_value: z.number(),
+        min_label: z.string(),
+        min_value: z.number(),
+        sub_steps: z.number().int(),
+      })
+      .passthrough(),
+  }),
+]);
+export type SetupQuestionType = z.infer<typeof SetupQuestionType>;
 export const SetupQuestion = z
-  .object({ text: z.string(), type: QuestionType })
+  .object({ text: z.string(), type: SetupQuestionType })
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
 export const ThinkingSpaceSetupQuestion = z
@@ -1579,10 +1875,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
-      alignment_question_id: z.union([z.string(), z.null()]).optional(),
       questions: z.array(SetupQuestion),
-      randomize_order: z.boolean(),
-      section_questions: z.array(SetupQuestion).optional().default([]),
       type: z.literal("prioritization"),
     })
     .passthrough(),
@@ -1701,7 +1994,7 @@ export const InviteType = z.union([
 export type InviteType = z.infer<typeof InviteType>;
 export const LoginBehaviour = z.union([
   z.literal("manual"),
-  z.literal("auto_create_annon"),
+  z.literal("auto_create_guest"),
 ]);
 export type LoginBehaviour = z.infer<typeof LoginBehaviour>;
 export const InviteStatus = z.union([
@@ -1908,6 +2201,41 @@ export const PartialFeedback = z
   .partial()
   .passthrough();
 export type PartialFeedback = z.infer<typeof PartialFeedback>;
+export const ComhairleLlm = z
+  .object({ model_name: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
+export const ComhairlePrompt = z
+  .object({
+    cross_languages: z.union([z.array(z.string()), z.null()]),
+    empty_response: z.union([z.string(), z.null()]),
+    llm_prompt: z.union([z.string(), z.null()]),
+    opener: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type ComhairlePrompt = z.infer<typeof ComhairlePrompt>;
+export const ComhairleChat = z
+  .object({
+    id: z.string(),
+    knowledge_base_ids: z.array(z.string()),
+    llm_model: z.union([ComhairleLlm, z.null()]).optional(),
+    name: z.string(),
+    prompt: z.union([ComhairlePrompt, z.null()]).optional(),
+  })
+  .passthrough();
+export type ComhairleChat = z.infer<typeof ComhairleChat>;
+export const UpdateChatRequest = z
+  .object({
+    knowledge_base_ids: z.union([z.array(z.string()), z.null()]),
+    llm_model: z.union([ComhairleLlm, z.null()]),
+    name: z.union([z.string(), z.null()]),
+    prompt: z.union([ComhairlePrompt, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
 export const ComhairleChatSession = z
   .object({
     chat_id: z.string(),
@@ -2023,6 +2351,7 @@ export const LocalizedEventDto = z
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     currentAttendance: z.union([z.number(), z.null()]).optional(),
+    customEventLink: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
     format: EventFormat,
@@ -2046,6 +2375,7 @@ export const CreateEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).optional(),
     capacity: z.union([z.number(), z.null()]).optional(),
+    custom_event_link: z.union([z.string(), z.null()]).optional(),
     default_time_zone: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     end_time: z.string().datetime({ offset: true }),
@@ -2062,6 +2392,7 @@ export const EventDto = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
+    customEventLink: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     endTime: z.string().datetime({ offset: true }),
     format: EventFormat,
@@ -2107,6 +2438,7 @@ export const EventWithTranslations = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
+    customEventLink: z.union([z.string(), z.null()]).optional(),
     defaultTimeZone: z.string(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
@@ -2132,6 +2464,7 @@ export const PartialEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).default(null),
     capacity: z.union([z.number(), z.null()]),
+    custom_event_link: z.union([z.string(), z.null()]),
     default_time_zone: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
@@ -2487,6 +2820,10 @@ export const MediaContentType = z.enum([
   "video/mpeg",
   "video/webm",
   "audio/mpeg",
+  "audio/mp4",
+  "audio/webm",
+  "audio/wav",
+  "audio/ogg",
 ]);
 export type MediaContentType = z.infer<typeof MediaContentType>;
 export const content_type = z.union([MediaContentType, z.null()]).optional();
@@ -2707,9 +3044,123 @@ export const UserWithPermissionDto = z
   })
   .passthrough();
 export type UserWithPermissionDto = z.infer<typeof UserWithPermissionDto>;
+export const ConversationDemographics = z
+  .object({ conversationId: z.string().uuid(), questionSlug: z.string() })
+  .passthrough();
+export type ConversationDemographics = z.infer<typeof ConversationDemographics>;
+export const PaginatedResults_for_ConversationDemographics = z
+  .object({
+    records: z.array(ConversationDemographics),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type PaginatedResults_for_ConversationDemographics = z.infer<
+  typeof PaginatedResults_for_ConversationDemographics
+>;
+export const CreateConversationDemographics = z
+  .object({ conversationId: z.string().uuid(), questionSlug: z.string() })
+  .passthrough();
+export type CreateConversationDemographics = z.infer<
+  typeof CreateConversationDemographics
+>;
+export const NumericBucket = z
+  .object({
+    label: z.string(),
+    max: z.union([z.number(), z.null()]).optional(),
+    min: z.union([z.number(), z.null()]).optional(),
+  })
+  .passthrough();
+export type NumericBucket = z.infer<typeof NumericBucket>;
+export const StringOption = z
+  .object({ label: z.string(), value: z.string() })
+  .passthrough();
+export type StringOption = z.infer<typeof StringOption>;
+export const ValueBuckets = z.union([
+  z
+    .object({ buckets: z.array(NumericBucket), type: z.literal("numeric") })
+    .passthrough(),
+  z
+    .object({ options: z.array(StringOption), type: z.literal("string") })
+    .passthrough(),
+]);
+export type ValueBuckets = z.infer<typeof ValueBuckets>;
+export const DemographicsQuestionResponseType = z.enum(["number", "string"]);
+export type DemographicsQuestionResponseType = z.infer<
+  typeof DemographicsQuestionResponseType
+>;
+export const DemographicsQuestion = z
+  .object({
+    bucketConfig: z.union([ValueBuckets, z.null()]).optional(),
+    displayName: z.string(),
+    responseType: DemographicsQuestionResponseType,
+    slug: z.string(),
+  })
+  .passthrough();
+export type DemographicsQuestion = z.infer<typeof DemographicsQuestion>;
+export const PaginatedResults_for_DemographicsQuestion = z
+  .object({ records: z.array(DemographicsQuestion), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_DemographicsQuestion = z.infer<
+  typeof PaginatedResults_for_DemographicsQuestion
+>;
+export const CreateDemographicsQuestion = z
+  .object({
+    bucketConfig: z.union([ValueBuckets, z.null()]).optional(),
+    displayName: z.string(),
+    responseType: DemographicsQuestionResponseType,
+    slug: z.string(),
+  })
+  .passthrough();
+export type CreateDemographicsQuestion = z.infer<
+  typeof CreateDemographicsQuestion
+>;
+export const PartialDemographicsQuestion = z
+  .object({
+    bucketConfig: z.union([ValueBuckets, z.null()]),
+    displayName: z.union([z.string(), z.null()]),
+    responseType: z.union([DemographicsQuestionResponseType, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type PartialDemographicsQuestion = z.infer<
+  typeof PartialDemographicsQuestion
+>;
+export const TypedValue = z.union([z.number(), z.string()]);
+export type TypedValue = z.infer<typeof TypedValue>;
+export const DemographicsResponse = z
+  .object({
+    id: z.string().uuid(),
+    questionSlug: z.string(),
+    userId: z.union([z.string(), z.null()]).optional(),
+    value: TypedValue,
+  })
+  .passthrough();
+export type DemographicsResponse = z.infer<typeof DemographicsResponse>;
+export const PaginatedResults_for_DemographicsResponse = z
+  .object({ records: z.array(DemographicsResponse), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_DemographicsResponse = z.infer<
+  typeof PaginatedResults_for_DemographicsResponse
+>;
+export const CreateDemographicsResponse = z
+  .object({
+    questionSlug: z.string(),
+    userId: z.string().uuid(),
+    value: TypedValue,
+  })
+  .passthrough();
+export type CreateDemographicsResponse = z.infer<
+  typeof CreateDemographicsResponse
+>;
+export const PartialDemographicsResponse = z
+  .object({ value: TypedValue })
+  .passthrough();
+export type PartialDemographicsResponse = z.infer<
+  typeof PartialDemographicsResponse
+>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
-  AnnonLoginRequest,
+  GuestLoginRequest,
   UserAuthType,
   UserDto,
   LoginRequest,
@@ -2764,6 +3215,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PcaPosition,
   ParticipantReportData,
   WikiPollReport,
+  VoteCountResponse,
   UpdatePolisConfigRequest,
   WikiPoll,
   PostSeedRequest,
@@ -2781,6 +3233,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
+  SplitStatementRequest,
+  SplitStatementResponse,
   FormField,
   FormSettings,
   FormTheme,
@@ -2866,16 +3320,31 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DailySignupStats,
   WorkflowStepStats,
   WorkflowStats,
-  DemographicCategory,
+  DemographicCount,
   DemographicReport,
   UserParticipation,
+  UserParticipationDto,
+  TranslationDto,
+  JsonFieldWithTranslations,
+  CategoryWithTranslations,
+  QuestionTypeWithTranslations,
+  QuestionWithTranslations,
+  ThinkingSpaceQuestionWithTranslations,
+  ToolConfigWithTranslations,
   Translation4,
   WorkflowStepTranslations,
-  WorkflowStepWithTranslations,
+  WorkflowStepWithTranslationsDto,
+  LocalizedCategory,
+  LocalizedQuestionType,
+  LocalizedQuestion,
+  LocalizedThinkingSpaceQuestion,
+  LocalizedToolConfig,
   ProgressStatus,
   LocalizedWorkflowStepWithProgressDto,
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
+  SetupCategory,
+  SetupQuestionType,
   SetupQuestion,
   ThinkingSpaceSetupQuestion,
   ToolSetup,
@@ -2917,6 +3386,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   FeedbackDto,
   CreateFeedbackDTO,
   PartialFeedback,
+  ComhairleLlm,
+  ComhairlePrompt,
+  ComhairleChat,
+  UpdateChatRequest,
   ComhairleChatSession,
   ChatConversationRequest,
   page_size,
@@ -3020,6 +3493,22 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_ResourcePermission,
   GrantPermissionBody,
   UserWithPermissionDto,
+  ConversationDemographics,
+  PaginatedResults_for_ConversationDemographics,
+  CreateConversationDemographics,
+  NumericBucket,
+  StringOption,
+  ValueBuckets,
+  DemographicsQuestionResponseType,
+  DemographicsQuestion,
+  PaginatedResults_for_DemographicsQuestion,
+  CreateDemographicsQuestion,
+  PartialDemographicsQuestion,
+  TypedValue,
+  DemographicsResponse,
+  PaginatedResults_for_DemographicsResponse,
+  CreateDemographicsResponse,
+  PartialDemographicsResponse,
 };
 
 const endpoints = makeApi([
@@ -3075,15 +3564,15 @@ const endpoints = makeApi([
   },
   {
     method: "post",
-    path: "/auth/login_annon",
-    alias: "LoginAnnonUser",
+    path: "/auth/login_guest",
+    alias: "LoginGuestUser",
     requestFormat: "json",
     parameters: [
       {
         name: "body",
-        description: `Expected payload for an annon login request`,
+        description: `Expected payload for an guest login request`,
         type: "Body",
-        schema: z.object({ username: z.string() }).passthrough(),
+        schema: z.object({ guest_code: z.string() }).passthrough(),
       },
     ],
     response: UserDto,
@@ -3183,8 +3672,8 @@ const endpoints = makeApi([
   },
   {
     method: "post",
-    path: "/auth/signup_annon",
-    alias: "SignupAnnonUser",
+    path: "/auth/signup_guest",
+    alias: "SignupGuestUser",
     requestFormat: "json",
     response: UserDto,
   },
@@ -3373,6 +3862,29 @@ Use a raw HTTP request and process the response body incrementally.`,
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/chats",
+    alias: "GetChat",
+    description: `Get a conversation&#x27;s bot service chat`,
+    requestFormat: "json",
+    response: ComhairleChat,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/chats",
+    alias: "UpdateChat",
+    description: `Update a conversation&#x27;s bot service chat`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateChatRequest,
+      },
+    ],
+    response: ComhairleChat,
   },
   {
     method: "get",
@@ -4301,7 +4813,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
     alias: "GetUserConversationParticipation",
     requestFormat: "json",
-    response: z.union([UserParticipation, z.null()]),
+    response: z.union([UserParticipationDto, z.null()]),
   },
   {
     method: "get",
@@ -4461,6 +4973,202 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "DeleteConversationWorkflowStep",
     requestFormat: "json",
     response: WorkflowStepDto,
+  },
+  {
+    method: "get",
+    path: "/demographics/conversations_questions",
+    alias: "GetConversationDemographics",
+    description: `Retrieve demographics responses for a specific conversation and question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "conversation_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "question_slug",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_ConversationDemographics,
+  },
+  {
+    method: "post",
+    path: "/demographics/conversations_questions",
+    alias: "CreateConversationDemographics",
+    description: `Create a new demographics response for a specific conversation and question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateConversationDemographics,
+      },
+    ],
+    response: ConversationDemographics,
+  },
+  {
+    method: "delete",
+    path: "/demographics/conversations_questions/:conversation_id/:question_slug/",
+    alias: "DeleteConversationDemographicsByQuestion",
+    description: `Delete demographics responses for a specific conversation and question`,
+    requestFormat: "json",
+    response: z.union([ConversationDemographics, z.null()]),
+  },
+  {
+    method: "get",
+    path: "/demographics/questions",
+    alias: "GetDemographicsQuestions",
+    description: `Paginated list of demographics questions with optional filtering and ordering`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "conversation_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "question_slug",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_DemographicsQuestion,
+  },
+  {
+    method: "post",
+    path: "/demographics/questions",
+    alias: "CreateDemographicsQuestion",
+    description: `Create a new demographics question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateDemographicsQuestion,
+      },
+    ],
+    response: DemographicsQuestion,
+  },
+  {
+    method: "put",
+    path: "/demographics/questions/:question_slug",
+    alias: "UpdateDemographicsQuestion",
+    description: `Update a specific demographics question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `Represents a demographics question.`,
+        type: "Body",
+        schema: PartialDemographicsQuestion,
+      },
+    ],
+    response: DemographicsQuestion,
+  },
+  {
+    method: "delete",
+    path: "/demographics/questions/:question_slug",
+    alias: "DeleteDemographicsQuestion",
+    description: `Delete a specific demographics question`,
+    requestFormat: "json",
+    response: z.union([DemographicsQuestion, z.null()]),
+  },
+  {
+    method: "get",
+    path: "/demographics/responses",
+    alias: "GetDemographicsResponses",
+    description: `Paginated list of demographics responses with optional filtering and ordering`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "conversation_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "question_slug",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_DemographicsResponse,
+  },
+  {
+    method: "post",
+    path: "/demographics/responses",
+    alias: "CreateDemographicsResponse",
+    description: `Create a new response for a specific demographics question and user`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateDemographicsResponse,
+      },
+    ],
+    response: DemographicsResponse,
+  },
+  {
+    method: "put",
+    path: "/demographics/responses/:question_slug/:user_id",
+    alias: "UpdateDemographicsResponse",
+    description: `Update a response for a specific demographics question and user`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `Represents a demographics response from a user to a specific demographics question.`,
+        type: "Body",
+        schema: PartialDemographicsResponse,
+      },
+    ],
+    response: DemographicsResponse,
+  },
+  {
+    method: "delete",
+    path: "/demographics/responses/:question_slug/:user_id",
+    alias: "DeleteDemographicsResponse",
+    description: `Delete a response for a specific demographics question and user`,
+    requestFormat: "json",
+    response: z.union([DemographicsResponse, z.null()]),
   },
   {
     method: "get",
@@ -5174,6 +5882,31 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions/by-action/:action",
+    alias: "ListPermissionsByAction",
+    description: `Returns resources of the specified type that the caller can perform the specified action on. Optionally filter by user_id. Use the &#x60;offset&#x60; and &#x60;limit&#x60; query params to page through results.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(ResourcePermission),
+  },
+  {
+    method: "get",
     path: "/region_areas",
     alias: "ListRegionAreas",
     requestFormat: "json",
@@ -5512,6 +6245,21 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "post",
+    path: "/tools/polis/statement_aux/:id/split",
+    alias: "PolisSplitStatement",
+    description: `Posts one or more admin-authored replacement statements as non-seed (is_seed: false), auto-accepts them, rejects the original statement, and records lineage (original_statement_id) on each replacement. The replacements are real, votable statements, never host seeds. Returns the now-rejected original and the derived replacements.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SplitStatementRequest,
+      },
+    ],
+    response: SplitStatementResponse,
+  },
+  {
+    method: "post",
     path: "/tools/polis/statement_aux/:id/themes",
     alias: "PolisAddStatementAuxTheme",
     description: `Adds a theme to the statement&#x27;s themes array. Idempotent: adding a theme that is already present is a no-op. Caller must be the owner of the conversation the statement belongs to.`,
@@ -5589,6 +6337,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.array(ThemeStatistic),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/vote_count",
+    alias: "PolisGetUserVoteCount",
+    description: `Counts the votes the authenticated participant has cast in the Polis poll for the given workflow step, mapping their comhairle user id to the Polis participant via xids. Used to seed the required-votes progress from server data.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.object({ vote_count: z.number().int().gte(0) }).passthrough(),
   },
   {
     method: "get",
@@ -6381,43 +7144,47 @@ This struct contains optional fields that can be updated on a TextTranslation re
 
 // Axios error for failing request
 export interface ApiError {
-	// Standard
-	message: string;
-	name: string;
-	// Microsoft
-	description: string;
-	number: number;
-	// Mozilla
-	fileName: string;
-	lineNumber: number;
-	columnNumber: number;
-	stack: string;
-	// Axios
-	config: {
-		adapter: string[];
-		allowAbsoluteUrls: boolean;
-		baseURL:string;
-		data: undefined
-		env: object;
-		headers: object;
-		maxBodyLength: number;
-		maxContentLength: number;
-		method: string;
-		params: object;
-		timeout: number;
-		transformRequest: string[]
-		transformResponse: string[]
-		transitional: { silentJSONParsing: boolean, forcedJSONParsing: boolean, clarifyTimeoutError: boolean  }
-		url: string;
-		validateStatus: (status: string) => void;
-		withCredentials: true
-		xsrfCookieName: string;
-		xsrfHeaderName: string;
-	}
-	code: string;
-	status: number;
-	response: Response;
-	request: Request;
+  // Standard
+  message: string;
+  name: string;
+  // Microsoft
+  description: string;
+  number: number;
+  // Mozilla
+  fileName: string;
+  lineNumber: number;
+  columnNumber: number;
+  stack: string;
+  // Axios
+  config: {
+    adapter: string[];
+    allowAbsoluteUrls: boolean;
+    baseURL: string;
+    data: undefined;
+    env: object;
+    headers: object;
+    maxBodyLength: number;
+    maxContentLength: number;
+    method: string;
+    params: object;
+    timeout: number;
+    transformRequest: string[];
+    transformResponse: string[];
+    transitional: {
+      silentJSONParsing: boolean;
+      forcedJSONParsing: boolean;
+      clarifyTimeoutError: boolean;
+    };
+    url: string;
+    validateStatus: (status: string) => void;
+    withCredentials: true;
+    xsrfCookieName: string;
+    xsrfHeaderName: string;
+  };
+  code: string;
+  status: number;
+  response: Response;
+  request: Request;
 }
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);

@@ -327,4 +327,102 @@ mod tests {
 
         Ok(())
     }
+
+    /// Helper to read the current user with a custom IP address
+    async fn current_user_request_with_ip(
+        app: &axum::Router,
+        ip: &str,
+    ) -> Result<axum::response::Response, Box<dyn Error>> {
+        let request = Request::builder()
+            .uri("/auth/current_user")
+            .method("GET")
+            .header("X-Forwarded-For", ip)
+            .body(Body::empty())
+            .unwrap();
+
+        Ok(app.clone().oneshot(request).await?)
+    }
+
+    /// Regression test for #1027. `current_user` runs on every page render, so
+    /// putting it behind the credential limiter signed people out at random.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_current_user_survives_exhausted_credential_limit(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state_with_rate_limiting(pool)?;
+        let app = setup_rate_limited_server(state).await?;
+
+        let ip = "192.168.1.107";
+
+        // Burn the credential budget for this IP
+        for i in 0..6 {
+            signup_request_with_ip(
+                &app,
+                ip,
+                &format!("burn{}", i),
+                &format!("burn{}@test.com", i),
+            )
+            .await?;
+        }
+
+        let response = signup_request_with_ip(&app, ip, "burned", "burned@test.com").await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "Credential limit should be exhausted for this IP"
+        );
+
+        // Page renders keep working from the same IP
+        for i in 0..10 {
+            let response = current_user_request_with_ip(&app, ip).await?;
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "current_user request {} should answer normally, not 429",
+                i + 1
+            );
+        }
+
+        Ok(())
+    }
+
+    /// The credential endpoints share one bucket, so rotating between them does
+    /// not buy an attacker extra attempts.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_credential_endpoints_share_one_bucket(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state_with_rate_limiting(pool)?;
+        let app = setup_rate_limited_server(state).await?;
+
+        let email = "sharedbucket@test.com";
+        let _ = signup_request_with_ip(&app, "192.168.1.200", "sharedbucket", email).await?;
+
+        let ip = "192.168.1.108";
+        for i in 0..3 {
+            let response = signup_request_with_ip(
+                &app,
+                ip,
+                &format!("shared{}", i),
+                &format!("shared{}@test.com", i),
+            )
+            .await?;
+
+            assert_eq!(
+                response.status(),
+                StatusCode::CREATED,
+                "Signup {} should sit within the burst",
+                i + 1
+            );
+        }
+
+        let response = login_request_with_ip(&app, ip, email, TEST_PASSWORD).await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "Login should draw on the same bucket the signups exhausted"
+        );
+
+        Ok(())
+    }
 }

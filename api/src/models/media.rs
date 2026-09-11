@@ -109,6 +109,18 @@ pub enum MediaContentType {
     #[sqlx(rename = "audio/mpeg")]
     #[serde(rename = "audio/mpeg")]
     Mp3,
+    #[sqlx(rename = "audio/mp4")]
+    #[serde(rename = "audio/mp4")]
+    M4a,
+    #[sqlx(rename = "audio/webm")]
+    #[serde(rename = "audio/webm")]
+    Weba,
+    #[sqlx(rename = "audio/wav")]
+    #[serde(rename = "audio/wav")]
+    Wav,
+    #[sqlx(rename = "audio/ogg")]
+    #[serde(rename = "audio/ogg")]
+    Oga,
 }
 
 impl From<MediaContentType> for sea_query::Value {
@@ -128,6 +140,10 @@ impl std::fmt::Display for MediaContentType {
             MediaContentType::Mpeg => "video/mpeg",
             MediaContentType::Webm => "video/webm",
             MediaContentType::Mp3 => "audio/mpeg",
+            MediaContentType::M4a => "audio/mp4",
+            MediaContentType::Weba => "audio/webm",
+            MediaContentType::Wav => "audio/wav",
+            MediaContentType::Oga => "audio/ogg",
         };
         write!(f, "{}", value)
     }
@@ -144,6 +160,10 @@ impl MediaContentType {
             "video/mpeg" => Ok(Self::Mpeg),
             "video/webm" => Ok(Self::Webm),
             "audio/mpeg" => Ok(Self::Mp3),
+            "audio/m4a" => Ok(Self::M4a),
+            "audio/webm" => Ok(Self::Weba),
+            "audio/wav" => Ok(Self::Wav),
+            "audio/ogg" => Ok(Self::Oga),
             ct => Err(ComhairleError::UnsupportedContentType(ct.to_string())),
         }
     }
@@ -157,6 +177,9 @@ impl MediaContentType {
             "mpeg" | "mpg" => Ok(Self::Mpeg),
             "webm" => Ok(Self::Webm),
             "mp3" => Ok(Self::Mp3),
+            "weba" => Ok(Self::Weba),
+            "wav" => Ok(Self::Wav),
+            "oga" => Ok(Self::Oga),
             ext => Err(ComhairleError::UnsupportedContentType(ext.to_string())),
         }
     }
@@ -303,7 +326,7 @@ impl CreateMedia {
 ///
 /// Returns a `Result` containing the created `Media` record if successful or a
 /// `ComhairleError` if the query fails.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     create_media: &CreateMedia,
@@ -339,7 +362,7 @@ pub async fn create(
 /// Returns a `Result` containing the `Media` record if found,
 /// a `ComhairleError::ResourceNotFound` if not found, or a
 /// `ComhairleError` if the query fails for any other reason.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -436,7 +459,7 @@ impl MediaFilterOptions {
 ///
 /// Returns a `Result` containing a `PaginatedResults<Media>` if successful,
 /// or a `ComhairleError` if the query fails.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -468,7 +491,7 @@ pub async fn list(
 ///
 /// Returns a `Result` containing the updated `Media` record, or `ComhairleError`
 /// if the query fails.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -503,7 +526,7 @@ pub async fn update(
 ///
 /// Returns a `Result` containing the deleted `Media` record, or `ComhairleError`
 /// if the query fails.
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(MediaIden::Table)
@@ -684,8 +707,8 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session.signup(&app).await?;
 
-        let user_1 = users::create_annon_user(&pool).await?;
-        let user_2 = users::create_annon_user(&pool).await?;
+        let user_1 = users::create_guest_user(&pool).await?;
+        let user_2 = users::create_guest_user(&pool).await?;
 
         let params_1 = CreateMedia {
             store_name: "test_media".to_string(),

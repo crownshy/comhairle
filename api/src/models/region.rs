@@ -111,7 +111,7 @@ impl CreateRegion {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     new_region: &CreateRegion,
@@ -238,7 +238,7 @@ impl PartialRegion {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -364,7 +364,7 @@ impl RegionFilterOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -386,7 +386,7 @@ pub async fn list(
     Ok(regions)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -410,7 +410,7 @@ pub async fn get_localized_by_id(
     Ok(region)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -426,7 +426,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError>
     Ok(region)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RegionIden::Table)

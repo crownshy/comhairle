@@ -106,8 +106,8 @@ pub enum ComhairleError {
     #[error("CSS inliner error: {0}")]
     CssInlinerError(#[from] css_inline::error::InlineError),
 
-    #[error("Username {0} already taken")]
-    DuplicateUsername(String),
+    #[error("Guest code {0} already taken")]
+    DuplicateGuestCode(String),
 
     #[error("Email {0} already taken")]
     DuplicateEmail(String),
@@ -169,8 +169,8 @@ pub enum ComhairleError {
     #[error("Update request contained no valid parameters")]
     NoValidUpdates,
 
-    #[error("Failed to create annon user")]
-    FailedToCreateAnnonUser,
+    #[error("Failed to create guest user")]
+    FailedToCreateGuestUser,
 
     #[error("Cant log this type of user in with this flow")]
     WrongUserType,
@@ -255,6 +255,12 @@ pub enum ComhairleError {
 
     #[error("User is not authorized to perform this action")]
     UserNotAuthorized,
+
+    /// The participant has already finished and the conversation does not allow revisits
+    /// afterwards. Distinct from `UserNotAuthorized` so the frontend can send
+    /// them to the thank-you page rather than surfacing a generic permission error.
+    #[error("Participant has already finished this conversation")]
+    ParticipantSealed,
 
     #[error("Failed to generate stats for invite {0}")]
     InviteStatsAggregationError(sqlx::Error),
@@ -350,6 +356,9 @@ pub enum ComhairleError {
 
     #[error("Cannot revoke the last system admin role")]
     CannotRevokeLastSuperAdmin,
+
+    #[error("Stream chunk error: {0}")]
+    StreamChunkError(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -362,7 +371,7 @@ pub struct ComhairleErrorResponse {
 impl IntoResponse for ComhairleError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match self {
-            ComhairleError::DuplicateUsername(_)
+            ComhairleError::DuplicateGuestCode(_)
             | ComhairleError::DuplicateEmail(_)
             | ComhairleError::ConversationAlreadyLive
             | ComhairleError::EmailAlreadyVerified
@@ -392,6 +401,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WorkflowStepHasWrongType(_) => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
+            | ComhairleError::ParticipantSealed
             | ComhairleError::CannotRevokeLastSuperAdmin
             | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch

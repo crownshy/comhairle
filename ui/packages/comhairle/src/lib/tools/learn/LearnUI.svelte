@@ -112,7 +112,10 @@
 	{#if pages.length > 1}
 		<div class="mx-auto mb-6 w-full max-w-[65ch]">
 			<p class="text-muted-foreground mb-1.5 text-sm font-medium">
-				Page {currentPageNo + 1} of {pages.length}
+				<span class="capitalize">{m.page()}</span>
+				{currentPageNo + 1}
+				{m.of()}
+				{pages.length}
 			</p>
 			<Progress value={currentPageNo + 1} max={pages.length} aria-label="Learning progress" />
 		</div>

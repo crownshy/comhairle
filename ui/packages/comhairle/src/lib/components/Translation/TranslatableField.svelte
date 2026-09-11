@@ -12,12 +12,13 @@
 	import type { TranslationSource, TranslationEntry } from './translationUtils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	type BaseProps = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
 		source: TranslationSource;
-		primaryLocale: string;
-		supportedLanguages: string[];
+		primaryLocale: Locale;
+		supportedLanguages: Locale[];
 		editorType?: 'plain' | 'rich';
 		placeholder?: string;
 		minHeight?: string;
@@ -64,7 +65,7 @@
 	}: Props = $props();
 
 	let dialogOpen = $state(false);
-	let clickedLang = $state<string | undefined>(undefined);
+	let clickedLang = $state<Locale | undefined>(undefined);
 
 	let value = $derived(source.contents[primaryLocale] ?? '');
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
@@ -93,7 +94,7 @@
 		saveSource(content);
 	}
 
-	function openDialog(lang?: string) {
+	function openDialog(lang?: Locale) {
 		clickedLang = lang;
 		dialogOpen = true;
 	}
@@ -182,7 +183,11 @@
 				</span>
 			{/if}
 			{#each badges as badge (badge.language)}
-				<LanguageStatusBadge {...badge} onclick={(lang) => openDialog(lang)} />
+				<LanguageStatusBadge
+					{...badge}
+					language={badge.language as Locale}
+					onclick={(lang) => openDialog(lang)}
+				/>
 			{/each}
 		</div>
 	{/if}

@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -21,12 +22,23 @@
 	let csvImporting = $state(false);
 	let fileInput = $state<HTMLInputElement>();
 
+	// Number of statements posted so far / in the current batch, for the progress
+	// readout while a post or import is in flight.
+	let postedCount = $state(0);
+	let totalCount = $state(0);
+
+	// A post (single or CSV) is in flight: gate the whole dialog until it settles.
+	let busy = $derived(addingSeed || csvImporting);
+
 	// Seeds are posted server-side to the active poll via PolisPostSeed (no
 	// browser-side Polis auth / CORS), then we re-sync so the new comment comes
 	// back with its real Polis-issued ids, and hand off to the parent to refresh.
 	async function postSeeds(texts: string[]) {
+		postedCount = 0;
+		totalCount = texts.length;
 		for (const statement_text of texts) {
 			await apiClient.PolisPostSeed({ workflow_step_id: workflowStepId, statement_text });
+			postedCount += 1;
 		}
 		await apiClient.PolisSyncStatementAux({ workflow_step_id: workflowStepId });
 		await onSeeded();
@@ -111,7 +123,12 @@
 </Button>
 
 <Dialog.Root bind:open>
-	<Dialog.Content class="sm:max-w-xl">
+	<Dialog.Content
+		class="sm:max-w-xl"
+		showCloseButton={!busy}
+		onInteractOutside={(e) => busy && e.preventDefault()}
+		onEscapeKeydown={(e) => busy && e.preventDefault()}
+	>
 		<Dialog.Header>
 			<Dialog.Title>Add seed statements</Dialog.Title>
 			<Dialog.Description>
@@ -119,7 +136,21 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="flex flex-col gap-3">
+		<div class="relative flex flex-col gap-3">
+			<!-- Dim + block the body while a post or import is in flight. -->
+			{#if busy}
+				<div
+					class="bg-background/50 absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 backdrop-blur-[1px]"
+				>
+					<Spinner class="text-muted-foreground size-6" />
+					{#if totalCount > 1}
+						<p class="text-muted-foreground text-sm">
+							Posting {Math.min(postedCount + 1, totalCount)} / {totalCount}
+						</p>
+					{/if}
+				</div>
+			{/if}
+
 			<label class="text-muted-foreground text-sm font-medium" for="seed-text">
 				Write a statement
 			</label>
@@ -128,6 +159,7 @@
 				bind:value={draftText}
 				rows={3}
 				placeholder="Write a seed statement…"
+				disabled={busy}
 			/>
 
 			<div class="text-muted-foreground flex items-center gap-2 text-sm">
@@ -136,7 +168,7 @@
 					variant="secondary"
 					size="sm"
 					onclick={() => fileInput?.click()}
-					disabled={csvImporting}
+					disabled={busy}
 					title="Import seed statements from a CSV (one statement per line)"
 				>
 					<Upload class="size-4" />
@@ -154,8 +186,10 @@
 		</div>
 
 		<Dialog.Footer>
-			<Button variant="secondary" onclick={() => (open = false)}>Cancel</Button>
-			<Button onclick={addSeed} disabled={!draftText.trim() || addingSeed}>
+			<Button variant="secondary" onclick={() => (open = false)} disabled={busy}
+				>Cancel</Button
+			>
+			<Button onclick={addSeed} disabled={!draftText.trim() || busy}>
 				{addingSeed ? 'Posting…' : 'Post seed'}
 			</Button>
 		</Dialog.Footer>

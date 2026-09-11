@@ -119,25 +119,14 @@ export class VideoCallService {
 	}
 
 	private handleStateUpdate(state: VideoCallState) {
-		console.log('Video call state updated:', state);
-		console.log(
-			'[BREAKOUT-SVC] breakout_rooms:',
-			state.breakout_rooms?.length,
-			'breakout_session:',
-			state.breakout_session,
-			'participants:',
-			Object.keys(state.participants ?? {})
-		);
 		this._currentCallState = state;
 	}
 
 	private handleBroadcastMessage(data: BroadcastMessage) {
-		console.log('Received broadcast message:', data.message);
 		this._lastBroadcastMessage = data.message;
 	}
 
 	private handleAgendaUpdate(agenda: EventAgendaItem[]) {
-		console.log('[BREAKOUT-SVC] agenda updated:', agenda?.length, 'items');
 		this._agenda = agenda;
 	}
 

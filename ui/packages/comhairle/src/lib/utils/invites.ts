@@ -12,6 +12,15 @@ export function inviteUrl(
 	return `${url.origin}/conversations/${conversation.id}/${event ? `events/${event.id}/` : ''}invite/${invite.id}`;
 }
 
+export function embedInviteUrl(
+	url: URL,
+	invite: InviteDto,
+	conversation: ConversationDto,
+	event?: EventDto
+) {
+	return inviteUrl(url, invite, conversation, event) + '?embed=true';
+}
+
 export function matchCurrentUserAgainstInvite(user: UserDto, invite: InviteDto): boolean {
 	if (!user.email) return false;
 	if (typeof invite.inviteType !== 'string' && !('email' in invite.inviteType)) return false;

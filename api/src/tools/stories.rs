@@ -63,6 +63,7 @@ impl ToolImpl for StoriesTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         stories_setup(setup).await
     }

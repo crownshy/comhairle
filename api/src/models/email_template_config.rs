@@ -480,7 +480,7 @@ pub struct CreateEmailTemplateConfig {
     pub subject: Option<String>,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     user_id: Uuid,
@@ -543,7 +543,7 @@ impl UpdateEmailTemplateConfig {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -567,7 +567,7 @@ pub async fn update(
     Ok(email_config)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -583,7 +583,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Com
     Ok(email_config)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_type_user(
     db: &PgPool,
     user_id: Uuid,
@@ -618,7 +618,7 @@ impl EmailTemplateConfigFilterOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     user_id: &Uuid,
@@ -639,7 +639,7 @@ pub async fn list(
     Ok(email_configs)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(EmailTemplateConfigIden::Table)

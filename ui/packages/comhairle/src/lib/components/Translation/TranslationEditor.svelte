@@ -8,16 +8,17 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { type TranslationSource, statusToBadgeVariant } from './translationUtils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		/** The same source the inline field renders; the dialog is just another view over it. */
 		source: TranslationSource;
-		primaryLocale: string;
-		supportedLanguages: string[];
+		primaryLocale: Locale;
+		supportedLanguages: Locale[];
 		editorType?: 'plain' | 'rich';
 		minHeight?: string;
 		maxHeight?: string;
-		initialTargetLang?: string;
+		initialTargetLang?: Locale;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
 	};
@@ -35,11 +36,11 @@
 	}: Props = $props();
 
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
-	let allLanguages = $derived([primaryLocale, ...otherLanguages]);
+	let allLanguages = $derived([primaryLocale].concat(otherLanguages));
 
 	// The only genuinely local state here is which tab is open and whether an AI request is in flight;
 	// all content and status is read straight from the source.
-	let activeTab = $state<string | null>(null);
+	let activeTab = $state<Locale | null>(null);
 	let isTranslating = $state(false);
 
 	// Not a $derived: activeTab is user-controlled and must persist across dependency changes.
@@ -84,7 +85,7 @@
 		handleTargetChange((e.currentTarget as HTMLTextAreaElement).value);
 	}
 
-	async function selectTab(lang: string) {
+	async function selectTab(lang: Locale) {
 		// Commit pending edits before leaving the current tab so nothing is lost on switch.
 		await source.flush();
 		activeTab = lang;

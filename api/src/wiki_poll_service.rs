@@ -62,6 +62,20 @@ pub trait WikiPollService: Send + Sync {
         auth_cookies: &str,
     ) -> Result<String, WikiPollServiceError>;
 
+    /// Post a host-authored statement, choosing whether it is a seed.
+    /// `is_seed = true` matches `post_seed_comment`: the poll service
+    /// auto-approves the statement. `is_seed = false` posts a genuine non-seed
+    /// statement, which the poll service leaves pending until moderated. Returns
+    /// the new statement id (`tid`) and the participant id (`pid`) the service
+    /// assigned the author (the admin's participant slot).
+    async fn post_statement(
+        &self,
+        comment: &str,
+        poll_id: &str,
+        is_seed: bool,
+        auth_cookies: &str,
+    ) -> Result<PostedStatement, WikiPollServiceError>;
+
     async fn get_comments(
         &self,
         poll_id: &str,
@@ -72,6 +86,16 @@ pub trait WikiPollService: Send + Sync {
         poll_id: &str,
         auth_cookies: &str,
     ) -> Result<Vec<WikiPollXid>, WikiPollServiceError>;
+
+    /// Number of votes a single participant has cast in a poll. Used to gate the
+    /// participant "required votes" threshold on server data instead of a
+    /// per-device local counter.
+    async fn get_participant_vote_count(
+        &self,
+        poll_id: &str,
+        pid: u32,
+        auth_cookies: &str,
+    ) -> Result<u32, WikiPollServiceError>;
 
     async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError>;
 
@@ -131,6 +155,14 @@ pub struct WikiPollComment {
     pub moderation: i32,
 }
 
+/// The result of posting a statement to a poll: the new statement id and the
+/// participant id Polis attributed it to.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PostedStatement {
+    pub tid: i32,
+    pub pid: i32,
+}
+
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct WikiPollXid {
     pub pid: u32,
@@ -182,8 +214,14 @@ impl MockWikiPollService {
             .expect_get_xids()
             .returning(|_, _| Box::pin(async move { Ok(vec![]) }));
         wiki_poll_service
+            .expect_get_participant_vote_count()
+            .returning(|_, _, _| Box::pin(async move { Ok(0) }));
+        wiki_poll_service
             .expect_moderate_comment()
             .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));
+        wiki_poll_service
+            .expect_post_statement()
+            .returning(|_, _, _, _| Box::pin(async move { Ok(PostedStatement::default()) }));
         wiki_poll_service.expect_delete_poll().returning(|_, _| {
             Box::pin(async move {
                 Ok(WikiPoll {

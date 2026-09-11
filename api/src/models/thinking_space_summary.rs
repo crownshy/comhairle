@@ -64,7 +64,7 @@ impl CreateSummary {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     user_id: Uuid,
@@ -96,7 +96,7 @@ pub struct UpdateSummary {
     pub summary: String,
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
@@ -135,7 +135,7 @@ pub async fn update(
     Ok(summary)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ThinkingSpaceSummaryIden::Table)
@@ -225,7 +225,7 @@ impl ThinkingSpaceSummaryFilterOptions {
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn list(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -252,7 +252,7 @@ pub async fn list(
     Ok(summaries)
 }
 
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ThinkingSpaceSummaryIden::Table)
@@ -309,7 +309,7 @@ mod tests {
             .await?;
         let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
 
-        let user = users::create_annon_user(pool).await?;
+        let user = users::create_guest_user(pool).await?;
 
         Ok((user.id, workflow_step.id))
     }
@@ -388,7 +388,7 @@ mod tests {
     async fn should_list_thinking_space_summaries(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_a_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
 
-        let user_b = users::create_annon_user(&pool).await?;
+        let user_b = users::create_guest_user(&pool).await?;
 
         let params_a = CreateSummary {
             summary: "Summary_a".to_string(),
@@ -439,7 +439,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_filter_by_is_shared_with_organizer(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_a_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
-        let user_b = users::create_annon_user(&pool).await?;
+        let user_b = users::create_guest_user(&pool).await?;
 
         // user_a: permission granted -> should be included when filtering true
         let summary_shared = create(

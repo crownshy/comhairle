@@ -85,6 +85,7 @@ impl ToolImpl for LearnTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         learn_setup(setup).await
     }
