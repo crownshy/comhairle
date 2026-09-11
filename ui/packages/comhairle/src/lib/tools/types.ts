@@ -1,9 +1,9 @@
-import type { ToolConfig, WorkflowStepWithTranslations } from '@crownshy/api-client/api';
+import type { ToolConfig, WorkflowStepWithTranslationsDto } from '@crownshy/api-client/api';
 
 export type InstancedToolConfig<T> = Extract<ToolConfig, { type: T }>;
 
 export type WorkflowStepWithTranslationsAndTool<T> = Exclude<
-	WorkflowStepWithTranslations,
+	WorkflowStepWithTranslationsDto,
 	'toolConfig' | 'previewToolConfig'
 > & {
 	toolConfig: InstancedToolConfig<T>;
