@@ -19,10 +19,12 @@
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
+	import type { WorkflowStepWithTranslationsDto } from '@crownshy/api-client/api';
 
 	const { data } = $props();
-	const { conversation, workflows } = $derived(data);
-	const workflow = $derived(workflows[0]);
+	const { conversation } = $derived(data);
+
+	let workflowId = $state<WorkflowStepWithTranslationsDto['id'] | null>(null);
 
 	let accessForm = superForm(
 		{
@@ -69,14 +71,32 @@
 	}
 
 	async function saveAutoLogin(value: boolean) {
-		const res = await tryCatchAsync(() =>
+		if (workflowId === null) {
+			const workflows = await tryCatchAsync(() =>
+				apiClient.ListConversationWorkflows({
+					params: { conversation_id: conversation.id }
+				})
+			);
+
+			if (workflows.err !== null) {
+				notifications.addFlash({
+					message: 'Could not get the workflow, please try again',
+					priority: 'ERROR'
+				});
+				return;
+			}
+
+			workflowId = workflows.ok[0].id;
+		}
+
+		const updateConversationWorkflow = await tryCatchAsync(() =>
 			apiClient.UpdateConversationWorkflow(
 				{ auto_login: value },
-				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
+				{ params: { conversation_id: conversation.id, workflow_id: workflowId! } }
 			)
 		);
-		if (res.err !== null) {
-			console.error(res.err);
+		if (updateConversationWorkflow.err !== null) {
+			console.error(updateConversationWorkflow.err);
 			$form.autoLogin = !value;
 			notifications.send({ message: 'Failed to update setting', priority: 'ERROR' });
 			return;
