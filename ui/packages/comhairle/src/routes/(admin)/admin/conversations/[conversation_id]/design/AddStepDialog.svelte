@@ -6,6 +6,12 @@
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { PALETTE_TOOLS, isEventPaletteItem, type CreationKey } from '$lib/tool_meta';
 	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
+	import { goto, invalidate } from '$app/navigation';
+	import { createWorkflowStep } from './createWorkflowStep';
+	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
+	import { key } from '$lib/utils/invalidationKey';
+	import type { ConversationDto, WorkflowDto } from '@crownshy/api-client/api';
+	import { notifications } from '$lib/notifications.svelte';
 
 	/**
 	 * The "Add a step" dialog: a two-column picker (step-type list on the left, rich
@@ -16,21 +22,66 @@
 	 * then creates the step or event and closes the dialog.
 	 */
 	type Props = {
-		/** Two-way open state. */
+		workflowId: WorkflowDto['id'];
+		conversationId: ConversationDto['id'];
+		highestStepOrder: number;
 		open?: boolean;
-		/** Disables the confirm button while the parent is creating the step. */
-		adding?: boolean;
-		/** Called with the chosen tool's `creationKey` when the user confirms a tool step. */
-		onAdd: (creationKey: CreationKey) => void;
-		/** Called when the user confirms an event stand-in (no backing tool, e.g. video conference). */
-		onAddEvent: () => void;
 	};
-	let { open = $bindable(false), adding = false, onAdd, onAddEvent }: Props = $props();
+	let { workflowId, conversationId, highestStepOrder, open = $bindable(false) }: Props = $props();
+
+	let adding = $state<boolean>(false);
 
 	let selectedType = $state<string>(PALETTE_TOOLS[0].type);
 	const selected = $derived(
 		PALETTE_TOOLS.find((t) => t.type === selectedType) ?? PALETTE_TOOLS[0]
 	);
+
+	async function addStep(creationKey: CreationKey) {
+		if (adding) return;
+		adding = true;
+
+		const created = await createWorkflowStep({
+			creationKey,
+			conversationId,
+			workflowId,
+			highestStepOrder
+		});
+
+		adding = false;
+
+		if (created.err !== null) {
+			console.error(created.err);
+			notifications.send({ priority: 'ERROR', message: 'Failed to create step' });
+		}
+
+		if (!created.ok) return;
+		await invalidate(key('conversation/design/workflow'));
+		notifications.send({ priority: 'INFO', message: 'Step added' });
+		newStepHighlight.flag(created.ok.id);
+		open = false;
+
+		// Return to the design board (works from either entry point: the board's own Add step
+		// button or the workflow strip's while inside a step editor). The design page reacts to
+		// `newStepHighlight` by scrolling the new card into view and briefly highlighting it, so
+		// the operator sees exactly which step was just created instead of landing in its editor.
+		await goto(
+			resolve('/(admin)/admin/conversations/[conversation_id]/design', {
+				conversation_id: conversationId
+			})
+		);
+	}
+
+	// The "Online video conference" palette entry has no backing workflow tool, so
+	// adding it creates a conversation Event instead. Hand off to the create-event
+	// flow, where the organiser sets the required date, time, and details.
+	function addEvent() {
+		open = false;
+		goto(
+			resolve('/(admin)/admin/conversations/[conversation_id]/events/new', {
+				conversation_id: conversationId
+			})
+		);
+	}
 </script>
 
 <Dialog.Root bind:open>
@@ -97,7 +148,7 @@
 							class="bg-muted border-border relative flex h-28 flex-1 items-center justify-center overflow-hidden rounded-lg border"
 						>
 							<span
-								class="text-primary/70 border-primary/40 -rotate-[30deg] rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
+								class="text-primary/70 border-primary/40 -rotate-30 rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
 							>
 								Example
 							</span>
@@ -176,7 +227,7 @@
 					size="sm"
 					loading={adding}
 					onclick={() =>
-						isEventPaletteItem(selected) ? onAddEvent() : onAdd(selected.creationKey)}
+						isEventPaletteItem(selected) ? addEvent() : addStep(selected.creationKey)}
 				>
 					+ Add this step
 				</LoadingButton>
