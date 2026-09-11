@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
@@ -29,6 +31,27 @@ const DEFAULT_COLUMNS: [ChatInstructionsIden; 6] = [
     ChatInstructionsIden::CreatedAt,
     ChatInstructionsIden::UpdatedAt,
 ];
+
+pub trait ChatInstructionsExt {
+    fn to_prompt_variables(&self) -> HashMap<String, String>;
+}
+
+impl ChatInstructionsExt for Option<ChatInstructions> {
+    fn to_prompt_variables(&self) -> HashMap<String, String> {
+        let mut var_map = HashMap::new();
+
+        // Extend with other fields as prompt requirements change
+        var_map.insert(
+            "target_reading_age".to_string(),
+            self.as_ref()
+                .and_then(|inst| inst.target_reading_age)
+                .unwrap_or(9)
+                .to_string(),
+        );
+
+        var_map
+    }
+}
 
 #[derive(Deserialize, Debug, JsonSchema)]
 pub struct UpsertChatInstructions {
@@ -68,7 +91,7 @@ impl UpsertChatInstructions {
 pub async fn upsert_for_conversation(
     db: &PgPool,
     conversation_id: Uuid,
-    payload: UpsertChatInstructions,
+    payload: &UpsertChatInstructions,
 ) -> Result<ChatInstructions, ComhairleError> {
     let mut columns = payload.columns();
     let mut values = payload.values();
@@ -134,7 +157,7 @@ mod tests {
             max_length: Some(500),
         };
 
-        let instructions = upsert_for_conversation(&pool, conversation_id, payload).await?;
+        let instructions = upsert_for_conversation(&pool, conversation_id, &payload).await?;
 
         assert_eq!(
             instructions.conversation_id, conversation_id,
@@ -162,7 +185,7 @@ mod tests {
             max_length: Some(100),
         };
 
-        let new_instructions = upsert_for_conversation(&pool, conversation_id, payload).await?;
+        let new_instructions = upsert_for_conversation(&pool, conversation_id, &payload).await?;
 
         assert_eq!(
             new_instructions.conversation_id, conversation_id,
@@ -184,7 +207,8 @@ mod tests {
             max_length: Some(200),
         };
 
-        let updated_instructions = upsert_for_conversation(&pool, conversation_id, payload).await?;
+        let updated_instructions =
+            upsert_for_conversation(&pool, conversation_id, &payload).await?;
 
         assert_eq!(
             updated_instructions.conversation_id, conversation_id,
@@ -218,7 +242,7 @@ mod tests {
             max_length: Some(500),
         };
 
-        let new_instructions = upsert_for_conversation(&pool, conversation_id, payload).await?;
+        let new_instructions = upsert_for_conversation(&pool, conversation_id, &payload).await?;
 
         let fetched_instructions = get_by_conversation_id(&pool, conversation_id).await?;
 

@@ -2206,12 +2206,20 @@ export const ComhairleLlm = z
   .partial()
   .passthrough();
 export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
+export const Variable = z
+  .object({
+    key: z.string(),
+    optional: z.union([z.boolean(), z.null()]).optional(),
+  })
+  .passthrough();
+export type Variable = z.infer<typeof Variable>;
 export const ComhairlePrompt = z
   .object({
     cross_languages: z.union([z.array(z.string()), z.null()]),
     empty_response: z.union([z.string(), z.null()]),
     llm_prompt: z.union([z.string(), z.null()]),
     opener: z.union([z.string(), z.null()]),
+    variables: z.union([z.array(Variable), z.null()]),
   })
   .partial()
   .passthrough();
@@ -2236,6 +2244,25 @@ export const UpdateChatRequest = z
   .partial()
   .passthrough();
 export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
+export const ChatInstructionsDto = z
+  .object({
+    conversationId: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    maxLength: z.union([z.number(), z.null()]).optional(),
+    targetReadingAge: z.union([z.number(), z.null()]).optional(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type ChatInstructionsDto = z.infer<typeof ChatInstructionsDto>;
+export const UpsertChatInstructions = z
+  .object({
+    max_length: z.union([z.number(), z.null()]),
+    target_reading_age: z.union([z.number(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpsertChatInstructions = z.infer<typeof UpsertChatInstructions>;
 export const ComhairleChatSession = z
   .object({
     chat_id: z.string(),
@@ -2246,7 +2273,10 @@ export const ComhairleChatSession = z
   .passthrough();
 export type ComhairleChatSession = z.infer<typeof ComhairleChatSession>;
 export const ChatConversationRequest = z
-  .object({ question: z.string() })
+  .object({
+    question: z.string(),
+    variables: z.union([z.record(z.string()), z.null()]).optional(),
+  })
   .passthrough();
 export type ChatConversationRequest = z.infer<typeof ChatConversationRequest>;
 export const page_size = z
@@ -3387,9 +3417,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateFeedbackDTO,
   PartialFeedback,
   ComhairleLlm,
+  Variable,
   ComhairlePrompt,
   ComhairleChat,
   UpdateChatRequest,
+  ChatInstructionsDto,
+  UpsertChatInstructions,
   ComhairleChatSession,
   ChatConversationRequest,
   page_size,
@@ -3839,6 +3872,29 @@ const endpoints = makeApi([
   },
   {
     method: "get",
+    path: "/conversation/:conversation_id/chat_instructions",
+    alias: "GetConversationChatInstructions",
+    description: `Get chat instructions by conversation_id`,
+    requestFormat: "json",
+    response: ChatInstructionsDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/chat_instructions",
+    alias: "UpsertConversationChatInstructions",
+    description: `Creates a new chat instructions record for a conversation or updates and existing record`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpsertChatInstructions,
+      },
+    ],
+    response: ChatInstructionsDto,
+  },
+  {
+    method: "get",
     path: "/conversation/:conversation_id/chat_sessions",
     alias: "GetChatSessionHistory",
     requestFormat: "json",
@@ -3858,7 +3914,7 @@ Use a raw HTTP request and process the response body incrementally.`,
       {
         name: "body",
         type: "Body",
-        schema: z.object({ question: z.string() }).passthrough(),
+        schema: ChatConversationRequest,
       },
     ],
     response: z.void(),

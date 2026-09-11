@@ -8,8 +8,7 @@ use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::stream::{self, Stream, StreamExt};
 use ragflow::{
-    ConvoQuestion, DeleteResources, GetQueryParams, Input, MessageReference, RagflowError,
-    SessionMessage,
+    DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage,
     agent::{session::*, *},
     chat::{session::*, *},
     client::RagflowClient,
@@ -28,7 +27,7 @@ use crate::{
         ComhairlePrompt, ComhairleSessionMessage, CreateAgentRequest, CreateChatRequest,
         CreateChatSessionRequest, GetQueryParams as ApiGetQueryParams, UpdateAgentRequest,
         UpdateChatRequest, UpdateChatSessionRequest, UpdateDocumentRequest,
-        UpdateKnowledgeBaseRequest, UploadFileRequest,
+        UpdateKnowledgeBaseRequest, UploadFileRequest, Variable as ComhairleVariable,
     },
     error::ComhairleError,
 };
@@ -539,7 +538,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     > {
-        let mut body: ConvoQuestion = body.into();
+        let mut body: ChatConvoRequest = body.into();
         body.session_id = Some(session_id.to_string());
 
         let stream =
@@ -718,7 +717,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     > {
-        let mut body: ConvoQuestion = body.into();
+        let mut body: AgentConvoRequest = body.into();
         body.session_id = session_id.map(|id| id.to_string());
 
         let stream =
@@ -992,6 +991,9 @@ impl From<Prompt> for ComhairlePrompt {
             opener: input.opener,
             empty_response: input.empty_response,
             cross_languages: input.cross_languages,
+            variables: input
+                .variables
+                .map(|vars| vars.into_iter().map(Into::into).collect()),
         }
     }
 }
@@ -1003,6 +1005,10 @@ impl From<&Prompt> for ComhairlePrompt {
             opener: input.opener.clone(),
             empty_response: input.empty_response.clone(),
             cross_languages: input.cross_languages.clone(),
+            variables: input
+                .variables
+                .as_ref()
+                .map(|vars| vars.iter().map(Into::into).collect()),
         }
     }
 }
@@ -1014,7 +1020,37 @@ impl From<ComhairlePrompt> for Prompt {
             opener: input.opener,
             empty_response: input.empty_response,
             cross_languages: input.cross_languages,
+            variables: input
+                .variables
+                .map(|vars| vars.into_iter().map(Into::into).collect()),
             ..Default::default()
+        }
+    }
+}
+
+impl From<ComhairleVariable> for Variable {
+    fn from(input: ComhairleVariable) -> Self {
+        Self {
+            key: input.key,
+            optional: input.optional.unwrap_or(true),
+        }
+    }
+}
+
+impl From<Variable> for ComhairleVariable {
+    fn from(input: Variable) -> Self {
+        Self {
+            key: input.key,
+            optional: Some(input.optional),
+        }
+    }
+}
+
+impl From<&Variable> for ComhairleVariable {
+    fn from(input: &Variable) -> Self {
+        Self {
+            key: input.key.clone(),
+            optional: Some(input.optional),
         }
     }
 }
@@ -1192,14 +1228,14 @@ impl From<UpdateChatSessionRequest> for UpdateChatSession {
     }
 }
 
-impl From<ChatConversationRequest> for ConvoQuestion {
+impl From<ChatConversationRequest> for ChatConvoRequest {
     fn from(input: ChatConversationRequest) -> Self {
         Self {
             question: input.question,
             session_id: None,
             user_id: None,
             stream: Some(true),
-            inputs: None,
+            prompt_variables: input.variables,
         }
     }
 }
@@ -1276,7 +1312,7 @@ impl From<&AgentSession> for ComhairleAgentSession {
     }
 }
 
-impl From<AgentConversationRequest> for ConvoQuestion {
+impl From<AgentConversationRequest> for AgentConvoRequest {
     fn from(a: AgentConversationRequest) -> Self {
         let mut inputs = HashMap::new();
         if let Some(topic) = a.topic {

@@ -9,7 +9,7 @@ use super::{
 use crate::ComhairleState;
 use crate::bot_service::{
     ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
-    DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
+    DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT, Variable,
 };
 use crate::config::ComhairleConfig;
 use crate::error::ComhairleError;
@@ -766,6 +766,16 @@ pub async fn create(
                 opener: Some(DEFAULT_CHAT_OPENER.to_string()),
                 empty_response: Some(DEFAULT_CHAT_NOT_FOUND_RESPONSE.to_string()),
                 cross_languages: None,
+                variables: Some(vec![
+                    Variable {
+                        key: "knowledge".to_string(),
+                        optional: Some(false),
+                    },
+                    Variable {
+                        key: "target_reading_age".to_string(),
+                        optional: Some(false),
+                    },
+                ]),
             }),
             ..Default::default()
         };
