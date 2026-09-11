@@ -12,6 +12,7 @@ type InputKey =
 	| 'knowledge-base/documents'
 	| 'notifications'
 	| 'event'
+	| 'event/facilitators'
 	| 'documents'
 	| 'participation'
 	| 'email-template-config'
