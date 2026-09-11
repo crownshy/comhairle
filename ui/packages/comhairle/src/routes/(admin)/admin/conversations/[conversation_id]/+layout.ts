@@ -10,7 +10,6 @@ import { HttpStatus } from '$lib/utils/constants';
  * Invalidation keys for this load. Each re-runs this fetch; the names let callers
  * express *what* they changed without coupling to load internals.
  * - conversation:meta — conversation record itself (title, description, flags…)
- * - conversation:workflow — workflows + steps + stats (anything step-related)
  *
  * Events are loaded here (not lazily in events/+layout) so the conversation layout can
  * server-render the events sub-tab strip from `data.events`, the same way it renders the
@@ -19,9 +18,7 @@ import { HttpStatus } from '$lib/utils/constants';
  */
 export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	depends(key('conversation'));
-	depends(key('conversation/workflow'));
 	depends('conversation:meta');
-	depends('conversation:workflow');
 
 	const { conversation_id } = params;
 	const { api } = await parent();
