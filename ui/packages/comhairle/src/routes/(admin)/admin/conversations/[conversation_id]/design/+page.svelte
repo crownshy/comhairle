@@ -45,6 +45,7 @@
 	// client no longer flashes the empty state before hydration. (See CLAUDE.md.)
 	let reorderedSteps = $state<WorkflowStepWithTranslationsDto[] | undefined>(undefined);
 
+	// FIX: Change to use https://svelte.dev/docs/svelte/declaration-tags, once we update to Svelte 5.56
 	$effect(() => {
 		data.streamedWorkflows.then((result) => {
 			if (result.ok !== null) {
