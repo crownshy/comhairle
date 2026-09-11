@@ -28,7 +28,7 @@
 		<Skeleton class="h-138 w-full rounded-xl" />
 	{:then workflowStats}
 		{#if workflowStats.err !== null}
-			<h3 class="my-10 text-2xl">Could not retreieve stats please try again</h3>
+			<h3 class="text-destructive my-10">Could not retreieve stats please try again</h3>
 		{:else}
 			<StatsBar
 				stats={[
