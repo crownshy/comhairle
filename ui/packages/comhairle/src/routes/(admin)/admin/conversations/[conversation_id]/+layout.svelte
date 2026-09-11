@@ -8,12 +8,10 @@
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
-	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
 	import EventStrip from '$lib/components/EventStrip.svelte';
 	import { EVENT_SUBTABS } from './events/[event_id]/tabs';
-	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
@@ -271,12 +269,6 @@
 				widths={primaryStripSkeleton.widths}
 			/>
 		{/if}
-	{:else if isDesignSection}
-		<WorkflowStepStrip
-			conversationId={conversation.id}
-			steps={data.workflowSteps}
-			onAddStep={() => (addStepDialog.open = true)}
-		/>
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
 	{:else if isEventsSection}
