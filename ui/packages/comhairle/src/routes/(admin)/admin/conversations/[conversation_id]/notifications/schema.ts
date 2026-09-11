@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const notificationFormSchema = z
+export const NotificationsSchema = z
 	.object({
 		title: z
 			.string()
@@ -18,4 +18,4 @@ export const notificationFormSchema = z
 	})
 	.superRefine(() => {});
 
-export type NotificationFormData = z.infer<typeof notificationFormSchema>;
+export default NotificationsSchema;
