@@ -1,3 +1,4 @@
+import type { ConversationDto, ToolConfig, WorkflowStepDto } from '@crownshy/api-client/api';
 import {
 	MessagesSquare,
 	Video,
@@ -318,3 +319,10 @@ export function protocolFromBool(share: boolean): DataProtocol {
 export function boolFromProtocol(p: DataProtocol): boolean {
 	return p === 'restricted';
 }
+
+type StepLike = Pick<WorkflowStepDto, 'toolConfig' | 'previewToolConfig'> & {
+	[k: string]: unknown;
+};
+
+export const getToolConfig = (isLive: ConversationDto['isLive'], step: StepLike): ToolConfig =>
+	isLive && step.toolConfig ? step.toolConfig : step.previewToolConfig;
