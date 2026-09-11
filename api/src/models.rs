@@ -6,6 +6,7 @@ pub mod api_key;
 pub mod audio_recording;
 pub mod bot_service_user_session;
 pub mod breakout_plan;
+pub mod chat_instructions;
 pub mod conversation;
 pub mod conversation_email_notification_recipients;
 pub mod demographics;

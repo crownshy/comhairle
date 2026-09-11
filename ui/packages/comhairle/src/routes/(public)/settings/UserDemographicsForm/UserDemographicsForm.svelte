@@ -4,9 +4,12 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
+	import * as Select from '$lib/components/ui/select';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { superForm } from 'sveltekit-superforms';
+	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { z } from 'zod';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import type { DemographicsQuestion, DemographicsResponse } from '@crownshy/api-client/api';
 
@@ -33,11 +36,20 @@
 		return initialData;
 	};
 
+	const buildSchema = () => {
+		const shape: Record<string, z.ZodTypeAny> = {};
+		for (const q of questions) {
+			shape[q.slug] = z.string().optional();
+		}
+		return z.object(shape);
+	};
+
 	const form = untrack(() => {
 		const initialData = buildInitialData();
+		const schema = buildSchema();
 
 		return superForm(initialData, {
-			validators: false,
+			validators: zodClient(schema),
 			taintedMessage: false,
 			validationMethod: 'onsubmit'
 		});
@@ -139,12 +151,32 @@
 						{(question as any).label || (question as any).text || question.displayName}
 					</Label>
 
-					<Input
-						id={question.slug}
-						bind:value={$formData[question.slug]}
-						placeholder={`Enter ${question.displayName.toLowerCase()}`}
-						disabled={saving}
-					/>
+					{#if question.bucketConfig?.type === 'string' && question.bucketConfig?.options?.length > 0}
+						{@const options = question.bucketConfig.options}
+						<Select.Root
+							type="single"
+							value={$formData[question.slug]}
+							onValueChange={(v) => ($formData[question.slug] = v ?? '')}
+							disabled={saving}
+						>
+							<Select.Trigger id={question.slug} class="w-full">
+								{options.find((o) => o.value === $formData[question.slug])?.label ??
+									`Select ${question.displayName.toLowerCase()}`}
+							</Select.Trigger>
+							<Select.Content>
+								{#each options as option (option.value)}
+									<Select.Item value={option.value}>{option.label}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					{:else}
+						<Input
+							id={question.slug}
+							bind:value={$formData[question.slug]}
+							placeholder={`Enter ${question.displayName.toLowerCase()}`}
+							disabled={saving}
+						/>
+					{/if}
 
 					{#if $errors[question.slug]}
 						<span class="text-destructive block text-xs">{$errors[question.slug]}</span>

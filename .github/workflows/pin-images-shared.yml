@@ -43,6 +43,13 @@ on:
         required: false
         default: false
         type: boolean
+      create_pr:
+        description: >-
+          When true, push the pin update to a new branch and open a pull
+          request instead of committing directly to the default branch.
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   pin:
@@ -57,6 +64,8 @@ jobs:
       VALIDATION: ${{ inputs.validation }}
       DRY_RUN: ${{ inputs.dry_run }}
       FORCE_PIN: ${{ inputs.force_pin }}
+      CREATE_PR: ${{ inputs.create_pr }}
+      PR_BRANCH: pin/${{ inputs.gitops_file_path }}-${{ github.run_id }}
       GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
       GITOPS_REPO: ${{ inputs.gitops_repo }}
       GITOPS_FILE_PATH: ${{ inputs.gitops_file_path }}
@@ -143,11 +152,29 @@ jobs:
           # Push new commit via GitHub API.
           encoded_content="$(printf '%s' "${updated_text}" | base64 -w 0)"
 
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "Dry run enabled. Skipping pin commit update."
+            exit 0
+          fi
+
+          target_branch="${default_branch}"
+
+          if [[ "${CREATE_PR}" == "true" ]]; then
+            # Branch off the default branch instead of committing to it directly.
+            base_ref="$(curl -fsSL "${COMMON_HEADERS[@]}" "${API_URL}/git/ref/heads/${default_branch}")"
+            base_sha="$(jq -r '.object.sha' <<<"${base_ref}")"
+
+            branch_payload="$(jq -n --arg ref "refs/heads/${PR_BRANCH}" --arg sha "${base_sha}" '{ref: $ref, sha: $sha}')"
+            curl -fsSL -X POST "${COMMON_HEADERS[@]}" -d "${branch_payload}" "${API_URL}/git/refs"
+
+            target_branch="${PR_BRANCH}"
+          fi
+
           update_payload="$(jq -n \
           --arg message "${COMMIT_MESSAGE}" \
           --arg content "${encoded_content}" \
           --arg sha "${current_sha}" \
-          --arg branch "${default_branch}" \
+          --arg branch "${target_branch}" \
           '{
             message: $message,
             content: $content,
@@ -155,9 +182,13 @@ jobs:
             branch: $branch
           }')"
 
-          if [[ "${DRY_RUN}" == "true" ]]; then
-            echo "Dry run enabled. Skipping pin commit update."
-            exit 0
-          fi
-
           curl -fsSL -X PUT "${COMMON_HEADERS[@]}" -d "${update_payload}" "${API_URL}/contents/${GITOPS_FILE_PATH}"
+
+          if [[ "${CREATE_PR}" == "true" ]]; then
+            pr_payload="$(jq -n \
+            --arg title "${COMMIT_MESSAGE}" \
+            --arg head "${PR_BRANCH}" \
+            --arg base "${default_branch}" \
+            '{title: $title, head: $head, base: $base}')"
+            curl -fsSL -X POST "${COMMON_HEADERS[@]}" -d "${pr_payload}" "${API_URL}/pulls"
+          fi
