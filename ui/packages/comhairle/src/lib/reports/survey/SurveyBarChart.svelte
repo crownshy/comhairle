@@ -8,7 +8,7 @@
 
 	type Props = ComponentProps<typeof BarChart> & { kind: HeyFormFieldKind };
 
-	let { orientation: initialOrientation, data, x, y, kind, ...props }: Props = $props();
+	let { orientation: initialOrientation, config, kind, ...props }: Props = $props();
 
 	let orientation = $derived.by<Props['orientation']>(() => {
 		if (initialOrientation) return initialOrientation;
@@ -16,11 +16,16 @@
 		return 'vertical';
 	});
 
-	let sortedData = $state<Props['data'] | null>(null);
+	let sortedData = $state<Props['config']['data'] | null>(null);
 
 	$effect(() => {
 		if (orientation === 'horizontal' && sortedData === null) {
-			sortedData = data?.toSorted((a, b) => Number(b[y]) - Number(a[y]));
+			sortedData = config.data?.toSorted((a, b) => {
+				if (!config.y) {
+					return 0;
+				}
+				return Number(b[config.y]) - Number(a[config.y]);
+			});
 		}
 	});
 </script>
@@ -56,9 +61,10 @@
 	/>
 </div>
 <BarChart
-	data={orientation === 'vertical' ? data : (sortedData ?? data)}
-	{x}
-	{y}
-	{orientation}
 	{...props}
+	config={{
+		...config,
+		data: orientation === 'vertical' ? config.data : (sortedData ?? config.data)
+	}}
+	{orientation}
 />
