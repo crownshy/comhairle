@@ -41,21 +41,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 
 	const conversation = conversationResponse.ok as ConversationWithTranslations;
 
-	const workflows = await tryCatchAsync(() =>
-		api.ListConversationWorkflows({ params: { conversation_id } })
-	);
-
-	if (workflows.err !== null) {
-		console.error(workflows.err);
-		notifications.addFlash({
-			message: 'Problem loading workflows',
-			priority: 'WARNING'
-		});
-		redirect(HttpStatus.Found, '/admin');
-	}
-
 	return {
-		conversation,
-		workflows: workflows.ok
+		conversation
 	};
 };
