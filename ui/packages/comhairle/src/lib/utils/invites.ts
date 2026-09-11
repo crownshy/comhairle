@@ -1,24 +1,19 @@
-import type { ConversationDto, EventDto, InviteDto, UserDto } from '@crownshy/api-client/api';
+import type { InviteDto, UserDto } from '@crownshy/api-client/api';
 
 /**
  * Generates an invite link for a conversation or event.
  */
-export function inviteUrl(
-	url: URL,
-	invite: InviteDto,
-	conversation: ConversationDto,
-	event?: EventDto
-) {
-	return `${url.origin}/conversations/${conversation.id}/${event ? `events/${event.id}/` : ''}invite/${invite.id}`;
+export function inviteUrl(url: URL, inviteId: string, conversationId: string, eventId?: string) {
+	return `${url.origin}/conversations/${conversationId}/${eventId ? `events/${eventId}/` : ''}invite/${inviteId}`;
 }
 
 export function embedInviteUrl(
 	url: URL,
-	invite: InviteDto,
-	conversation: ConversationDto,
-	event?: EventDto
+	inviteId: string,
+	conversationId: string,
+	eventId?: string
 ) {
-	return inviteUrl(url, invite, conversation, event) + '?embed=true';
+	return inviteUrl(url, inviteId, conversationId, eventId) + '?embed=true';
 }
 
 export function matchCurrentUserAgainstInvite(user: UserDto, invite: InviteDto): boolean {
