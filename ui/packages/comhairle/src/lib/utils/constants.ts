@@ -5,6 +5,7 @@
 export const LEARN_CONTENT_DOCUMENT_NAME = 'comhairle_learning_step_material.pdf';
 
 export enum HttpStatus {
+	Found = 302,
 	TemporaryRedirect = 307,
 	PermanentRedirect = 308,
 	BadRequest = 400,
