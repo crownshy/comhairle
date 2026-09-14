@@ -1,9 +1,10 @@
 <!--
-	@component PROTOTYPE variant: Deck.
+	@component The Room display's Deck direction. Kept beside the console as the
+	alternative for a facilitator who would rather present than drive.
 
-	The Deck direction from CONTEXT.md: one idea per screen in sequence, the facilitator
-	interprets. Arrow keys, PageUp/PageDown or a click advance, so a presentation
-	clicker works without any extra wiring.
+	One idea per screen in sequence, the facilitator interprets. Arrow keys,
+	PageUp/PageDown or a click advance, so a presentation clicker works without any
+	extra wiring.
 
 	The slides are fixed and the *content* is live. A facilitator learns five screens
 	once and can then run any session with them, which is not true of a deck rebuilt per
@@ -14,23 +15,21 @@
 	a deck whose length changes under the facilitator is one they cannot rehearse.
 -->
 <script lang="ts">
-	import type { RoomDisplayDriver } from '$lib/room-display/driver.svelte';
-	import type { Scenario } from '$lib/room-display/types';
+	import type { RoomDisplaySource } from '$lib/room-display/source';
 	import { resolveIntent } from '$lib/room-display/ambientFocus';
 	import { participantCount } from '$lib/room-display/scenario';
+	import { voteBarsFor } from '$lib/room-display/liveVotes';
 	import OpinionMap from '$lib/room-display/OpinionMap.svelte';
 	import WarmingScreen from '$lib/room-display/WarmingScreen.svelte';
-	import VoteBar from '$lib/reports/polis/VoteBar.svelte';
-	import { computeMemberVoteBars } from '$lib/tools/polis/report';
+	import RoomVoteBar from './RoomVoteBar.svelte';
 
 	type Props = {
-		driver: RoomDisplayDriver;
-		scenario: Scenario;
+		source: RoomDisplaySource;
 		question: string;
 		joinUrl: string;
 	};
 
-	let { driver, scenario, question, joinUrl }: Props = $props();
+	let { source, question, joinUrl }: Props = $props();
 
 	const SLIDES = [
 		{ key: 'join', title: 'Join in' },
@@ -43,19 +42,18 @@
 	let index = $state(0);
 	const slide = $derived(SLIDES[index]);
 
-	const groupIds = $derived(scenario.groups.map((g) => g.group_id));
-	const clustered = $derived(driver.stage === 'shaped' || driver.stage === 'rich');
+	const groupIds = $derived(source.groups.map((g) => g.group_id));
+	const clustered = $derived(source.stage === 'shaped' || source.stage === 'rich');
 
-	const consensusTid = $derived(resolveIntent(driver.state, 'strongestConsensus'));
-	const divisiveTid = $derived(resolveIntent(driver.state, 'mostDivisive'));
-	const consensus = $derived(driver.state.published.find((c) => c.tid === consensusTid) ?? null);
-	const divisive = $derived(driver.state.published.find((c) => c.tid === divisiveTid) ?? null);
-	const latest = $derived(driver.state.published.slice(0, 4));
-	// Bars only. `StatementVoteBlock` repeats the statement text above them, which on a
-	// slide whose whole point is that statement is the same sentence twice.
-	const consensusBars = $derived(
-		consensus ? computeMemberVoteBars(consensus, scenario.groups) : null
-	);
+	const consensusTid = $derived(resolveIntent(source.state, 'strongestConsensus'));
+	const divisiveTid = $derived(resolveIntent(source.state, 'mostDivisive'));
+	const consensus = $derived(source.state.published.find((c) => c.tid === consensusTid) ?? null);
+	const divisive = $derived(source.state.published.find((c) => c.tid === divisiveTid) ?? null);
+	const latest = $derived(source.state.published.slice(0, 4));
+	// Bars only: the statement is the headline, so a vote block that repeats it above
+	// the bars would be the same sentence twice.
+	const consensusBars = $derived(consensus ? voteBarsFor(source, consensus) : null);
+	const divisiveBars = $derived(divisive ? voteBarsFor(source, divisive) : null);
 
 	function step(delta: number) {
 		index = (index + delta + SLIDES.length) % SLIDES.length;
@@ -102,24 +100,25 @@
 			<WarmingScreen
 				{question}
 				{joinUrl}
-				participants={participantCount(driver.state)}
-				votes={driver.state.totalVotes}
+				participants={participantCount(source.state)}
+				votes={source.state.totalVotes}
 			/>
 		{:else if slide.key === 'room'}
 			<div class="flex h-full min-h-0 flex-col gap-4">
 				<p class="text-foreground shrink-0 text-3xl font-bold text-balance lg:text-5xl">
-					{participantCount(driver.state)} people,
+					{participantCount(source.state)} people,
 					{#if clustered}
-						{scenario.groups.length} ways of seeing it
+						{source.groups.length} ways of seeing it
 					{:else}
 						still finding the shape
 					{/if}
 				</p>
 				<div class="min-h-0 flex-1">
 					<OpinionMap
-						nodes={driver.state.nodes}
-						votesByTid={driver.state.votesByTid}
+						nodes={source.state.nodes}
+						votesByTid={source.state.votesByTid}
 						focusedTid={null}
+						settleVotes={source.perParticipantVotes ? 6 : 0}
 						{groupIds}
 					/>
 				</div>
@@ -132,10 +131,14 @@
 					>
 						{consensus.text}
 					</p>
-					<div class="flex max-w-4xl flex-col gap-3">
-						<VoteBar {...consensusBars.overall} />
+					<div
+						class="grid max-w-5xl gap-8"
+						style="grid-template-columns: repeat({1 +
+							consensusBars.groups.length}, minmax(0, 1fr));"
+					>
+						<RoomVoteBar {...consensusBars.overall} />
 						{#each consensusBars.groups as bar (bar.label)}
-							<VoteBar {...bar} />
+							<RoomVoteBar {...bar} />
 						{/each}
 					</div>
 				{:else}
@@ -151,9 +154,22 @@
 						>
 							{divisive.text}
 						</p>
-						<p class="text-muted-foreground text-xl lg:text-2xl">
-							Every dot is a person, coloured by how they voted on this one.
-						</p>
+						{#if source.perParticipantVotes}
+							<p class="text-muted-foreground text-xl lg:text-2xl">
+								Every dot is a person, coloured by how they voted on this one.
+							</p>
+						{:else if divisiveBars}
+							<div
+								class="grid gap-6"
+								style="grid-template-columns: repeat({1 +
+									divisiveBars.groups.length}, minmax(0, 1fr));"
+							>
+								<RoomVoteBar {...divisiveBars.overall} />
+								{#each divisiveBars.groups as bar (bar.label)}
+									<RoomVoteBar {...bar} />
+								{/each}
+							</div>
+						{/if}
 					{:else}
 						<p class="text-muted-foreground text-2xl">
 							Nothing divides the room enough to show yet.
@@ -162,9 +178,10 @@
 				</div>
 				<div class="min-h-0">
 					<OpinionMap
-						nodes={driver.state.nodes}
-						votesByTid={driver.state.votesByTid}
-						focusedTid={divisiveTid}
+						nodes={source.state.nodes}
+						votesByTid={source.state.votesByTid}
+						focusedTid={source.perParticipantVotes ? divisiveTid : null}
+						settleVotes={source.perParticipantVotes ? 6 : 0}
 						{groupIds}
 					/>
 				</div>

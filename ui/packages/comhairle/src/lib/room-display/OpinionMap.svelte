@@ -19,6 +19,11 @@
 	on that statement. At roundtable scale a dot is one person and the colour is simply
 	their vote.
 
+	Group labels sit under each cluster and follow it: they are placed at the centroid
+	of the group's settled dots, so a label appears when the first member arrives and
+	drifts as the cluster fills. They stay up during a cross-highlight, because that is
+	exactly when the room wants to know which cluster is which.
+
 	Dumb: takes nodes and votes, renders them. It owns no selection state; the parent
 	decides what is focused and what a hover means.
 -->
@@ -31,7 +36,8 @@
 		settleFactor,
 		nodePosition,
 		dotRadius,
-		votesCastBy
+		votesCastBy,
+		groupCentroids
 	} from './opinionMap';
 	import { groupLabel } from '$lib/tools/polis/report';
 
@@ -73,6 +79,9 @@
 	 */
 	const BASE_RADIUS = 17;
 
+	/** Gap between a cluster's lowest dot and its label, in user units. */
+	const LABEL_GAP = 30;
+
 	let hoveredId = $state<number | null>(null);
 
 	const dots = $derived(
@@ -103,6 +112,18 @@
 				settled: cast >= settleVotes
 			};
 		})
+	);
+
+	const labels = $derived(
+		groupCentroids(
+			dots.map((d) => ({
+				groupId: d.node.groupId,
+				x: d.x,
+				y: d.y,
+				radius: d.radius,
+				settled: d.settled
+			}))
+		)
 	);
 
 	const legend = $derived(
@@ -184,13 +205,24 @@
 				/>
 			</g>
 		{/each}
+
+		{#each labels as label (label.groupId)}
+			<text
+				class="group-label fill-foreground"
+				style="transform: translate({label.x}px, {label.bottom + LABEL_GAP}px);"
+				text-anchor="middle"
+				dominant-baseline="hanging"
+			>
+				Group {groupLabel(label.groupId)}
+			</text>
+		{/each}
 	</svg>
 
 	<ul class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
 		{#each legend as item (item.key)}
-			<li class="text-muted-foreground flex items-center gap-2 text-base">
+			<li class="text-muted-foreground flex items-center gap-2 text-xl">
 				<span
-					class="inline-block size-5 rounded-full"
+					class="inline-block size-6 rounded-full"
 					style="background: {item.color};{item.outlined
 						? ' box-shadow: inset 0 0 0 1px var(--vote-not-voted-border);'
 						: ''}"
@@ -240,6 +272,23 @@
 		transition: fill 300ms ease;
 	}
 
+	/*
+	 * Same easing as the dots so a label rides with its cluster rather than lagging
+	 * it. Sized in user units to match the dots; 22 is about the width of one.
+	 */
+	.group-label {
+		font-size: 22px;
+		font-weight: 700;
+		transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+		animation: label-arrive 500ms ease both;
+	}
+
+	@keyframes label-arrive {
+		from {
+			opacity: 0;
+		}
+	}
+
 	.interactive {
 		cursor: pointer;
 	}
@@ -250,7 +299,8 @@
 
 	@media (prefers-reduced-motion: reduce) {
 		.dot,
-		.dot :global(circle) {
+		.dot :global(circle),
+		.group-label {
 			transition: none;
 			animation: none;
 		}
