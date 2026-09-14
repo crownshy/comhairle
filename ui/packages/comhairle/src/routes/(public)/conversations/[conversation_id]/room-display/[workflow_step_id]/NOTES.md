@@ -1,0 +1,105 @@
+# Room display: notes
+
+## Where it lives
+
+`/conversations/<conversation_id>/room-display/<workflow_step_id>`, public and
+chrome-free (the `(public)` layout drops the nav and footer for any `room-display`
+path). Linked from the step's admin Insights tab. Two sources behind one display:
+
+- default: **live**. Polls the step's `PolisGetReportData` every few seconds
+  (`liveSource.svelte.ts`). Participants come with a PCA position and a group id, so
+  the map, group labels, counts, strip and group statements all work. What the report
+  does _not_ carry is a per-participant vote matrix, so a live wall cannot colour
+  individual dots by one statement; it shows that statement's group bars instead.
+  That endpoint is the one piece of backend work this needs (CONTEXT.md,
+  "Cross-highlight").
+- `?mode=demo`: the scripted scenario with animated joins and votes, for showing the
+  thing off without a room. Transport controls appear in dev builds.
+
+Below is the record of how the direction was chosen.
+
+## Which direction?
+
+**Question:** the one-screen board is too busy. Three regions (opinion map, consensus
+continuum with its vote block, and a twelve-item statement ticker) compete for
+attention, at desk scale, on a surface meant to be read from across a room. What should
+the Room display actually be?
+
+**Shape:** four variants on this route, switchable with `?variant=`. Same scripted
+scenario behind all of them, so they are judged on arrangement rather than on data. The
+driver controls live in the floating bar so no variant has to carry them.
+
+| `?variant=` | Direction | Who interprets  | The bet it makes                                              |
+| ----------- | --------- | --------------- | ------------------------------------------------------------- |
+| `board`     | Board     | The room        | The board works once it is cut to two regions and scaled up.  |
+| `deck`      | Deck      | The facilitator | Five fixed slides with live content, advanced by hand.        |
+| `narrator`  | Narrator  | The machine     | The same slides, advanced by a timer, so nobody has to drive. |
+| `console`   | (new)     | Split           | The busy-ness belongs on a laptop, not on the wall.           |
+
+`board`, `deck` and `narrator` are the three directions CONTEXT.md already names.
+`console` is a fourth: it says the board is busy because one surface is doing two jobs,
+and splits it into a calm wall and a dense facilitator panel.
+
+## What each variant throws away
+
+- **board** loses the ticker column and the continuum's card chrome. It keeps
+  cross-highlight as the one thing a facilitator touches.
+- **deck** loses ambient operation entirely. Nothing moves unless someone advances it,
+  which is a real cost when the facilitator is talking rather than clicking.
+- **narrator** loses facilitator control. The rotation is `ambientFocus.ts`, which was
+  already written and tested but unused.
+- **console** loses the single-surface property. Two surfaces means the wall and the
+  laptop have to share focus state, which is a build problem the prototype ducks by
+  showing them side by side in one page.
+
+## Open questions the variants surface
+
+- The report's `ConsensusContinuum` is a desk component: card, heading, subtitle, 5px
+  dots, 12px axis labels. `StatementStrip.svelte` here is the room-scale answer. Does
+  the real continuum grow a room mode, or does the Room display own a separate strip?
+- Moments (`moments.ts`) are still computed and still not rendered anywhere. Deck and
+  Narrator both have an obvious slot for them; Board does not.
+- The Deck's arrow keys are the affordance under test (a presentation clicker sends
+  them), which is why the prototype bar cycles variants on `[` and `]` instead.
+
+## Verdict
+
+**Console won.** Board and Narrator are deleted (in git history if wanted). Deck stays
+as the alternative for a facilitator who would rather present than drive, and because
+its arrow-key advance is still the affordance a clicker sends.
+
+Folded in from the review of the videos:
+
+- The strip shows one statement at a time: hover a dot and it appears under the strip
+  on the console, and the wall recolours the map by it.
+- Opinion groups are listed on the console with live head counts. Picking one swaps
+  the wall's map for that group's key statements with live vote bars
+  (`liveVotes.ts`, folded from the vote stream, not read off the report comment).
+  Picking it again brings the map back. "Consensus statements" does the same with the
+  statements ranked by `group_informed_consensus`.
+- Group labels sit under each cluster on the map and follow it (`groupCentroids`).
+- The QR code stays in the wall's corner all session for latecomers.
+- Text stepped up throughout: the wall was unreadable from two metres on a TV.
+- The console collapses so the wall can be judged on its own.
+
+## Still open
+
+- **Density.** Hundreds or thousands of participants will overlap. Polis caps base
+  clusters at 100 and `memberCount` is already carried, so the next step is sizing
+  dots by members and drawing a split (pie or ring) for the cross-highlight, not a
+  second component. Deferred until the roundtable-scale version has run.
+- **Phone view.** Scan the QR, vote from the phone, and get a participant-facing live
+  view at the end. "Follow presenter" versus "explore on my own" is the switch to
+  design. Not started.
+- **Two real surfaces.** Console and wall are one page here. Real use is one laptop
+  driving one projector, so focus and wall view need to travel between two windows
+  (BroadcastChannel is the cheap answer for one machine, a socket for two).
+- **Per-participant votes endpoint.** Without it the live wall has no cross-highlight
+  and no "N more voters" countdown. The raw material (`/api/v3/votes?pid=`, base
+  clusters) is already reachable server-side.
+- **Join URL.** The QR defaults to the conversation page; pass `?join=` with an open
+  invite URL until the display can look one up itself.
+- **Events product.** Whether this is a separate Slido-style product is a positioning
+  question, not a build one. Build the basic version first.
+- `moments.ts` is still computed and rendered nowhere. The console has a slot for it
+  (the statement box); the wall does not, deliberately.

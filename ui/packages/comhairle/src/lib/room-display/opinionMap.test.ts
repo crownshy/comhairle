@@ -6,7 +6,8 @@ import {
 	settleFactor,
 	nodePosition,
 	dotRadius,
-	votesCastBy
+	votesCastBy,
+	groupCentroids
 } from './opinionMap';
 import type { MapNode } from './types';
 
@@ -126,5 +127,41 @@ describe('votesCastBy', () => {
 		expect(votesCastBy(votes, 1)).toBe(2);
 		expect(votesCastBy(votes, 2)).toBe(2);
 		expect(votesCastBy(votes, 99)).toBe(0);
+	});
+});
+
+describe('groupCentroids', () => {
+	const settled = (groupId: number | null, x: number, y: number) => ({
+		groupId,
+		x,
+		y,
+		radius: 10,
+		settled: true
+	});
+
+	it('averages settled members and reports the cluster bottom edge', () => {
+		const [a] = groupCentroids([settled(0, 0, 0), settled(0, 20, 40)]);
+		expect(a).toEqual({ groupId: 0, x: 10, y: 20, bottom: 50, members: 2 });
+	});
+
+	it('ignores dots still travelling in from the ring', () => {
+		const centroids = groupCentroids([
+			settled(0, 0, 0),
+			{ groupId: 0, x: 200, y: 200, radius: 10, settled: false }
+		]);
+		expect(centroids[0]).toMatchObject({ x: 0, y: 0, members: 1 });
+	});
+
+	it('gives no label to a group with nothing settled, or to unclustered dots', () => {
+		const centroids = groupCentroids([
+			{ groupId: 1, x: 0, y: 0, radius: 10, settled: false },
+			settled(null, 5, 5)
+		]);
+		expect(centroids).toEqual([]);
+	});
+
+	it('orders labels by group id so A comes before B', () => {
+		const ids = groupCentroids([settled(1, 0, 0), settled(0, 0, 0)]).map((c) => c.groupId);
+		expect(ids).toEqual([0, 1]);
 	});
 });
