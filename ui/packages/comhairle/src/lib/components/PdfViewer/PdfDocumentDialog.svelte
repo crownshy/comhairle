@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { pushState } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { Component } from 'svelte';
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import XIcon from '@lucide/svelte/icons/x';
@@ -30,7 +32,7 @@
 		downloadHref = null,
 		kind = 'pdf',
 		highlights = [],
-		page = null
+		page: initialPage = null
 	}: Props = $props();
 
 	// pdfjs-dist (~1MB) and mammoth (~500KB) are heavy and not SSR-safe, so the
@@ -50,13 +52,35 @@
 			});
 		}
 	});
+
+	// The viewer covers the whole screen on a phone, so it reads as a page and people press back
+	// to leave it. Opening pushes a shallow history entry (same URL, no load) that back pops to
+	// close the viewer instead of the step. Closing from inside pops the entry too, so it does
+	// not linger for the next back press. Only the instance that pushed reacts, since a page can
+	// hold more than one of these dialogs. An effect, because browser history is outside Svelte.
+	let ownsHistoryEntry = false;
+
+	$effect(() => {
+		const entryInHistory = page.state.documentViewerOpen === true;
+		if (open && !ownsHistoryEntry) {
+			pushState('', { documentViewerOpen: true });
+			ownsHistoryEntry = true;
+		} else if (ownsHistoryEntry && open && !entryInHistory) {
+			ownsHistoryEntry = false;
+			open = false;
+		} else if (ownsHistoryEntry && !open && entryInHistory) {
+			ownsHistoryEntry = false;
+			history.back();
+		}
+	});
 </script>
 
 <Dialog.Root bind:open>
 	<!-- Phones get a full-screen sheet sized in dvh. A centred `vh` box is taller than the
 		visible area while a mobile browser's chrome is showing, which pushes the header (and
 		with it the only way out) off screen. There is also no overlay left to tap at this size,
-		so the header carries an explicit Close button instead of the default corner icon. -->
+		so the close icon sits in the header beside Download, where the default absolutely
+		positioned corner icon would overlap it. -->
 	<Dialog.Content
 		showCloseButton={false}
 		class="top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[95dvh] sm:w-[92vw] sm:max-w-270 sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border"
@@ -80,9 +104,14 @@
 						<span class="hidden sm:inline">Download</span>
 					</Button>
 				{/if}
-				<Button variant="outline" size="sm" onclick={() => (open = false)}>
-					<XIcon class="size-4" />
-					Close
+				<Button
+					variant="ghost"
+					size="icon"
+					class="size-10"
+					aria-label="Close"
+					onclick={() => (open = false)}
+				>
+					<XIcon class="size-5" />
 				</Button>
 			</div>
 		</Dialog.Header>
@@ -98,7 +127,7 @@
 				{:else if kind === 'docx' && DocxViewer}
 					<DocxViewer {src} />
 				{:else if kind === 'pdf' && PdfViewer}
-					<PdfViewer {src} {highlights} initialPage={page} />
+					<PdfViewer {src} {highlights} {initialPage} />
 				{:else}
 					<div
 						class="text-muted-foreground flex h-full items-center justify-center text-sm"

@@ -10,7 +10,10 @@ declare global {
 			api: ZodiosInstance<Api>;
 		}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			/** Set on the shallow history entry `PdfDocumentDialog` pushes, so back closes it. */
+			documentViewerOpen?: boolean;
+		}
 		// interface Platform {}
 	}
 
