@@ -153,11 +153,12 @@
 	 */
 	const MIN_FRAME_PX = 440;
 	/**
-	 * Not a layout constraint. The form document is `h-screen overflow-hidden` and, below 800px,
-	 * hands any overflow to its own inner scroller, so a frame shorter than the content is precisely
-	 * the double-scroll bug: the page scrolls and the form scrolls inside it. We follow the reported
-	 * height however tall it gets and let the page do the scrolling. This ceiling only rejects a
-	 * nonsense number from the frame.
+	 * Not a layout constraint. The URL carries `hostScroll=true`, which tells the fork that we size
+	 * the frame and scroll the page, so it lays the question out at its natural height and never
+	 * scrolls inside the frame. Without that, a swipe on a phone goes to the form's inner scroller
+	 * first and stops there, so the participant scrolls twice. A frame shorter than the reported
+	 * height would clip the question, so we follow it however tall it gets. This ceiling only rejects
+	 * a nonsense number from the frame.
 	 */
 	const MAX_FRAME_PX = 20000;
 
@@ -294,7 +295,7 @@
 	);
 
 	let url = $derived(
-		`${base_url}/form/${surveyId}?&amp;id=${surveyId}&amp;type=modal&amp;customUrl=https%3A%2F%2Fforms.crown-shy.com%2Fform%2F&amp;widthType=%25&amp;width=100&amp;heightType=px&amp;height=500&amp;autoResizeHeight=true&polis_id=${userId}&comhairle_user_id=${userId}&hideAfterSubmit=true&autoClose=1`
+		`${base_url}/form/${surveyId}?&amp;id=${surveyId}&amp;type=modal&amp;customUrl=https%3A%2F%2Fforms.crown-shy.com%2Fform%2F&amp;widthType=%25&amp;width=100&amp;heightType=px&amp;height=500&amp;autoResizeHeight=true&polis_id=${userId}&comhairle_user_id=${userId}&hideAfterSubmit=true&autoClose=1&hostScroll=true`
 	);
 
 	let fullUrl = $derived.by(() => {
