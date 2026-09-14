@@ -344,7 +344,7 @@ async fn sync_kc_users(
     for user_id in user_ids {
         let user = models::users::get_user_by_id(&user_id, &state.db).await?;
 
-        let result = auth_service.create_user(&user).await;
+        let result = auth_service.import_user(&user).await;
 
         match result {
             Ok(_) => synced_users.push(user.id),
