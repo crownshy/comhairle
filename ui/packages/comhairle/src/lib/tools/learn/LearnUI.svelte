@@ -149,13 +149,17 @@
 		class="my-auto flex w-full flex-col py-[clamp(1.5rem,5vh,3rem)] transition-opacity duration-150 ease-out motion-reduce:transition-none"
 		class:opacity-0={turning}
 	>
+		<!-- The column is 46rem rather than the 65ch `.prose` defaults to. A ch is the width of
+			the font's "0", so the column measured 651px in the fallback font and 738px once
+			Inter arrived, and the whole article rewrapped as it widened. 46rem is Inter's 65ch
+			at the 18px body. LearnArticleSkeleton uses the same width. -->
 		{#if content}
 			{#if listen.available}
-				<div class="mx-auto mb-6 w-full max-w-[65ch]">
+				<div class="mx-auto mb-6 w-full max-w-[46rem]">
 					<ListenButton />
 				</div>
 			{/if}
-			<article class="prose mx-auto w-full" bind:this={articleElement}>
+			<article class="prose mx-auto w-full max-w-[46rem]" bind:this={articleElement}>
 				<ContentRenderer
 					{content}
 					{availableDocuments}

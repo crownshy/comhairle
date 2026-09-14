@@ -33,6 +33,16 @@
 			return module.default as Tool<K>;
 		});
 	}
+
+	/**
+	 * Start fetching a tool's code before its body mounts. The step page calls this while the
+	 * cover is up, so Start usually finds the module loaded and the tool draws straight away
+	 * instead of its skeleton. A failed fetch is left for the real mount to hit and show.
+	 */
+	export function preloadTool(type: string | undefined) {
+		if (!type || !(type in loaders)) return;
+		Promise.resolve(tool(type as ToolType)).catch(() => {});
+	}
 </script>
 
 <script lang="ts">
@@ -108,7 +118,7 @@
 	{#if toolConfig.type === 'learn'}
 		{#key workflowStep.id}
 			{#await tool('learn')}
-				<LearnArticleSkeleton />
+				<LearnArticleSkeleton pages={toolConfig.pages} {page} />
 			{:then LearnUI}
 				<LearnUI
 					pages={toolConfig.pages}

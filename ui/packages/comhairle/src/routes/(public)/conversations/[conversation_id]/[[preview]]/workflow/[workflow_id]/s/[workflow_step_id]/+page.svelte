@@ -6,7 +6,8 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import StepShell from '$lib/components/participant/StepShell.svelte';
-	import StepToolBody from '$lib/components/participant/StepToolBody.svelte';
+	import StepToolBody, { preloadTool } from '$lib/components/participant/StepToolBody.svelte';
+	import { warmFonts } from '$lib/utils/warmFonts';
 	import StepPager from '$lib/components/participant/StepPager.svelte';
 	import StepCover from '$lib/components/participant/StepCover.svelte';
 	import Tour from '$lib/tours/Tour.svelte';
@@ -196,6 +197,13 @@
 	$effect(() => {
 		void workflowStep.id;
 		touchFlowTiming(conversation.id);
+	});
+
+	// Fetch the tool's code and the article's font faces while the cover is up, so Start opens
+	// the tool in its real font instead of a skeleton followed by fallback glyphs.
+	$effect(() => {
+		preloadTool(toolConfig?.type);
+		warmFonts();
 	});
 
 	/**
