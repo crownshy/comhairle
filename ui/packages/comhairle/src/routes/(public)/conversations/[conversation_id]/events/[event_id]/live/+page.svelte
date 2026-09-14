@@ -6,9 +6,13 @@
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { formatCountdown } from '$lib/utils/formatCountdown';
-	import { getJitsiBreakoutRoomId } from '$lib/utils/jitsiBreakoutRooms';
 	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
+	import { JitsiRoom } from './jitsiRoom.svelte';
+	import type {
+		JitsiConferenceEvent,
+		JitsiDisplayNameChangeEvent
+	} from '$lib/components/JitsiMeet/types';
 	import { videoCallService } from '$lib/services/videoCallService.svelte';
 	import MeetingLobby from '$lib/components/LiveEvent/MeetingLobby.svelte';
 	import AgendaPanel from '$lib/components/LiveEvent/AgendaPanel.svelte';
@@ -89,7 +93,7 @@
 	});
 
 	let hasJoinedCall = $state(false);
-	let jitsiApi: any = $state(null);
+	const jitsiRoom = new JitsiRoom();
 	let roomContext = $state<RoomContext>('plenary');
 	let jitsiModeratorStatus = $state<boolean>(false);
 	let currentJitsiRoomName = $state<string>('');
@@ -118,12 +122,6 @@
 
 	/** Tracks assigned room index to detect mid-session reassignment by moderator */
 	let trackedRoomIndex = $state<number | null>(null);
-
-	/** Jitsi's native breakout room data from breakoutRoomsUpdated event */
-	let jitsiBreakoutRooms = $state<Record<string, any>>({});
-
-	/** Flag to track if Jitsi breakout rooms have been created and are ready */
-	let breakoutRoomsReady = $state(false);
 
 	/** Lightweight toast for admin confirmations */
 	let toastMessage = $state<string | null>(null);
@@ -236,23 +234,9 @@
 
 	// Watch for Jitsi breakout rooms to become ready
 	$effect(() => {
-		if (isBreakoutActive) {
-			const nonMainRoomCount = Object.values(jitsiBreakoutRooms).filter(
-				(r: any) => !r.isMainRoom
-			).length;
-			// Set ready when Jitsi has created the expected number of rooms
-			if (
-				nonMainRoomCount > 0 &&
-				nonMainRoomCount >= (breakoutRooms.length || mockBreakoutRooms.length)
-			) {
-				if (!breakoutRoomsReady) {
-					breakoutRoomsReady = true;
-				}
-			}
-		} else {
-			// Reset when breakout session ends
-			breakoutRoomsReady = false;
-		}
+		jitsiRoom.syncReady(
+			isBreakoutActive ? breakoutRooms.length || mockBreakoutRooms.length : null
+		);
 	});
 
 	// Watch for new assistance requests (host only)
@@ -308,7 +292,7 @@
 		if (
 			isBreakoutActive &&
 			!isModerator &&
-			breakoutRoomsReady &&
+			jitsiRoom.ready &&
 			typeof roomContext === 'string'
 		) {
 			const assignedRoom = user ? videoCallService.getUserBreakoutRoom(user.id) : null;
@@ -323,7 +307,7 @@
 
 	// Detect mid-session room reassignment (moderator moved a participant)
 	$effect(() => {
-		if (!isBreakoutActive || isModerator || !user || !breakoutRoomsReady) {
+		if (!isBreakoutActive || isModerator || !user || !jitsiRoom.ready) {
 			trackedRoomIndex = null;
 			return;
 		}
@@ -378,8 +362,8 @@
 
 	// When callStatus becomes 'Ended', hang up Jitsi for ALL participants
 	$effect(() => {
-		if (callStatus === 'Ended' && jitsiApi) {
-			jitsiApi.executeCommand('hangup');
+		if (callStatus === 'Ended' && jitsiRoom.connected) {
+			jitsiRoom.hangup();
 			hasJoinedCall = false;
 		}
 	});
@@ -432,8 +416,7 @@
 		breakoutEndingDismissed = false;
 		breakoutAutoEnded = false;
 		trackedRoomIndex = null;
-		jitsiBreakoutRooms = {};
-		breakoutRoomsReady = false;
+		jitsiRoom.reset();
 		mockBreakoutRooms = [];
 		mobileRoomIndex = 0;
 		mobileAgendaViewIndex = 0;
@@ -499,9 +482,7 @@
 		showCreateBreakout = false;
 
 		// Create breakout rooms in Jitsi via native API
-		for (let i = 0; i < config.roomAssignments.length; i++) {
-			jitsiApi?.executeCommand('addBreakoutRoom', `Breakout room #${i + 1}`);
-		}
+		jitsiRoom.create(config.roomAssignments.length);
 
 		// Use dialog's room assignments for local display until backend confirms
 		mockBreakoutRooms = config.roomAssignments.map((participants, i) => ({
@@ -517,7 +498,7 @@
 	}
 
 	function handleEnterBreakoutRoom(roomIndex: number) {
-		if (!breakoutRoomsReady) {
+		if (!jitsiRoom.ready) {
 			console.warn(
 				'[BREAKOUT] Attempted to enter room before Jitsi breakout rooms are ready'
 			);
@@ -529,22 +510,7 @@
 			roomName: `Breakout room #${roomIndex + 1}`
 		};
 
-		// Use Jitsi's native breakout room API to switch rooms
-		const jitsiRoomId = getJitsiBreakoutRoomId(jitsiBreakoutRooms, roomIndex);
-		if (jitsiRoomId) {
-			jitsiApi?.executeCommand('joinBreakoutRoom', jitsiRoomId);
-		} else {
-			console.warn(
-				'[BREAKOUT] No Jitsi room ID found for index:',
-				roomIndex,
-				'— available rooms:',
-				Object.values(jitsiBreakoutRooms).map((r: any) => ({
-					id: r.id,
-					name: r.name,
-					isMain: r.isMainRoom
-				}))
-			);
-		}
+		jitsiRoom.joinBreakout(roomIndex);
 
 		if (isModerator) {
 			videoCallService.resolveBreakoutRoomAssistanceRequest(eventId, `room-${roomIndex}`);
@@ -554,12 +520,8 @@
 	function handleLeaveBreakoutRoom() {
 		roomContext = 'plenary';
 
-		// Use Jitsi API to return to main room (no iframe reload needed)
-		try {
-			jitsiApi?.executeCommand('joinBreakoutRoom');
-		} catch (error) {
-			console.error('[BREAKOUT] Error returning to main room:', error);
-		}
+		// Return to main room (no iframe reload needed)
+		jitsiRoom.returnToMain();
 	}
 
 	function handleCallForSupport() {
@@ -603,53 +565,27 @@
 	async function handleEndBreakoutSession() {
 		// Step 1: Ensure moderator is in main room before removing breakout rooms
 		if (typeof roomContext !== 'string') {
-			try {
-				jitsiApi?.executeCommand('joinBreakoutRoom');
-				// Wait a moment for the transition
-				await new Promise((resolve) => setTimeout(resolve, 500));
-			} catch (error) {
-				console.error('[BREAKOUT] Error returning to main room:', error);
-			}
+			jitsiRoom.returnToMain();
+			// Wait a moment for the transition
+			await new Promise((resolve) => setTimeout(resolve, 500));
 		}
 
-		// Step 2: Get fresh breakout rooms list from Jitsi API
-		let breakoutRoomsList: any[] = [];
-		try {
-			const rooms = await jitsiApi?.listBreakoutRooms?.();
+		// Step 2: Remove all breakout rooms - Jitsi should auto-return participants to main room
+		await jitsiRoom.closeAll();
 
-			if (rooms) {
-				breakoutRoomsList = Object.values(rooms).filter((r: any) => !r.isMainRoom);
-			}
-		} catch (e) {
-			console.error('[BREAKOUT] Error getting breakout rooms:', e);
-			// Fallback to state if API call fails
-			breakoutRoomsList = Object.values(jitsiBreakoutRooms).filter((r: any) => !r.isMainRoom);
-		}
-
-		// Step 3: Remove all breakout rooms - Jitsi should auto-return participants to main room
-		for (const room of breakoutRoomsList) {
-			try {
-				// Use room.jid for the removeBreakoutRoom command
-				jitsiApi?.executeCommand('closeBreakoutRoom', room.id);
-			} catch (error) {
-				console.error('[BREAKOUT] Error removing breakout room:', error);
-			}
-		}
-
-		// Step 4: Wait a moment for rooms to be removed
+		// Step 3: Wait a moment for rooms to be removed
 		await new Promise((resolve) => setTimeout(resolve, 500));
 
-		// Step 5: End the session on backend (broadcasts to all participants)
+		// Step 4: End the session on backend (broadcasts to all participants)
 		videoCallService.endBreakoutSession(eventId);
 
-		// Step 6: Update local state
+		// Step 5: Update local state
 		roomContext = 'plenary';
 		activePanel = 'agenda';
 
 		// Clean up local state
 		mockBreakoutRooms = [];
-		jitsiBreakoutRooms = {};
-		breakoutRoomsReady = false;
+		jitsiRoom.reset();
 	}
 
 	function handleGoBackToPlenary() {
@@ -657,25 +593,15 @@
 		if (isModerator) {
 			handleEndBreakoutSession();
 		} else {
-			// Participants return to main room by calling joinBreakoutRoom without arguments
-			try {
-				// Calling joinBreakoutRoom without arguments moves user to main room
-				jitsiApi?.executeCommand('joinBreakoutRoom');
-			} catch (error) {
-				console.error('[BREAKOUT] Error returning to main room:', error);
-			}
+			jitsiRoom.returnToMain();
 		}
-	}
-
-	function handleApiReady(api: any) {
-		jitsiApi = api;
 	}
 
 	function handleModeratorStatusChanged(isMod: boolean) {
 		jitsiModeratorStatus = isMod;
 	}
 
-	function handleVideoConferenceJoined(data: any) {
+	function handleVideoConferenceJoined(data: JitsiConferenceEvent) {
 		currentJitsiRoomName = data.roomName;
 		localParticipantId = data.id ?? null;
 		// Tell the backend we're really in the video (rename-proof call presence) and
@@ -687,11 +613,11 @@
 		}
 	}
 
-	function handleVideoConferenceLeft(data: any) {
+	function handleVideoConferenceLeft() {
 		videoCallService.reportVideoLeft(eventId);
 	}
 
-	function handleDisplayNameChange(data: any) {
+	function handleDisplayNameChange(data: JitsiDisplayNameChangeEvent) {
 		// Only re-report when OUR own display name changed.
 		if (data?.id && data.id === localParticipantId) {
 			videoCallService.reportVideoJoined(eventId, data.displayname ?? data.displayName);
@@ -812,10 +738,8 @@
 					<JitsiMeet
 						roomName={plenaryRoomName}
 						{jwt}
-						onApiReady={handleApiReady}
-						onBreakoutRoomsUpdated={(rooms) => {
-							jitsiBreakoutRooms = rooms;
-						}}
+						onApiReady={(api) => jitsiRoom.attach(api)}
+						onBreakoutRoomsUpdated={(rooms) => jitsiRoom.setRooms(rooms)}
 						onModeratorStatusChanged={handleModeratorStatusChanged}
 						onVideoConferenceJoined={handleVideoConferenceJoined}
 						onVideoConferenceLeft={handleVideoConferenceLeft}
