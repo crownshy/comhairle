@@ -15,12 +15,11 @@ use crate::models::users::User;
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait AuthService: Send + Sync {
-    async fn create_user(
+    async fn import_user(
         &self,
         comhairle_user: &User,
     ) -> Result<serde_json::Value, AuthServiceError>;
 
-    // TODO: service error
     async fn get_authorization_tokens(
         &self,
         code: &str,

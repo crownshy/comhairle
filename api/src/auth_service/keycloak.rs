@@ -12,7 +12,7 @@ use keycloak::{
     prelude::reqwest,
     types::{CredentialRepresentation, UserRepresentation},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::warn;
 
@@ -21,6 +21,8 @@ pub struct KeycloakClient {
     admin_client: KeycloakAdmin,
     realm_name: String,
     auth_client: reqwest::Client,
+    admin_user: String,
+    admin_password: String,
     client_id: String,
     client_secret: String,
 }
@@ -45,6 +47,8 @@ impl KeycloakClient {
             admin_client: admin,
             realm_name: config.realm.to_string(),
             auth_client,
+            admin_user: config.admin_user.to_owned(),
+            admin_password: config.admin_password.to_owned(),
             client_id: config.client_id.to_owned(),
             client_secret: config.client_secret.to_owned(),
         })
@@ -53,6 +57,56 @@ impl KeycloakClient {
     fn realm(&self) -> KeycloakRealmAdmin<'_, KeycloakAdminToken> {
         self.admin_client.realm(&self.realm_name)
     }
+
+    /// Custom helper to authenticate with Keycloak Admin Rest API. Required to
+    /// implement user imports via realm partialImport endpoint, currently not
+    /// supported by the [`keycloak`] crate.
+    async fn custom_authenticate(&self) -> Result<MasterAuthResponse, AuthServiceError> {
+        let client = reqwest::Client::new();
+
+        let url = format!(
+            "{}/realms/master/protocol/openid-connect/token",
+            self.domain
+        );
+
+        let body = json!({
+            "username": &self.admin_user,
+            "password": &self.admin_password,
+            // TODO: see if there is a better way of authenticating as
+            // this grant_type is no longer recommended
+            "grant_type": "password",
+            "client_id": "admin-cli"
+        });
+
+        let response = client
+            .post(&url)
+            .form(&body)
+            .send()
+            .await
+            .map_err(|e| AuthServiceError::AccessTokenFailure(e.to_string()))?;
+        let status = response.status();
+
+        if !status.is_success() {
+            let text = response.text().await.map_err(|_| {
+                AuthServiceError::AccessTokenFailure(format!("Failed with status code {}", status))
+            })?;
+            return Err(AuthServiceError::AccessTokenFailure(
+                json!({ "status": status.to_string(), "message": text }).to_string(),
+            ));
+        }
+
+        let json: MasterAuthResponse = response
+            .json()
+            .await
+            .map_err(|e| AuthServiceError::AccessTokenFailure(e.to_string()))?;
+
+        Ok(json)
+    }
+}
+
+#[derive(Deserialize, Debug)]
+struct MasterAuthResponse {
+    access_token: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -66,34 +120,54 @@ struct OpenidTokenRequest {
 
 #[async_trait]
 impl AuthService for KeycloakClient {
-    async fn create_user(
+    async fn import_user(
         &self,
         comhairle_user: &User,
     ) -> Result<serde_json::Value, AuthServiceError> {
-        let realm = self.realm();
+        let token_res = self.custom_authenticate().await?;
 
-        let result = realm
-            .users_post(UserRepresentation {
-                id: Some(comhairle_user.id.to_string()),
-                email: comhairle_user.email.clone(),
-                email_verified: Some(comhairle_user.email_verified),
-                username: comhairle_user.username.clone(),
-                enabled: Some(true),
-                credentials: comhairle_user
-                    .password
-                    .as_ref()
-                    .map(|pw_hash| phc_to_keycloak_cred(pw_hash))
-                    .transpose()?
-                    .map(|cred| vec![cred]),
-                ..Default::default()
-            })
+        // Use custom request instead of [`keycloak::KeycloakAdmin`] as crate
+        // doesn't support this endpoint.
+        //
+        // Needs to use realm `partialImport` endpoint instead of `users_post`
+        // endpoint as former maintains comhairle user ids, the latter does not.
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}/admin/realms/{}/partialImport",
+            self.domain, self.realm_name,
+        );
+        let response = client
+            .post(&url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", token_res.access_token),
+            )
+            .json(&json!({
+                "ifResourceExists": "FAIL",
+                "users": [
+                    UserRepresentation {
+                        id: Some(comhairle_user.id.to_string()),
+                        email: comhairle_user.email.clone(),
+                        email_verified: Some(comhairle_user.email_verified),
+                        username: comhairle_user.username.clone(),
+                        enabled: Some(true),
+                        credentials: comhairle_user
+                            .password
+                            .as_ref()
+                            .map(|pw_hash| phc_to_keycloak_cred(pw_hash))
+                            .transpose()?
+                            .map(|cred| vec![cred]),
+                        ..Default::default()
+                    }
+                ]
+            }))
+            .send()
             .await
             .inspect_err(|e| {
                 warn!("{e:#?}");
             })
             .map_err(|e| AuthServiceError::SyncUserError(e.to_string()))?;
 
-        let response = result.into_response();
         let status = response.status();
 
         if !status.is_success() {
