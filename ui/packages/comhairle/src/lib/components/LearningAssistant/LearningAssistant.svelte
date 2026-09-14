@@ -18,8 +18,10 @@
 		HelpCircle,
 		X
 	} from 'lucide-svelte';
+	import { tick } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { ReferenceChunk } from '$lib/api/chatClient.svelte';
+	import { prefersReducedMotion } from '$lib/utils/reducedMotion';
 	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
 	import AssistantAnswerSkeleton from './AssistantAnswerSkeleton.svelte';
 	import AssistantAnswer from './AssistantAnswer.svelte';
@@ -57,6 +59,7 @@
 	let introOpen = $state(false);
 	let learnMoreOpen = $state(false);
 	let pickedId = $state<string | null>(null);
+	let answerElement = $state<HTMLElement | null>(null);
 
 	// The newest answer is what is in focus; an explicit pick from the history wins until
 	// the next question is asked.
@@ -75,7 +78,19 @@
 		inputVal = '';
 		pickedId = null;
 		closeIntro();
-		await assistant.ask(question);
+		const askedBefore = assistant.asked.length;
+		const answering = assistant.ask(question);
+		// The new question lands in the message list before the first await, so after a tick
+		// its card (with the thinking indicator) is rendered. On a phone that card is below
+		// the keyboard and the fold, so bring it up or nothing looks like it happened.
+		await tick();
+		if (assistant.asked.length > askedBefore) {
+			answerElement?.scrollIntoView({
+				block: 'start',
+				behavior: prefersReducedMotion() ? 'auto' : 'smooth'
+			});
+		}
+		await answering;
 	}
 
 	function openSource(chunk: ReferenceChunk) {
@@ -221,7 +236,10 @@
 			<AssistantAnswerSkeleton />
 		{:else if focused}
 			{@const ts = formatTimestamp(focused.timestamp)}
-			<article class="bg-card border-border rounded-2xl border p-5 shadow-sm">
+			<article
+				class="bg-card border-border scroll-mt-4 rounded-2xl border p-5 shadow-sm"
+				bind:this={answerElement}
+			>
 				<p class="text-muted-foreground text-sm font-semibold">
 					{m.you_asked()}{ts ? ` · ${ts}` : ''}
 				</p>
