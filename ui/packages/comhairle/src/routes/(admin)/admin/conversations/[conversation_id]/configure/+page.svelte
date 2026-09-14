@@ -20,6 +20,8 @@
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
+	import ModerationPolicyEditor from './ModerationPolicyEditor.svelte';
+	import { moderationPolicyFromMetadata } from '$lib/moderation/moderationPolicy';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
@@ -86,6 +88,11 @@
 			title: 'Glossary',
 			description:
 				"Define terms once and their explanation appears as a hover tooltip wherever the term shows up in this conversation's Learn steps. Add synonyms of the same term, separated by commas, and they'll all share one explanation."
+		},
+		moderation: {
+			title: 'Moderation policy',
+			description:
+				'The reasons moderators pick from when they reject a statement. Every conversation starts with a default list you can edit, add to or trim. Only moderators see these reasons.'
 		},
 		access: { title: 'Access', description: 'Visibility, invites and participation.' },
 		team: { title: 'Team', description: 'Manage collaborators.' }
@@ -1099,6 +1106,13 @@
 			primaryLocale={primaryLanguage}
 			{supportedLanguages}
 			initial={localizedGlossaryFromMetadata(conversation.metadata, primaryLanguage)}
+		/>
+	{/if}
+
+	{#if activeTab === 'moderation'}
+		<ModerationPolicyEditor
+			conversationId={conversation.id}
+			initial={moderationPolicyFromMetadata(conversation.metadata)}
 		/>
 	{/if}
 

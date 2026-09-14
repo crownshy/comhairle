@@ -58,6 +58,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			{ id: 'details', label: 'Details' },
 			{ id: 'content', label: 'Content' },
 			{ id: 'glossary', label: 'Glossary' },
+			{ id: 'moderation', label: 'Moderation policy' },
 			{ id: 'access', label: 'Access' }
 		];
 

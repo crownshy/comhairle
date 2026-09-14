@@ -1,22 +1,32 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import { LoadingButton } from '$lib/components/ui/button';
+	import { LoadingButton, buttonVariants } from '$lib/components/ui/button';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { downloadCsv } from '$lib/utils/csv';
+	import { DEFAULT_REJECT_REASONS, type RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
-	import { RefreshCw, Search } from '@lucide/svelte';
+	import { ChevronDown, Download, RefreshCw, Search } from '@lucide/svelte';
 	import AddSeedStatementsDialog from './polis-moderation/AddSeedStatementsDialog.svelte';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
+	import {
+		buildStatementsCsv,
+		type StatementExportScope
+	} from './polis-moderation/statementsCsv';
 
 	let {
 		workflowStepId,
-		statements: initialStatements
+		statements: initialStatements,
+		rejectReasons
 	}: {
 		workflowStepId: string;
 		statements: PolisStatementAux[];
+		/** The conversation's moderation policy reasons (ADR-0037), offered on reject. */
+		rejectReasons: RejectReason[];
 	} = $props();
 
 	// Local optimistic copy so accept/reject re-renders without a refetch. A writable
@@ -87,6 +97,27 @@
 		{ key: 'pending', label: 'Pending' },
 		{ key: 'rejected', label: 'Rejected' }
 	];
+
+	// --- Download ---
+	// Built from the rows already loaded, so it reflects the last sync. The default labels are
+	// included so reasons recorded before the policy was edited still land in the reason column.
+	const reasonLabels = $derived([
+		...new Set([...rejectReasons, ...DEFAULT_REJECT_REASONS].map((reason) => reason.label))
+	]);
+
+	const downloadOptions: { scope: StatementExportScope; label: string }[] = [
+		{ scope: 'all', label: 'All statements' },
+		{ scope: 'accepted', label: 'Accepted' },
+		{ scope: 'rejected', label: 'Rejected' },
+		{ scope: 'pending', label: 'Pending' }
+	];
+
+	function downloadStatements(scope: StatementExportScope) {
+		const csv = buildStatementsCsv(statements, scope, reasonLabels);
+		const date = new Date().toISOString().slice(0, 10);
+		const name = scope === 'all' ? 'polis-statements' : `polis-statements-${scope}`;
+		downloadCsv(`${name}-${date}.csv`, csv);
+	}
 
 	// --- Multi-select + bulk moderation ---
 	// Selection is keyed by aux row id. Select-all and the bulk actions operate
@@ -273,12 +304,38 @@
 
 <div class="flex flex-col gap-6 rounded-xl">
 	<!-- Heading + actions -->
-	<div class="flex items-start justify-between gap-4">
+	<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 		<div class="flex max-w-3xl flex-col gap-1">
 			<h2 class="text-2xl font-bold">Statements moderation</h2>
 			<p class="text-muted-foreground text-sm">Moderate and view all statements.</p>
 		</div>
-		<div class="flex shrink-0 items-center gap-2">
+		<!-- Full-width stacked buttons on phones, a wrapping row from sm up. -->
+		<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0">
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					class={buttonVariants({ variant: 'outline' })}
+					disabled={statements.length === 0}
+				>
+					<Download class="size-4" />
+					Download
+					<ChevronDown class="size-4" />
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end" class="w-56">
+					<DropdownMenu.Label>Download as CSV</DropdownMenu.Label>
+					<DropdownMenu.Separator />
+					{#each downloadOptions as option (option.scope)}
+						<DropdownMenu.Item
+							disabled={counts[option.scope] === 0}
+							onclick={() => downloadStatements(option.scope)}
+						>
+							{option.label}
+							<span class="text-muted-foreground ml-auto tabular-nums">
+								{counts[option.scope]}
+							</span>
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 			<LoadingButton
 				loading={syncing}
 				variant="outline"
@@ -323,6 +380,7 @@
 	<!-- Statements list -->
 	<StatementsTable
 		rows={visible}
+		{rejectReasons}
 		{selected}
 		{pending}
 		{bulkAction}

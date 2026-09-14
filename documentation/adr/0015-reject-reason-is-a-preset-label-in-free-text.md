@@ -2,6 +2,7 @@
 
 **Status:** Proposal - to be discussed with the team
 **Date:** 2026-08-13
+**Amended by:** ADR-0037 (the reason list is now per conversation; storage is unchanged)
 
 ## Context
 

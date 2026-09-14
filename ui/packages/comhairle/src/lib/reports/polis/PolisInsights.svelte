@@ -14,6 +14,7 @@
 	import OpinionGroups from './OpinionGroups.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
+	import { csvField, downloadCsv } from '$lib/utils/csv';
 
 	let {
 		reportData,
@@ -75,14 +76,7 @@
 		stats && stats.totalParticipants > 0 ? stats.totalVotes / stats.totalParticipants : 0
 	);
 
-	// --- CSV export (inlined; one row per comment, columns match the UI) ---
-	/** Wrap a value for CSV: quote, double internal quotes, normalize newlines. */
-	function csvField(value: unknown): string {
-		if (value === null || value === undefined) return '';
-		const s = String(value).replace(/\r\n|\r/g, '\n');
-		return `"${s.replace(/"/g, '""')}"`;
-	}
-
+	// --- CSV export (one row per comment, columns match the UI) ---
 	/** Sorted union of every theme appearing on any statement in the report. */
 	function collectThemes(comments: ReportComment[]): string[] {
 		const seen: Record<string, true> = {};
@@ -148,18 +142,6 @@
 		}
 
 		return lines.join('\n');
-	}
-
-	function downloadCsv(filename: string, csv: string): void {
-		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = filename;
-		document.body.appendChild(a);
-		a.click();
-		a.remove();
-		URL.revokeObjectURL(url);
 	}
 
 	function handleDownloadCsv() {
