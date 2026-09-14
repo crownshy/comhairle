@@ -8,6 +8,8 @@
 		question?: string;
 		description?: string;
 		timeLeftFormatted: string;
+		/** Session is inside its final wrap-up minute. */
+		isWrappingUp: boolean;
 		isModerator: boolean;
 		onCallForSupport?: () => void;
 		onLeaveBreakoutRoom?: () => void;
@@ -18,6 +20,7 @@
 		question,
 		description,
 		timeLeftFormatted,
+		isWrappingUp,
 		isModerator,
 		onCallForSupport,
 		onLeaveBreakoutRoom
@@ -28,11 +31,18 @@
 	class="bg-muted flex h-full flex-col overflow-hidden rounded-3xl shadow-[0px_2px_4px_0px_rgba(0,0,0,0.12)]"
 >
 	<!-- Header -->
-	<div class="flex shrink-0 flex-col items-start gap-6 px-5">
-		<div class="flex w-full max-w-[1304px] items-center justify-center">
+	<div class="flex shrink-0 flex-col items-start gap-2 px-5">
+		<div class="flex w-full max-w-326 items-center justify-center">
 			<h2 class="text-muted-foreground text-center text-xl leading-7 font-semibold">
 				Breakout session
 			</h2>
+		</div>
+		<div class="flex w-full items-center justify-center">
+			<span class="{isWrappingUp ? 'text-destructive' : 'text-ring'} text-sm font-medium">
+				{isWrappingUp ? 'Ending in' : 'Time left'}&nbsp;&nbsp;<span
+					class="font-semibold tabular-nums">{timeLeftFormatted}</span
+				>
+			</span>
 		</div>
 	</div>
 
