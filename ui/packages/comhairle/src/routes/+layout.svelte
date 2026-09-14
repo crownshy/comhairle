@@ -6,6 +6,7 @@
 	import { browser } from '$app/environment';
 	import '../app.css';
 	import { afterNavigate } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte';
 
 	let { children, data }: LayoutProps = $props();
@@ -34,6 +35,15 @@
 
 	afterNavigate(() => {
 		notifications.showFlash();
+	});
+
+	// iOS Safari does not apply `:active` on tap until the page has a touch listener, and
+	// every press state in app.css is `:active`. This one does nothing and is passive, so it
+	// never holds up a scroll.
+	onMount(() => {
+		const enableActiveOnTouch = () => {};
+		document.addEventListener('touchstart', enableActiveOnTouch, { passive: true });
+		return () => document.removeEventListener('touchstart', enableActiveOnTouch);
 	});
 </script>
 

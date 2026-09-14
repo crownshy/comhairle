@@ -44,6 +44,32 @@ html {
 		-webkit-user-select: none;
 		user-select: none;
 	}
+
+	/* Tailwind only applies `hover:` on devices that can hover, so on a phone a tap showed
+	   nothing but the browser's grey highlight box, which ignores rounded corners. Controls
+	   draw their own press state instead. `manipulation` stops a quick second tap on a
+	   control zooming the page on iOS. */
+	button,
+	summary,
+	[role='button'],
+	[data-slot='button'] {
+		-webkit-tap-highlight-color: transparent;
+		touch-action: manipulation;
+	}
+
+	/* The press state is a tint of the control's own text colour over whatever fill it has,
+	   so it reads on filled, outline and ghost controls in every theme and in dark mode
+	   without a colour per variant. It sits on `background-image` so a component's own
+	   `active:bg-*` still wins the fill. `transparent` is listed first because the build
+	   emits the first colour of a `color-mix` as the fallback for browsers without it, and a
+	   solid `currentColor` there would paint over the label. See ADR-0037. */
+	:is(button, summary, [role='button'], [data-slot='button']):active:not(
+			:disabled,
+			[aria-disabled='true'],
+			[data-disabled]
+		) {
+		background-image: linear-gradient(color-mix(in oklab, transparent 88%, currentColor) 0 0);
+	}
 }
 
 /* Make prose respect theme colors in both light and dark mode. Every colour the plugin

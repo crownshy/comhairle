@@ -168,6 +168,9 @@ Before hand-rolling UI or a helper, **check what already exists**: grep
 
 - Buttons → the shadcn `Button` (`$lib/components/ui/button`), incl. `href` links and
   `loading-button` for pending states.
+- Press feedback is global. Every button, including a hand-rolled `<button>`, gets a tint
+  while pressed from `app.css`, so don't add your own `active:` tint or
+  `-webkit-tap-highlight-color`. Opt out with `active:bg-none`. See ADR-0037.
 - Dialogs, selects, tables, command palette, skeletons, sonner toasts all live in
   `src/lib/components/ui/**`. Don't re-roll a shadcn primitive.
 - Class merging → `cn()` from `$lib/utils`. Never concatenate class strings by hand.
