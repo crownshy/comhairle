@@ -24,6 +24,7 @@ import {
 	type MomentConfig,
 	type MomentState
 } from './moments';
+import type { RoomDisplaySource } from './source';
 import type { DisplayMode, DisplayState, RevealStage, Scenario, StagedDisplayState } from './types';
 
 /** How long a moment holds the screen before the display returns to what it was showing. */
@@ -60,7 +61,7 @@ export interface DriverOptions {
 	momentConfig?: MomentConfig;
 }
 
-export interface RoomDisplayDriver {
+export interface RoomDisplayDriver extends RoomDisplaySource {
 	readonly scenario: Scenario;
 	readonly playheadMs: number;
 	readonly playing: boolean;
@@ -183,6 +184,9 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 
 	return {
 		scenario,
+		groups: scenario.groups,
+		// The scenario scripts every vote, so the map can be coloured per person.
+		perParticipantVotes: true,
 		get playheadMs() {
 			return playheadMs;
 		},

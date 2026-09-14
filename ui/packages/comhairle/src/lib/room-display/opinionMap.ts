@@ -105,3 +105,57 @@ export function votesCastBy(votesByTid: Map<number, Map<number, unknown>>, nodeI
 	for (const byNode of votesByTid.values()) if (byNode.has(nodeId)) count += 1;
 	return count;
 }
+
+/** What `groupCentroids` needs from a rendered dot. */
+export interface PlacedDot {
+	groupId: number | null;
+	x: number;
+	y: number;
+	radius: number;
+	/** Whether the dot has reached its clustered position (see `settleFactor`). */
+	settled: boolean;
+}
+
+export interface GroupCentroid {
+	groupId: number;
+	x: number;
+	y: number;
+	/** Lowest edge of any member dot, so a label can sit under the cluster. */
+	bottom: number;
+	members: number;
+}
+
+/**
+ * Where each opinion group's label goes: the mean of its settled dots, plus the
+ * cluster's lower edge.
+ *
+ * Only settled dots count. A dot still travelling in from the entry ring is not in
+ * its cluster yet, and averaging it in would drag the label out toward the ring. The
+ * upshot is that a label appears once the first member arrives and follows the
+ * cluster as it fills, which is the "labels that move with the dots" the client asked
+ * for. A group with no settled dot has no label.
+ */
+export function groupCentroids(dots: PlacedDot[]): GroupCentroid[] {
+	const byGroup = new Map<number, GroupCentroid>();
+	for (const dot of dots) {
+		if (dot.groupId === null || !dot.settled) continue;
+		const current = byGroup.get(dot.groupId);
+		if (current) {
+			current.x += dot.x;
+			current.y += dot.y;
+			current.bottom = Math.max(current.bottom, dot.y + dot.radius);
+			current.members += 1;
+		} else {
+			byGroup.set(dot.groupId, {
+				groupId: dot.groupId,
+				x: dot.x,
+				y: dot.y,
+				bottom: dot.y + dot.radius,
+				members: 1
+			});
+		}
+	}
+	return [...byGroup.values()]
+		.map((c) => ({ ...c, x: c.x / c.members, y: c.y / c.members }))
+		.sort((a, b) => a.groupId - b.groupId);
+}
