@@ -9,7 +9,7 @@
 	import { Pager } from '$lib/pagination';
 	import { getSort, setSort, PAGE_SIZE, parseSort, type SortBy } from './utils';
 	import type { ConversationDto } from '@crownshy/api-client/api';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
 	import { buttonVariants } from '$lib/components/ui/button';
 	let { data }: { data: { records: Array<ConversationDto>; total: number } } = $props();
 
@@ -68,11 +68,10 @@
 	{#if data.records.length > 0}
 		<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
 			{#each data.records as conversation (conversation.id)}
-				<a
-					class="block w-full"
-					href={`/conversations/${conversation.slug || conversation.id}`}
-				>
-					<ConversationCard {conversation} variant="public" />
+				{@const href = `/conversations/${conversation.slug || conversation.id}`}
+				{@const pending = navigating.to?.url.pathname === href}
+				<a class="block w-full" {href} aria-busy={pending}>
+					<ConversationCard {conversation} variant="public" {pending} />
 				</a>
 			{/each}
 		</div>

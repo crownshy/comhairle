@@ -8,11 +8,14 @@
 	let {
 		conversation,
 		variant = 'admin',
-		organizationName
+		organizationName,
+		pending = false
 	}: {
 		conversation: ConversationDto | LocalizedConversationDto;
 		variant?: 'admin' | 'public';
 		organizationName?: string;
+		/** Holds the pressed look while navigation to this conversation is in flight. */
+		pending?: boolean;
 	} = $props();
 
 	let imageUrl = $derived.by(() => {
@@ -41,7 +44,10 @@
 	<!-- Public variant -->
 	{#if variant === 'public'}
 		<div
-			class="group hover:bg-accent/50 flex w-full flex-col items-stretch gap-6 rounded-2xl p-4 transition-all duration-300 ease-out hover:shadow-md lg:flex-row lg:items-start lg:gap-16 lg:p-6"
+			class={[
+				'group hover:bg-accent/50 active:bg-accent flex w-full flex-col items-stretch gap-6 rounded-2xl p-4 transition-all duration-300 ease-out hover:shadow-md active:scale-[0.99] active:shadow-sm active:duration-100 lg:flex-row lg:items-start lg:gap-16 lg:p-6',
+				pending && 'bg-accent scale-[0.99] shadow-sm'
+			]}
 		>
 			{@render image('h-48 sm:h-64 lg:h-80')}
 
