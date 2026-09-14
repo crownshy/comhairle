@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Sparkles, RotateCcw, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
+	import { Sparkles, RotateCcw, Check } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -68,27 +68,6 @@
 	// kept as the display source of truth after saving, because the parent's
 	// `rounds` prop is never refreshed with the saved text (see valueFor).
 	let editsById = $state<Record<string, string>>({});
-	// Quiet autosave indicator per round: 'saving' → 'saved' (auto-clears after
-	// 2s) or 'error' (sticks). Absent means idle. Mirrors the configure-page
-	// pattern (see TranslatableField / translationSource).
-	type SaveState = 'saving' | 'saved' | 'error';
-	let saveStateById = $state<Record<string, SaveState>>({});
-	const savedResetTimers: Record<string, ReturnType<typeof setTimeout>> = {};
-
-	function setSaveState(id: string, state: SaveState | undefined) {
-		clearTimeout(savedResetTimers[id]);
-		if (state === undefined) {
-			const { [id]: _, ...rest } = saveStateById;
-			saveStateById = rest;
-			return;
-		}
-		saveStateById = { ...saveStateById, [id]: state };
-		if (state === 'saved') {
-			savedResetTimers[id] = setTimeout(() => {
-				if (saveStateById[id] === 'saved') setSaveState(id, undefined);
-			}, 2_000);
-		}
-	}
 
 	// Live sharing consent for this participant's thinking-space record. Hydrated
 	// from the backend user_progress row; toggle/modal flips PATCH it back.
@@ -123,33 +102,27 @@
 				fading = false;
 			}, 300);
 		}, 3500);
-		return () => {
-			clearInterval(interval);
-			for (const timer of Object.values(savedResetTimers)) clearTimeout(timer);
-		};
+		return () => clearInterval(interval);
 	});
 
 	// Only the newest round is editable. Prior rounds are frozen
 	function editLatest(id: string, value: string) {
 		editsById = { ...editsById, [id]: value };
-		// Clear any lingering "Saved"/"Not saved" the moment they type again.
-		if (saveStateById[id]) setSaveState(id, undefined);
 	}
 
+	// Saves quietly on blur. A success says nothing: an inline "Saved" line above the box
+	// pushed the box and the buttons under it down the moment focus left, which is also the
+	// moment a finger lands on Finish. A failure still toasts, and Finish saves again anyway.
 	async function persistEdit(id: string) {
 		const draft = editsById[id];
 		if (draft === undefined) return;
 		const trimmed = draft.trim();
 		if (!trimmed) return;
-		setSaveState(id, 'saving');
 		const res = await tryCatchAsync(() =>
 			saveRound({ workflowStepId, roundId: id, submittedText: trimmed })
 		);
 		if (res.err !== null) {
 			console.error(res.err);
-			// Signal the failure two ways: a persistent inline "Not saved" on the
-			// field, plus a toast the participant can't miss (their edit is at risk).
-			setSaveState(id, 'error');
 			notifications.send({
 				message: 'Could not save your edit. Please try again.',
 				priority: 'ERROR'
@@ -160,7 +133,6 @@
 		// `rounds` prop is never refreshed after a save, so dropping this
 		// entry would revert the textarea to the stale pre-edit draft on blur.
 		editsById = { ...editsById, [id]: trimmed };
-		setSaveState(id, 'saved');
 	}
 
 	function valueFor(round: SummaryRound): string {
@@ -269,12 +241,17 @@
 	let showRetryInline = $derived(loadError && rounds.length > 0 && !pendingNextRound);
 </script>
 
-<div class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 py-8">
+<!-- On a phone the statement box takes whatever height the screen has left and scrolls its own
+     text, so Explore more and Finish sit just above the pager however long the summary is. A
+     box that grew with the text pushed them under the bar, out of sight. The phone sizes are
+     tighter for the same reason, matching the question screens. On a wide screen there is room
+     for both, so the box grows with the text. -->
+<div class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 py-4 sm:gap-6 sm:py-8">
 	<header>
-		<h2 class="text-foreground text-2xl leading-snug font-semibold sm:text-3xl">
+		<h2 class="text-foreground text-xl leading-snug font-semibold sm:text-3xl">
 			{m.thinking_space_review_heading()}
 		</h2>
-		<p class="text-muted-foreground mt-3 text-base leading-relaxed">
+		<p class="text-muted-foreground mt-2 text-base leading-relaxed sm:mt-3">
 			{m.thinking_space_review_desc()}
 		</p>
 		{#if requestUserSharePermission && hasDecidedConsent}
@@ -286,50 +263,24 @@
 
 	<!-- The summary stack is the whole screen: the statement the participant submits, plus any
 	     frozen rounds behind it. The answers it was drawn from are not repeated here. -->
-	<section class="space-y-6">
+	<section class="flex flex-1 flex-col gap-4 sm:gap-6">
 		{#each rounds as round, i (round.id)}
 			{@const isLatest = i === rounds.length - 1}
 			{#if isLatest}
-				<div class="space-y-2">
-					{#if saveStateById[round.id]}
-						<div class="flex justify-end">
-							{#if saveStateById[round.id] === 'saving'}
-								<span
-									class="text-muted-foreground inline-flex items-center gap-1 text-sm"
-								>
-									<LoaderCircle class="size-3.5 animate-spin" />
-									{m.saving()}
-								</span>
-							{:else if saveStateById[round.id] === 'saved'}
-								<span class="inline-flex items-center gap-1 text-sm text-green-600">
-									<Check class="size-3.5" />
-									{m.saved()}
-								</span>
-							{:else}
-								<span
-									class="text-destructive inline-flex items-center gap-1 text-sm"
-								>
-									<TriangleAlert class="size-3.5" />
-									{m.not_saved()}
-								</span>
-							{/if}
-						</div>
-					{/if}
-					<!-- Lock the previous round while the next one generates: once
-					generation starts this round is about to freeze, so editing it
-					would be lost. -->
-					<Textarea
-						value={valueFor(round)}
-						oninput={(e) => editLatest(round.id, e.currentTarget.value)}
-						onblur={() => persistEdit(round.id)}
-						readonly={pendingNextRound}
-						rows={10}
-						class="bg-background rounded-xl text-base leading-relaxed {pendingNextRound
-							? 'cursor-not-allowed opacity-70'
-							: ''}"
-						placeholder={m.thinking_space_latest_thinking()}
-					/>
-				</div>
+				<!-- Lock the previous round while the next one generates: once
+				generation starts this round is about to freeze, so editing it
+				would be lost. -->
+				<Textarea
+					value={valueFor(round)}
+					oninput={(e) => editLatest(round.id, e.currentTarget.value)}
+					onblur={() => persistEdit(round.id)}
+					readonly={pendingNextRound}
+					rows={10}
+					class="bg-background min-h-40 flex-1 basis-0 resize-none rounded-xl text-base leading-relaxed sm:flex-none sm:basis-auto {pendingNextRound
+						? 'cursor-not-allowed opacity-70'
+						: ''}"
+					placeholder={m.thinking_space_latest_thinking()}
+				/>
 			{:else}
 				<div class="space-y-2">
 					<p class="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
