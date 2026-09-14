@@ -51,15 +51,22 @@
 >
 	<StepChrome {...chrome} />
 
-	<!-- Children never shrink: this is a flex column with a definite height, so a page taller
-	     than the screen would otherwise be squeezed down to its min-height and spill its
-	     overflow out the bottom, straight through the padding and under the bar. -->
-	<main
-		data-step-scroll
-		class="flex min-h-0 w-full flex-col overflow-y-auto *:shrink-0"
-		style:padding-bottom="{scrollPadding}px"
-	>
-		{@render content()}
+	<!-- The reserve is padding on a wrapper, not on the scroller itself. WebKit leaves a
+	     scroller's own bottom padding out of its scroll height until the content overflows the
+	     padding box, so on iOS a page that ended inside the reserve could not be scrolled out
+	     from under the bar. A child's padding always counts. The wrapper is min-h-full, so a
+	     short page still gets the screen minus the reserve to centre in.
+
+	     The wrapper never shrinks: the scroller is a flex column with a definite height, so a
+	     page taller than the screen would otherwise be squeezed down to its min-height and
+	     spill its overflow out the bottom, straight through the padding and under the bar. -->
+	<main data-step-scroll class="flex min-h-0 w-full flex-col overflow-y-auto">
+		<div
+			class="flex min-h-full w-full shrink-0 flex-col"
+			style:padding-bottom="{scrollPadding}px"
+		>
+			{@render content()}
+		</div>
 	</main>
 
 	<!-- The bar is glass over the end of the scroll: content shows through it blurred, so a
