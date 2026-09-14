@@ -21,7 +21,14 @@ use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() {
+    if let Err(err) = run().await {
+        tracing::error!("A fatal error occurred: {err}");
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> Result<(), Box<dyn Error>> {
     // Load .env files
     //
     dotenvy::dotenv().ok();
@@ -41,9 +48,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .with_thread_names(true)
                 .with_target(true)
                 .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
-                .pretty(),
+                .json(),
         )
         .init();
+
+    // Capture top-level panics and log them using tracing
+    std::panic::set_hook(Box::new(tracing_panic::panic_hook));
 
     // Load Config
     let config = comhairle::config::load()?;

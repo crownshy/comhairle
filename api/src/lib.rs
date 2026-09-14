@@ -144,7 +144,7 @@ async fn health_check() -> &'static str {
 /// Note that sub-routers like `routes::auth::router` are async and must be `.await`ed.
 pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi) {
     aide::generate::on_error(|error| {
-        println!("{error}");
+        tracing::error!("{error}");
     });
 
     aide::generate::extract_schemas(true);
