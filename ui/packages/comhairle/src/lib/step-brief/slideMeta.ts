@@ -1,7 +1,7 @@
 import * as m from '$lib/paraglide/messages';
 import { getLocale } from '$lib/paraglide/runtime.js';
 import { TOOL_META, type ToolType } from '$lib/tool_meta';
-import { estimateMinutes, learnPageWords } from './stepDuration';
+import { estimateMinutes, learnPageLengths, type LearnPageLength } from './stepDuration';
 
 export type StepMetaItem = {
 	/** Lucide icon name resolved by the cover, kept as data so this stays testable. */
@@ -19,8 +19,8 @@ export type MetaToolConfig = {
 	required_votes?: number | null;
 	/** thinkingspace: rounds of follow-ups after each root question. */
 	follow_up_rounds_count?: number | null;
-	/** learn: words on each page, already resolved to the reader's language. */
-	page_words?: number[];
+	/** learn: words, images and videos on each page, already resolved to the reader's language. */
+	learn_pages?: LearnPageLength[];
 	/** thinkingspace: questions the space opens with. */
 	root_question_count?: number;
 	/** prioritization: questions asked about each proposal. */
@@ -58,8 +58,8 @@ function countOf(value: unknown): number {
  *
  * The generated `LocalizedToolConfig` is a wide union whose members share only `type`, so
  * this picks what it needs structurally rather than switching on every member. Learn pages
- * are reduced to a word count here, while the locale is still in hand, so everything
- * downstream is plain numbers.
+ * are reduced to counts of words, images and videos here, while the locale is still in
+ * hand, so everything downstream is plain numbers.
  */
 export function toMetaToolConfig(
 	config: unknown,
@@ -71,7 +71,7 @@ export function toMetaToolConfig(
 		type: typeof record.type === 'string' ? record.type : undefined,
 		required_votes: numberOrNull(record.required_votes),
 		follow_up_rounds_count: numberOrNull(record.follow_up_rounds_count),
-		page_words: learnPageWords(record.pages, locale),
+		learn_pages: learnPageLengths(record.pages, locale),
 		root_question_count: countOf(record.root_questions),
 		question_count: countOf(record.questions) + countOf(record.section_questions),
 		required_reviews: numberOrNull(record.required_reviews),

@@ -47,7 +47,7 @@ describe('toMetaToolConfig', () => {
 			type: 'polis',
 			required_votes: 5,
 			follow_up_rounds_count: null,
-			page_words: [],
+			learn_pages: [],
 			root_question_count: 0,
 			question_count: 0,
 			required_reviews: null,
@@ -80,12 +80,12 @@ describe('toMetaToolConfig', () => {
 			'en'
 		);
 		// The second page has no English, so its Gaelic stands in for its length.
-		expect(config?.page_words).toEqual([3, 4]);
+		expect(config?.learn_pages?.map((page) => page.words)).toEqual([3, 4]);
 	});
 
-	it('reads no words from pages that are still a content reference', () => {
+	it('reads nothing from pages that are still a content reference', () => {
 		const config = toMetaToolConfig({ type: 'learn', pages: [{ text_content_id: 'x' }] }, 'en');
-		expect(config?.page_words).toEqual([0]);
+		expect(config?.learn_pages).toEqual([{ words: 0, images: 0, videos: 0 }]);
 	});
 
 	it('round-trips into stepMeta', () => {
