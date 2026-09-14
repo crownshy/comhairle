@@ -97,8 +97,11 @@
 	// at all, so they are marked directly.
 	//
 	// Video and iframe embeds get the same mark to end their placeholder. A video counts once
-	// it has metadata, or once the browser stops fetching (`suspend`) or fails: iOS in Low
-	// Power Mode fetches nothing before a tap, and would otherwise pulse under the controls.
+	// its first frame is decoded (`loadeddata`): with only metadata, Chrome paints a grey
+	// panel with a spinner, so until then the video stays hidden over the placeholder. A
+	// browser that will not fetch a frame before a tap (iOS in Low Power Mode) fires
+	// `suspend` instead, and a file that fails fires `error`, so neither is left hidden with
+	// its controls out of reach.
 	$effect(() => {
 		void html;
 		const el = contentElement;
@@ -114,13 +117,13 @@
 		const onVideoSettled = (event: Event) => {
 			if (event.target instanceof HTMLVideoElement) mark(event.target);
 		};
-		const videoEvents = ['loadedmetadata', 'suspend', 'error'];
+		const videoEvents = ['loadeddata', 'suspend', 'error'];
 
 		for (const image of el.querySelectorAll('img')) {
 			if (image.complete) mark(image);
 		}
 		for (const video of el.querySelectorAll('video')) {
-			if (video.readyState >= HTMLMediaElement.HAVE_METADATA) mark(video);
+			if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) mark(video);
 		}
 		el.addEventListener('load', onLoad, true);
 		for (const type of videoEvents) el.addEventListener(type, onVideoSettled, true);

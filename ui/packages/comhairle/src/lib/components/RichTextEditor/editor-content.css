@@ -379,9 +379,24 @@
 	background-color: black;
 }
 
+/* Hidden over the placeholder until it has a frame, then faded in. Shown straight away,
+   Chrome drew a grey panel with a spinner on top of the placeholder: a second, different
+   loading state between the skeleton block and the video. */
+.content-renderer .iframe-wrapper video {
+	transition: opacity 200ms ease-out;
+}
+
+.content-renderer .iframe-wrapper video:not([data-loaded]) {
+	opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.content-renderer .iframe-wrapper:has(> :is(iframe, video):not([data-loaded]))::before {
 		animation: none;
+	}
+
+	.content-renderer .iframe-wrapper video {
+		transition: none;
 	}
 }
 
