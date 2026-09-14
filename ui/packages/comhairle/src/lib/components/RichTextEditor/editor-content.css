@@ -350,7 +350,12 @@
 	border-radius: 0.5rem;
 }
 
+/* Tailwind Typography gives `.prose video` a 2em top and bottom margin. On an absolutely
+   positioned video that pushes it down inside the wrapper, whose overflow is hidden, and
+   cuts off the bottom of the player: the timeline under the controls on desktop, and the
+   lower part of the frame with a play button sitting below centre on iOS. */
 .iframe-wrapper video {
+	margin: 0;
 	object-fit: contain;
 }
 
