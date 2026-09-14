@@ -177,7 +177,7 @@
 					}}
 					placeholder={m.learning_assistant_input_placeholder()}
 					disabled={assistant.inputDisabled}
-					class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent text-lg outline-none disabled:cursor-not-allowed"
+					class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent text-base outline-none disabled:cursor-not-allowed"
 				/>
 				<button
 					type="button"
