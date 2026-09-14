@@ -959,7 +959,6 @@ pub async fn delete_text_content(
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
         .fetch_one(db)
         .await
-        .inspect_err(|e| println!("{e:#?}"))
         .resolve_db_err("Text Content")?;
 
     Ok(text_content)
@@ -1271,8 +1270,6 @@ pub async fn auto_generate_translation(
     locale: &str,
 ) -> Result<TextTranslation, ComhairleError> {
     let text_content = get_text_content_by_id(db, text_content_id).await?;
-
-    println!("Trying to get translation with {text_content_id:#?} and {locale}");
 
     let translation =
         get_text_translation_by_content_and_locale(db, text_content_id, locale).await?;

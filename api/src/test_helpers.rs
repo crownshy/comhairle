@@ -166,17 +166,17 @@ impl TestRole {
 
 pub fn extract<T: DeserializeOwned>(target: &str, entity: &serde_json::Value) -> T {
     if let Some(error) = entity.get("err") {
-        println!("Got error {error:#?}");
+        eprintln!("Got error {error:#?}");
     }
     let value = entity.get(target).to_owned();
 
     if value.is_none() {
-        println!("Issue with value {entity:#?} {target:#?}");
+        eprintln!("Issue with value {entity:#?} {target:#?}");
     }
     let value = value.unwrap().to_owned();
 
     serde_json::from_value(value)
-        .inspect_err(|e| println!("Failed to deserialize error {e:#?}"))
+        .inspect_err(|e| eprintln!("Failed to deserialize error {e:#?}"))
         .unwrap()
 }
 

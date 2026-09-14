@@ -423,7 +423,6 @@ pub async fn delete(
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .inspect_err(|e| println!("{e:#?}"))
         .resolve_db_err("Conversation")?;
 
     if let Some(bot_service) = bot_service {
@@ -499,7 +498,6 @@ pub async fn get_localised_by_id(
     let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .inspect_err(|e| println!("{e:#?}"))
         .resolve_db_err("Conversation")?;
 
     Ok(conversation)
