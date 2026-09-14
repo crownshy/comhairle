@@ -95,22 +95,39 @@
 	// editor-content.css hold a placeholder box in the meantime. Load does not bubble, hence
 	// the capturing listener; images already in the cache (or server-rendered) never fire it
 	// at all, so they are marked directly.
+	//
+	// Video and iframe embeds get the same mark to end their placeholder. A video counts once
+	// it has metadata, or once the browser stops fetching (`suspend`) or fails: iOS in Low
+	// Power Mode fetches nothing before a tap, and would otherwise pulse under the controls.
 	$effect(() => {
 		void html;
 		const el = contentElement;
 		if (!el) return;
 
-		const mark = (image: HTMLImageElement) => image.setAttribute('data-loaded', '');
+		const mark = (element: Element) => element.setAttribute('data-loaded', '');
 		const onLoad = (event: Event) => {
 			const target = event.target;
-			if (target instanceof HTMLImageElement) mark(target);
+			if (target instanceof HTMLImageElement || target instanceof HTMLIFrameElement) {
+				mark(target);
+			}
 		};
+		const onVideoSettled = (event: Event) => {
+			if (event.target instanceof HTMLVideoElement) mark(event.target);
+		};
+		const videoEvents = ['loadedmetadata', 'suspend', 'error'];
 
 		for (const image of el.querySelectorAll('img')) {
 			if (image.complete) mark(image);
 		}
+		for (const video of el.querySelectorAll('video')) {
+			if (video.readyState >= HTMLMediaElement.HAVE_METADATA) mark(video);
+		}
 		el.addEventListener('load', onLoad, true);
-		return () => el.removeEventListener('load', onLoad, true);
+		for (const type of videoEvents) el.addEventListener(type, onVideoSettled, true);
+		return () => {
+			el.removeEventListener('load', onLoad, true);
+			for (const type of videoEvents) el.removeEventListener(type, onVideoSettled, true);
+		};
 	});
 
 	function showGlossaryTooltip(trigger: HTMLElement) {

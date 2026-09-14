@@ -340,13 +340,44 @@
 	outline-offset: 2px;
 }
 
-.iframe-wrapper iframe {
+.iframe-wrapper iframe,
+.iframe-wrapper video {
 	position: absolute;
 	top: 0;
 	left: 0;
 	width: 100%;
 	height: 100%;
 	border-radius: 0.5rem;
+}
+
+.iframe-wrapper video {
+	object-fit: contain;
+}
+
+/* The wrapper is already its final size, so all an embed that has not loaded needs is
+   something in the empty box: a skeleton block, like an image placeholder. It sits in a
+   pseudo-element behind the embed rather than on the wrapper, because animating the
+   wrapper's opacity would pulse the video's controls with it. ContentRenderer sets
+   `data-loaded` once the iframe or video can paint. The video only takes its black ground
+   then, so a letterboxed video does not pulse at its edges afterwards. Read-only content
+   only, for the same reason as images. */
+.content-renderer .iframe-wrapper:has(> :is(iframe, video):not([data-loaded]))::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-color: var(--accent);
+	border-radius: 0.5rem;
+	animation: tiptap-image-loading 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.content-renderer .iframe-wrapper video[data-loaded] {
+	background-color: black;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.content-renderer .iframe-wrapper:has(> :is(iframe, video):not([data-loaded]))::before {
+		animation: none;
+	}
 }
 
 /* Source document card styles (editor / admin view) */

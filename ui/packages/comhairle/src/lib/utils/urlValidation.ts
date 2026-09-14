@@ -96,3 +96,17 @@ export const DEFAULT_ALLOWED_DOMAINS = [
 	'player.vimeo.com',
 	'comhairle-media-test.s3.amazonaws.com'
 ];
+
+/** mp4 and webm are what the media library takes; mov and m4v cover a pasted file link. */
+const VIDEO_FILE_EXTENSIONS = ['mp4', 'webm', 'mov', 'm4v'];
+
+/**
+ * Whether a URL is a video file rather than a player page such as a YouTube embed. Media
+ * library uploads keep their filename in the storage key, so the extension is reliable there.
+ */
+export function isVideoFileUrl(url: string | null | undefined): boolean {
+	const parsed = url ? URL.parse(url) : null;
+	if (!parsed) return false;
+	const extension = parsed.pathname.split('.').pop()?.toLowerCase();
+	return !!extension && VIDEO_FILE_EXTENSIONS.includes(extension);
+}

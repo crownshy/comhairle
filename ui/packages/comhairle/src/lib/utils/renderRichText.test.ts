@@ -229,4 +229,30 @@ describe('renderRichTextToHtml', () => {
 
 		expect(html).toContain('data-cell-color="blue"');
 	});
+
+	describe('video embeds', () => {
+		const embed = (src: string) =>
+			JSON.stringify({ type: 'doc', content: [{ type: 'iframe', attrs: { src } }] });
+
+		it('renders a video file as a native video in the 16:9 wrapper', () => {
+			const html = renderRichTextToHtml(
+				embed('https://comhairle-media-test.s3.amazonaws.com/abc/intro.mp4')
+			);
+
+			expect(html).toContain('class="iframe-wrapper"');
+			expect(html).toContain(
+				'<video src="https://comhairle-media-test.s3.amazonaws.com/abc/intro.mp4#t=0.001"'
+			);
+			expect(html).toContain('playsinline');
+			expect(html).toContain('preload="metadata"');
+			expect(html).not.toContain('<iframe');
+		});
+
+		it('keeps a player page as an iframe', () => {
+			const html = renderRichTextToHtml(embed('https://www.youtube.com/embed/abc'));
+
+			expect(html).toContain('<iframe');
+			expect(html).not.toContain('<video');
+		});
+	});
 });
