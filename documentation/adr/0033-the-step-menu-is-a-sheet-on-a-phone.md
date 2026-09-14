@@ -19,8 +19,8 @@ at, so it is worth fixing before the tour names it.
 **1. Below the `md` breakpoint the menu is a bottom sheet; above it, the dropdown stays.**
 
 The sheet is `vaul-svelte`, already in the repo for the "Find out more" panel. It is capped
-at `92dvh` with the list scrolling inside (`dvh`, not `vh`: on iOS `vh` ignores the browser
-toolbars, so a `vh` sheet slides its heading under the address bar), rows at `min-h-14`, and it carries a drag handle,
+at `75svh` with the list scrolling inside (well short of full height: Chrome on iOS can lay
+the page out under its toolbars, so a taller sheet slides its heading under the address bar), rows at `min-h-14`, and it carries a drag handle,
 a title and a close control.
 
 Rejected: **a full-screen overlay.** It wipes the page you are standing on, which is exactly

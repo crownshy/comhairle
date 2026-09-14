@@ -207,17 +207,18 @@
 			{@render triggerInner()}
 		</Drawer.Trigger>
 
-		<!-- `dvh`, not `vh`: on iOS `vh` is the viewport with the browser's toolbars retracted, so
-			with them showing a 92vh sheet runs up under the address bar and hides its own heading. -->
-		<Drawer.Content class="min-h-[80dvh] data-[vaul-drawer-direction=bottom]:max-h-[92dvh]">
+		<!-- `svh` is the viewport with the browser's toolbars showing, so the cap holds however far
+			the page was scrolled. It stays well short of full height because Chrome on iOS can lay
+			the page out under its address bar and toolbar, and a taller sheet tucks its heading
+			under the address bar. -->
+		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[75svh]">
 			<!-- No close button: the drag handle, the swipe and the overlay all dismiss the sheet. -->
 			<Drawer.Header class="px-5 pt-2 pb-3 text-left">
 				<Drawer.Title class="text-foreground text-lg font-bold">{heading}</Drawer.Title>
 			</Drawer.Header>
 
-			<!-- The sheet is capped at 92dvh, so a long conversation scrolls its steps rather than
-				pushing the standing material off the bottom of the screen. The floor keeps a short
-				conversation from opening as a stub. -->
+			<!-- The sheet is capped, so a long conversation scrolls its steps rather than pushing
+				the standing material off the bottom of the screen. -->
 			<div
 				class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-[env(safe-area-inset-bottom)]"
 			>
