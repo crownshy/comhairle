@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    auth_service::GetAuthorizationTokensResponse, config::AuthServiceConfig, models::users::User,
+    auth_service::{GetAuthorizationTokensResponse, GetUserResponse},
+    config::AuthServiceConfig,
+    models::users::User,
 };
 
 use super::{AuthService, error::AuthServiceError};
@@ -18,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::warn;
 
+#[allow(dead_code)]
 pub struct KeycloakClient {
     domain: String,
     admin_client: KeycloakAdmin,
@@ -133,7 +136,6 @@ impl AuthService for KeycloakClient {
         //
         // Needs to use realm `partialImport` endpoint instead of `users_post`
         // endpoint as former maintains comhairle user ids, the latter does not.
-        let client = reqwest::Client::new();
         let url = format!(
             "{}/admin/realms/{}/partialImport",
             self.domain, self.realm_name,
@@ -153,7 +155,8 @@ impl AuthService for KeycloakClient {
             );
         }
 
-        let response = client
+        let response = self
+            .auth_client
             .post(&url)
             .header(
                 "Authorization",
@@ -193,6 +196,24 @@ impl AuthService for KeycloakClient {
         }
 
         Ok(serde_json::json!({ "status": status.to_string() }))
+    }
+
+    async fn get_user(&self, token: &str) -> Result<GetUserResponse, AuthServiceError> {
+        let url = format!(
+            "{}/realms/{}/protocol/openid-connect/userinfo",
+            self.domain, self.realm_name
+        );
+
+        let result = self
+            .auth_client
+            .get(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        Ok(result)
     }
 
     async fn get_authorization_tokens(

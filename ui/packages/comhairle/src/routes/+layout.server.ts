@@ -27,6 +27,15 @@ export const load: LayoutServerLoad = async (event) => {
 	if (!tk || !resp.ok) {
 		return { user: null, ...common };
 	}
+
+	// TODO: I think this can be removed
+	// if (!tk) {
+	// 	return {
+	// 		user: null,
+	// 		...common
+	// 	};
+	// }
+
 	const body = await resp.json();
 	if (!body.id) return { user: null, ...common };
 
