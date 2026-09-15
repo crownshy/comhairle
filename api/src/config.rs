@@ -73,7 +73,7 @@ pub struct ComhairleConfig {
     pub mailer: MailerConfig,
     pub domain: String,
     pub translator: Option<TranslatorConfig>,
-    pub auth_service: Option<AuthServiceConfig>,
+    pub auth_service: AuthServiceConfig,
     pub bot_service: Option<BotServiceConfig>,
     pub whitelisted_domains: Option<Vec<String>>,
     pub enable_rate_limiting: bool,
