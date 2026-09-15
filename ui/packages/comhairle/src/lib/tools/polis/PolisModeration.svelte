@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import { LoadingButton } from '$lib/components/ui/button';
+	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import type { RejectReason } from '$lib/moderation/moderationPolicy';
+	import { downloadCsv } from '$lib/utils/csv';
+	import { DEFAULT_REJECT_REASONS, type RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
-	import { RefreshCw, Search } from '@lucide/svelte';
+	import { Download, RefreshCw, Search } from '@lucide/svelte';
 	import AddSeedStatementsDialog from './polis-moderation/AddSeedStatementsDialog.svelte';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
+	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
 
 	type Props = {
 		workflowStepId: string;
@@ -89,6 +91,18 @@
 		{ key: 'pending', label: 'Pending' },
 		{ key: 'rejected', label: 'Rejected' }
 	];
+
+	// --- Download ---
+	// Built from the rows already loaded, so it reflects the last sync. The default labels are
+	// included so reasons recorded before the policy was edited still land in the reason column.
+	const reasonLabels = $derived([
+		...new Set([...rejectReasons, ...DEFAULT_REJECT_REASONS].map((reason) => reason.label))
+	]);
+
+	function downloadStatements() {
+		const date = new Date().toISOString().slice(0, 10);
+		downloadCsv(`polis-statements-${date}.csv`, buildStatementsCsv(statements, reasonLabels));
+	}
 
 	// --- Multi-select + bulk moderation ---
 	// Selection is keyed by aux row id. Select-all and the bulk actions operate
@@ -275,12 +289,21 @@
 
 <div class="flex flex-col gap-6 rounded-xl">
 	<!-- Heading + actions -->
-	<div class="flex items-start justify-between gap-4">
+	<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 		<div class="flex max-w-3xl flex-col gap-1">
 			<h2 class="text-2xl font-bold">Statements moderation</h2>
 			<p class="text-muted-foreground text-sm">Moderate and view all statements.</p>
 		</div>
-		<div class="flex shrink-0 items-center gap-2">
+		<!-- Full-width stacked buttons on phones, a wrapping row from sm up. -->
+		<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0">
+			<Button
+				variant="outline"
+				disabled={statements.length === 0}
+				onclick={downloadStatements}
+			>
+				<Download class="size-4" />
+				Download CSV
+			</Button>
 			<LoadingButton
 				loading={syncing}
 				variant="outline"
