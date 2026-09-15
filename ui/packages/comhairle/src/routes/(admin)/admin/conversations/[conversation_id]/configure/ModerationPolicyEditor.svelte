@@ -1,12 +1,10 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { Check, Plus, RotateCcw, Trash2, TriangleAlert } from 'lucide-svelte';
+	import { Plus, RotateCcw, Trash2 } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import {
 		DEFAULT_REJECT_REASONS,
@@ -15,6 +13,8 @@
 		type ModerationPolicy,
 		type RejectReason
 	} from '$lib/moderation/moderationPolicy';
+	import { Autosave } from './autosave.svelte';
+	import SaveStatusPill from './SaveStatusPill.svelte';
 
 	let {
 		conversationId,
@@ -54,63 +54,32 @@
 		return ids;
 	});
 
-	// --- Autosave, same shape as the glossary editor.
-	let saveState = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
-	let saveTimer: ReturnType<typeof setTimeout> | undefined;
-	let dirty = $state(false);
+	const autosave = new Autosave(() =>
+		apiClient.PatchConversationMetadata(
+			{
+				[MODERATION_POLICY_METADATA_KEY]: usingDefault
+					? null
+					: toStoredModerationPolicy(rows)
+			},
+			{ params: { conversation_id: conversationId } }
+		)
+	);
+
+	guardUnsavedChanges(() => autosave.dirty);
+
 	// The Moderation tab reads the policy from the conversation layout's data, so once a save
 	// lands that data is refreshed when this editor goes away.
-	let savedOnce = false;
-
-	guardUnsavedChanges(() => dirty);
-
-	async function commit() {
-		saveTimer = undefined;
-		saveState = 'saving';
-		const startedAt = performance.now();
-		const result = await tryCatchAsync(() =>
-			apiClient.PatchConversationMetadata(
-				{
-					[MODERATION_POLICY_METADATA_KEY]: usingDefault
-						? null
-						: toStoredModerationPolicy(rows)
-				},
-				{ params: { conversation_id: conversationId } }
-			)
-		);
-		if (result.err !== null) {
-			saveState = 'error';
-			return; // stay dirty so the guard still warns
-		}
-		savedOnce = true;
-		// Keep "Saving…" up long enough to register on a fast local save.
-		const elapsed = performance.now() - startedAt;
-		if (elapsed < 500) await new Promise((r) => setTimeout(r, 500 - elapsed));
-		saveState = 'saved';
-		dirty = false;
-	}
-
-	function scheduleSave() {
-		dirty = true;
-		clearTimeout(saveTimer);
-		saveTimer = setTimeout(commit, 700);
-	}
-
-	$effect(() => {
-		return () => {
-			if (saveTimer) {
-				clearTimeout(saveTimer);
-				commit().then(() => invalidate('conversation:meta'));
-			} else if (savedOnce) {
-				invalidate('conversation:meta');
-			}
-		};
+	onDestroy(() => {
+		autosave.flush();
+		autosave.settled().then(() => {
+			if (autosave.hasSaved) invalidate('conversation:meta');
+		});
 	});
 
 	function editRow(id: number, patch: Partial<Omit<Row, 'id'>>) {
 		rows = rows.map((row) => (row.id === id ? { ...row, ...patch } : row));
 		usingDefault = false;
-		scheduleSave();
+		autosave.schedule();
 	}
 
 	async function addRow() {
@@ -123,13 +92,13 @@
 	function removeRow(id: number) {
 		rows = rows.filter((row) => row.id !== id);
 		usingDefault = false;
-		scheduleSave();
+		autosave.schedule();
 	}
 
 	function resetToDefault() {
 		rows = toRows(DEFAULT_REJECT_REASONS);
 		usingDefault = true;
-		scheduleSave();
+		autosave.schedule();
 	}
 
 	const gridClass = 'grid-cols-[minmax(10rem,16rem)_minmax(12rem,1fr)_auto]';
@@ -150,27 +119,7 @@
 			</Button>
 		{/if}
 
-		{#if saveState !== 'idle'}
-			<span
-				class={cn(
-					'ml-auto flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm',
-					saveState === 'error'
-						? 'bg-destructive/10 text-destructive'
-						: saveState === 'saving'
-							? 'bg-primary text-primary-foreground'
-							: 'bg-muted text-muted-foreground'
-				)}
-				aria-live="polite"
-			>
-				{#if saveState === 'saving'}
-					<Spinner class="size-3.5" /> Saving…
-				{:else if saveState === 'saved'}
-					<Check class="size-3.5" /> Saved
-				{:else}
-					<TriangleAlert class="size-3.5" /> Not saved
-				{/if}
-			</span>
-		{/if}
+		<SaveStatusPill status={autosave.status} />
 	</div>
 
 	{#if usingDefault}
