@@ -7,6 +7,9 @@ pub enum AuthServiceError {
     #[error("Keycloak error: {0}")]
     KeycloakError(#[from] keycloak::KeycloakError),
 
+    #[error("Http error: {0}")]
+    HttpError(#[from] keycloak::prelude::reqwest::Error),
+
     #[error("Access token failure: {0}")]
     AccessTokenFailure(String),
 

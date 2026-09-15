@@ -11,13 +11,6 @@ export const load: LayoutServerLoad = async (event) => {
 		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true'
 	};
 
-	if (!tk) {
-		return {
-			user: null,
-			...common
-		};
-	}
-
 	const resp = await event.fetch(`/api/auth/current_user`, {
 		method: 'GET',
 		headers: { Accept: 'application/json' }
@@ -26,6 +19,15 @@ export const load: LayoutServerLoad = async (event) => {
 	if (!resp.ok) {
 		return { user: null, ...common };
 	}
+
+	// TODO: I think this can be removed
+	// if (!tk) {
+	// 	return {
+	// 		user: null,
+	// 		...common
+	// 	};
+	// }
+
 	const body = await resp.json();
 	if (!body.id) return { user: null, ...common };
 

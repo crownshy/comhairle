@@ -4,13 +4,14 @@ pub mod keycloak;
 
 use async_trait::async_trait;
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[cfg(test)]
 use mockall::automock;
 
 use crate::auth_service::error::AuthServiceError;
-use crate::models::users::User;
+use crate::models::users::{User, UserAuthType};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -20,11 +21,27 @@ pub trait AuthService: Send + Sync {
         comhairle_user: &User,
     ) -> Result<serde_json::Value, AuthServiceError>;
 
+    async fn get_user(&self, token: &str) -> Result<GetUserResponse, AuthServiceError>;
+
     async fn get_authorization_tokens(
         &self,
         code: &str,
         redirect_uri: &str,
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError>;
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct GetUserResponse {
+    pub sub: Uuid,
+    pub email_verified: bool,
+    pub preferred_username: String,
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
+    pub comhairle_auth_type: UserAuthType,
+    pub avatar_url: Option<String>,
+    pub organization_id: Option<Uuid>,
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
