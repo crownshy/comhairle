@@ -17,7 +17,7 @@
 	{#if user}
 		<div class="flex flex-col gap-4">
 			<UserAvatar {user} />
-			<form method="POST" action="/auth/logout">
+			<form method="POST" action="/api/auth/logout">
 				<Button type="submit" variant="outline" class="text-gray-700 hover:text-black">
 					{m.logout()}
 				</Button>

@@ -68,7 +68,7 @@
 					</Button>
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
-					<form method="POST" action="/auth/logout">
+					<form method="POST" action="/api/auth/logout">
 						<Button type="submit" variant="ghost"><LogOut />Logout</Button>
 					</form>
 				</DropdownMenu.Item>

@@ -1097,13 +1097,27 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     Ok(current_user)
 }
 
-/// Destroy the cookie on our session to log a user out
-pub async fn logout(jar: CookieJar) -> (CookieJar, Response) {
+/// Deprecated. Keeping for documentation and reference temporarily.
+#[deprecated]
+pub async fn legacy_logout(jar: CookieJar) -> (CookieJar, Response) {
     let cookie = Cookie::build(AUTH_KEY).path("/");
     (
         jar.remove(cookie),
         Json(json!({"msg":"Logged out"})).into_response(),
     )
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn logout(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, ComhairleError> {
+    let logout_url = format!(
+        "{}/realms/{}/protocol/openid-connect/logout?post_logout_redirect_uri={}/&client_id={}",
+        state.config.auth_service.url,
+        state.config.auth_service.realm,
+        state.config.domain,
+        state.config.auth_service.client_id
+    );
+
+    Ok(Redirect::to(&logout_url))
 }
 
 /// Handler for the current user if there is one
