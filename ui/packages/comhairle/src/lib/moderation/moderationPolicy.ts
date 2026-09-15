@@ -11,7 +11,7 @@
 export const MODERATION_POLICY_METADATA_KEY = 'moderation_policy';
 
 export interface RejectReason {
-	/** Short label shown as a chip and stored verbatim in `moderation_reason`. */
+	/** Short label shown in the reason picker and stored verbatim in `moderation_reason`. */
 	label: string;
 	/** What counts under this reason, shown to moderators when they pick it. */
 	description?: string;
@@ -57,7 +57,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Trims every reason, drops blank labels and repeats of a label (case-insensitive, first one
- * wins). Labels are the chip keys and the stored value, so they have to be unique.
+ * wins). Labels are the picker keys and the stored value, so they have to be unique.
  */
 export function cleanRejectReasons(reasons: RejectReason[]): RejectReason[] {
 	const seen = new Set<string>();

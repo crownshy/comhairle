@@ -31,7 +31,7 @@ an optional description of what counts under it.
 - **An empty list is allowed.** Moderators then only get the free-text note.
 - **Editing** happens in Configure > Moderation policy and autosaves like the glossary
   (ADR-0006). Labels are trimmed and de-duplicated case-insensitively on save, because the
-  label is both the chip key and the stored value.
+  label is both the key in the reason picker and the stored value.
 - **The stored reason does not change.** A reject still writes `"Label: note"` into
   `moderation_reason`. Renaming or deleting a reason leaves recorded reasons alone.
 - **Export splits it back out.** The Moderation tab's Download menu builds a CSV in the
@@ -39,7 +39,9 @@ an optional description of what counts under it.
   `reject_note` come from splitting `moderation_reason` against the current labels plus the
   defaults. Text that doesn't start with a known label, such as the split flow's sentence,
   goes whole into `reject_note`.
-- **Descriptions are for moderators.** One shows under the chips when its reason is picked.
+- **Descriptions are for moderators.** The reason picker in the reject popover is a
+  searchable list. Each reason shows its description under the label, and search matches
+  descriptions as well as labels. Once a reason is picked, the field shows only the label.
   Participants see neither reasons nor descriptions.
 
 ## Considered options
