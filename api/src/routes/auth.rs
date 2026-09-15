@@ -1,3 +1,7 @@
+use std::borrow::Cow;
+use std::marker::PhantomData;
+use std::{collections::HashMap, sync::Arc};
+
 use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
@@ -6,7 +10,7 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_ha
 use axum::response::Redirect;
 use axum::{
     Extension, RequestPartsExt,
-    extract::{FromRequestParts, Json, Path, Query, State},
+    extract::{FromRequestParts, Json, Path, Query, Request, State},
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
@@ -15,6 +19,8 @@ use axum_extra::{
     extract::cookie::{Cookie, CookieJar, SameSite},
     headers::{Authorization, authorization::Bearer},
 };
+use axum_keycloak_auth::error::AuthError;
+use axum_keycloak_auth::extract::{ExtractedToken, TokenExtractor};
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
@@ -22,38 +28,11 @@ use hmac::{Hmac, KeyInit, Mac};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
 use rand_core::OsRng;
 use regex::Regex;
-use sha2::Sha256;
-use time::Duration;
-
-/// Helper function to check if a user is admin
-pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
-    // Check if the user has the system admin role
-    if has_resource_permission(
-        state,
-        PermissionRole::Admin.system_triplet(),
-        &user.id,
-        user.organization_id.as_ref(),
-    )
-    .await
-    .unwrap_or(false)
-    {
-        return true;
-    }
-
-    let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
-    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
-        let downcase_admin_users: Vec<String> =
-            admin_users.iter().map(|a| a.to_lowercase()).collect();
-        return downcase_admin_users.contains(&email.to_lowercase())
-            || re.is_match(&email.to_lowercase());
-    }
-    false
-}
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
-use std::marker::PhantomData;
-use std::{collections::HashMap, sync::Arc};
+use sha2::Sha256;
+use time::Duration;
 use tower::util::option_layer;
 use tracing::{instrument, warn};
 use uuid::Uuid;
@@ -85,6 +64,31 @@ const REFRESH_KEY: &str = "refresh-token";
 pub const KC_ACCESS_KEY: &str = "kc-access-token";
 pub const KC_IDENTITY_KEY: &str = "kc-id-token";
 pub const KC_REFRESH_KEY: &str = "kc-refresh-token";
+
+/// Helper function to check if a user is admin
+pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
+    // Check if the user has the system admin role
+    if has_resource_permission(
+        state,
+        PermissionRole::Admin.system_triplet(),
+        &user.id,
+        user.organization_id.as_ref(),
+    )
+    .await
+    .unwrap_or(false)
+    {
+        return true;
+    }
+
+    let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
+    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
+        let downcase_admin_users: Vec<String> =
+            admin_users.iter().map(|a| a.to_lowercase()).collect();
+        return downcase_admin_users.contains(&email.to_lowercase())
+            || re.is_match(&email.to_lowercase());
+    }
+    false
+}
 
 /// Validate password strength according to security requirements
 ///
@@ -1069,6 +1073,33 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         } else {
             Ok(OptionalUser(None))
         }
+    }
+}
+
+/// Custom token extractor for `axum_keycloak_auth`, which extracts access token
+/// from request cookies. Allows better integration with `@crown-shy/api-client`
+/// than `axum_keycloak_auth` default behaviour, which looks for token in
+/// `Authorization` header.
+#[derive(OperationIo, Debug, Clone, Default)]
+pub struct KcAccessTokenCookieExtractor {}
+
+impl KcAccessTokenCookieExtractor {
+    /// Extracts an access token from cookies, reporting an absent header as `Ok(None)`.
+    fn try_extract<'a>(request: &Request) -> Option<ExtractedToken<'a>> {
+        let jar = CookieJar::from_headers(request.headers());
+        let token = jar.get(KC_ACCESS_KEY)?.value();
+
+        if token.trim().is_empty() {
+            return None;
+        }
+
+        Some(Cow::Owned(token.to_string()))
+    }
+}
+
+impl TokenExtractor for KcAccessTokenCookieExtractor {
+    fn extract<'a>(&self, request: &'a Request) -> Result<ExtractedToken<'a>, AuthError> {
+        Self::try_extract(request).ok_or(AuthError::MissingToken)
     }
 }
 
