@@ -153,6 +153,9 @@ Comhairle's `polis_statement_aux` sidecar table, one row per Polis statement, ho
 **Moderation status**:
 The three-value review state of a statement: `accepted · pending · rejected` (enum `ModerationStatus`). Not the same as `is_seed`.
 
+**Moderation policy**:
+The reasons a moderator can pick when rejecting a statement. A policy belongs to a Conversation and lives in the `moderation_policy` table, with its reasons (label, optional description, position) in `moderation_policy_reason`. A Polis Step points at one through `moderation_policy_id` in its tool config, and Steps in the same Conversation can share one. A Step with no policy uses the five default reasons. The picked label is stored as text in `moderation_reason`, so editing a policy doesn't change past rejections. See ADR-0038.
+
 **Theme**:
 A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. (Future: T3C may write machine themes into the same store.)
 

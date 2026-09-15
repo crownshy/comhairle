@@ -26,6 +26,7 @@ use crate::routes::workflow_steps::dto::{
     WorkflowStepWithTranslationsDto,
 };
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
+use crate::tools::ToolConfig;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -129,6 +130,10 @@ async fn create_workflow_step(
 #[instrument(err(Debug), skip(state))]
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
+    SourcePathCtx {
+        conversation_id,
+        event_id: _,
+    }: SourcePathCtx,
     WorkflowStepPathCtx {
         workflow_id,
         workflow_step_id,
@@ -136,10 +141,38 @@ async fn update_workflow_step(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    ensure_moderation_policies_in_conversation(&state, conversation_id, &workflow).await?;
+
     let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
         .await?
         .into();
     Ok((StatusCode::OK, Json(workflow)))
+}
+
+/// A Polis step's `moderation_policy_id` lives inside the tool config jsonb with no foreign
+/// key, so check it points at one of this conversation's policies before saving.
+async fn ensure_moderation_policies_in_conversation(
+    state: &Arc<ComhairleState>,
+    conversation_id: Uuid,
+    update: &PartialWorkflowStep,
+) -> Result<(), ComhairleError> {
+    let policy_ids = [
+        update.tool_config.as_ref(),
+        update.preview_tool_config.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    .filter_map(|config| match config {
+        ToolConfig::Polis(config) => config.moderation_policy_id,
+        _ => None,
+    });
+
+    for policy_id in policy_ids {
+        models::moderation_policy::ensure_in_conversation(&state.db, conversation_id, policy_id)
+            .await?;
+    }
+
+    Ok(())
 }
 
 fn collect_tool_config_text_content_ids<T: WithToolConfig>(steps: &[T]) -> Vec<TextContentId> {
