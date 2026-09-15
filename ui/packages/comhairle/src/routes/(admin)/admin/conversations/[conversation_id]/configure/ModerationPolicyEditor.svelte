@@ -17,14 +17,13 @@
 	import { Autosave } from './autosave.svelte';
 	import SaveStatusPill from './SaveStatusPill.svelte';
 
-	let {
-		conversationId,
-		initial
-	}: {
+	type Props = {
 		conversationId: string;
 		/** The policy stored on the conversation, or the default list standing in for one. */
 		initial: ModerationPolicy;
-	} = $props();
+	};
+
+	let { conversationId, initial }: Props = $props();
 
 	// `id` is a stable {#each} key: labels can be blank or repeated while editing.
 	type Row = { id: number; label: string; description: string };
@@ -146,10 +145,13 @@
 								gridClass
 							)}
 						>
+							<!-- Plain inputs, not the shadcn Input: these are borderless spreadsheet
+								cells, matching the glossary editor. -->
 							<input
 								id="reject-reason-label-{row.id}"
 								value={row.label}
-								oninput={(e) => editRow(row.id, { label: e.currentTarget.value })}
+								oninput={(event) =>
+									editRow(row.id, { label: event.currentTarget.value })}
 								placeholder="Off-topic"
 								aria-label="Reason"
 								aria-invalid={flaggedRows[index]}
@@ -158,21 +160,22 @@
 							/>
 							<input
 								value={row.description}
-								oninput={(e) =>
-									editRow(row.id, { description: e.currentTarget.value })}
+								oninput={(event) =>
+									editRow(row.id, { description: event.currentTarget.value })}
 								placeholder="Shown to moderators when they pick this reason"
 								aria-label="What counts under this reason"
 								title={row.description}
 								class="text-foreground placeholder:text-muted-foreground/60 h-10 truncate bg-transparent px-3 text-base outline-none"
 							/>
-							<button
-								type="button"
+							<Button
+								variant="ghost"
+								size="icon"
 								onclick={() => removeRow(row.id)}
 								aria-label="Remove reason"
-								class="text-muted-foreground hover:text-destructive flex h-10 w-10 items-center justify-center"
+								class="text-muted-foreground hover:text-destructive size-10 rounded-none"
 							>
 								<Trash2 class="size-4" />
-							</button>
+							</Button>
 						</div>
 					{:else}
 						<p class="text-muted-foreground px-3 py-8 text-center text-base">

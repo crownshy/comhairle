@@ -14,16 +14,14 @@
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
 
-	let {
-		workflowStepId,
-		statements: initialStatements,
-		rejectReasons
-	}: {
+	type Props = {
 		workflowStepId: string;
 		statements: PolisStatementAux[];
 		/** The conversation's moderation policy reasons (ADR-0037), offered on reject. */
 		rejectReasons: RejectReason[];
-	} = $props();
+	};
+
+	let { workflowStepId, statements: initialStatements, rejectReasons }: Props = $props();
 
 	// Local optimistic copy so accept/reject re-renders without a refetch. A writable
 	// `$derived` seeds from the prop and lets optimistic assignments below override it,

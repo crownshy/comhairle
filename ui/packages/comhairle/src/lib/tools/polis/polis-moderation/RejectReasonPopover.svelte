@@ -31,7 +31,7 @@
 	}: Props = $props();
 
 	// Every row renders one of these popovers, so ids need a per-instance prefix.
-	const uid = $props.id();
+	const instanceId = $props.id();
 
 	let open = $state(false);
 	// A reason is optional: the moderator can confirm with neither. '' is "no reason picked".
@@ -42,10 +42,10 @@
 	// capped to that room, so a long note makes it scroll instead of flipping the popover to
 	// the other side mid-edit.
 	let side = $state<'top' | 'bottom'>('bottom');
-	let triggerEl = $state<HTMLElement | null>(null);
+	let triggerElement = $state<HTMLElement | null>(null);
 
 	function chooseSide() {
-		const rect = triggerEl?.getBoundingClientRect();
+		const rect = triggerElement?.getBoundingClientRect();
 		if (!rect) return;
 		side = window.innerHeight - rect.bottom >= rect.top ? 'bottom' : 'top';
 	}
@@ -74,11 +74,12 @@
 	}
 
 	// Typing on the closed field opens the list with that character already in the search.
-	function openOnType(e: KeyboardEvent) {
-		if (pickerOpen || e.key.length !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
-		if (e.key === ' ') return; // Space keeps its usual job of opening the list.
-		e.preventDefault();
-		search = e.key;
+	function openOnType(event: KeyboardEvent) {
+		if (pickerOpen || event.key.length !== 1) return;
+		if (event.metaKey || event.ctrlKey || event.altKey) return;
+		if (event.key === ' ') return; // Space keeps its usual job of opening the list.
+		event.preventDefault();
+		search = event.key;
 		pickerOpen = true;
 	}
 </script>
@@ -94,7 +95,7 @@
 		if (!o) reset();
 	}}
 >
-	<Popover.Trigger bind:ref={triggerEl} {disabled}>
+	<Popover.Trigger bind:ref={triggerElement} {disabled}>
 		{@render trigger()}
 	</Popover.Trigger>
 	<Popover.Content
@@ -112,7 +113,7 @@
 			{#if reasons.length > 0}
 				<div class="flex flex-col gap-2">
 					<div class="flex items-center justify-between">
-						<Label for="{uid}-reason" class="text-sm font-medium">
+						<Label for="{instanceId}-reason" class="text-sm font-medium">
 							Reason <span class="text-muted-foreground font-normal">(optional)</span>
 						</Label>
 						{#if selected}
@@ -134,7 +135,7 @@
 					>
 						<Popover.Trigger
 							bind:ref={pickerTrigger}
-							id="{uid}-reason"
+							id="{instanceId}-reason"
 							role="combobox"
 							onkeydown={openOnType}
 							class={cn(
@@ -181,7 +182,9 @@
 														>{reason.label}</span
 													>
 													{#if reason.description}
-														<span class="text-muted-foreground text-sm">
+														<span
+															class="text-muted-foreground text-base"
+														>
 															{reason.description}
 														</span>
 													{/if}
@@ -197,11 +200,11 @@
 			{/if}
 
 			<div class="flex flex-col gap-2">
-				<Label for="{uid}-note" class="text-sm font-medium">
+				<Label for="{instanceId}-note" class="text-sm font-medium">
 					Note <span class="text-muted-foreground font-normal">(optional)</span>
 				</Label>
 				<Textarea
-					id="{uid}-note"
+					id="{instanceId}-note"
 					bind:value={note}
 					rows={2}
 					class="max-h-40"
