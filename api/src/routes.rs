@@ -14,6 +14,7 @@ pub mod feedback;
 pub mod invites;
 pub mod jobs;
 pub mod media;
+pub mod moderation_policies;
 pub mod notifications;
 pub mod organizations;
 pub mod permissions;

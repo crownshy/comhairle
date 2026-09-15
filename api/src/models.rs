@@ -18,6 +18,7 @@ pub mod invite_response;
 pub mod invites;
 pub mod job;
 pub mod media;
+pub mod moderation_policy;
 pub mod notification;
 pub mod notification_delivery;
 pub mod organization;

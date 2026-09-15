@@ -3,6 +3,8 @@
 **Status:** Proposal - to be discussed with the team
 **Date:** 2026-09-14
 **Amends:** ADR-0015 (builds the per-conversation reason list it deferred)
+**Amended by:** ADR-0038 (the policy moves out of conversation metadata into database
+tables, and each Polis step points at one)
 
 ## Context
 

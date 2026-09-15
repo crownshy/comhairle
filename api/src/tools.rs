@@ -124,6 +124,14 @@ pub enum ToolConfig {
 }
 
 impl ToolConfig {
+    /// The moderation policy the step points at. Only Polis moderates statements today.
+    pub fn moderation_policy_id(&self) -> Option<Uuid> {
+        match self {
+            ToolConfig::Polis(config) => config.moderation_policy_id,
+            _ => None,
+        }
+    }
+
     /// Sync data from tool to common data pool
     pub async fn sync_data(&self, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
         match self {

@@ -154,7 +154,7 @@ Comhairle's `polis_statement_aux` sidecar table, one row per Polis statement, ho
 The three-value review state of a statement: `accepted · pending · rejected` (enum `ModerationStatus`). Not the same as `is_seed`.
 
 **Moderation policy**:
-A Conversation's list of [[#reject-reason]]s, stored in `conversation.metadata.moderation_policy` and edited in Configure > Moderation policy (ADR-0037). Conversation level, so every moderated Step shares it. With nothing stored, the code default list stands in; the first edit makes the list the Conversation's own.
+The [[#reject-reason]]s a moderator can pick when rejecting a statement. A policy belongs to a Conversation and lives in the `moderation_policy` table, with its reasons (label, optional description, position) in `moderation_policy_reason`. A Polis Step points at one through `moderation_policy_id` in its tool config, and Steps in the same Conversation can share one. A Step with no policy uses the five default reasons. See ADR-0038.
 _Avoid_: rejection rules, moderation settings (the Polis `strict_moderation` flag is a different thing).
 
 **Reject reason**:
