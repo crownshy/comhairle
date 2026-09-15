@@ -256,7 +256,7 @@
 							<Separator />
 							<div class="flex gap-2 px-3 pt-2 text-base">
 								<Button
-									href="/auth/login"
+									href="/api/auth/login"
 									variant="outline"
 									class="flex-1 text-base">{m.login()}</Button
 								>
