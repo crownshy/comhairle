@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use comhairle::error::ComhairleError;
 use aide::openapi::OpenApi;
+use comhairle::error::ComhairleError;
 
 mod dummy;
 

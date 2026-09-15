@@ -29,7 +29,7 @@ api-dev:
     -i open-api-spec.json \
     -w api/src/ \
     -w adaptors \
-    -x "run -- --export-api-spec"
+    -x "run -- --export-api-spec | jq --unbuffered '.'"
 
 watch-api-spec:
     watchexec -d 3s -w open-api-spec.json -- pnpm --dir ui run client
