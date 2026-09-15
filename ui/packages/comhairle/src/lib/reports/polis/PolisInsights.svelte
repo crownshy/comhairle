@@ -14,7 +14,7 @@
 	import OpinionGroups from './OpinionGroups.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
-	import { csvField, downloadCsv } from '$lib/utils/csv';
+	import { downloadCsv, toCsv } from '$lib/utils/csv';
 
 	let {
 		reportData,
@@ -86,7 +86,7 @@
 		return Object.keys(seen).sort();
 	}
 
-	function buildStatementsCsv(
+	function buildInsightsCsv(
 		data: PolisReportData,
 		auxMap: Record<number, PolisStatementAux>
 	): string {
@@ -112,7 +112,7 @@
 		}
 		header.push('moderation_status', 'is_seed');
 
-		const lines = [header.map(csvField).join(',')];
+		const rows: unknown[][] = [header];
 
 		for (const c of data.comments) {
 			const aux = auxMap[c.tid];
@@ -138,15 +138,15 @@
 				(c.is_seed ?? aux?.is_seed ?? false) ? 'true' : 'false'
 			);
 
-			lines.push(row.map(csvField).join(','));
+			rows.push(row);
 		}
 
-		return lines.join('\n');
+		return toCsv(rows);
 	}
 
 	function handleDownloadCsv() {
 		if (!report) return;
-		const csv = buildStatementsCsv(report, auxByTid);
+		const csv = buildInsightsCsv(report, auxByTid);
 		const ts = new Date().toISOString().slice(0, 10);
 		downloadCsv(`polis-statements-${ts}.csv`, csv);
 	}
