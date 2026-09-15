@@ -1,4 +1,5 @@
 import { notifications } from '$lib/notifications.svelte';
+import { moderationPolicyFromMetadata } from '$lib/moderation/moderationPolicy';
 import { redirect } from '@sveltejs/kit';
 import type {
 	ConversationWithTranslations,
@@ -58,6 +59,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			{ id: 'details', label: 'Details' },
 			{ id: 'content', label: 'Content' },
 			{ id: 'glossary', label: 'Glossary' },
+			{ id: 'moderation', label: 'Moderation policy' },
 			{ id: 'access', label: 'Access' }
 		];
 
@@ -93,7 +95,9 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			user,
 			cohostOrganizations,
 			usersWithPermission,
-			configureTabs
+			configureTabs,
+			// Read here once: the Configure editor and the Moderation tab both use it.
+			moderationPolicy: moderationPolicyFromMetadata(conversation.metadata)
 		};
 	} catch (e) {
 		console.error(e);
