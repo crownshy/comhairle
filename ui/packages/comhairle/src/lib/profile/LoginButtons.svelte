@@ -7,7 +7,7 @@
 	<Button href="/auth/signup" class="text-primary-foreground text-base" variant="link"
 		>{m.signup()}</Button
 	>
-	<Button href="/api/auth/keycloak-login" class="text-primary-foreground text-base" variant="link"
+	<Button href="/api/auth/login" class="text-primary-foreground text-base" variant="link"
 		>{m.login()}</Button
 	>
 </div>

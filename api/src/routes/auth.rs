@@ -405,9 +405,10 @@ async fn signup_otp(
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
 
-/// Email/Password Login Handler
+/// Deprecated. Keeping for documentation and reference temporarily.
 #[instrument(err(Debug), skip(state, payload))]
-async fn login(
+#[deprecated]
+async fn legacy_login(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
     Json(payload): Json<LoginRequest>,
@@ -1122,9 +1123,7 @@ pub async fn current_user(
 }
 
 #[instrument(err(Debug), skip(state))]
-async fn authentication_login(
-    State(state): State<Arc<ComhairleState>>,
-) -> Result<Redirect, ComhairleError> {
+async fn login(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, ComhairleError> {
     let auth_config = &state.config.auth_service;
 
     let redirect_url = format!("{}/api/auth/callback", state.config.domain);
@@ -1261,16 +1260,6 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             .layer(credential_limit.clone()),
         )
         .api_route(
-            "/login",
-            post_with(login, |op| {
-                op.id("LoginUser")
-                    .tag("Auth")
-                    .summary("Login a user")
-                    .response::<200, Json<UserDto>>()
-            })
-            .layer(credential_limit.clone()),
-        )
-        .api_route(
             "/login_otp",
             post_with(login_otp, |op| {
                 op.id("LoginOtpUser")
@@ -1390,16 +1379,18 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<UserDto>>()
                 }),
                 state.keycloak_auth_instance.clone(),
-            ),
+            )
+            .layer(credential_limit.clone()),
         )
         .api_route(
-            "/keycloak-login",
-            get_with(authentication_login, |op| {
-                op.id("KeycloakLogin")
+            "/login",
+            get_with(login, |op| {
+                op.id("Login")
                     .tag("Auth")
                     .summary("Login via auth_service")
-                    .description("Login via auth_service")
-            }),
+                    .description("Login via auth_service authorization code flow")
+            })
+            .layer(credential_limit.clone()),
         )
         .api_route(
             "/callback",
@@ -1411,7 +1402,8 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         login which is exchanged for access, identity and \
                         refresh tokens via authorization service API",
                     )
-            }),
+            })
+            .layer(credential_limit.clone()),
         )
         // TODO: this route is used for testing only. Once we have authorisation logic locekd down
         // in other endpoints, this can be removed and those auth requirements tested.

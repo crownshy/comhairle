@@ -31,10 +31,6 @@ export const UserDto = z
   })
   .passthrough();
 export type UserDto = z.infer<typeof UserDto>;
-export const LoginRequest = z
-  .object({ email: z.string(), password: z.string() })
-  .passthrough();
-export type LoginRequest = z.infer<typeof LoginRequest>;
 export const OtpLoginRequest = z
   .object({ code: z.string(), email: z.string() })
   .passthrough();
@@ -3208,7 +3204,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   GuestLoginRequest,
   UserAuthType,
   UserDto,
-  LoginRequest,
   OtpLoginRequest,
   SignupRequest,
   OtpSignupRequest,
@@ -3615,26 +3610,11 @@ const endpoints = makeApi([
   },
   {
     method: "get",
-    path: "/auth/keycloak-login",
-    alias: "KeycloakLogin",
-    description: `Login via auth_service`,
+    path: "/auth/login",
+    alias: "Login",
+    description: `Login via auth_service authorization code flow`,
     requestFormat: "json",
     response: z.void(),
-  },
-  {
-    method: "post",
-    path: "/auth/login",
-    alias: "LoginUser",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        description: `Expected payload for a login request`,
-        type: "Body",
-        schema: LoginRequest,
-      },
-    ],
-    response: UserDto,
   },
   {
     method: "post",
