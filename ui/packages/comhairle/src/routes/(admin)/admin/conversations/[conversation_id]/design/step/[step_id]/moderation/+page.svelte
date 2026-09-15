@@ -7,5 +7,9 @@
 </script>
 
 {#if step}
-	<PolisModeration workflowStepId={step.id} statements={data.statementAux ?? []} />
+	<PolisModeration
+		workflowStepId={step.id}
+		statements={data.statementAux ?? []}
+		rejectReasons={data.moderationPolicy.rejectReasons}
+	/>
 {/if}

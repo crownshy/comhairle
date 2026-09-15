@@ -4,6 +4,7 @@
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { RefreshCw, Search } from '@lucide/svelte';
@@ -11,13 +12,14 @@
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 
-	let {
-		workflowStepId,
-		statements: initialStatements
-	}: {
+	type Props = {
 		workflowStepId: string;
 		statements: PolisStatementAux[];
-	} = $props();
+		/** The conversation's moderation policy reasons (ADR-0037), offered on reject. */
+		rejectReasons: RejectReason[];
+	};
+
+	let { workflowStepId, statements: initialStatements, rejectReasons }: Props = $props();
 
 	// Local optimistic copy so accept/reject re-renders without a refetch. A writable
 	// `$derived` seeds from the prop and lets optimistic assignments below override it,
@@ -323,6 +325,7 @@
 	<!-- Statements list -->
 	<StatementsTable
 		rows={visible}
+		{rejectReasons}
 		{selected}
 		{pending}
 		{bulkAction}
