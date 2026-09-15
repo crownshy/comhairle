@@ -21,7 +21,7 @@
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import ModerationPolicyEditor from './ModerationPolicyEditor.svelte';
-	import { moderationPolicyFromMetadata } from '$lib/moderation/moderationPolicy';
+	import type { ModerationPolicy } from '$lib/moderation/moderationPolicy';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
@@ -58,6 +58,7 @@
 			usersWithPermission: UserWithPermissionDto[];
 			configureTabs: { id: string; label: string }[];
 			availableDocuments: ComhairleDocument[];
+			moderationPolicy: ModerationPolicy;
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
@@ -1110,10 +1111,7 @@
 	{/if}
 
 	{#if activeTab === 'moderation'}
-		<ModerationPolicyEditor
-			conversationId={conversation.id}
-			initial={moderationPolicyFromMetadata(conversation.metadata)}
-		/>
+		<ModerationPolicyEditor conversationId={conversation.id} initial={data.moderationPolicy} />
 	{/if}
 
 	{#if activeTab === 'team'}

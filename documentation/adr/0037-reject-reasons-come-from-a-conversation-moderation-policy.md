@@ -62,9 +62,9 @@ an optional description of what counts under it.
 
 - Counting by reason works while labels stay stable. After a rename, older rejections show
   the old wording in `reject_note` with an empty `reject_reason`.
-- The Moderation tab reads the policy from the conversation layout's data. The editor
-  invalidates `conversation:meta` when it unmounts after a save, so moving to the
-  Moderation tab shows the new list without a reload.
+- The conversation layout load reads the policy once, for both the editor and the
+  Moderation tab. The editor invalidates `conversation:meta` when it unmounts after a save,
+  so moving to the Moderation tab shows the new list without a reload.
 - `src/lib/utils/csv.ts` is now shared with the Insights export. It prefixes cells starting
   with `=`, `+`, `-` or `@` with an apostrophe so spreadsheets don't run participant text as
   formulas, and it writes a UTF-8 byte order mark so Excel reads accented text correctly.
