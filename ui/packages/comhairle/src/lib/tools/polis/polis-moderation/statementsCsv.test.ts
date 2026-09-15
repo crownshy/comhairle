@@ -27,9 +27,15 @@ const original = statement({
 	polis_statement_id: 2,
 	statement_text: 'Buses are late and trains are dirty',
 	moderation_status: 'rejected',
-	moderation_reason: 'Reworded/split by moderator into 1 statement(s)'
+	moderation_reason: 'Reworded/split by moderator into 2 statement(s)'
 });
 const statements = [
+	statement({
+		polis_statement_id: 5,
+		statement_text: 'Trains are dirty',
+		moderation_status: 'accepted',
+		original_statement_id: original.id
+	}),
 	original,
 	statement({
 		polis_statement_id: 3,
@@ -43,32 +49,31 @@ const statements = [
 		moderation_status: 'rejected',
 		moderation_reason: 'Advertising or campaigning: leaflet link'
 	}),
-	statement({ polis_statement_id: 4, statement_text: 'More cycle lanes', is_seed: true })
+	statement({
+		polis_statement_id: 4,
+		statement_text: 'More cycle lanes',
+		is_seed: true,
+		themes: ['Transport', 'Cycling']
+	})
 ];
 const labels = ['Advertising or campaigning', 'Duplicate'];
 
 const HEADER =
-	'"statement_id","statement_text","moderation_status","is_seed","reject_reason","reject_note","edited_from_statement_id"';
+	'"statement_id","created_at","statement_text","moderation_status","is_seed","themes","reject_reason","reject_note","edited_from_statement_id","replaced_by_statement_ids"';
 
 describe('buildStatementsCsv', () => {
-	it('exports every statement in statement id order', () => {
-		expect(buildStatementsCsv(statements, 'all', labels).split('\n')).toEqual([
+	it('exports every statement in statement id order, with lineage both ways', () => {
+		expect(buildStatementsCsv(statements, labels).split('\n')).toEqual([
 			HEADER,
-			'"1","Vote for me","rejected","false","Advertising or campaigning","leaflet link",""',
-			'"2","Buses are late and trains are dirty","rejected","false","","Reworded/split by moderator into 1 statement(s)",""',
-			'"3","Buses are late","accepted","false","","","2"',
-			'"4","More cycle lanes","pending","true","","",""'
+			'"1","2026-09-01T10:00:00Z","Vote for me","rejected","false","","Advertising or campaigning","leaflet link","",""',
+			'"2","2026-09-01T10:00:00Z","Buses are late and trains are dirty","rejected","false","","","Reworded/split by moderator into 2 statement(s)","","3; 5"',
+			'"3","2026-09-01T10:00:00Z","Buses are late","accepted","false","","","","2",""',
+			'"4","2026-09-01T10:00:00Z","More cycle lanes","pending","true","Transport; Cycling","","","",""',
+			'"5","2026-09-01T10:00:00Z","Trains are dirty","accepted","false","","","","2",""'
 		]);
 	});
 
-	it('limits rows to one status but still resolves lineage from the full list', () => {
-		expect(buildStatementsCsv(statements, 'accepted', labels).split('\n')).toEqual([
-			HEADER,
-			'"3","Buses are late","accepted","false","","","2"'
-		]);
-	});
-
-	it('writes just the header when nothing matches', () => {
-		expect(buildStatementsCsv([], 'rejected', labels)).toBe(HEADER);
+	it('writes just the header when there are no statements', () => {
+		expect(buildStatementsCsv([], labels)).toBe(HEADER);
 	});
 });

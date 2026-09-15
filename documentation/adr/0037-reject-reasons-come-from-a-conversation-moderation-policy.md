@@ -36,11 +36,14 @@ an optional description of what counts under it.
   The editor flags those labels and doesn't save them.
 - **The stored reason does not change.** A reject still writes `"Label: note"` into
   `moderation_reason`. Renaming or deleting a reason leaves recorded reasons alone.
-- **Export splits it back out.** The Moderation tab's Download menu builds a CSV in the
-  browser from the loaded rows: all, accepted, rejected or pending. `reject_reason` and
-  `reject_note` come from splitting `moderation_reason` against the current labels plus the
-  defaults. Text that doesn't start with a known label, such as the split flow's sentence,
-  goes whole into `reject_note`.
+- **Export splits it back out.** The Moderation tab's Download CSV button builds a CSV of
+  every statement in the browser from the loaded rows, seeds and split originals included
+  (#899). The columns are `statement_id`, `created_at`, `statement_text`,
+  `moderation_status`, `is_seed`, `themes`, `reject_reason`, `reject_note`,
+  `edited_from_statement_id` and `replaced_by_statement_ids`. Both lineage columns hold
+  Polis statement ids. `reject_reason` and `reject_note` come from splitting
+  `moderation_reason` against the current labels plus the defaults. Text that doesn't start
+  with a known label, such as the split flow's sentence, goes whole into `reject_note`.
 - **Descriptions are for moderators.** The reason picker in the reject popover is a
   searchable list. Each reason shows its description under the label, and search matches
   descriptions as well as labels. Once a reason is picked, the field shows only the label.
@@ -71,6 +74,10 @@ an optional description of what counts under it.
 - The glossary and moderation policy editors share one autosave helper. It runs saves one
   at a time, because each PATCH replaces the whole key and an older save landing last would
   win.
+- The export reads the rows as the page holds them. While a failed bulk moderation is
+  reloading, the file can show the status that didn't save.
+- Default labels are always matched on export, so a note-only reject that starts with one,
+  such as `Duplicate: of 12`, lands in `reject_reason`.
 - `src/lib/utils/csv.ts` is now shared with the Insights export. It prefixes cells starting
   with `=`, `+`, `-` or `@` with an apostrophe so spreadsheets don't run participant text as
   formulas, and it writes a UTF-8 byte order mark so Excel reads accented text correctly.

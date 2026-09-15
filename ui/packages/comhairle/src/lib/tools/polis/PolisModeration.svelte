@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import { LoadingButton, buttonVariants } from '$lib/components/ui/button';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -9,14 +8,11 @@
 	import { DEFAULT_REJECT_REASONS, type RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
-	import { ChevronDown, Download, RefreshCw, Search } from '@lucide/svelte';
+	import { Download, RefreshCw, Search } from '@lucide/svelte';
 	import AddSeedStatementsDialog from './polis-moderation/AddSeedStatementsDialog.svelte';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
-	import {
-		buildStatementsCsv,
-		type StatementExportScope
-	} from './polis-moderation/statementsCsv';
+	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
 
 	let {
 		workflowStepId,
@@ -105,18 +101,9 @@
 		...new Set([...rejectReasons, ...DEFAULT_REJECT_REASONS].map((reason) => reason.label))
 	]);
 
-	const downloadOptions: { scope: StatementExportScope; label: string }[] = [
-		{ scope: 'all', label: 'All statements' },
-		{ scope: 'accepted', label: 'Accepted' },
-		{ scope: 'rejected', label: 'Rejected' },
-		{ scope: 'pending', label: 'Pending' }
-	];
-
-	function downloadStatements(scope: StatementExportScope) {
-		const csv = buildStatementsCsv(statements, scope, reasonLabels);
+	function downloadStatements() {
 		const date = new Date().toISOString().slice(0, 10);
-		const name = scope === 'all' ? 'polis-statements' : `polis-statements-${scope}`;
-		downloadCsv(`${name}-${date}.csv`, csv);
+		downloadCsv(`polis-statements-${date}.csv`, buildStatementsCsv(statements, reasonLabels));
 	}
 
 	// --- Multi-select + bulk moderation ---
@@ -311,31 +298,14 @@
 		</div>
 		<!-- Full-width stacked buttons on phones, a wrapping row from sm up. -->
 		<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0">
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger
-					class={buttonVariants({ variant: 'outline' })}
-					disabled={statements.length === 0}
-				>
-					<Download class="size-4" />
-					Download
-					<ChevronDown class="size-4" />
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end" class="w-56">
-					<DropdownMenu.Label>Download as CSV</DropdownMenu.Label>
-					<DropdownMenu.Separator />
-					{#each downloadOptions as option (option.scope)}
-						<DropdownMenu.Item
-							disabled={counts[option.scope] === 0}
-							onclick={() => downloadStatements(option.scope)}
-						>
-							{option.label}
-							<span class="text-muted-foreground ml-auto tabular-nums">
-								{counts[option.scope]}
-							</span>
-						</DropdownMenu.Item>
-					{/each}
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
+			<Button
+				variant="outline"
+				disabled={statements.length === 0}
+				onclick={downloadStatements}
+			>
+				<Download class="size-4" />
+				Download CSV
+			</Button>
 			<LoadingButton
 				loading={syncing}
 				variant="outline"
