@@ -661,6 +661,100 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_swap_two_reasons_in_one_save(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let created = create(
+            &pool,
+            conversation_id,
+            &CreateModerationPolicy {
+                name: "Policy".into(),
+                reasons: Some(vec![
+                    NewModerationPolicyReason {
+                        label: "Spam".into(),
+                        description: None,
+                    },
+                    NewModerationPolicyReason {
+                        label: "Rude".into(),
+                        description: None,
+                    },
+                ]),
+            },
+        )
+        .await?;
+        let (spam, rude) = (&created.reasons[0], &created.reasons[1]);
+
+        // Rude is written first with Spam's label and position, so both constraints would
+        // fail mid-save if they weren't deferred to commit.
+        let updated = update(
+            &pool,
+            conversation_id,
+            created.policy.id,
+            &UpdateModerationPolicy {
+                name: "Policy".into(),
+                reasons: vec![
+                    UpdateModerationPolicyReason {
+                        id: Some(rude.id),
+                        label: "Spam".into(),
+                        description: None,
+                    },
+                    UpdateModerationPolicyReason {
+                        id: Some(spam.id),
+                        label: "Rude".into(),
+                        description: None,
+                    },
+                ],
+            },
+        )
+        .await?;
+
+        assert_eq!(updated.reasons[0].id, rude.id, "reasons not reordered");
+        assert_eq!(updated.reasons[0].label, "Spam", "labels not swapped");
+        assert_eq!(updated.reasons[1].id, spam.id, "reasons not reordered");
+        assert_eq!(updated.reasons[1].label, "Rude", "labels not swapped");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_refuse_repeated_label_or_position_in_database(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let created = create(
+            &pool,
+            conversation_id,
+            &CreateModerationPolicy {
+                name: "Policy".into(),
+                reasons: None,
+            },
+        )
+        .await?;
+        let insert_reason_sql = "INSERT INTO moderation_policy_reason
+            (moderation_policy_id, label, position) VALUES ($1, $2, $3)";
+
+        let repeated_label = sqlx::query(insert_reason_sql)
+            .bind(created.policy.id)
+            .bind(created.reasons[0].label.to_uppercase())
+            .bind(99)
+            .execute(&pool)
+            .await;
+        assert!(repeated_label.is_err(), "repeated label saved");
+
+        let repeated_position = sqlx::query(insert_reason_sql)
+            .bind(created.policy.id)
+            .bind("Something else")
+            .bind(0)
+            .execute(&pool)
+            .await;
+        assert!(repeated_position.is_err(), "repeated position saved");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_not_update_reason_from_another_policy(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

@@ -42,8 +42,11 @@ The team also wants a policy per step, with the option to reuse one policy acros
   `polis_statement_aux` could point at one.
 - **The API validates labels.** Labels are trimmed, and a blank label, a label containing
   `": "`, or a label repeated within the policy (ignoring case) gets a 400. These are the
-  rules ADR-0037 put in the editor. Uniqueness is checked in Rust, not with a unique index,
-  because a save that swaps two labels would trip the index partway through.
+  rules ADR-0037 put in the editor. Rust checks them first so the error is a clear 400. The
+  database backs this up with constraints on `(moderation_policy_id, position)` and on
+  `(moderation_policy_id, lower(label))`, both deferred to commit so a save that swaps two
+  reasons doesn't trip them partway through. The label one is an exclusion constraint,
+  because a unique index on `lower(label)` can't be deferred.
 - **The step's policy id is checked on save.** The id sits inside the tool config jsonb, so
   no foreign key guards it. Updating a workflow step returns 400 if its
   `moderation_policy_id` isn't one of the policies in the step's own conversation, whatever
