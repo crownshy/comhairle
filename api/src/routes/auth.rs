@@ -1,3 +1,5 @@
+pub mod helpers;
+
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
@@ -52,6 +54,7 @@ use crate::models::users::{
     get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
 };
 use crate::models::{api_key, otp};
+use crate::routes::auth::helpers::{OptionalRawAccessToken, optional_auth};
 use crate::routes::user::dto::UserDto;
 
 #[cfg(test)]
@@ -1184,13 +1187,24 @@ pub async fn logout(
 }
 
 /// Handler for the current user if there is one
-#[instrument(err(Debug))]
+#[instrument(err(Debug), skip(state))]
 pub async fn current_user(
-    OptionalUser(user): OptionalUser,
+    State(state): State<Arc<ComhairleState>>,
+    OptionalRawAccessToken(access_token): OptionalRawAccessToken,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLoggedInUser)?).into();
+    match access_token {
+        Some(token) => {
+            let user = state
+                .auth_service
+                .as_ref()
+                .unwrap() // TODO:
+                .get_user(&token)
+                .await?;
 
-    Ok((StatusCode::OK, Json(user)))
+            Ok((StatusCode::OK, Json(user.into())))
+        }
+        None => Err(ComhairleError::NoLoggedInUser),
+    }
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -1515,12 +1529,15 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/current_user",
-            get_with(current_user, |op| {
-                op.id("CurrentUser")
-                    .tag("Auth")
-                    .summary("Get the current user")
-                    .response::<200, Json<UserDto>>()
-            }),
+            optional_auth(
+                get_with(current_user, |op| {
+                    op.id("CurrentUser")
+                        .tag("Auth")
+                        .summary("Get the current user")
+                        .response::<200, Json<UserDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/refresh",
