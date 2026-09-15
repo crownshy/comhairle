@@ -17,7 +17,7 @@ type Subtabs<T extends keyof Tabs> = Tabs[T] extends readonly string[]
 	? Tabs[T][number] | undefined
 	: undefined;
 
-const Conversations = {
+const Conversation = {
 	open: async (page: Page) => {
 		const conversation = page.getByRole('link', { name: TEST_CONVERSATION_TITLE });
 
@@ -79,4 +79,4 @@ const Conversations = {
 	}
 };
 
-export default Conversations;
+export default Conversation;

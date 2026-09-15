@@ -3,13 +3,13 @@ import { test } from './utils/testing';
 import { exists, sleep } from './utils';
 import { login } from './utils/auth';
 import { TEST_CONVERSATION_TITLE } from './utils/constants';
-import Conversations from './utils/navigation/Conversations';
+import Conversation from './utils/navigation/Conversation';
 import Textboxes from './utils/inputs/Textboxes';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await Conversations.open(page);
-	await Conversations.openTab(page, 'Configure', 'Details');
+	await Conversation.open(page);
+	await Conversation.openTab(page, 'Configure', 'Details');
 });
 
 test('Configure/Details page', async ({ page, cleanup }) => {

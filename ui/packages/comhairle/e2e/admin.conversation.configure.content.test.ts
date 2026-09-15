@@ -1,15 +1,15 @@
 import { expect } from '@playwright/test';
 import { test } from './utils/testing';
 import { exists } from './utils';
-import Conversations from './utils/navigation/Conversations';
+import Conversation from './utils/navigation/Conversation';
 import type { Page } from './utils/types';
 import Textboxes from './utils/inputs/Textboxes';
 import { login } from './utils/auth';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await Conversations.open(page);
-	await Conversations.openTab(page, 'Configure', 'Content');
+	await Conversation.open(page);
+	await Conversation.openTab(page, 'Configure', 'Content');
 });
 
 async function edit(page: Page, name: string, fallbackIndex: number) {

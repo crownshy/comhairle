@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { login } from './utils/auth';
-import Conversations from './utils/navigation/Conversations';
+import Conversation from './utils/navigation/Conversation';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await Conversations.open(page);
-	await Conversations.launch(page);
-	await Conversations.openTab(page, 'Recruit', 'Open Links');
+	await Conversation.open(page);
+	await Conversation.launch(page);
+	await Conversation.openTab(page, 'Recruit', 'Open Links');
 });
 
 test('has title', async ({ page }) => {
