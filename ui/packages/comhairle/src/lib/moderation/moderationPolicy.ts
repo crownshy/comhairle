@@ -1,58 +1,25 @@
 /**
- * A conversation's moderation policy (ADR-0037): the reasons a moderator can pick when
- * rejecting a statement. It lives in the conversation's `metadata` jsonb, not on a step, so
- * every moderated tool in the conversation shares one list. Polis is the only reader today.
+ * A conversation's moderation policies (ADR-0038): the reasons a moderator can pick when
+ * rejecting a statement. Policies are API records owned by the conversation, and a Polis step
+ * points at one through `moderation_policy_id` in its tool config.
  *
  * A chosen label is still stored verbatim in `moderation_reason` as free text (ADR-0015), so
- * editing the list never rewrites reasons already recorded.
+ * editing a policy never rewrites reasons already recorded.
  */
-
-/** The key the policy lives under in a conversation's `metadata` jsonb blob. */
-export const MODERATION_POLICY_METADATA_KEY = 'moderation_policy';
+import type {
+	ModerationPolicyDto,
+	PartialWorkflowStep,
+	ToolConfigWithTranslations,
+	WorkflowStepWithTranslations
+} from '@crownshy/api-client/api';
 
 export interface RejectReason {
+	/** The saved reason's id. A save sends it back so the reason is updated in place. */
+	id?: string;
 	/** Short label shown in the reason picker and stored verbatim in `moderation_reason`. */
 	label: string;
 	/** What counts under this reason, shown to moderators when they pick it. */
 	description?: string;
-}
-
-export interface ModerationPolicy {
-	rejectReasons: RejectReason[];
-	/** True when nothing is stored yet and the default list is standing in. */
-	isDefault: boolean;
-}
-
-/**
- * The starting template for every conversation. "Multiple themes" is deliberately absent:
- * splitting is the correct action there, and the split flow rejects the original with its
- * own reason. "Illegal" is folded into "Harmful or abusive".
- */
-export const DEFAULT_REJECT_REASONS: RejectReason[] = [
-	{
-		label: 'Off-topic or unclear',
-		description: 'Not about this conversation, or too unclear for people to vote on.'
-	},
-	{
-		label: 'Harmful or abusive',
-		description: 'Hate speech, threats, harassment, or content that breaks the law.'
-	},
-	{
-		label: 'Advertising or campaigning',
-		description: 'Promotes a product, service, political party or campaign.'
-	},
-	{
-		label: 'Privacy or personal info',
-		description: 'Names or identifies a private person, or shares personal details.'
-	},
-	{
-		label: 'Duplicate',
-		description: 'Makes the same point as a statement that is already in the conversation.'
-	}
-];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Joins a reason's label to the moderator's note in `moderation_reason` (ADR-0015). */
@@ -64,6 +31,7 @@ export type RejectReasonLabelProblem = 'blank' | 'contains-separator' | 'duplica
  * Why each label can't be saved, or null when it can, in input order. Labels are the picker
  * keys and the stored value, so a repeat (case-insensitive, first one wins) is dropped. A
  * label containing the separator couldn't be split back out of `moderation_reason` on export.
+ * The API rejects the same labels.
  */
 export function rejectReasonLabelProblems(labels: string[]): (RejectReasonLabelProblem | null)[] {
 	const seen = new Set<string>();
@@ -86,36 +54,98 @@ export function cleanRejectReasons(reasons: RejectReason[]): RejectReason[] {
 		if (problems[index] !== null) return;
 		const label = reason.label.trim();
 		const description = reason.description?.trim();
-		cleaned.push(description ? { label, description } : { label });
+		const withId = reason.id ? { id: reason.id, label } : { label };
+		cleaned.push(description ? { ...withId, description } : withId);
 	});
 	return cleaned;
 }
 
-/**
- * Reads the policy out of a conversation's `metadata` blob, never throwing. Nothing stored
- * means the default list. A stored empty list is kept as empty: the admin removed every
- * reason on purpose, and moderators then only get the free-text note.
- */
-export function moderationPolicyFromMetadata(metadata: unknown): ModerationPolicy {
-	const stored = isRecord(metadata) ? metadata[MODERATION_POLICY_METADATA_KEY] : undefined;
-	if (!isRecord(stored) || !Array.isArray(stored.reject_reasons)) {
-		return { rejectReasons: DEFAULT_REJECT_REASONS, isDefault: true };
-	}
-
-	const reasons: RejectReason[] = [];
-	for (const raw of stored.reject_reasons) {
-		if (!isRecord(raw) || typeof raw.label !== 'string') continue;
-		reasons.push({
-			label: raw.label,
-			description: typeof raw.description === 'string' ? raw.description : undefined
-		});
-	}
-	return { rejectReasons: cleanRejectReasons(reasons), isDefault: false };
+/** A saved policy's reasons, in the shape the editor and the reason picker use. */
+export function rejectReasonsFromPolicy(policy: ModerationPolicyDto): RejectReason[] {
+	return policy.reasons.map(({ id, label, description }) =>
+		description ? { id, label, description } : { id, label }
+	);
 }
 
-/** The stored (snake_case) form written back into `metadata`. */
-export function toStoredModerationPolicy(reasons: RejectReason[]) {
-	return { reject_reasons: cleanRejectReasons(reasons) };
+/**
+ * The reasons a Polis step offers on reject: its own policy's, otherwise the conversation's
+ * first policy's, otherwise the defaults. The middle rule covers a step added after the
+ * policy was saved, and a step pointing at a policy that no longer exists.
+ */
+export function rejectReasonsForStep(
+	toolConfig: ToolConfigWithTranslations | null | undefined,
+	policies: ModerationPolicyDto[],
+	defaultReasons: RejectReason[]
+): RejectReason[] {
+	const policyId = toolConfig?.type === 'polis' ? toolConfig.moderation_policy_id : null;
+	const policy = policies.find((candidate) => candidate.id === policyId) ?? policies[0];
+	return policy ? rejectReasonsFromPolicy(policy) : defaultReasons;
+}
+
+/**
+ * Gives reasons saved for the first time the ids the API assigned, matched by label ignoring
+ * case, so the next save updates them in place. A reason renamed while its save was in
+ * flight finds no match and is saved as a new reason next time.
+ */
+export function withSavedReasonIds<T extends RejectReason>(
+	reasons: T[],
+	saved: RejectReason[]
+): T[] {
+	const labelKey = (label: string) => label.trim().toLowerCase();
+	const heldIds = new Set(reasons.map((reason) => reason.id));
+	const unclaimedIds = new Map<string, string>();
+	for (const reason of saved) {
+		if (reason.id && !heldIds.has(reason.id))
+			unclaimedIds.set(labelKey(reason.label), reason.id);
+	}
+
+	return reasons.map((reason) => {
+		if (reason.id) return reason;
+		const id = unclaimedIds.get(labelKey(reason.label));
+		if (!id) return reason;
+		unclaimedIds.delete(labelKey(reason.label));
+		return { ...reason, id };
+	});
+}
+
+type StepToolConfigs = Pick<
+	WorkflowStepWithTranslations,
+	'id' | 'toolConfig' | 'previewToolConfig'
+>;
+
+/**
+ * The step updates that point every Polis step's preview and live configs at `policyId`, or
+ * at no policy when it is null. Configs already pointing there are skipped. `pointedAt` holds
+ * where this page last pointed each step, which wins over the loaded config until the steps
+ * are loaded again.
+ */
+export function policyStepUpdates(
+	steps: StepToolConfigs[],
+	policyId: string | null,
+	pointedAt: ReadonlyMap<string, string | null> = new Map()
+): { stepId: string; body: PartialWorkflowStep }[] {
+	const updates: { stepId: string; body: PartialWorkflowStep }[] = [];
+
+	for (const step of steps) {
+		const currentPolicyId = (config: { moderation_policy_id?: string | null }) =>
+			pointedAt.has(step.id)
+				? (pointedAt.get(step.id) ?? null)
+				: (config.moderation_policy_id ?? null);
+
+		const body: PartialWorkflowStep = {};
+		const preview = step.previewToolConfig;
+		if (preview?.type === 'polis' && currentPolicyId(preview) !== policyId) {
+			body.preview_tool_config = { ...preview, moderation_policy_id: policyId };
+		}
+		const live = step.toolConfig;
+		if (live?.type === 'polis' && currentPolicyId(live) !== policyId) {
+			body.tool_config = { ...live, moderation_policy_id: policyId };
+		}
+
+		if (body.preview_tool_config || body.tool_config) updates.push({ stepId: step.id, body });
+	}
+
+	return updates;
 }
 
 /**

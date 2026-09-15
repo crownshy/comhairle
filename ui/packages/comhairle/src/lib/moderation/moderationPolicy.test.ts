@@ -1,50 +1,131 @@
 import { describe, expect, it } from 'vitest';
+import type { ModerationPolicyDto, ToolConfigWithTranslations } from '@crownshy/api-client/api';
 import {
-	DEFAULT_REJECT_REASONS,
-	MODERATION_POLICY_METADATA_KEY,
 	cleanRejectReasons,
 	composeReason,
-	moderationPolicyFromMetadata,
+	policyStepUpdates,
 	rejectReasonLabelProblems,
+	rejectReasonsForStep,
 	splitReason,
-	toStoredModerationPolicy
+	withSavedReasonIds
 } from './moderationPolicy';
 
-describe('moderationPolicyFromMetadata', () => {
-	it('falls back to the default list when nothing is stored', () => {
-		expect(moderationPolicyFromMetadata(null)).toEqual({
-			rejectReasons: DEFAULT_REJECT_REASONS,
-			isDefault: true
-		});
-		expect(moderationPolicyFromMetadata({ glossary: [] }).isDefault).toBe(true);
-		expect(
-			moderationPolicyFromMetadata({ [MODERATION_POLICY_METADATA_KEY]: 'nonsense' }).isDefault
-		).toBe(true);
+function policy(id: string, labels: string[]): ModerationPolicyDto {
+	return {
+		id,
+		conversationId: 'conversation',
+		name: 'Moderation policy',
+		createdAt: '2026-09-15T00:00:00Z',
+		updatedAt: '2026-09-15T00:00:00Z',
+		reasons: labels.map((label, position) => ({ id: `${id}-${position}`, label, position }))
+	};
+}
+
+function polisConfig(moderationPolicyId: string | null): ToolConfigWithTranslations {
+	return {
+		type: 'polis',
+		server_url: 'https://polis.example',
+		poll_id: 'poll',
+		admin_user: 'admin',
+		admin_password: 'secret',
+		required_votes: 10,
+		show_remaining_statements: true,
+		topic: null,
+		description: null,
+		is_active: true,
+		strict_moderation: false,
+		label_seeds_as_conversation_starter: false,
+		moderation_policy_id: moderationPolicyId
+	};
+}
+
+const defaults = [{ label: 'Duplicate', description: 'Same point again' }];
+
+describe('rejectReasonsForStep', () => {
+	const policies = [policy('first', ['Spam']), policy('second', ['Rude'])];
+
+	it("uses the policy the step's config points at", () => {
+		expect(rejectReasonsForStep(polisConfig('second'), policies, defaults)).toEqual([
+			{ id: 'second-0', label: 'Rude' }
+		]);
 	});
 
-	it('reads stored reasons and drops malformed entries', () => {
-		const policy = moderationPolicyFromMetadata({
-			[MODERATION_POLICY_METADATA_KEY]: {
-				reject_reasons: [
-					{ label: 'Spam', description: 'Links to shops' },
-					{ label: 42 },
-					'Duplicate',
-					{ label: '  Rude  ', description: 7 }
-				]
+	it("falls back to the conversation's first policy for a step with no or a missing policy", () => {
+		expect(rejectReasonsForStep(polisConfig(null), policies, defaults)).toEqual([
+			{ id: 'first-0', label: 'Spam' }
+		]);
+		expect(rejectReasonsForStep(polisConfig('deleted'), policies, defaults)).toEqual([
+			{ id: 'first-0', label: 'Spam' }
+		]);
+	});
+
+	it('uses the defaults when the conversation has no policy', () => {
+		expect(rejectReasonsForStep(polisConfig(null), [], defaults)).toBe(defaults);
+		expect(rejectReasonsForStep(null, [], defaults)).toBe(defaults);
+	});
+});
+
+describe('policyStepUpdates', () => {
+	it('points the preview and live Polis configs that point elsewhere, keeping other fields', () => {
+		const updates = policyStepUpdates(
+			[{ id: 'step', previewToolConfig: polisConfig(null), toolConfig: polisConfig('old') }],
+			'new'
+		);
+
+		expect(updates).toEqual([
+			{
+				stepId: 'step',
+				body: {
+					preview_tool_config: polisConfig('new'),
+					tool_config: polisConfig('new')
+				}
 			}
-		});
-		expect(policy).toEqual({
-			rejectReasons: [{ label: 'Spam', description: 'Links to shops' }, { label: 'Rude' }],
-			isDefault: false
-		});
+		]);
 	});
 
-	it('keeps a stored empty list empty instead of restoring the defaults', () => {
+	it('skips steps already pointing at the policy and non-Polis steps', () => {
+		const learn = { type: 'learn', pages: [] } as unknown as ToolConfigWithTranslations;
 		expect(
-			moderationPolicyFromMetadata({
-				[MODERATION_POLICY_METADATA_KEY]: { reject_reasons: [] }
-			})
-		).toEqual({ rejectReasons: [], isDefault: false });
+			policyStepUpdates(
+				[
+					{ id: 'pointed', previewToolConfig: polisConfig('new'), toolConfig: null },
+					{ id: 'learn', previewToolConfig: learn, toolConfig: null }
+				],
+				'new'
+			)
+		).toEqual([]);
+	});
+
+	it('trusts where the page last pointed a step over the loaded config', () => {
+		const steps = [{ id: 'step', previewToolConfig: polisConfig(null), toolConfig: null }];
+
+		expect(policyStepUpdates(steps, 'new', new Map([['step', 'new']]))).toEqual([]);
+		expect(policyStepUpdates(steps, null, new Map([['step', 'new']]))).toEqual([
+			{ stepId: 'step', body: { preview_tool_config: polisConfig(null) } }
+		]);
+	});
+});
+
+describe('withSavedReasonIds', () => {
+	it('gives new reasons the saved ids by label, ignoring case', () => {
+		const saved = [
+			{ id: 'a', label: 'Spam' },
+			{ id: 'b', label: 'Rude' }
+		];
+		expect(withSavedReasonIds([{ label: 'spam ' }, { label: 'Rude' }], saved)).toEqual([
+			{ id: 'a', label: 'spam ' },
+			{ id: 'b', label: 'Rude' }
+		]);
+	});
+
+	it("doesn't hand out an id another reason already holds, or match a renamed reason", () => {
+		const saved = [{ id: 'a', label: 'Spam' }];
+		expect(
+			withSavedReasonIds(
+				[{ id: 'a', label: 'Adverts' }, { label: 'Spam' }, { label: 'Rude' }],
+				saved
+			)
+		).toEqual([{ id: 'a', label: 'Adverts' }, { label: 'Spam' }, { label: 'Rude' }]);
 	});
 });
 
@@ -65,6 +146,12 @@ describe('cleanRejectReasons', () => {
 			{ label: 'Spam:bots' }
 		]);
 	});
+
+	it('keeps saved ids so a save updates reasons in place', () => {
+		expect(cleanRejectReasons([{ id: 'a', label: ' Spam ', description: 'Ads' }])).toEqual([
+			{ id: 'a', label: 'Spam', description: 'Ads' }
+		]);
+	});
 });
 
 describe('rejectReasonLabelProblems', () => {
@@ -80,16 +167,6 @@ describe('rejectReasonLabelProblems', () => {
 			'contains-separator',
 			null
 		]);
-	});
-});
-
-describe('toStoredModerationPolicy', () => {
-	it('writes the snake_case shape moderationPolicyFromMetadata reads', () => {
-		const stored = toStoredModerationPolicy([{ label: 'Spam', description: 'Ads' }]);
-		expect(stored).toEqual({ reject_reasons: [{ label: 'Spam', description: 'Ads' }] });
-		expect(
-			moderationPolicyFromMetadata({ [MODERATION_POLICY_METADATA_KEY]: stored }).rejectReasons
-		).toEqual([{ label: 'Spam', description: 'Ads' }]);
 	});
 });
 

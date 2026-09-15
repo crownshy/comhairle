@@ -1,5 +1,4 @@
 import { notifications } from '$lib/notifications.svelte';
-import { moderationPolicyFromMetadata } from '$lib/moderation/moderationPolicy';
 import { redirect } from '@sveltejs/kit';
 import type {
 	ConversationWithTranslations,
@@ -17,6 +16,7 @@ import type { LayoutLoad } from './$types';
  * - conversation:meta — conversation record itself (title, description, flags…)
  * - conversation:workflow — workflows + steps + stats (anything step-related)
  * - conversation:events — the events list (create/rename/delete an event)
+ * - conversation:moderation-policy — the moderation policies and default reject reasons
  *
  * Events are loaded here (not lazily in events/+layout) so the conversation layout can
  * server-render the events sub-tab strip from `data.events`, the same way it renders the
@@ -27,6 +27,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	depends('conversation:meta');
 	depends('conversation:workflow');
 	depends('conversation:events');
+	depends('conversation:moderation-policy');
 
 	const conversation_id = params.conversation_id;
 	const { user, api } = await parent();
@@ -36,10 +37,18 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			params: { conversation_id },
 			queries: { withTranslations: true }
 		})) as ConversationWithTranslations;
-		const [workflows, eventsResponse, cohostOrganizations] = await Promise.all([
+		const [
+			workflows,
+			eventsResponse,
+			cohostOrganizations,
+			moderationPolicies,
+			defaultRejectReasons
+		] = await Promise.all([
 			api.ListConversationWorkflows({ params: { conversation_id } }),
 			api.ListEvents({ params: { conversation_id }, queries: { created_at: 'desc' } }),
-			api.ListConversationCoHostOrganizations({ params: { conversation_id } })
+			api.ListConversationCoHostOrganizations({ params: { conversation_id } }),
+			api.ListConversationModerationPolicies({ params: { conversation_id } }),
+			api.GetDefaultModerationPolicyReasons({ params: { conversation_id } })
 		]);
 		// ListEvents returns a paginated `{ records }` wrapper; expose the flat array.
 		const events = eventsResponse.records;
@@ -96,8 +105,9 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			cohostOrganizations,
 			usersWithPermission,
 			configureTabs,
-			// Read here once: the Configure editor and the Moderation tab both use it.
-			moderationPolicy: moderationPolicyFromMetadata(conversation.metadata)
+			// Read here once: the Configure editor and the Moderation tab both use them.
+			moderationPolicies,
+			defaultRejectReasons
 		};
 	} catch (e) {
 		console.error(e);
