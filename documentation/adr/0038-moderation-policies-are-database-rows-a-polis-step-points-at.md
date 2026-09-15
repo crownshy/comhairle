@@ -2,7 +2,8 @@
 
 **Status:** Proposal - to be discussed with the team
 **Date:** 2026-09-15
-**Amends:** ADR-0037 (replaces its storage in conversation metadata), ADR-0015
+**Amends:** ADR-0037 (moves the policy out of conversation metadata, and a Polis step now
+picks one), ADR-0015 (the reason list comes from a policy row)
 
 ## Context
 
@@ -21,7 +22,11 @@ The team also wants a policy per step, with the option to reuse one policy acros
   `label`, optional `description`, and `position` for display order.
 - **A Polis step points at a policy.** `PolisToolConfig` gets
   `moderation_policy_id: Option<Uuid>`. Steps in the same conversation can share a policy.
-  Launch copies the id from the preview config to the live config.
+  Launch copies the id from the preview config to the live config. Only Polis gets the
+  field, since it is the only tool that moderates. ADR-0037 kept the policy off the step so
+  two steps wouldn't hold two copies and other tools could share it. Here the step holds
+  only an id and the policy belongs to the conversation, so two steps share one row, and a
+  tool that moderates later adds the same field and picks from the same policies.
 - **No policy means the defaults.** A step with no `moderation_policy_id` uses
   `DEFAULT_REASONS`, defined once in `api/src/models/moderation_policy.rs` and served by
   `GET /conversation/{conversation_id}/moderation_policies/default`. Creating a policy
@@ -62,7 +67,8 @@ The team also wants a policy per step, with the option to reuse one policy acros
 ## Consequences
 
 - #1164 has to switch to these routes, drop `metadata.moderation_policy`, and drop its copy
-  of the default reasons. The metadata key never shipped, so there is no data to migrate.
+  of the default reasons. The metadata key reached staging but never production, and nobody
+  saved a policy with it on staging, so there is no data to migrate.
 - The Configure editor now edits a policy that a step points at. Picking or sharing a
   policy per step has no UI yet.
 - The delete guard and the step check are separate queries, so a step saved during a
