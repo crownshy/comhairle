@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     auth_service::GetAuthorizationTokensResponse, config::AuthServiceConfig, models::users::User,
 };
@@ -136,6 +138,21 @@ impl AuthService for KeycloakClient {
             "{}/admin/realms/{}/partialImport",
             self.domain, self.realm_name,
         );
+
+        let mut additional_attributes = HashMap::from([(
+            "comhairle_auth_type".to_string(),
+            vec![comhairle_user.auth_type.to_string()],
+        )]);
+        if let Some(ref avatar_url) = comhairle_user.avatar_url {
+            additional_attributes.insert("avatar_url".to_string(), vec![avatar_url.to_owned()]);
+        }
+        if let Some(ref organization_id) = comhairle_user.organization_id {
+            additional_attributes.insert(
+                "organization_id".to_string(),
+                vec![organization_id.to_string()],
+            );
+        }
+
         let response = client
             .post(&url)
             .header(
@@ -151,6 +168,7 @@ impl AuthService for KeycloakClient {
                         email_verified: Some(comhairle_user.email_verified),
                         username: comhairle_user.username.clone(),
                         enabled: Some(true),
+                        attributes: Some(additional_attributes),
                         credentials: comhairle_user
                             .password
                             .as_ref()
