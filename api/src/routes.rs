@@ -1,6 +1,7 @@
 pub mod api_keys;
 pub mod audio_recordings;
 pub mod auth;
+pub mod chat_instructions;
 pub mod chat_sessions;
 pub mod chats;
 pub mod conversations;

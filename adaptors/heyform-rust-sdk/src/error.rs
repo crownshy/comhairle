@@ -36,7 +36,7 @@ impl Into<StatusCode> for &HeyFormError {
                 } else {
                     StatusCode::INTERNAL_SERVER_ERROR
                 }
-            },
+            }
             HeyFormError::Json(_)
             | HeyFormError::Url(_)
             | HeyFormError::GraphQL(_)
@@ -56,7 +56,7 @@ impl HeyFormError {
                 } else {
                     StatusCode::INTERNAL_SERVER_ERROR
                 }
-            },
+            }
             HeyFormError::Json(_)
             | HeyFormError::Url(_)
             | HeyFormError::GraphQL(_)
