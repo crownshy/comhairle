@@ -2,16 +2,20 @@
 	import { onDestroy, tick } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
+	import type {
+		ModerationPolicyDto,
+		WorkflowStepWithTranslations
+	} from '@crownshy/api-client/api';
 	import { Button } from '$lib/components/ui/button';
 	import { Plus, RotateCcw, Trash2 } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import {
-		DEFAULT_REJECT_REASONS,
-		MODERATION_POLICY_METADATA_KEY,
+		cleanRejectReasons,
+		policyStepUpdates,
 		rejectReasonLabelProblems,
-		toStoredModerationPolicy,
-		type ModerationPolicy,
+		rejectReasonsFromPolicy,
+		withSavedReasonIds,
 		type RejectReason
 	} from '$lib/moderation/moderationPolicy';
 	import { Autosave } from './autosave.svelte';
@@ -19,27 +23,40 @@
 
 	type Props = {
 		conversationId: string;
-		/** The policy stored on the conversation, or the default list standing in for one. */
-		initial: ModerationPolicy;
+		/** Undefined while the conversation has no workflow, so there are no steps to point. */
+		workflowId: string | undefined;
+		/** The conversation's policies, oldest first. The editor works on the first (ADR-0038). */
+		policies: ModerationPolicyDto[];
+		/** The API's default reasons, shown until the first edit creates a policy. */
+		defaultReasons: RejectReason[];
+		/** The workflow's steps. Saving points every Polis step at the policy. */
+		steps: WorkflowStepWithTranslations[];
 	};
 
-	let { conversationId, initial }: Props = $props();
+	let { conversationId, workflowId, policies, defaultReasons, steps }: Props = $props();
 
-	// `id` is a stable {#each} key: labels can be blank or repeated while editing.
-	type Row = { id: number; label: string; description: string };
+	const NEW_POLICY_NAME = 'Moderation policy';
 
-	let nextId = 0;
+	// `key` is a stable {#each} key: labels can be blank or repeated while editing, and a new
+	// reason has no id until its first save lands.
+	type Row = RejectReason & { key: number; description: string };
+
+	let nextKey = 0;
 	const toRows = (reasons: RejectReason[]): Row[] =>
 		reasons.map((reason) => ({
-			id: nextId++,
-			label: reason.label,
+			...reason,
+			key: nextKey++,
 			description: reason.description ?? ''
 		}));
 
-	let rows = $derived<Row[]>(toRows(initial.rejectReasons));
-	// While true the conversation follows DEFAULT_REJECT_REASONS and saves store null, so a
-	// later change to the default reaches it. Any edit makes the list the conversation's own.
-	let usingDefault = $derived(initial.isDefault);
+	let policyId = $derived<string | null>(policies[0]?.id ?? null);
+	let policyName = $derived(policies[0]?.name ?? NEW_POLICY_NAME);
+	let rows = $derived<Row[]>(
+		toRows(policies[0] ? rejectReasonsFromPolicy(policies[0]) : defaultReasons)
+	);
+	// While true the conversation has no policy and uses the default reasons, so a later change
+	// to the defaults reaches it. Any edit creates the conversation's own policy.
+	let usingDefault = $derived(policies.length === 0);
 
 	// Why each row's label won't be saved, by position. Blank rows are still being typed, so
 	// they aren't flagged.
@@ -48,49 +65,100 @@
 		labelProblems.map((problem) => problem === 'duplicate' || problem === 'contains-separator')
 	);
 
-	const autosave = new Autosave(() =>
-		apiClient.PatchConversationMetadata(
-			{
-				[MODERATION_POLICY_METADATA_KEY]: usingDefault
-					? null
-					: toStoredModerationPolicy(rows)
-			},
-			{ params: { conversation_id: conversationId } }
-		)
-	);
+	// Where this editor last pointed each step, since `steps` isn't reloaded until it closes.
+	// Only saves read it, never the markup, so it doesn't need to be reactive.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const pointedSteps = new Map<string, string | null>();
+
+	async function pointStepsAt(targetPolicyId: string | null) {
+		if (!workflowId) return;
+		for (const { stepId, body } of policyStepUpdates(steps, targetPolicyId, pointedSteps)) {
+			await apiClient.UpdateConversationWorkflowStep(body, {
+				params: {
+					conversation_id: conversationId,
+					workflow_id: workflowId,
+					workflow_step_id: stepId
+				}
+			});
+			pointedSteps.set(stepId, targetPolicyId);
+		}
+	}
+
+	// Steps are pointed at nothing before a delete, because the API refuses to delete a policy
+	// a step still uses.
+	async function save() {
+		if (usingDefault) {
+			if (policyId === null) return;
+			await pointStepsAt(null);
+			await apiClient.DeleteConversationModerationPolicy(undefined, {
+				params: { conversation_id: conversationId, moderation_policy_id: policyId }
+			});
+			policyId = null;
+			return;
+		}
+
+		const reasons = cleanRejectReasons(rows);
+		const saved =
+			policyId === null
+				? await apiClient.CreateConversationModerationPolicy(
+						{
+							name: policyName,
+							reasons: reasons.map(({ label, description }) => ({
+								label,
+								description
+							}))
+						},
+						{ params: { conversation_id: conversationId } }
+					)
+				: await apiClient.UpdateConversationModerationPolicy(
+						{ name: policyName, reasons },
+						{
+							params: {
+								conversation_id: conversationId,
+								moderation_policy_id: policyId
+							}
+						}
+					);
+		policyId = saved.id;
+		rows = withSavedReasonIds(rows, rejectReasonsFromPolicy(saved));
+		await pointStepsAt(saved.id);
+	}
+
+	const autosave = new Autosave(save);
 
 	guardUnsavedChanges(() => autosave.dirty);
 
-	// The Moderation tab reads the policy from the conversation layout's data, so once a save
-	// lands that data is refreshed when this editor goes away.
+	// The Moderation tab reads the policies and steps from the conversation layout's data, so
+	// once a save lands that data is refreshed when this editor goes away. The same load
+	// returns the steps, so one key refreshes both.
 	onDestroy(() => {
 		autosave.flush();
 		autosave.settled().then(() => {
-			if (autosave.hasSaved) invalidate('conversation:meta');
+			if (autosave.hasSaved) invalidate('conversation:moderation-policy');
 		});
 	});
 
-	function editRow(id: number, patch: Partial<Omit<Row, 'id'>>) {
-		rows = rows.map((row) => (row.id === id ? { ...row, ...patch } : row));
+	function editRow(key: number, patch: Partial<Pick<Row, 'label' | 'description'>>) {
+		rows = rows.map((row) => (row.key === key ? { ...row, ...patch } : row));
 		usingDefault = false;
 		autosave.schedule();
 	}
 
 	async function addRow() {
-		const row: Row = { id: nextId++, label: '', description: '' };
+		const row: Row = { key: nextKey++, label: '', description: '' };
 		rows = [...rows, row];
 		await tick();
-		document.querySelector<HTMLInputElement>(`#reject-reason-label-${row.id}`)?.focus();
+		document.querySelector<HTMLInputElement>(`#reject-reason-label-${row.key}`)?.focus();
 	}
 
-	function removeRow(id: number) {
-		rows = rows.filter((row) => row.id !== id);
+	function removeRow(key: number) {
+		rows = rows.filter((row) => row.key !== key);
 		usingDefault = false;
 		autosave.schedule();
 	}
 
 	function resetToDefault() {
-		rows = toRows(DEFAULT_REJECT_REASONS);
+		rows = toRows(defaultReasons);
 		usingDefault = true;
 		autosave.schedule();
 	}
@@ -138,7 +206,7 @@
 				</div>
 
 				<div class="divide-border bg-background divide-y">
-					{#each rows as row, index (row.id)}
+					{#each rows as row, index (row.key)}
 						<div
 							class={cn(
 								'focus-within:bg-muted/30 hover:bg-muted/20 grid items-center',
@@ -148,10 +216,10 @@
 							<!-- Plain inputs, not the shadcn Input: these are borderless spreadsheet
 								cells, matching the glossary editor. -->
 							<input
-								id="reject-reason-label-{row.id}"
+								id="reject-reason-label-{row.key}"
 								value={row.label}
 								oninput={(event) =>
-									editRow(row.id, { label: event.currentTarget.value })}
+									editRow(row.key, { label: event.currentTarget.value })}
 								placeholder="Off-topic"
 								aria-label="Reason"
 								aria-invalid={flaggedRows[index]}
@@ -161,7 +229,7 @@
 							<input
 								value={row.description}
 								oninput={(event) =>
-									editRow(row.id, { description: event.currentTarget.value })}
+									editRow(row.key, { description: event.currentTarget.value })}
 								placeholder="Shown to moderators when they pick this reason"
 								aria-label="What counts under this reason"
 								title={row.description}
@@ -170,7 +238,7 @@
 							<Button
 								variant="ghost"
 								size="icon"
-								onclick={() => removeRow(row.id)}
+								onclick={() => removeRow(row.key)}
 								aria-label="Remove reason"
 								class="text-muted-foreground hover:text-destructive size-10 rounded-none"
 							>

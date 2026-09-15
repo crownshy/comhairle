@@ -21,7 +21,7 @@
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import ModerationPolicyEditor from './ModerationPolicyEditor.svelte';
-	import type { ModerationPolicy } from '$lib/moderation/moderationPolicy';
+	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
@@ -32,10 +32,12 @@
 		ComhairleDocument,
 		ConversationWithTranslations,
 		MediaDto,
+		ModerationPolicyDto,
 		OrganizationWithPermissionDto,
 		UserDto,
 		UserWithPermissionDto,
-		WorkflowDto
+		WorkflowDto,
+		WorkflowStepWithTranslations
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { Image as ImageIcon, Info } from 'lucide-svelte';
@@ -58,7 +60,9 @@
 			usersWithPermission: UserWithPermissionDto[];
 			configureTabs: { id: string; label: string }[];
 			availableDocuments: ComhairleDocument[];
-			moderationPolicy: ModerationPolicy;
+			moderationPolicies: ModerationPolicyDto[];
+			defaultRejectReasons: RejectReason[];
+			workflowSteps: WorkflowStepWithTranslations[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
@@ -1111,7 +1115,13 @@
 	{/if}
 
 	{#if activeTab === 'moderation'}
-		<ModerationPolicyEditor conversationId={conversation.id} initial={data.moderationPolicy} />
+		<ModerationPolicyEditor
+			conversationId={conversation.id}
+			workflowId={workflow?.id}
+			policies={data.moderationPolicies}
+			defaultReasons={data.defaultRejectReasons}
+			steps={data.workflowSteps}
+		/>
 	{/if}
 
 	{#if activeTab === 'team'}

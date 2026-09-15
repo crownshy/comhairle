@@ -5,7 +5,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { downloadCsv } from '$lib/utils/csv';
-	import { DEFAULT_REJECT_REASONS, type RejectReason } from '$lib/moderation/moderationPolicy';
+	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { Download, RefreshCw, Search } from '@lucide/svelte';
@@ -17,11 +17,18 @@
 	type Props = {
 		workflowStepId: string;
 		statements: PolisStatementAux[];
-		/** The conversation's moderation policy reasons (ADR-0037), offered on reject. */
+		/** The step's moderation policy reasons (ADR-0038), offered on reject. */
 		rejectReasons: RejectReason[];
+		/** The API's default reasons. Export always matches them, see `reasonLabels`. */
+		defaultRejectReasons: RejectReason[];
 	};
 
-	let { workflowStepId, statements: initialStatements, rejectReasons }: Props = $props();
+	let {
+		workflowStepId,
+		statements: initialStatements,
+		rejectReasons,
+		defaultRejectReasons
+	}: Props = $props();
 
 	// Local optimistic copy so accept/reject re-renders without a refetch. A writable
 	// `$derived` seeds from the prop and lets optimistic assignments below override it,
@@ -96,7 +103,7 @@
 	// Built from the rows already loaded, so it reflects the last sync. The default labels are
 	// included so reasons recorded before the policy was edited still land in the reason column.
 	const reasonLabels = $derived([
-		...new Set([...rejectReasons, ...DEFAULT_REJECT_REASONS].map((reason) => reason.label))
+		...new Set([...rejectReasons, ...defaultRejectReasons].map((reason) => reason.label))
 	]);
 
 	function downloadStatements() {
