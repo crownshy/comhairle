@@ -284,6 +284,9 @@ importers:
       cmdk-sv:
         specifier: ^0.0.19
         version: 0.0.19(svelte@5.53.3)
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
       embla-carousel-svelte:
         specifier: 8.6.0
         version: 8.6.0(svelte@5.53.3)
@@ -2947,6 +2950,10 @@ packages:
 
   dompurify@3.3.1:
     resolution: {integrity: sha512-qkdCKzLNtrgPFP1Vo+98FRzJnBRGe4ffyCea9IwHB1fyxPOeNTHpLKYGd4Uk9xvNoH0ZoOjwZxNptyMwqrId1Q==}
+
+  dotenv@17.4.2:
+    resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
+    engines: {node: '>=12'}
 
   duck@0.1.12:
     resolution: {integrity: sha512-wkctla1O6VfP89gQ+J/yDesM0S7B7XLXjKGzXxMDVFg7uEn706niAtyYovKbyq1oT9YwDcly721/iUWoc8MVRg==}
@@ -7743,6 +7750,8 @@ snapshots:
   dompurify@3.3.1:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
+
+  dotenv@17.4.2: {}
 
   duck@0.1.12:
     dependencies:

@@ -52,6 +52,7 @@
 		"class-validator": "^0.14.1",
 		"clsx": "^2.1.1",
 		"cmdk-sv": "^0.0.19",
+		"dotenv": "^17.4.2",
 		"embla-carousel-svelte": "8.6.0",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",
