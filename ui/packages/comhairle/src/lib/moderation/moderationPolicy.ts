@@ -55,21 +55,39 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** Joins a reason's label to the moderator's note in `moderation_reason` (ADR-0015). */
+export const REASON_NOTE_SEPARATOR = ': ';
+
+export type RejectReasonLabelProblem = 'blank' | 'contains-separator' | 'duplicate';
+
 /**
- * Trims every reason, drops blank labels and repeats of a label (case-insensitive, first one
- * wins). Labels are the picker keys and the stored value, so they have to be unique.
+ * Why each label can't be saved, or null when it can, in input order. Labels are the picker
+ * keys and the stored value, so a repeat (case-insensitive, first one wins) is dropped. A
+ * label containing the separator couldn't be split back out of `moderation_reason` on export.
  */
-export function cleanRejectReasons(reasons: RejectReason[]): RejectReason[] {
+export function rejectReasonLabelProblems(labels: string[]): (RejectReasonLabelProblem | null)[] {
 	const seen = new Set<string>();
-	const cleaned: RejectReason[] = [];
-	for (const reason of reasons) {
-		const label = reason.label.trim();
-		const key = label.toLowerCase();
-		if (!label || seen.has(key)) continue;
+	return labels.map((label) => {
+		const trimmed = label.trim();
+		if (!trimmed) return 'blank';
+		if (trimmed.includes(REASON_NOTE_SEPARATOR)) return 'contains-separator';
+		const key = trimmed.toLowerCase();
+		if (seen.has(key)) return 'duplicate';
 		seen.add(key);
+		return null;
+	});
+}
+
+/** Trims every reason and drops the ones `rejectReasonLabelProblems` flags. */
+export function cleanRejectReasons(reasons: RejectReason[]): RejectReason[] {
+	const problems = rejectReasonLabelProblems(reasons.map((reason) => reason.label));
+	const cleaned: RejectReason[] = [];
+	reasons.forEach((reason, index) => {
+		if (problems[index] !== null) return;
+		const label = reason.label.trim();
 		const description = reason.description?.trim();
 		cleaned.push(description ? { label, description } : { label });
-	}
+	});
 	return cleaned;
 }
 
@@ -107,7 +125,7 @@ export function toStoredModerationPolicy(reasons: RejectReason[]) {
  */
 export function composeReason(label: string | null, note: string): string | undefined {
 	const trimmed = note.trim();
-	if (label && trimmed) return `${label}: ${trimmed}`;
+	if (label && trimmed) return `${label}${REASON_NOTE_SEPARATOR}${trimmed}`;
 	if (label) return label;
 	return trimmed || undefined;
 }
@@ -129,8 +147,9 @@ export function splitReason(
 	const candidates = [...labels].sort((a, b) => b.length - a.length);
 	for (const label of candidates) {
 		if (text === label) return { label, note: '' };
-		if (text.startsWith(`${label}: `)) {
-			return { label, note: text.slice(label.length + 2).trim() };
+		const prefix = `${label}${REASON_NOTE_SEPARATOR}`;
+		if (text.startsWith(prefix)) {
+			return { label, note: text.slice(prefix.length).trim() };
 		}
 	}
 	return { label: '', note: text };

@@ -9,6 +9,7 @@
 	import {
 		DEFAULT_REJECT_REASONS,
 		MODERATION_POLICY_METADATA_KEY,
+		rejectReasonLabelProblems,
 		toStoredModerationPolicy,
 		type ModerationPolicy,
 		type RejectReason
@@ -41,18 +42,12 @@
 	// later change to the default reaches it. Any edit makes the list the conversation's own.
 	let usingDefault = $derived(initial.isDefault);
 
-	// Repeated labels (case-insensitive) after the first. Saving keeps only the first.
-	const duplicateIds = $derived.by(() => {
-		const seen: Record<string, true> = {};
-		const ids: number[] = [];
-		for (const row of rows) {
-			const key = row.label.trim().toLowerCase();
-			if (!key) continue;
-			if (seen[key]) ids.push(row.id);
-			seen[key] = true;
-		}
-		return ids;
-	});
+	// Why each row's label won't be saved, by position. Blank rows are still being typed, so
+	// they aren't flagged.
+	const labelProblems = $derived(rejectReasonLabelProblems(rows.map((row) => row.label)));
+	const flaggedRows = $derived(
+		labelProblems.map((problem) => problem === 'duplicate' || problem === 'contains-separator')
+	);
 
 	const autosave = new Autosave(() =>
 		apiClient.PatchConversationMetadata(
@@ -144,7 +139,7 @@
 				</div>
 
 				<div class="divide-border bg-background divide-y">
-					{#each rows as row (row.id)}
+					{#each rows as row, index (row.id)}
 						<div
 							class={cn(
 								'focus-within:bg-muted/30 hover:bg-muted/20 grid items-center',
@@ -157,7 +152,7 @@
 								oninput={(e) => editRow(row.id, { label: e.currentTarget.value })}
 								placeholder="Off-topic"
 								aria-label="Reason"
-								aria-invalid={duplicateIds.includes(row.id)}
+								aria-invalid={flaggedRows[index]}
 								title={row.label}
 								class="text-foreground placeholder:text-muted-foreground/60 aria-invalid:text-destructive h-10 truncate bg-transparent px-3 text-base font-medium outline-none"
 							/>
@@ -189,9 +184,15 @@
 		</div>
 	</div>
 
-	{#if duplicateIds.length > 0}
-		<p class="text-destructive text-sm">
+	{#if labelProblems.includes('duplicate')}
+		<p class="text-destructive text-base">
 			Some reasons appear more than once. Only the first of each is saved.
+		</p>
+	{/if}
+	{#if labelProblems.includes('contains-separator')}
+		<p class="text-destructive text-base">
+			A reason can't contain a colon followed by a space, because that separates the reason
+			from the note. Those reasons aren't saved.
 		</p>
 	{/if}
 </div>

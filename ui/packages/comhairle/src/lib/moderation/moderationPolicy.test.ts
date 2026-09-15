@@ -5,6 +5,7 @@ import {
 	cleanRejectReasons,
 	composeReason,
 	moderationPolicyFromMetadata,
+	rejectReasonLabelProblems,
 	splitReason,
 	toStoredModerationPolicy
 } from './moderationPolicy';
@@ -57,6 +58,28 @@ describe('cleanRejectReasons', () => {
 				{ label: 'Duplicate', description: ' Same point ' }
 			])
 		).toEqual([{ label: 'Spam' }, { label: 'Duplicate', description: 'Same point' }]);
+	});
+
+	it('drops a label containing the reason/note separator', () => {
+		expect(cleanRejectReasons([{ label: 'Spam: bots' }, { label: 'Spam:bots' }])).toEqual([
+			{ label: 'Spam:bots' }
+		]);
+	});
+});
+
+describe('rejectReasonLabelProblems', () => {
+	it('flags blank, separator and repeated labels in input order', () => {
+		expect(
+			rejectReasonLabelProblems(['Spam', '  ', 'Spam: bots', ' spam ', 'Duplicate'])
+		).toEqual([null, 'blank', 'contains-separator', 'duplicate', null]);
+	});
+
+	it('does not let a separator label claim its key from a later valid label', () => {
+		expect(rejectReasonLabelProblems(['Spam: bots', 'spam: bots', 'Spam'])).toEqual([
+			'contains-separator',
+			'contains-separator',
+			null
+		]);
 	});
 });
 

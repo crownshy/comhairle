@@ -31,7 +31,9 @@ an optional description of what counts under it.
 - **An empty list is allowed.** Moderators then only get the free-text note.
 - **Editing** happens in Configure > Moderation policy and autosaves like the glossary
   (ADR-0006). Labels are trimmed and de-duplicated case-insensitively on save, because the
-  label is both the key in the reason picker and the stored value.
+  label is both the key in the reason picker and the stored value. A label can't contain
+  `": "`, the separator between label and note, or the export couldn't split it back out.
+  The editor flags those labels and doesn't save them.
 - **The stored reason does not change.** A reject still writes `"Label: note"` into
   `moderation_reason`. Renaming or deleting a reason leaves recorded reasons alone.
 - **Export splits it back out.** The Moderation tab's Download menu builds a CSV in the
