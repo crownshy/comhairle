@@ -69,7 +69,7 @@ pub struct ComhairleState {
     /// routes can push updates to participants currently on a call (e.g. agenda changes).
     pub video_call_handler: Arc<VideoCallMessageHandler>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
-    pub auth_service: Option<Arc<dyn AuthService>>,
+    pub auth_service: Arc<dyn AuthService>,
     pub keycloak_auth_instance: Arc<KeycloakAuthInstance>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub wiki_poll_service: Arc<dyn WikiPollService>,

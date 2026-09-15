@@ -333,18 +333,13 @@ async fn sync_kc_users(
         ));
     }
 
-    let auth_service = state
-        .auth_service
-        .as_ref()
-        .ok_or_else(|| ComhairleError::BadRequest("".to_string()))?;
-
     let mut synced_users = Vec::with_capacity(user_ids.len());
     let mut skipped_users = Vec::with_capacity(user_ids.len());
 
     for user_id in user_ids {
         let user = models::users::get_user_by_id(&user_id, &state.db).await?;
 
-        let result = auth_service.import_user(&user).await;
+        let result = state.auth_service.import_user(&user).await;
 
         match result {
             Ok(_) => synced_users.push(user.id),

@@ -1194,12 +1194,7 @@ pub async fn current_user(
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
     match access_token {
         Some(token) => {
-            let user = state
-                .auth_service
-                .as_ref()
-                .unwrap() // TODO:
-                .get_user(&token)
-                .await?;
+            let user = state.auth_service.get_user(&token).await?;
 
             Ok((StatusCode::OK, Json(user.into())))
         }
@@ -1211,8 +1206,7 @@ pub async fn current_user(
 async fn authentication_login(
     State(state): State<Arc<ComhairleState>>,
 ) -> Result<Redirect, ComhairleError> {
-    // TODO: unwrap
-    let auth_config = state.config.auth_service.as_ref().unwrap();
+    let auth_config = &state.config.auth_service;
 
     let redirect_url = format!("{}/api/auth/callback", state.config.domain);
     let authentication_url = format!(
@@ -1234,14 +1228,10 @@ async fn authentication_callback(
     jar: CookieJar,
     Query(query): Query<KeycloakCallbackQuery>,
 ) -> Result<(CookieJar, Redirect), ComhairleError> {
-    let auth_service = state
-        .auth_service
-        .as_ref()
-        .ok_or_else(|| ComhairleError::BadRequest("Missing auth service".to_string()))?;
-
     let redirect_url = format!("{}/api/auth/callback", state.config.domain);
 
-    let token_result = auth_service
+    let token_result = state
+        .auth_service
         .get_authorization_tokens(&query.code, &redirect_url)
         .await?;
 
