@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::models::{
-    SqlxResultExt,
+    SqlxResultExt, moderation_policy,
     user_progress::{self, ProgressStatus, UserProgressIden},
 };
 use crate::tools::{ToolConfig, ToolSetup};
@@ -400,6 +400,18 @@ pub async fn update(
     }
 
     let mut transaction = db.begin().await?;
+
+    // Held until the step is saved, so a policy delete can't land between check and write.
+    let policy_ids = [
+        update.tool_config.as_ref(),
+        update.preview_tool_config.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    .filter_map(ToolConfig::moderation_policy_id);
+    for policy_id in policy_ids {
+        moderation_policy::lock_for_step(&mut transaction, *workflow_step_id, policy_id).await?;
+    }
 
     // If we are being asked to update the step_order
     // shift the existing number up one to accomodate

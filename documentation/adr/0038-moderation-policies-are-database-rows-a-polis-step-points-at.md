@@ -46,8 +46,12 @@ The team also wants a policy per step, with the option to reuse one policy acros
   because a save that swaps two labels would trip the index partway through.
 - **The step's policy id is checked on save.** The id sits inside the tool config jsonb, so
   no foreign key guards it. Updating a workflow step returns 400 if its
-  `moderation_policy_id` isn't one of the conversation's policies. Deleting a policy
-  returns 409 while any step's preview or live config points at it.
+  `moderation_policy_id` isn't one of the policies in the step's own conversation, whatever
+  conversation id is in the URL. Deleting a policy returns 409 while any step's preview or
+  live config points at it, and 404 for another conversation's policy whether or not it's
+  in use. The step save takes `FOR KEY SHARE` on the policy row in the transaction that
+  writes the step, and delete takes `FOR UPDATE` before counting steps, so whichever runs
+  second waits and a step can't end up pointing at a deleted policy.
 - **The stored reason does not change.** A reject still writes `"Label: note"` into
   `polis_statement_aux.moderation_reason` (ADR-0015). Renaming or deleting a reason leaves
   recorded reasons alone.
@@ -71,8 +75,7 @@ The team also wants a policy per step, with the option to reuse one policy acros
   saved a policy with it on staging, so there is no data to migrate.
 - The Configure editor now edits a policy that a step points at. Picking or sharing a
   policy per step has no UI yet.
-- The delete guard and the step check are separate queries, so a step saved during a
-  delete can end up pointing at a missing policy. A client that gets a 404 for a step's
-  policy should fall back to the defaults.
+- A step save that points at a policy holds a row lock on it until the save commits, so a
+  delete of that policy at the same moment waits for the save and then gets a 409.
 - After launch, the preview and live configs are saved separately, like the other Polis
   step settings. Pointing a live step at a different policy updates `tool_config`.

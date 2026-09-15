@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{Expr, Order, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{Expr, LockType, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgConnection, PgPool, prelude::FromRow, query_as_with};
@@ -433,24 +433,47 @@ pub async fn update(
 
 /// Counts workflow steps whose preview or live tool config points at the policy. The id
 /// lives inside the tool config jsonb, so no foreign key guards it.
-#[instrument(err(Debug), skip(db))]
-async fn count_steps_using(db: &PgPool, id: Uuid) -> Result<i64, ComhairleError> {
+#[instrument(err(Debug), skip(tx))]
+async fn count_steps_using(tx: &mut PgConnection, id: Uuid) -> Result<i64, ComhairleError> {
     let count = sqlx::query_scalar(
         "SELECT COUNT(*) FROM workflow_step
             WHERE preview_tool_config ->> 'moderation_policy_id' = $1
                OR tool_config ->> 'moderation_policy_id' = $1",
     )
     .bind(id.to_string())
-    .fetch_one(db)
+    .fetch_one(&mut *tx)
     .await?;
 
     Ok(count)
 }
 
 /// Deletes the policy and its reasons. Refuses while a workflow step still uses it.
+///
+/// The policy row is locked before steps are counted. A step save holds a lock on the same
+/// row ([`lock_for_step`]), so either the save waits and then finds the policy gone, or this
+/// waits for the save and then counts its step.
 #[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, conversation_id: Uuid, id: Uuid) -> Result<(), ComhairleError> {
-    let steps_using = count_steps_using(db, id).await?;
+    let mut tx = db.begin().await?;
+
+    // Scoped to the conversation before counting, so another conversation's policy is a 404
+    // whether or not a step uses it.
+    let (sql, values) = Query::select()
+        .column(ModerationPolicyIden::Id)
+        .from(ModerationPolicyIden::Table)
+        .and_where(Expr::col(ModerationPolicyIden::Id).eq(id))
+        .and_where(Expr::col(ModerationPolicyIden::ConversationId).eq(conversation_id))
+        .lock(LockType::Update)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let locked: Option<Uuid> = sqlx::query_scalar_with(&sql, values)
+        .fetch_optional(&mut *tx)
+        .await?;
+    if locked.is_none() {
+        return Err(ComhairleError::ResourceNotFound("Moderation Policy".into()));
+    }
+
+    let steps_using = count_steps_using(&mut tx, id).await?;
     if steps_using > 0 {
         return Err(ComhairleError::Conflict(format!(
             "Moderation policy is used by {steps_using} workflow step(s)"
@@ -460,39 +483,44 @@ pub async fn delete(db: &PgPool, conversation_id: Uuid, id: Uuid) -> Result<(), 
     let (sql, values) = Query::delete()
         .from_table(ModerationPolicyIden::Table)
         .and_where(Expr::col(ModerationPolicyIden::Id).eq(id))
-        .and_where(Expr::col(ModerationPolicyIden::ConversationId).eq(conversation_id))
         .build_sqlx(PostgresQueryBuilder);
+    sqlx::query_with(&sql, values).execute(&mut *tx).await?;
 
-    let deleted = sqlx::query_with(&sql, values).execute(db).await?;
-    if deleted.rows_affected() == 0 {
-        return Err(ComhairleError::ResourceNotFound("Moderation Policy".into()));
-    }
+    tx.commit().await?;
 
     Ok(())
 }
 
-/// Errors unless the policy belongs to the conversation. Checked before a step's
-/// `moderation_policy_id` is saved, since there's no foreign key to do it.
-#[instrument(err(Debug), skip(db))]
-pub async fn ensure_in_conversation(
-    db: &PgPool,
-    conversation_id: Uuid,
+/// Locks the policy for a workflow step save, and errors unless it belongs to the step's own
+/// conversation. There's no foreign key from the tool config jsonb, so call this in the
+/// transaction that writes the step. `FOR KEY SHARE` is the lock a foreign key check takes:
+/// it blocks [`delete`] until the step is saved, but not edits to the policy.
+#[instrument(err(Debug), skip(tx))]
+pub async fn lock_for_step(
+    tx: &mut PgConnection,
+    workflow_step_id: Uuid,
     id: Uuid,
 ) -> Result<(), ComhairleError> {
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM moderation_policy WHERE id = $1 AND conversation_id = $2)",
+    let locked: Option<Uuid> = sqlx::query_scalar(
+        "SELECT moderation_policy.id FROM moderation_policy
+            WHERE moderation_policy.id = $1
+              AND moderation_policy.conversation_id = (
+                  SELECT workflow.conversation_id FROM workflow_step
+                      JOIN workflow ON workflow.id = workflow_step.workflow_id
+                      WHERE workflow_step.id = $2
+              )
+            FOR KEY SHARE",
     )
     .bind(id)
-    .bind(conversation_id)
-    .fetch_one(db)
+    .bind(workflow_step_id)
+    .fetch_optional(&mut *tx)
     .await?;
 
-    if exists {
-        Ok(())
-    } else {
-        Err(ComhairleError::BadRequest(format!(
+    match locked {
+        Some(_) => Ok(()),
+        None => Err(ComhairleError::BadRequest(format!(
             "Moderation policy {id} doesn't belong to this conversation"
-        )))
+        ))),
     }
 }
 

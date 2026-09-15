@@ -220,7 +220,7 @@ mod tests {
 
     use super::*;
 
-    use std::error::Error;
+    use std::{error::Error, time::Duration};
 
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
@@ -454,6 +454,96 @@ mod tests {
         );
         let (status, _, _) = session.delete(&app, &policy_url).await?;
         assert_eq!(status, StatusCode::CONFLICT, "policy in use was deleted");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_404_deleting_policy_in_use_in_another_conversation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let other_conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let other_policy = create_policy(&app, &mut session, other_conversation_id).await?;
+        let (step_url, mut preview_tool_config) =
+            create_polis_step(&app, &mut session, other_conversation_id).await?;
+
+        preview_tool_config["moderation_policy_id"] = json!(other_policy.id);
+        let (status, res, _) = session
+            .put(
+                &app,
+                &step_url,
+                json!({ "preview_tool_config": preview_tool_config })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK, "step update failed: {res}");
+
+        let (status, _, _) = session
+            .delete(
+                &app,
+                &format!(
+                    "/conversation/{conversation_id}/moderation_policies/{}",
+                    other_policy.id
+                ),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "another conversation's policy in use didn't 404"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_make_delete_wait_for_step_save_holding_the_policy(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let created = create_policy(&app, &mut session, conversation_id).await?;
+        let (step_url, _) = create_polis_step(&app, &mut session, conversation_id).await?;
+        let step_id: Uuid = step_url
+            .rsplit('/')
+            .next()
+            .ok_or("missing step id")?
+            .parse()?;
+
+        let mut step_save = pool.begin().await?;
+        moderation_policy::lock_for_step(&mut step_save, step_id, created.id).await?;
+
+        let pending_delete = tokio::spawn({
+            let pool = pool.clone();
+            async move { moderation_policy::delete(&pool, conversation_id, created.id).await }
+        });
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert!(
+            !pending_delete.is_finished(),
+            "delete didn't wait for the step save's lock"
+        );
+
+        sqlx::query(
+            "UPDATE workflow_step
+                SET preview_tool_config = jsonb_set(
+                    preview_tool_config, '{moderation_policy_id}', to_jsonb($1::text)
+                )
+                WHERE id = $2",
+        )
+        .bind(created.id.to_string())
+        .bind(step_id)
+        .execute(&mut *step_save)
+        .await?;
+        step_save.commit().await?;
+
+        let result = pending_delete.await?;
+        assert!(
+            matches!(result, Err(ComhairleError::Conflict(_))),
+            "policy deleted while a step save pointed at it: {result:?}"
+        );
 
         Ok(())
     }
