@@ -11,6 +11,15 @@ export async function login(page: Page) {
 		return;
 	}
 
+	if (
+		process.env.PLAYWRIGHT_ADMIN_USERNAME === undefined ||
+		process.env.PLAYWRIGHT_ADMIN_PASSWORD === undefined
+	) {
+		throw new Error(
+			'Missing PLAYWRIGHT_ADMIN_USERNAME or PLAYWRIGHT_ADMIN_PASSWORD in the .playwright.env file'
+		);
+	}
+
 	// Login
 	await page.getByRole('link', { name: m.login() }).click();
 

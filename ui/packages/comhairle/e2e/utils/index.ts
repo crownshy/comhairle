@@ -4,6 +4,8 @@ import { Page } from './types';
 
 export const exists = async (locator: Locator): Promise<boolean> => !!(await locator.count());
 
+export const generateValue = () => crypto.randomUUID().replace(/-/g, '');
+
 export const sleep = async (seconds: number): Promise<true> =>
 	new Promise((res) => {
 		setTimeout(() => {

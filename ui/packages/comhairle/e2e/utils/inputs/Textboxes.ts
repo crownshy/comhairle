@@ -1,5 +1,6 @@
 import { expect, type Locator } from '@playwright/test';
 import { Page } from '../types';
+import { generateValue } from '..';
 
 type Textbox = {
 	id: string;
@@ -8,20 +9,20 @@ type Textbox = {
 };
 
 class Textboxes<const T extends string> {
-	_textboxes: Record<string, Textbox> = {};
+	#textboxes: Record<string, Textbox> = {};
 
 	constructor(page: Page, inputs: [id: T, name: string][]) {
 		for (const [id, name] of inputs) {
-			this._textboxes[id] = {
+			this.#textboxes[id] = {
 				id,
 				locator: page.getByRole('textbox', { name, exact: true }),
-				value: crypto.randomUUID()
+				value: generateValue()
 			};
 		}
 	}
 
 	get(id: T): Textbox {
-		return this._textboxes[id];
+		return this.#textboxes[id];
 	}
 
 	// Function overload
@@ -33,16 +34,16 @@ class Textboxes<const T extends string> {
 	): Promise<void>;
 
 	async write(id: T, cleanup?: (callback: () => Promise<void>) => void, defaultValue?: string) {
-		await this._textboxes[id].locator.click();
-		await this._textboxes[id].locator.fill(this._textboxes[id].value);
+		await this.#textboxes[id].locator.click();
+		await this.#textboxes[id].locator.fill(this.#textboxes[id].value);
 		cleanup?.(async () => {
-			await this._textboxes[id].locator.click();
-			await this._textboxes[id].locator.fill(defaultValue ?? '');
+			await this.#textboxes[id].locator.click();
+			await this.#textboxes[id].locator.fill(defaultValue ?? '');
 		});
 	}
 
 	async expected() {
-		for (const textbox of Object.values(this._textboxes)) {
+		for (const textbox of Object.values(this.#textboxes)) {
 			await expect(textbox.locator).toHaveValue(textbox.value);
 		}
 	}
