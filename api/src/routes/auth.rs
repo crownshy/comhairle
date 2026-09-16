@@ -40,6 +40,7 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
+use crate::auth_service::GetAuthorizationTokensResponse;
 use crate::error::ComhairleError;
 use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
@@ -759,8 +760,10 @@ async fn password_reset_update(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Deperecated. Keep for documentation.
 #[instrument(err(Debug), skip(state, client_ip, user_agent))]
-async fn refresh_session(
+#[deprecated]
+async fn legacy_refresh_session(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
@@ -789,6 +792,52 @@ async fn refresh_session(
     let jar = jar.add(session_cookie).add(refresh_cookie);
 
     Ok((jar, (StatusCode::OK, Json(user.into()))))
+}
+
+async fn refresh_session(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+) -> Result<(CookieJar, StatusCode), ComhairleError> {
+    let refresh_token = jar
+        .get(KC_REFRESH_KEY)
+        .ok_or(ComhairleError::SessionRefreshFailure(
+            RefreshFailure::Missing,
+        ))?
+        .value();
+
+    let token_result = state.auth_service.refresh_session(refresh_token).await?;
+
+    let jar = build_auth_service_token_cookies(jar, token_result);
+
+    Ok((jar, StatusCode::OK))
+}
+
+fn build_auth_service_token_cookies(
+    jar: CookieJar,
+    token_result: GetAuthorizationTokensResponse,
+) -> CookieJar {
+    let access_cookie = Cookie::build((KC_ACCESS_KEY, token_result.access_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::None)
+        .max_age(Duration::seconds(token_result.expires_in));
+    let identity_cookie = Cookie::build((KC_IDENTITY_KEY, token_result.id_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::None)
+        .max_age(Duration::seconds(token_result.expires_in));
+    let refresh_cookie = Cookie::build((KC_REFRESH_KEY, token_result.refresh_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::Strict)
+        .max_age(Duration::seconds(token_result.refresh_expires_in));
+
+    jar.add(access_cookie)
+        .add(identity_cookie)
+        .add(refresh_cookie)
 }
 
 /// Decode a JWT
@@ -1209,7 +1258,12 @@ pub async fn current_user(
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
     match access_token {
         Some(token) => {
-            let user = state.auth_service.get_user(&token).await?;
+            let user = state
+                .auth_service
+                .get_user(&token)
+                .await
+                // Token exists but is invalid
+                .map_err(|_| ComhairleError::NoLoggedInUser)?;
 
             Ok((StatusCode::OK, Json(user.into())))
         }
@@ -1248,29 +1302,7 @@ async fn authentication_callback(
         .get_authorization_tokens(&query.code, &redirect_url)
         .await?;
 
-    let access_cookie = Cookie::build((KC_ACCESS_KEY, token_result.access_token))
-        .path("/")
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::None)
-        .max_age(Duration::minutes(5));
-    let identity_cookie = Cookie::build((KC_IDENTITY_KEY, token_result.id_token))
-        .path("/")
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::None)
-        .max_age(Duration::minutes(5));
-    let refresh_cookie = Cookie::build((KC_REFRESH_KEY, token_result.refresh_token))
-        .path("/")
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::Strict)
-        .max_age(Duration::minutes(30));
-
-    let jar = jar
-        .add(access_cookie)
-        .add(identity_cookie)
-        .add(refresh_cookie);
+    let jar = build_auth_service_token_cookies(jar, token_result);
 
     // TODO: handle backTo paths, maybe via redis
     Ok((jar, Redirect::to(&state.config.domain)))
@@ -1335,6 +1367,7 @@ pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> Co
         .max_age(Duration::days(7))
 }
 
+#[deprecated]
 fn build_refresh_token_cookie<'a>(
     state: &Arc<ComhairleState>,
     user: &User,
@@ -1358,6 +1391,7 @@ fn build_refresh_token_cookie<'a>(
         .build()
 }
 
+#[deprecated]
 async fn issue_refresh_token<'a>(
     state: &Arc<ComhairleState>,
     user: &User,
