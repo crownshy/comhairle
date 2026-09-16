@@ -11,6 +11,8 @@
 	import { goto } from '$app/navigation';
 
 	import { notificationService } from '$lib/services/notifications.svelte';
+	import { notifications } from '$lib/notifications.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
 	import type { UserDto } from '@crownshy/api-client/api';
 
 	type Props = {
@@ -28,7 +30,7 @@
 			await goto('/', { invalidate: ['user'] });
 		} catch (e) {
 			console.error(e);
-			notificationService.send({
+			notifications.send({
 				priority: 'ERROR',
 				message: 'An error occurred when attempting to logout '
 			});
