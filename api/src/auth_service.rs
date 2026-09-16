@@ -28,6 +28,11 @@ pub trait AuthService: Send + Sync {
         code: &str,
         redirect_uri: &str,
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError>;
+
+    async fn refresh_session(
+        &self,
+        refresh_token: &str,
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError>;
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
@@ -47,9 +52,9 @@ pub struct GetUserResponse {
 #[derive(Deserialize, Debug, JsonSchema)]
 pub struct GetAuthorizationTokensResponse {
     pub access_token: String,
-    pub expires_in: i32,
+    pub expires_in: i64,
     pub id_token: String,
-    pub refresh_expires_in: i32,
+    pub refresh_expires_in: i64,
     pub refresh_token: String,
     pub scope: String,
     pub session_state: String,

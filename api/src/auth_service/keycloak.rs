@@ -107,6 +107,44 @@ impl KeycloakClient {
 
         Ok(json)
     }
+
+    /// Centralizes requests to Keycloak token endpoint, which may contain
+    /// differing body params, ie authentication request vs refresh request.
+    async fn auth_tokens<T: Serialize>(
+        &self,
+        form_body: &T,
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
+        let url = format!(
+            "{}/realms/{}/protocol/openid-connect/token",
+            self.domain, self.realm_name
+        );
+
+        let response = self
+            .auth_client
+            .post(url)
+            .form(form_body)
+            .send()
+            .await
+            .map_err(|e| AuthServiceError::AccessTokenFailure(e.to_string()))?;
+
+        let status = response.status();
+
+        if !status.is_success() {
+            let text = response.text().await.map_err(|_| {
+                AuthServiceError::AccessTokenFailure(format!("Failed with status code {}", status))
+            })?;
+            return Err(AuthServiceError::AccessTokenFailure(
+                json!({ "status": status.to_string(), "message": text }).to_string(),
+            ));
+        }
+
+        let json: GetAuthorizationTokensResponse = response
+            .json()
+            .await
+            .map_err(|e| AuthServiceError::AccessTokenFailure(e.to_string()))?;
+
+        Ok(json)
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -115,12 +153,20 @@ struct MasterAuthResponse {
 }
 
 #[derive(Serialize, Debug)]
-struct OpenidTokenRequest {
-    grant_type: String,
-    client_id: String,
-    client_secret: String,
-    code: String,
-    redirect_uri: String,
+struct OpenidTokenRequest<'a> {
+    grant_type: &'a str,
+    client_id: &'a str,
+    client_secret: &'a str,
+    code: &'a str,
+    redirect_uri: &'a str,
+}
+
+#[derive(Serialize, Debug)]
+struct OpenidRefreshRequest<'a> {
+    grant_type: &'a str,
+    refresh_token: &'a str,
+    client_id: &'a str,
+    client_secret: &'a str,
 }
 
 #[async_trait]
@@ -221,42 +267,29 @@ impl AuthService for KeycloakClient {
         code: &str,
         redirect_uri: &str,
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
-        let url = format!(
-            "{}/realms/{}/protocol/openid-connect/token",
-            self.domain, self.realm_name
-        );
+        let form_body = OpenidTokenRequest {
+            grant_type: "authorization_code",
+            client_id: &self.client_id,
+            client_secret: &self.client_secret,
+            redirect_uri,
+            code,
+        };
 
-        let response = self
-            .auth_client
-            .post(url)
-            .form(&OpenidTokenRequest {
-                grant_type: "authorization_code".to_string(),
-                client_id: self.client_id.clone(),
-                client_secret: self.client_secret.clone(),
-                redirect_uri: redirect_uri.to_string(),
-                code: code.to_owned(),
-            })
-            .send()
-            .await
-            .map_err(|e| AuthServiceError::AccessTokenFailure(e.to_string()))?;
+        self.auth_tokens(&form_body).await
+    }
 
-        let status = response.status();
+    async fn refresh_session(
+        &self,
+        refresh_token: &str,
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
+        let form_body = OpenidRefreshRequest {
+            grant_type: "refresh_token",
+            refresh_token,
+            client_id: &self.client_id,
+            client_secret: &self.client_secret,
+        };
 
-        if !status.is_success() {
-            let text = response.text().await.map_err(|_| {
-                AuthServiceError::AccessTokenFailure(format!("Failed with status code {}", status))
-            })?;
-            return Err(AuthServiceError::AccessTokenFailure(
-                json!({ "status": status.to_string(), "message": text }).to_string(),
-            ));
-        }
-
-        let json: GetAuthorizationTokensResponse = response
-            .json()
-            .await
-            .map_err(|e| AuthServiceError::AccessTokenFailure(e.to_string()))?;
-
-        Ok(json)
+        self.auth_tokens(&form_body).await
     }
 }
 
