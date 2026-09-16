@@ -1,5 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 import { parseWidthCookie, WIDTH_COOKIE_NAME } from '$lib/components/sidebarWidth';
+import { SIDEBAR_VARIANT_COOKIE } from './sidebar-prototype/variant.svelte';
 
 /**
  * Read the persisted sidebar width from its cookie so the layout renders the correct
@@ -7,5 +8,9 @@ import { parseWidthCookie, WIDTH_COOKIE_NAME } from '$lib/components/sidebarWidt
  * The value is re-clamped in {@link parseWidthCookie}, so a tampered cookie is harmless.
  */
 export const load: LayoutServerLoad = async ({ cookies }) => {
-	return { sidebarWidth: parseWidthCookie(cookies.get(WIDTH_COOKIE_NAME)) };
+	return {
+		sidebarWidth: parseWidthCookie(cookies.get(WIDTH_COOKIE_NAME)),
+		// PROTOTYPE: sidebar variant switcher, see sidebar-prototype/NOTES.md.
+		sidebarPrototypeVariant: cookies.get(SIDEBAR_VARIANT_COOKIE) ?? null
+	};
 };

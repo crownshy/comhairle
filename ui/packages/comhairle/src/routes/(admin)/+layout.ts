@@ -40,7 +40,8 @@ export const load: LayoutLoad = async ({ parent, data, depends }) => {
 			ownedConversations,
 			permittedConversations: nonOwnedPermittedConversations,
 			userOrganizations,
-			sidebarWidth: data.sidebarWidth
+			sidebarWidth: data.sidebarWidth,
+			sidebarPrototypeVariant: data.sidebarPrototypeVariant
 		};
 	} catch (e) {
 		if (e.status === 401) {

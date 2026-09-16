@@ -18,8 +18,12 @@
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { useSidebarVariant } from '../../../sidebar-prototype/variant.svelte';
 
 	let { data, children } = $props();
+
+	// PROTOTYPE: sidebar variants other than `current` list the sections, so the tab row goes.
+	const sidebarVariant = useSidebarVariant();
 
 	let conversation = $derived(data.conversation);
 	let displayTitle = $derived(
@@ -268,7 +272,12 @@
 	 their height inside the viewport-capped `main` (otherwise flexbox compresses them). -->
 <div class="flex shrink-0 flex-col">
 	<!-- Row 2: section tabs -->
-	<ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
+	{#if (sidebarVariant?.current ?? 'current') === 'current'}
+		<ConversationTabs
+			conversationId={conversation.id}
+			conversationIsLive={conversation.isLive}
+		/>
+	{/if}
 
 	<!-- Row 3+ : section sub-strips, all server-rendered here from loaded data / static lists
 		 (keyed off the pathname), never injected from a child `$effect`. Once a switch has run long

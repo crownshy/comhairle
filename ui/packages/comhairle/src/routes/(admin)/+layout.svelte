@@ -7,6 +7,19 @@
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
 	import { loginRedirectServer } from '$lib/urls';
+	import { replaceState } from '$app/navigation';
+	import PrototypeSwitcher from '$lib/components/PrototypeSwitcher.svelte';
+	import SidebarDrillIn from './sidebar-prototype/SidebarDrillIn.svelte';
+	import SidebarSwitcher from './sidebar-prototype/SidebarSwitcher.svelte';
+	import SidebarRail from './sidebar-prototype/SidebarRail.svelte';
+	import SidebarJourney from './sidebar-prototype/SidebarJourney.svelte';
+	import {
+		SIDEBAR_VARIANTS,
+		SIDEBAR_VARIANT_COOKIE,
+		isSidebarVariant,
+		setSidebarVariant,
+		type SidebarVariantKey
+	} from './sidebar-prototype/variant.svelte';
 
 	let { children, data }: LayoutProps = $props();
 	let ownedConversations = $derived(data.ownedConversations);
@@ -27,6 +40,30 @@
 			sidebarWidthPx = clampWidth(px);
 		}
 	});
+
+	// PROTOTYPE: sidebar variants. `?variant=` wins so links are shareable; otherwise the cookie
+	// keeps the choice across navigations. Delete with sidebar-prototype/.
+	let chosenVariant = $derived<SidebarVariantKey>(
+		isSidebarVariant(data.sidebarPrototypeVariant) ? data.sidebarPrototypeVariant : 'current'
+	);
+	let urlVariant = $derived(page.url.searchParams.get('variant'));
+	let sidebarVariant = $derived<SidebarVariantKey>(
+		isSidebarVariant(urlVariant) ? urlVariant : chosenVariant
+	);
+	function chooseVariant(key: string) {
+		if (!isSidebarVariant(key)) return;
+		chosenVariant = key;
+		document.cookie = `${SIDEBAR_VARIANT_COOKIE}=${key}; path=/; max-age=2592000`;
+		const url = new URL(page.url);
+		url.searchParams.set('variant', key);
+		replaceState(url, page.state);
+	}
+	setSidebarVariant({
+		get current() {
+			return sidebarVariant;
+		},
+		set: chooseVariant
+	});
 </script>
 
 <SideBar.Provider
@@ -34,16 +71,30 @@
 	style="--sidebar-width: {sidebarWidthPx}px;"
 	data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
 >
-	<AdminNav
-		user={data.user}
-		ownedConversations={ownedConversations?.records ?? []}
-		permittedConversations={permittedConversations?.records ?? []}
-		userOrganizations={userOrganizations ?? {
-			organizations: [],
-			canCreateOrganization: false
-		}}
-		path={page.url.pathname}
-	/>
+	{#if sidebarVariant === 'drill-in'}
+		<SidebarDrillIn user={data.user} />
+	{:else if sidebarVariant === 'switcher'}
+		<SidebarSwitcher
+			user={data.user}
+			ownedConversations={ownedConversations?.records ?? []}
+			permittedConversations={permittedConversations?.records ?? []}
+		/>
+	{:else if sidebarVariant === 'rail'}
+		<SidebarRail user={data.user} />
+	{:else if sidebarVariant === 'journey'}
+		<SidebarJourney user={data.user} />
+	{:else}
+		<AdminNav
+			user={data.user}
+			ownedConversations={ownedConversations?.records ?? []}
+			permittedConversations={permittedConversations?.records ?? []}
+			userOrganizations={userOrganizations ?? {
+				organizations: [],
+				canCreateOrganization: false
+			}}
+			path={page.url.pathname}
+		/>
+	{/if}
 	<SideBar.Inset class="min-h-0 min-w-0">
 		<SidebarFloatingTriggers />
 		<main class="bg-muted flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
@@ -51,6 +102,8 @@
 		</main>
 	</SideBar.Inset>
 </SideBar.Provider>
+
+<PrototypeSwitcher variants={SIDEBAR_VARIANTS} current={sidebarVariant} onChange={chooseVariant} />
 
 <style>
 	:global([data-slot='sidebar-wrapper'] [data-slot='sidebar-gap']),
