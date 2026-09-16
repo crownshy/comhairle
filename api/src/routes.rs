@@ -1,6 +1,7 @@
 pub mod api_keys;
 pub mod audio_recordings;
 pub mod auth;
+pub mod chat_instructions;
 pub mod chat_sessions;
 pub mod chats;
 pub mod conversations;
@@ -13,6 +14,7 @@ pub mod feedback;
 pub mod invites;
 pub mod jobs;
 pub mod media;
+pub mod moderation_policies;
 pub mod notifications;
 pub mod organizations;
 pub mod permissions;

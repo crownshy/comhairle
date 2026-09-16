@@ -2,6 +2,9 @@
 
 **Status:** Proposal - to be discussed with the team
 **Date:** 2026-08-13
+**Amended by:** ADR-0037 (the reason list is now per conversation; storage is unchanged),
+ADR-0038 (the list moves to database tables and a Polis step picks one; `moderation_reason`
+is still free text)
 
 ## Context
 

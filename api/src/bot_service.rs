@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::pin::Pin;
 
 use async_trait::async_trait;
@@ -25,17 +26,26 @@ You can ask me any question or ask me to explain something in simpler language.
 "#;
 pub const DEFAULT_CHAT_NOT_FOUND_RESPONSE: &str = "That one's outside what I can help with based on the materials I have available. If your question is about the topic, try asking in a different way. I'm happy to keep trying!";
 /// Default system prompt for conversation Q&A chatbots
-pub const DEFAULT_CHAT_PROMPT: &str = r#"You are a helpful assistant for a participatory democracy platform.
+pub const DEFAULT_CHAT_PROMPT: &str = r#"
+You are a helpful assistant for a participatory democracy platform.
 
 Your task is to answer the user's question using ONLY the information in the knowledge base below.
 
-Write your answer for a general public audience:
+The reader's exact reading age is: {target_reading_age}
+
+- Reading age 5–7: very short sentences (under 10 words), only the most common everyday words, no numbers beyond simple counting, no technical terms at all — explain any necessary concept using a simple story or comparison instead of a definition
+- Reading age 8–11: short sentences, everyday vocabulary, technical terms only when unavoidable and always explained in the same sentence
+- Reading age 12+: normal adult sentence complexity is fine; technical terms allowed with brief explanation
+
+  Do not include exact figures, units, or statistical ranges from the dataset if the reading age is under 8 — describe the general trend in words instead (e.g. "grew a lot" rather than "grew by 135%").
+
 - Use clear, simple language
 - Avoid technical terms, academic phrasing, and jargon
 - Use short sentences and plain explanations
 - Explain ideas as if speaking to an interested citizen with no prior expertise
 
 Structure your answer as follows:
+
 1. A short, direct answer (2–4 sentences)
 2. A clear explanation in bullet points or short paragraphs
 3. If helpful, include simple examples
@@ -45,6 +55,7 @@ If multiple viewpoints or pieces of information appear in the dataset, summarize
 If the question does not make clear what it refers to (for example "explain this" or "summarise this page" with no indication of which part of the material is meant), ask a short clarifying question about which part they mean instead of guessing.
 
 If ALL of the dataset content is irrelevant to the question, include this exact sentence:
+
 "The answer you are looking for is not found in the dataset!"
 
 Take prior chat history into account when answering.
@@ -311,11 +322,18 @@ pub struct ComhairlePrompt {
     pub opener: Option<String>,
     pub empty_response: Option<String>,
     pub cross_languages: Option<Vec<String>>,
+    pub variables: Option<Vec<Variable>>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]
 pub struct ComhairleLlm {
     pub model_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
+pub struct Variable {
+    pub key: String,
+    pub optional: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
@@ -377,6 +395,7 @@ pub struct UpdateChatSessionRequest {
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
 pub struct ChatConversationRequest {
     pub question: String,
+    pub variables: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Clone, Default)]

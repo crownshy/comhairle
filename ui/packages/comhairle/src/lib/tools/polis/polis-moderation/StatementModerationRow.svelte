@@ -3,10 +3,13 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Check, Pencil, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import RejectReasonPopover from './RejectReasonPopover.svelte';
 
 	type Props = {
 		row: PolisStatementAux;
+		/** The conversation's moderation policy reasons, offered on reject. */
+		rejectReasons: RejectReason[];
 		selected: boolean;
 		/** How many rows are selected overall; drives whether this row's accept/reject
 		 * acts on the whole selection and how the reject popover is labelled. */
@@ -28,6 +31,7 @@
 
 	let {
 		row,
+		rejectReasons,
 		selected,
 		selectionCount,
 		pending,
@@ -166,6 +170,7 @@
 			<Check class="size-6" />
 		</button>
 		<RejectReasonPopover
+			reasons={rejectReasons}
 			heading={rejectHeading}
 			disabled={pending ||
 				bulkWorking ||
