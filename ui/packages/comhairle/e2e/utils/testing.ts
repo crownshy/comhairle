@@ -1,5 +1,6 @@
 import { test as base } from '@playwright/test';
 import { gotoComhairle } from './navigation';
+import { sleep } from '.';
 
 type CleanupCallback = () => Promise<void>;
 
@@ -25,5 +26,8 @@ export const test = base.extend<Fixtures>({
 		await use((fn) => cleanups.push(fn));
 
 		await Promise.all(cleanups.map((fn) => fn()));
+
+		// Wait for fields to save before exiting
+		await sleep(1.5);
 	}
 });
