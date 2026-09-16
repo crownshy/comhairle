@@ -72,7 +72,7 @@ export default defineConfig({
 
 	/* Run your local dev server before starting the tests */
 	webServer: {
-		command: 'pn build && pn preview',
+		command: 'pnpm build && pnpm preview',
 		port: 4173,
 		timeout: 5 * Minute
 	}

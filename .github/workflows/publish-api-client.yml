@@ -24,6 +24,10 @@ jobs:
       - 
         name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+          shared-key: api
       - 
         name: Generate OpenAPI Spec
         run: cargo run --package api_spec_gen --bin api_spec_gen

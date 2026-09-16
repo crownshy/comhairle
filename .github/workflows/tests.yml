@@ -103,8 +103,17 @@ jobs:
         name: Checkout repository
         uses: actions/checkout@v4
 
+      -
+        name: Check for prior passing run
+        id: test-passed-cache
+        uses: actions/cache@v4
+        with:
+          path: .api-tests-passed
+          key: api-tests-passed-${{ github.sha }}
+
       - 
         name: Install Rust
+        if: steps.test-passed-cache.outputs.cache-hit != 'true'
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -113,6 +122,7 @@ jobs:
       -
         name: Resolve cargo-nextest version
         id: nextest-version
+        if: steps.test-passed-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -126,6 +136,7 @@ jobs:
       -
         name: Cache cargo-nextest
         id: cache-nextest
+        if: steps.test-passed-cache.outputs.cache-hit != 'true'
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/cargo-nextest
@@ -133,18 +144,21 @@ jobs:
 
       -
         name: Install cargo nextest
-        if: steps.cache-nextest.outputs.cache-hit != 'true'
+        if: steps.test-passed-cache.outputs.cache-hit != 'true' && steps.cache-nextest.outputs.cache-hit != 'true'
         run: cargo install cargo-nextest --locked --version ${{ steps.nextest-version.outputs.version }}
 
       - 
         name: Rust cache
+        if: steps.test-passed-cache.outputs.cache-hit != 'true'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             . -> target
+          shared-key: api-test
 
       - 
         name: Wait for PostgreSQL to be ready
+        if: steps.test-passed-cache.outputs.cache-hit != 'true'
         run: |
           for i in {1..30}; do
             nc -z localhost 5432 && echo "PostgreSQL is ready" && exit 0
@@ -155,6 +169,7 @@ jobs:
       
       - 
         name: Run unit tests
+        if: steps.test-passed-cache.outputs.cache-hit != 'true'
         working-directory: api
         env:
           DATABASE_URL: postgres://test_user:test_password@localhost:5432/test_db
@@ -172,3 +187,8 @@ jobs:
           CATEGORIZATION_SERVICE__WEBHOOK_SECRET: ${{ secrets.CATEGORIZATION_SERVICE__WEBHOOK_SECRET }}
           BULK_STORAGE_SERVICE__STORE_NAME: ${{ secrets.BULK_STORAGE_SERVICE__STORE_NAME }}
         run: cargo nextest run --verbose
+
+      -
+        name: Mark commit as passed
+        if: steps.test-passed-cache.outputs.cache-hit != 'true'
+        run: touch .api-tests-passed
