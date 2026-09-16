@@ -51,6 +51,6 @@ This will clear out the existing database and populate it with a test setup
 
 1. Install Playwright dependencies: `sudo npx playwright install-deps`
 2. Run `npx run playwright` to install browsers:
-
-> [!NOTE]
-> If you have trouble with this where the download is freezing then try rolling back `node` to `v24.15.0` of node [more here](https://github.com/microsoft/playwright/issues/40724)
+    > [!NOTE]
+    > If you have trouble with this where the download is freezing then try rolling back `node` to `v24.15.0` of node [more here](https://github.com/microsoft/playwright/issues/40724)
+3. Add `.playwright.env` with values of `PLAYWRIGHT_ADMIN_USERNAME` and `PLAYWRIGHT_ADMIN_PASSWORD`
