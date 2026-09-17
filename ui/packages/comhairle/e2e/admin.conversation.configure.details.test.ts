@@ -46,7 +46,8 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// await testWithRefresh(page, async () => {
 	await textboxes.expected();
 
-	await sleep(0.5);
+	// Wait for data to refresh before checking
+	await sleep(1.5);
 
 	const header = page.getByRole('heading', {
 		description: textboxes.get('title').value,
