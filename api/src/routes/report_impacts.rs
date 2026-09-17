@@ -22,7 +22,7 @@ use crate::{
     routes::report_impacts::dto::ReportImpactDto,
 };
 
-use super::auth::RequiredAdminUser;
+use super::auth::extract::RequiredAdminUser;
 
 pub mod dto;
 

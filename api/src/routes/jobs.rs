@@ -18,7 +18,7 @@ use crate::{
         job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
-    routes::auth::RequiredAdminUser,
+    routes::auth::extract::RequiredAdminUser,
 };
 
 #[instrument(err(Debug), skip(state))]

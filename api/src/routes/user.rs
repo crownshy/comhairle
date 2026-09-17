@@ -27,14 +27,17 @@ use crate::{
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{
-        conversations::dto::LocalizedConversationDto, organizations::dto::LocalizedOrganizationDto,
-        user::dto::UserDto,
+        auth::layer::required_auth, conversations::dto::LocalizedConversationDto,
+        organizations::dto::LocalizedOrganizationDto, user::dto::UserDto,
     },
 };
 
 pub mod dto;
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{
+    extract::{RequiredAdminUser, RequiredUser},
+    is_user_admin,
+};
 use super::translations::LocaleExtractor;
 
 #[instrument(err(Debug), skip(state))]
@@ -367,13 +370,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/roles",
-            get_with(get_user_roles, |op| {
-                op.id("GetUserRoles")
-                    .tag("User")
-                    .description("Gets a list of roles the current user has")
-                    .security_requirement("JWT")
-                    .response::<201, Json<Vec<UserRoles>>>()
-            }),
+            required_auth(
+                get_with(get_user_roles, |op| {
+                    op.id("GetUserRoles")
+                        .tag("User")
+                        .description("Gets a list of roles the current user has")
+                        .security_requirement("JWT")
+                        .response::<201, Json<Vec<UserRoles>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/conversations",

@@ -19,7 +19,7 @@ use crate::{
     routes::user_progress::dto::UserProgressDto,
 };
 
-use super::auth::RequiredUser;
+use super::auth::extract::RequiredUser;
 
 pub mod dto;
 

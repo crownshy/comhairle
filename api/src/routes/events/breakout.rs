@@ -23,7 +23,7 @@ use crate::{
         event::{BreakoutPlan, BreakoutPlanRoom},
         event_attendance, invites,
     },
-    routes::auth::RequiredAdminUser,
+    routes::auth::extract::RequiredAdminUser,
 };
 
 /// A seat in the plan, enriched with a human-readable label for the admin UI.

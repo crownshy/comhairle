@@ -25,7 +25,10 @@ use crate::{
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin},
+        auth::{
+            extract::{RequiredAdminUser, RequiredUser},
+            generate_jwt, is_user_admin,
+        },
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },

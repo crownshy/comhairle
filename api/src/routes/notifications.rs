@@ -26,7 +26,7 @@ use crate::{
     },
 };
 
-use super::auth::RequiredUser;
+use super::auth::extract::RequiredUser;
 
 pub mod dto;
 

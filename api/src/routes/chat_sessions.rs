@@ -20,7 +20,7 @@ use crate::bot_service::{ChatConversationRequest, ComhairleChatSession};
 use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::chat_instructions::{self, ChatInstructionsExt};
 use crate::models::conversation;
-use crate::routes::auth::RequiredUser;
+use crate::routes::auth::extract::RequiredUser;
 use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]

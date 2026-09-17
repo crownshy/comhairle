@@ -26,10 +26,11 @@ use crate::{
     routes::{
         auth::{OtpSignupRequest, create_session_cookie},
         invites::dto::InviteDto,
+        user::dto::UserDto,
     },
 };
 
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
+use super::auth::extract::{OptionalUser, RequiredAdminUser, RequiredUser};
 
 pub mod dto;
 
@@ -365,6 +366,7 @@ async fn auto_register_event_attendance(
         warn!("Failed to slot user into breakout plan: {error}");
     }
 
+    let user: UserDto = user.into();
     let invite = invite.accept(&state.db, &user).await?;
 
     let cookie = create_session_cookie(&user, &state);

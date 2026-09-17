@@ -16,7 +16,10 @@ use uuid::Uuid;
 
 use crate::models;
 use crate::models::report::{FullReportDto, PartialReport, ReportWithTranslations};
-use crate::routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
+use crate::routes::auth::{
+    extract::{OptionalUser, RequiredAdminUser},
+    is_user_admin,
+};
 use crate::routes::reports::dto::{LocalizedReportDto, ReportDto};
 use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleState, error::ComhairleError};

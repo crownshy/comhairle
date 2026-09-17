@@ -32,7 +32,10 @@ use crate::{
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep},
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{
+    extract::{RequiredAdminUser, RequiredUser},
+    is_user_admin,
+};
 use crate::models::{self, conversation, user_participation};
 use axum::extract::{FromRequestParts, Query};
 

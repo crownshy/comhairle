@@ -27,6 +27,7 @@ use crate::{
         translations::{TextContentId, TextFormat, new_translation},
         users::User,
     },
+    routes::user::dto::UserDto,
 };
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -287,7 +288,7 @@ impl LocalizedEvent {
     pub async fn schedule_event_reminders(
         &self,
         db: &PgPool,
-        recipient: &User,
+        recipient: &UserDto,
         owner_id: Uuid,
         locale: &str,
     ) -> Result<(), ComhairleError> {

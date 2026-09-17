@@ -14,7 +14,7 @@ use crate::{
         self,
         user_profile::{CreateUserProfile, PartialUserProfile},
     },
-    routes::{auth::RequiredUser, user_profile::dto::UserProfileDto},
+    routes::{auth::extract::RequiredUser, user_profile::dto::UserProfileDto},
 };
 
 pub mod dto;

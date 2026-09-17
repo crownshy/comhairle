@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::bot_service::{ComhairleChat, UpdateChatRequest};
 use crate::models::conversation;
-use crate::routes::auth::RequiredAdminUser;
+use crate::routes::auth::extract::RequiredAdminUser;
 use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]

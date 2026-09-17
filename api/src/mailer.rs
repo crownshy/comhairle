@@ -6,8 +6,9 @@ use crate::models::email_template_config::{
 use crate::models::event::{self, ResolveTimeZone};
 use crate::models::otp;
 use crate::models::permissions::ResourcePermission;
-use crate::models::users::{self, User};
+use crate::models::users;
 use crate::routes::auth::{OtpClaims, generate_jwt};
+use crate::routes::user::dto::UserDto;
 use crate::{ComhairleState, error::ComhairleError};
 
 use async_trait::async_trait;
@@ -52,7 +53,8 @@ pub trait ComhairleMailer: Send + Sync {
         locale: &str,
     ) -> Result<(), ComhairleError>;
 
-    fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError>;
+    fn send_welcome_email(&self, user: &UserDto, verify_link: String)
+    -> Result<(), ComhairleError>;
 
     fn send_password_reset_email(
         &self,
@@ -347,7 +349,11 @@ impl ComhairleMailer for Mailer {
         Ok(())
     }
 
-    fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError> {
+    fn send_welcome_email(
+        &self,
+        user: &UserDto,
+        verify_link: String,
+    ) -> Result<(), ComhairleError> {
         if let Some(email) = &user.email {
             self.send_email(
                 email,
@@ -595,7 +601,7 @@ impl ComhairleMailer for Mailer {
         // Ensure JWT doesn't expire before event begins
         let event_jwt_duration = event.start_time - Utc::now();
         let otp_token = generate_jwt()
-            .user(&recipient)
+            .user(&recipient.into())
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .duration(event_jwt_duration)

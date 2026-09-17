@@ -26,7 +26,7 @@ use crate::{
         users,
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::extract::{RequiredAdminUser, RequiredUser},
         event_attendances::dto::EventAttendanceDto,
     },
 };
@@ -88,7 +88,7 @@ pub async fn create(
             // Registering a different user can only be performed by the
             // conversation owner
             if conversation.owner_id == user.id {
-                users::get_user_by_email(&email, &state.db).await?
+                users::get_user_by_email(&email, &state.db).await?.into()
             } else {
                 return Err(ComhairleError::UserIsNotConversationOwner);
             }

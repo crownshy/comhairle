@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredAdminUser};
+use crate::{ComhairleState, error::ComhairleError, routes::auth::extract::RequiredAdminUser};
 use aide::{
     OperationIo,
     axum::{

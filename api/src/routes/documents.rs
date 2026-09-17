@@ -24,7 +24,10 @@ use crate::{
         job::{self, CreateJob},
         translations, user_participation, workflow, workflow_step,
     },
-    routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin},
+    routes::auth::{
+        extract::{OptionalUser, RequiredAdminUser},
+        is_user_admin,
+    },
     tools::{
         ToolConfig,
         learn::{LearnPageEntry, PageContent},

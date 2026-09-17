@@ -7,13 +7,12 @@ use aide::axum::{
     routing::{delete_with, get_with, post_with, put_with},
 };
 use axum::{
-    Extension,
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
 use axum_keycloak_auth::{
-    NonEmpty, PassthroughMode, decode::KeycloakToken, extract::TokenExtractor,
-    instance::KeycloakAuthInstance, layer::KeycloakAuthLayer,
+    NonEmpty, PassthroughMode, extract::TokenExtractor, instance::KeycloakAuthInstance,
+    layer::KeycloakAuthLayer,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -25,19 +24,19 @@ use crate::models::email_template_config::{
     self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
     EmailTypeSchema, UpdateEmailTemplateConfig,
 };
-use crate::routes::auth::{KcAccessTokenCookieExtractor, RequiredAdminUser};
+use crate::routes::auth::extract::{
+    ComhairleExtAttrs, KcAccessTokenCookieExtractor, RequiredAdminUser,
+};
 use crate::routes::email_template_configs::dto::EmailTemplateConfigDto;
 use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]
 async fn create(
     State(state): State<Arc<ComhairleState>>,
-    Extension(token): Extension<KeycloakToken<String>>,
     RequiredAdminUser(user): RequiredAdminUser,
     Json(payload): Json<CreateEmailTemplateConfig>,
 ) -> Result<(StatusCode, Json<EmailTemplateConfigDto>), ComhairleError> {
-    let user_id = Uuid::parse_str(&token.subject).unwrap(); // TODO: find better way to handle this
-    let email_config = email_template_config::create(&state.db, user_id, &payload).await?;
+    let email_config = email_template_config::create(&state.db, user.id, &payload).await?;
 
     Ok((StatusCode::CREATED, Json(email_config.into())))
 }
@@ -240,7 +239,7 @@ pub fn router(state: Arc<ComhairleState>, auth_instance: Arc<KeycloakAuthInstanc
             }),
         )
         .layer(
-            KeycloakAuthLayer::<String>::builder()
+            KeycloakAuthLayer::<String, ComhairleExtAttrs>::builder()
                 .instance(auth_instance)
                 .passthrough_mode(PassthroughMode::Block)
                 .persist_raw_claims(false)

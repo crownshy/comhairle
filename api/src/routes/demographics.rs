@@ -20,13 +20,17 @@ use crate::models::demographics::{
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{Action, can_perform_resource_action};
 use crate::models::users::User;
-use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::routes::auth::{
+    extract::{OptionalUser, RequiredAdminUser, RequiredUser},
+    is_user_admin,
+};
+use crate::routes::user::dto::UserDto;
 
 /// Whether `user` is allowed to view `conversation_id`: admins, the owner, anyone
 /// with `ConversationRead`, or anyone at all once the conversation is live.
 async fn can_view_conversation(
     state: &Arc<ComhairleState>,
-    user: Option<&User>,
+    user: Option<&UserDto>,
     conversation_id: Uuid,
 ) -> Result<bool, ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;

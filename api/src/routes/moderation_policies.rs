@@ -11,14 +11,19 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::{
-    self,
-    moderation_policy::{self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy},
-    permissions::{Action, ConversationResource},
-    users::User,
-};
-use crate::routes::auth::{RequiredUser, authorize};
+use crate::routes::auth::{authorize, extract::RequiredUser};
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    models::{
+        self,
+        moderation_policy::{
+            self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy,
+        },
+        permissions::{Action, ConversationResource},
+        users::User,
+    },
+    routes::user::dto::UserDto,
+};
 use dto::{DefaultModerationPolicyReasonDto, ModerationPolicyDto};
 
 pub mod dto;
@@ -27,7 +32,7 @@ pub mod dto;
 /// conversation update permission that moderating a statement already checks.
 async fn authorize_policy_access(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     conversation_id: &Uuid,
 ) -> Result<(), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, conversation_id).await?;
