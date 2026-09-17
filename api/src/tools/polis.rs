@@ -61,6 +61,10 @@ pub struct PolisToolConfig {
     // with a "conversation starter" label in the participant embed.
     #[serde(default)]
     pub label_seeds_as_conversation_starter: bool,
+    // Reasons offered when rejecting a statement. None means the built-in
+    // defaults in models::moderation_policy::DEFAULT_REASONS.
+    #[serde(default)]
+    pub moderation_policy_id: Option<Uuid>,
 }
 
 fn default_show_remaining_statements() -> bool {
@@ -81,6 +85,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             is_active: self.is_active,
             strict_moderation: self.strict_moderation,
             label_seeds_as_conversation_starter: self.label_seeds_as_conversation_starter,
+            moderation_policy_id: self.moderation_policy_id,
         }
     }
 }
@@ -1238,7 +1243,10 @@ pub async fn launch(
             .await?;
     }
 
-    Ok(live_poll_config)
+    Ok(PolisToolConfig {
+        moderation_policy_id: preview_config.moderation_policy_id,
+        ..live_poll_config
+    })
 }
 
 async fn polis_setup(
@@ -1269,6 +1277,7 @@ async fn polis_setup(
         is_active: Some(true),
         strict_moderation: Some(false),
         label_seeds_as_conversation_starter: false,
+        moderation_policy_id: None,
     })
 }
 

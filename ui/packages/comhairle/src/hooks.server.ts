@@ -5,6 +5,7 @@ import { env } from '$env/dynamic/public';
 import { resolveThemeName, DEFAULT_THEME, THEMES } from '$lib/types/theme';
 import { getTextDirection } from '$lib/paraglide/runtime';
 import { serverApiBaseUrl } from '$lib/apiBaseUrl';
+import setCookieParser from 'set-cookie-parser';
 
 const isEmbeddable = (pathname: string) =>
 	EMBEDDABLE_PATHS.some((path) => pathname.startsWith(path));
@@ -91,7 +92,7 @@ export const handle: Handle = sequence(handleTheme, handleParaglide, handleHeade
 // from the frontend pod, so without this the API records the NAT gateway IP instead
 // of the real client. Forward the browser IP (set by nginx on the inbound request)
 // on requests to our own API only, so it never leaks to third-party hosts.
-export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
+export const handleFetch: HandleFetch = async ({ event, request, fetch }) => {
 	const url = new URL(request.url);
 	// Matches our API whether it is reached through the public origin or, in a deployment that
 	// sets one, the internal service address.
@@ -114,5 +115,40 @@ export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
 			request.headers.set('user-agent', userAgent);
 		}
 	}
-	return fetch(request);
+
+	let response = await fetch(request);
+
+	if (response.status === 401 && !request.url.includes('/api/auth/refresh')) {
+		const refreshResponse = await fetch(`${event.url.origin}/api/auth/refresh`, {
+			method: 'POST',
+			credentials: request.credentials
+		});
+
+		if (refreshResponse.ok) {
+			// Update cookie jar to those from `/refresh` request to get new
+			// `auth-token` cookie.
+			const refreshSetCookieHeader = refreshResponse.headers.getSetCookie();
+			const parsedSetCookies = setCookieParser(refreshSetCookieHeader);
+			for (const cookie of parsedSetCookies) {
+				event.cookies.set(cookie.name, cookie.value, {
+					path: cookie.path ?? '/',
+					maxAge: cookie.maxAge,
+					httpOnly: cookie.httpOnly,
+					secure: cookie.secure,
+					sameSite: cookie.sameSite as SameSite
+				});
+			}
+
+			const retryRequest = request.clone();
+			// Delete cookie header from request after cloning to force updated
+			// cookie jar (`event.cookies`) with valid `auth-token` to be used
+			retryRequest.headers.delete('cookie');
+
+			response = await fetch(retryRequest);
+		}
+	}
+
+	return response;
 };
+
+type SameSite = boolean | 'lax' | 'strict' | 'none' | undefined;

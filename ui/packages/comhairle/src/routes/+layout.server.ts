@@ -1,30 +1,31 @@
 import type { LayoutServerLoad } from './$types.js';
 import { env } from '$env/dynamic/public';
-import { serverApiBaseUrl } from '$lib/apiBaseUrl';
 
 export const load: LayoutServerLoad = async (event) => {
 	event.depends('user');
 
-	const tk = event.cookies.get('auth-token');
 	const common = {
 		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true'
 	};
 
-	if (!tk) {
-		return {
-			user: null,
-			...common
-		};
-	}
-
-	const resp = await event.fetch(`${serverApiBaseUrl(event.url)}/auth/current_user`, {
+	const resp = await event.fetch(`/api/auth/current_user`, {
 		method: 'GET',
-		// An absolute internal URL is cross-origin as far as `event.fetch` is concerned, so it
-		// stops forwarding the request's cookies and the token has to be passed by hand.
-		headers: { Accept: 'application/json', Cookie: `auth-token=${tk}` }
+		// Stays on the public origin rather than `serverApiBaseUrl`: the refresh retry in
+		// `handleFetch` relies on `event.fetch` forwarding the updated cookie jar, which it only
+		// does for same-origin requests.
+		headers: { Accept: 'application/json' }
 	});
 
-	if (!resp.ok) {
+	// Keep extraction of `auth-token` cookie after `/api/auth/current_user`
+	// request.
+	//
+	// This ensures `tk` passed down to `+layout.ts` (where `api` client is
+	// constructed) always contains a fresh `auth-token`, which may have been
+	// updated as part of the refresh flow in `handleFetch` (see
+	// `hooks.server.ts`).
+	const tk = event.cookies.get('auth-token');
+
+	if (!tk || !resp.ok) {
 		return { user: null, ...common };
 	}
 	const body = await resp.json();

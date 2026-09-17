@@ -262,6 +262,10 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
                     routes::chat_instructions::router(state.clone()),
                 )
                 .nest_api_service(
+                    "/{conversation_id}/moderation_policies",
+                    routes::moderation_policies::router(state.clone()),
+                )
+                .nest_api_service(
                     "/{conversation_id}/chat_sessions",
                     routes::chat_sessions::router(state.clone()),
                 )

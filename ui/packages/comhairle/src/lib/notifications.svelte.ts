@@ -15,6 +15,7 @@ class NotificationsManager {
 	private static DEFAULT_DURATION = 60000;
 
 	public send(opts: SendOpts) {
+		if (!NotificationsManager.isShown(opts.priority)) return;
 		this.toastFn(opts.priority)(opts.message, {
 			duration: opts.duration || NotificationsManager.DEFAULT_DURATION,
 			action: opts.action
@@ -29,6 +30,7 @@ class NotificationsManager {
 	}
 
 	private sendServerNotification(opts: SendServerNotificationOpts) {
+		if (!NotificationsManager.isShown(opts.priority)) return;
 		this.toastFn(opts.priority)(opts.message, {
 			duration: opts.duration || NotificationsManager.DEFAULT_DURATION,
 			onDismiss: () => {
@@ -73,6 +75,11 @@ class NotificationsManager {
 	private async ack(id: string) {
 		console.log(`acknowlegding server notification ${id}`);
 		// TODO: implement
+	}
+
+	// Corner toasts for routine feedback were more noise than help, so only errors surface.
+	private static isShown(priority?: NotificationPriorities) {
+		return priority === 'ERROR';
 	}
 
 	private toastFn(priority?: NotificationPriorities) {

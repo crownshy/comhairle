@@ -1366,6 +1366,10 @@ export const ToolConfig = z.union([
         .boolean()
         .optional()
         .default(false),
+      moderation_policy_id: z
+        .union([z.string(), z.null()])
+        .optional()
+        .default(null),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
@@ -1573,6 +1577,10 @@ export const ToolConfigWithTranslations = z.union([
         .boolean()
         .optional()
         .default(false),
+      moderation_policy_id: z
+        .union([z.string(), z.null()])
+        .optional()
+        .default(null),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
@@ -1713,6 +1721,10 @@ export const LocalizedToolConfig = z.union([
         .boolean()
         .optional()
         .default(false),
+      moderation_policy_id: z
+        .union([z.string(), z.null()])
+        .optional()
+        .default(null),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
@@ -2279,6 +2291,64 @@ export const UpsertChatInstructions = z
   .partial()
   .passthrough();
 export type UpsertChatInstructions = z.infer<typeof UpsertChatInstructions>;
+export const ModerationPolicyReasonDto = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    label: z.string(),
+    position: z.number().int(),
+  })
+  .passthrough();
+export type ModerationPolicyReasonDto = z.infer<
+  typeof ModerationPolicyReasonDto
+>;
+export const ModerationPolicyDto = z
+  .object({
+    conversationId: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    name: z.string(),
+    reasons: z.array(ModerationPolicyReasonDto),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type ModerationPolicyDto = z.infer<typeof ModerationPolicyDto>;
+export const NewModerationPolicyReason = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    label: z.string(),
+  })
+  .passthrough();
+export type NewModerationPolicyReason = z.infer<
+  typeof NewModerationPolicyReason
+>;
+export const CreateModerationPolicy = z
+  .object({
+    name: z.string(),
+    reasons: z.union([z.array(NewModerationPolicyReason), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateModerationPolicy = z.infer<typeof CreateModerationPolicy>;
+export const DefaultModerationPolicyReasonDto = z
+  .object({ description: z.string(), label: z.string() })
+  .passthrough();
+export type DefaultModerationPolicyReasonDto = z.infer<
+  typeof DefaultModerationPolicyReasonDto
+>;
+export const UpdateModerationPolicyReason = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    id: z.union([z.string(), z.null()]).optional(),
+    label: z.string(),
+  })
+  .passthrough();
+export type UpdateModerationPolicyReason = z.infer<
+  typeof UpdateModerationPolicyReason
+>;
+export const UpdateModerationPolicy = z
+  .object({ name: z.string(), reasons: z.array(UpdateModerationPolicyReason) })
+  .passthrough();
+export type UpdateModerationPolicy = z.infer<typeof UpdateModerationPolicy>;
 export const ComhairleChatSession = z
   .object({
     chat_id: z.string(),
@@ -3441,6 +3511,13 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateChatRequest,
   ChatInstructionsDto,
   UpsertChatInstructions,
+  ModerationPolicyReasonDto,
+  ModerationPolicyDto,
+  NewModerationPolicyReason,
+  CreateModerationPolicy,
+  DefaultModerationPolicyReasonDto,
+  UpdateModerationPolicyReason,
+  UpdateModerationPolicy,
   ComhairleChatSession,
   ChatConversationRequest,
   page_size,
@@ -3691,6 +3768,14 @@ const endpoints = makeApi([
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/auth/refresh",
+    alias: "RefreshSession",
+    description: `Refresh user session to prevent frequent users logging back in`,
+    requestFormat: "json",
+    response: UserDto,
   },
   {
     method: "post",
@@ -4764,6 +4849,68 @@ Signing in is optional: visitors get the sanitised step list of a live conversat
       },
     ],
     response: ConversationDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/moderation_policies",
+    alias: "ListConversationModerationPolicies",
+    description: `Lists each policy with its reasons in display order`,
+    requestFormat: "json",
+    response: z.array(ModerationPolicyDto),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/moderation_policies",
+    alias: "CreateConversationModerationPolicy",
+    description: `Creates a policy on the conversation. Without reasons it starts from the default reasons.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateModerationPolicy,
+      },
+    ],
+    response: ModerationPolicyDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/moderation_policies/:moderation_policy_id",
+    alias: "GetConversationModerationPolicy",
+    requestFormat: "json",
+    response: ModerationPolicyDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/moderation_policies/:moderation_policy_id",
+    alias: "UpdateConversationModerationPolicy",
+    description: `Reasons sent with an id are updated in place, reasons without one are added, and reasons left out are deleted. The list order becomes the display order.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `Replaces a policy&#x27;s name and its whole reason list. Reasons left out are deleted, and the list order becomes the display order.`,
+        type: "Body",
+        schema: UpdateModerationPolicy,
+      },
+    ],
+    response: ModerationPolicyDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/moderation_policies/:moderation_policy_id",
+    alias: "DeleteConversationModerationPolicy",
+    description: `Fails with 409 while a workflow step still uses the policy`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/moderation_policies/default",
+    alias: "GetDefaultModerationPolicyReasons",
+    description: `The reasons a Polis step uses when it has no moderation policy`,
+    requestFormat: "json",
+    response: z.array(DefaultModerationPolicyReasonDto),
   },
   {
     method: "post",

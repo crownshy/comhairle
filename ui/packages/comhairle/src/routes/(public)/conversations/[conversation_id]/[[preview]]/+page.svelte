@@ -7,7 +7,7 @@
 	import { goto } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { page } from '$app/state';
-	import { loginRedirect, signupRedirect } from '$lib/urls.js';
+	import { loginRedirectClient, signupRedirect } from '$lib/urls.js';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import LandingShell from '$lib/components/participant/LandingShell.svelte';
 	import { stepPreviews } from '$lib/components/participant/stepPreview';
@@ -77,7 +77,7 @@
 	async function redirectToLogin() {
 		if (isSubmitting) return;
 		isSubmitting = true;
-		loginRedirect(url.pathname, 'Login to join the conversation');
+		loginRedirectClient(url.pathname, 'Login to join the conversation');
 	}
 
 	// Register a new guest user, sign them up for
