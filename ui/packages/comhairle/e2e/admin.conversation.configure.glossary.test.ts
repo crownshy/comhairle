@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 	await Conversation.openTab(page, 'Configure', 'Glossary');
 });
 
-test('Configure/glossary', async ({ page }) => {
+test('Configure/glossary page', async ({ page }) => {
 	const value1 = generateValue();
 	const value2 = generateValue();
 
