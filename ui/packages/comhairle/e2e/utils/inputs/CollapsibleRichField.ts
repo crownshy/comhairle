@@ -1,6 +1,7 @@
 import type { Page } from '../types';
 import { exists } from '..';
 import UserInputs, { UserInputsInput } from './UserInputs';
+import type { Cleanup } from './types';
 
 type CollapsibleRichField<T> = {
 	id: T;
@@ -12,7 +13,7 @@ type CollapsibleRichField<T> = {
 const CollapisbleRichFields = <const T extends string, U extends CollapsibleRichField<T>>(
 	page: Page,
 	inputs: UserInputsInput<T>,
-	cleanup: (callback: () => Promise<void>) => void
+	cleanup: Cleanup
 ) =>
 	UserInputs<T, U>({
 		inputs,
