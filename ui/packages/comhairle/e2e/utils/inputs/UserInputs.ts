@@ -4,26 +4,29 @@ type InputType<T> = { id: T; value: string };
 
 type UserInputsReturn<T, U> = {
 	get: (id: T) => U;
-	write: (
-		id: T,
-		writer: (input: U) => Promise<void>,
-		cleanup?: (input: U) => void
-	) => Promise<void>;
-	expect: (checker: (input: U) => Promise<void>) => Promise<void>;
+	write: (id: T, resetTo: string) => Promise<void>;
+	expect: () => Promise<void>;
 };
 
-export type DerivedUserInputsReturn<T, U> = {
-	get: (id: T) => U;
-	write: (id: T, resetValue?: string) => Promise<void>;
-	expect: () => Promise<void>;
+type UserInputsParams<T, U> = {
+	inputs: UserInputsInput<T>;
+	mutator: (name: string, index: number) => Omit<U, 'id' | 'value'>;
+	cleanup: (callback: () => Promise<void>) => void;
+	focus: (input: U) => Promise<void>;
+	update: (input: U, value: string) => Promise<void>;
+	expector: (input: U) => Promise<void>;
 };
 
 export type UserInputsInput<T> = [id: T, name: string][];
 
-const UserInputs = <const T extends string, U extends InputType<T>>(
-	inputs: UserInputsInput<T>,
-	mutator: (name: string, index: number) => Omit<U, 'id' | 'value'>
-): UserInputsReturn<T, U> => {
+const UserInputs = <const T extends string, U extends InputType<T>>({
+	inputs,
+	mutator,
+	cleanup,
+	focus,
+	update,
+	expector
+}: UserInputsParams<T, U>): UserInputsReturn<T, U> => {
 	const _inputs = Object.fromEntries(
 		inputs.map((input, i) => [
 			input[0],
@@ -39,14 +42,18 @@ const UserInputs = <const T extends string, U extends InputType<T>>(
 		get(id) {
 			return _inputs[id];
 		},
-		async write(id, writer, cleanup) {
+		async write(id, resetTo) {
 			const input = _inputs[id];
-			await writer(input);
-			cleanup?.(input);
+			await focus(input);
+			await update(input, input.value);
+			cleanup(async () => {
+				await focus(input);
+				await update(input, resetTo);
+			});
 		},
-		async expect(checker) {
+		async expect() {
 			for (const input of Object.values(_inputs) as U[]) {
-				await checker(input);
+				await expector(input);
 			}
 		}
 	};
