@@ -11,7 +11,8 @@ type CollapsibleRichField<T> = {
 
 function CollapisbleRichFields<const T extends string, U extends CollapsibleRichField<T>>(
 	page: Page,
-	inputs: UserInputsInput<T>
+	inputs: UserInputsInput<T>,
+	cleanupRef?: (callback: () => Promise<void>) => void
 ): DerivedUserInputsReturn<T, U> {
 	const collapisbleRichFields = UserInputs<T, U>(
 		inputs,
@@ -51,24 +52,20 @@ function CollapisbleRichFields<const T extends string, U extends CollapsibleRich
 		get(id) {
 			return collapisbleRichFields.get(id);
 		},
-		async write(id, cleanupRef, defaultValue) {
+		async write(id, resetValue) {
 			return collapisbleRichFields.write(
 				id,
-				async () => {
-					await edit(id);
-					await write(
-						collapisbleRichFields.get(id).fallbackIndex,
-						collapisbleRichFields.get(id).value
-					);
+				async (collapisbleRichField) => {
+					await edit(collapisbleRichField.id);
+					await write(collapisbleRichField.fallbackIndex, collapisbleRichField.value);
 				},
-				() => {
-					cleanupRef?.(async () => {
-						await edit(id);
-						await write(
-							collapisbleRichFields.get(id).fallbackIndex,
-							defaultValue ?? ''
-						);
-					});
+				(collapisbleRichField) => {
+					if (resetValue) {
+						cleanupRef?.(async () => {
+							await edit(collapisbleRichField.id);
+							await write(collapisbleRichField.fallbackIndex, resetValue ?? '');
+						});
+					}
 				}
 			);
 		},

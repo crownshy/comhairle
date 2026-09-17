@@ -10,7 +10,8 @@ type Textbox<T extends string> = {
 
 function Textboxes<const T extends string, U extends Textbox<T>>(
 	page: Page,
-	inputs: UserInputsInput<T>
+	inputs: UserInputsInput<T>,
+	cleanupRef?: (callback: () => Promise<void>) => void
 ): DerivedUserInputsReturn<T, U> {
 	const textboxes = UserInputs<T, U>(
 		inputs,
@@ -24,7 +25,7 @@ function Textboxes<const T extends string, U extends Textbox<T>>(
 		get(id) {
 			return textboxes.get(id);
 		},
-		write(id, cleanupRef, defaultValue) {
+		write(id, resetValue) {
 			return textboxes.write(
 				id,
 				async (textbox) => {
@@ -32,10 +33,12 @@ function Textboxes<const T extends string, U extends Textbox<T>>(
 					await textbox.locator.fill(textbox.value);
 				},
 				(textbox) => {
-					cleanupRef?.(async () => {
-						await textbox.locator.click();
-						await textbox.locator.fill(defaultValue ?? '');
-					});
+					if (resetValue) {
+						cleanupRef?.(async () => {
+							await textbox.locator.click();
+							await textbox.locator.fill(resetValue ?? '');
+						});
+					}
 				}
 			);
 		},

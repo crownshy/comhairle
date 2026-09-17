@@ -14,11 +14,7 @@ type UserInputsReturn<T, U> = {
 
 export type DerivedUserInputsReturn<T, U> = {
 	get: (id: T) => U;
-	write: (
-		id: T,
-		cleanupRef?: (callback: () => Promise<void>) => void,
-		defaultValue?: string
-	) => Promise<void>;
+	write: (id: T, resetValue?: string) => Promise<void>;
 	expect: () => Promise<void>;
 };
 
