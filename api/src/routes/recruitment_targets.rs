@@ -20,7 +20,7 @@ use crate::{
         recruitment_target::{CreateRecruitmentTarget, PartialRecruitmentTarget},
     },
     routes::{
-        auth::RequiredAdminUser, recruitment_targets::dto::RecruitmentTargetDto,
+        auth::extract::RequiredAdminUser, recruitment_targets::dto::RecruitmentTargetDto,
         workflows::WorkflowPathCtx,
     },
 };

@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredUser};
+use crate::{ComhairleState, error::ComhairleError, routes::auth::extract::RequiredUser};
 
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]

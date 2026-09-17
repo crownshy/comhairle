@@ -27,7 +27,7 @@ use crate::{
             UpsertFromPolis,
         },
     },
-    routes::auth::{RequiredAdminUser, RequiredUser},
+    routes::auth::extract::{RequiredAdminUser, RequiredUser},
     wiki_poll_service::{
         ModerationStatus, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
         polis_service::WikiPollReport,

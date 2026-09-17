@@ -31,11 +31,11 @@ use mockall::{automock, predicate::*};
 
 use async_trait::async_trait;
 
-use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::users::User;
-use crate::routes::auth::RequiredUser;
+use crate::routes::auth::extract::RequiredUser;
 use crate::websockets::config::WebsocketConfig;
+use crate::{ComhairleState, routes::user::dto::UserDto};
 
 /// Trait for handling domain-specific WebSocket messages.
 ///
@@ -158,13 +158,13 @@ impl ConnectionId {
 #[derive(Debug, Clone)]
 pub struct WebSocketConnection {
     pub id: ConnectionId,
-    pub user: User,
+    pub user: UserDto,
     pub addr: SocketAddr,
     pub sender: mpsc::UnboundedSender<Message>,
 }
 
 impl WebSocketConnection {
-    pub fn new(user: User, addr: SocketAddr) -> (Self, mpsc::UnboundedReceiver<Message>) {
+    pub fn new(user: UserDto, addr: SocketAddr) -> (Self, mpsc::UnboundedReceiver<Message>) {
         let id = ConnectionId::new();
         let (sender, receiver) = mpsc::unbounded_channel();
 
@@ -846,7 +846,7 @@ pub async fn websocket_handler(
 
 async fn handle_websocket(
     socket: WebSocket,
-    user: User,
+    user: UserDto,
     addr: SocketAddr,
     state: Arc<ComhairleState>,
 ) {

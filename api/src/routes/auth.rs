@@ -1,6 +1,6 @@
-pub mod helpers;
+pub mod extract;
+pub mod layer;
 
-use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
 
@@ -12,7 +12,7 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_ha
 use axum::response::Redirect;
 use axum::{
     Extension, RequestPartsExt,
-    extract::{FromRequestParts, Json, Path, Query, Request, State},
+    extract::{FromRequestParts, Json, Path, Query, State},
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
@@ -21,8 +21,6 @@ use axum_extra::{
     extract::cookie::{Cookie, CookieJar, SameSite},
     headers::{Authorization, authorization::Bearer},
 };
-use axum_keycloak_auth::error::AuthError;
-use axum_keycloak_auth::extract::{ExtractedToken, TokenExtractor};
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
@@ -55,7 +53,8 @@ use crate::models::users::{
     get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
 };
 use crate::models::{api_key, otp};
-use crate::routes::auth::helpers::{OptionalRawAccessToken, optional_auth};
+use crate::routes::auth::extract::{OptionalRawAccessToken, RequiredAdminUser, RequiredUser};
+use crate::routes::auth::layer::optional_auth;
 use crate::routes::user::dto::UserDto;
 
 #[cfg(test)]
@@ -70,7 +69,7 @@ pub const KC_IDENTITY_KEY: &str = "kc-id-token";
 pub const KC_REFRESH_KEY: &str = "kc-refresh-token";
 
 /// Helper function to check if a user is admin
-pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
+pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &UserDto) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
         state,
@@ -276,7 +275,7 @@ where
 /// Generate JWT
 #[builder]
 pub fn generate_jwt<T: Serialize>(
-    user: &User,
+    user: &UserDto,
     secret: &str,
     custom_claims: T,
     duration: Option<TimeDelta>,
@@ -343,6 +342,7 @@ async fn signup(
     validate_password_strength(&payload.password)?;
 
     let user = create_user(&payload, &state.db).await?;
+    let user: UserDto = user.into();
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
@@ -371,7 +371,6 @@ async fn signup(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
@@ -387,6 +386,7 @@ async fn signup_guest(
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
+    let user: UserDto = user.into();
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
@@ -395,7 +395,6 @@ async fn signup_guest(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
@@ -415,6 +414,7 @@ async fn signup_otp(
     Json(payload): Json<OtpSignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_otp_user(&payload, &state.db).await?;
+    let user: UserDto = user.into();
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
@@ -428,7 +428,6 @@ async fn signup_otp(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
@@ -458,6 +457,7 @@ async fn legacy_login(
         return Err(ComhairleError::WrongPassword);
     }
 
+    let user: UserDto = user.into();
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
@@ -466,7 +466,6 @@ async fn legacy_login(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::OK, Json(user))))
 }
 
@@ -492,7 +491,7 @@ async fn login_guest(
         roles: Vec::new(),
     };
     let token = generate_jwt()
-        .user(&user)
+        .user(&user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .call();
@@ -502,6 +501,8 @@ async fn login_guest(
         .http_only(true)
         .same_site(SameSite::None)
         .max_age(Duration::days(7));
+
+    let user: UserDto = user.into();
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -509,7 +510,6 @@ async fn login_guest(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::OK, Json(user))))
 }
 
@@ -536,6 +536,7 @@ async fn login_otp(
 
     let _otp = otp::accept(&state.db, &user.id, &payload.code, now).await?;
 
+    let user: UserDto = user.into();
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
@@ -544,7 +545,7 @@ async fn login_otp(
         jar = jar.add(refresh_cookie);
     }
 
-    Ok((jar, (StatusCode::OK, Json(user.into()))))
+    Ok((jar, (StatusCode::OK, Json(user))))
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
@@ -582,7 +583,7 @@ async fn create_otp(
         otp: otp.code.clone(),
     };
     let otp_token = generate_jwt()
-        .user(&user)
+        .user(&user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(10))
@@ -632,9 +633,10 @@ async fn login_otp_token(
 
     let _otp = otp::accept(&state.db, &user.id, &token_data.claims.details.otp, now).await?;
 
+    let user: UserDto = user.into();
     let cookie = create_session_cookie(&user, &state);
 
-    Ok((cookies.add(cookie), (StatusCode::OK, Json(user.into()))))
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
 }
 
 #[instrument(err(Debug), skip(state, payload))]
@@ -648,7 +650,7 @@ async fn resend_verification_email(
         email: user.email.clone(),
     };
     let token = generate_jwt()
-        .user(&user)
+        .user(&user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
@@ -690,7 +692,7 @@ async fn verify_email_token(
         roles: Vec::new(),
     };
     let session_token = generate_jwt()
-        .user(&updated_user.clone())
+        .user(&updated_user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .call();
@@ -715,7 +717,7 @@ async fn password_reset_create(
         email: user.email.clone(),
     };
     let token = generate_jwt()
-        .user(&user)
+        .user(&user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
@@ -786,12 +788,13 @@ async fn legacy_refresh_session(
     // Handles expired / re-used / invalid tokens
     let new_token = refresh_token::rotate(&state.db, jti, user_id, &client_ip, &user_agent).await?;
 
+    let user: UserDto = user.into();
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token);
 
     let jar = jar.add(session_cookie).add(refresh_cookie);
 
-    Ok((jar, (StatusCode::OK, Json(user.into()))))
+    Ok((jar, (StatusCode::OK, Json(user))))
 }
 
 async fn refresh_session(
@@ -1000,7 +1003,7 @@ impl RequiredRoleResource for Conversation {
 ///    returned.
 ///
 /// 2. **Session cookie** - if no bearer token is present, the request falls
-///    back to the [`OptionalUser`] extractor, which checks for a valid session
+///    back to the [`LegacyOptionalUser`] extractor, which checks for a valid session
 ///    cookie. If a session is found the associated user is returned.
 ///
 /// # Errors
@@ -1021,7 +1024,7 @@ async fn resolve_user_from_request(
         users::get_user_by_id(&user_id, &state.db).await
     } else {
         parts
-            .extract_with_state::<OptionalUser, _>(state)
+            .extract_with_state::<LegacyOptionalUser, _>(state)
             .await?
             .0
             .ok_or(ComhairleError::UserRequired)
@@ -1039,7 +1042,7 @@ async fn resolve_user_from_request(
 /// * Propagates [`ComhairleError`] from the underlying permission lookup.
 pub async fn authorize<R: ExtractResourceId>(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     action: Action,
     resource: &R,
 ) -> Result<(), ComhairleError> {
@@ -1063,9 +1066,10 @@ pub async fn authorize<R: ExtractResourceId>(
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
 #[derive(OperationIo)]
-pub struct RequiredAdminUser(pub User);
+#[deprecated]
+pub struct LegacyRequiredAdminUser(pub User);
 
-impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
+impl FromRequestParts<Arc<ComhairleState>> for LegacyRequiredAdminUser {
     type Rejection = ComhairleError;
 
     async fn from_request_parts(
@@ -1074,8 +1078,8 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
     ) -> Result<Self, Self::Rejection> {
         let user = resolve_user_from_request(parts, state).await?;
 
-        if is_user_admin(&state, &user).await {
-            Ok(RequiredAdminUser(user.clone()))
+        if is_user_admin(&state, &user.clone().into()).await {
+            Ok(LegacyRequiredAdminUser(user))
         } else {
             Err(ComhairleError::RequiresAuthUser)
         }
@@ -1086,15 +1090,17 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
 #[derive(OperationIo)]
-pub struct RequiredUser(pub User);
+#[deprecated]
+pub struct LegacyRequiredUser(pub User);
 
 /// An extractor to get the current user if they exist
 /// If a user is not logged in, this will still run
 /// but produce a None value in the extractor
 #[derive(OperationIo, Debug)]
-pub struct OptionalUser(pub Option<User>);
+#[deprecated]
+pub struct LegacyOptionalUser(pub Option<User>);
 
-impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
+impl FromRequestParts<Arc<ComhairleState>> for LegacyRequiredUser {
     type Rejection = ComhairleError;
 
     async fn from_request_parts(
@@ -1103,11 +1109,11 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
     ) -> Result<Self, Self::Rejection> {
         resolve_user_from_request(parts, state)
             .await
-            .map(RequiredUser)
+            .map(LegacyRequiredUser)
     }
 }
 
-impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
+impl FromRequestParts<Arc<ComhairleState>> for LegacyOptionalUser {
     type Rejection = ComhairleError;
 
     async fn from_request_parts(
@@ -1122,37 +1128,10 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         if let Some(token_cookie) = jar.get(AUTH_KEY) {
             let token_str = token_cookie.value();
             let poss_user = validate_jwt::<SessionClaims>(state, token_str).await.ok();
-            Ok(OptionalUser(poss_user))
+            Ok(LegacyOptionalUser(poss_user))
         } else {
-            Ok(OptionalUser(None))
+            Ok(LegacyOptionalUser(None))
         }
-    }
-}
-
-/// Custom token extractor for `axum_keycloak_auth`, which extracts access token
-/// from request cookies. Allows better integration with `@crown-shy/api-client`
-/// than `axum_keycloak_auth` default behaviour, which looks for token in
-/// `Authorization` header.
-#[derive(OperationIo, Debug, Clone, Default)]
-pub struct KcAccessTokenCookieExtractor {}
-
-impl KcAccessTokenCookieExtractor {
-    /// Extracts an access token from cookies, reporting an absent header as `Ok(None)`.
-    fn try_extract<'a>(request: &Request) -> Option<ExtractedToken<'a>> {
-        let jar = CookieJar::from_headers(request.headers());
-        let token = jar.get(KC_ACCESS_KEY)?.value();
-
-        if token.trim().is_empty() {
-            return None;
-        }
-
-        Some(Cow::Owned(token.to_string()))
-    }
-}
-
-impl TokenExtractor for KcAccessTokenCookieExtractor {
-    fn extract<'a>(&self, request: &'a Request) -> Result<ExtractedToken<'a>, AuthError> {
-        Self::try_extract(request).ok_or(AuthError::MissingToken)
     }
 }
 
@@ -1265,7 +1244,8 @@ pub async fn current_user(
                 // Token exists but is invalid
                 .map_err(|_| ComhairleError::NoLoggedInUser)?;
 
-            Ok((StatusCode::OK, Json(user.into())))
+            let user: UserDto = user.into();
+            Ok((StatusCode::OK, Json(user)))
         }
         None => Err(ComhairleError::NoLoggedInUser),
     }
@@ -1313,7 +1293,6 @@ pub async fn test_requires_roles(
     RequiredRole(_, _, _): RequiredRole<Conversation, (Owner, (Contributor,))>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = user.into();
     Ok((StatusCode::OK, Json(user)))
 }
 
@@ -1321,11 +1300,13 @@ pub async fn test_requires_roles(
 pub async fn test_api_key(
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = user.into();
     Ok((StatusCode::OK, Json(user)))
 }
 
-fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
+fn send_verification_email(
+    user: &UserDto,
+    state: &Arc<ComhairleState>,
+) -> Result<(), ComhairleError> {
     let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
@@ -1345,7 +1326,7 @@ fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(
     Ok(())
 }
 
-pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
+pub fn create_session_cookie<'a>(user: &UserDto, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
     let claims = SessionClaims {
         username: user.username.clone(),
         sudo_user: None,
@@ -1370,7 +1351,7 @@ pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> Co
 #[deprecated]
 fn build_refresh_token_cookie<'a>(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     token_record: &RefreshToken,
 ) -> Cookie<'a> {
     let refresh_token = generate_jwt()
@@ -1394,7 +1375,7 @@ fn build_refresh_token_cookie<'a>(
 #[deprecated]
 async fn issue_refresh_token<'a>(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     ip_addr: &ClientIp,
     user_agent: &ClientUserAgent,
 ) -> Option<Cookie<'a>> {

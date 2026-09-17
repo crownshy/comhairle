@@ -12,7 +12,7 @@ use crate::{
     ComhairleState,
     error::ComhairleError,
     models::api_key::{self, CreateApiKeyRequest},
-    routes::auth::{RequiredAdminUser, is_user_admin},
+    routes::auth::{extract::RequiredAdminUser, is_user_admin},
 };
 
 #[derive(Serialize, Debug, JsonSchema)]

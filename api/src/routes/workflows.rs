@@ -27,7 +27,7 @@ use crate::{
         workflow_step::{self, WorkflowStep},
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::extract::{RequiredAdminUser, RequiredUser},
         workflows::dto::{UserParticipationDto, WorkflowDto},
     },
 };

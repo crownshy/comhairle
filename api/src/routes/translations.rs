@@ -27,7 +27,7 @@ use crate::{
     routes::translations::dto::{TextContentDto, TextTranslationDto},
 };
 
-use super::auth::RequiredAdminUser;
+use super::auth::extract::RequiredAdminUser;
 
 pub mod dto;
 

@@ -23,7 +23,7 @@ use crate::models::{
     pagination::{PageOptions, PaginatedResults},
     users,
 };
-use crate::routes::auth::{RequiredUser, authorize};
+use crate::routes::auth::{authorize, extract::RequiredUser};
 use crate::{
     ComhairleState,
     error::ComhairleError,

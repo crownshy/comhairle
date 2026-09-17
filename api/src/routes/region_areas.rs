@@ -16,7 +16,7 @@ use crate::{
     ComhairleState,
     error::ComhairleError,
     models::region_area::{self, CreateRegionArea, PartialRegionArea},
-    routes::{auth::RequiredAdminUser, region_areas::dto::RegionAreaDto},
+    routes::{auth::extract::RequiredAdminUser, region_areas::dto::RegionAreaDto},
 };
 
 pub mod dto;

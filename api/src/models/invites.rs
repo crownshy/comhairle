@@ -1,4 +1,4 @@
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::{error::ComhairleError, models::SqlxResultExt, routes::user::dto::UserDto};
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};
 use partially::Partial;
@@ -62,7 +62,7 @@ impl Invite {
     }
 
     #[instrument(err(Debug), skip(db))]
-    pub async fn accept(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
+    pub async fn accept(&self, db: &PgPool, user: &UserDto) -> Result<Invite, ComhairleError> {
         let new_status = if self.status == InviteStatus::Open {
             InviteStatus::Open
         } else {
@@ -91,7 +91,7 @@ impl Invite {
     }
 
     #[instrument(err(Debug), skip(db))]
-    pub async fn reject(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
+    pub async fn reject(&self, db: &PgPool, user: &UserDto) -> Result<Invite, ComhairleError> {
         let new_status = if self.status == InviteStatus::Pending {
             InviteStatus::Rejected
         } else {
@@ -115,7 +115,7 @@ impl Invite {
     }
 
     #[instrument(err(Debug))]
-    pub fn is_for_user(&self, user: &User) -> Result<(), ComhairleError> {
+    pub fn is_for_user(&self, user: &UserDto) -> Result<(), ComhairleError> {
         match &self.invite_type {
             InviteType::Email(email) => {
                 if let Some(user_email) = user.email.as_ref() {

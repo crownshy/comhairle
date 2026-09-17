@@ -68,6 +68,9 @@ pub enum ComhairleError {
     #[error("Email content type error: {0}")]
     EmailContentTypeError(#[from] lettre::message::header::ContentTypeErr),
 
+    #[error("Invalid uuid error: {0}")]
+    InvalidUuidError(#[from] uuid::Error),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 

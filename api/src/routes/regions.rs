@@ -20,7 +20,7 @@ use crate::{
         region_area,
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::extract::{RequiredAdminUser, RequiredUser},
         regions::dto::{
             LocalizedRegionDto, RegionAreaLinksDto, RegionAreaLinksRequestDto, RegionDto,
         },

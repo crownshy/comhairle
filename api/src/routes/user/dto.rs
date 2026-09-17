@@ -1,9 +1,12 @@
+use axum_keycloak_auth::decode::KeycloakToken;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::auth_service;
+use crate::error::ComhairleError;
 use crate::models::users::{User, UserAuthType};
+use crate::routes::auth::extract::ComhairleExtAttrs;
 
 /// Data transfer object (public API representation) for a User.
 ///
@@ -14,7 +17,7 @@ use crate::models::users::{User, UserAuthType};
 /// * `password`
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UserDto {
     pub id: Uuid,
@@ -54,5 +57,26 @@ impl From<auth_service::GetUserResponse> for UserDto {
             email_verified: value.email_verified,
             organization_id: None,
         }
+    }
+}
+
+impl TryFrom<KeycloakToken<String, ComhairleExtAttrs>> for UserDto {
+    type Error = ComhairleError;
+
+    fn try_from(token: KeycloakToken<String, ComhairleExtAttrs>) -> Result<Self, Self::Error> {
+        let user_id = Uuid::parse_str(&token.subject)?;
+
+        Ok(Self {
+            id: user_id,
+            username: Some(token.extra.profile.profile.preferred_username),
+            // TODO: this assumes email always
+            // present? Problematic for guest users
+            email: Some(token.extra.profile.email.email),
+            avatar_url: token.extra.avatar_url,
+            guest_code: token.extra.guest_code,
+            auth_type: token.extra.comhairle_auth_type,
+            organization_id: token.extra.organization_id,
+            email_verified: token.extra.profile.email.email_verified,
+        })
     }
 }

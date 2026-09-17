@@ -37,7 +37,7 @@ use crate::models::{
     },
     translations::localize_translations,
 };
-use crate::routes::auth::{RequiredAdminUser, RequiredUser};
+use crate::routes::auth::extract::{RequiredAdminUser, RequiredUser};
 use crate::{ComhairleError, ComhairleState};
 use crate::{bot_service::AgentConversationRequest, models::translations::TextFormat};
 use crate::{

@@ -48,7 +48,10 @@ use crate::{
     },
 };
 
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{
+    extract::{OptionalUser, RequiredAdminUser, RequiredUser},
+    is_user_admin,
+};
 
 pub mod dto;
 

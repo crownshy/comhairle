@@ -7,6 +7,7 @@ use comhairle::websockets::handlers::video_call::VideoCallMessageHandler;
 use comhairle::websockets::{
     ConnectionId, WebSocketConnection, WebSocketMessageHandler, messages::WebSocketMessage,
 };
+use comhairle::routes::user::dto::UserDto;
 use comhairle::wiki_poll_service::error::WikiPollServiceError;
 use comhairle::wiki_poll_service::polis_service::WikiPollReport;
 use comhairle::wiki_poll_service::{
@@ -45,7 +46,7 @@ impl mailer::ComhairleMailer for DummyMailer {
         todo!()
     }
 
-    fn send_welcome_email(&self, _user: &User, _verify_link: String) -> Result<(), ComhairleError> {
+    fn send_welcome_email(&self, _user: &UserDto, _verify_link: String) -> Result<(), ComhairleError> {
         todo!()
     }
 

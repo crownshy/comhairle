@@ -18,7 +18,7 @@ use crate::{
     routes::user_conversation_preferences::dto::UserConversationPreferencesDto,
 };
 
-use super::auth::RequiredUser;
+use super::auth::extract::RequiredUser;
 
 pub mod dto;
 

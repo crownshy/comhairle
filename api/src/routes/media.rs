@@ -22,7 +22,7 @@ use crate::{
         },
         pagination::{PageOptions, PaginatedResults},
     },
-    routes::{auth::RequiredAdminUser, media::dto::MediaDto},
+    routes::{auth::extract::RequiredAdminUser, media::dto::MediaDto},
     tools::id::gen_id,
 };
 

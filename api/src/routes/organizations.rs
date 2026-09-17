@@ -16,7 +16,6 @@ use schemars::JsonSchema;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::organization::{
     self, CreateOrganization, OrganizationFilterOptions, OrganizationOrderOptions,
@@ -30,10 +29,13 @@ use crate::models::permissions::{
 use crate::models::translations;
 use crate::models::users;
 use crate::routes::auth::{
-    EmailLinkClaims, RequiredAdminUser, RequiredUser, authorize, generate_jwt,
+    EmailLinkClaims, authorize,
+    extract::{RequiredAdminUser, RequiredUser},
+    generate_jwt,
 };
 use crate::routes::organizations::dto::{LocalizedOrganizationDto, OrganizationDto};
 use crate::routes::translations::LocaleExtractor;
+use crate::{ComhairleState, routes::user::dto::UserDto};
 
 pub mod dto;
 
@@ -228,7 +230,7 @@ async fn resolve_or_create_user_by_email(
     state: &Arc<ComhairleState>,
     email: &str,
     allow_create_user: bool,
-) -> Result<(users::User, bool, bool), ComhairleError> {
+) -> Result<(UserDto, bool, bool), ComhairleError> {
     let trimmed = email.trim().to_lowercase();
     if trimmed.is_empty() {
         return Err(ComhairleError::BadRequest(
@@ -237,13 +239,15 @@ async fn resolve_or_create_user_by_email(
     }
 
     match users::get_user_by_email(&trimmed, &state.db).await {
-        Ok(user) => Ok((user, false, false)),
+        Ok(user) => Ok((user.into(), false, false)),
         Err(ComhairleError::NoUserFoundForEmail(_)) => {
             if !allow_create_user {
                 return Err(ComhairleError::NoUserFoundForEmail(trimmed));
             }
 
-            let user = users::create_organization_admin_user(state, &trimmed).await?;
+            let user: UserDto = users::create_organization_admin_user(state, &trimmed)
+                .await?
+                .into();
 
             let token = generate_jwt()
                 .user(&user)

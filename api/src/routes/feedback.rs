@@ -22,7 +22,7 @@ use crate::{
     routes::feedback::dto::FeedbackDto,
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser};
+use super::auth::extract::{RequiredAdminUser, RequiredUser};
 
 pub mod dto;
 
