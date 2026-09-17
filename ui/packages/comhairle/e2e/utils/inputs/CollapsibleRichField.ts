@@ -1,91 +1,83 @@
-import { expect } from '@playwright/test';
 import type { Page } from '../types';
-import { exists, generateValue } from '..';
+import { exists } from '..';
+import UserInputs, { DerivedUserInputsReturn, UserInputsInput } from './UserInputs';
 
-type CollapsibleRichField = {
-	id: string;
+type CollapsibleRichField<T> = {
+	id: T;
 	name: string;
 	fallbackIndex: number;
 	value: string;
 };
 
-class CollapisbleRichFields<const T extends string> {
-	#collapisbleRichFields: Record<string, CollapsibleRichField> = {};
-	#page: Page;
-
-	constructor(page: Page, inputs: [id: T, name: string][]) {
-		this.#page = page;
-
-		let i = 0;
-
-		for (const [id, name] of inputs) {
-			this.#collapisbleRichFields[id] = {
-				id,
+function CollapisbleRichFields<const T extends string, U extends CollapsibleRichField<T>>(
+	page: Page,
+	inputs: UserInputsInput<T>
+): DerivedUserInputsReturn<T, U> {
+	const collapisbleRichFields = UserInputs<T, U>(
+		inputs,
+		(name, index) =>
+			({
 				name,
-				fallbackIndex: i,
-				value: generateValue()
-			};
+				fallbackIndex: index
+			}) as U
+	);
 
-			i += 1;
-		}
-	}
-
-	get(id: T): CollapsibleRichField {
-		return this.#collapisbleRichFields[id];
-	}
-
-	async #edit(id: T) {
-		const btn = this.#page.getByRole('button', { name: this.#collapisbleRichFields[id].name });
+	async function edit(id: T) {
+		const btn = page.getByRole('button', { name: collapisbleRichFields.get(id).name });
 		if (await exists(btn)) {
 			btn.click();
 			return;
 		}
-		const editWithValue = this.#page.getByRole('button', {
-			name: this.#collapisbleRichFields[id].value
+		const editWithValue = page.getByRole('button', {
+			name: collapisbleRichFields.get(id).value
 		});
 		if (await exists(editWithValue)) {
 			editWithValue.click();
 			return;
 		}
-		await this.#page
+		await page
 			.getByRole('button', { name: 'Edit' })
-			.nth(this.#collapisbleRichFields[id].fallbackIndex)
+			.nth(collapisbleRichFields.get(id).fallbackIndex)
 			.click();
 	}
 
-	async #write(index: number, text: string) {
-		await this.#page.locator('.tiptap').nth(index).click();
-		await this.#page.locator('.tiptap').nth(index).fill(text);
-		await this.#page.getByRole('button', { name: 'Done' }).click();
+	async function write(index: number, text: string) {
+		await page.locator('.tiptap').nth(index).click();
+		await page.locator('.tiptap').nth(index).fill(text);
+		await page.getByRole('button', { name: 'Done' }).click();
 	}
 
-	// Function overload
-	async write(id: T): Promise<void>;
-	async write(
-		id: T,
-		cleanup: (callback: () => Promise<void>) => void,
-		defaultValue: string
-	): Promise<void>;
-
-	async write(id: T, cleanup?: (callback: () => Promise<void>) => void, defaultValue?: string) {
-		await this.#edit(id);
-		await this.#write(
-			this.#collapisbleRichFields[id].fallbackIndex,
-			this.#collapisbleRichFields[id].value
-		);
-		cleanup?.(async () => {
-			await this.#edit(id);
-			await this.#write(this.#collapisbleRichFields[id].fallbackIndex, defaultValue ?? '');
-		});
-	}
-
-	async expected() {
-		for (const collapisbleRichField of Object.values(this.#collapisbleRichFields)) {
-			expect(
-				await exists(this.#page.getByRole('button', { name: collapisbleRichField.value }))
-			).toBe(true);
+	return {
+		get(id) {
+			return collapisbleRichFields.get(id);
+		},
+		async write(id, cleanupRef, defaultValue) {
+			return collapisbleRichFields.write(
+				id,
+				async () => {
+					await edit(id);
+					await write(
+						collapisbleRichFields.get(id).fallbackIndex,
+						collapisbleRichFields.get(id).value
+					);
+				},
+				() => {
+					cleanupRef?.(async () => {
+						await edit(id);
+						await write(
+							collapisbleRichFields.get(id).fallbackIndex,
+							defaultValue ?? ''
+						);
+					});
+				}
+			);
+		},
+		async expect() {
+			await collapisbleRichFields.expect(async (collapisbleRichField) => {
+				await exists(page.getByRole('button', { name: collapisbleRichField.value }));
+			});
 		}
-	}
+	};
 }
 
 export default CollapisbleRichFields;

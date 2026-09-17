@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Content page', async ({ page, cleanup }) => {
-	const collapsibleRichFields = new CollapisbleRichFields(page, [
+	const collapsibleRichFields = CollapisbleRichFields(page, [
 		['privacy_policy', 'Add privacy policy'],
 		['short_privacy_policy', 'Add short privacy policy'],
 		['faqs', 'Add faqs'],
@@ -22,9 +22,9 @@ test('Configure/Content page', async ({ page, cleanup }) => {
 	await collapsibleRichFields.write('faqs', cleanup, ' ');
 	await collapsibleRichFields.write('thank_you', cleanup, ' ');
 
-	const textboxes = new Textboxes(page, [['cta', 'Call to action']]);
+	const textboxes = Textboxes(page, [['cta', 'Call to action']]);
 	await textboxes.write('cta', cleanup, '');
 
-	await collapsibleRichFields.expected();
-	await textboxes.expected();
+	await collapsibleRichFields.expect();
+	await textboxes.expect();
 });

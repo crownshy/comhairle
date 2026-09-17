@@ -1,52 +1,50 @@
 import { expect, type Locator } from '@playwright/test';
 import { Page } from '../types';
-import { generateValue } from '..';
+import UserInputs, { DerivedUserInputsReturn, UserInputsInput } from './UserInputs';
 
-type Textbox = {
-	id: string;
+type Textbox<T extends string> = {
+	id: T;
 	locator: Locator;
 	value: string;
 };
 
-class Textboxes<const T extends string> {
-	#textboxes: Record<string, Textbox> = {};
+function Textboxes<const T extends string, U extends Textbox<T>>(
+	page: Page,
+	inputs: UserInputsInput<T>
+): DerivedUserInputsReturn<T, U> {
+	const textboxes = UserInputs<T, U>(
+		inputs,
+		(name) =>
+			({
+				locator: page.getByRole('textbox', { name, exact: true })
+			}) as U
+	);
 
-	constructor(page: Page, inputs: [id: T, name: string][]) {
-		for (const [id, name] of inputs) {
-			this.#textboxes[id] = {
+	return {
+		get(id) {
+			return textboxes.get(id);
+		},
+		write(id, cleanupRef, defaultValue) {
+			return textboxes.write(
 				id,
-				locator: page.getByRole('textbox', { name, exact: true }),
-				value: generateValue()
-			};
+				async (textbox) => {
+					await textbox.locator.click();
+					await textbox.locator.fill(textbox.value);
+				},
+				(textbox) => {
+					cleanupRef?.(async () => {
+						await textbox.locator.click();
+						await textbox.locator.fill(defaultValue ?? '');
+					});
+				}
+			);
+		},
+		expect() {
+			return textboxes.expect((textbox) =>
+				expect(textbox.locator).toHaveValue(textbox.value)
+			);
 		}
-	}
-
-	get(id: T): Textbox {
-		return this.#textboxes[id];
-	}
-
-	// Function overload
-	async write(id: T): Promise<void>;
-	async write(
-		id: T,
-		cleanup: (callback: () => Promise<void>) => void,
-		defaultValue: string
-	): Promise<void>;
-
-	async write(id: T, cleanup?: (callback: () => Promise<void>) => void, defaultValue?: string) {
-		await this.#textboxes[id].locator.click();
-		await this.#textboxes[id].locator.fill(this.#textboxes[id].value);
-		cleanup?.(async () => {
-			await this.#textboxes[id].locator.click();
-			await this.#textboxes[id].locator.fill(defaultValue ?? '');
-		});
-	}
-
-	async expected() {
-		for (const textbox of Object.values(this.#textboxes)) {
-			await expect(textbox.locator).toHaveValue(textbox.value);
-		}
-	}
+	};
 }
 
 export default Textboxes;

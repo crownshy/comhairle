@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Details page', async ({ page, cleanup }) => {
-	const textboxes = new Textboxes(page, [
+	const textboxes = Textboxes(page, [
 		['title', 'Title'],
 		['short_description', 'Short description'],
 		['description', 'Description']
@@ -44,7 +44,7 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// });
 
 	// await testWithRefresh(page, async () => {
-	await textboxes.expected();
+	await textboxes.expect();
 
 	// Wait for data to refresh before checking
 	await sleep(1.5);
