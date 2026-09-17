@@ -1,4 +1,5 @@
 import { generateValue } from '..';
+import type { Cleanup } from './types';
 
 type InputType<T> = { id: T; value: string };
 
@@ -11,7 +12,7 @@ type UserInputsReturn<T, U> = {
 type UserInputsParams<T, U> = {
 	inputs: UserInputsInput<T>;
 	mutator: (name: string, index: number) => Omit<U, 'id' | 'value'>;
-	cleanup: (callback: () => Promise<void>) => void;
+	cleanup: Cleanup;
 	focus: (input: U) => Promise<void>;
 	update: (input: U, value: string) => Promise<void>;
 	expector: (input: U) => Promise<void>;

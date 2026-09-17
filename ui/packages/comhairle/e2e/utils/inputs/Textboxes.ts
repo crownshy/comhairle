@@ -1,6 +1,7 @@
 import { expect, type Locator } from '@playwright/test';
 import { Page } from '../types';
 import UserInputs, { UserInputsInput } from './UserInputs';
+import type { Cleanup } from './types';
 
 type Textbox<T extends string> = {
 	id: T;
@@ -11,7 +12,7 @@ type Textbox<T extends string> = {
 const Textboxes = <const T extends string, U extends Textbox<T>>(
 	page: Page,
 	inputs: UserInputsInput<T>,
-	cleanup: (callback: () => Promise<void>) => void
+	cleanup: Cleanup
 ) =>
 	UserInputs<T, U>({
 		inputs,
