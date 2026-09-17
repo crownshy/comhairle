@@ -23,18 +23,20 @@ use dto::{DefaultModerationPolicyReasonDto, ModerationPolicyDto};
 
 pub mod dto;
 
-/// Policies are edited in Configure and read while moderating, so every route needs the
-/// conversation update permission that moderating a statement already checks.
+/// Reads only need conversation read access: the conversation admin layout loads the
+/// policies for everyone who can open the conversation, and one rejected load bounces them
+/// out of it. Writes need the update permission that moderating a statement already checks.
 async fn authorize_policy_access(
     state: &Arc<ComhairleState>,
     user: &User,
     conversation_id: &Uuid,
+    action: Action,
 ) -> Result<(), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, conversation_id).await?;
     authorize(
         state,
         user,
-        Action::ConversationUpdate,
+        action,
         &ConversationResource {
             conversation_id: conversation.id,
             owner_id: conversation.owner_id,
@@ -49,7 +51,7 @@ async fn list_policies(
     RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<ModerationPolicyDto>>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
+    authorize_policy_access(&state, &user, &conversation_id, Action::ConversationRead).await?;
 
     let policies = moderation_policy::list_for_conversation(&state.db, conversation_id).await?;
 
@@ -65,7 +67,7 @@ async fn get_default_reasons(
     RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<DefaultModerationPolicyReasonDto>>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
+    authorize_policy_access(&state, &user, &conversation_id, Action::ConversationRead).await?;
 
     let reasons = DEFAULT_REASONS
         .iter()
@@ -84,7 +86,7 @@ async fn get_policy(
     RequiredUser(user): RequiredUser,
     Path((conversation_id, moderation_policy_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<ModerationPolicyDto>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
+    authorize_policy_access(&state, &user, &conversation_id, Action::ConversationRead).await?;
 
     let policy =
         moderation_policy::get_by_id(&state.db, conversation_id, moderation_policy_id).await?;
@@ -99,7 +101,7 @@ async fn create_policy(
     Path(conversation_id): Path<Uuid>,
     Json(payload): Json<CreateModerationPolicy>,
 ) -> Result<(StatusCode, Json<ModerationPolicyDto>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
+    authorize_policy_access(&state, &user, &conversation_id, Action::ConversationUpdate).await?;
 
     let policy = moderation_policy::create(&state.db, conversation_id, &payload).await?;
 
@@ -113,7 +115,7 @@ async fn update_policy(
     Path((conversation_id, moderation_policy_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<UpdateModerationPolicy>,
 ) -> Result<(StatusCode, Json<ModerationPolicyDto>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
+    authorize_policy_access(&state, &user, &conversation_id, Action::ConversationUpdate).await?;
 
     let policy =
         moderation_policy::update(&state.db, conversation_id, moderation_policy_id, &payload)
@@ -128,7 +130,7 @@ async fn delete_policy(
     RequiredUser(user): RequiredUser,
     Path((conversation_id, moderation_policy_id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode, ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
+    authorize_policy_access(&state, &user, &conversation_id, Action::ConversationUpdate).await?;
 
     moderation_policy::delete(&state.db, conversation_id, moderation_policy_id).await?;
 

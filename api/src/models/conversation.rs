@@ -1021,15 +1021,21 @@ pub async fn list_for_permitted_user(
             join_condition,
         );
 
-        query.and_where(
-            Cond::any()
-                .add(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
-                .add(
-                    Expr::col((ResourcePermissionIden::Table, ResourcePermissionIden::Id))
-                        .is_not_null(),
-                )
-                .into(),
-        );
+        let mut visible = Cond::any()
+            .add(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
+            .add(
+                Expr::col((ResourcePermissionIden::Table, ResourcePermissionIden::Id))
+                    .is_not_null(),
+            );
+
+        // The primary host organization gets co-host access without a grant row.
+        if let Some(org_id) = organization_id {
+            visible = visible.add(
+                Expr::col((ConversationIden::Table, ConversationIden::OrganizationId)).eq(org_id),
+            );
+        }
+
+        query.and_where(visible.into());
     }
 
     let query = query.to_owned();
@@ -1312,6 +1318,50 @@ mod tests {
         assert_eq!(
             results.records[2].id, conversation_3.id,
             "incorrect third id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_conversations_for_primary_host_organization_member(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let (_, response, _) = session.create_random_organization(&app).await?;
+        let organization: OrganizationDto = serde_json::from_value(response)?;
+        let (_, value, _) = session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+        sqlx::query("UPDATE conversation SET organization_id = $1 WHERE id = $2")
+            .bind(organization.id)
+            .bind(conversation.id)
+            .execute(&state.db)
+            .await?;
+
+        let member = users::create_guest_user(&state.db).await?;
+        let list_for_org = |organization_id| {
+            list_for_permitted_user(
+                &state.db,
+                member.id,
+                organization_id,
+                false,
+                PageOptions::default(),
+                ConversationOrderOptions::default(),
+                ConversationFilterOptions::default(),
+                Some("en".to_string()),
+            )
+        };
+
+        let as_member = list_for_org(Some(organization.id)).await?;
+        assert_eq!(as_member.total, 1, "host organization member should see it");
+        assert_eq!(as_member.records[0].id, conversation.id);
+
+        let without_org = list_for_org(None).await?;
+        assert_eq!(
+            without_org.total, 0,
+            "user outside the organization should not"
         );
 
         Ok(())

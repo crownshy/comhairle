@@ -28,6 +28,7 @@
 
 use std::sync::Arc;
 
+use crate::models::conversation::ConversationIden;
 use crate::models::organization::OrganizationIden;
 use crate::models::users::UserIden;
 use crate::redis_connection::RedisConnection;
@@ -363,7 +364,9 @@ impl Role {
             Role::ConversationContentEditor => {
                 &[Action::ConversationRead, Action::ConversationUpdate]
             }
-            Role::ConversationCoHost => &[Action::ConversationRead],
+            // Every member of a co-hosting organization can edit. Drop ConversationUpdate
+            // here to make organization access view-only.
+            Role::ConversationCoHost => &[Action::ConversationRead, Action::ConversationUpdate],
             #[cfg(test)]
             Role::Tester => &[],
         }
@@ -933,13 +936,46 @@ pub async fn can_perform_resource_action(
         roles.extend(org_roles);
     }
 
-    roles.dedup();
+    let role_allows_action = |role: Role| role.actions().contains(&action);
 
-    Ok(roles.iter().any(|role_name| {
-        role_name
-            .parse::<Role>()
-            .is_ok_and(|role| role.actions().contains(&action))
-    }))
+    if roles
+        .iter()
+        .any(|role_name| role_name.parse::<Role>().is_ok_and(role_allows_action))
+    {
+        return Ok(true);
+    }
+
+    if resource_type == ResourceType::Conversation
+        && role_allows_action(Role::ConversationCoHost)
+        && let Some(org_id) = organization_id
+    {
+        return is_primary_host_organization(&state.db, resource_id, org_id).await;
+    }
+
+    Ok(false)
+}
+
+/// The primary host organization is stored on the conversation rather than granted, but it
+/// gets the same access as a co-hosting organization.
+#[instrument(err(Debug), skip(db))]
+async fn is_primary_host_organization(
+    db: &PgPool,
+    conversation_id: &Uuid,
+    organization_id: &Uuid,
+) -> Result<bool, ComhairleError> {
+    let (sql, values) = Query::select()
+        .expr(Expr::val(1))
+        .from(ConversationIden::Table)
+        .and_where(Expr::col(ConversationIden::Id).eq(*conversation_id))
+        .and_where(Expr::col(ConversationIden::OrganizationId).eq(*organization_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let row = sqlx::query_with(&sql, values)
+        .fetch_optional(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)?;
+
+    Ok(row.is_some())
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, FromRow)]
@@ -1673,8 +1709,9 @@ mod tests {
         let permissions =
             list_permissions_by_action(&state.db, user_id, None, "conversation_update").await?;
 
-        assert_eq!(permissions.len(), 1);
-        assert_eq!(permissions[0].resource_id, resource_2_id);
+        assert_eq!(permissions.len(), 2);
+        assert!(permissions.iter().any(|p| p.resource_id == resource_1_id));
+        assert!(permissions.iter().any(|p| p.resource_id == resource_2_id));
 
         // List permissions which permit the user to perform the "organization_update" action
         let permissions =
@@ -2043,6 +2080,113 @@ mod tests {
         )
         .await?;
         assert!(can_update, "content editor should allow update action");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_cohost_organization_member_can_update(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let org_id = get_random_organization_id(&app, &mut session).await?;
+        let granted_by = session.id.unwrap();
+        let user_id = get_random_user_id(&app, &mut session).await?;
+        let resource_id = Uuid::new_v4();
+
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::Org(org_id),
+                permission_triplet: Role::ConversationCoHost.triplet(&resource_id),
+                granted_by: &granted_by,
+                grant_reason: "Testing action checks",
+            },
+        )
+        .await?;
+
+        let can_update = can_perform_resource_action(
+            &state,
+            &resource_id,
+            Action::ConversationUpdate,
+            &user_id,
+            Some(&org_id),
+            None,
+        )
+        .await?;
+        assert!(
+            can_update,
+            "co-host organization member should allow update"
+        );
+
+        let can_admin = can_perform_resource_action(
+            &state,
+            &resource_id,
+            Action::ConversationAdmin,
+            &user_id,
+            Some(&org_id),
+            None,
+        )
+        .await?;
+        assert!(
+            !can_admin,
+            "co-host organization member should not allow admin"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn test_primary_host_organization_member_can_update_without_grant(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let host_org_id = get_random_organization_id(&app, &mut session).await?;
+        let other_org_id = get_random_organization_id(&app, &mut session).await?;
+
+        let (_, value, _) = session.create_random_conversation(&app).await?;
+        let conversation_id: Uuid = serde_json::from_value(value["id"].clone())?;
+        sqlx::query("UPDATE conversation SET organization_id = $1 WHERE id = $2")
+            .bind(host_org_id)
+            .bind(conversation_id)
+            .execute(&state.db)
+            .await?;
+
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        for action in [Action::ConversationRead, Action::ConversationUpdate] {
+            let allowed = can_perform_resource_action(
+                &state,
+                &conversation_id,
+                action,
+                &user_id,
+                Some(&host_org_id),
+                None,
+            )
+            .await?;
+            assert!(
+                allowed,
+                "primary host organization member should allow {action}"
+            );
+        }
+
+        let other_org_can_read = can_perform_resource_action(
+            &state,
+            &conversation_id,
+            Action::ConversationRead,
+            &user_id,
+            Some(&other_org_id),
+            None,
+        )
+        .await?;
+        assert!(
+            !other_org_can_read,
+            "unrelated organization should be denied"
+        );
 
         Ok(())
     }
