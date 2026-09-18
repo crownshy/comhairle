@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::polis_statement_aux;
+use crate::{models::permissions::Action, routes::auth::authorize};
 use aide::axum::{
     ApiRouter,
     routing::{delete_with, get_with, post_with, put_with},
@@ -16,22 +16,17 @@ use thiserror::Error;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        polis_statement_aux::{
-            CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
-            PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux,
-            UpsertFromPolis,
-        },
-    },
-    routes::auth::{RequiredAdminUser, RequiredUser},
-    wiki_poll_service::{
-        ModerationStatus, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
-        polis_service::WikiPollReport,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::polis_statement_aux::{
+    CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
+    PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux, UpsertFromPolis,
+};
+use crate::models::{self};
+use crate::routes::auth::RequiredUser;
+use crate::wiki_poll_service::polis_service::WikiPollReport;
+use crate::wiki_poll_service::{
+    ModerationStatus, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
 };
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
@@ -475,13 +470,26 @@ struct ReportDataQuery {
 }
 
 /// Gets the polis report data for a workflow step
-
 #[instrument(err(Debug), skip(state))]
 async fn get_report_data(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
     Query(ReportDataQuery { workflow_step_id }): Query<ReportDataQuery>,
 ) -> Result<(StatusCode, Json<WikiPollReport>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Export,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -518,6 +526,19 @@ async fn get_user_vote_count(
     Query(VoteCountQuery { workflow_step_id }): Query<VoteCountQuery>,
 ) -> Result<(StatusCode, Json<VoteCountResponse>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Export,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -570,12 +591,25 @@ pub struct UpdatePolisConfigRequest {
 #[instrument(err(Debug), skip(state))]
 async fn update_polis_config(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(request): Json<UpdatePolisConfigRequest>,
 ) -> Result<(StatusCode, Json<WikiPoll>), ComhairleError> {
     let workflow_step =
         models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
     models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Admin,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -625,12 +659,24 @@ pub struct PostSeedResponse {
 #[instrument(err(Debug), skip(state))]
 async fn post_seed(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(request): Json<PostSeedRequest>,
 ) -> Result<(StatusCode, Json<PostSeedResponse>), ComhairleError> {
     let workflow_step =
         models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
-    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Admin,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -734,13 +780,21 @@ async fn sync_statement_aux(
     Json(SyncStatementAuxRequest { workflow_step_id }): Json<SyncStatementAuxRequest>,
 ) -> Result<(StatusCode, Json<SyncStatementAuxResponse>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
-    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
 
     // Fetch from the live poll when the conversation is live, otherwise from
     // the preview poll. We key off the conversation's live status rather than
     // the presence of a live tool_config so preview data stays isolated from
     // live data.
     let workflow = models::workflow::get_by_id(&state.db, &workflow_step.workflow_id).await?;
+    authorize(
+        &state,
+        &user,
+        Action::Admin,
+        workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+            "workflow is not attached to a conversation".into(),
+        ))?,
+    )
+    .await?;
     let is_live = match workflow.conversation_id {
         Some(conversation_id) => {
             models::conversation::get_by_id(&state.db, &conversation_id)
@@ -871,9 +925,20 @@ async fn moderate_statement_aux(
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
 
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
-
     let workflow_step = models::workflow_step::get_by_id(&state.db, &aux.workflow_step_id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Moderate,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -940,7 +1005,21 @@ async fn split_statement(
 ) -> Result<(StatusCode, Json<SplitStatementResponse>), ComhairleError> {
     let original = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
 
-    polis_statement_aux::check_can_moderate(&state, &user, &original.workflow_step_id).await?;
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &original.workflow_step_id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Moderate,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
 
     let replacements: Vec<String> = request
         .replacements
@@ -954,9 +1033,6 @@ async fn split_statement(
             "a split needs at least one non-empty replacement statement".into(),
         ));
     }
-
-    let workflow_step =
-        models::workflow_step::get_by_id(&state.db, &original.workflow_step_id).await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -1083,9 +1159,21 @@ async fn moderate_statement_aux_batch(
         ));
     }
 
-    polis_statement_aux::check_can_moderate(&state, &user, &workflow_step_id).await?;
-
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Moderate,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
+
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
@@ -1153,7 +1241,21 @@ async fn add_statement_aux_theme(
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+
+    let workflow_step = models::workflow_step::get_by_id(&state.db, &aux.workflow_step_id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Moderate,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
 
     let updated =
         models::polis_statement_aux::add_theme(&state.db, statement_id, &request.theme).await?;
@@ -1168,7 +1270,20 @@ async fn remove_statement_aux_theme(
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+    let workflow_step = models::workflow_step::get_by_id(&state.db, &aux.workflow_step_id).await?;
+
+    authorize(
+        &state,
+        &user,
+        Action::Moderate,
+        models::workflow::get_by_id(&state.db, &workflow_step.workflow_id)
+            .await?
+            .conversation_id
+            .ok_or(ComhairleError::BadRequest(
+                "workflow is not attached to a conversation".into(),
+            ))?,
+    )
+    .await?;
 
     let updated =
         models::polis_statement_aux::remove_theme(&state.db, statement_id, &request.theme).await?;

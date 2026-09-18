@@ -9,8 +9,8 @@ export const load: LayoutLoad = async ({ url, data }) => {
 	const api = createApiClient(url.origin + '/api', token, browser ? 'client' : 'server');
 
 	try {
-		const userRoles = await api.GetUserRoles();
-		return { api, user, userRoles, isCommunity, themeName };
+		const userSystemActions = await api.GetUserSystemActions();
+		return { api, user, userSystemActions, isCommunity, themeName };
 	} catch (e) {
 		return { api, user, isCommunity, themeName };
 	}

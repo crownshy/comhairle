@@ -6,8 +6,7 @@ use crate::{
     models::{
         pagination::{Order, PageOptions, PaginatedResults},
         permissions::{
-            self, GrantRoleRequest, ResourcePermissionIden, ResourceType as PermissionResourceType,
-            Role as PermissionRole, grant_role,
+            self, GrantRoleRequest, ResourcePermissionIden, Role as PermissionRole, grant_role,
         },
     },
     routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
@@ -343,9 +342,9 @@ pub async fn create_organization_admin_user(
         state,
         GrantRoleRequest {
             actor_id: permissions::UserOrOrganizationId::User(user.id),
-            granted_by: &user.id,
-            grant_reason: "Admin user created for organization",
-            permission_triplet: permissions::Role::Admin.system_triplet(),
+            permission_target: permissions::Role::Admin.system_target(),
+            granted_by: user.id,
+            grant_reason: "Admin user created for organization".to_string(),
         },
     )
     .await?;
@@ -694,13 +693,6 @@ impl UserFilterOptions {
                         ResourcePermissionIden::UserId,
                     ))
                     .equals((UserIden::Table, UserIden::Id)),
-                )
-                .and_where(
-                    Expr::col((
-                        ResourcePermissionIden::Table,
-                        ResourcePermissionIden::ResourceType,
-                    ))
-                    .eq(PermissionResourceType::System.as_ref()),
                 )
                 .and_where(
                     Expr::col((

@@ -33,7 +33,7 @@ pub mod region;
 pub mod region_area;
 pub mod report;
 pub mod report_impact;
-pub mod resource;
+pub mod resources;
 pub mod scheduled_email;
 pub mod thinking_space_answer;
 pub mod thinking_space_follow_up_question;

@@ -15,9 +15,9 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::models::permissions::{
-    self, Action, GrantRoleRequest, ListPermissionsFilters, PermissionTargetResource,
-    PermissionTriplet, RevokeRoleRequest, SystemResource, UserOrOrganizationId,
-    UserWithPermissionDto, list_permissions,
+    self, Action, GrantRoleRequest, ListPermissionsFilters, ResourcePermissionTarget,
+    RevokeRoleRequest, SYSTEM_RESOURCE_ID, UserOrOrganizationId, UserWithPermissionDto,
+    list_permissions,
 };
 use crate::models::{
     pagination::{PageOptions, PaginatedResults},
@@ -33,7 +33,6 @@ use crate::{
 /// Represents the resource type and ID for a permission operation.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TargetResourceId {
-    pub resource_type: String,
     pub resource_id: Uuid,
 }
 
@@ -112,11 +111,10 @@ async fn resolve_actor(
 async fn grant(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(caller): RequiredUser,
-    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Json(body): Json<GrantPermissionBody>,
 ) -> Result<(StatusCode, Json<permissions::ResourcePermission>), ComhairleError> {
-    authorize(&state, &caller, Action::GrantPermission, &resource).await?;
+    authorize(&state, &caller, Action::Admin, path.resource_id).await?;
 
     let actor_id = resolve_actor(
         &state.db,
@@ -128,15 +126,13 @@ async fn grant(
     .await?
     .unwrap();
 
-    let permission_triplet =
-        PermissionTriplet(&path.resource_type, &path.resource_id, &body.role_name);
     let permission = grant_role(
         &state,
         GrantRoleRequest {
             actor_id,
-            permission_triplet,
-            granted_by: &caller.id,
-            grant_reason: &body.grant_reason,
+            permission_target: ResourcePermissionTarget(path.resource_id, body.role_name),
+            granted_by: caller.id,
+            grant_reason: body.grant_reason,
         },
     )
     .await?;
@@ -168,23 +164,20 @@ async fn grant(
 async fn revoke(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(caller): RequiredUser,
-    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<RevokePermissionQuery>,
 ) -> Result<StatusCode, ComhairleError> {
-    authorize(&state, &caller, Action::RevokePermission, &resource).await?;
+    authorize(&state, &caller, Action::Admin, path.resource_id).await?;
 
     let actor_id = resolve_actor(&state.db, query.user_id, query.organization_id, None, false)
         .await?
         .unwrap();
 
-    let permission_triplet =
-        PermissionTriplet(&path.resource_type, &path.resource_id, &query.role_name);
     revoke_role(
         &state,
         RevokeRoleRequest {
             actor_id,
-            permission_triplet,
+            permission_target: ResourcePermissionTarget(path.resource_id, query.role_name),
         },
     )
     .await?;
@@ -202,7 +195,6 @@ async fn revoke(
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(caller): RequiredUser,
-    system: SystemResource,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<
     (
@@ -211,7 +203,7 @@ async fn list(
     ),
     ComhairleError,
 > {
-    authorize(&state, &caller, Action::ListPermission, &system).await?;
+    authorize(&state, &caller, Action::Admin, SYSTEM_RESOURCE_ID).await?;
 
     let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
     let page_options = PageOptions {
@@ -221,7 +213,7 @@ async fn list(
 
     let request = ListPermissionsFilters {
         actor,
-        role_name: query.role_name.as_deref(),
+        role_name: query.role_name,
         page_options,
         ..Default::default()
     };
@@ -241,11 +233,10 @@ async fn list(
 async fn list_permissions_by_action(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(caller): RequiredUser,
-    system: SystemResource,
     Path(action): Path<String>,
     Query(query): Query<ListPermissionsByActionQuery>,
 ) -> Result<(StatusCode, Json<Vec<permissions::ResourcePermission>>), ComhairleError> {
-    if let Err(err) = authorize(&state, &caller, Action::ListPermission, &system).await
+    if let Err(err) = authorize(&state, &caller, Action::Admin, SYSTEM_RESOURCE_ID).await
         && (!matches!(err, ComhairleError::UserNotAuthorized)
             || caller.id != query.user_id.unwrap_or(caller.id))
     {
@@ -273,7 +264,6 @@ async fn list_permissions_by_action(
 async fn list_for_resource(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(caller): RequiredUser,
-    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<
@@ -283,7 +273,7 @@ async fn list_for_resource(
     ),
     ComhairleError,
 > {
-    authorize(&state, &caller, Action::ListPermission, &resource).await?;
+    authorize(&state, &caller, Action::Admin, path.resource_id).await?;
 
     let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
     let page_options = PageOptions {
@@ -293,10 +283,9 @@ async fn list_for_resource(
 
     let request = ListPermissionsFilters {
         actor,
-        role_name: query.role_name.as_deref(),
+        role_name: query.role_name,
         page_options,
-        resource_type: Some(&path.resource_type),
-        resource_id: Some(&path.resource_id),
+        resource_id: Some(path.resource_id),
     };
 
     let page = list_permissions(&state, request).await?;
@@ -308,15 +297,13 @@ async fn list_for_resource(
 async fn list_users_with_permission(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(caller): RequiredUser,
-    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<(StatusCode, Json<Vec<UserWithPermissionDto>>), ComhairleError> {
-    authorize(&state, &caller, Action::ListPermission, &resource).await?;
+    authorize(&state, &caller, Action::Admin, path.resource_id).await?;
 
     let users_with_permission = permissions::list_users_with_permission(
         &state.db,
-        &path.resource_type,
         path.resource_id,
         query.role_name.as_deref(),
     )
@@ -359,7 +346,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
-            "/{resource_type}/{resource_id}",
+            "/{resource_id}",
             get_with(list_for_resource, |op| {
                 op.id("ListResourcePermissions")
                     .tag("Permissions")
@@ -375,7 +362,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
-            "/{resource_type}/{resource_id}",
+            "/{resource_id}",
             post_with(grant, |op| {
                 op.id("GrantPermission")
                     .tag("Permissions")
@@ -389,7 +376,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
-            "/{resource_type}/{resource_id}",
+            "/{resource_id}",
             delete_with(revoke, |op| {
                 op.id("RevokePermission")
                     .tag("Permissions")
@@ -405,15 +392,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
-            "/{resource_type}/{resource_id}/users",
+            "/{resource_id}/users",
             get_with(list_users_with_permission, |op| {
                 op.id("ListUsersWithPermission")
                     .tag("Permissions")
                     .summary("List users with permissions")
-                    .description(
-                        "List users with a give permission (role + resource_type) \
-                        for a given resource",
-                    )
+                    .description("List users with a given role for a given resource")
                     .security_requirement("JWT")
                     .response::<200, Json<Vec<UserWithPermissionDto>>>()
             }),
@@ -425,22 +409,19 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use crate::models::pagination::PaginatedResults;
     use crate::models::permissions::{
-        GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, ResourcePermission, Role,
-        UserOrOrganizationId, grant_role, has_resource_permission, list_permissions,
+        GrantRoleRequest, ListPermissionsFilters, ResourcePermission, ResourcePermissionTarget,
+        Role, UserOrOrganizationId, grant_role, has_resource_permission, list_permissions,
     };
     use crate::routes::permissions::{
         GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
     };
-    use crate::test_helpers::{test_config, test_state};
+    use crate::test_helpers::{test_config, test_resource, test_state};
     use crate::{setup_server, test_helpers::UserSession};
 
     use axum::body::Body;
     use hyper::StatusCode;
     use sqlx::PgPool;
     use std::sync::Arc;
-
-    // Role definitions for testing
-    const RESOURCE_TYPE: &str = "test_resource";
 
     struct TestRole;
 
@@ -449,14 +430,14 @@ mod tests {
             "editor"
         }
 
-        fn make_triplet(resource_id: &uuid::Uuid) -> PermissionTriplet<'_> {
-            PermissionTriplet(RESOURCE_TYPE, resource_id, "editor")
+        fn make_triplet(resource_id: uuid::Uuid) -> ResourcePermissionTarget {
+            ResourcePermissionTarget(resource_id, "editor".to_string())
         }
     }
 
     // Helper functions
-    fn revoke_url(resource: (&str, &uuid::Uuid), query: &RevokePermissionQuery) -> String {
-        let mut url = format!("/permissions/{}/{}?", resource.0, resource.1);
+    fn revoke_url(resource: uuid::Uuid, query: &RevokePermissionQuery) -> String {
+        let mut url = format!("/permissions/{}?", resource);
         if let Some(user_id) = query.user_id {
             url.push_str(&format!("user_id={}&", user_id));
         }
@@ -506,9 +487,9 @@ mod tests {
         // Check if the user has the system admin role
         let has_admin_role = has_resource_permission(
             &state,
-            Role::Admin.system_triplet(),
-            &user.id,
-            user.organization_id.as_ref(),
+            Role::Admin.system_target(),
+            user.id,
+            user.organization_id,
         )
         .await?;
 
@@ -538,15 +519,15 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                permission_target: Role::SuperAdmin.system_target(),
+                granted_by: user.id,
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
 
         // Create a resource to grant permissions on
-        let resource_id = uuid::Uuid::new_v4();
+        let resource = test_resource(&state.db, None).await?;
 
         // Grant a permission
         let grant_body = GrantPermissionBody {
@@ -554,17 +535,13 @@ mod tests {
             organization_id: None,
             user_email: None,
             role_name: "editor".into(),
-            grant_reason: "Testing".into(),
+            grant_reason: "Testing".to_string(),
         };
 
         let body = Body::from(serde_json::to_string(&grant_body)?);
 
         let (status, _response, _message) = session
-            .post(
-                &app,
-                &format!("/permissions/{}/{}", RESOURCE_TYPE, resource_id),
-                body,
-            )
+            .post(&app, &format!("/permissions/{}", resource.id), body)
             .await?;
 
         assert_eq!(status, StatusCode::CREATED);
@@ -573,11 +550,7 @@ mod tests {
 
         // Re-grant the same permission and expect a 400 Bad Request
         let (status, _response, _message) = session
-            .post(
-                &app,
-                &format!("/permissions/{}/{}", RESOURCE_TYPE, resource_id),
-                body,
-            )
+            .post(&app, &format!("/permissions/{}", resource.id), body)
             .await?;
 
         assert_eq!(status, StatusCode::CONFLICT);
@@ -603,24 +576,24 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                permission_target: Role::SuperAdmin.system_target(),
+                granted_by: user.id,
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
 
         // Create a resource to grant permissions on
-        let resource_id = uuid::Uuid::new_v4();
+        let resource = test_resource(&state.db, None).await?;
 
         // Grant editor role to revoke
         grant_role(
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: TestRole::make_triplet(&resource_id),
-                granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                permission_target: TestRole::make_triplet(resource.id),
+                granted_by: user.id,
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
@@ -632,15 +605,13 @@ mod tests {
             role_name: "editor".into(),
         };
 
-        let revoke_url = revoke_url((RESOURCE_TYPE, &resource_id), &revoke_query);
+        let revoke_url = revoke_url(resource.id, &revoke_query);
 
         let (status, _response, _message) = session.delete(&app, &revoke_url).await?;
-
         assert_eq!(status, StatusCode::OK);
 
         // Revoking again should return NOT_FOUND
         let (status, _response, _message) = session.delete(&app, &revoke_url).await?;
-
         assert_eq!(status, StatusCode::NOT_FOUND);
 
         Ok(())
@@ -664,27 +635,25 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                permission_target: Role::SuperAdmin.system_target(),
+                granted_by: user.id,
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
 
         // Create a resource to grant permissions on
-        let resource_id = uuid::Uuid::new_v4();
+        let resource = test_resource(&state.db, None).await?;
 
         // Grant additional permissions
         for i in 0..5 {
-            let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: UserOrOrganizationId::User(user.id),
-                    permission_triplet,
-                    granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    permission_target: ResourcePermissionTarget(resource.id, format!("Role{}", i)),
+                    granted_by: user.id,
+                    grant_reason: "Testing".to_string(),
                 },
             )
             .await?;
@@ -747,43 +716,42 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                permission_target: Role::SuperAdmin.system_target(),
+                granted_by: user.id,
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
 
         // Create two resources to grant permissions on
-        let resource_id = uuid::Uuid::new_v4();
-        let resource_id_2 = uuid::Uuid::new_v4();
+        let resource = test_resource(&state.db, None).await?;
+        let resource_2 = test_resource(&state.db, None).await?;
 
         // Grant additional permissions
         for i in 0..5 {
-            let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: UserOrOrganizationId::User(user.id),
-                    permission_triplet,
-                    granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    permission_target: ResourcePermissionTarget(resource.id, format!("Role{}", i)),
+                    granted_by: user.id,
+                    grant_reason: "Testing".to_string(),
                 },
             )
             .await?;
         }
 
         for i in 0..3 {
-            let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id_2, &format!("OtherRole{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: UserOrOrganizationId::User(user.id),
-                    permission_triplet,
-                    granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    permission_target: ResourcePermissionTarget(
+                        resource_2.id,
+                        format!("OtherRole{}", i),
+                    ),
+                    granted_by: user.id,
+                    grant_reason: "Testing".to_string(),
                 },
             )
             .await?;
@@ -798,10 +766,7 @@ mod tests {
             limit: Some(4),
         };
 
-        let list_url = list_query_url(
-            &format!("/permissions/{}/{}", RESOURCE_TYPE, resource_id),
-            &query,
-        );
+        let list_url = list_query_url(&format!("/permissions/{}", resource.id), &query);
 
         let (status, response, _message) = session.get(&app, &list_url).await?;
 
@@ -817,10 +782,7 @@ mod tests {
             offset: Some(4),
             ..query
         };
-        let next_list_url = list_query_url(
-            &format!("/permissions/{}/{}", RESOURCE_TYPE, resource_id),
-            &next_query,
-        );
+        let next_list_url = list_query_url(&format!("/permissions/{}", resource.id), &next_query);
 
         let (status, response, _message) = session.get(&app, &next_list_url).await?;
 
@@ -854,28 +816,26 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                permission_target: Role::SuperAdmin.system_target(),
+                granted_by: user.id,
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
 
         // Create a resource to grant permissions on
-        let resource_id = uuid::Uuid::new_v4();
-        let resource_2_id = uuid::Uuid::new_v4();
+        let resource = test_resource(&state.db, None).await?;
+        let resource_2 = test_resource(&state.db, None).await?;
 
         // Grant additional permissions
         for i in 0..5 {
-            let permission_triplet =
-                PermissionTriplet(RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: UserOrOrganizationId::User(user.id),
-                    permission_triplet,
-                    granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    permission_target: ResourcePermissionTarget(resource.id, format!("Role{}", i)),
+                    granted_by: user.id,
+                    grant_reason: "Testing".to_string(),
                 },
             )
             .await?;
@@ -886,9 +846,9 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: PermissionTriplet(RESOURCE_TYPE, &resource_2_id, "Role1"),
-                granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                permission_target: ResourcePermissionTarget(resource_2.id, "Role1".to_string()),
+                granted_by: user.id,
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
@@ -902,10 +862,7 @@ mod tests {
             limit: Some(10),
         };
 
-        let list_url = list_query_url(
-            &format!("/permissions/{}/{}", RESOURCE_TYPE, resource_id),
-            &query,
-        );
+        let list_url = list_query_url(&format!("/permissions/{}", resource.id), &query);
 
         let (status, response, _message) = session.get(&app, &list_url).await?;
 
@@ -938,15 +895,15 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                permission_target: Role::SuperAdmin.system_target(),
+                granted_by: user.id,
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
 
         // Create a resource to grant permissions on
-        let resource_id = uuid::Uuid::new_v4();
+        let resource = test_resource(&state.db, None).await?;
 
         // Grant a permission
         let grant_body = GrantPermissionBody {
@@ -954,18 +911,14 @@ mod tests {
             organization_id: None,
             user_email: None,
             role_name: TestRole::name().into(),
-            grant_reason: "Testing".into(),
+            grant_reason: "Testing".to_string(),
         };
 
         let body = Body::from(serde_json::to_string(&grant_body)?);
 
         let pre_grant = chrono::Utc::now();
         let (status, _response, _message) = session
-            .post(
-                &app,
-                &format!("/permissions/{}/{}", RESOURCE_TYPE, resource_id),
-                body,
-            )
+            .post(&app, &format!("/permissions/{}", resource.id), body)
             .await?;
         let post_grant = chrono::Utc::now();
 
@@ -976,9 +929,8 @@ mod tests {
             &state,
             ListPermissionsFilters {
                 actor: Some(UserOrOrganizationId::User(user.id)),
-                role_name: Some(TestRole::name()),
-                resource_type: Some(RESOURCE_TYPE),
-                resource_id: Some(&resource_id),
+                role_name: Some(TestRole::name().to_string()),
+                resource_id: Some(resource.id),
                 page_options: Default::default(),
             },
         )

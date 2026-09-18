@@ -29,8 +29,7 @@ WHERE LOWER(email) ~* ${ADMIN_USERS_REGEX@Q}
   AND id NOT IN (
       SELECT user_id
       FROM resource_permissions
-      WHERE resource_type = 'system'
-        AND resource_id   = '00000000-0000-0000-0000-000000000000'
+      WHERE resource_id   = '00000000-0000-0000-0000-000000000000'
         AND role_name     = 'admin'
         AND user_id IS NOT NULL
   );
@@ -81,7 +80,6 @@ inserted AS (
     INSERT INTO resource_permissions (
         user_id,
         resource_id,
-        resource_type,
         role_name,
         granted_by,
         grant_reason,
@@ -90,7 +88,6 @@ inserted AS (
     SELECT
         id,
         '00000000-0000-0000-0000-000000000000'::UUID,
-        'system',
         'admin',
         (SELECT id FROM selected_grantor),
         'Backfilled by backfill-admin-permissions script',

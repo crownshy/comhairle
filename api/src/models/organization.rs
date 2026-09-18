@@ -17,6 +17,7 @@ use crate::{
     models::{
         SqlxResultExt,
         pagination::{Order, PageOptions, PaginatedResults},
+        resources::CreateResource,
         translations::{TextContentId, TextFormat, new_translation},
         users,
     },
@@ -142,8 +143,16 @@ pub async fn create(
     new_org: &CreateOrganization,
     locale: &str,
 ) -> Result<Organization, ComhairleError> {
+    let create_resource = CreateResource::builder()
+        .resource_type("organization".to_string())
+        .build();
+    let resource = crate::models::resources::create(db, create_resource).await?;
+
     let mut columns = new_org.columns();
     let mut values = new_org.values();
+
+    columns.push(OrganizationIden::Id);
+    values.push(resource.id.into());
 
     let description_translation =
         new_translation(db, locale, &new_org.description, TextFormat::Plain).await?;
@@ -451,6 +460,8 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
         .fetch_one(&mut *tx)
         .await
         .resolve_db_err("Organization")?;
+
+    crate::models::resources::delete(&mut *tx, *id).await?;
 
     tx.commit().await?;
 

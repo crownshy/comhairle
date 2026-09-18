@@ -55,7 +55,7 @@
 		console.log('Unread count ', notificationService.unreadCount);
 	});
 
-	let { user, isAdmin } = $props();
+	let { user, canViewAdminPortal } = $props();
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
@@ -91,7 +91,7 @@
 			<LocaleSwitcher
 				class="data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent py-5 text-base shadow-xs hover:bg-white/10"
 			/>
-			{#if isAdmin}
+			{#if canViewAdminPortal}
 				<Button
 					variant="nav"
 					href="/admin"
@@ -187,7 +187,7 @@
 									{m.settings()}
 								</Button>
 							{/if}
-							{#if isAdmin}
+							{#if canViewAdminPortal}
 								<Button
 									href="/admin"
 									variant="ghost"

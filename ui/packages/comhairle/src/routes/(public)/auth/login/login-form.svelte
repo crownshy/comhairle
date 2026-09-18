@@ -42,11 +42,9 @@
 					let redirectTo = backTo ?? '/';
 					if (redirectTo === '/') {
 						try {
-							const userRoles = await apiClient.GetUserRoles();
-							const isAdmin = userRoles
-								?.find((ur) => ur.resource === 'Site')
-								?.roles.includes('Admin');
-							if (isAdmin) {
+							const userSystemActions = await apiClient.GetUserSystemActions();
+							const canViewAdminPortal = userSystemActions.includes('view');
+							if (canViewAdminPortal) {
 								redirectTo = '/admin';
 							}
 						} catch {}

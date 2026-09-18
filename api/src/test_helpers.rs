@@ -1,5 +1,5 @@
-use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
-use crate::models::region_area;
+use crate::error::ComhairleError;
+use crate::models::permissions::{ResourcePermissionTarget, Role};
 use crate::redis_connection::RedisConnection;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 use chrono::Utc;
@@ -143,11 +143,10 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     Ok(config)
 }
 
-pub const TEST_RESOURCE_TYPE: &str = "test";
 pub const TEST_ROLE_NAME: &str = "tester";
 
 /// Test-only shim around [`Role::Test`] / [`ResourceType::Test`] so existing
-/// tests can keep using `TestRole::name()` / `resource_type()` / `make_triplet()`.
+/// tests can keep using `TestRole::name()` / `make_triplet()`.
 pub struct TestRole;
 
 impl TestRole {
@@ -155,13 +154,24 @@ impl TestRole {
         Role::Tester.as_ref()
     }
 
-    pub fn resource_type() -> &'static str {
-        ResourceType::Test.as_ref()
+    pub fn permission_target(resource_id: Uuid) -> ResourcePermissionTarget {
+        Role::Tester.target(resource_id)
     }
+}
 
-    pub fn make_triplet(resource_id: &Uuid) -> PermissionTriplet<'_> {
-        Role::Tester.triplet(resource_id)
-    }
+/// Creates a test resource in the database.
+pub async fn test_resource(
+    db: &sqlx::PgPool,
+    owner: Option<Uuid>,
+) -> Result<crate::models::resources::Resource, ComhairleError> {
+    crate::models::resources::create(
+        db,
+        crate::models::resources::CreateResource {
+            owner_id: owner,
+            resource_type: "test".to_string(),
+        },
+    )
+    .await
 }
 
 pub fn extract<T: DeserializeOwned>(target: &str, entity: &serde_json::Value) -> T {

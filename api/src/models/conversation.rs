@@ -6,15 +6,15 @@ use super::{
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
-use crate::ComhairleState;
 use crate::bot_service::{
     ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
     DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT, Variable,
 };
 use crate::config::ComhairleConfig;
 use crate::error::ComhairleError;
-use crate::models::permissions::{Action, ResourcePermissionIden, ResourceType, Role};
+use crate::models::permissions::{Action, ResourcePermissionIden, Role};
 use crate::models::{self, SqlxResultExt};
+use crate::{ComhairleState, models::resources::CreateResource};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -412,18 +412,24 @@ impl ConversationOrderOptions {
 pub async fn delete(
     db: &PgPool,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
-    id: &Uuid,
+    id: Uuid,
 ) -> Result<Conversation, ComhairleError> {
+    let mut tx = db.begin().await?;
+
     let (sql, values) = Query::delete()
         .from_table(ConversationIden::Table)
-        .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
+        .and_where(Expr::col(ConversationIden::Id).eq(id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *tx)
         .await
         .resolve_db_err("Conversation")?;
+
+    models::resources::delete(&mut *tx, id).await?;
+
+    tx.commit().await?;
 
     if let Some(bot_service) = bot_service {
         if let Some(ref knowledge_base_id) = conversation.knowledge_base_id {
@@ -721,7 +727,11 @@ pub async fn create(
     owner_id: Uuid,
     organization_id: Option<Uuid>,
 ) -> Result<Conversation, ComhairleError> {
-    let conversation_id = Uuid::new_v4();
+    let create_resource = CreateResource::builder()
+        .owner_id(owner_id)
+        .resource_type("conversation".to_string())
+        .build();
+    let resource = models::resources::create(db, create_resource).await?;
 
     // Generate Translations
     let title = new_translation(
@@ -753,11 +763,11 @@ pub async fn create(
 
     if let (Some(bot_service), Some(bot_service_config)) = (bot_service, &config.bot_service) {
         let (_, knowledge_base) = bot_service
-            .create_knowledge_base(conversation_id.to_string(), None)
+            .create_knowledge_base(resource.id.to_string(), None)
             .await?;
 
         let create_chat = CreateChatRequest {
-            name: conversation_id.to_string(),
+            name: resource.id.to_string(),
             knowledge_base_ids: Some(vec![bot_service_config.default_knowledge_base_id.clone()]),
             prompt: Some(ComhairlePrompt {
                 llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
@@ -812,7 +822,7 @@ pub async fn create(
     values.push(slug.clone().into());
 
     columns.push(ConversationIden::Id);
-    values.push(conversation_id.into());
+    values.push(resource.id.into());
 
     columns.push(ConversationIden::IsComplete);
     values.push(false.into());
@@ -960,10 +970,7 @@ pub async fn list_for_permitted_user(
 
     if !is_super_admin {
         let read_role_names: Vec<String> = Role::all()
-            .filter(|role| {
-                role.resource_type() == ResourceType::Conversation
-                    && role.actions().contains(&Action::ConversationRead)
-            })
+            .filter(|role| role.actions().contains(&Action::View))
             .map(|role| role.as_ref().to_string())
             .collect();
 
@@ -998,13 +1005,6 @@ pub async fn list_for_permitted_user(
                     ResourcePermissionIden::Table,
                     ResourcePermissionIden::ResourceId,
                 )),
-            )
-            .add(
-                Expr::col((
-                    ResourcePermissionIden::Table,
-                    ResourcePermissionIden::ResourceType,
-                ))
-                .eq(ResourceType::Conversation.as_ref()),
             )
             .add(
                 Expr::col((
@@ -1332,17 +1332,17 @@ mod tests {
 
         let grant_request_a_a = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: Role::ConversationContentEditor.triplet(&conversation.id),
-            granted_by: &session.id.unwrap(),
-            grant_reason: "Testing",
+            permission_target: Role::Editor.target(conversation.id),
+            granted_by: session.id.unwrap(),
+            grant_reason: "Testing".to_string(),
         };
         grant_role(&state, grant_request_a_a).await?;
 
         let grant_request_a_b = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: Role::Tester.triplet(&conversation.id),
-            granted_by: &session.id.unwrap(),
-            grant_reason: "Testing",
+            permission_target: Role::Tester.target(conversation.id),
+            granted_by: session.id.unwrap(),
+            grant_reason: "Testing".to_string(),
         };
         grant_role(&state, grant_request_a_b).await?;
 

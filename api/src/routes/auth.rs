@@ -3,6 +3,7 @@ use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
+use async_trait::async_trait;
 use axum::{
     Extension, RequestPartsExt,
     extract::{FromRequestParts, Json, Path, State},
@@ -29,9 +30,9 @@ pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::us
     // Check if the user has the system admin role
     if has_resource_permission(
         state,
-        PermissionRole::Admin.system_triplet(),
-        &user.id,
-        user.organization_id.as_ref(),
+        PermissionRole::Admin.system_target(),
+        user.id,
+        user.organization_id,
     )
     .await
     .unwrap_or(false)
@@ -62,8 +63,8 @@ use crate::error::ComhairleError;
 use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
-    Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
-    UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
+    Action, ConversationPath, GrantRoleRequest, Role as PermissionRole, UserOrOrganizationId,
+    can_perform_resource_action, grant_role, has_resource_permission,
 };
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
@@ -333,9 +334,9 @@ async fn signup(
                 &state,
                 GrantRoleRequest {
                     actor_id: UserOrOrganizationId::User(user.id),
-                    permission_triplet: PermissionRole::Admin.system_triplet(),
-                    grant_reason: "Admin signup",
-                    granted_by: &user.id,
+                    permission_target: PermissionRole::Admin.system_target(),
+                    granted_by: user.id,
+                    grant_reason: "Admin signup".to_string(),
                 },
             )
             .await?;
@@ -899,6 +900,7 @@ async fn resolve_user_from_request(
             .ok_or(ComhairleError::UserRequired)
     }
 }
+
 /// Authorizes `user` to perform `action` on `resource`.
 ///
 /// Access is granted if the user owns the resource, or if the user (or their
@@ -909,26 +911,80 @@ async fn resolve_user_from_request(
 ///
 /// * Returns [`ComhairleError::UserNotAuthorized`] if the user is not permitted.
 /// * Propagates [`ComhairleError`] from the underlying permission lookup.
-pub async fn authorize<R: ExtractResourceId>(
+pub async fn authorize(
     state: &Arc<ComhairleState>,
     user: &User,
     action: Action,
-    resource: &R,
+    resource_id: Uuid,
 ) -> Result<(), ComhairleError> {
-    if can_perform_resource_action(
-        state,
-        &resource.resource_id(),
-        action,
-        &user.id,
-        user.organization_id.as_ref(),
-        resource.owner_id().as_ref(),
-    )
-    .await?
+    if can_perform_resource_action(state, resource_id, action, user.id, user.organization_id)
+        .await?
     {
+        tracing::event!(name: "authorized", target: "authorization", tracing::Level::INFO, resource=?resource_id, action=?action, user_id=?user.id);
         Ok(())
     } else {
+        tracing::event!(name: "not_authorized", target: "authorization", tracing::Level::ERROR, resource=?resource_id, action=?action, user_id=?user.id);
         Err(ComhairleError::UserNotAuthorized)
     }
+}
+
+#[async_trait]
+pub trait ExtractResourceId: FromRequestParts<Arc<ComhairleState>> {
+    async fn resource_id(&self, state: Arc<ComhairleState>) -> Result<Uuid, ComhairleError>;
+}
+
+pub struct SystemResourceExtractor;
+
+#[async_trait]
+impl ExtractResourceId for SystemResourceExtractor {
+    async fn resource_id(&self, _state: Arc<ComhairleState>) -> Result<Uuid, ComhairleError> {
+        Ok(Uuid::nil())
+    }
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for SystemResourceExtractor {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        _parts: &mut Parts,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        Ok(SystemResourceExtractor)
+    }
+}
+
+pub fn with_required_action<Extractor>(
+    state: Arc<ComhairleState>,
+    method_router: aide::axum::routing::ApiMethodRouter<Arc<ComhairleState>>,
+    action: Action,
+) -> aide::axum::routing::ApiMethodRouter<Arc<ComhairleState>>
+where
+    Extractor: ExtractResourceId + FromRequestParts<Arc<ComhairleState>> + Send + 'static,
+    <Extractor as FromRequestParts<Arc<ComhairleState>>>::Rejection: IntoResponse,
+{
+    method_router
+        .route_layer(axum::middleware::from_fn_with_state(
+            state,
+            check_action_middleware::<Extractor>,
+        ))
+        .route_layer(axum::Extension(action))
+}
+
+async fn check_action_middleware<Extractor>(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    resource_id_extractor: Extractor,
+    Extension(action): Extension<Action>,
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, ComhairleError>
+where
+    Extractor: ExtractResourceId + FromRequestParts<Arc<ComhairleState>> + Send + 'static,
+    <Extractor as FromRequestParts<Arc<ComhairleState>>>::Rejection: IntoResponse,
+{
+    let resource_id = resource_id_extractor.resource_id(state.clone()).await?;
+    authorize(&state, &user, action, resource_id).await?;
+    Ok(next.run(req).await)
 }
 
 /// An extractor to get a required current user.

@@ -14,7 +14,7 @@
 	<ResourceRoleForm
 		resourceId={conversationId}
 		resourceType="conversation"
-		role="content_editor"
+		role="editor"
 		grantReason="Conversation editing"
 		{permittedUsers}
 	/>

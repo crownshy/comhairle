@@ -66,10 +66,9 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			configureTabs.push({ id: 'team', label: 'Team' });
 			usersWithPermission = await api.ListUsersWithPermission({
 				params: {
-					resource_type: 'conversation',
 					resource_id: conversation.id
 				},
-				queries: { role_name: 'content_editor' }
+				queries: { role_name: 'editor' }
 			});
 		}
 

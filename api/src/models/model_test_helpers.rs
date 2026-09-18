@@ -33,9 +33,9 @@ pub async fn setup_default_app_and_session(
         &state,
         GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_id),
-            permission_triplet: Role::SuperAdmin.system_triplet(),
-            granted_by: &user_id,
-            grant_reason: "Default super admin test setup",
+            permission_target: Role::SuperAdmin.system_target(),
+            granted_by: user_id,
+            grant_reason: "Default super admin test setup".to_string(),
         },
     )
     .await;

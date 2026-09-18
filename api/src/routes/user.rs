@@ -6,7 +6,7 @@ use aide::axum::{
 };
 use axum::{
     Json,
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
 };
 use schemars::JsonSchema;
@@ -23,7 +23,9 @@ use crate::{
         media::{FromWithMedia, MediaResolver},
         organization::{self, OrganizationFilterOptions, OrganizationOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        permissions::{Action, Role, can_perform_resource_action, has_resource_permission},
+        permissions::{
+            Action, Role, SYSTEM_RESOURCE_ID, can_perform_resource_action, has_resource_permission,
+        },
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{
@@ -85,9 +87,9 @@ pub async fn get_user_permitted_conversations(
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
     let is_super_admin = has_resource_permission(
         &state,
-        Role::SuperAdmin.system_triplet(),
-        &user.id,
-        user.organization_id.as_ref(),
+        Role::SuperAdmin.system_target(),
+        user.id,
+        user.organization_id,
     )
     .await?;
 
@@ -170,20 +172,42 @@ pub async fn get_conversations_user_participating_in(
 }
 
 #[instrument(err(Debug), skip(state))]
-pub async fn get_user_roles(
+pub async fn get_user_system_actions(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-) -> Result<(StatusCode, Json<Vec<UserRoles>>), ComhairleError> {
-    let mut roles = vec![];
+) -> Result<(StatusCode, Json<Vec<Action>>), ComhairleError> {
+    let mut actions = models::permissions::get_actions_for_user_and_resource(
+        &state,
+        user.id,
+        user.organization_id,
+        Uuid::nil(),
+    )
+    .await?;
 
-    if is_user_admin(&state, &user).await {
-        roles.push(UserRoles {
-            resource: ResourceType::Site,
-            roles: vec![ResourceRole::Admin],
-        });
+    if !actions.contains(&Action::Admin) && is_user_admin(&state, &user).await {
+        actions.push(Action::Admin);
     }
 
-    Ok((StatusCode::OK, Json(roles)))
+    Ok((
+        StatusCode::OK,
+        Json(actions.into_iter().collect::<Vec<_>>()),
+    ))
+}
+
+#[instrument(err(Debug), skip(state))]
+pub async fn get_user_resource_actions(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(resource_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<Vec<Action>>), ComhairleError> {
+    models::permissions::get_actions_for_user_and_resource(
+        &state,
+        user.id,
+        user.organization_id,
+        resource_id,
+    )
+    .await
+    .map(|actions| (StatusCode::OK, Json(actions)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -235,21 +259,19 @@ pub async fn get_user_organizations(
 
         let can_update = can_perform_resource_action(
             &state,
-            &organization.id,
-            Action::OrganizationUpdate,
-            &user.id,
-            user.organization_id.as_ref(),
-            None,
+            organization.id,
+            Action::Edit,
+            user.id,
+            user.organization_id,
         )
         .await?;
 
         let can_delete = can_perform_resource_action(
             &state,
-            &organization.id,
-            Action::OrganizationDelete,
-            &user.id,
-            user.organization_id.as_ref(),
-            None,
+            organization.id,
+            Action::Admin,
+            user.id,
+            user.organization_id,
         )
         .await?;
 
@@ -264,11 +286,10 @@ pub async fn get_user_organizations(
 
     let can_create_organization = can_perform_resource_action(
         &state,
-        &Uuid::nil(),
-        Action::OrganizationCreate,
-        &user.id,
-        user.organization_id.as_ref(),
-        None,
+        SYSTEM_RESOURCE_ID,
+        Action::Admin,
+        user.id,
+        user.organization_id,
     )
     .await?;
 
@@ -307,13 +328,23 @@ pub async fn upgrade_account(
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
-            "/roles",
-            get_with(get_user_roles, |op| {
-                op.id("GetUserRoles")
+            "/actions",
+            get_with(get_user_system_actions, |op| {
+                op.id("GetUserSystemActions")
                     .tag("User")
-                    .description("Gets a list of roles the current user has")
+                    .description("Gets a list of the system-wide actions the current user can perform")
                     .security_requirement("JWT")
-                    .response::<201, Json<Vec<UserRoles>>>()
+                    .response::<200, Json<Vec<Action>>>()
+            }),
+        )
+        .api_route(
+            "/actions/{resource_id}",
+            get_with(get_user_resource_actions, |op| {
+                op.id("GetUserResourceActions")
+                    .tag("User")
+                    .description("Gets a list of resource-specific actions the current user can perform")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<Action>>>()
             }),
         )
         .api_route(

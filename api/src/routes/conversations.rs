@@ -1,62 +1,66 @@
 use std::sync::Arc;
 
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use async_trait::async_trait;
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, patch_with, post_with, put_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        conversation::{
-            self, ConversationFilterOptions, ConversationOrderOptions,
-            ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
-        },
-        conversation_email_notification_recipients::{
-            self as email_recipients_model, CreateConversationEmailNotificationRecipients,
-        },
-        media::{FromWithMedia, MediaResolver},
-        notification::{self as notification_model, CreateNotification, NotificationContextType},
-        notification_delivery::{
-            self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
-        },
-        organization,
-        pagination::{OrderParams, PageOptions, PaginatedResults},
-        permissions::{
-            self, Action, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
-            RevokeRoleRequest, Role, UserOrOrganizationId, can_perform_resource_action, grant_role,
-        },
-        user_conversation_preferences,
-        user_participation::{self},
-        user_profile,
-    },
-    routes::{
-        auth::authorize,
-        conversations::dto::{ConversationDto, LocalizedConversationDto},
-        translations::LocaleExtractor,
-    },
+use crate::error::ComhairleError;
+use crate::models::conversation::{
+    self, ConversationFilterOptions, ConversationOrderOptions, ConversationWithTranslations,
+    CreateConversation, IdOrSlug, PartialConversation,
 };
+use crate::models::conversation_email_notification_recipients::{
+    self as email_recipients_model, CreateConversationEmailNotificationRecipients,
+};
+use crate::models::media::{FromWithMedia, MediaResolver};
+use crate::models::notification::{
+    self as notification_model, CreateNotification, NotificationContextType,
+};
+use crate::models::notification_delivery::{
+    self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
+};
+use crate::models::organization;
+use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
+use crate::models::permissions::{
+    self, Action, GrantRoleRequest, OrganizationWithPermissionDto, RevokeRoleRequest, Role,
+    UserOrOrganizationId, can_perform_resource_action, grant_role,
+};
+use crate::models::user_conversation_preferences;
+use crate::models::user_participation::{self};
+use crate::models::user_profile;
+use crate::routes::auth::{SystemResourceExtractor, with_required_action};
+use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
+use crate::routes::translations::LocaleExtractor;
+use crate::{ComhairleState, routes::auth::ExtractResourceId};
 
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{OptionalUser, RequiredUser, is_user_admin};
 
 pub mod dto;
+
+#[derive(Deserialize)]
+pub struct ConversationPath {
+    pub conversation_id: Uuid,
+}
+#[async_trait]
+impl ExtractResourceId for Path<ConversationPath> {
+    async fn resource_id(&self, _state: Arc<ComhairleState>) -> Result<Uuid, ComhairleError> {
+        Ok(self.0.conversation_id)
+    }
+}
 
 /// Create conversation handler
 #[instrument(err(Debug), skip(state))]
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(new_conversation): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::create(
@@ -77,14 +81,10 @@ async fn create_conversation(
 #[instrument(err(Debug), skip(state))]
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    resource: ConversationResource,
+    Path(conversation_id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    authorize(&state, &user, Action::ConversationUpdate, &resource).await?;
-
-    let conversation =
-        conversation::update(&state.db, &resource.conversation_id, &conversation).await?;
+    let conversation = conversation::update(&state.db, &conversation_id, &conversation).await?;
     let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
@@ -95,11 +95,10 @@ async fn update_conversation(
 #[instrument(err(Debug), skip(state))]
 async fn patch_conversation_metadata(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Path(id): Path<Uuid>,
+    Path(conversation_id): Path<Uuid>,
     Json(patch): Json<serde_json::Value>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    let conversation = conversation::patch_metadata(&state.db, &id, &patch).await?;
+    let conversation = conversation::patch_metadata(&state.db, &conversation_id, &patch).await?;
     let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
@@ -148,15 +147,10 @@ async fn list_conversations(
 async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.is_live {
         return Err(ComhairleError::ConversationAlreadyLive);
-    }
-
-    if user.id != conversation.owner_id {
-        return Err(ComhairleError::UserNotAuthorized);
     }
 
     let conversation: ConversationDto = conversation::launch(&state.db, conversation_id, &state)
@@ -187,8 +181,6 @@ async fn get_conversation(
     OptionalUser(user): OptionalUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
-    info!("Attempting to get conversation {conversation_ident:#?}");
-
     // Get the original conversation first
     let original_conversation =
         conversation::get_by_id_or_slug(&state.db, &conversation_ident).await?;
@@ -199,11 +191,10 @@ async fn get_conversation(
             if user.id != original_conversation.owner_id
                 && !can_perform_resource_action(
                     &state,
-                    &original_conversation.id,
-                    Action::ConversationRead,
-                    &user.id,
-                    user.organization_id.as_ref(),
-                    Some(&original_conversation.owner_id),
+                    original_conversation.id,
+                    Action::View,
+                    user.id,
+                    user.organization_id,
                 )
                 .await?
             {
@@ -261,16 +252,12 @@ async fn get_conversation(
 #[instrument(err(Debug), skip(state))]
 async fn list_conversation_cohosts(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    resource: ConversationResource,
+    Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<OrganizationWithPermissionDto>>), ComhairleError> {
-    authorize(&state, &user, Action::ConversationRead, &resource).await?;
-
     let organizations = permissions::list_organizations_with_permission(
         &state.db,
-        Action::ConversationRead.resource_type().as_ref(),
-        resource.conversation_id,
-        Some(Role::ConversationCoHost.as_ref()),
+        conversation_id,
+        Some(Role::Viewer.as_ref()),
     )
     .await?;
 
@@ -286,27 +273,19 @@ pub struct CohostInfo {
 #[instrument(err(Debug), skip(state))]
 async fn add_conversation_cohost(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(cohost_info): Json<CohostInfo>,
 ) -> Result<(StatusCode, Json<OrganizationWithPermissionDto>), ComhairleError> {
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    let resource = ConversationResource {
-        conversation_id,
-        owner_id: conversation.owner_id,
-    };
-
-    authorize(&state, &user, Action::ConversationAdmin, &resource).await?;
-
     let organization = organization::get_by_id(&state.db, &cohost_info.organization_id).await?;
 
     let _ = grant_role(
         &state,
         GrantRoleRequest {
             actor_id: UserOrOrganizationId::Org(cohost_info.organization_id),
-            permission_triplet: Role::ConversationCoHost.triplet(&conversation_id),
-            granted_by: &user.id,
-            grant_reason: "Added as co-host",
+            permission_target: Role::Viewer.target(conversation_id),
+            granted_by: user.id,
+            grant_reason: "Added as co-host".to_string(),
         },
     )
     .await?;
@@ -314,7 +293,7 @@ async fn add_conversation_cohost(
     let result = OrganizationWithPermissionDto {
         id: cohost_info.organization_id,
         name: organization.name,
-        role_name: Role::ConversationCoHost.as_ref().into(),
+        role_name: Role::Viewer.as_ref().into(),
     };
 
     Ok((StatusCode::CREATED, Json(result)))
@@ -324,24 +303,15 @@ async fn add_conversation_cohost(
 #[instrument(err(Debug), skip(state))]
 async fn remove_conversation_cohost(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
     Path((conversation_id, cohost_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<OrganizationWithPermissionDto>), ComhairleError> {
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    let resource = ConversationResource {
-        conversation_id,
-        owner_id: conversation.owner_id,
-    };
-
-    authorize(&state, &user, Action::ConversationAdmin, &resource).await?;
-
     let organization = organization::get_by_id(&state.db, &cohost_id).await?;
 
     permissions::revoke_role(
         &state,
         RevokeRoleRequest {
             actor_id: UserOrOrganizationId::Org(cohost_id),
-            permission_triplet: Role::ConversationCoHost.triplet(&conversation_id),
+            permission_target: Role::Viewer.target(conversation_id),
         },
     )
     .await?;
@@ -349,7 +319,7 @@ async fn remove_conversation_cohost(
     let result = OrganizationWithPermissionDto {
         id: cohost_id,
         name: organization.name,
-        role_name: Role::ConversationCoHost.as_ref().into(),
+        role_name: Role::Viewer.as_ref().into(),
     };
 
     Ok((StatusCode::OK, Json(result)))
@@ -359,16 +329,11 @@ async fn remove_conversation_cohost(
 #[instrument(err(Debug), skip(state))]
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
     Path(id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    let conversation = conversation::get_by_id(&state.db, &id).await?;
+    let _conversation = conversation::get_by_id(&state.db, &id).await?;
 
-    if user.id != conversation.owner_id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-
-    let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
+    let conversation = conversation::delete(&state.db, &state.bot_service, id).await?;
     let conversation: ConversationDto = conversation.into();
 
     Ok((StatusCode::OK, Json(conversation)))
@@ -432,13 +397,9 @@ pub struct NotificationRecipientsResponse {
 #[instrument(err(Debug), skip(state))]
 async fn get_notification_recipients(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<NotificationRecipientsResponse>), ComhairleError> {
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
+    let _conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     let participant_ids =
         user_participation::get_participant_user_ids_for_conversation(&state.db, &conversation_id)
@@ -461,16 +422,11 @@ async fn get_notification_recipients(
 #[instrument(err(Debug), skip(state))]
 async fn send_notification_to_participants(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
     Path(conversation_id): Path<Uuid>,
     Json(request): Json<SendNotificationRequest>,
 ) -> Result<(StatusCode, Json<SendEmailNotificationResponse>), ComhairleError> {
     // Verify conversation exists and user has permission
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-
-    if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
+    let _conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     let delivery_method = request
         .delivery_method
@@ -737,14 +693,10 @@ async fn register_email_for_updates(
 async fn export_conversation_contacts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
     // Verify conversation exists
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-
-    if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
+    let _conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Get all contacts who opted in
     let contacts =
@@ -814,14 +766,10 @@ async fn export_conversation_contacts(
 async fn export_conversation_demographics(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
     // Verify conversation exists and user is owner
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-
-    if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
+    let _conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Get demographic data for export
     let demographics =
@@ -905,13 +853,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_conversation, |op| {
-                op.id("CreateConversation")
-                    .summary("Create a new conversation")
-                    .tag("Conversation")
-                    .description("Creates a new conversation")
-                    .response::<201, Json<ConversationDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor>(
+                state.clone(),
+                post_with(create_conversation, |op| {
+                    op.id("CreateConversation")
+                        .summary("Create a new conversation")
+                        .tag("Conversation")
+                        .description("Creates a new conversation")
+                        .response::<201, Json<ConversationDto>>()
+                }),
+                Action::Admin
+            )
         )
         .api_route(
             "/",
@@ -935,104 +887,140 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{conversation_id}",
-            put_with(update_conversation, |op| {
-                op.id("UpdateConversation")
-                    .summary("Update a conversation")
-                    .tag("Conversation")
-                    .description("Update a conversation")
-                    .response::<200, Json<ConversationDto>>()
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                put_with(update_conversation, |op| {
+                    op.id("UpdateConversation")
+                        .summary("Update a conversation")
+                        .tag("Conversation")
+                        .description("Update a conversation")
+                        .response::<200, Json<ConversationDto>>()
+                }),
+                Action::Edit
+            ),
         )
         .api_route(
             "/{conversation_id}",
-            delete_with(delete_conversation, |op| {
-                op.id("DeleteConversation")
-                    .summary("Delete the conversation and all related content")
-                    .tag("Conversation")
-                    .description("Delete the conversation and all related content")
-                    .response::<200, Json<ConversationDto>>()
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                delete_with(delete_conversation, |op| {
+                    op.id("DeleteConversation")
+                        .summary("Delete the conversation and all related content")
+                        .tag("Conversation")
+                        .description("Delete the conversation and all related content")
+                        .response::<200, Json<ConversationDto>>()
+                }),
+                Action::Admin
+            )
         )
         .api_route(
             "/{conversation_id}/metadata",
-            patch_with(patch_conversation_metadata, |op| {
-                op.id("PatchConversationMetadata")
-                    .summary("Shallow-merge keys into conversation metadata")
-                    .tag("Conversation")
-                    .description(
-                        "Accepts a JSON object and merges it into the conversation's \
-                         `metadata` jsonb column at the top level. Keys in the body \
-                         overwrite existing keys; keys not present are left untouched. \
-                         Nested objects are replaced, not deep-merged.",
-                    )
-                    .response::<200, Json<ConversationDto>>()
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                patch_with(patch_conversation_metadata, |op| {
+                    op.id("PatchConversationMetadata")
+                        .summary("Shallow-merge keys into conversation metadata")
+                        .tag("Conversation")
+                        .description(
+                            "Accepts a JSON object and merges it into the conversation's \
+                            `metadata` jsonb column at the top level. Keys in the body \
+                            overwrite existing keys; keys not present are left untouched. \
+                            Nested objects are replaced, not deep-merged.",
+                        )
+                        .response::<200, Json<ConversationDto>>()
+                }),
+                Action::Edit
+            )
         )
         .api_route(
             "/{conversation_id}/launch",
-            put_with(launch_conversation, |op| {
-                op.id("LaunchConversation")
-                    .summary("Makes the conversation live")
-                    .tag("Conversation")
-                    .description("Makes the conversation live for participants")
-                    .response::<200, Json<ConversationDto>>()
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                put_with(launch_conversation, |op| {
+                    op.id("LaunchConversation")
+                        .summary("Makes the conversation live")
+                        .tag("Conversation")
+                        .description("Makes the conversation live for participants")
+                        .response::<200, Json<ConversationDto>>()
+                }),
+                Action::Admin
+            )
         )
         .api_route(
             "/{conversation_id}/cohosts",
-            get_with(list_conversation_cohosts, |op| {
-                op.id("ListConversationCoHostOrganizations")
-                    .summary("List co-host organizations for a conversation")
-                    .tag("Conversation")
-                    .description(
-                        "Returns organizations that hold the conversation co-host role for this conversation.",
-                    )
-                    .response::<200, Json<Vec<OrganizationWithPermissionDto>>>()
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                get_with(list_conversation_cohosts, |op| {
+                    op.id("ListConversationCoHostOrganizations")
+                        .summary("List co-host organizations for a conversation")
+                        .tag("Conversation")
+                        .description(
+                            "Returns organizations that hold the conversation co-host role for this conversation.",
+                        )
+                        .response::<200, Json<Vec<OrganizationWithPermissionDto>>>()
+                }),
+                Action::View
+            )
         )
         .api_route(
             "/{conversation_id}/cohosts",
-            post_with(add_conversation_cohost, |op| {
-                op.id("AddConversationCoHostOrganization")
-                    .summary("Add an organization as a co-host for a conversation")
-                    .tag("Conversation")
-                    .description(
-                        "Grants the conversation co-host role to the specified organization.",
-                    )
-                    .response::<201, Json<OrganizationWithPermissionDto>>()
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                post_with(add_conversation_cohost, |op| {
+                    op.id("AddConversationCoHostOrganization")
+                        .summary("Add an organization as a co-host for a conversation")
+                        .tag("Conversation")
+                        .description(
+                            "Grants the conversation co-host role to the specified organization.",
+                        )
+                        .response::<201, Json<OrganizationWithPermissionDto>>()
+                }),
+                Action::Admin
+            )
         )
         .api_route(
             "/{conversation_id}/cohosts/{cohost_id}",
-            delete_with(remove_conversation_cohost, |op| {
-                op.id("RemoveConversationCoHostOrganization")
-                    .summary("Remove an organization as a co-host for a conversation")
-                    .tag("Conversation")
-                    .description(
-                        "Revokes the conversation co-host role from the specified organization.",
-                    )
-                    .response::<200, Json<OrganizationWithPermissionDto>>()
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                delete_with(remove_conversation_cohost, |op| {
+                    op.id("RemoveConversationCoHostOrganization")
+                        .summary("Remove an organization as a co-host for a conversation")
+                        .tag("Conversation")
+                        .description(
+                            "Revokes the conversation co-host role from the specified organization.",
+                        )
+                        .response::<200, Json<OrganizationWithPermissionDto>>()
+                }),
+                Action::Admin
+            )
         )
         .api_route(
             "/{conversation_id}/notifications",
-            post_with(send_notification_to_participants, |op| {
-                op.id("SendNotificationToParticipants")
-                    .summary("Send notification to all conversation participants")
-                    .description("Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.")
-                    .response::<201, Json<SendEmailNotificationResponse>>()
-                    .tag("Notifications")
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                post_with(send_notification_to_participants, |op| {
+                    op.id("SendNotificationToParticipants")
+                        .summary("Send notification to all conversation participants")
+                        .description("Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.")
+                        .response::<201, Json<SendEmailNotificationResponse>>()
+                        .tag("Notifications")
+                }),
+                Action::Admin
+            )
         )
         .api_route(
             "/{conversation_id}/notifications/recipients",
-            get_with(get_notification_recipients, |op| {
-                op.id("GetNotificationRecipients")
-                    .summary("Preview notification recipients")
-                    .description("Returns participant count for in-app delivery and the list of email addresses opted in to broadcast emails. Owner-only.")
-                    .response::<200, Json<NotificationRecipientsResponse>>()
-                    .tag("Notifications")
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                get_with(get_notification_recipients, |op| {
+                    op.id("GetNotificationRecipients")
+                        .summary("Preview notification recipients")
+                        .description("Returns participant count for in-app delivery and the list of email addresses opted in to broadcast emails. Owner-only.")
+                        .response::<200, Json<NotificationRecipientsResponse>>()
+                        .tag("Notifications")
+                }),
+                Action::Admin
+            )
         )
         .api_route(
             "/{conversation_id}/email-updates",
@@ -1047,21 +1035,29 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{conversation_id}/contacts/export",
-            get_with(export_conversation_contacts, |op| {
-                op.id("ExportConversationContacts")
-                    .summary("Export contact list for conversation")
-                    .description("Exports a CSV file containing all users who have opted in to receive email updates for this conversation")
-                    .tag("Conversation")
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                get_with(export_conversation_contacts, |op| {
+                    op.id("ExportConversationContacts")
+                        .summary("Export contact list for conversation")
+                        .description("Exports a CSV file containing all users who have opted in to receive email updates for this conversation")
+                        .tag("Conversation")
+                }),
+                Action::Export
+            )
         )
         .api_route(
             "/{conversation_id}/demographics/export",
-            get_with(export_conversation_demographics, |op| {
-                op.id("ExportConversationDemographics")
-                    .summary("Export demographics for conversation participants")
-                    .description("Exports a CSV file containing demographic data for users participating in the conversation's workflow. Only includes consented users. Requires conversation ownership.")
-                    .tag("Conversation")
-            }),
+            with_required_action::<Path<ConversationPath>>(
+                state.clone(),
+                get_with(export_conversation_demographics, |op| {
+                    op.id("ExportConversationDemographics")
+                        .summary("Export demographics for conversation participants")
+                        .description("Exports a CSV file containing demographic data for users participating in the conversation's workflow. Only includes consented users. Requires conversation ownership.")
+                        .tag("Conversation")
+                }),
+                Action::Export
+            )
         )
         .with_state(state)
 }
@@ -1092,8 +1088,6 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
-
-    const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_add_and_list_conversation_cohost_organizations(
@@ -1134,10 +1128,7 @@ mod tests {
 
         assert_eq!(organizations.len(), 1);
         assert_eq!(organizations[0].id, organization.id);
-        assert_eq!(
-            organizations[0].role_name,
-            Role::ConversationCoHost.as_ref()
-        );
+        assert_eq!(organizations[0].role_name, Role::Viewer.as_ref());
 
         Ok(())
     }
@@ -2737,26 +2728,19 @@ mod tests {
             .await?;
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
-        // Grant editor user `content_editor` permission
+        // Grant editor user `editor` permission
         let grant_body = GrantPermissionBody {
             user_id: Some(editor.id),
             organization_id: None,
             user_email: None,
-            role_name: Role::ConversationContentEditor.as_ref().into(),
-            grant_reason: "Testing".into(),
+            role_name: Role::Editor.as_ref().into(),
+            grant_reason: "Testing".to_string(),
         };
 
         let body = Body::from(serde_json::to_string(&grant_body)?);
 
         owner_session
-            .post(
-                &app,
-                &format!(
-                    "/permissions/{}/{}",
-                    CONVERSATION_RESOURCE_TYPE, conversation.id
-                ),
-                body,
-            )
+            .post(&app, &format!("/permissions/{}", conversation.id), body)
             .await?;
 
         // Update by editor
@@ -2816,9 +2800,9 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: UserOrOrganizationId::User(other_user_session.id.unwrap()),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
-                granted_by: &owner_session.id.unwrap(),
-                grant_reason: "Testing".into(),
+                permission_target: Role::SuperAdmin.system_target(),
+                granted_by: owner_session.id.unwrap(),
+                grant_reason: "Testing".to_string(),
             },
         )
         .await?;
@@ -2864,7 +2848,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn should_allow_content_editor_to_read_draft_conversation(
+    fn should_allow_editor_to_read_draft_conversation(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -2873,11 +2857,8 @@ mod tests {
         let mut owner_session = UserSession::new_admin();
         owner_session.signup(&app).await?;
 
-        let mut editor_session = UserSession::new(
-            "content_editor_user",
-            "Password_123(*&)",
-            "content_editor@example.com",
-        );
+        let mut editor_session =
+            UserSession::new("editor_user", "Password_123(*&)", "editor@example.com");
         editor_session.signup(&app).await?;
         let (_, editor, _) = editor_session.current_user(&app).await?;
 
@@ -2897,24 +2878,17 @@ mod tests {
             user_id: Some(editor.id),
             organization_id: None,
             user_email: None,
-            role_name: Role::ConversationContentEditor.as_ref().into(),
+            role_name: Role::Editor.as_ref().into(),
             grant_reason: "Testing draft read permission".into(),
         };
         let body = Body::from(serde_json::to_string(&grant_body)?);
 
         let (status, _, _) = owner_session
-            .post(
-                &app,
-                &format!(
-                    "/permissions/{}/{}",
-                    CONVERSATION_RESOURCE_TYPE, conversation.id
-                ),
-                body,
-            )
+            .post(&app, &format!("/permissions/{}", conversation.id), body)
             .await?;
         assert_eq!(status, StatusCode::CREATED);
 
-        // Non-owner with content_editor should now be allowed to read draft.
+        // Non-owner with editor role should now be allowed to read draft.
         let (status, value, _) = editor_session
             .get_conversation(&app, &conversation.id.to_string())
             .await?;
@@ -2975,17 +2949,14 @@ mod tests {
             user_id: None,
             organization_id: Some(organization.id),
             user_email: None,
-            role_name: Role::ConversationCoHost.as_ref().into(),
+            role_name: Role::Viewer.as_ref().into(),
             grant_reason: "Testing org co-host draft read permission".into(),
         };
 
         let (status, _, _) = owner_session
             .post(
                 &app,
-                &format!(
-                    "/permissions/{}/{}",
-                    CONVERSATION_RESOURCE_TYPE, conversation.id
-                ),
+                &format!("/permissions/{}", conversation.id),
                 Body::from(serde_json::to_string(&grant_body)?),
             )
             .await?;

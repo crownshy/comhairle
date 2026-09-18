@@ -9,15 +9,11 @@
 	let message = $derived(page.error?.message ?? 'Something went wrong');
 
 	let user = $derived(page.data?.user);
-	let isAdmin = $derived(
-		page.data?.userRoles
-			? page.data.userRoles.find((ur: any) => ur.resource === 'Site')?.roles.includes('Admin')
-			: false
-	);
+	let canViewAdminPortal = $derived(page.data?.userSystemActions?.includes('view') ?? false);
 </script>
 
 <div class="flex min-h-screen w-full flex-col">
-	<NavBar {user} {isAdmin} />
+	<NavBar {user} {canViewAdminPortal} />
 
 	<div
 		class="bg-background relative flex min-h-[calc(100vh-220px)] flex-1 flex-col items-center justify-center overflow-hidden px-6 py-24"

@@ -92,17 +92,15 @@ export const PasswordResetUpdateRequest = z
 export type PasswordResetUpdateRequest = z.infer<
   typeof PasswordResetUpdateRequest
 >;
-export const ResourceType = z.union([
-  z.literal("Site"),
-  z.object({ Conversation: z.string().uuid() }),
+export const Action = z.enum([
+  "admin",
+  "edit",
+  "view",
+  "moderate",
+  "translate",
+  "export",
 ]);
-export type ResourceType = z.infer<typeof ResourceType>;
-export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
-export type ResourceRole = z.infer<typeof ResourceRole>;
-export const UserRoles = z
-  .object({ resource: ResourceType, roles: z.array(ResourceRole) })
-  .passthrough();
-export type UserRoles = z.infer<typeof UserRoles>;
+export type Action = z.infer<typeof Action>;
 export const LocalizedConversationDto = z
   .object({
     allowRevisitAfterFinishing: z.boolean(),
@@ -3043,7 +3041,6 @@ export const ResourcePermission = z
     id: z.string().uuid(),
     organization_id: z.union([z.string(), z.null()]).optional(),
     resource_id: z.string().uuid(),
-    resource_type: z.string(),
     role_name: z.string(),
     user_id: z.union([z.string(), z.null()]).optional(),
   })
@@ -3203,9 +3200,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
   PasswordResetUpdateRequest,
-  ResourceType,
-  ResourceRole,
-  UserRoles,
+  Action,
   LocalizedConversationDto,
   created_after,
   is_complete,
@@ -5787,7 +5782,7 @@ curl -X POST \
   },
   {
     method: "get",
-    path: "/permissions/:resource_type/:resource_id",
+    path: "/permissions/:resource_id",
     alias: "ListResourcePermissions",
     description: `Returns role assignments for a specific resource using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. The caller must hold the Owner role on the resource.`,
     requestFormat: "json",
@@ -5796,11 +5791,6 @@ curl -X POST \
         name: "resource_id",
         type: "Path",
         schema: z.string().uuid(),
-      },
-      {
-        name: "resource_type",
-        type: "Path",
-        schema: z.string(),
       },
       {
         name: "limit",
@@ -5832,7 +5822,7 @@ curl -X POST \
   },
   {
     method: "post",
-    path: "/permissions/:resource_type/:resource_id",
+    path: "/permissions/:resource_id",
     alias: "GrantPermission",
     description: `Grants a role to a user or organisation on a resource. The caller must hold the Owner role on the resource.`,
     requestFormat: "json",
@@ -5848,17 +5838,12 @@ curl -X POST \
         type: "Path",
         schema: z.string().uuid(),
       },
-      {
-        name: "resource_type",
-        type: "Path",
-        schema: z.string(),
-      },
     ],
     response: ResourcePermission,
   },
   {
     method: "delete",
-    path: "/permissions/:resource_type/:resource_id",
+    path: "/permissions/:resource_id",
     alias: "RevokePermission",
     description: `Revokes a role from a user or organisation on a resource. The actor (user_id or organization_id) and role_name are provided as query parameters. The caller must hold the Owner role on the resource.`,
     requestFormat: "json",
@@ -5867,11 +5852,6 @@ curl -X POST \
         name: "resource_id",
         type: "Path",
         schema: z.string().uuid(),
-      },
-      {
-        name: "resource_type",
-        type: "Path",
-        schema: z.string(),
       },
       {
         name: "organization_id",
@@ -5893,20 +5873,15 @@ curl -X POST \
   },
   {
     method: "get",
-    path: "/permissions/:resource_type/:resource_id/users",
+    path: "/permissions/:resource_id/users",
     alias: "ListUsersWithPermission",
-    description: `List users with a give permission (role + resource_type) for a given resource`,
+    description: `List users with a given role for a given resource`,
     requestFormat: "json",
     parameters: [
       {
         name: "resource_id",
         type: "Path",
         schema: z.string().uuid(),
-      },
-      {
-        name: "resource_type",
-        type: "Path",
-        schema: z.string(),
       },
       {
         name: "limit",
@@ -6911,6 +6886,22 @@ This struct contains optional fields that can be updated on a TextTranslation re
   },
   {
     method: "get",
+    path: "/user/actions",
+    alias: "GetUserSystemActions",
+    description: `Gets a list of the system-wide actions the current user can perform`,
+    requestFormat: "json",
+    response: z.array(Action),
+  },
+  {
+    method: "get",
+    path: "/user/actions/:resource_id",
+    alias: "GetUserResourceActions",
+    description: `Gets a list of resource-specific actions the current user can perform`,
+    requestFormat: "json",
+    response: z.array(Action),
+  },
+  {
+    method: "get",
     path: "/user/conversations",
     alias: "GetConversationsUserIsParticipatingIn",
     description: `Returns a list of all the conversations the user has taken part in`,
@@ -7123,14 +7114,6 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
     ],
     response: UserProfileDto,
-  },
-  {
-    method: "get",
-    path: "/user/roles",
-    alias: "GetUserRoles",
-    description: `Gets a list of roles the current user has`,
-    requestFormat: "json",
-    response: z.array(UserRoles),
   },
   {
     method: "put",

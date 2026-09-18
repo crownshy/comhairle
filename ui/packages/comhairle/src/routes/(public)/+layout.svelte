@@ -10,16 +10,12 @@
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
 	const isLivePage = $derived(page.url.pathname.endsWith('/live'));
 
-	let isAdmin = $derived(
-		data.userRoles
-			? data.userRoles.find((ur) => ur.resource === 'Site')?.roles.includes('Admin')
-			: false
-	);
+	let canViewAdminPortal = $derived(data.userSystemActions?.includes('view') ?? false);
 </script>
 
 <div class="flex min-h-screen w-full flex-col {isReportPage ? 'bg-primary/10' : ''}">
 	{#if !isEmbed && !isAuthPage && !isLivePage}
-		<NavBar user={data.user} {isAdmin} />
+		<NavBar user={data.user} {canViewAdminPortal} />
 	{/if}
 	{#if isAuthPage || isReportPage}
 		<div class="grow">

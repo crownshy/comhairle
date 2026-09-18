@@ -21,10 +21,16 @@ use axum_extra::extract::cookie::CookieJar;
 use crate::{
     ComhairleState,
     error::ComhairleError,
-    models::translations::{
-        self, CreateTextTranslation, TextContentId, UpdateTextContent, UpdateTextTranslation,
+    models::{
+        permissions::Action,
+        translations::{
+            self, CreateTextTranslation, TextContentId, UpdateTextContent, UpdateTextTranslation,
+        },
     },
-    routes::translations::dto::{TextContentDto, TextTranslationDto},
+    routes::{
+        auth::{SystemResourceExtractor, with_required_action},
+        translations::dto::{TextContentDto, TextTranslationDto},
+    },
 };
 
 use super::auth::RequiredAdminUser;
@@ -76,7 +82,6 @@ pub struct CreateTextContentRequest {
 async fn get_text_content_with_translations(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
     let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
         .await?
@@ -101,7 +106,6 @@ async fn get_text_content_with_translations(
 #[instrument(err(Debug), skip(state))]
 async fn create_text_content(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateTextContentRequest>,
 ) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
     let text_content = translations::new_translation(
@@ -120,7 +124,6 @@ async fn create_text_content(
 async fn update_text_content(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextContent>,
 ) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
     let text_content = translations::update_text_content(&state.db, &text_content_id, &update)
@@ -135,7 +138,6 @@ async fn update_text_content(
 async fn delete_text_content(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
     let text_content = translations::delete_text_content(&state.db, &text_content_id)
         .await?
@@ -149,7 +151,6 @@ async fn delete_text_content(
 async fn get_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     let translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -176,7 +177,6 @@ pub struct CreateOrUpdateTextTranslationRequest {
 async fn create_or_update_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateOrUpdateTextTranslationRequest>,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // Check if translation already exists
@@ -223,7 +223,6 @@ async fn create_or_update_text_translation(
 async fn update_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextTranslation>,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // First get the existing translation to get its ID
@@ -247,7 +246,6 @@ async fn update_text_translation(
 async fn auto_translate(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     if let Some(translation_service) = &state.translation_service {
         let new_translation = translations::auto_generate_translation(
@@ -269,7 +267,6 @@ async fn auto_translate(
 async fn auto_translate_all(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
     if let Some(translation_service) = &state.translation_service {
         let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
@@ -299,7 +296,6 @@ async fn auto_translate_all(
 async fn delete_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // First get the existing translation to get its ID
     let existing_translation = translations::get_text_translation_by_content_and_locale(
@@ -322,107 +318,147 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         // TextContent routes
         .api_route(
             "/",
-            post_with(create_text_content, |op| {
-                op.id("CreateTextContent")
-                    .tag("Translations")
-                    .summary("Create new TextContent")
-                    .description("Create a new TextContent entry that can hold translations")
-                    .response::<201, Json<TextContentDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                post_with(create_text_content, |op| {
+                    op.id("CreateTextContent")
+                        .tag("Translations")
+                        .summary("Create new TextContent")
+                        .description("Create a new TextContent entry that can hold translations")
+                        .response::<201, Json<TextContentDto>>()
+                }),
+                Action::Translate
+            )
         )
         .api_route(
             "/{text_content_id}",
-            get_with(get_text_content_with_translations, |op| {
-                op.id("GetTextContentWithTranslations")
-                    .tag("Translations")
-                    .summary("Get TextContent with all translations")
-                    .description("Get a TextContent entry with all its translations")
-                    .response::<200, Json<TextContentWithTranslations>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                get_with(get_text_content_with_translations, |op| {
+                    op.id("GetTextContentWithTranslations")
+                        .tag("Translations")
+                        .summary("Get TextContent with all translations")
+                        .description("Get a TextContent entry with all its translations")
+                        .response::<200, Json<TextContentWithTranslations>>()
+                }),
+                Action::Translate
+            )
         )
         .api_route(
             "/{text_content_id}",
-            put_with(update_text_content, |op| {
-                op.id("UpdateTextContent")
-                    .tag("Translations")
-                    .summary("Update TextContent")
-                    .description("Update a TextContent entry")
-                    .response::<200, Json<TextContentDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                put_with(update_text_content, |op| {
+                    op.id("UpdateTextContent")
+                        .tag("Translations")
+                        .summary("Update TextContent")
+                        .description("Update a TextContent entry")
+                        .response::<200, Json<TextContentDto>>()
+                }),
+                Action::Translate
+            )
         )
         .api_route(
             "/{text_content_id}",
-            delete_with(delete_text_content, |op| {
-                op.id("DeleteTextContent")
-                    .tag("Translations")
-                    .summary("Delete TextContent")
-                    .description("Delete a TextContent entry and all its translations")
-                    .response::<200, Json<TextContentDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                delete_with(delete_text_content, |op| {
+                    op.id("DeleteTextContent")
+                        .tag("Translations")
+                        .summary("Delete TextContent")
+                        .description("Delete a TextContent entry and all its translations")
+                        .response::<200, Json<TextContentDto>>()
+                }),
+                Action::Translate
+            ),
         )
         // TextTranslation routes
         .api_route(
             "/{text_content_id}/{locale}",
-            get_with(get_text_translation, |op| {
-                op.id("GetTextTranslation")
-                    .tag("Translations")
-                    .summary("Get translation for specific locale")
-                    .description("Get a translation for a specific TextContent and locale")
-                    .response::<200, Json<TextTranslationDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                get_with(get_text_translation, |op| {
+                    op.id("GetTextTranslation")
+                        .tag("Translations")
+                        .summary("Get translation for specific locale")
+                        .description("Get a translation for a specific TextContent and locale")
+                        .response::<200, Json<TextTranslationDto>>()
+                }),
+                Action::Translate
+            )
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            post_with(create_or_update_text_translation, |op| {
-                op.id("CreateOrUpdateTextTranslation")
-                    .tag("Translations")
-                    .summary("Create or update translation")
-                    .description(
-                        "Create a new translation or update existing one for a specific locale",
-                    )
-                    .response::<200, Json<TextTranslationDto>>()
-                    .response::<201, Json<TextTranslationDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                post_with(create_or_update_text_translation, |op| {
+                    op.id("CreateOrUpdateTextTranslation")
+                        .tag("Translations")
+                        .summary("Create or update translation")
+                        .description(
+                            "Create a new translation or update existing one for a specific locale",
+                        )
+                        .response::<200, Json<TextTranslationDto>>()
+                        .response::<201, Json<TextTranslationDto>>()
+                }),
+                Action::Translate
+            )
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            put_with(update_text_translation, |op| {
-                op.id("UpdateTextTranslation")
-                    .tag("Translations")
-                    .summary("Update translation")
-                    .description("Update an existing translation for a specific locale")
-                    .response::<200, Json<TextTranslationDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                put_with(update_text_translation, |op| {
+                    op.id("UpdateTextTranslation")
+                        .tag("Translations")
+                        .summary("Update translation")
+                        .description("Update an existing translation for a specific locale")
+                        .response::<200, Json<TextTranslationDto>>()
+                }),
+                Action::Translate
+            )
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            delete_with(delete_text_translation, |op| {
-                op.id("DeleteTextTranslation")
-                    .tag("Translations")
-                    .summary("Delete translation")
-                    .description("Delete a translation for a specific locale")
-                    .response::<200, Json<TextTranslationDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                delete_with(delete_text_translation, |op| {
+                    op.id("DeleteTextTranslation")
+                        .tag("Translations")
+                        .summary("Delete translation")
+                        .description("Delete a translation for a specific locale")
+                        .response::<200, Json<TextTranslationDto>>()
+                }),
+                Action::Translate
+            )
         )
         .api_route(
             "/{text_content_id}/translate",
-            post_with(auto_translate_all, |op| {
-                op.id("GenerateAllTranslations")
-                    .tag("Translations")
-                    .summary("Generate all translations for this Text Content")
-                    .description("Use the default locale content as the reference text and generate automatic translations for each language form it")
-                    .response::<200, Json<TextContentWithTranslations>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                post_with(auto_translate_all, |op| {
+                    op.id("GenerateAllTranslations")
+                        .tag("Translations")
+                        .summary("Generate all translations for this Text Content")
+                        .description("Use the default locale content as the reference text and generate automatic translations for each language form it")
+                        .response::<200, Json<TextContentWithTranslations>>()
+                }),
+                Action::Translate
+            )
         )
         .api_route(
             "/{text_content_id}/{locale}/translate",
-            post_with(auto_translate, |op| {
-                op.id("AutomaticallyGenerateTranslation")
-                    .tag("Translations")
-                    .summary("Automatically generate this language")
-                    .description("Use the primary_locale language and translate this language from it using the tarnslation service")
-                    .response::<200, Json<TextTranslationDto>>()
-            }),
+            with_required_action::<SystemResourceExtractor> (
+                state.clone(),
+                post_with(auto_translate, |op| {
+                    op.id("AutomaticallyGenerateTranslation")
+                        .tag("Translations")
+                        .summary("Automatically generate this language")
+                        .description("Use the primary_locale language and translate this language from it using the tarnslation service")
+                        .response::<200, Json<TextTranslationDto>>()
+                }),
+                Action::Translate
+            )
         )
         .with_state(state)
 }
@@ -1097,6 +1133,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
+        eprintln!("Status: {:?}", status);
         // Should be forbidden or unauthorized
         assert!(status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN);
 

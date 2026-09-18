@@ -43,7 +43,6 @@ inserted AS (
     INSERT INTO resource_permissions (
         user_id,
         resource_id,
-        resource_type,
         role_name,
         granted_by,
         grant_reason,
@@ -52,7 +51,6 @@ inserted AS (
     SELECT
         id,
         '00000000-0000-0000-0000-000000000000'::UUID,
-        'system',
         'super_admin',
         id,
         'Seeded by seed-minimal script',

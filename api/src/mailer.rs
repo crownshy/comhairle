@@ -683,7 +683,6 @@ impl ComhairleMailer for Mailer {
             "resource_permission_notification.html",
             context! {
                 role => permission.role_name,
-                resource_type => permission.resource_type,
                 resource_id => permission.resource_id,
                 action,
             },

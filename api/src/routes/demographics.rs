@@ -45,11 +45,10 @@ async fn can_view_conversation(
 
     can_perform_resource_action(
         state,
-        &conversation.id,
-        Action::ConversationRead,
-        &user.id,
-        user.organization_id.as_ref(),
-        Some(&conversation.owner_id),
+        conversation.id,
+        Action::View,
+        user.id,
+        user.organization_id,
     )
     .await
 }
