@@ -1,7 +1,5 @@
 import { expect, type Locator } from '@playwright/test';
-import { Page } from '../types';
-import UserInputs, { UserInputsInput } from './UserInputs';
-import type { Cleanup } from './types';
+import UserInputs, { Refs, UserInputsInput } from './UserInputs';
 
 type Textbox<T extends string> = {
 	id: T;
@@ -10,17 +8,16 @@ type Textbox<T extends string> = {
 };
 
 const Textboxes = <const T extends string, U extends Textbox<T>>(
-	page: Page,
 	inputs: UserInputsInput<T>,
-	cleanup: Cleanup
+	refs: Refs
 ) =>
 	UserInputs<T, U>({
 		inputs,
 		mutator: (name) =>
 			({
-				locator: page.getByRole('textbox', { name, exact: true })
+				locator: refs.page.getByRole('textbox', { name, exact: true })
 			}) as U,
-		cleanup,
+		cleanup: refs.cleanup,
 		async focus(textbox) {
 			await textbox.locator.click();
 		},

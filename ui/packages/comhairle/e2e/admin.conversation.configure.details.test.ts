@@ -14,13 +14,15 @@ test.beforeEach(async ({ page }) => {
 
 test('Configure/Details page', async ({ page, cleanup }) => {
 	const textboxes = Textboxes(
-		page,
 		[
 			['title', 'Title'],
 			['short_description', 'Short description'],
 			['description', 'Description']
 		],
-		cleanup
+		{
+			page,
+			cleanup
+		}
 	);
 
 	// const primary_language = page.getByRole('button', { name: 'English' });
