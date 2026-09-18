@@ -27,6 +27,7 @@ use crate::{
     routes::auth::{
         extract::{OptionalUser, RequiredAdminUser},
         is_user_admin,
+        layer::{optional_auth, required_auth},
     },
     tools::{
         ToolConfig,
@@ -496,75 +497,101 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListDocuments")
-                    .tag("Documents")
-                    .summary("Get a list of documents from a conversation's knowledge base")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<ComhairleDocument>>>()
-            }),
+            optional_auth(
+                get_with(list, |op| {
+                    op.id("ListDocuments")
+                        .tag("Documents")
+                        .summary("Get a list of documents from a conversation's knowledge base")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<ComhairleDocument>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{document_id}",
-            get_with(get, |op| {
-                op.id("GetDocument")
-                    .tag("Documents")
-                    .summary("Get a document from a conversation's knowledge base by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleDocument>>()
-            }),
+            required_auth(
+                get_with(get, |op| {
+                    op.id("GetDocument")
+                        .tag("Documents")
+                        .summary("Get a document from a conversation's knowledge base by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ComhairleDocument>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{document_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteDocument")
-                    .tag("Documents")
-                    .summary("Delete a document from a conversation's knowledge base")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteDocument")
+                        .tag("Documents")
+                        .summary("Delete a document from a conversation's knowledge base")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{document_id}/parse",
-            post_with(parse_document, |op| {
-                op.id("ParseDocument")
-                    .tag("Documents")
-                    .summary("Begin parsing a document")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                post_with(parse_document, |op| {
+                    op.id("ParseDocument")
+                        .tag("Documents")
+                        .summary("Begin parsing a document")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{document_id}/stop_parse",
-            post_with(stop_parsing_document, |op| {
-                op.id("StopParsingDocument")
-                    .tag("Documents")
-                    .summary("Stop parsing a document")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                post_with(stop_parsing_document, |op| {
+                    op.id("StopParsingDocument")
+                        .tag("Documents")
+                        .summary("Stop parsing a document")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{document_id}/download",
-            get_with(download_document, |op| {
-                op.id("DownloadDocument")
-                    .tag("Documents")
-                    .summary("Download a document")
-                    .security_requirement("JWT")
-                    .response::<204, Response<Body>>()
-            }),
+            optional_auth(
+                get_with(download_document, |op| {
+                    op.id("DownloadDocument")
+                        .tag("Documents")
+                        .summary("Download a document")
+                        .security_requirement("JWT")
+                        .response::<204, Response<Body>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/sync_learning_content",
-            post_with(sync_learning_content, |op| {
-                op.id("SyncLearningContent")
-                    .tag("Documents")
-                    .summary(
-                        "Rebuild the conversation's learn-step content knowledge-base document",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<SyncLearningContentResponse>>()
-            }),
+            required_auth(
+                post_with(sync_learning_content, |op| {
+                    op.id("SyncLearningContent")
+                        .tag("Documents")
+                        .summary(
+                            "Rebuild the conversation's learn-step content knowledge-base document",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<SyncLearningContentResponse>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/learn_content",

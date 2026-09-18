@@ -32,7 +32,6 @@ use mockall::{automock, predicate::*};
 use async_trait::async_trait;
 
 use crate::error::ComhairleError;
-use crate::models::users::User;
 use crate::routes::auth::extract::RequiredUser;
 use crate::websockets::config::WebsocketConfig;
 use crate::{ComhairleState, routes::user::dto::UserDto};

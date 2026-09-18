@@ -42,7 +42,10 @@ use crate::{
         user_profile,
     },
     routes::{
-        auth::authorize,
+        auth::{
+            authorize,
+            layer::{optional_auth, required_auth},
+        },
         conversations::dto::{ConversationDto, LocalizedConversationDto},
         translations::LocaleExtractor,
     },
@@ -913,13 +916,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_conversation, |op| {
-                op.id("CreateConversation")
-                    .summary("Create a new conversation")
-                    .tag("Conversation")
-                    .description("Creates a new conversation")
-                    .response::<201, Json<ConversationDto>>()
-            }),
+            required_auth(
+                post_with(create_conversation, |op| {
+                    op.id("CreateConversation")
+                        .summary("Create a new conversation")
+                        .tag("Conversation")
+                        .description("Creates a new conversation")
+                        .response::<201, Json<ConversationDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
@@ -933,121 +940,175 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{conversation_id}",
-            get_with(get_conversation, |op| {
-                op.id("GetConversation")
-                    .summary("Get a conversation by id or slug")
-                    .tag("Conversation")
-                    .description("Get a conversation by id or slug. If user is admin and withTranslations=true, returns detailed translation data.")
-                    .response::<200, Json<ConversationResponse>>()
-            }),
+            optional_auth(
+                get_with(get_conversation, |op| {
+                    op.id("GetConversation")
+                        .summary("Get a conversation by id or slug")
+                        .tag("Conversation")
+                        .description(
+                            "Get a conversation by id or slug. If user is \
+                        admin and withTranslations=true, returns detailed translation data.",
+                        )
+                        .response::<200, Json<ConversationResponse>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{conversation_id}",
-            put_with(update_conversation, |op| {
-                op.id("UpdateConversation")
-                    .summary("Update a conversation")
-                    .tag("Conversation")
-                    .description("Update a conversation")
-                    .response::<200, Json<ConversationDto>>()
-            }),
+            required_auth(
+                put_with(update_conversation, |op| {
+                    op.id("UpdateConversation")
+                        .summary("Update a conversation")
+                        .tag("Conversation")
+                        .description("Update a conversation")
+                        .response::<200, Json<ConversationDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}",
-            delete_with(delete_conversation, |op| {
-                op.id("DeleteConversation")
-                    .summary("Delete the conversation and all related content")
-                    .tag("Conversation")
-                    .description("Delete the conversation and all related content")
-                    .response::<200, Json<ConversationDto>>()
-            }),
+            required_auth(
+                delete_with(delete_conversation, |op| {
+                    op.id("DeleteConversation")
+                        .summary("Delete the conversation and all related content")
+                        .tag("Conversation")
+                        .description("Delete the conversation and all related content")
+                        .response::<200, Json<ConversationDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/metadata",
-            patch_with(patch_conversation_metadata, |op| {
-                op.id("PatchConversationMetadata")
-                    .summary("Shallow-merge keys into conversation metadata")
-                    .tag("Conversation")
-                    .description(
-                        "Accepts a JSON object and merges it into the conversation's \
+            required_auth(
+                patch_with(patch_conversation_metadata, |op| {
+                    op.id("PatchConversationMetadata")
+                        .summary("Shallow-merge keys into conversation metadata")
+                        .tag("Conversation")
+                        .description(
+                            "Accepts a JSON object and merges it into the conversation's \
                          `metadata` jsonb column at the top level. Keys in the body \
                          overwrite existing keys; keys not present are left untouched. \
                          Nested objects are replaced, not deep-merged.",
-                    )
-                    .response::<200, Json<ConversationDto>>()
-            }),
+                        )
+                        .response::<200, Json<ConversationDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/launch",
-            put_with(launch_conversation, |op| {
-                op.id("LaunchConversation")
-                    .summary("Makes the conversation live")
-                    .tag("Conversation")
-                    .description("Makes the conversation live for participants")
-                    .response::<200, Json<ConversationDto>>()
-            }),
+            required_auth(
+                put_with(launch_conversation, |op| {
+                    op.id("LaunchConversation")
+                        .summary("Makes the conversation live")
+                        .tag("Conversation")
+                        .description("Makes the conversation live for participants")
+                        .response::<200, Json<ConversationDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/cohosts",
-            get_with(list_conversation_cohosts, |op| {
-                op.id("ListConversationCoHostOrganizations")
-                    .summary("List co-host organizations for a conversation")
-                    .tag("Conversation")
-                    .description(
-                        "Returns organizations that hold the conversation co-host role for this conversation.",
-                    )
-                    .response::<200, Json<Vec<OrganizationWithPermissionDto>>>()
-            }),
+            required_auth(
+                get_with(list_conversation_cohosts, |op| {
+                    op.id("ListConversationCoHostOrganizations")
+                        .summary("List co-host organizations for a conversation")
+                        .tag("Conversation")
+                        .description(
+                            "Returns organizations that hold the conversation co-host \
+                            role for this conversation.",
+                        )
+                        .response::<200, Json<Vec<OrganizationWithPermissionDto>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/cohosts",
-            post_with(add_conversation_cohost, |op| {
-                op.id("AddConversationCoHostOrganization")
-                    .summary("Add an organization as a co-host for a conversation")
-                    .tag("Conversation")
-                    .description(
-                        "Grants the conversation co-host role to the specified organization.",
-                    )
-                    .response::<201, Json<OrganizationWithPermissionDto>>()
-            }),
+            required_auth(
+                post_with(add_conversation_cohost, |op| {
+                    op.id("AddConversationCoHostOrganization")
+                        .summary("Add an organization as a co-host for a conversation")
+                        .tag("Conversation")
+                        .description(
+                            "Grants the conversation co-host role to the specified organization.",
+                        )
+                        .response::<201, Json<OrganizationWithPermissionDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/cohosts/{cohost_id}",
-            delete_with(remove_conversation_cohost, |op| {
-                op.id("RemoveConversationCoHostOrganization")
+            required_auth(
+                delete_with(remove_conversation_cohost, |op| {
+                    op.id("RemoveConversationCoHostOrganization")
                     .summary("Remove an organization as a co-host for a conversation")
                     .tag("Conversation")
                     .description(
                         "Revokes the conversation co-host role from the specified organization.",
                     )
                     .response::<200, Json<OrganizationWithPermissionDto>>()
-            }),
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/notifications",
-            post_with(send_notification_to_participants, |op| {
-                op.id("SendNotificationToParticipants")
-                    .summary("Send notification to all conversation participants")
-                    .description("Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.")
-                    .response::<201, Json<SendEmailNotificationResponse>>()
-                    .tag("Notifications")
-            }),
+            required_auth(
+                post_with(send_notification_to_participants, |op| {
+                    op.id("SendNotificationToParticipants")
+                        .summary("Send notification to all conversation participants")
+                        .description(
+                            "Creates a notification and sends it to all \
+                        users participating in workflows within the conversation. \
+                        Only conversation owners can send notifications.",
+                        )
+                        .response::<201, Json<SendEmailNotificationResponse>>()
+                        .tag("Notifications")
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/notifications/recipients",
-            get_with(get_notification_recipients, |op| {
-                op.id("GetNotificationRecipients")
-                    .summary("Preview notification recipients")
-                    .description("Returns participant count for in-app delivery and the list of email addresses opted in to broadcast emails. Owner-only.")
-                    .response::<200, Json<NotificationRecipientsResponse>>()
-                    .tag("Notifications")
-            }),
+            required_auth(
+                get_with(get_notification_recipients, |op| {
+                    op.id("GetNotificationRecipients")
+                        .summary("Preview notification recipients")
+                        .description(
+                            "Returns participant count for in-app delivery \
+                        and the list of email addresses opted in to broadcast emails. Owner-only.",
+                        )
+                        .response::<200, Json<NotificationRecipientsResponse>>()
+                        .tag("Notifications")
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/email-updates",
             post_with(register_email_for_updates, |op| {
                 op.id("RegisterEmailForUpdates")
                     .summary("Register email address for conversation updates")
-                    .description("Allows non-logged-in users to register their email address to receive updates about a public conversation. If the email is already registered, returns existing registration.")
+                    .description(
+                        "Allows non-logged-in users to register their email \
+                        address to receive updates about a public conversation. \
+                        If the email is already registered, returns existing registration.",
+                    )
                     .response::<201, Json<RegisterEmailResponse>>()
                     .response::<200, Json<RegisterEmailResponse>>()
                     .tag("Email Notifications")
@@ -1055,21 +1116,36 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{conversation_id}/contacts/export",
-            get_with(export_conversation_contacts, |op| {
-                op.id("ExportConversationContacts")
-                    .summary("Export contact list for conversation")
-                    .description("Exports a CSV file containing all users who have opted in to receive email updates for this conversation")
-                    .tag("Conversation")
-            }),
+            required_auth(
+                get_with(export_conversation_contacts, |op| {
+                    op.id("ExportConversationContacts")
+                        .summary("Export contact list for conversation")
+                        .description(
+                            "Exports a CSV file containing all users who have \
+                        opted in to receive email updates for this conversation",
+                        )
+                        .tag("Conversation")
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{conversation_id}/demographics/export",
-            get_with(export_conversation_demographics, |op| {
-                op.id("ExportConversationDemographics")
-                    .summary("Export demographics for conversation participants")
-                    .description("Exports a CSV file containing demographic data for users participating in the conversation's workflow. Only includes consented users. Requires conversation ownership.")
-                    .tag("Conversation")
-            }),
+            required_auth(
+                get_with(export_conversation_demographics, |op| {
+                    op.id("ExportConversationDemographics")
+                        .summary("Export demographics for conversation participants")
+                        .description(
+                            "Exports a CSV file containing demographic data for \
+                        users participating in the conversation's workflow. Only \
+                        includes consented users. Requires conversation ownership.",
+                        )
+                        .tag("Conversation")
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

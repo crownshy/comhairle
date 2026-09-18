@@ -14,8 +14,6 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models;
-use crate::models::report::{FullReportDto, PartialReport, ReportWithTranslations};
 use crate::routes::auth::{
     extract::{OptionalUser, RequiredAdminUser},
     is_user_admin,
@@ -23,6 +21,11 @@ use crate::routes::auth::{
 use crate::routes::reports::dto::{LocalizedReportDto, ReportDto};
 use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleState, error::ComhairleError};
+use crate::{models, routes::auth::layer::required_auth};
+use crate::{
+    models::report::{FullReportDto, PartialReport, ReportWithTranslations},
+    routes::auth::layer::optional_auth,
+};
 
 pub mod dto;
 
@@ -112,27 +115,38 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_report, |op| {
-                op.id("GenerateReportForConversation")
-                    .summary("Generates a report for this conversation")
-                    .response::<201, Json<FullReportDto>>()
-            }),
+            required_auth(
+                post_with(create_report, |op| {
+                    op.id("GenerateReportForConversation")
+                        .summary("Generates a report for this conversation")
+                        .response::<201, Json<FullReportDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            put_with(update_report, |op| {
-                op.id("UpdateReport")
-                    .summary("Update a report")
-                    .response::<201, Json<ReportDto>>()
-            }),
+            required_auth(
+                put_with(update_report, |op| {
+                    op.id("UpdateReport")
+                        .summary("Update a report")
+                        .response::<201, Json<ReportDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(get_report, |op| {
-                op.id("GetReportForConversation")
-                    .summary("Return the report of a given conversation")
-                    .response::<200, Json<FullReportDto>>()
-            }),
+            optional_auth(
+                get_with(get_report, |op| {
+                    op.id("GetReportForConversation")
+                        .summary("Return the report of a given conversation")
+                        .response::<200, Json<FullReportDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+            ),
         )
         .with_state(state)
 }

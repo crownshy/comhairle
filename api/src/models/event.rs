@@ -25,7 +25,6 @@ use crate::{
         pagination::{Order, PageOptions, PaginatedResults},
         scheduled_email::{self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig},
         translations::{TextContentId, TextFormat, new_translation},
-        users::User,
     },
     routes::user::dto::UserDto,
 };

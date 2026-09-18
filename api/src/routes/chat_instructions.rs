@@ -11,7 +11,7 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{ComhairleError, ComhairleState};
+use crate::{ComhairleError, ComhairleState, routes::auth::layer::required_auth};
 use crate::{
     bot_service::{ComhairlePrompt, UpdateChatRequest, Variable},
     models::{
@@ -102,28 +102,36 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get_by_conversation, |op| {
-                op.id("GetConversationChatInstructions")
-                    .tag("ChatInstructions")
-                    .summary("Get chat instructions by conversation_id")
-                    .description("Get chat instructions by conversation_id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ChatInstructionsDto>>()
-            }),
+            required_auth(
+                get_with(get_by_conversation, |op| {
+                    op.id("GetConversationChatInstructions")
+                        .tag("ChatInstructions")
+                        .summary("Get chat instructions by conversation_id")
+                        .description("Get chat instructions by conversation_id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ChatInstructionsDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            post_with(upsert_for_conversation, |op| {
-                op.id("UpsertConversationChatInstructions")
-                    .tag("ChatInstructions")
-                    .summary("Upsert chat instructions ")
-                    .description(
-                        "Creates a new chat instructions record for \
+            required_auth(
+                post_with(upsert_for_conversation, |op| {
+                    op.id("UpsertConversationChatInstructions")
+                        .tag("ChatInstructions")
+                        .summary("Upsert chat instructions ")
+                        .description(
+                            "Creates a new chat instructions record for \
                         a conversation or updates and existing record",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ChatInstructionsDto>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ChatInstructionsDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

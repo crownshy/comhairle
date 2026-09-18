@@ -10,7 +10,7 @@ use sqlx::{PgPool, prelude::FromRow};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::{invite_response, users::User};
+use super::invite_response;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "invite")]

@@ -16,12 +16,15 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::bot_service::{ChatConversationRequest, ComhairleChatSession};
 use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::chat_instructions::{self, ChatInstructionsExt};
 use crate::models::conversation;
 use crate::routes::auth::extract::RequiredUser;
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    bot_service::{ChatConversationRequest, ComhairleChatSession},
+    routes::auth::layer::required_auth,
+};
 
 #[instrument(err(Debug), skip(state))]
 pub async fn get_session(
@@ -114,22 +117,38 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get_session, |op| {
-                op.id("GetChatSessionHistory")
-                    .tag("Chats")
-                    .summary("Retrieves a session for a conversation's QA chat bot including messages history for a user")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleChatSession>>()
-            }),
+            required_auth(
+                get_with(get_session, |op| {
+                    op.id("GetChatSessionHistory")
+                        .tag("Chats")
+                        .summary(
+                            "Retrieves a session for a conversation's QA chat \
+                            bot including messages history for a user",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ComhairleChatSession>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
-            "/", 
-            post_with(converse, |op| {
-                op.tag("Chats")
-                    .summary("Converse with a conversation's QA chat bot")
-                    .security_requirement("JWT")
-                    .description("Streamed LLM response.\n\n⚠️ This endpoint returns a streaming response on success.\nGenerated API clients are NOT suitable for consuming this endpoint.\nUse a raw HTTP request and process the response body incrementally.")
-            }),
+            "/",
+            required_auth(
+                post_with(converse, |op| {
+                    op.tag("Chats")
+                        .summary("Converse with a conversation's QA chat bot")
+                        .security_requirement("JWT")
+                        .description(
+                            "Streamed LLM response.\
+                        This endpoint returns a streaming response on success.\
+                        Generated API clients are NOT suitable for consuming this endpoint.\
+                        Use a raw HTTP request and process the response body incrementally.",
+                        )
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

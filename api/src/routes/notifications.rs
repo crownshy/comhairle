@@ -24,6 +24,7 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
+    routes::auth::layer::required_auth,
 };
 
 use super::auth::extract::RequiredUser;
@@ -151,53 +152,86 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/unread",
-            get_with(get_unread_notifications, |op| {
-                op.summary("Get unread notifications for current user")
-                    .id("GetUnreadNotifications")
-                    .description("Returns a paginated list of unread notification deliveries for the authenticated user")
-                    .tag("Notifications")
-                    .response::<200, Json<PaginatedResults<NotificationWithDelivery>>>()
-            }),
+            required_auth(
+                get_with(get_unread_notifications, |op| {
+                    op.summary("Get unread notifications for current user")
+                        .id("GetUnreadNotifications")
+                        .description(
+                            "Returns a paginated list of unread notification \
+                        deliveries for the authenticated user",
+                        )
+                        .tag("Notifications")
+                        .response::<200, Json<PaginatedResults<NotificationWithDelivery>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/unread/count",
-            get_with(get_unread_count, |op| {
-                op.summary("Get unread notification count")
-                    .id("GetUnreadNotificationsCount")
-                    .description("Returns the count of unread notifications for the authenticated user")
-                    .tag("Notifications")
-                    .response::<200,Json<UnreadCount>>()
-            }),
+            required_auth(
+                get_with(get_unread_count, |op| {
+                    op.summary("Get unread notification count")
+                        .id("GetUnreadNotificationsCount")
+                        .description(
+                            "Returns the count of unread notifications for the \
+                        authenticated user",
+                        )
+                        .tag("Notifications")
+                        .response::<200, Json<UnreadCount>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(get_all_notifications, |op| {
-                op.summary("Get all notifications for current user")
-                    .id("GetAllNotifications")
-                    .description("Returns a paginated list of all notification deliveries for the authenticated user")
-                    .tag("Notifications")
-                    .response::<200, Json<PaginatedResults<NotificationWithDelivery>>>()
-            }),
+            required_auth(
+                get_with(get_all_notifications, |op| {
+                    op.summary("Get all notifications for current user")
+                        .id("GetAllNotifications")
+                        .description(
+                            "Returns a paginated list of all notification deliveries \
+                        for the authenticated user",
+                        )
+                        .tag("Notifications")
+                        .response::<200, Json<PaginatedResults<NotificationWithDelivery>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/delivery/{delivery_id}/read",
-            put_with(mark_notification_as_read, |op| {
-                op.id("MarkNotificationAsRead")
-                    .summary("Mark a notification as read")
-                    .description("Marks a specific notification delivery as read for the current user")
-                    .tag("Notifications")
-                    .response::<200, Json<NotificationDelivery>>()
-            }),
+            required_auth(
+                put_with(mark_notification_as_read, |op| {
+                    op.id("MarkNotificationAsRead")
+                        .summary("Mark a notification as read")
+                        .description(
+                            "Marks a specific notification delivery as read for the current user",
+                        )
+                        .tag("Notifications")
+                        .response::<200, Json<NotificationDelivery>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/read-all",
-            put_with(mark_all_notifications_as_read, |op| {
-                op.id("MarkAllNotificationsAsRead")
-                    .summary("Mark all notifications as read")
-                    .description("Marks all unread notification deliveries as read for the current user")
-                    .tag("Notifications")
-                    .response::<200, Json<serde_json::Value>>()
-            }),
+            required_auth(
+                put_with(mark_all_notifications_as_read, |op| {
+                    op.id("MarkAllNotificationsAsRead")
+                        .summary("Mark all notifications as read")
+                        .description(
+                            "Marks all unread notification deliveries as read for the current user",
+                        )
+                        .tag("Notifications")
+                        .response::<200, Json<serde_json::Value>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

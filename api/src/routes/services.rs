@@ -9,7 +9,11 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::extract::RequiredUser};
+use crate::{
+    ComhairleState,
+    error::ComhairleError,
+    routes::auth::{extract::RequiredUser, layer::required_auth},
+};
 
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -43,15 +47,19 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListSupportedServices")
-                    .summary("List of supported services")
-                    .description(
-                        "List of services supported (configured) by current Comhairle server",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleServices>>()
-            }),
+            required_auth(
+                get_with(list, |op| {
+                    op.id("ListSupportedServices")
+                        .summary("List of supported services")
+                        .description(
+                            "List of services supported (configured) by current Comhairle server",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ComhairleServices>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

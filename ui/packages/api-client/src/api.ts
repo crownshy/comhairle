@@ -4010,11 +4010,7 @@ const endpoints = makeApi([
     method: "post",
     path: "/conversation/:conversation_id/chat_sessions",
     alias: "postConversationConversation_idchat_sessions",
-    description: `Streamed LLM response.
-
-⚠️ This endpoint returns a streaming response on success.
-Generated API clients are NOT suitable for consuming this endpoint.
-Use a raw HTTP request and process the response body incrementally.`,
+    description: `Streamed LLM response.This endpoint returns a streaming response on success.Generated API clients are NOT suitable for consuming this endpoint.Use a raw HTTP request and process the response body incrementally.`,
     requestFormat: "json",
     parameters: [
       {
@@ -7329,6 +7325,20 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
     ],
     response: UserDto,
+  },
+  {
+    method: "get",
+    path: "/ws",
+    alias: "getWs",
+    requestFormat: "json",
+    response: z.void(),
+    errors: [
+      {
+        status: 101,
+        description: `websocket upgrade`,
+        schema: z.void(),
+      },
+    ],
   },
   {
     method: "post",
