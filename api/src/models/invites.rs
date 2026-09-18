@@ -1,4 +1,4 @@
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::{error::ComhairleError, models::SqlxResultExt, routes::user::dto::UserDto};
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};
 use partially::Partial;
@@ -10,7 +10,7 @@ use sqlx::{PgPool, prelude::FromRow};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::{invite_response, users::User};
+use super::invite_response;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "invite")]
@@ -62,7 +62,7 @@ impl Invite {
     }
 
     #[instrument(err(Debug), skip(db))]
-    pub async fn accept(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
+    pub async fn accept(&self, db: &PgPool, user: &UserDto) -> Result<Invite, ComhairleError> {
         let new_status = if self.status == InviteStatus::Open {
             InviteStatus::Open
         } else {
@@ -91,7 +91,7 @@ impl Invite {
     }
 
     #[instrument(err(Debug), skip(db))]
-    pub async fn reject(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
+    pub async fn reject(&self, db: &PgPool, user: &UserDto) -> Result<Invite, ComhairleError> {
         let new_status = if self.status == InviteStatus::Pending {
             InviteStatus::Rejected
         } else {
@@ -115,7 +115,7 @@ impl Invite {
     }
 
     #[instrument(err(Debug))]
-    pub fn is_for_user(&self, user: &User) -> Result<(), ComhairleError> {
+    pub fn is_for_user(&self, user: &UserDto) -> Result<(), ComhairleError> {
         match &self.invite_type {
             InviteType::Email(email) => {
                 if let Some(user_email) = user.email.as_ref() {
@@ -395,7 +395,7 @@ mod tests {
         models::{
             conversation::{self, CreateConversation, PartialConversation},
             model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            users,
+            users::{self, User},
             workflow::{self, CreateWorkflow},
         },
         routes::events::dto::EventDto,
@@ -444,7 +444,7 @@ mod tests {
         };
 
         assert!(
-            invite.is_for_user(&user).is_ok(),
+            invite.is_for_user(&user.into()).is_ok(),
             "User should be identified even if their emails dont match"
         );
         Ok(())
@@ -510,9 +510,9 @@ mod tests {
         )
         .await?;
 
-        invite.accept(&db, &user2).await?;
-        invite.reject(&db, &user3).await?;
-        invite.accept(&db, &user4).await?;
+        invite.accept(&db, &user2.into()).await?;
+        invite.reject(&db, &user3.into()).await?;
+        invite.accept(&db, &user4.into()).await?;
 
         let stats = get_stats_for_invite(&db, &invite.id).await?;
 
@@ -600,7 +600,7 @@ mod tests {
             "Invite should start as Open"
         );
 
-        let rejected_invite = invite.reject(&db, &user2).await?;
+        let rejected_invite = invite.reject(&db, &user2.into()).await?;
 
         assert_eq!(
             rejected_invite.status,
@@ -678,7 +678,7 @@ mod tests {
             "Email invite should start as Pending"
         );
 
-        let rejected_invite = invite.reject(&db, &user2).await?;
+        let rejected_invite = invite.reject(&db, &user2.into()).await?;
 
         assert_eq!(
             rejected_invite.status,

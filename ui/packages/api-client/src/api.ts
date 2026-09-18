@@ -31,10 +31,6 @@ export const UserDto = z
   })
   .passthrough();
 export type UserDto = z.infer<typeof UserDto>;
-export const LoginRequest = z
-  .object({ email: z.string(), password: z.string() })
-  .passthrough();
-export type LoginRequest = z.infer<typeof LoginRequest>;
 export const OtpLoginRequest = z
   .object({ code: z.string(), email: z.string() })
   .passthrough();
@@ -201,6 +197,21 @@ export const UpgradeAccountRequest = z
   .object({ email: z.string(), password: z.string(), username: z.string() })
   .passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
+export const SyncKcUsersRequest = z
+  .object({ user_ids: z.array(z.string().uuid()) })
+  .passthrough();
+export type SyncKcUsersRequest = z.infer<typeof SyncKcUsersRequest>;
+export const SkippedUser = z
+  .object({ reason: z.string(), user_id: z.string().uuid() })
+  .passthrough();
+export type SkippedUser = z.infer<typeof SkippedUser>;
+export const SyncKcUserResponse = z
+  .object({
+    skipped_users: z.array(SkippedUser),
+    synced_users: z.array(z.string().uuid()),
+  })
+  .passthrough();
+export type SyncKcUserResponse = z.infer<typeof SyncKcUserResponse>;
 export const UserConversationPreferencesDto = z
   .object({
     conversationId: z.string().uuid(),
@@ -3263,7 +3274,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   GuestLoginRequest,
   UserAuthType,
   UserDto,
-  LoginRequest,
   OtpLoginRequest,
   SignupRequest,
   OtpSignupRequest,
@@ -3287,6 +3297,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserOrganizationsResponse,
   UpdateUserRequest,
   UpgradeAccountRequest,
+  SyncKcUsersRequest,
+  SkippedUser,
+  SyncKcUserResponse,
   UserConversationPreferencesDto,
   UpdateUserConversationPreferences,
   UserProfileDto,
@@ -3637,6 +3650,21 @@ const endpoints = makeApi([
     response: z.object({ key: z.string() }).passthrough(),
   },
   {
+    method: "get",
+    path: "/auth/callback",
+    alias: "getAuthcallback",
+    description: `Receives a temporary token after successful login which is exchanged for access, identity and refresh tokens via authorization service API`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "code",
+        type: "Query",
+        schema: z.string(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
     method: "post",
     path: "/auth/create_otp",
     alias: "CreateOtp",
@@ -3658,19 +3686,12 @@ const endpoints = makeApi([
     response: UserDto,
   },
   {
-    method: "post",
+    method: "get",
     path: "/auth/login",
-    alias: "LoginUser",
+    alias: "Login",
+    description: `Login via auth_service authorization code flow`,
     requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        description: `Expected payload for a login request`,
-        type: "Body",
-        schema: LoginRequest,
-      },
-    ],
-    response: UserDto,
+    response: z.void(),
   },
   {
     method: "post",
@@ -3989,11 +4010,7 @@ const endpoints = makeApi([
     method: "post",
     path: "/conversation/:conversation_id/chat_sessions",
     alias: "postConversationConversation_idchat_sessions",
-    description: `Streamed LLM response.
-
-⚠️ This endpoint returns a streaming response on success.
-Generated API clients are NOT suitable for consuming this endpoint.
-Use a raw HTTP request and process the response body incrementally.`,
+    description: `Streamed LLM response.This endpoint returns a streaming response on success.Generated API clients are NOT suitable for consuming this endpoint.Use a raw HTTP request and process the response body incrementally.`,
     requestFormat: "json",
     parameters: [
       {
@@ -7280,6 +7297,21 @@ This struct contains optional fields that can be updated on a TextTranslation re
     response: z.array(UserRoles),
   },
   {
+    method: "post",
+    path: "/user/sync_kc",
+    alias: "SyncKcUsers",
+    description: `Sync comhairle_users from postgres to Keycloak`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SyncKcUsersRequest,
+      },
+    ],
+    response: SyncKcUserResponse,
+  },
+  {
     method: "put",
     path: "/user/upgrade",
     alias: "UpgradeAccount",
@@ -7293,6 +7325,20 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
     ],
     response: UserDto,
+  },
+  {
+    method: "get",
+    path: "/ws",
+    alias: "getWs",
+    requestFormat: "json",
+    response: z.void(),
+    errors: [
+      {
+        status: 101,
+        description: `websocket upgrade`,
+        schema: z.void(),
+      },
+    ],
   },
   {
     method: "post",

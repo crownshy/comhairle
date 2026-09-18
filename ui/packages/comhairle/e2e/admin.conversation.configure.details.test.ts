@@ -13,11 +13,15 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Details page', async ({ page, cleanup }) => {
-	const textboxes = new Textboxes(page, [
-		['title', 'Title'],
-		['short_description', 'Short description'],
-		['description', 'Description']
-	]);
+	const textboxes = Textboxes(
+		page,
+		[
+			['title', 'Title'],
+			['short_description', 'Short description'],
+			['description', 'Description']
+		],
+		cleanup
+	);
 
 	// const primary_language = page.getByRole('button', { name: 'English' });
 	// const supported_languages = page.getByRole('textbox', { name: 'Supported languages' });
@@ -25,9 +29,9 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// const NEW_PRIMARY_LANGUAGE = 'Arabic';
 	// const NEW_SUPPORTED_LANGUAGE = 'Welsh';
 
-	await textboxes.write('title', cleanup, TEST_CONVERSATION_TITLE);
-	await textboxes.write('short_description', cleanup, ' ');
-	await textboxes.write('description', cleanup, ' ');
+	await textboxes.write('title', TEST_CONVERSATION_TITLE);
+	await textboxes.write('short_description', ' ');
+	await textboxes.write('description', ' ');
 
 	// await primary_language.click();
 	// await page.getByRole('option', { name: NEW_PRIMARY_LANGUAGE }).click();
@@ -44,7 +48,7 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// });
 
 	// await testWithRefresh(page, async () => {
-	await textboxes.expected();
+	await textboxes.expect();
 
 	// Wait for data to refresh before checking
 	await sleep(1.5);

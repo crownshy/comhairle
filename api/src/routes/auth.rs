@@ -1,11 +1,17 @@
+pub mod extract;
+
+use std::marker::PhantomData;
+use std::{collections::HashMap, sync::Arc};
+
 use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
+use axum::response::Redirect;
 use axum::{
     Extension, RequestPartsExt,
-    extract::{FromRequestParts, Json, Path, State},
+    extract::{FromRequestParts, Json, Path, Query, State},
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
@@ -21,11 +27,47 @@ use hmac::{Hmac, KeyInit, Mac};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
 use rand_core::OsRng;
 use regex::Regex;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::json;
 use sha2::Sha256;
 use time::Duration;
+use tower::util::option_layer;
+use tracing::{instrument, warn};
+use uuid::Uuid;
+
+use crate::ComhairleState;
+use crate::auth_service::GetAuthorizationTokensResponse;
+use crate::error::ComhairleError;
+use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
+use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
+use crate::models::permissions::{
+    Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
+    UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
+};
+use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
+use crate::models::users::{
+    self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
+    create_guest_user, create_otp_user, create_user, get_guest_user_by_code, get_user_by_email,
+    get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
+};
+use crate::models::{api_key, otp};
+use crate::routes::auth::extract::{OptionalRawAccessToken, RequiredAdminUser, RequiredUser};
+use crate::routes::user::dto::UserDto;
+
+#[cfg(test)]
+use fake::Dummy;
+
+/// This is the key that we use in the cookie for the JWT
+pub const AUTH_KEY: &str = "auth-token";
+const REFRESH_KEY: &str = "refresh-token";
+
+pub const KC_ACCESS_KEY: &str = "kc-access-token";
+pub const KC_IDENTITY_KEY: &str = "kc-id-token";
+pub const KC_REFRESH_KEY: &str = "kc-refresh-token";
 
 /// Helper function to check if a user is admin
-pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
+pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &UserDto) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
         state,
@@ -48,38 +90,6 @@ pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::us
     }
     false
 }
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::json;
-use std::marker::PhantomData;
-use std::{collections::HashMap, sync::Arc};
-use tower::util::option_layer;
-use tracing::{instrument, warn};
-use uuid::Uuid;
-
-use crate::ComhairleState;
-use crate::error::ComhairleError;
-use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
-use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
-use crate::models::permissions::{
-    Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
-    UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
-};
-use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
-use crate::models::users::{
-    self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-    create_guest_user, create_otp_user, create_user, get_guest_user_by_code, get_user_by_email,
-    get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
-};
-use crate::models::{api_key, otp};
-use crate::routes::user::dto::UserDto;
-
-#[cfg(test)]
-use fake::Dummy;
-
-/// This is the key that we use in the cookie for the JWT
-pub const AUTH_KEY: &str = "auth-token";
-const REFRESH_KEY: &str = "refresh-token";
 
 /// Validate password strength according to security requirements
 ///
@@ -263,7 +273,7 @@ where
 /// Generate JWT
 #[builder]
 pub fn generate_jwt<T: Serialize>(
-    user: &User,
+    user: &UserDto,
     secret: &str,
     custom_claims: T,
     duration: Option<TimeDelta>,
@@ -330,6 +340,7 @@ async fn signup(
     validate_password_strength(&payload.password)?;
 
     let user = create_user(&payload, &state.db).await?;
+    let user: UserDto = user.into();
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
@@ -358,7 +369,6 @@ async fn signup(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
@@ -374,6 +384,7 @@ async fn signup_guest(
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
+    let user: UserDto = user.into();
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
@@ -382,7 +393,6 @@ async fn signup_guest(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
@@ -402,6 +412,7 @@ async fn signup_otp(
     Json(payload): Json<OtpSignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_otp_user(&payload, &state.db).await?;
+    let user: UserDto = user.into();
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
@@ -415,13 +426,13 @@ async fn signup_otp(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
-/// Email/Password Login Handler
+/// Deprecated. Keeping for documentation and reference temporarily.
 #[instrument(err(Debug), skip(state, payload))]
-async fn login(
+#[deprecated]
+async fn legacy_login(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
@@ -444,6 +455,7 @@ async fn login(
         return Err(ComhairleError::WrongPassword);
     }
 
+    let user: UserDto = user.into();
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
@@ -452,7 +464,6 @@ async fn login(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::OK, Json(user))))
 }
 
@@ -478,7 +489,7 @@ async fn login_guest(
         roles: Vec::new(),
     };
     let token = generate_jwt()
-        .user(&user)
+        .user(&user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .call();
@@ -488,6 +499,8 @@ async fn login_guest(
         .http_only(true)
         .same_site(SameSite::None)
         .max_age(Duration::days(7));
+
+    let user: UserDto = user.into();
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -495,7 +508,6 @@ async fn login_guest(
         jar = jar.add(refresh_cookie);
     }
 
-    let user: UserDto = user.into();
     Ok((jar, (StatusCode::OK, Json(user))))
 }
 
@@ -522,6 +534,7 @@ async fn login_otp(
 
     let _otp = otp::accept(&state.db, &user.id, &payload.code, now).await?;
 
+    let user: UserDto = user.into();
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
@@ -530,7 +543,7 @@ async fn login_otp(
         jar = jar.add(refresh_cookie);
     }
 
-    Ok((jar, (StatusCode::OK, Json(user.into()))))
+    Ok((jar, (StatusCode::OK, Json(user))))
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
@@ -568,7 +581,7 @@ async fn create_otp(
         otp: otp.code.clone(),
     };
     let otp_token = generate_jwt()
-        .user(&user)
+        .user(&user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(10))
@@ -618,9 +631,10 @@ async fn login_otp_token(
 
     let _otp = otp::accept(&state.db, &user.id, &token_data.claims.details.otp, now).await?;
 
+    let user: UserDto = user.into();
     let cookie = create_session_cookie(&user, &state);
 
-    Ok((cookies.add(cookie), (StatusCode::OK, Json(user.into()))))
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
 }
 
 #[instrument(err(Debug), skip(state, payload))]
@@ -634,7 +648,7 @@ async fn resend_verification_email(
         email: user.email.clone(),
     };
     let token = generate_jwt()
-        .user(&user)
+        .user(&user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
@@ -676,7 +690,7 @@ async fn verify_email_token(
         roles: Vec::new(),
     };
     let session_token = generate_jwt()
-        .user(&updated_user.clone())
+        .user(&updated_user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .call();
@@ -701,7 +715,7 @@ async fn password_reset_create(
         email: user.email.clone(),
     };
     let token = generate_jwt()
-        .user(&user)
+        .user(&user.clone().into())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
@@ -746,8 +760,10 @@ async fn password_reset_update(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Deperecated. Keep for documentation.
 #[instrument(err(Debug), skip(state, client_ip, user_agent))]
-async fn refresh_session(
+#[deprecated]
+async fn legacy_refresh_session(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
@@ -770,12 +786,59 @@ async fn refresh_session(
     // Handles expired / re-used / invalid tokens
     let new_token = refresh_token::rotate(&state.db, jti, user_id, &client_ip, &user_agent).await?;
 
+    let user: UserDto = user.into();
     let session_cookie = create_session_cookie(&user, &state);
     let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token);
 
     let jar = jar.add(session_cookie).add(refresh_cookie);
 
-    Ok((jar, (StatusCode::OK, Json(user.into()))))
+    Ok((jar, (StatusCode::OK, Json(user))))
+}
+
+async fn refresh_session(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+) -> Result<(CookieJar, StatusCode), ComhairleError> {
+    let refresh_token = jar
+        .get(KC_REFRESH_KEY)
+        .ok_or(ComhairleError::SessionRefreshFailure(
+            RefreshFailure::Missing,
+        ))?
+        .value();
+
+    let token_result = state.auth_service.refresh_session(refresh_token).await?;
+
+    let jar = build_auth_service_token_cookies(jar, token_result);
+
+    Ok((jar, StatusCode::OK))
+}
+
+fn build_auth_service_token_cookies(
+    jar: CookieJar,
+    token_result: GetAuthorizationTokensResponse,
+) -> CookieJar {
+    let access_cookie = Cookie::build((KC_ACCESS_KEY, token_result.access_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::None)
+        .max_age(Duration::seconds(token_result.expires_in));
+    let identity_cookie = Cookie::build((KC_IDENTITY_KEY, token_result.id_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::None)
+        .max_age(Duration::seconds(token_result.expires_in));
+    let refresh_cookie = Cookie::build((KC_REFRESH_KEY, token_result.refresh_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::Strict)
+        .max_age(Duration::seconds(token_result.refresh_expires_in));
+
+    jar.add(access_cookie)
+        .add(identity_cookie)
+        .add(refresh_cookie)
 }
 
 /// Decode a JWT
@@ -938,7 +1001,7 @@ impl RequiredRoleResource for Conversation {
 ///    returned.
 ///
 /// 2. **Session cookie** - if no bearer token is present, the request falls
-///    back to the [`OptionalUser`] extractor, which checks for a valid session
+///    back to the [`LegacyOptionalUser`] extractor, which checks for a valid session
 ///    cookie. If a session is found the associated user is returned.
 ///
 /// # Errors
@@ -959,7 +1022,7 @@ async fn resolve_user_from_request(
         users::get_user_by_id(&user_id, &state.db).await
     } else {
         parts
-            .extract_with_state::<OptionalUser, _>(state)
+            .extract_with_state::<LegacyOptionalUser, _>(state)
             .await?
             .0
             .ok_or(ComhairleError::UserRequired)
@@ -977,7 +1040,7 @@ async fn resolve_user_from_request(
 /// * Propagates [`ComhairleError`] from the underlying permission lookup.
 pub async fn authorize<R: ExtractResourceId>(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     action: Action,
     resource: &R,
 ) -> Result<(), ComhairleError> {
@@ -1001,9 +1064,10 @@ pub async fn authorize<R: ExtractResourceId>(
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
 #[derive(OperationIo)]
-pub struct RequiredAdminUser(pub User);
+#[deprecated]
+pub struct LegacyRequiredAdminUser(pub User);
 
-impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
+impl FromRequestParts<Arc<ComhairleState>> for LegacyRequiredAdminUser {
     type Rejection = ComhairleError;
 
     async fn from_request_parts(
@@ -1012,8 +1076,8 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
     ) -> Result<Self, Self::Rejection> {
         let user = resolve_user_from_request(parts, state).await?;
 
-        if is_user_admin(&state, &user).await {
-            Ok(RequiredAdminUser(user.clone()))
+        if is_user_admin(&state, &user.clone().into()).await {
+            Ok(LegacyRequiredAdminUser(user))
         } else {
             Err(ComhairleError::RequiresAuthUser)
         }
@@ -1024,15 +1088,17 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
 #[derive(OperationIo)]
-pub struct RequiredUser(pub User);
+#[deprecated]
+pub struct LegacyRequiredUser(pub User);
 
 /// An extractor to get the current user if they exist
 /// If a user is not logged in, this will still run
 /// but produce a None value in the extractor
 #[derive(OperationIo, Debug)]
-pub struct OptionalUser(pub Option<User>);
+#[deprecated]
+pub struct LegacyOptionalUser(pub Option<User>);
 
-impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
+impl FromRequestParts<Arc<ComhairleState>> for LegacyRequiredUser {
     type Rejection = ComhairleError;
 
     async fn from_request_parts(
@@ -1041,11 +1107,11 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
     ) -> Result<Self, Self::Rejection> {
         resolve_user_from_request(parts, state)
             .await
-            .map(RequiredUser)
+            .map(LegacyRequiredUser)
     }
 }
 
-impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
+impl FromRequestParts<Arc<ComhairleState>> for LegacyOptionalUser {
     type Rejection = ComhairleError;
 
     async fn from_request_parts(
@@ -1060,9 +1126,9 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         if let Some(token_cookie) = jar.get(AUTH_KEY) {
             let token_str = token_cookie.value();
             let poss_user = validate_jwt::<SessionClaims>(state, token_str).await.ok();
-            Ok(OptionalUser(poss_user))
+            Ok(LegacyOptionalUser(poss_user))
         } else {
-            Ok(OptionalUser(None))
+            Ok(LegacyOptionalUser(None))
         }
     }
 }
@@ -1123,8 +1189,9 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     Ok(current_user)
 }
 
-/// Destroy the cookie on our session to log a user out
-pub async fn logout(
+/// Deprecated. Keeping for documentation and reference temporarily.
+#[deprecated]
+pub async fn legacy_logout(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
 ) -> (CookieJar, Response) {
@@ -1147,14 +1214,76 @@ pub async fn logout(
     (jar, Json(json!({"msg":"Logged out"})).into_response())
 }
 
-/// Handler for the current user if there is one
-#[instrument(err(Debug))]
-pub async fn current_user(
-    OptionalUser(user): OptionalUser,
-) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLoggedInUser)?).into();
+#[instrument(err(Debug), skip(state))]
+async fn logout(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, ComhairleError> {
+    let logout_url = format!(
+        "{}/realms/{}/protocol/openid-connect/logout?post_logout_redirect_uri={}/&client_id={}",
+        state.config.auth_service.url,
+        state.config.auth_service.realm,
+        state.config.domain,
+        state.config.auth_service.client_id
+    );
 
-    Ok((StatusCode::OK, Json(user)))
+    Ok(Redirect::to(&logout_url))
+}
+
+/// Handler for the current user if there is one
+#[instrument(err(Debug), skip(state, access_token))]
+pub async fn current_user(
+    State(state): State<Arc<ComhairleState>>,
+    OptionalRawAccessToken(access_token): OptionalRawAccessToken,
+) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
+    match access_token {
+        Some(token) => {
+            let user = state
+                .auth_service
+                .get_user(&token)
+                .await
+                // Token exists but is invalid
+                .map_err(|_| ComhairleError::NoLoggedInUser)?;
+
+            let user: UserDto = user.into();
+            Ok((StatusCode::OK, Json(user)))
+        }
+        None => Err(ComhairleError::NoLoggedInUser),
+    }
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn login(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, ComhairleError> {
+    let auth_config = &state.config.auth_service;
+
+    let redirect_url = format!("{}/api/auth/callback", state.config.domain);
+    let authentication_url = format!(
+        "{}/realms/{}/protocol/openid-connect/auth?client_id={}&response_type=code&scope=openid&redirect_uri={}",
+        auth_config.url, auth_config.realm, auth_config.client_id, redirect_url
+    );
+
+    Ok(Redirect::to(&authentication_url))
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+struct KeycloakCallbackQuery {
+    code: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn authentication_callback(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+    Query(query): Query<KeycloakCallbackQuery>,
+) -> Result<(CookieJar, Redirect), ComhairleError> {
+    let redirect_url = format!("{}/api/auth/callback", state.config.domain);
+
+    let token_result = state
+        .auth_service
+        .get_authorization_tokens(&query.code, &redirect_url)
+        .await?;
+
+    let jar = build_auth_service_token_cookies(jar, token_result);
+
+    // TODO: handle backTo paths, maybe via redis
+    Ok((jar, Redirect::to(&state.config.domain)))
 }
 
 /// Handler for testing RequiresRole
@@ -1162,7 +1291,6 @@ pub async fn test_requires_roles(
     RequiredRole(_, _, _): RequiredRole<Conversation, (Owner, (Contributor,))>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = user.into();
     Ok((StatusCode::OK, Json(user)))
 }
 
@@ -1170,11 +1298,13 @@ pub async fn test_requires_roles(
 pub async fn test_api_key(
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = user.into();
     Ok((StatusCode::OK, Json(user)))
 }
 
-fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
+fn send_verification_email(
+    user: &UserDto,
+    state: &Arc<ComhairleState>,
+) -> Result<(), ComhairleError> {
     let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
@@ -1194,7 +1324,7 @@ fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(
     Ok(())
 }
 
-pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
+pub fn create_session_cookie<'a>(user: &UserDto, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
     let claims = SessionClaims {
         username: user.username.clone(),
         sudo_user: None,
@@ -1216,9 +1346,10 @@ pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> Co
         .max_age(Duration::days(7))
 }
 
+#[deprecated]
 fn build_refresh_token_cookie<'a>(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     token_record: &RefreshToken,
 ) -> Cookie<'a> {
     let refresh_token = generate_jwt()
@@ -1239,9 +1370,10 @@ fn build_refresh_token_cookie<'a>(
         .build()
 }
 
+#[deprecated]
 async fn issue_refresh_token<'a>(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     ip_addr: &ClientIp,
     user_agent: &ClientUserAgent,
 ) -> Option<Cookie<'a>> {
@@ -1287,16 +1419,6 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("LoginGuestUser")
                     .tag("Auth")
                     .summary("Login an guest user")
-                    .response::<200, Json<UserDto>>()
-            })
-            .layer(credential_limit.clone()),
-        )
-        .api_route(
-            "/login",
-            post_with(login, |op| {
-                op.id("LoginUser")
-                    .tag("Auth")
-                    .summary("Login a user")
                     .response::<200, Json<UserDto>>()
             })
             .layer(credential_limit.clone()),
@@ -1413,12 +1535,14 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/current_user",
-            get_with(current_user, |op| {
-                op.id("CurrentUser")
-                    .tag("Auth")
-                    .summary("Get the current user")
-                    .response::<200, Json<UserDto>>()
-            }),
+            state
+                .optional_auth(get_with(current_user, |op| {
+                    op.id("CurrentUser")
+                        .tag("Auth")
+                        .summary("Get the current user")
+                        .response::<200, Json<UserDto>>()
+                }))
+                .layer(credential_limit.clone()),
         )
         .api_route(
             "/refresh",
@@ -1428,7 +1552,31 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Refresh user session")
                     .description("Refresh user session to prevent frequent users logging back in")
                     .response::<200, Json<UserDto>>()
-            }),
+            })
+            .layer(credential_limit.clone()),
+        )
+        .api_route(
+            "/login",
+            get_with(login, |op| {
+                op.id("Login")
+                    .tag("Auth")
+                    .summary("Login via auth_service")
+                    .description("Login via auth_service authorization code flow")
+            })
+            .layer(credential_limit.clone()),
+        )
+        .api_route(
+            "/callback",
+            get_with(authentication_callback, |op| {
+                op.tag("Auth")
+                    .summary("Authorization service callback endpoint")
+                    .description(
+                        "Receives a temporary token after successful \
+                        login which is exchanged for access, identity and \
+                        refresh tokens via authorization service API",
+                    )
+            })
+            .layer(credential_limit.clone()),
         )
         // TODO: this route is used for testing only. Once we have authorisation logic locekd down
         // in other endpoints, this can be removed and those auth requirements tested.
@@ -1721,7 +1869,7 @@ mod tests {
             roles: Vec::new(),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(secret)
             .custom_claims(claims)
             .call();
@@ -1774,7 +1922,7 @@ mod tests {
             roles: Vec::new(),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(secret)
             .custom_claims(claims)
             .call();
@@ -1831,7 +1979,7 @@ mod tests {
             roles: Vec::new(),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(secret)
             .custom_claims(claims)
             .call();
@@ -2148,7 +2296,7 @@ mod tests {
             email: Some(email.to_string()),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&secret)
             .custom_claims(claims)
             .call();
@@ -2215,7 +2363,7 @@ mod tests {
             email: Some(email.to_string()),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&secret)
             .custom_claims(claims)
             .call();
@@ -2264,7 +2412,7 @@ mod tests {
         };
         let claims = EmailLinkClaims { email: None };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&secret)
             .custom_claims(claims)
             .call();
@@ -2508,7 +2656,7 @@ mod tests {
             email: Some(email.to_string()),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .call();
@@ -2706,7 +2854,7 @@ mod tests {
             otp: otp.code,
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .duration(chrono::Duration::minutes(10))
@@ -2753,7 +2901,8 @@ mod tests {
         )
         .await?;
 
-        let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record);
+        let token_cookie =
+            build_refresh_token_cookie(&Arc::new(state), &user.into(), &token_record);
 
         assert_eq!(token_cookie.name(), REFRESH_KEY, "incorrect name");
         assert_eq!(token_cookie.path().unwrap(), "/", "incorrect path");
@@ -2788,7 +2937,7 @@ mod tests {
         .await?;
 
         let token_cookie =
-            build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record);
+            build_refresh_token_cookie(&Arc::new(state.clone()), &user.into(), &token_record);
         let token_data =
             decode_jwt::<RefreshClaims>(token_cookie.value(), &state.config.refresh_jwt_secret)
                 .unwrap();
@@ -2808,9 +2957,14 @@ mod tests {
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
-        let cookie = issue_refresh_token(&Arc::new(state.clone()), &user, &ip_addr, &user_agent)
-            .await
-            .unwrap();
+        let cookie = issue_refresh_token(
+            &Arc::new(state.clone()),
+            &user.into(),
+            &ip_addr,
+            &user_agent,
+        )
+        .await
+        .unwrap();
         let token_data =
             decode_jwt::<RefreshClaims>(cookie.value(), &state.config.refresh_jwt_secret).unwrap();
 
@@ -2844,8 +2998,13 @@ mod tests {
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
-        let cookie =
-            issue_refresh_token(&Arc::new(state.clone()), &user, &ip_addr, &user_agent).await;
+        let cookie = issue_refresh_token(
+            &Arc::new(state.clone()),
+            &user.into(),
+            &ip_addr,
+            &user_agent,
+        )
+        .await;
 
         assert!(cookie.is_none());
 
@@ -2895,12 +3054,13 @@ mod tests {
             "refresh token already revoked"
         );
 
+        let original_user: UserDto = current_user_model.into();
         // Create expired auth-token jwt
         let expired_session_jwt = generate_jwt()
-            .user(&current_user_model)
+            .user(&original_user)
             .secret(&state.config.jwt_secret)
             .custom_claims(SessionClaims {
-                username: current_user_model.username.clone(),
+                username: original_user.username.clone(),
                 ..Default::default()
             })
             .duration(chrono::Duration::hours(-1))
@@ -2932,7 +3092,7 @@ mod tests {
 
         // Check now able to perform authenticated requests
         let (_, current_user, _) = session.current_user(&app).await?;
-        assert_eq!(current_user.id, current_user_model.id, "users don't match");
+        assert_eq!(current_user.id, original_user.id, "users don't match");
 
         // Check original refresh token is revoked
         let revoked_token = refresh_token::get_by_id(&pool, original_refresh_token_record.id)

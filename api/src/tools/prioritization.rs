@@ -29,7 +29,10 @@ use crate::models::proposal_section::{
 use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
 use crate::models::user_progress;
 use crate::models::workflow_step;
-use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::routes::auth::{
+    extract::{RequiredAdminUser, RequiredUser},
+    is_user_admin,
+};
 use crate::routes::translations::LocaleExtractor;
 use crate::schema_helpers::{example_localized_text, example_uuid};
 use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};

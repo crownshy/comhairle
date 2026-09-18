@@ -22,7 +22,7 @@ use crate::{
         },
         pagination::{PageOptions, PaginatedResults},
     },
-    routes::{auth::RequiredAdminUser, media::dto::MediaDto},
+    routes::{auth::extract::RequiredAdminUser, media::dto::MediaDto},
     tools::id::gen_id,
 };
 
@@ -189,33 +189,40 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListMedia")
-                    .tag("Media")
-                    .summary("List media records")
-                    .description("List media records")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<MediaDto>>>()
-            }),
+            state.required_auth(
+                get_with(list, |op| {
+                    op.id("ListMedia")
+                        .tag("Media")
+                        .summary("List media records")
+                        .description("List media records")
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<MediaDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{media_id}",
-            get_with(get, |op| {
-                op.id("GetMedia")
-                    .tag("Media")
-                    .summary("Get media record")
-                    .description("Get media record by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<MediaDto>>()
-            }),
+            state.required_auth(
+                get_with(get, |op| {
+                    op.id("GetMedia")
+                        .tag("Media")
+                        .summary("Get media record")
+                        .description("Get media record by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<MediaDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            post_with(upload, |op| {
-                op.tag("Media")
-                    .summary("Upload media resource")
-                    .description(
-                        "
+            state.required_auth(
+                post_with(upload, |op| {
+                    op.tag("Media")
+                        .summary("Upload media resource")
+                        .description(
+                            "
 Upload a media resource to the bulk_storage_service 
 and create a new record in the database.\n\n
 This endpoint requires multipart/form-data.\n\n\
@@ -229,32 +236,40 @@ curl -X POST \\
 --form 'file=@/path-to-document.pdf'
 ```
                             ",
-                    )
-                    .security_requirement("JWT")
-                    .response::<201, Json<Vec<MediaDto>>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<201, Json<Vec<MediaDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{media_id}",
-            patch_with(update, |op| {
-                op.id("UpdateMedia")
-                    .tag("Media")
-                    .summary("Update a media record")
-                    .description("Update a media record by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<MediaDto>>()
-            }),
+            state.required_auth(
+                patch_with(update, |op| {
+                    op.id("UpdateMedia")
+                        .tag("Media")
+                        .summary("Update a media record")
+                        .description("Update a media record by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<MediaDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{media_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteMedia")
-                    .tag("Media")
-                    .summary("Delete media record")
-                    .description("Delete media record by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<MediaDto>>()
-            }),
+            state.required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteMedia")
+                        .tag("Media")
+                        .summary("Delete media record")
+                        .description("Delete media record by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<MediaDto>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

@@ -32,7 +32,10 @@ use crate::{
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep},
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{
+    extract::{RequiredAdminUser, RequiredUser},
+    is_user_admin,
+};
 use crate::models::{self, conversation, user_participation};
 use axum::extract::{FromRequestParts, Query};
 
@@ -322,59 +325,74 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_workflow_step, |op| {
-                op.id(&format!("Create{ctx}WorkflowStep"))
-                    .tag("Workflow step")
-                    .summary("Create a new workflow step")
-                    .security_requirement("JWT")
-                    .response::<201, Json<WorkflowStepDto>>()
-            }),
+            state.required_auth(
+                post_with(create_workflow_step, |op| {
+                    op.id(&format!("Create{ctx}WorkflowStep"))
+                        .tag("Workflow step")
+                        .summary("Create a new workflow step")
+                        .security_requirement("JWT")
+                        .response::<201, Json<WorkflowStepDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(list_workflows_step, |op| {
-                op.id(&format!("List{ctx}WorkflowSteps"))
-                    .tag("Workflow step")
-                    .summary("List workflow steps.")
-                    .description(
-                        "
+            state.required_auth(
+                get_with(list_workflows_step, |op| {
+                    op.id(&format!("List{ctx}WorkflowSteps"))
+                        .tag("Workflow step")
+                        .summary("List workflow steps.")
+                        .description(
+                            "
 List the workflow steps associated with this workflow.\n
 Use query param withTranslations=true to get the translation data for each step.\n
 Use query param withUserProgress=true to get the active user's progress status for each step.",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStepsListResponse>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<WorkflowStepsListResponse>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{workflow_step_id}",
-            get_with(get_workflow_step, |op| {
-                op.id(&format!("Get{ctx}WorkflowStep"))
-                    .tag("Workflow step")
-                    .summary("Get the specified workflow step")
-                    .security_requirement("JWT")
-                    .response::<200, Json<LocalizedWorkflowStepDto>>()
-            }),
+            state.required_auth(
+                get_with(get_workflow_step, |op| {
+                    op.id(&format!("Get{ctx}WorkflowStep"))
+                        .tag("Workflow step")
+                        .summary("Get the specified workflow step")
+                        .security_requirement("JWT")
+                        .response::<200, Json<LocalizedWorkflowStepDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{workflow_step_id}",
-            put_with(update_workflow_step, |op| {
-                op.id(&format!("Update{ctx}WorkflowStep"))
-                    .tag("Workflow step")
-                    .summary("Update the specified workflow step")
-                    .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStepDto>>()
-            }),
+            state.required_auth(
+                put_with(update_workflow_step, |op| {
+                    op.id(&format!("Update{ctx}WorkflowStep"))
+                        .tag("Workflow step")
+                        .summary("Update the specified workflow step")
+                        .security_requirement("JWT")
+                        .response::<200, Json<WorkflowStepDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{workflow_step_id}",
-            delete_with(delete_workflow_step, |op| {
-                op.id(&format!("Delete{ctx}WorkflowStep"))
-                    .tag("Workflow step")
-                    .summary("Delete the specified workflow step")
-                    .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStepDto>>()
-            }),
+            state.required_auth(
+                delete_with(delete_workflow_step, |op| {
+                    op.id(&format!("Delete{ctx}WorkflowStep"))
+                        .tag("Workflow step")
+                        .summary("Delete the specified workflow step")
+                        .security_requirement("JWT")
+                        .response::<200, Json<WorkflowStepDto>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

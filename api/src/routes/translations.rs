@@ -27,7 +27,7 @@ use crate::{
     routes::translations::dto::{TextContentDto, TextTranslationDto},
 };
 
-use super::auth::RequiredAdminUser;
+use super::auth::extract::RequiredAdminUser;
 
 pub mod dto;
 
@@ -322,107 +322,143 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         // TextContent routes
         .api_route(
             "/",
-            post_with(create_text_content, |op| {
-                op.id("CreateTextContent")
-                    .tag("Translations")
-                    .summary("Create new TextContent")
-                    .description("Create a new TextContent entry that can hold translations")
-                    .response::<201, Json<TextContentDto>>()
-            }),
+            state.required_auth(
+                post_with(create_text_content, |op| {
+                    op.id("CreateTextContent")
+                        .tag("Translations")
+                        .summary("Create new TextContent")
+                        .description("Create a new TextContent entry that can hold translations")
+                        .response::<201, Json<TextContentDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{text_content_id}",
-            get_with(get_text_content_with_translations, |op| {
-                op.id("GetTextContentWithTranslations")
-                    .tag("Translations")
-                    .summary("Get TextContent with all translations")
-                    .description("Get a TextContent entry with all its translations")
-                    .response::<200, Json<TextContentWithTranslations>>()
-            }),
+            state.required_auth(
+                get_with(get_text_content_with_translations, |op| {
+                    op.id("GetTextContentWithTranslations")
+                        .tag("Translations")
+                        .summary("Get TextContent with all translations")
+                        .description("Get a TextContent entry with all its translations")
+                        .response::<200, Json<TextContentWithTranslations>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{text_content_id}",
-            put_with(update_text_content, |op| {
-                op.id("UpdateTextContent")
-                    .tag("Translations")
-                    .summary("Update TextContent")
-                    .description("Update a TextContent entry")
-                    .response::<200, Json<TextContentDto>>()
-            }),
+            state.required_auth(
+                put_with(update_text_content, |op| {
+                    op.id("UpdateTextContent")
+                        .tag("Translations")
+                        .summary("Update TextContent")
+                        .description("Update a TextContent entry")
+                        .response::<200, Json<TextContentDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{text_content_id}",
-            delete_with(delete_text_content, |op| {
-                op.id("DeleteTextContent")
-                    .tag("Translations")
-                    .summary("Delete TextContent")
-                    .description("Delete a TextContent entry and all its translations")
-                    .response::<200, Json<TextContentDto>>()
-            }),
+            state.required_auth(
+                delete_with(delete_text_content, |op| {
+                    op.id("DeleteTextContent")
+                        .tag("Translations")
+                        .summary("Delete TextContent")
+                        .description("Delete a TextContent entry and all its translations")
+                        .response::<200, Json<TextContentDto>>()
+                }),
+                None,
+            ),
         )
         // TextTranslation routes
         .api_route(
             "/{text_content_id}/{locale}",
-            get_with(get_text_translation, |op| {
-                op.id("GetTextTranslation")
-                    .tag("Translations")
-                    .summary("Get translation for specific locale")
-                    .description("Get a translation for a specific TextContent and locale")
-                    .response::<200, Json<TextTranslationDto>>()
-            }),
+            state.required_auth(
+                get_with(get_text_translation, |op| {
+                    op.id("GetTextTranslation")
+                        .tag("Translations")
+                        .summary("Get translation for specific locale")
+                        .description("Get a translation for a specific TextContent and locale")
+                        .response::<200, Json<TextTranslationDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            post_with(create_or_update_text_translation, |op| {
-                op.id("CreateOrUpdateTextTranslation")
-                    .tag("Translations")
-                    .summary("Create or update translation")
-                    .description(
-                        "Create a new translation or update existing one for a specific locale",
-                    )
-                    .response::<200, Json<TextTranslationDto>>()
-                    .response::<201, Json<TextTranslationDto>>()
-            }),
+            state.required_auth(
+                post_with(create_or_update_text_translation, |op| {
+                    op.id("CreateOrUpdateTextTranslation")
+                        .tag("Translations")
+                        .summary("Create or update translation")
+                        .description(
+                            "Create a new translation or update existing one for a specific locale",
+                        )
+                        .response::<200, Json<TextTranslationDto>>()
+                        .response::<201, Json<TextTranslationDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            put_with(update_text_translation, |op| {
-                op.id("UpdateTextTranslation")
-                    .tag("Translations")
-                    .summary("Update translation")
-                    .description("Update an existing translation for a specific locale")
-                    .response::<200, Json<TextTranslationDto>>()
-            }),
+            state.required_auth(
+                put_with(update_text_translation, |op| {
+                    op.id("UpdateTextTranslation")
+                        .tag("Translations")
+                        .summary("Update translation")
+                        .description("Update an existing translation for a specific locale")
+                        .response::<200, Json<TextTranslationDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            delete_with(delete_text_translation, |op| {
-                op.id("DeleteTextTranslation")
-                    .tag("Translations")
-                    .summary("Delete translation")
-                    .description("Delete a translation for a specific locale")
-                    .response::<200, Json<TextTranslationDto>>()
-            }),
+            state.required_auth(
+                delete_with(delete_text_translation, |op| {
+                    op.id("DeleteTextTranslation")
+                        .tag("Translations")
+                        .summary("Delete translation")
+                        .description("Delete a translation for a specific locale")
+                        .response::<200, Json<TextTranslationDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{text_content_id}/translate",
-            post_with(auto_translate_all, |op| {
-                op.id("GenerateAllTranslations")
-                    .tag("Translations")
-                    .summary("Generate all translations for this Text Content")
-                    .description("Use the default locale content as the reference text and generate automatic translations for each language form it")
-                    .response::<200, Json<TextContentWithTranslations>>()
-            }),
+            state.required_auth(
+                post_with(auto_translate_all, |op| {
+                    op.id("GenerateAllTranslations")
+                        .tag("Translations")
+                        .summary("Generate all translations for this Text Content")
+                        .description(
+                            "Use the default locale content as the reference \
+                        text and generate automatic translations for each language form it",
+                        )
+                        .response::<200, Json<TextContentWithTranslations>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{text_content_id}/{locale}/translate",
-            post_with(auto_translate, |op| {
-                op.id("AutomaticallyGenerateTranslation")
-                    .tag("Translations")
-                    .summary("Automatically generate this language")
-                    .description("Use the primary_locale language and translate this language from it using the tarnslation service")
-                    .response::<200, Json<TextTranslationDto>>()
-            }),
+            state.required_auth(
+                post_with(auto_translate, |op| {
+                    op.id("AutomaticallyGenerateTranslation")
+                        .tag("Translations")
+                        .summary("Automatically generate this language")
+                        .description(
+                            "Use the primary_locale language and translate this \
+                        language from it using the tarnslation service",
+                        )
+                        .response::<200, Json<TextTranslationDto>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

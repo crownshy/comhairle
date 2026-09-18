@@ -1,5 +1,13 @@
 use aws_config::BehaviorVersion;
+use axum_keycloak_auth::{
+    Url,
+    instance::{KeycloakAuthInstance, KeycloakConfig},
+};
 use comhairle::redis_connection::RedisImpl;
+use comhairle::{
+    AuthBackend,
+    auth_service::{AuthService, keycloak::KeycloakClient},
+};
 use comhairle::{
     ComhairleState,
     bot_service::{ComhairleBotService, ComhairleRagBotService},
@@ -83,6 +91,10 @@ async fn run() -> Result<(), Box<dyn Error>> {
                 )) as Arc<dyn comhairle::translation_service::TranslationService>
             });
 
+    // Setup Auth Service
+    let auth_service =
+        Arc::new(KeycloakClient::new(&config.auth_service).await?) as Arc<dyn AuthService>;
+
     // Setup Bulk Storage Service
     let bulk_storage_service = if let Some(bulk_storage_config) = &config.bulk_storage_service {
         let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
@@ -152,12 +164,21 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let video_call_handler = Arc::new(VideoCallMessageHandler::new());
 
+    let keycloak_auth_instance = Arc::new(KeycloakAuthInstance::new(
+        KeycloakConfig::builder()
+            .server(Url::parse(&config.auth_service.clone().url).unwrap())
+            .realm(config.auth_service.clone().realm)
+            .build(),
+    ));
+
     let state = Arc::new(ComhairleState {
         db,
         mailer,
         config,
         websockets,
         video_call_handler,
+        auth_backend: AuthBackend::Keycloak(keycloak_auth_instance),
+        auth_service,
         translation_service,
         transcription_service,
         bot_service,

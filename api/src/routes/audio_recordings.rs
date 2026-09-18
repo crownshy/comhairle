@@ -31,7 +31,7 @@ use crate::routes::audio_recordings::dto::{
     AudioRecordingDto, CreateRecordingRequest, CreateRecordingResponse, DeleteRecordingResponse,
     ProcessRecordingResponse, RecordingDetailResponse, RecordingDownloadUrls, SubmitReportResponse,
 };
-use crate::routes::auth::{RequiredAdminUser, verify_webhook_signature};
+use crate::routes::auth::{extract::RequiredAdminUser, verify_webhook_signature};
 use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
 
 /// Create an audio recording and return a presigned URL for uploading its audio.
@@ -334,58 +334,89 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_recording, |op| {
-                op.id("CreateAudioRecording")
-                    .tag("Audio Recordings")
-                    .summary("Create an audio recording and get an upload URL")
-                    .description("Create a named audio recording for an event and return a presigned S3 URL for uploading its audio.")
-                    .security_requirement("JWT")
-                    .response::<201, Json<CreateRecordingResponse>>()
-            }),
+            state.required_auth(
+                post_with(create_recording, |op| {
+                    op.id("CreateAudioRecording")
+                        .tag("Audio Recordings")
+                        .summary("Create an audio recording and get an upload URL")
+                        .description(
+                            "Create a named audio recording for an \
+                            event and return a presigned S3 URL for uploading \
+                            its audio.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<201, Json<CreateRecordingResponse>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(list_recordings, |op| {
-                op.id("ListAudioRecordings")
-                    .tag("Audio Recordings")
-                    .summary("List audio recordings for an event")
-                    .description("List all audio recordings for an event with their processing status.")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<AudioRecordingDto>>>()
-            }),
+            state.required_auth(
+                get_with(list_recordings, |op| {
+                    op.id("ListAudioRecordings")
+                        .tag("Audio Recordings")
+                        .summary("List audio recordings for an event")
+                        .description(
+                            "List all audio recordings for an event with their processing status.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<AudioRecordingDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{recording_id}",
-            get_with(get_recording, |op| {
-                op.id("GetAudioRecording")
-                    .tag("Audio Recordings")
-                    .summary("Get an audio recording and its download URLs")
-                    .description("Get an audio recording's details and presigned S3 URLs for its audio, transcript, and report.")
-                    .security_requirement("JWT")
-                    .response::<200, Json<RecordingDetailResponse>>()
-            }),
+            state.required_auth(
+                get_with(get_recording, |op| {
+                    op.id("GetAudioRecording")
+                        .tag("Audio Recordings")
+                        .summary("Get an audio recording and its download URLs")
+                        .description(
+                            "Get an audio recording's details and presigned \
+                        S3 URLs for its audio, transcript, and report.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<RecordingDetailResponse>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{recording_id}",
-            delete_with(delete_recording, |op| {
-                op.id("DeleteAudioRecording")
-                    .tag("Audio Recordings")
-                    .summary("Delete an audio recording")
-                    .description("Delete an audio recording and best-effort-clean its files from bulk storage. Useful for clearing stuck rows left behind by a failed upload.")
-                    .security_requirement("JWT")
-                    .response::<200, Json<DeleteRecordingResponse>>()
-            }),
+            state.required_auth(
+                delete_with(delete_recording, |op| {
+                    op.id("DeleteAudioRecording")
+                        .tag("Audio Recordings")
+                        .summary("Delete an audio recording")
+                        .description(
+                            "Delete an audio recording and best-effort-clean \
+                        its files from bulk storage. Useful for clearing stuck \
+                        rows left behind by a failed upload.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<DeleteRecordingResponse>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{recording_id}/process",
-            post_with(process_recording, |op| {
-                op.id("ProcessAudioRecording")
-                    .tag("Audio Recordings")
-                    .summary("Start processing an audio recording")
-                    .description("Enqueue a background job to transcribe and categorize a single audio recording.")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ProcessRecordingResponse>>()
-            }),
+            state.required_auth(
+                post_with(process_recording, |op| {
+                    op.id("ProcessAudioRecording")
+                        .tag("Audio Recordings")
+                        .summary("Start processing an audio recording")
+                        .description(
+                            "Enqueue a background job to transcribe and \
+                        categorize a single audio recording.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ProcessRecordingResponse>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{recording_id}/report",
@@ -393,7 +424,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("SubmitAudioRecordingReport")
                     .tag("Audio Recordings")
                     .summary("Categorization report webhook")
-                    .description("Webhook for the categorization service to submit a recording's report. Authenticated by HMAC signature headers.")
+                    .description(
+                        "Webhook for the categorization service to \
+                        submit a recording's report. Authenticated by HMAC \
+                        signature headers.",
+                    )
                     .response::<201, Json<SubmitReportResponse>>()
             }),
         )

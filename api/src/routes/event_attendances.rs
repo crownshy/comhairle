@@ -26,7 +26,7 @@ use crate::{
         users,
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::extract::{RequiredAdminUser, RequiredUser},
         event_attendances::dto::EventAttendanceDto,
     },
 };
@@ -88,7 +88,7 @@ pub async fn create(
             // Registering a different user can only be performed by the
             // conversation owner
             if conversation.owner_id == user.id {
-                users::get_user_by_email(&email, &state.db).await?
+                users::get_user_by_email(&email, &state.db).await?.into()
             } else {
                 return Err(ComhairleError::UserIsNotConversationOwner);
             }
@@ -219,44 +219,54 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListEventAttendances")
-                    .summary("List attendances for an event")
-                    .tag("Event Attendances")
-                    .security_requirement("JWT")
-                    .description(
-                        "List attendances for a conversation event with optional filtering
+            state.required_auth(
+                get_with(list, |op| {
+                    op.id("ListEventAttendances")
+                        .summary("List attendances for an event")
+                        .tag("Event Attendances")
+                        .security_requirement("JWT")
+                        .description(
+                            "List attendances for a conversation event with optional filtering
                         and ordering",
-                    )
-                    .response::<200, Json<PaginatedResults<EventAttendanceEtx>>>()
-            }),
+                        )
+                        .response::<200, Json<PaginatedResults<EventAttendanceEtx>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{attendance_id}",
-            get_with(get, |op| {
-                op.id("GetEventAttendance")
-                    .summary("Get an event attendance by id")
-                    .tag("Event Attendances")
-                    .security_requirement("JWT")
-                    .description("Get and event attendance by id")
-                    .response::<200, Json<EventAttendanceDto>>()
-            }),
+            state.required_auth(
+                get_with(get, |op| {
+                    op.id("GetEventAttendance")
+                        .summary("Get an event attendance by id")
+                        .tag("Event Attendances")
+                        .security_requirement("JWT")
+                        .description("Get and event attendance by id")
+                        .response::<200, Json<EventAttendanceDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            post_with(create, |op| {
-                op.id("CreateEventAttendance")
-                    .summary("Create a new event attendance")
-                    .tag("Event Attendances")
-                    .security_requirement("JWT")
-                    .description("Create a new attendance for a conversation event")
-                    .response::<201, Json<EventAttendanceDto>>()
-            }),
+            state.required_auth(
+                post_with(create, |op| {
+                    op.id("CreateEventAttendance")
+                        .summary("Create a new event attendance")
+                        .tag("Event Attendances")
+                        .security_requirement("JWT")
+                        .description("Create a new attendance for a conversation event")
+                        .response::<201, Json<EventAttendanceDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/facilitator",
-            post_with(create_facilitator, |op| {
-                op.id("CreateFacilitatorEventAttendance")
+            state.required_auth(
+                post_with(create_facilitator, |op| {
+                    op.id("CreateFacilitatorEventAttendance")
                     .summary("Create a new event attendance with facilitator role")
                     .tag("Event Attendances")
                     .security_requirement("JWT")
@@ -264,29 +274,37 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         "Create a new attendance for a conversation event with facilitator role",
                     )
                     .response::<201, Json<EventAttendanceDto>>()
-            }),
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{attendance_id}",
-            put_with(update, |op| {
-                op.id("UpdateEventAttendance")
-                    .summary("Update an event attendance")
-                    .tag("Event Attendances")
-                    .security_requirement("JWT")
-                    .description("Update an event attendance by id")
-                    .response::<201, Json<EventAttendanceDto>>()
-            }),
+            state.required_auth(
+                put_with(update, |op| {
+                    op.id("UpdateEventAttendance")
+                        .summary("Update an event attendance")
+                        .tag("Event Attendances")
+                        .security_requirement("JWT")
+                        .description("Update an event attendance by id")
+                        .response::<201, Json<EventAttendanceDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{attendance_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteEventAttendance")
-                    .summary("Delete an event attendance")
-                    .tag("Event Attendances")
-                    .security_requirement("JWT")
-                    .description("Delete an event attendance by id")
-                    .response::<201, Json<EventAttendanceDto>>()
-            }),
+            state.required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteEventAttendance")
+                        .summary("Delete an event attendance")
+                        .tag("Event Attendances")
+                        .security_requirement("JWT")
+                        .description("Delete an event attendance by id")
+                        .response::<201, Json<EventAttendanceDto>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

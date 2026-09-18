@@ -26,13 +26,16 @@ use uuid::Uuid;
 
 /// Defines the type of authentication has been used to create
 /// The user
-#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
+#[derive(
+    Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema, Default,
+)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
 pub enum UserAuthType {
     #[sqlx(rename = "guest")]
     Guest,
     #[sqlx(rename = "email_password")]
+    #[default]
     EmailPassword,
     #[sqlx(rename = "one_time_passcode")]
     Otp,

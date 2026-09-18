@@ -19,7 +19,7 @@ use crate::{
     routes::user_progress::dto::UserProgressDto,
 };
 
-use super::auth::RequiredUser;
+use super::auth::extract::RequiredUser;
 
 pub mod dto;
 
@@ -88,19 +88,25 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get_user_progress_for_workflow, |op| {
-                op.id("GetUserProgress")
-                    .summary("Get the users progress on this workflow")
-                    .response::<200, Json<Vec<UserProgressDto>>>()
-            }),
+            state.required_auth(
+                get_with(get_user_progress_for_workflow, |op| {
+                    op.id("GetUserProgress")
+                        .summary("Get the users progress on this workflow")
+                        .response::<200, Json<Vec<UserProgressDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{workflow_step_id}",
-            put_with(update_user_progress, |op| {
-                op.id("SetUserProgress")
-                    .summary("Set the user progress for a given workflow step")
-                    .response::<200, Json<UserProgressDto>>()
-            }),
+            state.required_auth(
+                put_with(update_user_progress, |op| {
+                    op.id("SetUserProgress")
+                        .summary("Set the user progress for a given workflow step")
+                        .response::<200, Json<UserProgressDto>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

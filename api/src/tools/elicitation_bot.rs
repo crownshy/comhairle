@@ -27,7 +27,7 @@ use crate::{
         bot_service_user_session::{self, BotServiceSessionContext},
         workflow_step,
     },
-    routes::auth::RequiredUser,
+    routes::auth::extract::RequiredUser,
     tools::ToolConfig,
 };
 

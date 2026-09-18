@@ -16,14 +16,13 @@ use strum::EnumCount;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleError, ComhairleState,
-    models::email_template_config::{
-        self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
-        EmailTypeSchema, UpdateEmailTemplateConfig,
-    },
-    routes::{auth::RequiredAdminUser, email_template_configs::dto::EmailTemplateConfigDto},
+use crate::models::email_template_config::{
+    self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
+    EmailTypeSchema, UpdateEmailTemplateConfig,
 };
+use crate::routes::auth::extract::RequiredAdminUser;
+use crate::routes::email_template_configs::dto::EmailTemplateConfigDto;
+use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]
 async fn create(
@@ -147,91 +146,115 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create, |op| {
-                op.id("CreateEmailTemplateConfig")
-                    .summary("Create email template config")
-                    .description("Create custom content for specific email template")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<201, Json<EmailTemplateConfigDto>>()
-            }),
+            state.required_auth(
+                post_with(create, |op| {
+                    op.id("CreateEmailTemplateConfig")
+                        .summary("Create email template config")
+                        .description("Create custom content for specific email template")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<201, Json<EmailTemplateConfigDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{email_config_id}",
-            get_with(get, |op| {
-                op.id("GetEmailTemplateConfig")
-                    .summary("Get email template config")
-                    .description("Get custom email template configuration")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTemplateConfigDto>>()
-            }),
+            state.required_auth(
+                get_with(get, |op| {
+                    op.id("GetEmailTemplateConfig")
+                        .summary("Get email template config")
+                        .description("Get custom email template configuration")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<EmailTemplateConfigDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListEmailTemplateConfigs")
-                    .summary("List email template configs")
-                    .description("List custom email template configurations")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<Vec<EmailTemplateConfigDto>>>()
-            }),
+            state.required_auth(
+                get_with(list, |op| {
+                    op.id("ListEmailTemplateConfigs")
+                        .summary("List email template configs")
+                        .description("List custom email template configurations")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<Vec<EmailTemplateConfigDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{email_config_id}",
-            put_with(update, |op| {
-                op.id("UpdateEmailTemplateConfig")
-                    .summary("Update email template config")
-                    .description("Update custom email template configuration")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTemplateConfigDto>>()
-            }),
+            state.required_auth(
+                put_with(update, |op| {
+                    op.id("UpdateEmailTemplateConfig")
+                        .summary("Update email template config")
+                        .description("Update custom email template configuration")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<EmailTemplateConfigDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{email_config_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteEmailTemplateConfig")
-                    .summary("Delete email template config")
-                    .description("Delete custom email template configuration")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTemplateConfigDto>>()
-            }),
+            state.required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteEmailTemplateConfig")
+                        .summary("Delete email template config")
+                        .description("Delete custom email template configuration")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<EmailTemplateConfigDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{email_config_id}/schemas",
-            get_with(get_schema, |op| {
-                op.id("GetEmailTemplateSchema")
-                    .summary("Get email template schema")
-                    .description("Get template schemas for an email config")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTypeSchema>>()
-            }),
+            state.required_auth(
+                get_with(get_schema, |op| {
+                    op.id("GetEmailTemplateSchema")
+                        .summary("Get email template schema")
+                        .description("Get template schemas for an email config")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<EmailTypeSchema>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/schemas",
-            get_with(list_schemas, |op| {
-                op.id("ListEmailTemplateSchemas")
-                    .summary("List email template schemas")
-                    .description("List all template schemas for each email template type")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<[EmailTypeSchema; EmailTemplateSlots::COUNT]>>()
-            }),
+            state.required_auth(
+                get_with(list_schemas, |op| {
+                    op.id("ListEmailTemplateSchemas")
+                        .summary("List email template schemas")
+                        .description("List all template schemas for each email template type")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<[EmailTypeSchema; EmailTemplateSlots::COUNT]>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/preview",
-            post_with(preview, |op| {
-                op.id("PreviewEmailTemplateConfig")
-                    .summary("Preview email template config")
-                    .description("Preview appearance of custom email before sending")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<PreviewEmailTemplateConfigResponse>>()
-            }),
+            state.required_auth(
+                post_with(preview, |op| {
+                    op.id("PreviewEmailTemplateConfig")
+                        .summary("Preview email template config")
+                        .description("Preview appearance of custom email before sending")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<PreviewEmailTemplateConfigResponse>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

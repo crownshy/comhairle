@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::bot_service::{ComhairleChat, UpdateChatRequest};
 use crate::models::conversation;
-use crate::routes::auth::RequiredAdminUser;
+use crate::routes::auth::extract::RequiredAdminUser;
 use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]
@@ -67,25 +67,31 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get, |op| {
-                op.id("GetChat")
-                    .tag("Chats")
-                    .summary("Get chat bot")
-                    .description("Get a conversation's bot service chat")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleChat>>()
-            }),
+            state.required_auth(
+                get_with(get, |op| {
+                    op.id("GetChat")
+                        .tag("Chats")
+                        .summary("Get chat bot")
+                        .description("Get a conversation's bot service chat")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ComhairleChat>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            put_with(update, |op| {
-                op.id("UpdateChat")
-                    .tag("Chats")
-                    .summary("Update chat bot")
-                    .description("Update a conversation's bot service chat")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleChat>>()
-            }),
+            state.required_auth(
+                put_with(update, |op| {
+                    op.id("UpdateChat")
+                        .tag("Chats")
+                        .summary("Update chat bot")
+                        .description("Update a conversation's bot service chat")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ComhairleChat>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

@@ -18,7 +18,7 @@ use crate::{
         job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
-    routes::auth::RequiredAdminUser,
+    routes::auth::extract::RequiredAdminUser,
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -71,43 +71,55 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListJobs")
-                    .tag("Jobs")
-                    .summary("List jobs")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<Job>>>()
-            }),
+            state.required_auth(
+                get_with(list, |op| {
+                    op.id("ListJobs")
+                        .tag("Jobs")
+                        .summary("List jobs")
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<Job>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{job_id}",
-            get_with(get, |op| {
-                op.id("GetJob")
-                    .tag("Jobs")
-                    .summary("Get a job by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Job>>()
-            }),
+            state.required_auth(
+                get_with(get, |op| {
+                    op.id("GetJob")
+                        .tag("Jobs")
+                        .summary("Get a job by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Job>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            post_with(create, |op| {
-                op.id("CreateJob")
-                    .tag("Jobs")
-                    .summary("Create a new job")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Job>>()
-            }),
+            state.required_auth(
+                post_with(create, |op| {
+                    op.id("CreateJob")
+                        .tag("Jobs")
+                        .summary("Create a new job")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Job>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{job_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteJob")
-                    .tag("Jobs")
-                    .summary("Delete a job by id")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            state.required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteJob")
+                        .tag("Jobs")
+                        .summary("Delete a job by id")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

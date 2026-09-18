@@ -1,3 +1,4 @@
+pub mod auth_service;
 pub mod bot_service;
 pub mod bulk_storage_service;
 pub mod categorization_service;
@@ -9,7 +10,7 @@ pub mod mailer;
 mod middleware;
 pub mod models;
 pub mod redis_connection;
-mod routes;
+pub mod routes;
 pub mod schema_helpers;
 #[cfg(test)]
 mod test_helpers;
@@ -20,12 +21,17 @@ pub mod websockets;
 pub mod wiki_poll_service;
 pub mod worker_service;
 
-use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
-use axum::{
-    Extension, Router,
-    extract::DefaultBodyLimit,
-    http::{HeaderValue, Method, header},
-};
+use aide::axum::{ApiRouter, routing::ApiMethodRouter};
+use aide::openapi::OpenApi;
+use aide::transform::TransformOpenApi;
+use axum::extract::DefaultBodyLimit;
+use axum::http::{HeaderValue, Method, header};
+use axum::{Extension, Router};
+use axum_keycloak_auth::extract::TokenExtractor;
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
+use axum_keycloak_auth::layer::KeycloakAuthLayer;
+use axum_keycloak_auth::{NonEmpty, PassthroughMode};
+
 use bot_service::ComhairleBotService;
 use clap::Parser;
 use config::ComhairleConfig;
@@ -34,7 +40,6 @@ use docs::docs_routes;
 use error::ComhairleError;
 use mailer::ComhairleMailer;
 use routes::auth::AUTH_KEY;
-pub use routes::auth::hash_pw;
 use sqlx_postgres::PgPool;
 use std::sync::Arc;
 use tokio::fs;
@@ -43,13 +48,17 @@ use translation_service::TranslationService;
 use websockets::WebSocketService;
 use websockets::handlers::video_call::VideoCallMessageHandler;
 
-use crate::bulk_storage_service::BulkStorageService;
 use crate::categorization_service::CategorizationService;
 use crate::redis_connection::RedisConnection;
+use crate::routes::auth::extract::{ComhairleExtAttrs, KcAccessTokenCookieExtractor};
 use crate::routes::workflows::WorkflowRouterContext;
+#[cfg(test)]
+use crate::test_helpers::{TestAuthUser, test_auth_layer};
 use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;
+use crate::{auth_service::AuthService, bulk_storage_service::BulkStorageService};
+pub use routes::auth::hash_pw;
 
 #[cfg(test)]
 // sqlx::test expands every migration into the test binary for every invocation.
@@ -67,6 +76,8 @@ pub struct ComhairleState {
     /// routes can push updates to participants currently on a call (e.g. agenda changes).
     pub video_call_handler: Arc<VideoCallMessageHandler>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
+    pub auth_backend: AuthBackend,
+    pub auth_service: Arc<dyn AuthService>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub wiki_poll_service: Arc<dyn WikiPollService>,
     pub bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
@@ -76,7 +87,64 @@ pub struct ComhairleState {
     pub redis_conn: Option<Arc<dyn RedisConnection>>,
 }
 
+#[derive(Clone)]
+pub enum AuthBackend {
+    Keycloak(Arc<KeycloakAuthInstance>),
+    #[cfg(test)]
+    Test(TestAuthUser),
+    /// Not for production use, only for use in api_spec_gen crate
+    Stub, // TODO: find a better way of satisfying dummy state in api_spec_gen
+}
+
 impl ComhairleState {
+    /// Applies Keycloak authentication to a route without requiring a logged-in user.
+    ///
+    /// Wraps `method_router` with [`PassthroughMode::Pass`]: requests without a valid access token
+    /// cookie still reach the handler, but with no `KeycloakAuthStatus`/`KeycloakToken`
+    /// extension inserted (or a `KeycloakAuthStatus::Failure` if using [`KeycloakAuthStatus`]).
+    /// Pair this with the [`OptionalUser`] extractor, not [`RequiredUser`], in the handler.
+    fn optional_auth(
+        &self,
+        method_router: ApiMethodRouter<Arc<ComhairleState>>,
+    ) -> ApiMethodRouter<Arc<ComhairleState>> {
+        match &self.auth_backend {
+            AuthBackend::Keycloak(instance) => method_router.layer(keycloak_layer(
+                instance.clone(),
+                PassthroughMode::Pass,
+                None,
+            )),
+            #[cfg(test)]
+            AuthBackend::Test(user) => test_auth_layer(method_router, Some(user.to_owned())),
+            _ => panic!("Exhausted production variants"),
+        }
+    }
+
+    /// Applies Keycloak authentication to a route, rejecting unauthenticated requests.
+    ///
+    /// Wraps `method_router` with [`PassthroughMode::Block`]: requests without a valid access token
+    /// cookie are rejected before reaching the handler. On success, a `KeycloakToken`
+    /// extension is guaranteed to be present, so pair this with the [`RequiredUser`]
+    /// extractor in the handler.
+    ///
+    /// `audiences` are appended to the default `"account"` audience; pass `None` if the
+    /// route has no additional audience requirements beyond the default.
+    pub fn required_auth(
+        &self,
+        method_router: ApiMethodRouter<Arc<ComhairleState>>,
+        audiences: Option<Vec<String>>,
+    ) -> ApiMethodRouter<Arc<ComhairleState>> {
+        match &self.auth_backend {
+            AuthBackend::Keycloak(instance) => method_router.layer(keycloak_layer(
+                instance.clone(),
+                PassthroughMode::Block,
+                audiences,
+            )),
+            #[cfg(test)]
+            AuthBackend::Test(user) => test_auth_layer(method_router, Some(user.to_owned())),
+            _ => panic!("Exhausted production variants"),
+        }
+    }
+
     fn required_bot_service(&self) -> Result<&Arc<dyn ComhairleBotService>, ComhairleError> {
         self.bot_service
             .as_ref()
@@ -110,6 +178,33 @@ impl ComhairleState {
             .as_ref()
             .ok_or(ComhairleError::NoBulkStorageServiceConfigured)
     }
+}
+
+/// Builds a [`KeycloakAuthLayer`] configured for this application: access tokens are
+/// read from the Keycloak access-token cookie (see [`KcAccessTokenCookieExtractor`]),
+/// decoded into `KeycloakToken<String, ComhairleExtAttrs>`.
+fn keycloak_layer(
+    instance: Arc<KeycloakAuthInstance>,
+    mode: PassthroughMode,
+    audiences: Option<Vec<String>>,
+) -> KeycloakAuthLayer<String, ComhairleExtAttrs> {
+    let mut expected_audiences = vec!["account".to_string()];
+    if let Some(audiences) = audiences {
+        for audience in audiences {
+            expected_audiences.push(audience);
+        }
+    }
+
+    KeycloakAuthLayer::<String, ComhairleExtAttrs>::builder()
+        .instance(instance)
+        .passthrough_mode(mode)
+        .persist_raw_claims(false)
+        .token_extractors(NonEmpty::<Arc<dyn TokenExtractor>> {
+            head: Arc::new(KcAccessTokenCookieExtractor::default()),
+            tail: vec![],
+        })
+        .expected_audiences(expected_audiences)
+        .build()
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -293,10 +388,7 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
                         ),
                 ),
         )
-        .nest_api_service(
-            "/ws",
-            websockets::routes::websocket_routes().with_state(state.clone()),
-        )
+        .nest_api_service("/ws", websockets::routes::websocket_routes(state.clone()))
         .nest_api_service(
             "/organizations",
             routes::organizations::router(state.clone()),

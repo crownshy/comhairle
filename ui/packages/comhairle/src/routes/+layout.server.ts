@@ -22,11 +22,12 @@ export const load: LayoutServerLoad = async (event) => {
 	// constructed) always contains a fresh `auth-token`, which may have been
 	// updated as part of the refresh flow in `handleFetch` (see
 	// `hooks.server.ts`).
-	const tk = event.cookies.get('auth-token');
+	const tk = event.cookies.get('kc-access-token');
 
-	if (!tk || !resp.ok) {
+	if (!resp.ok) {
 		return { user: null, ...common };
 	}
+
 	const body = await resp.json();
 	if (!body.id) return { user: null, ...common };
 

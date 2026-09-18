@@ -11,14 +11,18 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::{
-    self,
-    moderation_policy::{self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy},
-    permissions::{Action, ConversationResource},
-    users::User,
-};
-use crate::routes::auth::{RequiredUser, authorize};
+use crate::routes::auth::{authorize, extract::RequiredUser};
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    models::{
+        self,
+        moderation_policy::{
+            self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy,
+        },
+        permissions::{Action, ConversationResource},
+    },
+    routes::user::dto::UserDto,
+};
 use dto::{DefaultModerationPolicyReasonDto, ModerationPolicyDto};
 
 pub mod dto;
@@ -27,7 +31,7 @@ pub mod dto;
 /// conversation update permission that moderating a statement already checks.
 async fn authorize_policy_access(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     conversation_id: &Uuid,
 ) -> Result<(), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, conversation_id).await?;
@@ -139,75 +143,95 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list_policies, |op| {
-                op.id("ListConversationModerationPolicies")
-                    .tag("ModerationPolicies")
-                    .summary("List a conversation's moderation policies")
-                    .description("Lists each policy with its reasons in display order")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<ModerationPolicyDto>>>()
-            }),
+            state.required_auth(
+                get_with(list_policies, |op| {
+                    op.id("ListConversationModerationPolicies")
+                        .tag("ModerationPolicies")
+                        .summary("List a conversation's moderation policies")
+                        .description("Lists each policy with its reasons in display order")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<ModerationPolicyDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            post_with(create_policy, |op| {
-                op.id("CreateConversationModerationPolicy")
-                    .tag("ModerationPolicies")
-                    .summary("Create a moderation policy")
-                    .description(
-                        "Creates a policy on the conversation. Without reasons it starts from \
+            state.required_auth(
+                post_with(create_policy, |op| {
+                    op.id("CreateConversationModerationPolicy")
+                        .tag("ModerationPolicies")
+                        .summary("Create a moderation policy")
+                        .description(
+                            "Creates a policy on the conversation. Without reasons it starts from \
                         the default reasons.",
-                    )
-                    .security_requirement("JWT")
-                    .response::<201, Json<ModerationPolicyDto>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<201, Json<ModerationPolicyDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/default",
-            get_with(get_default_reasons, |op| {
-                op.id("GetDefaultModerationPolicyReasons")
-                    .tag("ModerationPolicies")
-                    .summary("Get the default reject reasons")
-                    .description("The reasons a Polis step uses when it has no moderation policy")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<DefaultModerationPolicyReasonDto>>>()
-            }),
+            state.required_auth(
+                get_with(get_default_reasons, |op| {
+                    op.id("GetDefaultModerationPolicyReasons")
+                        .tag("ModerationPolicies")
+                        .summary("Get the default reject reasons")
+                        .description(
+                            "The reasons a Polis step uses when it has no moderation policy",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<DefaultModerationPolicyReasonDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            get_with(get_policy, |op| {
-                op.id("GetConversationModerationPolicy")
-                    .tag("ModerationPolicies")
-                    .summary("Get a moderation policy")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ModerationPolicyDto>>()
-            }),
+            state.required_auth(
+                get_with(get_policy, |op| {
+                    op.id("GetConversationModerationPolicy")
+                        .tag("ModerationPolicies")
+                        .summary("Get a moderation policy")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ModerationPolicyDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            put_with(update_policy, |op| {
-                op.id("UpdateConversationModerationPolicy")
-                    .tag("ModerationPolicies")
-                    .summary("Replace a moderation policy's name and reasons")
-                    .description(
-                        "Reasons sent with an id are updated in place, reasons without one are \
+            state.required_auth(
+                put_with(update_policy, |op| {
+                    op.id("UpdateConversationModerationPolicy")
+                        .tag("ModerationPolicies")
+                        .summary("Replace a moderation policy's name and reasons")
+                        .description(
+                            "Reasons sent with an id are updated in place, reasons without one are \
                         added, and reasons left out are deleted. The list order becomes the \
                         display order.",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ModerationPolicyDto>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ModerationPolicyDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            delete_with(delete_policy, |op| {
-                op.id("DeleteConversationModerationPolicy")
-                    .tag("ModerationPolicies")
-                    .summary("Delete a moderation policy")
-                    .description("Fails with 409 while a workflow step still uses the policy")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            state.required_auth(
+                delete_with(delete_policy, |op| {
+                    op.id("DeleteConversationModerationPolicy")
+                        .tag("ModerationPolicies")
+                        .summary("Delete a moderation policy")
+                        .description("Fails with 409 while a workflow step still uses the policy")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

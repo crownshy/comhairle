@@ -16,7 +16,10 @@ use uuid::Uuid;
 
 use crate::models;
 use crate::models::report::{FullReportDto, PartialReport, ReportWithTranslations};
-use crate::routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
+use crate::routes::auth::{
+    extract::{OptionalUser, RequiredAdminUser},
+    is_user_admin,
+};
 use crate::routes::reports::dto::{LocalizedReportDto, ReportDto};
 use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleState, error::ComhairleError};
@@ -109,27 +112,33 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_report, |op| {
-                op.id("GenerateReportForConversation")
-                    .summary("Generates a report for this conversation")
-                    .response::<201, Json<FullReportDto>>()
-            }),
+            state.required_auth(
+                post_with(create_report, |op| {
+                    op.id("GenerateReportForConversation")
+                        .summary("Generates a report for this conversation")
+                        .response::<201, Json<FullReportDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            put_with(update_report, |op| {
-                op.id("UpdateReport")
-                    .summary("Update a report")
-                    .response::<201, Json<ReportDto>>()
-            }),
+            state.required_auth(
+                put_with(update_report, |op| {
+                    op.id("UpdateReport")
+                        .summary("Update a report")
+                        .response::<201, Json<ReportDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(get_report, |op| {
+            state.optional_auth(get_with(get_report, |op| {
                 op.id("GetReportForConversation")
                     .summary("Return the report of a given conversation")
                     .response::<200, Json<FullReportDto>>()
-            }),
+            })),
         )
         .with_state(state)
 }

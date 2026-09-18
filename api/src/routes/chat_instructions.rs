@@ -102,28 +102,34 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get_by_conversation, |op| {
-                op.id("GetConversationChatInstructions")
-                    .tag("ChatInstructions")
-                    .summary("Get chat instructions by conversation_id")
-                    .description("Get chat instructions by conversation_id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ChatInstructionsDto>>()
-            }),
+            state.required_auth(
+                get_with(get_by_conversation, |op| {
+                    op.id("GetConversationChatInstructions")
+                        .tag("ChatInstructions")
+                        .summary("Get chat instructions by conversation_id")
+                        .description("Get chat instructions by conversation_id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ChatInstructionsDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            post_with(upsert_for_conversation, |op| {
-                op.id("UpsertConversationChatInstructions")
-                    .tag("ChatInstructions")
-                    .summary("Upsert chat instructions ")
-                    .description(
-                        "Creates a new chat instructions record for \
+            state.required_auth(
+                post_with(upsert_for_conversation, |op| {
+                    op.id("UpsertConversationChatInstructions")
+                        .tag("ChatInstructions")
+                        .summary("Upsert chat instructions ")
+                        .description(
+                            "Creates a new chat instructions record for \
                         a conversation or updates and existing record",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ChatInstructionsDto>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ChatInstructionsDto>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }

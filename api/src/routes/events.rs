@@ -25,7 +25,10 @@ use crate::{
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin},
+        auth::{
+            extract::{RequiredAdminUser, RequiredUser},
+            generate_jwt, is_user_admin,
+        },
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
@@ -249,110 +252,163 @@ async fn get_jwt(
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-        .api_route("/", get_with(list, |op| {
-            op.id("ListEvents")
-                .tag("Events")
-                .summary("List of events for a conversation")
-                .description("Paginated list of events for a conversation with optional filtering and ordering")
-                .security_requirement("JWT")
-                .response::<200, Json<PaginatedResults<LocalizedEventDto>>>()
-        }))
-        .api_route("/{event_id}", 
-            get_with(get, |op| {
-                op.id("GetEvent")
-                    .tag("Events")
-                    .summary("Get an event by id")
-                    .description("Event an event by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<EventResponse>>()
-
-        }))
-        .api_route("/", 
-            post_with(create, |op| {
-                op.id("CreateEvent")
-                    .tag("Events")
-                    .summary("Create a new event")
-                    .description("Create a new event")
-                    .security_requirement("JWT")
-                    .response::<201, Json<EventDto>>()
-
-        }))
-        .api_route("/{event_id}", 
-            put_with(update, |op| {
-                op.id("UpdateEvent")
-                    .tag("Events")
-                    .summary("Update an event")
-                    .description("Update an event")
-                    .security_requirement("JWT")
-                    .response::<200, Json<EventDto>>()
-
-        }))
-        .api_route("/{event_id}/metadata",
-            get_with(get_event_metadata, |op| {
-                op.id("GetEventMetadata")
-                    .tag("Events")
-                    .summary("Get event metadata")
-                    .description("Get event metadata")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Option<serde_json::Value>>>()
-
-        }))
-        .api_route("/{event_id}/metadata",
-            patch_with(patch_event_metadata, |op| {
-                op.id("PatchEventMetadata")
-                    .tag("Events")
-                    .summary("Shallow-merge event metadata")
-                    .description(
-                        "Merge a JSON object into event.metadata at the top level using jsonb concatenation",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<EventDto>>()
-
-        }))
-        .api_route("/{event_id}", 
-            delete_with(delete, |op| {
-                op.id("DeleteEvent")
-                    .tag("Events")
-                    .summary("Delete an event")
-                    .description("Delete an event")
-                    .security_requirement("JWT")
-                    .response::<200, Json<EventDto>>()
-
-        }))
-        .api_route("/{event_id}/auth",
-            get_with(get_jwt, |op| {
-                op.id("GetEventJWT")
-                    .tag("Events")
-                    .summary("Get a auth JWT for an event")
-                    .description("Get a auth JWT for an event")
-                    .security_requirement("JWT")
-                    .response::<200, Json<JwtResponse>>()
-
-        }))
-        .api_route("/{event_id}/breakout",
-            get_with(breakout::get_plan, |op| {
-                op.id("GetEventBreakoutPlan")
-                    .tag("Events")
-                    .summary("Get the pre-assigned breakout plan for an event")
-                    .security_requirement("JWT")
-                    .response::<200, Json<breakout::BreakoutPlanDto>>()
-        }))
-        .api_route("/{event_id}/breakout",
-            put_with(breakout::save_plan, |op| {
-                op.id("SaveEventBreakoutPlan")
-                    .tag("Events")
-                    .summary("Save an edited pre-assigned breakout plan")
-                    .security_requirement("JWT")
-                    .response::<200, Json<breakout::BreakoutPlanDto>>()
-        }))
-        .api_route("/{event_id}/breakout/seed",
-            post_with(breakout::seed_plan, |op| {
-                op.id("SeedEventBreakoutPlan")
-                    .tag("Events")
-                    .summary("Randomly seed the breakout plan from attendees and invites")
-                    .security_requirement("JWT")
-                    .response::<200, Json<breakout::BreakoutPlanDto>>()
-        }))
+        .api_route(
+            "/",
+            state.required_auth(
+                get_with(list, |op| {
+                    op.id("ListEvents")
+                        .tag("Events")
+                        .summary("List of events for a conversation")
+                        .description(
+                            "Paginated list of events for a conversation with \
+                    optional filtering and ordering",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<LocalizedEventDto>>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}",
+            state.required_auth(
+                get_with(get, |op| {
+                    op.id("GetEvent")
+                        .tag("Events")
+                        .summary("Get an event by id")
+                        .description("Event an event by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<EventResponse>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/",
+            state.required_auth(
+                post_with(create, |op| {
+                    op.id("CreateEvent")
+                        .tag("Events")
+                        .summary("Create a new event")
+                        .description("Create a new event")
+                        .security_requirement("JWT")
+                        .response::<201, Json<EventDto>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}",
+            state.required_auth(
+                put_with(update, |op| {
+                    op.id("UpdateEvent")
+                        .tag("Events")
+                        .summary("Update an event")
+                        .description("Update an event")
+                        .security_requirement("JWT")
+                        .response::<200, Json<EventDto>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}/metadata",
+            state.required_auth(
+                get_with(get_event_metadata, |op| {
+                    op.id("GetEventMetadata")
+                        .tag("Events")
+                        .summary("Get event metadata")
+                        .description("Get event metadata")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Option<serde_json::Value>>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}/metadata",
+            state.required_auth(
+                patch_with(patch_event_metadata, |op| {
+                    op.id("PatchEventMetadata")
+                        .tag("Events")
+                        .summary("Shallow-merge event metadata")
+                        .description(
+                            "Merge a JSON object into event.metadata at the top level \
+                            using jsonb concatenation",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<EventDto>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}",
+            state.required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteEvent")
+                        .tag("Events")
+                        .summary("Delete an event")
+                        .description("Delete an event")
+                        .security_requirement("JWT")
+                        .response::<200, Json<EventDto>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}/auth",
+            state.required_auth(
+                get_with(get_jwt, |op| {
+                    op.id("GetEventJWT")
+                        .tag("Events")
+                        .summary("Get a auth JWT for an event")
+                        .description("Get a auth JWT for an event")
+                        .security_requirement("JWT")
+                        .response::<200, Json<JwtResponse>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}/breakout",
+            state.required_auth(
+                get_with(breakout::get_plan, |op| {
+                    op.id("GetEventBreakoutPlan")
+                        .tag("Events")
+                        .summary("Get the pre-assigned breakout plan for an event")
+                        .security_requirement("JWT")
+                        .response::<200, Json<breakout::BreakoutPlanDto>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}/breakout",
+            state.required_auth(
+                put_with(breakout::save_plan, |op| {
+                    op.id("SaveEventBreakoutPlan")
+                        .tag("Events")
+                        .summary("Save an edited pre-assigned breakout plan")
+                        .security_requirement("JWT")
+                        .response::<200, Json<breakout::BreakoutPlanDto>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{event_id}/breakout/seed",
+            state.required_auth(
+                post_with(breakout::seed_plan, |op| {
+                    op.id("SeedEventBreakoutPlan")
+                        .tag("Events")
+                        .summary("Randomly seed the breakout plan from attendees and invites")
+                        .security_requirement("JWT")
+                        .response::<200, Json<breakout::BreakoutPlanDto>>()
+                }),
+                None,
+            ),
+        )
         .with_state(state)
 }
 

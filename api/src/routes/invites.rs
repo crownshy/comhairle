@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{get_with, patch_with, post_with},
+    routing::{delete_with, get_with, patch_with, post_with},
 };
 use axum::{
     Extension, Json,
@@ -26,10 +26,11 @@ use crate::{
     routes::{
         auth::{OtpSignupRequest, create_session_cookie},
         invites::dto::InviteDto,
+        user::dto::UserDto,
     },
 };
 
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
+use super::auth::extract::{OptionalUser, RequiredAdminUser, RequiredUser};
 
 pub mod dto;
 
@@ -365,6 +366,7 @@ async fn auto_register_event_attendance(
         warn!("Failed to slot user into breakout plan: {error}");
     }
 
+    let user: UserDto = user.into();
     let invite = invite.accept(&state.db, &user).await?;
 
     let cookie = create_session_cookie(&user, &state);
@@ -398,99 +400,132 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_conversation_invite, |op| {
-                op.id("CreateInvite")
-                    .summary("Create an invite")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<201, Json<InviteDto>>()
-            }),
+            state.required_auth(
+                post_with(create_conversation_invite, |op| {
+                    op.id("CreateInvite")
+                        .summary("Create an invite")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<201, Json<InviteDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{invite_id}",
-            get_with(get_invite, |op| {
-                op.id("GetInvite")
-                    .summary("Get a specific invite")
-                    .response::<200, Json<InviteDto>>()
-            }),
+            state.required_auth(
+                get_with(get_invite, |op| {
+                    op.id("GetInvite")
+                        .summary("Get a specific invite")
+                        .response::<200, Json<InviteDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{invite_id}/stats",
-            get_with(get_invite_stats, |op| {
-                op.id("GetInviteStats")
-                    .summary("Get the daily stats for a specific invite")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<DailyResponseStats>>>()
-            }),
+            state.required_auth(
+                get_with(get_invite_stats, |op| {
+                    op.id("GetInviteStats")
+                        .summary("Get the daily stats for a specific invite")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<DailyResponseStats>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{invite_id}/accept",
-            post_with(accept_invite, |op| {
-                op.id("AcceptInvite")
-                    .summary("Accept the invite if you are able")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<200, Json<InviteDto>>()
-            }),
+            state.required_auth(
+                post_with(accept_invite, |op| {
+                    op.id("AcceptInvite")
+                        .summary("Accept the invite if you are able")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<200, Json<InviteDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{invite_id}/reject",
-            post_with(reject_invite, |op| {
-                op.id("RejectInvite")
-                    .summary("Reject the invite if you are able")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<200, Json<InviteDto>>()
-            }),
+            state.required_auth(
+                post_with(reject_invite, |op| {
+                    op.id("RejectInvite")
+                        .summary("Reject the invite if you are able")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<200, Json<InviteDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{invite_id}",
-            patch_with(update_invite, |op| {
-                op.id("UpdateInvite")
-                    .summary("Update an invite")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<200, Json<InviteDto>>()
-            })
-            .delete_with(delete_invite, |op| {
-                op.id("DeleteInvite")
-                    .summary("Destroy and invite")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<201, Json<InviteDto>>()
-            }),
+            state.required_auth(
+                patch_with(update_invite, |op| {
+                    op.id("UpdateInvite")
+                        .summary("Update an invite")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<200, Json<InviteDto>>()
+                }),
+                None,
+            ),
+        )
+        .api_route(
+            "/{invite_id}",
+            state.required_auth(
+                delete_with(delete_invite, |op| {
+                    op.id("DeleteInvite")
+                        .summary("Destroy and invite")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<201, Json<InviteDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(list_invites_for_conversation, |op| {
-                op.id("ListInvitesForConversation")
-                    .summary("Return a list of invites statements for a conversation")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<InviteDto>>>()
-            }),
+            state.required_auth(
+                get_with(list_invites_for_conversation, |op| {
+                    op.id("ListInvitesForConversation")
+                        .summary("Return a list of invites statements for a conversation")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<InviteDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/events",
-            post_with(create_event_invite, |op| {
-                op.id("CreateEventInvite")
-                    .summary("Create an event invite")
-                    .description("Create an invite for a given event")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<201, Json<InviteDto>>()
-            }),
+            state.required_auth(
+                post_with(create_event_invite, |op| {
+                    op.id("CreateEventInvite")
+                        .summary("Create an event invite")
+                        .description("Create an invite for a given event")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<201, Json<InviteDto>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/events/{event_id}",
-            get_with(list_invites_for_event, |op| {
-                op.id("ListInvitesForEvent")
-                    .summary("Return a list of invite for an event")
-                    .tag("Invites")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<InviteDto>>>()
-            }),
+            state.required_auth(
+                get_with(list_invites_for_event, |op| {
+                    op.id("ListInvitesForEvent")
+                        .summary("Return a list of invite for an event")
+                        .tag("Invites")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<InviteDto>>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/{invite_id}/events",

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredAdminUser};
+use crate::{ComhairleState, error::ComhairleError, routes::auth::extract::RequiredAdminUser};
 use aide::{
     OperationIo,
     axum::{
@@ -8,7 +8,7 @@ use aide::{
         routing::{get_with, post_with},
     },
 };
-use axum::{Json, extract::State, routing::get};
+use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
 
 use schemars::JsonSchema;
@@ -124,41 +124,60 @@ async fn send_to_user(
     }))
 }
 
-pub fn websocket_routes() -> ApiRouter<Arc<ComhairleState>> {
+pub fn websocket_routes(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-        .route("/", get(websocket_handler))
+        .api_route(
+            "/",
+            state.required_auth(
+                get_with(websocket_handler, |op| op.summary("Websockets")),
+                None,
+            ),
+        )
         .api_route(
             "/stats",
-            get_with(get_websocket_stats, |op| {
-                op.id("GetWebSocketStats")
-                    .summary("Get WebSocket connection statistics")
-                    .response::<200, Json<WebSocketStats>>()
-            }),
+            state.required_auth(
+                get_with(get_websocket_stats, |op| {
+                    op.id("GetWebSocketStats")
+                        .summary("Get WebSocket connection statistics")
+                        .response::<200, Json<WebSocketStats>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/broadcast",
-            post_with(broadcast_message, |op| {
-                op.id("BroadcastMessage")
-                    .summary("Broadcast a message to all connected clients")
-                    .response::<200, Json<BroadcastResponse>>()
-            }),
+            state.required_auth(
+                post_with(broadcast_message, |op| {
+                    op.id("BroadcastMessage")
+                        .summary("Broadcast a message to all connected clients")
+                        .response::<200, Json<BroadcastResponse>>()
+                }),
+                None,
+            ),
         )
         .api_route(
             "/broadcast/{workflow_id}",
-            post_with(broadcast_message_to_workflow_participants, |op| {
-                op.id("BroadcastMessageToWorkflowParticipants")
+            state.required_auth(
+                post_with(broadcast_message_to_workflow_participants, |op| {
+                    op.id("BroadcastMessageToWorkflowParticipants")
                     .summary(
                         "Broadcast a message to all connected clients participating in a workflow",
                     )
                     .response::<200, Json<BroadcastResponse>>()
-            }),
+                }),
+                None,
+            ),
         )
         .api_route(
             "/send",
-            post_with(send_to_user, |op| {
-                op.id("SendToUser")
-                    .summary("Send a message to a specific user")
-                    .response::<200, Json<BroadcastResponse>>()
-            }),
+            state.required_auth(
+                post_with(send_to_user, |op| {
+                    op.id("SendToUser")
+                        .summary("Send a message to a specific user")
+                        .response::<200, Json<BroadcastResponse>>()
+                }),
+                None,
+            ),
         )
+        .with_state(state)
 }

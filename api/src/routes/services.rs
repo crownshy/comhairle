@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredUser};
+use crate::{ComhairleState, error::ComhairleError, routes::auth::extract::RequiredUser};
 
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -43,15 +43,18 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListSupportedServices")
-                    .summary("List of supported services")
-                    .description(
-                        "List of services supported (configured) by current Comhairle server",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleServices>>()
-            }),
+            state.required_auth(
+                get_with(list, |op| {
+                    op.id("ListSupportedServices")
+                        .summary("List of supported services")
+                        .description(
+                            "List of services supported (configured) by current Comhairle server",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ComhairleServices>>()
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }
