@@ -1,4 +1,5 @@
 import { generateValue } from '..';
+import type { Page } from '../types';
 import type { Cleanup } from './types';
 
 type InputType<T> = { id: T; value: string };
@@ -19,6 +20,10 @@ type UserInputsParams<T, U> = {
 };
 
 export type UserInputsInput<T> = [id: T, name: string][];
+export type Refs = {
+	page: Page;
+	cleanup: Cleanup;
+};
 
 const UserInputs = <const T extends string, U extends InputType<T>>({
 	inputs,
