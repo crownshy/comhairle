@@ -233,7 +233,7 @@ pub struct DemographicReport {
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct UserProfileDemographicsExport {
     pub question_slug: String,
-    pub display_name: String,
+    pub display_name: Option<String>,
     pub value: String,
 }
 
@@ -263,7 +263,7 @@ pub async fn get_demographics_for_export(
                         'display_name', dq.display_name,
                         'value', dr.value
                     )
-                ), 
+                ),
                 '{}'::jsonb
             ) as demographics
         FROM user_profile up
@@ -326,7 +326,7 @@ pub async fn get_demographic_report(
     #[derive(sqlx::FromRow)]
     struct FlatDemographicRow {
         category_name: String,
-        display_name: String,
+        display_name: Option<String>,
         bucket_config: Option<sqlx::types::Json<ValueBuckets>>,
         value: String,
         count: i64,
@@ -343,7 +343,9 @@ pub async fn get_demographic_report(
     for row in flat_rows {
         if let Some(bucket_config) = &row.bucket_config {
             let bucket_value = demographics::resolve_category_bucket(&row.value, &bucket_config.0);
-            let category_counts = categories.entry(row.category_name).or_insert_with(Vec::new);
+            let category_counts = categories
+                .entry(row.category_name.clone())
+                .or_insert_with(Vec::new);
 
             if let Some(category_count) =
                 category_counts.iter_mut().find(|c| c.value == bucket_value)
@@ -351,17 +353,17 @@ pub async fn get_demographic_report(
                 category_count.count += row.count;
             } else {
                 category_counts.push(DemographicCount {
-                    display_name: row.display_name,
+                    display_name: row.display_name.unwrap_or(row.category_name.clone()),
                     value: bucket_value,
                     count: row.count,
                 });
             }
         } else {
             categories
-                .entry(row.category_name)
+                .entry(row.category_name.clone())
                 .or_insert_with(Vec::new)
                 .push(DemographicCount {
-                    display_name: row.display_name,
+                    display_name: row.display_name.unwrap_or(row.category_name.clone()),
                     value: row.value,
                     count: row.count,
                 });
