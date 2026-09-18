@@ -1,3 +1,4 @@
+use crate::auth_service::{AuthService, MockAuthService};
 use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
 use crate::redis_connection::RedisConnection;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
@@ -56,6 +57,11 @@ pub fn mock_websockets() -> Arc<dyn WebSocketService> {
     Arc::new(websockets)
 }
 
+pub fn mock_auth_service() -> Arc<dyn AuthService> {
+    let auth_service = MockAuthService::base();
+    Arc::new(auth_service)
+}
+
 pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
     let translation_service = MockTranslationService::base();
     Some(Arc::new(translation_service))
@@ -97,6 +103,7 @@ pub fn test_state(
     mailer: Option<Arc<MockComhairleMailer>>,
     config: Option<ComhairleConfig>,
     websockets: Option<Arc<dyn WebSocketService>>,
+    auth_service: Option<Arc<dyn AuthService>>,
     translation_service: Option<Arc<dyn TranslationService>>,
     transcription_service: Option<Arc<dyn Transcriber>>,
     bot_service: Option<Arc<dyn ComhairleBotService>>,
@@ -112,6 +119,7 @@ pub fn test_state(
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
         video_call_handler: Arc::new(VideoCallMessageHandler::new()),
+        auth_service: auth_service.unwrap_or_else(|| mock_auth_service()),
         translation_service: translation_service
             .map(Some)
             .unwrap_or_else(|| mock_translation_service()),

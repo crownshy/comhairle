@@ -35,7 +35,7 @@ pub trait AuthService: Send + Sync {
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError>;
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
 pub struct GetUserResponse {
     pub sub: Uuid,
     pub email_verified: bool,
@@ -49,7 +49,7 @@ pub struct GetUserResponse {
     pub organization_id: Option<Uuid>,
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct GetAuthorizationTokensResponse {
     pub access_token: String,
     pub expires_in: i64,
@@ -59,4 +59,28 @@ pub struct GetAuthorizationTokensResponse {
     pub scope: String,
     pub session_state: String,
     pub token_type: String,
+}
+
+#[cfg(test)]
+impl MockAuthService {
+    pub fn base() -> MockAuthService {
+        let mut auth_service = MockAuthService::new();
+
+        auth_service
+            .expect_import_user()
+            .returning(|_| Box::pin(async move { Ok(serde_json::json!({})) }));
+        auth_service
+            .expect_get_user()
+            .returning(|_| Box::pin(async move { Ok(GetUserResponse::default()) }));
+        auth_service
+            .expect_get_authorization_tokens()
+            .returning(|_, _| {
+                Box::pin(async move { Ok(GetAuthorizationTokensResponse::default()) })
+            });
+        auth_service
+            .expect_refresh_session()
+            .returning(|_| Box::pin(async move { Ok(GetAuthorizationTokensResponse::default()) }));
+
+        auth_service
+    }
 }
