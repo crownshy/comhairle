@@ -1869,7 +1869,7 @@ mod tests {
             roles: Vec::new(),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(secret)
             .custom_claims(claims)
             .call();
@@ -1922,7 +1922,7 @@ mod tests {
             roles: Vec::new(),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(secret)
             .custom_claims(claims)
             .call();
@@ -1979,7 +1979,7 @@ mod tests {
             roles: Vec::new(),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(secret)
             .custom_claims(claims)
             .call();
@@ -2296,7 +2296,7 @@ mod tests {
             email: Some(email.to_string()),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&secret)
             .custom_claims(claims)
             .call();
@@ -2363,7 +2363,7 @@ mod tests {
             email: Some(email.to_string()),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&secret)
             .custom_claims(claims)
             .call();
@@ -2412,7 +2412,7 @@ mod tests {
         };
         let claims = EmailLinkClaims { email: None };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&secret)
             .custom_claims(claims)
             .call();
@@ -2656,7 +2656,7 @@ mod tests {
             email: Some(email.to_string()),
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .call();
@@ -2854,7 +2854,7 @@ mod tests {
             otp: otp.code,
         };
         let token = generate_jwt()
-            .user(&user)
+            .user(&user.into())
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .duration(chrono::Duration::minutes(10))
@@ -2901,7 +2901,8 @@ mod tests {
         )
         .await?;
 
-        let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record);
+        let token_cookie =
+            build_refresh_token_cookie(&Arc::new(state), &user.into(), &token_record);
 
         assert_eq!(token_cookie.name(), REFRESH_KEY, "incorrect name");
         assert_eq!(token_cookie.path().unwrap(), "/", "incorrect path");
@@ -2936,7 +2937,7 @@ mod tests {
         .await?;
 
         let token_cookie =
-            build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record);
+            build_refresh_token_cookie(&Arc::new(state.clone()), &user.into(), &token_record);
         let token_data =
             decode_jwt::<RefreshClaims>(token_cookie.value(), &state.config.refresh_jwt_secret)
                 .unwrap();
@@ -2956,9 +2957,14 @@ mod tests {
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
-        let cookie = issue_refresh_token(&Arc::new(state.clone()), &user, &ip_addr, &user_agent)
-            .await
-            .unwrap();
+        let cookie = issue_refresh_token(
+            &Arc::new(state.clone()),
+            &user.into(),
+            &ip_addr,
+            &user_agent,
+        )
+        .await
+        .unwrap();
         let token_data =
             decode_jwt::<RefreshClaims>(cookie.value(), &state.config.refresh_jwt_secret).unwrap();
 
@@ -2992,8 +2998,13 @@ mod tests {
         let ip_addr = ClientIp("127.0.0.1".to_string());
         let user_agent = ClientUserAgent(None);
 
-        let cookie =
-            issue_refresh_token(&Arc::new(state.clone()), &user, &ip_addr, &user_agent).await;
+        let cookie = issue_refresh_token(
+            &Arc::new(state.clone()),
+            &user.into(),
+            &ip_addr,
+            &user_agent,
+        )
+        .await;
 
         assert!(cookie.is_none());
 
@@ -3043,12 +3054,13 @@ mod tests {
             "refresh token already revoked"
         );
 
+        let original_user: UserDto = current_user_model.into();
         // Create expired auth-token jwt
         let expired_session_jwt = generate_jwt()
-            .user(&current_user_model)
+            .user(&original_user)
             .secret(&state.config.jwt_secret)
             .custom_claims(SessionClaims {
-                username: current_user_model.username.clone(),
+                username: original_user.username.clone(),
                 ..Default::default()
             })
             .duration(chrono::Duration::hours(-1))
@@ -3080,7 +3092,7 @@ mod tests {
 
         // Check now able to perform authenticated requests
         let (_, current_user, _) = session.current_user(&app).await?;
-        assert_eq!(current_user.id, current_user_model.id, "users don't match");
+        assert_eq!(current_user.id, original_user.id, "users don't match");
 
         // Check original refresh token is revoked
         let revoked_token = refresh_token::get_by_id(&pool, original_refresh_token_record.id)

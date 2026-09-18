@@ -10,7 +10,7 @@ pub mod mailer;
 mod middleware;
 pub mod models;
 pub mod redis_connection;
-mod routes;
+pub mod routes;
 pub mod schema_helpers;
 #[cfg(test)]
 mod test_helpers;
@@ -52,10 +52,13 @@ use crate::categorization_service::CategorizationService;
 use crate::redis_connection::RedisConnection;
 use crate::routes::auth::extract::{ComhairleExtAttrs, KcAccessTokenCookieExtractor};
 use crate::routes::workflows::WorkflowRouterContext;
+#[cfg(test)]
+use crate::test_helpers::{TestAuthUser, test_auth_layer};
 use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;
 use crate::{auth_service::AuthService, bulk_storage_service::BulkStorageService};
+pub use routes::auth::hash_pw;
 
 #[cfg(test)]
 // sqlx::test expands every migration into the test binary for every invocation.
@@ -88,7 +91,9 @@ pub struct ComhairleState {
 pub enum AuthBackend {
     Keycloak(Arc<KeycloakAuthInstance>),
     #[cfg(test)]
-    Test,
+    Test(TestAuthUser),
+    /// Not for production use, only for use in api_spec_gen crate
+    Stub, // TODO: find a better way of satisfying dummy state in api_spec_gen
 }
 
 impl ComhairleState {
@@ -109,7 +114,8 @@ impl ComhairleState {
                 None,
             )),
             #[cfg(test)]
-            AuthBackend::Test => todo!(),
+            AuthBackend::Test(user) => test_auth_layer(method_router, Some(user.to_owned())),
+            _ => panic!("Exhausted production variants"),
         }
     }
 
@@ -134,7 +140,8 @@ impl ComhairleState {
                 audiences,
             )),
             #[cfg(test)]
-            AuthBackend::Test => todo!(),
+            AuthBackend::Test(user) => test_auth_layer(method_router, Some(user.to_owned())),
+            _ => panic!("Exhausted production variants"),
         }
     }
 
