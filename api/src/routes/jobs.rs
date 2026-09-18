@@ -18,7 +18,7 @@ use crate::{
         job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
-    routes::auth::{extract::RequiredAdminUser, layer::required_auth},
+    routes::auth::extract::RequiredAdminUser,
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -71,7 +71,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list, |op| {
                     op.id("ListJobs")
                         .tag("Jobs")
@@ -79,13 +79,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<PaginatedResults<Job>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{job_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetJob")
                         .tag("Jobs")
@@ -93,13 +92,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Job>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create, |op| {
                     op.id("CreateJob")
                         .tag("Jobs")
@@ -107,13 +105,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Job>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{job_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteJob")
                         .tag("Jobs")
@@ -121,7 +118,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<204, ()>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

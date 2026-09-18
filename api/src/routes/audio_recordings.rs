@@ -21,6 +21,7 @@ use hyper::HeaderMap;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::ComhairleState;
 use crate::bulk_storage_service::FileMetadata;
 use crate::error::ComhairleError;
 use crate::models::audio_recording::{self, CreateAudioRecording};
@@ -32,7 +33,6 @@ use crate::routes::audio_recordings::dto::{
 };
 use crate::routes::auth::{extract::RequiredAdminUser, verify_webhook_signature};
 use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
-use crate::{ComhairleState, routes::auth::layer::required_auth};
 
 /// Create an audio recording and return a presigned URL for uploading its audio.
 ///
@@ -334,7 +334,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create_recording, |op| {
                     op.id("CreateAudioRecording")
                         .tag("Audio Recordings")
@@ -347,13 +347,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<CreateRecordingResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list_recordings, |op| {
                     op.id("ListAudioRecordings")
                         .tag("Audio Recordings")
@@ -364,13 +363,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Vec<AudioRecordingDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{recording_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get_recording, |op| {
                     op.id("GetAudioRecording")
                         .tag("Audio Recordings")
@@ -382,13 +380,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<RecordingDetailResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{recording_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete_recording, |op| {
                     op.id("DeleteAudioRecording")
                         .tag("Audio Recordings")
@@ -401,13 +398,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<DeleteRecordingResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{recording_id}/process",
-            required_auth(
+            state.required_auth(
                 post_with(process_recording, |op| {
                     op.id("ProcessAudioRecording")
                         .tag("Audio Recordings")
@@ -419,7 +415,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<ProcessRecordingResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

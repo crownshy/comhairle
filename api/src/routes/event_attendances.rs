@@ -26,10 +26,7 @@ use crate::{
         users,
     },
     routes::{
-        auth::{
-            extract::{RequiredAdminUser, RequiredUser},
-            layer::required_auth,
-        },
+        auth::extract::{RequiredAdminUser, RequiredUser},
         event_attendances::dto::EventAttendanceDto,
     },
 };
@@ -222,7 +219,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list, |op| {
                     op.id("ListEventAttendances")
                         .summary("List attendances for an event")
@@ -234,13 +231,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         )
                         .response::<200, Json<PaginatedResults<EventAttendanceEtx>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{attendance_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetEventAttendance")
                         .summary("Get an event attendance by id")
@@ -249,13 +245,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .description("Get and event attendance by id")
                         .response::<200, Json<EventAttendanceDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create, |op| {
                     op.id("CreateEventAttendance")
                         .summary("Create a new event attendance")
@@ -264,13 +259,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .description("Create a new attendance for a conversation event")
                         .response::<201, Json<EventAttendanceDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/facilitator",
-            required_auth(
+            state.required_auth(
                 post_with(create_facilitator, |op| {
                     op.id("CreateFacilitatorEventAttendance")
                     .summary("Create a new event attendance with facilitator role")
@@ -281,13 +275,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .response::<201, Json<EventAttendanceDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{attendance_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update, |op| {
                     op.id("UpdateEventAttendance")
                         .summary("Update an event attendance")
@@ -296,13 +289,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .description("Update an event attendance by id")
                         .response::<201, Json<EventAttendanceDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{attendance_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteEventAttendance")
                         .summary("Delete an event attendance")
@@ -311,7 +303,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .description("Delete an event attendance by id")
                         .response::<201, Json<EventAttendanceDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

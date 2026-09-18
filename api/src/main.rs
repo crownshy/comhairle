@@ -3,8 +3,11 @@ use axum_keycloak_auth::{
     Url,
     instance::{KeycloakAuthInstance, KeycloakConfig},
 };
-use comhairle::auth_service::{AuthService, keycloak::KeycloakClient};
 use comhairle::redis_connection::RedisImpl;
+use comhairle::{
+    AuthBackend,
+    auth_service::{AuthService, keycloak::KeycloakClient},
+};
 use comhairle::{
     ComhairleState,
     bot_service::{ComhairleBotService, ComhairleRagBotService},
@@ -161,7 +164,6 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let video_call_handler = Arc::new(VideoCallMessageHandler::new());
 
-    // TODO: move this onto one part of the state
     let keycloak_auth_instance = Arc::new(KeycloakAuthInstance::new(
         KeycloakConfig::builder()
             .server(Url::parse(&config.auth_service.clone().url).unwrap())
@@ -175,11 +177,11 @@ async fn run() -> Result<(), Box<dyn Error>> {
         config,
         websockets,
         video_call_handler,
+        auth_backend: AuthBackend::Keycloak(keycloak_auth_instance),
+        auth_service,
         translation_service,
         transcription_service,
         bot_service,
-        auth_service,
-        keycloak_auth_instance,
         wiki_poll_service,
         worker_service,
         bulk_storage_service,

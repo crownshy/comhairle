@@ -12,7 +12,7 @@ use crate::{
     ComhairleState,
     error::ComhairleError,
     models::api_key::{self, CreateApiKeyRequest},
-    routes::auth::{extract::RequiredAdminUser, is_user_admin, layer::required_auth},
+    routes::auth::{extract::RequiredAdminUser, is_user_admin},
 };
 
 #[derive(Serialize, Debug, JsonSchema)]
@@ -39,12 +39,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create, |op| {
                     op.summary("Generate api key")
                         .response::<201, Json<CreateResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

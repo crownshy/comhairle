@@ -14,12 +14,8 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    routes::{
-        auth::layer::required_auth,
-        user_conversation_preferences::dto::UserConversationPreferencesDto,
-    },
+    ComhairleState, error::ComhairleError,
+    routes::user_conversation_preferences::dto::UserConversationPreferencesDto,
 };
 
 use super::auth::extract::RequiredUser;
@@ -88,7 +84,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(get_all_user_conversation_preferences, |op| {
                     op.id("GetAllUserConversationPreferences")
                         .summary("Get all user conversation preferences")
@@ -99,13 +95,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("User Preferences")
                         .response::<200, Json<Vec<UserConversationPreferencesDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/conversation/{conversation_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get_user_conversation_preferences, |op| {
                     op.id("GetUserPreferenceForConversation")
                         .summary("Get user preferences for a conversation")
@@ -115,13 +110,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("User Preferences")
                         .response::<200, Json<UserConversationPreferencesDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/conversation/{conversation_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update_user_conversation_preferences, |op| {
                     op.id("UpdateUserPreferenceForConversation")
                         .summary("Update user preferences for a conversation")
@@ -129,7 +123,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("User Preferences")
                         .response::<200, Json<UserConversationPreferencesDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

@@ -20,10 +20,7 @@ use crate::{
         region_area,
     },
     routes::{
-        auth::{
-            extract::{RequiredAdminUser, RequiredUser},
-            layer::required_auth,
-        },
+        auth::extract::{RequiredAdminUser, RequiredUser},
         regions::dto::{
             LocalizedRegionDto, RegionAreaLinksDto, RegionAreaLinksRequestDto, RegionDto,
         },
@@ -218,7 +215,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list, |op| {
                     op.id("ListRegions")
                         .tag("Regions")
@@ -227,13 +224,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<PaginatedResults<LocalizedRegionDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetRegion")
                         .tag("Regions")
@@ -242,13 +238,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<LocalizedRegionDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create, |op| {
                     op.id("CreateRegion")
                         .tag("Regions")
@@ -257,13 +252,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<RegionDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update, |op| {
                     op.id("UpdateRegion")
                         .tag("Regions")
@@ -272,13 +266,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<RegionDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}/metadata",
-            required_auth(
+            state.required_auth(
                 get_with(get_region_metadata, |op| {
                     op.id("GetRegionMetadata")
                         .tag("Regions")
@@ -287,13 +280,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Option<serde_json::Value>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}/metadata",
-            required_auth(
+            state.required_auth(
                 patch_with(patch_region_metadata, |op| {
                     op.id("PatchRegionMetadata")
                         .tag("Regions")
@@ -305,13 +297,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<RegionDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteRegion")
                         .tag("Regions")
@@ -320,13 +311,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<RegionDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}/areas",
-            required_auth(
+            state.required_auth(
                 get_with(get_area_links, |op| {
                     op.id("GetRegionAreaLinks")
                         .tag("Regions")
@@ -335,13 +325,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<RegionAreaLinksDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}/areas",
-            required_auth(
+            state.required_auth(
                 put_with(set_area_links, |op| {
                     op.id("SetRegionAreaLinks")
                         .tag("Regions")
@@ -350,13 +339,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<RegionAreaLinksDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}/areas/{area_id}",
-            required_auth(
+            state.required_auth(
                 post_with(add_area_link, |op| {
                     op.id("AddRegionAreaLink")
                         .tag("Regions")
@@ -365,13 +353,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<RegionAreaLinksDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{region_id}/areas/{area_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(remove_area_link, |op| {
                     op.id("RemoveRegionAreaLink")
                         .tag("Regions")
@@ -380,7 +367,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<RegionAreaLinksDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

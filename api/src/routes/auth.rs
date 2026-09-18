@@ -1,5 +1,4 @@
 pub mod extract;
-pub mod layer;
 
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
@@ -54,7 +53,6 @@ use crate::models::users::{
 };
 use crate::models::{api_key, otp};
 use crate::routes::auth::extract::{OptionalRawAccessToken, RequiredAdminUser, RequiredUser};
-use crate::routes::auth::layer::optional_auth;
 use crate::routes::user::dto::UserDto;
 
 #[cfg(test)]
@@ -1537,16 +1535,14 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/current_user",
-            optional_auth(
-                get_with(current_user, |op| {
+            state
+                .optional_auth(get_with(current_user, |op| {
                     op.id("CurrentUser")
                         .tag("Auth")
                         .summary("Get the current user")
                         .response::<200, Json<UserDto>>()
-                }),
-                state.keycloak_auth_instance.clone(),
-            )
-            .layer(credential_limit.clone()),
+                }))
+                .layer(credential_limit.clone()),
         )
         .api_route(
             "/refresh",

@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    routes::auth::{extract::RequiredAdminUser, layer::required_auth},
-};
+use crate::{ComhairleState, error::ComhairleError, routes::auth::extract::RequiredAdminUser};
 use aide::{
     OperationIo,
     axum::{
@@ -132,39 +128,36 @@ pub fn websocket_routes(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(websocket_handler, |op| op.summary("Websockets")),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/stats",
-            required_auth(
+            state.required_auth(
                 get_with(get_websocket_stats, |op| {
                     op.id("GetWebSocketStats")
                         .summary("Get WebSocket connection statistics")
                         .response::<200, Json<WebSocketStats>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/broadcast",
-            required_auth(
+            state.required_auth(
                 post_with(broadcast_message, |op| {
                     op.id("BroadcastMessage")
                         .summary("Broadcast a message to all connected clients")
                         .response::<200, Json<BroadcastResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/broadcast/{workflow_id}",
-            required_auth(
+            state.required_auth(
                 post_with(broadcast_message_to_workflow_participants, |op| {
                     op.id("BroadcastMessageToWorkflowParticipants")
                     .summary(
@@ -172,19 +165,17 @@ pub fn websocket_routes(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .response::<200, Json<BroadcastResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/send",
-            required_auth(
+            state.required_auth(
                 post_with(send_to_user, |op| {
                     op.id("SendToUser")
                         .summary("Send a message to a specific user")
                         .response::<200, Json<BroadcastResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

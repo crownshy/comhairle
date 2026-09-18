@@ -19,7 +19,6 @@ use crate::models::demographics::{
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{Action, can_perform_resource_action};
-use crate::routes::auth::layer::{optional_auth, required_auth};
 use crate::routes::auth::{
     extract::{OptionalUser, RequiredAdminUser, RequiredUser},
     is_user_admin,
@@ -255,24 +254,21 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             ApiRouter::new()
                 .api_route(
                     "/",
-                    optional_auth(
-                        get_with(get_conversation_demographics, |op| {
-                            op.id("GetConversationDemographics")
-                                .tag("Demographics")
-                                .summary("Get conversation demographics")
-                                .description(
-                                    "Retrieve demographics responses for a specific \
+                    state.optional_auth(get_with(get_conversation_demographics, |op| {
+                        op.id("GetConversationDemographics")
+                            .tag("Demographics")
+                            .summary("Get conversation demographics")
+                            .description(
+                                "Retrieve demographics responses for a specific \
                             conversation and question",
-                                )
-                                .security_requirement("JWT")
-                                .response::<200, Json<PaginatedResults<ConversationDemographics>>>()
-                        }),
-                        state.keycloak_auth_instance.clone(),
-                    ),
+                            )
+                            .security_requirement("JWT")
+                            .response::<200, Json<PaginatedResults<ConversationDemographics>>>()
+                    })),
                 )
                 .api_route(
                     "/",
-                    required_auth(
+                    state.required_auth(
                         post_with(create_conversation_demographics, |op| {
                             op.id("CreateConversationDemographics")
                                 .tag("Demographics")
@@ -284,13 +280,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<201, Json<ConversationDemographics>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
                 .api_route(
                     "/{conversation_id}/{question_slug}/",
-                    required_auth(
+                    state.required_auth(
                         delete_with(delete_conversation_demographics, |op| {
                             op.id("DeleteConversationDemographicsByQuestion")
                                 .tag("Demographics")
@@ -302,7 +297,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<200, Json<Option<ConversationDemographics>>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
@@ -327,7 +321,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 )
                 .api_route(
                     "/",
-                    required_auth(
+                    state.required_auth(
                         post_with(create_demographics_question, |op| {
                             op.id("CreateDemographicsQuestion")
                                 .tag("Demographics")
@@ -336,13 +330,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<201, Json<DemographicsQuestion>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
                 .api_route(
                     "/{question_slug}",
-                    required_auth(
+                    state.required_auth(
                         put_with(update_demographics_question, |op| {
                             op.id("UpdateDemographicsQuestion")
                                 .tag("Demographics")
@@ -351,13 +344,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<200, Json<DemographicsQuestion>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
                 .api_route(
                     "/{question_slug}",
-                    required_auth(
+                    state.required_auth(
                         delete_with(delete_demographics_question, |op| {
                             op.id("DeleteDemographicsQuestion")
                                 .tag("Demographics")
@@ -366,7 +358,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<200, Json<Option<DemographicsQuestion>>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
@@ -377,7 +368,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             ApiRouter::new()
                 .api_route(
                     "/",
-                    required_auth(
+                    state.required_auth(
                         get_with(get_demographics_responses, |op| {
                             op.id("GetDemographicsResponses")
                                 .tag("Demographics")
@@ -389,13 +380,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<200, Json<PaginatedResults<DemographicsResponse>>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
                 .api_route(
                     "/",
-                    required_auth(
+                    state.required_auth(
                         post_with(create_demographics_response, |op| {
                             op.id("CreateDemographicsResponse")
                                 .tag("Demographics")
@@ -407,13 +397,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<201, Json<DemographicsResponse>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
                 .api_route(
                     "/{question_slug}/{user_id}",
-                    required_auth(
+                    state.required_auth(
                         put_with(update_demographics_response, |op| {
                             op.id("UpdateDemographicsResponse")
                                 .tag("Demographics")
@@ -425,13 +414,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<200, Json<DemographicsResponse>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
                 .api_route(
                     "/{question_slug}/{user_id}",
-                    required_auth(
+                    state.required_auth(
                         delete_with(delete_demographics_response, |op| {
                             op.id("DeleteDemographicsResponse")
                                 .tag("Demographics")
@@ -443,7 +431,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                                 .security_requirement("JWT")
                                 .response::<200, Json<Option<DemographicsResponse>>>()
                         }),
-                        state.keycloak_auth_instance.clone(),
                         None,
                     ),
                 )
