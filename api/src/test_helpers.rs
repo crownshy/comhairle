@@ -1,9 +1,24 @@
+use crate::AuthBackend;
 use crate::auth_service::{AuthService, MockAuthService};
 use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
+use crate::models::users::UserAuthType;
 use crate::redis_connection::RedisConnection;
+use crate::routes::auth::extract::ComhairleExtAttrs;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
+#[cfg(test)]
+use aide::axum::routing::ApiMethodRouter;
+#[cfg(test)]
+use axum::extract;
+#[cfg(test)]
+use axum::middleware::{self, Next};
+use axum_keycloak_auth::KeycloakAuthStatus;
+use axum_keycloak_auth::decode::{Email, KeycloakToken, Profile, ProfileAndEmail};
+#[cfg(test)]
+use axum_keycloak_auth::error::AuthError;
 use chrono::Utc;
 use hyper::header::AUTHORIZATION;
+#[cfg(test)]
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
@@ -119,6 +134,7 @@ pub fn test_state(
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
         video_call_handler: Arc::new(VideoCallMessageHandler::new()),
+        auth_backend: AuthBackend::Test(TestAuthUser::default()),
         auth_service: auth_service.unwrap_or_else(|| mock_auth_service()),
         translation_service: translation_service
             .map(Some)
@@ -149,6 +165,80 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     config.refresh_jwt_secret = "refresh_secret".to_string();
     config.enable_rate_limiting = false; // Disable rate limiting for tests by default
     Ok(config)
+}
+
+#[cfg(test)]
+pub fn test_auth_layer(
+    method_router: ApiMethodRouter<Arc<ComhairleState>>,
+    user: Option<TestAuthUser>,
+) -> ApiMethodRouter<Arc<ComhairleState>> {
+    method_router.layer(middleware::from_fn(
+        move |mut req: extract::Request, next: Next| {
+            let user = user.clone();
+            async move {
+                let status = match user {
+                    Some(user) => KeycloakAuthStatus::Success(user.into_test_token()),
+                    None => KeycloakAuthStatus::Failure(Arc::new(AuthError::MissingToken)),
+                };
+                req.extensions_mut().insert(status);
+                next.run(req).await
+            }
+        },
+    ))
+}
+
+#[cfg(test)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TestAuthUser {
+    pub id: Uuid,
+    pub auth_type: UserAuthType,
+    pub email: String,
+    pub username: String,
+}
+
+impl Default for TestAuthUser {
+    fn default() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            auth_type: UserAuthType::EmailPassword,
+            email: "admin@crown-shy.com".to_string(),
+            username: "admin".to_string(),
+        }
+    }
+}
+
+#[cfg(test)]
+impl TestAuthUser {
+    fn into_test_token(self) -> KeycloakToken<String, ComhairleExtAttrs> {
+        KeycloakToken {
+            subject: self.id.to_string(),
+            jwt_id: Uuid::new_v4().to_string(),
+            roles: vec![],
+            expires_at: time::OffsetDateTime::now_utc() + time::Duration::minutes(5),
+            issued_at: time::OffsetDateTime::now_utc(),
+            issuer: "comhairle".to_string(),
+            audience: vec!["account".to_string()],
+            authorized_party: "comhairle".to_string(),
+            extra: ComhairleExtAttrs {
+                profile: ProfileAndEmail {
+                    profile: Profile {
+                        given_name: None,
+                        family_name: None,
+                        full_name: None,
+                        preferred_username: self.username,
+                    },
+                    email: Email {
+                        email: self.email,
+                        email_verified: true,
+                    },
+                },
+                comhairle_auth_type: self.auth_type,
+                avatar_url: None,
+                organization_id: None,
+                guest_code: None,
+            },
+        }
+    }
 }
 
 pub const TEST_RESOURCE_TYPE: &str = "test";

@@ -395,7 +395,7 @@ mod tests {
         models::{
             conversation::{self, CreateConversation, PartialConversation},
             model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            users,
+            users::{self, User},
             workflow::{self, CreateWorkflow},
         },
         routes::events::dto::EventDto,
@@ -444,7 +444,7 @@ mod tests {
         };
 
         assert!(
-            invite.is_for_user(&user).is_ok(),
+            invite.is_for_user(&user.into()).is_ok(),
             "User should be identified even if their emails dont match"
         );
         Ok(())
@@ -510,9 +510,9 @@ mod tests {
         )
         .await?;
 
-        invite.accept(&db, &user2).await?;
-        invite.reject(&db, &user3).await?;
-        invite.accept(&db, &user4).await?;
+        invite.accept(&db, &user2.into()).await?;
+        invite.reject(&db, &user3.into()).await?;
+        invite.accept(&db, &user4.into()).await?;
 
         let stats = get_stats_for_invite(&db, &invite.id).await?;
 
@@ -600,7 +600,7 @@ mod tests {
             "Invite should start as Open"
         );
 
-        let rejected_invite = invite.reject(&db, &user2).await?;
+        let rejected_invite = invite.reject(&db, &user2.into()).await?;
 
         assert_eq!(
             rejected_invite.status,
@@ -678,7 +678,7 @@ mod tests {
             "Email invite should start as Pending"
         );
 
-        let rejected_invite = invite.reject(&db, &user2).await?;
+        let rejected_invite = invite.reject(&db, &user2.into()).await?;
 
         assert_eq!(
             rejected_invite.status,

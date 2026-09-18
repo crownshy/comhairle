@@ -1,23 +1,57 @@
 use std::{collections::HashMap, sync::Arc};
 
-use comhairle::config::{ComhairleConfig, MailerConfig};
+use comhairle::auth_service::error::AuthServiceError;
+use comhairle::auth_service::{GetAuthorizationTokensResponse, GetUserResponse};
+use comhairle::config::{AuthServiceConfig, ComhairleConfig, MailerConfig};
 use comhairle::error::ComhairleError;
-use comhairle::models::{permissions::ResourcePermission, users::User};
+use comhairle::models::permissions::ResourcePermission;
+use comhairle::models::users::User;
+use comhairle::routes::user::dto::UserDto;
 use comhairle::websockets::handlers::video_call::VideoCallMessageHandler;
 use comhairle::websockets::{
     ConnectionId, WebSocketConnection, WebSocketMessageHandler, messages::WebSocketMessage,
 };
-use comhairle::routes::user::dto::UserDto;
 use comhairle::wiki_poll_service::error::WikiPollServiceError;
 use comhairle::wiki_poll_service::polis_service::WikiPollReport;
 use comhairle::wiki_poll_service::{
     ModerationStatus, PostedStatement, WikiPoll, WikiPollComment, WikiPollConfigUpdate,
     WikiPollLogin, WikiPollXid,
 };
-use comhairle::{ComhairleState, mailer, websockets, wiki_poll_service};
+use comhairle::{AuthBackend, ComhairleState, auth_service, mailer, websockets, wiki_poll_service};
 use lettre::message::SinglePart;
 use minijinja::Value;
 use uuid::Uuid;
+
+#[derive(Clone)]
+struct DummyAuthService;
+#[async_trait::async_trait]
+impl auth_service::AuthService for DummyAuthService {
+    async fn import_user(
+        &self,
+        _comhairle_user: &User,
+    ) -> Result<serde_json::Value, AuthServiceError> {
+        todo!();
+    }
+
+    async fn get_user(&self, _token: &str) -> Result<GetUserResponse, AuthServiceError> {
+        todo!();
+    }
+
+    async fn get_authorization_tokens(
+        &self,
+        _code: &str,
+        _redirect_uri: &str,
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
+        todo!();
+    }
+
+    async fn refresh_session(
+        &self,
+        _refresh_token: &str,
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
+        todo!();
+    }
+}
 
 #[derive(Clone)]
 struct DummyMailer;
@@ -46,7 +80,11 @@ impl mailer::ComhairleMailer for DummyMailer {
         todo!()
     }
 
-    fn send_welcome_email(&self, _user: &UserDto, _verify_link: String) -> Result<(), ComhairleError> {
+    fn send_welcome_email(
+        &self,
+        _user: &UserDto,
+        _verify_link: String,
+    ) -> Result<(), ComhairleError> {
         todo!()
     }
 
@@ -330,6 +368,14 @@ pub(crate) unsafe fn create_dummy_state() -> ComhairleState {
                     password: "".to_string(),
                     user: "".to_string(),
                 },
+                auth_service: AuthServiceConfig {
+                    url: "".to_string(),
+                    admin_user: "".to_string(),
+                    admin_password: "".to_string(),
+                    realm: "".to_string(),
+                    client_id: "".to_string(),
+                    client_secret: "".to_string(),
+                },
                 database_url: "".to_string(),
                 default_conversation_image_url: "".to_string(),
                 domain: "".to_string(),
@@ -350,6 +396,8 @@ pub(crate) unsafe fn create_dummy_state() -> ComhairleState {
                 whitelisted_domains: None,
                 worker_service: None,
             },
+            auth_backend: AuthBackend::Stub,
+            auth_service: Arc::new(DummyAuthService),
             mailer: Arc::new(DummyMailer),
             websockets: Arc::new(DummyWebSocketService),
             video_call_handler: Arc::from_raw(
