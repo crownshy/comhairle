@@ -24,7 +24,7 @@ use crate::{
         users, workflow,
     },
     routes::{
-        auth::{OtpSignupRequest, create_session_cookie, layer::required_auth},
+        auth::{OtpSignupRequest, create_session_cookie},
         invites::dto::InviteDto,
         user::dto::UserDto,
     },
@@ -400,7 +400,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create_conversation_invite, |op| {
                     op.id("CreateInvite")
                         .summary("Create an invite")
@@ -408,25 +408,23 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<InviteDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{invite_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get_invite, |op| {
                     op.id("GetInvite")
                         .summary("Get a specific invite")
                         .response::<200, Json<InviteDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{invite_id}/stats",
-            required_auth(
+            state.required_auth(
                 get_with(get_invite_stats, |op| {
                     op.id("GetInviteStats")
                         .summary("Get the daily stats for a specific invite")
@@ -434,13 +432,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Vec<DailyResponseStats>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{invite_id}/accept",
-            required_auth(
+            state.required_auth(
                 post_with(accept_invite, |op| {
                     op.id("AcceptInvite")
                         .summary("Accept the invite if you are able")
@@ -448,13 +445,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<InviteDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{invite_id}/reject",
-            required_auth(
+            state.required_auth(
                 post_with(reject_invite, |op| {
                     op.id("RejectInvite")
                         .summary("Reject the invite if you are able")
@@ -462,13 +458,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<InviteDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{invite_id}",
-            required_auth(
+            state.required_auth(
                 patch_with(update_invite, |op| {
                     op.id("UpdateInvite")
                         .summary("Update an invite")
@@ -476,13 +471,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<InviteDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{invite_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete_invite, |op| {
                     op.id("DeleteInvite")
                         .summary("Destroy and invite")
@@ -490,13 +484,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<InviteDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list_invites_for_conversation, |op| {
                     op.id("ListInvitesForConversation")
                         .summary("Return a list of invites statements for a conversation")
@@ -504,13 +497,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Vec<InviteDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/events",
-            required_auth(
+            state.required_auth(
                 post_with(create_event_invite, |op| {
                     op.id("CreateEventInvite")
                         .summary("Create an event invite")
@@ -519,13 +511,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<InviteDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/events/{event_id}",
-            required_auth(
+            state.required_auth(
                 get_with(list_invites_for_event, |op| {
                     op.id("ListInvitesForEvent")
                         .summary("Return a list of invite for an event")
@@ -533,7 +524,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Vec<InviteDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

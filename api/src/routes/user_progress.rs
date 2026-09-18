@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::{ComhairleState, routes::auth::layer::required_auth};
+use crate::ComhairleState;
 use crate::{
     error::ComhairleError,
     models::user_progress::{self, UpdateUserProgress},
@@ -88,25 +88,23 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(get_user_progress_for_workflow, |op| {
                     op.id("GetUserProgress")
                         .summary("Get the users progress on this workflow")
                         .response::<200, Json<Vec<UserProgressDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{workflow_step_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update_user_progress, |op| {
                     op.id("SetUserProgress")
                         .summary("Set the user progress for a given workflow step")
                         .response::<200, Json<UserProgressDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

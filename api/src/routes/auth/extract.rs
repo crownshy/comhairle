@@ -68,7 +68,7 @@ impl TokenExtractor for KcAccessTokenCookieExtractor {
 /// An extractor to get a required current user. If no user is logged in then
 /// this will fail and return a Not Found response.
 ///
-/// To be used on endpoints authenticated with [`crate::auth::layer::required_auth`].
+/// To be used on endpoints authenticated with [`state.required_auth`].
 #[derive(OperationIo)]
 pub struct RequiredAdminUser(pub UserDto);
 
@@ -104,7 +104,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
 /// An extractor to get a required current user. If no user is logged in then
 /// this will fail and return a NotFound response.
 ///
-/// To be used on endpoints authenticated with [`crate::auth::layer::required_auth`].
+/// To be used on endpoints authenticated with [`state.required_auth`].
 #[derive(OperationIo)]
 pub struct RequiredUser(pub UserDto);
 
@@ -138,7 +138,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
 /// An extractor to get the current user if they exist and return None if no user
 /// is logged in.
 ///
-/// To be used on endpoints authenticated with [`crate::auth::layer::optional_auth`].
+/// To be used on endpoints authenticated with [`state.optional_auth`].
 #[derive(OperationIo, Debug)]
 pub struct OptionalUser(pub Option<UserDto>);
 
@@ -176,7 +176,7 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
 /// auth requests via Authorization header. Returns None if no access token
 /// is found.
 ///
-/// To be used on endpoints authenticated with [`crate::auth::layer::optional_auth`].
+/// To be used on endpoints authenticated with [`state.layer::optional_auth`].
 #[derive(OperationIo, Debug)]
 pub struct OptionalRawAccessToken(pub Option<String>);
 

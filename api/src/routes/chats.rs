@@ -11,13 +11,10 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::bot_service::{ComhairleChat, UpdateChatRequest};
 use crate::models::conversation;
 use crate::routes::auth::extract::RequiredAdminUser;
 use crate::{ComhairleError, ComhairleState};
-use crate::{
-    bot_service::{ComhairleChat, UpdateChatRequest},
-    routes::auth::layer::required_auth,
-};
 
 #[instrument(err(Debug), skip(state))]
 async fn get(
@@ -70,7 +67,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetChat")
                         .tag("Chats")
@@ -79,13 +76,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<ComhairleChat>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 put_with(update, |op| {
                     op.id("UpdateChat")
                         .tag("Chats")
@@ -94,7 +90,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<ComhairleChat>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

@@ -22,10 +22,7 @@ use crate::{
         },
         pagination::{PageOptions, PaginatedResults},
     },
-    routes::{
-        auth::{extract::RequiredAdminUser, layer::required_auth},
-        media::dto::MediaDto,
-    },
+    routes::{auth::extract::RequiredAdminUser, media::dto::MediaDto},
     tools::id::gen_id,
 };
 
@@ -192,7 +189,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list, |op| {
                     op.id("ListMedia")
                         .tag("Media")
@@ -201,13 +198,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<PaginatedResults<MediaDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{media_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetMedia")
                         .tag("Media")
@@ -216,13 +212,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<MediaDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(upload, |op| {
                     op.tag("Media")
                         .summary("Upload media resource")
@@ -245,13 +240,12 @@ curl -X POST \\
                         .security_requirement("JWT")
                         .response::<201, Json<Vec<MediaDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{media_id}",
-            required_auth(
+            state.required_auth(
                 patch_with(update, |op| {
                     op.id("UpdateMedia")
                         .tag("Media")
@@ -260,13 +254,12 @@ curl -X POST \\
                         .security_requirement("JWT")
                         .response::<200, Json<MediaDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{media_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteMedia")
                         .tag("Media")
@@ -275,7 +268,6 @@ curl -X POST \\
                         .security_requirement("JWT")
                         .response::<200, Json<MediaDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

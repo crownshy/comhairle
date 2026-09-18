@@ -27,7 +27,6 @@ use crate::{
     routes::auth::{
         extract::{OptionalUser, RequiredAdminUser},
         is_user_admin,
-        layer::{optional_auth, required_auth},
     },
     tools::{
         ToolConfig,
@@ -497,20 +496,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            optional_auth(
-                get_with(list, |op| {
-                    op.id("ListDocuments")
-                        .tag("Documents")
-                        .summary("Get a list of documents from a conversation's knowledge base")
-                        .security_requirement("JWT")
-                        .response::<200, Json<Vec<ComhairleDocument>>>()
-                }),
-                state.keycloak_auth_instance.clone(),
-            ),
+            state.optional_auth(get_with(list, |op| {
+                op.id("ListDocuments")
+                    .tag("Documents")
+                    .summary("Get a list of documents from a conversation's knowledge base")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<ComhairleDocument>>>()
+            })),
         )
         .api_route(
             "/{document_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetDocument")
                         .tag("Documents")
@@ -518,13 +514,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<ComhairleDocument>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{document_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteDocument")
                         .tag("Documents")
@@ -532,13 +527,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<204, ()>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{document_id}/parse",
-            required_auth(
+            state.required_auth(
                 post_with(parse_document, |op| {
                     op.id("ParseDocument")
                         .tag("Documents")
@@ -546,13 +540,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<204, ()>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{document_id}/stop_parse",
-            required_auth(
+            state.required_auth(
                 post_with(stop_parsing_document, |op| {
                     op.id("StopParsingDocument")
                         .tag("Documents")
@@ -560,26 +553,22 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<204, ()>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{document_id}/download",
-            optional_auth(
-                get_with(download_document, |op| {
-                    op.id("DownloadDocument")
-                        .tag("Documents")
-                        .summary("Download a document")
-                        .security_requirement("JWT")
-                        .response::<204, Response<Body>>()
-                }),
-                state.keycloak_auth_instance.clone(),
-            ),
+            state.optional_auth(get_with(download_document, |op| {
+                op.id("DownloadDocument")
+                    .tag("Documents")
+                    .summary("Download a document")
+                    .security_requirement("JWT")
+                    .response::<204, Response<Body>>()
+            })),
         )
         .api_route(
             "/sync_learning_content",
-            required_auth(
+            state.required_auth(
                 post_with(sync_learning_content, |op| {
                     op.id("SyncLearningContent")
                         .tag("Documents")
@@ -589,7 +578,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<SyncLearningContentResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

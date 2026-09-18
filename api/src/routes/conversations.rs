@@ -42,10 +42,7 @@ use crate::{
         user_profile,
     },
     routes::{
-        auth::{
-            authorize,
-            layer::{optional_auth, required_auth},
-        },
+        auth::authorize,
         conversations::dto::{ConversationDto, LocalizedConversationDto},
         translations::LocaleExtractor,
     },
@@ -916,7 +913,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create_conversation, |op| {
                     op.id("CreateConversation")
                         .summary("Create a new conversation")
@@ -924,7 +921,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .description("Creates a new conversation")
                         .response::<201, Json<ConversationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
@@ -940,23 +936,20 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{conversation_id}",
-            optional_auth(
-                get_with(get_conversation, |op| {
-                    op.id("GetConversation")
-                        .summary("Get a conversation by id or slug")
-                        .tag("Conversation")
-                        .description(
-                            "Get a conversation by id or slug. If user is \
+            state.optional_auth(get_with(get_conversation, |op| {
+                op.id("GetConversation")
+                    .summary("Get a conversation by id or slug")
+                    .tag("Conversation")
+                    .description(
+                        "Get a conversation by id or slug. If user is \
                         admin and withTranslations=true, returns detailed translation data.",
-                        )
-                        .response::<200, Json<ConversationResponse>>()
-                }),
-                state.keycloak_auth_instance.clone(),
-            ),
+                    )
+                    .response::<200, Json<ConversationResponse>>()
+            })),
         )
         .api_route(
             "/{conversation_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update_conversation, |op| {
                     op.id("UpdateConversation")
                         .summary("Update a conversation")
@@ -964,13 +957,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .description("Update a conversation")
                         .response::<200, Json<ConversationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete_conversation, |op| {
                     op.id("DeleteConversation")
                         .summary("Delete the conversation and all related content")
@@ -978,13 +970,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .description("Delete the conversation and all related content")
                         .response::<200, Json<ConversationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}/metadata",
-            required_auth(
+            state.required_auth(
                 patch_with(patch_conversation_metadata, |op| {
                     op.id("PatchConversationMetadata")
                         .summary("Shallow-merge keys into conversation metadata")
@@ -997,13 +988,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         )
                         .response::<200, Json<ConversationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}/launch",
-            required_auth(
+            state.required_auth(
                 put_with(launch_conversation, |op| {
                     op.id("LaunchConversation")
                         .summary("Makes the conversation live")
@@ -1011,13 +1001,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .description("Makes the conversation live for participants")
                         .response::<200, Json<ConversationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}/cohosts",
-            required_auth(
+            state.required_auth(
                 get_with(list_conversation_cohosts, |op| {
                     op.id("ListConversationCoHostOrganizations")
                         .summary("List co-host organizations for a conversation")
@@ -1028,13 +1017,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         )
                         .response::<200, Json<Vec<OrganizationWithPermissionDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}/cohosts",
-            required_auth(
+            state.required_auth(
                 post_with(add_conversation_cohost, |op| {
                     op.id("AddConversationCoHostOrganization")
                         .summary("Add an organization as a co-host for a conversation")
@@ -1044,13 +1032,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         )
                         .response::<201, Json<OrganizationWithPermissionDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}/cohosts/{cohost_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(remove_conversation_cohost, |op| {
                     op.id("RemoveConversationCoHostOrganization")
                     .summary("Remove an organization as a co-host for a conversation")
@@ -1060,13 +1047,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .response::<200, Json<OrganizationWithPermissionDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}/notifications",
-            required_auth(
+            state.required_auth(
                 post_with(send_notification_to_participants, |op| {
                     op.id("SendNotificationToParticipants")
                         .summary("Send notification to all conversation participants")
@@ -1078,13 +1064,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<SendEmailNotificationResponse>>()
                         .tag("Notifications")
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}/notifications/recipients",
-            required_auth(
+            state.required_auth(
                 get_with(get_notification_recipients, |op| {
                     op.id("GetNotificationRecipients")
                         .summary("Preview notification recipients")
@@ -1095,7 +1080,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<NotificationRecipientsResponse>>()
                         .tag("Notifications")
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
@@ -1116,7 +1100,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{conversation_id}/contacts/export",
-            required_auth(
+            state.required_auth(
                 get_with(export_conversation_contacts, |op| {
                     op.id("ExportConversationContacts")
                         .summary("Export contact list for conversation")
@@ -1126,13 +1110,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         )
                         .tag("Conversation")
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{conversation_id}/demographics/export",
-            required_auth(
+            state.required_auth(
                 get_with(export_conversation_demographics, |op| {
                     op.id("ExportConversationDemographics")
                         .summary("Export demographics for conversation participants")
@@ -1143,7 +1126,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         )
                         .tag("Conversation")
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

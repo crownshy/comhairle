@@ -28,7 +28,6 @@ use crate::{
         auth::{
             extract::{RequiredAdminUser, RequiredUser},
             generate_jwt, is_user_admin,
-            layer::required_auth,
         },
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
@@ -255,7 +254,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list, |op| {
                     op.id("ListEvents")
                         .tag("Events")
@@ -267,13 +266,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<PaginatedResults<LocalizedEventDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetEvent")
                         .tag("Events")
@@ -282,13 +280,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<EventResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create, |op| {
                     op.id("CreateEvent")
                         .tag("Events")
@@ -297,13 +294,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<EventDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update, |op| {
                     op.id("UpdateEvent")
                         .tag("Events")
@@ -312,13 +308,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<EventDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}/metadata",
-            required_auth(
+            state.required_auth(
                 get_with(get_event_metadata, |op| {
                     op.id("GetEventMetadata")
                         .tag("Events")
@@ -327,13 +322,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Option<serde_json::Value>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}/metadata",
-            required_auth(
+            state.required_auth(
                 patch_with(patch_event_metadata, |op| {
                     op.id("PatchEventMetadata")
                         .tag("Events")
@@ -345,13 +339,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<EventDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteEvent")
                         .tag("Events")
@@ -360,13 +353,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<EventDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}/auth",
-            required_auth(
+            state.required_auth(
                 get_with(get_jwt, |op| {
                     op.id("GetEventJWT")
                         .tag("Events")
@@ -375,13 +367,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<JwtResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}/breakout",
-            required_auth(
+            state.required_auth(
                 get_with(breakout::get_plan, |op| {
                     op.id("GetEventBreakoutPlan")
                         .tag("Events")
@@ -389,13 +380,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<breakout::BreakoutPlanDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}/breakout",
-            required_auth(
+            state.required_auth(
                 put_with(breakout::save_plan, |op| {
                     op.id("SaveEventBreakoutPlan")
                         .tag("Events")
@@ -403,13 +393,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<breakout::BreakoutPlanDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{event_id}/breakout/seed",
-            required_auth(
+            state.required_auth(
                 post_with(breakout::seed_plan, |op| {
                     op.id("SeedEventBreakoutPlan")
                         .tag("Events")
@@ -417,7 +406,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<breakout::BreakoutPlanDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

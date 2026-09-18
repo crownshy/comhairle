@@ -16,6 +16,7 @@ use schemars::JsonSchema;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::error::ComhairleError;
 use crate::models::organization::{
     self, CreateOrganization, OrganizationFilterOptions, OrganizationOrderOptions,
     PartialOrganization,
@@ -35,7 +36,6 @@ use crate::routes::auth::{
 use crate::routes::organizations::dto::{LocalizedOrganizationDto, OrganizationDto};
 use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleState, routes::user::dto::UserDto};
-use crate::{error::ComhairleError, routes::auth::layer::required_auth};
 
 pub mod dto;
 
@@ -598,7 +598,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list, |op| {
                     op.id("ListOrganizations")
                         .tag("Organizations")
@@ -607,13 +607,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<PaginatedResults<LocalizedOrganizationDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetOrganization")
                         .tag("Organizations")
@@ -622,13 +621,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<LocalizedOrganizationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}/team",
-            required_auth(
+            state.required_auth(
                 get_with(get_team, |op| {
                     op.id("GetOrganizationTeam")
                         .tag("Organizations")
@@ -637,13 +635,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<OrganizationTeamResponseDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}/members",
-            required_auth(
+            state.required_auth(
                 post_with(add_member, |op| {
                     op.id("AddOrganizationMember")
                         .tag("Organizations")
@@ -652,13 +649,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<UpsertOrganizationUserResponseDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}/members/{user_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(remove_member, |op| {
                     op.id("RemoveOrganizationMember")
                         .tag("Organizations")
@@ -667,13 +663,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, ()>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}/members/{user_id}/role",
-            required_auth(
+            state.required_auth(
                 put_with(update_member_role, |op| {
                     op.id("UpdateOrganizationMemberRole")
                         .tag("Organizations")
@@ -682,13 +677,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, ()>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create, |op| {
                     op.id("CreateOrganization")
                         .tag("Organizations")
@@ -697,13 +691,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<OrganizationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update, |op| {
                     op.id("UpdateOrganization")
                         .tag("Organizations")
@@ -712,13 +705,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<OrganizationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}/metadata",
-            required_auth(
+            state.required_auth(
                 get_with(get_metadata, |op| {
                     op.id("GetOrganizationMetadata")
                         .tag("Organizations")
@@ -727,13 +719,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Option<serde_json::Value>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}/metadata",
-            required_auth(
+            state.required_auth(
                 patch_with(patch_metadata, |op| {
                     op.id("PatchOrganizationMetadata")
                         .tag("Organizations")
@@ -745,13 +736,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<OrganizationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{organization_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteOrganization")
                         .tag("Organizations")
@@ -760,7 +750,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<OrganizationDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

@@ -11,7 +11,7 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::routes::auth::{authorize, extract::RequiredUser, layer::required_auth};
+use crate::routes::auth::{authorize, extract::RequiredUser};
 use crate::{ComhairleError, ComhairleState};
 use crate::{
     models::{
@@ -143,7 +143,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list_policies, |op| {
                     op.id("ListConversationModerationPolicies")
                         .tag("ModerationPolicies")
@@ -152,13 +152,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Vec<ModerationPolicyDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create_policy, |op| {
                     op.id("CreateConversationModerationPolicy")
                         .tag("ModerationPolicies")
@@ -170,13 +169,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<ModerationPolicyDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/default",
-            required_auth(
+            state.required_auth(
                 get_with(get_default_reasons, |op| {
                     op.id("GetDefaultModerationPolicyReasons")
                         .tag("ModerationPolicies")
@@ -187,13 +185,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Vec<DefaultModerationPolicyReasonDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get_policy, |op| {
                     op.id("GetConversationModerationPolicy")
                         .tag("ModerationPolicies")
@@ -201,13 +198,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<ModerationPolicyDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update_policy, |op| {
                     op.id("UpdateConversationModerationPolicy")
                         .tag("ModerationPolicies")
@@ -220,13 +216,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<ModerationPolicyDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete_policy, |op| {
                     op.id("DeleteConversationModerationPolicy")
                         .tag("ModerationPolicies")
@@ -235,7 +230,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<204, ()>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

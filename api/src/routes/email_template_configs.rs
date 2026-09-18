@@ -16,16 +16,13 @@ use strum::EnumCount;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::email_template_config::{
+    self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
+    EmailTypeSchema, UpdateEmailTemplateConfig,
+};
 use crate::routes::auth::extract::RequiredAdminUser;
 use crate::routes::email_template_configs::dto::EmailTemplateConfigDto;
 use crate::{ComhairleError, ComhairleState};
-use crate::{
-    models::email_template_config::{
-        self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
-        EmailTypeSchema, UpdateEmailTemplateConfig,
-    },
-    routes::auth::layer::required_auth,
-};
 
 #[instrument(err(Debug), skip(state))]
 async fn create(
@@ -149,7 +146,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 post_with(create, |op| {
                     op.id("CreateEmailTemplateConfig")
                         .summary("Create email template config")
@@ -158,13 +155,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("EmailTemplateConfig")
                         .response::<201, Json<EmailTemplateConfigDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{email_config_id}",
-            required_auth(
+            state.required_auth(
                 get_with(get, |op| {
                     op.id("GetEmailTemplateConfig")
                         .summary("Get email template config")
@@ -173,13 +169,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("EmailTemplateConfig")
                         .response::<200, Json<EmailTemplateConfigDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/",
-            required_auth(
+            state.required_auth(
                 get_with(list, |op| {
                     op.id("ListEmailTemplateConfigs")
                         .summary("List email template configs")
@@ -188,13 +183,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("EmailTemplateConfig")
                         .response::<200, Json<Vec<EmailTemplateConfigDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{email_config_id}",
-            required_auth(
+            state.required_auth(
                 put_with(update, |op| {
                     op.id("UpdateEmailTemplateConfig")
                         .summary("Update email template config")
@@ -203,13 +197,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("EmailTemplateConfig")
                         .response::<200, Json<EmailTemplateConfigDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{email_config_id}",
-            required_auth(
+            state.required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteEmailTemplateConfig")
                         .summary("Delete email template config")
@@ -218,13 +211,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("EmailTemplateConfig")
                         .response::<200, Json<EmailTemplateConfigDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/{email_config_id}/schemas",
-            required_auth(
+            state.required_auth(
                 get_with(get_schema, |op| {
                     op.id("GetEmailTemplateSchema")
                         .summary("Get email template schema")
@@ -233,13 +225,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("EmailTemplateConfig")
                         .response::<200, Json<EmailTypeSchema>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/schemas",
-            required_auth(
+            state.required_auth(
                 get_with(list_schemas, |op| {
                     op.id("ListEmailTemplateSchemas")
                         .summary("List email template schemas")
@@ -248,13 +239,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("EmailTemplateConfig")
                         .response::<200, Json<[EmailTypeSchema; EmailTemplateSlots::COUNT]>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/preview",
-            required_auth(
+            state.required_auth(
                 post_with(preview, |op| {
                     op.id("PreviewEmailTemplateConfig")
                         .summary("Preview email template config")
@@ -263,7 +253,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .tag("EmailTemplateConfig")
                         .response::<200, Json<PreviewEmailTemplateConfigResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )

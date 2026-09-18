@@ -27,8 +27,8 @@ use crate::{
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{
-        auth::layer::required_auth, conversations::dto::LocalizedConversationDto,
-        organizations::dto::LocalizedOrganizationDto, user::dto::UserDto,
+        conversations::dto::LocalizedConversationDto, organizations::dto::LocalizedOrganizationDto,
+        user::dto::UserDto,
     },
 };
 
@@ -370,7 +370,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/roles",
-            required_auth(
+            state.required_auth(
                 get_with(get_user_roles, |op| {
                     op.id("GetUserRoles")
                         .tag("User")
@@ -378,13 +378,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<Vec<UserRoles>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/conversations",
-            required_auth(
+            state.required_auth(
                 get_with(get_conversations_user_participating_in, |op| {
                     op.id("GetConversationsUserIsParticipatingIn")
                         .tag("User")
@@ -394,13 +393,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Vec<LocalizedConversationDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/owned_conversations",
-            required_auth(
+            state.required_auth(
                 get_with(get_user_owned_conversations, |op| {
                     op.id("GetOwnedConversations")
                         .tag("User")
@@ -408,13 +406,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/permitted_conversations",
-            required_auth(
+            state.required_auth(
                 get_with(get_user_permitted_conversations, |op| {
                     op.id("GetPermittedConversations")
                         .tag("User")
@@ -424,13 +421,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/organizations",
-            required_auth(
+            state.required_auth(
                 get_with(get_user_organizations, |op| {
                     op.id("GetUserOrganizations")
                         .tag("User")
@@ -441,13 +437,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<UserOrganizationsResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/details",
-            required_auth(
+            state.required_auth(
                 put_with(update_user_details, |op| {
                     op.id("UpdateUserDetails")
                         .tag("User")
@@ -455,13 +450,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<UserDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/upgrade",
-            required_auth(
+            state.required_auth(
                 put_with(upgrade_account, |op| {
                     op.id("UpgradeAccount")
                         .tag("User")
@@ -469,13 +463,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<UserDto>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
         .api_route(
             "/sync_kc",
-            required_auth(
+            state.required_auth(
                 post_with(sync_kc_users, |op| {
                     op.id("SyncKcUsers")
                         .tag("User")
@@ -484,7 +477,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<201, Json<SyncKcUserResponse>>()
                 }),
-                state.keycloak_auth_instance.clone(),
                 None,
             ),
         )
