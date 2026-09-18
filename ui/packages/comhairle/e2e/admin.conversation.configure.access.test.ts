@@ -35,4 +35,6 @@ test('Configure/Access page', async ({ page, cleanup }) => {
 	await testWithRefresh(page, async () => {
 		await switches.expect();
 	});
+
+	// TODO: Add in cohost test. It might be moved in the future which is why it's currently been ignored.
 });
