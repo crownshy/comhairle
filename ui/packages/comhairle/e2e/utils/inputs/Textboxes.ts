@@ -1,52 +1,35 @@
 import { expect, type Locator } from '@playwright/test';
 import { Page } from '../types';
-import { generateValue } from '..';
+import UserInputs, { UserInputsInput } from './UserInputs';
+import type { Cleanup } from './types';
 
-type Textbox = {
-	id: string;
+type Textbox<T extends string> = {
+	id: T;
 	locator: Locator;
 	value: string;
 };
 
-class Textboxes<const T extends string> {
-	#textboxes: Record<string, Textbox> = {};
-
-	constructor(page: Page, inputs: [id: T, name: string][]) {
-		for (const [id, name] of inputs) {
-			this.#textboxes[id] = {
-				id,
-				locator: page.getByRole('textbox', { name, exact: true }),
-				value: generateValue()
-			};
-		}
-	}
-
-	get(id: T): Textbox {
-		return this.#textboxes[id];
-	}
-
-	// Function overload
-	async write(id: T): Promise<void>;
-	async write(
-		id: T,
-		cleanup: (callback: () => Promise<void>) => void,
-		defaultValue: string
-	): Promise<void>;
-
-	async write(id: T, cleanup?: (callback: () => Promise<void>) => void, defaultValue?: string) {
-		await this.#textboxes[id].locator.click();
-		await this.#textboxes[id].locator.fill(this.#textboxes[id].value);
-		cleanup?.(async () => {
-			await this.#textboxes[id].locator.click();
-			await this.#textboxes[id].locator.fill(defaultValue ?? '');
-		});
-	}
-
-	async expected() {
-		for (const textbox of Object.values(this.#textboxes)) {
+const Textboxes = <const T extends string, U extends Textbox<T>>(
+	page: Page,
+	inputs: UserInputsInput<T>,
+	cleanup: Cleanup
+) =>
+	UserInputs<T, U>({
+		inputs,
+		mutator: (name) =>
+			({
+				locator: page.getByRole('textbox', { name, exact: true })
+			}) as U,
+		cleanup,
+		async focus(textbox) {
+			await textbox.locator.click();
+		},
+		async update(textbox, value) {
+			await textbox.locator.fill(value);
+		},
+		async expector(textbox) {
 			await expect(textbox.locator).toHaveValue(textbox.value);
 		}
-	}
-}
+	});
 
 export default Textboxes;
