@@ -234,7 +234,7 @@ pub struct DemographicReport {
 pub struct UserProfileDemographicsExport {
     pub question_slug: String,
     pub display_name: Option<String>,
-    pub value: String,
+    pub value: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -270,8 +270,8 @@ pub async fn get_demographics_for_export(
         INNER JOIN comhairle_user u ON u.id = up.user_id
         INNER JOIN user_participation upart ON upart.user_id = u.id
         INNER JOIN workflow w ON w.id = upart.workflow_id
-        LEFT JOIN conversation_demographics cd ON cd.conversation_id = w.conversation_id
-        LEFT JOIN demographics_question dq ON dq.slug = cd.question_slug
+        INNER JOIN conversation_demographics cd ON cd.conversation_id = w.conversation_id
+        INNER JOIN demographics_question dq ON dq.slug = cd.question_slug
         LEFT JOIN demographics_response dr ON dr.user_id = up.user_id AND dr.question_slug = cd.question_slug
         WHERE w.conversation_id = $1
         AND up.consented = true
@@ -328,7 +328,7 @@ pub async fn get_demographic_report(
         category_name: String,
         display_name: Option<String>,
         bucket_config: Option<sqlx::types::Json<ValueBuckets>>,
-        value: String,
+        value: Option<String>,
         count: i64,
     }
 
