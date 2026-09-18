@@ -18,7 +18,7 @@ use crate::{
         job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
-    routes::auth::extract::RequiredAdminUser,
+    routes::auth::{extract::RequiredAdminUser, layer::required_auth},
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -71,43 +71,59 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListJobs")
-                    .tag("Jobs")
-                    .summary("List jobs")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<Job>>>()
-            }),
+            required_auth(
+                get_with(list, |op| {
+                    op.id("ListJobs")
+                        .tag("Jobs")
+                        .summary("List jobs")
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<Job>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{job_id}",
-            get_with(get, |op| {
-                op.id("GetJob")
-                    .tag("Jobs")
-                    .summary("Get a job by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Job>>()
-            }),
+            required_auth(
+                get_with(get, |op| {
+                    op.id("GetJob")
+                        .tag("Jobs")
+                        .summary("Get a job by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Job>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            post_with(create, |op| {
-                op.id("CreateJob")
-                    .tag("Jobs")
-                    .summary("Create a new job")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Job>>()
-            }),
+            required_auth(
+                post_with(create, |op| {
+                    op.id("CreateJob")
+                        .tag("Jobs")
+                        .summary("Create a new job")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Job>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{job_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteJob")
-                    .tag("Jobs")
-                    .summary("Delete a job by id")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteJob")
+                        .tag("Jobs")
+                        .summary("Delete a job by id")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

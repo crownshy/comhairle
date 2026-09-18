@@ -19,7 +19,7 @@ use crate::{
         self,
         feedback::{CreateFeedbackDTO, PartialFeedback},
     },
-    routes::feedback::dto::FeedbackDto,
+    routes::{auth::layer::required_auth, feedback::dto::FeedbackDto},
 };
 
 use super::auth::extract::{RequiredAdminUser, RequiredUser};
@@ -75,27 +75,39 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_feedback, |op| {
-                op.id("CreateFeedback")
-                    .summary("Create a feedback statement on the conversation")
-                    .response::<201, Json<FeedbackDto>>()
-            }),
+            required_auth(
+                post_with(create_feedback, |op| {
+                    op.id("CreateFeedback")
+                        .summary("Create a feedback statement on the conversation")
+                        .response::<201, Json<FeedbackDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{feedback_id}",
-            put_with(update_feedback, |op| {
-                op.id("UpdateFeedback")
-                    .summary("Update an ")
-                    .response::<201, Json<FeedbackDto>>()
-            }),
+            required_auth(
+                put_with(update_feedback, |op| {
+                    op.id("UpdateFeedback")
+                        .summary("Update an ")
+                        .response::<201, Json<FeedbackDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(list_feedback_for_conversation, |op| {
-                op.id("ListFeedbackForConversation")
-                    .summary("Return a list of feedback statements for a conversation")
-                    .response::<200, Json<FeedbackDto>>()
-            }),
+            required_auth(
+                get_with(list_feedback_for_conversation, |op| {
+                    op.id("ListFeedbackForConversation")
+                        .summary("Return a list of feedback statements for a conversation")
+                        .response::<200, Json<FeedbackDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

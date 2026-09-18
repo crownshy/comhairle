@@ -8,6 +8,7 @@ use axum::{
     extract::{Extension, FromRequestParts, Request},
 };
 use axum_extra::extract::CookieJar;
+use axum_keycloak_auth::KeycloakAuthStatus;
 use axum_keycloak_auth::decode::{KeycloakToken, ProfileAndEmail};
 use axum_keycloak_auth::error::AuthError;
 use axum_keycloak_auth::extract::{ExtractedToken, TokenExtractor};
@@ -39,7 +40,7 @@ pub struct ComhairleExtAttrs {
 pub struct KcAccessTokenCookieExtractor {}
 
 impl KcAccessTokenCookieExtractor {
-    /// Extracts an access token from cookies, reporting an absent header as `Ok(None)`.
+    /// Extracts an access token from cookies, reporting an absent header as `None`.
     fn try_extract<'a>(request: &Request) -> Option<ExtractedToken<'a>> {
         let jar = CookieJar::from_headers(request.headers());
         let token = jar.get(KC_ACCESS_KEY)?.value();
@@ -64,9 +65,10 @@ impl TokenExtractor for KcAccessTokenCookieExtractor {
 //
 // ===============
 
-/// An extractor to get a required current user.
-/// If no user is logged in then this will fail and
-/// Return a Not Found response
+/// An extractor to get a required current user. If no user is logged in then
+/// this will fail and return a Not Found response.
+///
+/// To be used on endpoints authenticated with [`crate::auth::layer::required_auth`].
 #[derive(OperationIo)]
 pub struct RequiredAdminUser(pub UserDto);
 
@@ -80,7 +82,10 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
         let Extension(access_token) =
             Extension::<KeycloakToken<String, ComhairleExtAttrs>>::from_request_parts(parts, state)
                 .await
-                .map_err(|_| ComhairleError::NoLoggedInUser)?;
+                .map_err(|e| {
+                    tracing::warn!("{e}");
+                    ComhairleError::NoLoggedInUser
+                })?;
 
         let user = UserDto::try_from(access_token).map_err(|e| {
             ComhairleError::CorruptedData(format!(
@@ -96,9 +101,10 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
     }
 }
 
-/// An extractor to get a required current user.
-/// If no user is logged in then this will fail and
-/// return a NotFound response
+/// An extractor to get a required current user. If no user is logged in then
+/// this will fail and return a NotFound response.
+///
+/// To be used on endpoints authenticated with [`crate::auth::layer::required_auth`].
 #[derive(OperationIo)]
 pub struct RequiredUser(pub UserDto);
 
@@ -129,9 +135,10 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
     }
 }
 
-/// An extractor to get the current user if they exist
-/// If a user is not logged in, this will still run
-/// but produce a None value in the extractor
+/// An extractor to get the current user if they exist and return None if no user
+/// is logged in.
+///
+/// To be used on endpoints authenticated with [`crate::auth::layer::optional_auth`].
 #[derive(OperationIo, Debug)]
 pub struct OptionalUser(pub Option<UserDto>);
 
@@ -142,27 +149,34 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         parts: &mut Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
-        let opt_user =
-            Option::<Extension<KeycloakToken<String, ComhairleExtAttrs>>>::from_request_parts(
+        let auth_status =
+            Extension::<KeycloakAuthStatus<String, ComhairleExtAttrs>>::from_request_parts(
                 parts, state,
             )
             .await
-            .unwrap_or(None)
-            .and_then(|Extension(t)| match UserDto::try_from(t) {
-                Ok(user) => Some(user),
-                Err(e) => {
-                    tracing::error!("Valid AuthService token had unparsable subject: {e}");
-                    None
-                }
-            });
+            .map(|Extension(status)| status)
+            .inspect_err(|e| tracing::error!("{e}"))
+            .ok();
 
-        Ok(OptionalUser(opt_user))
+        let user = auth_status.and_then(|status| match status {
+            KeycloakAuthStatus::Success(token) => UserDto::try_from(token)
+                .inspect_err(|e| tracing::error!("{e}"))
+                .ok(),
+            KeycloakAuthStatus::Failure(e) => {
+                tracing::debug!("{e}");
+                None
+            }
+        });
+
+        Ok(OptionalUser(user))
     }
 }
 
 /// An extractor to get raw JWT access token, used to authenticate external
 /// auth requests via Authorization header. Returns None if no access token
 /// is found.
+///
+/// To be used on endpoints authenticated with [`crate::auth::layer::optional_auth`].
 #[derive(OperationIo, Debug)]
 pub struct OptionalRawAccessToken(pub Option<String>);
 

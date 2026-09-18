@@ -20,7 +20,8 @@ use crate::{
         recruitment_target::{CreateRecruitmentTarget, PartialRecruitmentTarget},
     },
     routes::{
-        auth::extract::RequiredAdminUser, recruitment_targets::dto::RecruitmentTargetDto,
+        auth::{extract::RequiredAdminUser, layer::required_auth},
+        recruitment_targets::dto::RecruitmentTargetDto,
         workflows::WorkflowPathCtx,
     },
 };
@@ -95,58 +96,78 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_recruitment_target, |op| {
-                op.id("CreateRecruitmentTarget")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("Create a recruitment target for a workflow")
-                    .description(
-                        "Records the target number of participants for a given demographic \
+            required_auth(
+                post_with(create_recruitment_target, |op| {
+                    op.id("CreateRecruitmentTarget")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("Create a recruitment target for a workflow")
+                        .description(
+                            "Records the target number of participants for a given demographic \
                          metric/bucket combination on this workflow. Upserts on \
                          (workflow_id, metric, bucket).",
-                    )
-                    .response::<201, Json<RecruitmentTargetDto>>()
-            }),
+                        )
+                        .response::<201, Json<RecruitmentTargetDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(list_recruitment_targets, |op| {
-                op.id("ListRecruitmentTargets")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("List recruitment targets for a workflow")
-                    .response::<200, Json<Vec<RecruitmentTargetDto>>>()
-            }),
+            required_auth(
+                get_with(list_recruitment_targets, |op| {
+                    op.id("ListRecruitmentTargets")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("List recruitment targets for a workflow")
+                        .response::<200, Json<Vec<RecruitmentTargetDto>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{recruitment_target_id}",
-            get_with(get_recruitment_target, |op| {
-                op.id("GetRecruitmentTarget")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("Get a recruitment target by id")
-                    .response::<200, Json<RecruitmentTargetDto>>()
-            }),
+            required_auth(
+                get_with(get_recruitment_target, |op| {
+                    op.id("GetRecruitmentTarget")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("Get a recruitment target by id")
+                        .response::<200, Json<RecruitmentTargetDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{recruitment_target_id}",
-            put_with(update_recruitment_target, |op| {
-                op.id("UpdateRecruitmentTarget")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("Update a recruitment target")
-                    .response::<200, Json<RecruitmentTargetDto>>()
-            }),
+            required_auth(
+                put_with(update_recruitment_target, |op| {
+                    op.id("UpdateRecruitmentTarget")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("Update a recruitment target")
+                        .response::<200, Json<RecruitmentTargetDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/{recruitment_target_id}",
-            delete_with(delete_recruitment_target, |op| {
-                op.id("DeleteRecruitmentTarget")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("Delete a recruitment target")
-                    .response::<200, Json<RecruitmentTargetDto>>()
-            }),
+            required_auth(
+                delete_with(delete_recruitment_target, |op| {
+                    op.id("DeleteRecruitmentTarget")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("Delete a recruitment target")
+                        .response::<200, Json<RecruitmentTargetDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

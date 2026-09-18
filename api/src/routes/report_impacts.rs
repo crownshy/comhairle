@@ -19,7 +19,7 @@ use crate::{
         self,
         report_impact::{CreateImpactDTO, PartialReportImpact},
     },
-    routes::report_impacts::dto::ReportImpactDto,
+    routes::{auth::layer::required_auth, report_impacts::dto::ReportImpactDto},
 };
 
 use super::auth::extract::RequiredAdminUser;
@@ -81,27 +81,39 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_impact, |op| {
-                op.id("CreateImpact")
-                    .summary("Create an impact on a report")
-                    .response::<201, Json<ReportImpactDto>>()
-            }),
+            required_auth(
+                post_with(create_impact, |op| {
+                    op.id("CreateImpact")
+                        .summary("Create an impact on a report")
+                        .response::<201, Json<ReportImpactDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            put_with(update_impact, |op| {
-                op.id("UpdateImpact")
-                    .summary("Update an impact")
-                    .response::<201, Json<ReportImpactDto>>()
-            }),
+            required_auth(
+                put_with(update_impact, |op| {
+                    op.id("UpdateImpact")
+                        .summary("Update an impact")
+                        .response::<201, Json<ReportImpactDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            get_with(list_impacts_for_conversation, |op| {
-                op.id("ListImpactsForReport")
-                    .summary("Return a list of impacts for a report")
-                    .response::<200, Json<Vec<ReportImpactDto>>>()
-            }),
+            required_auth(
+                get_with(list_impacts_for_conversation, |op| {
+                    op.id("ListImpactsForReport")
+                        .summary("Return a list of impacts for a report")
+                        .response::<200, Json<Vec<ReportImpactDto>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

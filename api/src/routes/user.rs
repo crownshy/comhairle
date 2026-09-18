@@ -384,79 +384,109 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/conversations",
-            get_with(get_conversations_user_participating_in, |op| {
-                op.id("GetConversationsUserIsParticipatingIn")
-                    .tag("User")
-                    .description(
-                        "Returns a list of all the conversations the user has taken part in",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<LocalizedConversationDto>>>()
-            }),
+            required_auth(
+                get_with(get_conversations_user_participating_in, |op| {
+                    op.id("GetConversationsUserIsParticipatingIn")
+                        .tag("User")
+                        .description(
+                            "Returns a list of all the conversations the user has taken part in",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<LocalizedConversationDto>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/owned_conversations",
-            get_with(get_user_owned_conversations, |op| {
-                op.id("GetOwnedConversations")
-                    .tag("User")
-                    .description("Gets a list of the conversations a user owns")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
-            }),
+            required_auth(
+                get_with(get_user_owned_conversations, |op| {
+                    op.id("GetOwnedConversations")
+                        .tag("User")
+                        .description("Gets a list of the conversations a user owns")
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/permitted_conversations",
-            get_with(get_user_permitted_conversations, |op| {
-                op.id("GetPermittedConversations")
-                    .tag("User")
-                    .description("Gets a list of the conversations a user is permitted access to")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
-            }),
+            required_auth(
+                get_with(get_user_permitted_conversations, |op| {
+                    op.id("GetPermittedConversations")
+                        .tag("User")
+                        .description(
+                            "Gets a list of the conversations a user is permitted access to",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/organizations",
-            get_with(get_user_organizations, |op| {
-                op.id("GetUserOrganizations")
-                    .tag("User")
-                    .description(
-                        "Gets the organizations associated with the \
+            required_auth(
+                get_with(get_user_organizations, |op| {
+                    op.id("GetUserOrganizations")
+                        .tag("User")
+                        .description(
+                            "Gets the organizations associated with the \
                         current user and those they can manage",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserOrganizationsResponse>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserOrganizationsResponse>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/details",
-            put_with(update_user_details, |op| {
-                op.id("UpdateUserDetails")
-                    .tag("User")
-                    .description("Update user details (username and/or password)")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserDto>>()
-            }),
+            required_auth(
+                put_with(update_user_details, |op| {
+                    op.id("UpdateUserDetails")
+                        .tag("User")
+                        .description("Update user details (username and/or password)")
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/upgrade",
-            put_with(upgrade_account, |op| {
-                op.id("UpgradeAccount")
-                    .tag("User")
-                    .description("Upgrade anonymous account to email/password account")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserDto>>()
-            }),
+            required_auth(
+                put_with(upgrade_account, |op| {
+                    op.id("UpgradeAccount")
+                        .tag("User")
+                        .description("Upgrade anonymous account to email/password account")
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/sync_kc",
-            post_with(sync_kc_users, |op| {
-                op.id("SyncKcUsers")
-                    .tag("User")
-                    .description("Sync users with Keycloak")
-                    .description("Sync comhairle_users from postgres to Keycloak")
-                    .security_requirement("JWT")
-                    .response::<201, Json<SyncKcUserResponse>>()
-            }),
+            required_auth(
+                post_with(sync_kc_users, |op| {
+                    op.id("SyncKcUsers")
+                        .tag("User")
+                        .description("Sync users with Keycloak")
+                        .description("Sync comhairle_users from postgres to Keycloak")
+                        .security_requirement("JWT")
+                        .response::<201, Json<SyncKcUserResponse>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

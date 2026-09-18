@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::{self, SqlxResultExt, users::User};
+use crate::models::{self, SqlxResultExt};
 use crate::routes::auth::authorize;
 use crate::routes::user::dto::UserDto;
 use crate::wiki_poll_service::ModerationStatus;

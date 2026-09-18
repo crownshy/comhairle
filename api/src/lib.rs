@@ -297,10 +297,7 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
                         ),
                 ),
         )
-        .nest_api_service(
-            "/ws",
-            websockets::routes::websocket_routes().with_state(state.clone()),
-        )
+        .nest_api_service("/ws", websockets::routes::websocket_routes(state.clone()))
         .nest_api_service(
             "/organizations",
             routes::organizations::router(state.clone()),
@@ -313,10 +310,7 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
         .nest_api_service("/api_keys", routes::api_keys::router(state.clone()))
         .nest_api_service(
             "/email_template_configs",
-            routes::email_template_configs::router(
-                state.clone(),
-                state.keycloak_auth_instance.clone(),
-            ),
+            routes::email_template_configs::router(state.clone()),
         )
         .nest_api_service("/permissions", routes::permissions::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))

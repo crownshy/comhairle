@@ -1230,7 +1230,7 @@ async fn logout(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, Co
 }
 
 /// Handler for the current user if there is one
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, access_token))]
 pub async fn current_user(
     State(state): State<Arc<ComhairleState>>,
     OptionalRawAccessToken(access_token): OptionalRawAccessToken,

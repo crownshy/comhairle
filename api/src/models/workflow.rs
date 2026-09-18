@@ -20,7 +20,6 @@ use super::{
     user_conversation_preferences,
     user_participation::{self, UserParticipation, UserParticipationIden},
     user_progress::{self, UserProgressIden},
-    users::User,
     workflow_step::{self, WorkflowStepIden},
 };
 

@@ -14,7 +14,10 @@ use crate::{
         self,
         user_profile::{CreateUserProfile, PartialUserProfile},
     },
-    routes::{auth::extract::RequiredUser, user_profile::dto::UserProfileDto},
+    routes::{
+        auth::{extract::RequiredUser, layer::required_auth},
+        user_profile::dto::UserProfileDto,
+    },
 };
 
 pub mod dto;
@@ -79,23 +82,31 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get_profile, |op| {
-                op.id("GetUserProfile")
-                    .tag("User Profile")
-                    .description("Get the current user's profile")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserProfileDto>>()
-            }),
+            required_auth(
+                get_with(get_profile, |op| {
+                    op.id("GetUserProfile")
+                        .tag("User Profile")
+                        .description("Get the current user's profile")
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserProfileDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .api_route(
             "/",
-            put_with(upsert_profile, |op| {
-                op.id("UpsertUserProfile")
-                    .tag("User Profile")
-                    .description("Create or update the current user's profile")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserProfileDto>>()
-            }),
+            required_auth(
+                put_with(upsert_profile, |op| {
+                    op.id("UpsertUserProfile")
+                        .tag("User Profile")
+                        .description("Create or update the current user's profile")
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserProfileDto>>()
+                }),
+                state.keycloak_auth_instance.clone(),
+                None,
+            ),
         )
         .with_state(state)
 }

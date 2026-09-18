@@ -19,7 +19,7 @@ use crate::models::demographics::{
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{Action, can_perform_resource_action};
-use crate::models::users::User;
+use crate::routes::auth::layer::{optional_auth, required_auth};
 use crate::routes::auth::{
     extract::{OptionalUser, RequiredAdminUser, RequiredUser},
     is_user_admin,
@@ -250,108 +250,204 @@ pub async fn delete_demographics_response(
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-    .nest_api_service(
-        "/conversations_questions",
-        ApiRouter::new()
-            .api_route("/", get_with(get_conversation_demographics, |op| {
-                op.id("GetConversationDemographics")
-                    .tag("Demographics")
-                    .summary("Get conversation demographics")
-                    .description("Retrieve demographics responses for a specific conversation and question")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<ConversationDemographics>>>()
-            }))
-            .api_route("/", post_with(create_conversation_demographics, |op| {
-                op.id("CreateConversationDemographics")
-                    .tag("Demographics")
-                    .summary("Create a conversation demographics response")
-                    .description("Create a new demographics response for a specific conversation and question")
-                    .security_requirement("JWT")
-                    .response::<201, Json<ConversationDemographics>>()
-            }))
-            .api_route("/{conversation_id}/{question_slug}/", delete_with(delete_conversation_demographics, |op| {
-                op.id("DeleteConversationDemographicsByQuestion")
-                    .tag("Demographics")
-                    .summary("Delete conversation demographics by question")
-                    .description("Delete demographics responses for a specific conversation and question")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Option<ConversationDemographics>>>()
-            }))
-            .with_state(state.clone())
-    )
-    .nest_api_service(
-        "/questions",
-        ApiRouter::new()
-            .api_route("/", get_with(get_demographics_questions, |op| {
-                op.id("GetDemographicsQuestions")
-                    .tag("Demographics")
-                    .summary("List of demographics questions")
-                    .description("Paginated list of demographics questions with optional filtering and ordering")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<DemographicsQuestion>>>()
-            }))
-            .api_route("/", post_with(create_demographics_question, |op| {
-                op.id("CreateDemographicsQuestion")
-                    .tag("Demographics")
-                    .summary("Create a demographics question")
-                    .description("Create a new demographics question")
-                    .security_requirement("JWT")
-                    .response::<201, Json<DemographicsQuestion>>()
-            }))
-            .api_route("/{question_slug}", put_with(update_demographics_question, |op| {
-                op.id("UpdateDemographicsQuestion")
-                    .tag("Demographics")
-                    .summary("Update a demographics question")
-                    .description("Update a specific demographics question")
-                    .security_requirement("JWT")
-                    .response::<200, Json<DemographicsQuestion>>()
-            }))
-            .api_route("/{question_slug}", delete_with(delete_demographics_question, |op| {
-                op.id("DeleteDemographicsQuestion")
-                    .tag("Demographics")
-                    .summary("Delete a demographics question")
-                    .description("Delete a specific demographics question")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Option<DemographicsQuestion>>>()
-            }))
-            .with_state(state.clone())
+        .nest_api_service(
+            "/conversations_questions",
+            ApiRouter::new()
+                .api_route(
+                    "/",
+                    optional_auth(
+                        get_with(get_conversation_demographics, |op| {
+                            op.id("GetConversationDemographics")
+                                .tag("Demographics")
+                                .summary("Get conversation demographics")
+                                .description(
+                                    "Retrieve demographics responses for a specific \
+                            conversation and question",
+                                )
+                                .security_requirement("JWT")
+                                .response::<200, Json<PaginatedResults<ConversationDemographics>>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                    ),
+                )
+                .api_route(
+                    "/",
+                    required_auth(
+                        post_with(create_conversation_demographics, |op| {
+                            op.id("CreateConversationDemographics")
+                                .tag("Demographics")
+                                .summary("Create a conversation demographics response")
+                                .description(
+                                    "Create a new demographics response for a specific \
+                            conversation and question",
+                                )
+                                .security_requirement("JWT")
+                                .response::<201, Json<ConversationDemographics>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .api_route(
+                    "/{conversation_id}/{question_slug}/",
+                    required_auth(
+                        delete_with(delete_conversation_demographics, |op| {
+                            op.id("DeleteConversationDemographicsByQuestion")
+                                .tag("Demographics")
+                                .summary("Delete conversation demographics by question")
+                                .description(
+                                    "Delete demographics responses for a specific \
+                            conversation and question",
+                                )
+                                .security_requirement("JWT")
+                                .response::<200, Json<Option<ConversationDemographics>>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .with_state(state.clone()),
+        )
+        .nest_api_service(
+            "/questions",
+            ApiRouter::new()
+                .api_route(
+                    "/",
+                    get_with(get_demographics_questions, |op| {
+                        op.id("GetDemographicsQuestions")
+                            .tag("Demographics")
+                            .summary("List of demographics questions")
+                            .description(
+                                "Paginated list of demographics questions with \
+                            optional filtering and ordering",
+                            )
+                            .security_requirement("JWT")
+                            .response::<200, Json<PaginatedResults<DemographicsQuestion>>>()
+                    }),
+                )
+                .api_route(
+                    "/",
+                    required_auth(
+                        post_with(create_demographics_question, |op| {
+                            op.id("CreateDemographicsQuestion")
+                                .tag("Demographics")
+                                .summary("Create a demographics question")
+                                .description("Create a new demographics question")
+                                .security_requirement("JWT")
+                                .response::<201, Json<DemographicsQuestion>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .api_route(
+                    "/{question_slug}",
+                    required_auth(
+                        put_with(update_demographics_question, |op| {
+                            op.id("UpdateDemographicsQuestion")
+                                .tag("Demographics")
+                                .summary("Update a demographics question")
+                                .description("Update a specific demographics question")
+                                .security_requirement("JWT")
+                                .response::<200, Json<DemographicsQuestion>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .api_route(
+                    "/{question_slug}",
+                    required_auth(
+                        delete_with(delete_demographics_question, |op| {
+                            op.id("DeleteDemographicsQuestion")
+                                .tag("Demographics")
+                                .summary("Delete a demographics question")
+                                .description("Delete a specific demographics question")
+                                .security_requirement("JWT")
+                                .response::<200, Json<Option<DemographicsQuestion>>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .with_state(state.clone()),
         )
         .nest_api_service(
             "/responses",
             ApiRouter::new()
-                .api_route("/", get_with(get_demographics_responses, |op| {
-                    op.id("GetDemographicsResponses")
-                        .tag("Demographics")
-                        .summary("List of demographics responses")
-                        .description("Paginated list of demographics responses with optional filtering and ordering")
-                        .security_requirement("JWT")
-                        .response::<200, Json<PaginatedResults<DemographicsResponse>>>()
-                }))
-                .api_route("/", post_with(create_demographics_response, |op| {
-                    op.id("CreateDemographicsResponse")
-                        .tag("Demographics")
-                        .summary("Create a demographics response")
-                        .description("Create a new response for a specific demographics question and user")
-                        .security_requirement("JWT")
-                        .response::<201, Json<DemographicsResponse>>()
-                }))
-                .api_route("/{question_slug}/{user_id}", put_with(update_demographics_response, |op| {
-                    op.id("UpdateDemographicsResponse")
-                        .tag("Demographics")
-                        .summary("Update a demographics response")
-                        .description("Update a response for a specific demographics question and user")
-                        .security_requirement("JWT")
-                        .response::<200, Json<DemographicsResponse>>()
-                }))
-                .api_route("/{question_slug}/{user_id}", delete_with(delete_demographics_response, |op| {
-                    op.id("DeleteDemographicsResponse")
-                        .tag("Demographics")
-                        .summary("Delete a demographics response")
-                        .description("Delete a response for a specific demographics question and user")
-                        .security_requirement("JWT")
-                        .response::<200, Json<Option<DemographicsResponse>>>()
-                }))
-                .with_state(state.clone())
+                .api_route(
+                    "/",
+                    required_auth(
+                        get_with(get_demographics_responses, |op| {
+                            op.id("GetDemographicsResponses")
+                                .tag("Demographics")
+                                .summary("List of demographics responses")
+                                .description(
+                                    "Paginated list of demographics responses \
+                            with optional filtering and ordering",
+                                )
+                                .security_requirement("JWT")
+                                .response::<200, Json<PaginatedResults<DemographicsResponse>>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .api_route(
+                    "/",
+                    required_auth(
+                        post_with(create_demographics_response, |op| {
+                            op.id("CreateDemographicsResponse")
+                                .tag("Demographics")
+                                .summary("Create a demographics response")
+                                .description(
+                                    "Create a new response for a specific demographics \
+                            question and user",
+                                )
+                                .security_requirement("JWT")
+                                .response::<201, Json<DemographicsResponse>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .api_route(
+                    "/{question_slug}/{user_id}",
+                    required_auth(
+                        put_with(update_demographics_response, |op| {
+                            op.id("UpdateDemographicsResponse")
+                                .tag("Demographics")
+                                .summary("Update a demographics response")
+                                .description(
+                                    "Update a response for a specific demographics \
+                            question and user",
+                                )
+                                .security_requirement("JWT")
+                                .response::<200, Json<DemographicsResponse>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .api_route(
+                    "/{question_slug}/{user_id}",
+                    required_auth(
+                        delete_with(delete_demographics_response, |op| {
+                            op.id("DeleteDemographicsResponse")
+                                .tag("Demographics")
+                                .summary("Delete a demographics response")
+                                .description(
+                                    "Delete a response for a specific demographics \
+                            question and user",
+                                )
+                                .security_requirement("JWT")
+                                .response::<200, Json<Option<DemographicsResponse>>>()
+                        }),
+                        state.keycloak_auth_instance.clone(),
+                        None,
+                    ),
+                )
+                .with_state(state.clone()),
         )
         .with_state(state.clone())
 }
