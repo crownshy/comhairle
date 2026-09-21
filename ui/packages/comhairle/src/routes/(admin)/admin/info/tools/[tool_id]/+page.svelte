@@ -19,11 +19,24 @@
 		<div class="mt-12 flex flex-col gap-5">
 			{#each guide.sections as section, i (i)}
 				{#if section.image}
-					<div
+					<!-- <div
 						class="border-border bg-muted flex h-64 w-full max-w-md items-center justify-center rounded-md border"
 					>
 						<ImageIcon class="text-muted-foreground/50 size-14" />
-					</div>
+					</div> -->
+					{#if section.image.src}
+						<img
+							class="border-border h-auto w-full max-w-md rounded-md border"
+							src={section.image.src}
+							alt={section.image.alt}
+						/>
+					{:else}
+						<div
+							class="border-border bg-muted flex h-64 w-full max-w-md items-center justify-center rounded-md border"
+						>
+							<ImageIcon class="text-muted-foreground/50 size-14" />
+						</div>
+					{/if}
 				{:else}
 					{#if section.heading}
 						<h2 class="text-foreground text-3xl font-semibold">{section.heading}</h2>

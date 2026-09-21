@@ -10,9 +10,20 @@ export type GuideSection = {
 	heading?: string;
 	/** Trusted static HTML (rendered with {@html}). */
 	html?: string;
-	/** Show a placeholder media block. */
-	image?: boolean;
+	/** Show a placeholder media block if image doesn't exist, otherwise displace the assigned image. */
+	image?: {
+		src?: string;
+		alt?: string;
+	};
 };
+
+const polisGuideImage = Object.values(
+	import.meta.glob('./assets/tools-polis.{png,jpg,jpeg,webp,avif}', {
+		eager: true,
+		query: '?url',
+		import: 'default'
+	})
+)[0] as string | undefined;
 
 export type ToolGuide = {
 	key: string;
@@ -50,7 +61,12 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 <p>It is mostly used when the organiser seeks to discover the starting point of reaching common ground of a controversial topic with complex stakeholder groups. (See case study)</p>
 <p>Its built-in feature of opinion groups discovery was also referred to as very useful for early stage consultations, especially its ability to reveal what views people might have given a topic.</p>`
 			},
-			{ image: true },
+			{
+				image: {
+					src: polisGuideImage,
+					alt: 'Wiki Poll interface'
+				}
+			},
 			{
 				heading: 'How it works',
 				html: `<p>Wiki Poll (<u>Pol.is</u>) is statement based; it lets participants vote agree/pass/disagree on others' statement contributions. The statements are in text form and limited to no more than 140 words. Participants are presented with statements others made and asked to vote 'Agree' if they agree, 'Disagree' if not fully agreed, and 'Pass/Skip' if neither.</p>
