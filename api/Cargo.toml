@@ -130,6 +130,10 @@ futures-util = "0.3.31"
 dashmap = "6.1.0"
 moka = { version = "0.12", features = ["future"] }
 
+# sensemaking 
+sensemaker_jobs ={path="../sensemaker/sensemaker_jobs"}
+sensemaker_types ={path="../sensemaker/sensemaker_types"}
+
 # adaptors
 
 heyform-sdk = { path = "../adaptors/heyform-rust-sdk" }
