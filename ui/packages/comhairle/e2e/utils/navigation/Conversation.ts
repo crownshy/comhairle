@@ -3,7 +3,7 @@ import { exists } from '..';
 import type { Page } from '../types';
 
 type Tabs = {
-	Configure: readonly ['Details', 'Content', 'Glossary', 'Access', 'Team'];
+	Configure: readonly ['Details', 'Content', 'Glossary', 'Moderation policy', 'Access', 'Team'];
 	'Process Design': readonly ['Add step'];
 	'Learning Assistant': undefined;
 	Events: readonly ['Add event'];
