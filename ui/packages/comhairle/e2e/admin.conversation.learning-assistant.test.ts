@@ -3,9 +3,8 @@ import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
 import Textboxes from './utils/inputs/Textboxes';
 import Switches from './utils/inputs/Switches';
-import { test } from './utils/testing';
+import { eventually, test } from './utils/testing';
 import { exists, sleep, testWithRefresh } from './utils';
-import { Minute, Second } from '../src/lib/utils/units';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -30,11 +29,8 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 	await page.getByRole('button', { name: 'Sync learn content' }).click();
 	await sleep(1.5);
 	await expect(page.getByText('Processing synced learn')).toBeVisible();
-	await expect(async () => {
+	await eventually(async () => {
 		await expect(page.getByText('Learn content synced and ready')).toBeVisible();
-	}).toPass({
-		intervals: [5 * Second],
-		timeout: 1 * Minute
 	});
 
 	// Documents

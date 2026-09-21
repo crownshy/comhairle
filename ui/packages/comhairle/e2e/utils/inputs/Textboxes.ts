@@ -1,5 +1,6 @@
 import { expect, type Locator } from '@playwright/test';
 import UserInputs, { Refs, UserInputsInput } from './UserInputs';
+import { generateValue } from '..';
 
 type Textbox<T extends string> = {
 	id: T;
@@ -38,9 +39,17 @@ const New = <const T extends string, U extends Textbox<T>>(
 	};
 };
 
+const Write = async (textbox: Locator, value?: string): Promise<string> => {
+	await textbox.click();
+	const newValue = value ?? generateValue();
+	await textbox.fill(newValue);
+	return newValue;
+};
+
 const Textboxes = {
 	new: New,
-	isValid: IsValid
+	isValid: IsValid,
+	write: Write
 };
 
 export default Textboxes;
