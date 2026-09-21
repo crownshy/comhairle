@@ -5,6 +5,7 @@ members = [
     "adaptors/heyform-rust-sdk",
     "adaptors/ragflow",
     "api_spec_gen",
+	"sensemaker/*"
 ]
 resolver = "2"
 
