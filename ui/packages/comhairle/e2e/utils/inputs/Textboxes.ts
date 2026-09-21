@@ -7,11 +7,14 @@ type Textbox<T extends string> = {
 	value: string;
 };
 
-const Textboxes = <const T extends string, U extends Textbox<T>>(
+const IsValid = (locator: Locator): Promise<boolean> =>
+	locator.evaluate((element) => (element as HTMLInputElement).validity.valid);
+
+const New = <const T extends string, U extends Textbox<T>>(
 	inputs: UserInputsInput<T>,
 	refs: Refs
-) =>
-	UserInputs<T, U>({
+) => {
+	const userInputs = UserInputs<T, U>({
 		inputs,
 		mutator: (name) =>
 			({
@@ -28,5 +31,16 @@ const Textboxes = <const T extends string, U extends Textbox<T>>(
 			await expect(textbox.locator).toHaveValue(textbox.value);
 		}
 	});
+
+	return {
+		...userInputs,
+		isValid: (id: T): Promise<boolean> => IsValid(userInputs.get(id).locator)
+	};
+};
+
+const Textboxes = {
+	new: New,
+	isValid: IsValid
+};
 
 export default Textboxes;
