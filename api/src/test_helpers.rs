@@ -176,11 +176,23 @@ pub fn test_auth_layer(
         move |mut req: extract::Request, next: Next| {
             let user = user.clone();
             async move {
-                let status = match user {
-                    Some(user) => KeycloakAuthStatus::Success(user.into_test_token()),
-                    None => KeycloakAuthStatus::Failure(Arc::new(AuthError::MissingToken)),
+                match user {
+                    Some(user) => {
+                        let token = user.into_test_token();
+                        // Account for `PassthroughMode::Block`, see `required_auth` on
+                        // `ComhairleState`
+                        req.extensions_mut().insert(token.clone());
+                        // Account for `PassthroughMode::Pass`, see `optional_auth` on
+                        // `ComhairleState`
+                        req.extensions_mut()
+                            .insert(KeycloakAuthStatus::Success(token))
+                    }
+                    None => req
+                        .extensions_mut()
+                        .insert(KeycloakAuthStatus::Failure(Arc::new(
+                            AuthError::MissingToken,
+                        ))),
                 };
-                req.extensions_mut().insert(status);
                 next.run(req).await
             }
         },
@@ -450,7 +462,8 @@ impl UserSession {
     pub fn new_kc_admin() -> Self {
         let kc_user_data = TestAuthUser::default();
         Self {
-            id: Some(kc_user_data.id), // TODO: this may need to be fixed
+            // TODO: this may need to be fixed value for referencing instead of randomly generated
+            id: Some(kc_user_data.id),
             username: None,
             email: None,
             password: None,
