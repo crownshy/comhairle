@@ -1,7 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
+import { key } from '$lib/utils/invalidationKey';
 
-export const load: PageLoad = async ({ params, parent }) => {
+export const load: PageLoad = async ({ params, parent, depends }) => {
+	depends(key('email-template-config'));
 	const { api } = await parent();
 	const { email_config_id } = params;
 
