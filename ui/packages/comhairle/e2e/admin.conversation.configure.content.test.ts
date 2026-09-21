@@ -28,7 +28,7 @@ test('Configure/Content page', async ({ page, cleanup }) => {
 	await collapsibleRichFields.write('faqs', ' ');
 	await collapsibleRichFields.write('thank_you', ' ');
 
-	const textboxes = Textboxes([['cta', 'Call to action']], { page, cleanup });
+	const textboxes = Textboxes.new([['cta', 'Call to action']], { page, cleanup });
 	await textboxes.write('cta', '');
 
 	await collapsibleRichFields.expect();

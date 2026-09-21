@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Details page', async ({ page, cleanup }) => {
-	const textboxes = Textboxes(
+	const textboxes = Textboxes.new(
 		[
 			['title', 'Title'],
 			['short_description', 'Short description'],
