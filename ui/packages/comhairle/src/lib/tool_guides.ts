@@ -1,5 +1,5 @@
 const guideImages = import.meta.glob(
-	'./assets/tools-{polis,thinkingspace,learnstep,video}.{png,jpg,jpeg,webp,avif}',
+	'./assets/tools-{polis,thinkingspace,learnstep,video,prioritisation,survey}.{png,jpg,jpeg,webp,avif}',
 	{
 		eager: true,
 		query: '?url',
@@ -11,6 +11,8 @@ const polisGuideImage = guideImages['./assets/tools-polis.png'];
 const thinkingSpaceGuideImage = guideImages['./assets/tools-thinkingspace.png'];
 const learnStepGuideImage = guideImages['./assets/tools-learnstep.png'];
 const videoGuideImage = guideImages['./assets/tools-video.png'];
+const prioritisationGuideImage = guideImages['./assets/tools-prioritisation.png'];
+const surveyGuideImage = guideImages['./assets/tools-survey.png'];
 
 /**
  * Editorial content for the Comhairle Tools Guide (/admin/info/tools/<key>).
@@ -45,22 +47,23 @@ export type ToolGuide = {
 	sections: GuideSection[];
 };
 
-const stub = (title: string, navLabel: string, key: string): ToolGuide => ({
-	key,
-	navLabel,
-	title,
-	sections: [
-		{
-			heading: 'What you need to know',
-			html: '<p>Detailed guidance for this tool is coming soon.</p>'
-		},
-		{ heading: 'How it works', html: '<p>Coming soon.</p>' },
-		{ heading: 'Mostly used in…', html: '<p>Coming soon.</p>' },
-		{ heading: 'Data collection and analysis', html: '<p>Coming soon.</p>' },
-		{ heading: 'A typical participant experience', html: '<p>Coming soon.</p>' },
-		{ heading: 'How to set this up', html: '<p>Coming soon.</p>' }
-	]
-});
+// we probably don't need these anymore
+// const stub = (title: string, navLabel: string, key: string): ToolGuide => ({
+// 	key,
+// 	navLabel,
+// 	title,
+// 	sections: [
+// 		{
+// 			heading: 'What you need to know',
+// 			html: '<p>Detailed guidance for this tool is coming soon.</p>'
+// 		},
+// 		{ heading: 'How it works', html: '<p>Coming soon.</p>' },
+// 		{ heading: 'Mostly used in…', html: '<p>Coming soon.</p>' },
+// 		{ heading: 'Data collection and analysis', html: '<p>Coming soon.</p>' },
+// 		{ heading: 'A typical participant experience', html: '<p>Coming soon.</p>' },
+// 		{ heading: 'How to set this up', html: '<p>Coming soon.</p>' }
+// 	]
+// });
 
 export const TOOL_GUIDES: Record<string, ToolGuide> = {
 	polis: {
@@ -326,14 +329,20 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		navLabel: 'Survey',
 		title: 'Survey',
 		atAGlance: {
-			bestFor: 'Add this later',
-			participantTime: 'Add this later',
-			setupTime: 'Add this later'
+			bestFor: 'Collecting structured feedback',
+			participantTime: '5 to 15 minutes',
+			setupTime: '15 to 30 minutes once content is ready'
 		},
 		sections: [
 			{
 				heading: 'What you need to know',
 				html: "<p>Survey is a structured data collection tool that lets organisers ask participants a series of questions and collect their responses in a consistent format. Unlike discussion-based tools, where participants respond to and build on each other\’s contributions, Survey is primarily designed to gather individual views, experiences, preferences, or demographic information. It is mostly used when the organiser wants to collect input from a larger number of participants, understand patterns across a group, or gather information before or after another stage of a Comhairle engagement. Surveys can include a mixture of question types, such as multiple choice, single choice, scales, rankings, and free-text responses. This makes them useful both for collecting structured quantitative data and for giving participants opportunities to explain their views in their own words. Survey can also be used alongside other Comhairle tools. For example, an organiser might use a survey at the beginning of an engagement to understand participants\’ starting views, use a Participant-led Poll or discussion to explore those views in more depth, and then use a second survey to understand whether participants' views have changed.</p>"
+			},
+			{
+				image: {
+					src: surveyGuideImage,
+					alt: 'survey interface'
+				}
 			},
 			{
 				heading: 'How it works',
@@ -358,9 +367,45 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			}
 		]
 	},
-	prioritization: stub('Prioritisation tool', 'Prioritisation tool', 'prioritization'),
-	elicitation_bot: stub('Elicitation Bot', 'Elicitation Bot', 'elicitation_bot'),
-	lived_experience: stub('Lived Experience', 'Lived Experience', 'lived_experience')
+	prioritization: {
+		key: 'prioritization',
+		navLabel: 'Prioritization tool',
+		title: 'Prioritization tool',
+		atAGlance: {
+			bestFor: 'Prioritising a set of proposals',
+			participantTime: '10 to 20 minutes',
+			setupTime: '30 to 60 minutes once content is ready'
+		},
+		sections: [
+			{
+				heading: 'What you need to know',
+				html: '<p>Prioritisation is a structured tool that lets organisers present participants with a set of proposals and ask them to give their views on each one. Rather than asking participants to develop proposals themselves, the tool is designed to help participants review, assess, and prioritise proposals that have already been developed. Organisers can configure the questions participants are asked about each proposal. For example, they might ask participants how strongly they agree or disagree with a proposal, how important the underlying issue is for them, and whether they have any comments or suggested changes. The tool is particularly useful as a second stage of engagement. An organiser might first run a discussion, consultation, or deliberative process, then use what was heard to produce a more concise set of proposals. Participants can then return to review those proposals and indicate which ones they support or consider most important. It can also be used when proposals have come from a wider public discussion and the organiser wants a specific group — such as stakeholders, practitioners, community representatives, or subject experts — to review them and provide feedback.</p>'
+			},
+			{
+				image: {
+					src: prioritisationGuideImage,
+					alt: 'survey interface'
+				}
+			},
+			{
+				heading: 'How it works',
+				html: '<p>The organiser creates a set of proposals and defines the questions participants will answer about them. Each proposal can include a title, description, and supporting information to help participants understand what is being proposed. The organiser can then configure the response format for each question. This might include an agreement scale, a rating, a choice between options, or a free-text comment. Participants work through the proposals and provide their views. Depending on the configuration, they may be able to comment on individual proposals as well as provide a structured response. Responses are collected across all proposals, allowing organisers to compare how participants responded to different proposals and identify areas of support, disagreement, or uncertainty.</p>'
+			},
+			{
+				heading: 'Mostly used in…',
+				html: '<p>Prioritisation is mostly used after an initial stage of engagement, when an organiser has enough information to turn discussion and feedback into a defined set of proposals. Typical uses include: <br><ul><li>Reviewing proposals developed through a deliberative process</li><li>Asking participants to respond to recommendations that have been developed from earlier discussions</li><li>Prioritising ideas generated through a public consultation</li><li>Testing whether participants agree with a proposed set of actions</li><li>Asking stakeholders or experts to review proposals</li><li>Giving participants an opportunity to comment on how earlier feedback has been translated into proposals</li><li>Comparing levels of support across a defined set of options</li></ul>The tool can therefore help create a clear link between what participants said earlier and what happens next. Organisers can explain how earlier contributions have informed the proposals, and then give participants an opportunity to respond to the resulting set.</p>'
+			},
+
+			{
+				heading: 'A typical participant experience',
+				html: '<p>Participants typically spend around 10–20 minutes working through a set of proposals.</p> <br><p>A typical activity might contain 5-7 proposals, with participants asked one or two questions about each. For example, they might indicate how strongly they agree with each proposal and then optionally provide a comment explaining their response. </p><br> <p> Participants can work through the proposals at their own pace and submit their responses once they have completed the activity. </p><br> <p> For a second-round engagement, organisers may provide participants with a summary of the earlier discussion or an explanation of how the proposals were developed before asking them to provide their views.</p>'
+			},
+			{
+				heading: 'How to set this up',
+				html: '<p>Conversation hosts will need to prepare: <ul><li>Name and description of the activity (required)</li><li>The set of proposals participants will review (required)</li><li>Questions for each proposal (required)</li><li>Response formats, including agreement scales, choices, or free text</li><li>Supporting information or context participants need to understand each proposal</li></ul>Hosts will also need to decide:<ul><li>Whether the proposals are displayed in order or at random for participants</li><li>Which questions are required and which are optional</li><li>How the results will be analysed and presented alongside earlier engagement</li></ul> Before launching the activity, organisers should make sure that proposals are clearly worded, distinct from one another, and sufficiently developed for participants to give a meaningful response.</p>'
+			}
+		]
+	}
 };
 
 /** Order of tools in the guide's left navigation. */
@@ -370,8 +415,7 @@ export const GUIDE_NAV_ORDER = [
 	'learn',
 	'survey',
 	'prioritization',
-	'elicitation_bot',
-	'lived_experience',
+
 	'online_group_conversation'
 ];
 
