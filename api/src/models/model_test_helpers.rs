@@ -20,7 +20,7 @@ pub async fn setup_default_app_and_session(
     let state = Arc::new(test_state().db(pool.clone()).call()?);
     let app = setup_server(state.clone()).await?;
 
-    let mut session = UserSession::new_admin();
+    let mut session = UserSession::new_kc_admin();
     let (_, user, _) = session.signup(&app).await?;
     let user_id = user
         .get("id")

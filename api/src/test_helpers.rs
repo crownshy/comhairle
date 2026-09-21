@@ -239,6 +239,13 @@ impl TestAuthUser {
             },
         }
     }
+
+    fn to_user_dto(self) -> Result<UserDto, Box<dyn Error>> {
+        let token_data = self.into_test_token();
+        let user = UserDto::try_from(token_data)?;
+
+        Ok(user)
+    }
 }
 
 pub const TEST_RESOURCE_TYPE: &str = "test";
@@ -399,6 +406,7 @@ pub struct UserSession {
     pub password: Option<String>,
     pub email: Option<String>,
     pub guest_code: Option<String>,
+    pub kc_user: Option<TestAuthUser>,
     pub cookies: Option<HashMap<String, String>>,
 }
 
@@ -410,6 +418,7 @@ impl UserSession {
             password: None,
             guest_code: None,
             email: None,
+            kc_user: None,
             cookies: None,
         }
     }
@@ -421,6 +430,7 @@ impl UserSession {
             password: Some(TEST_PASSWORD.into()),
             email: Some("admin@crown-shy.com".into()),
             guest_code: None,
+            kc_user: None,
             cookies: None,
         }
     }
@@ -432,6 +442,20 @@ impl UserSession {
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
             guest_code: None,
+            kc_user: None,
+            cookies: None,
+        }
+    }
+
+    pub fn new_kc_admin() -> Self {
+        let kc_user_data = TestAuthUser::default();
+        Self {
+            id: Some(kc_user_data.id), // TODO: this may need to be fixed
+            username: None,
+            email: None,
+            password: None,
+            guest_code: None,
+            kc_user: Some(kc_user_data),
             cookies: None,
         }
     }
@@ -771,13 +795,17 @@ impl UserSession {
 
     pub async fn current_user(
         &mut self,
-        app: &Router,
+        _app: &Router,
     ) -> Result<(StatusCode, UserDto, Vec<HeaderValue>), Box<dyn Error>> {
-        let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
+        // TODO: account for guest users
+        let user = self.kc_user.clone().unwrap().to_user_dto()?;
 
-        let user: UserDto = serde_json::from_value(value.clone())
-            .map_err(|err| format!("Failed to parse current user: {value:?} - Error: {err}"))?;
-        Ok((status, user, cookie))
+        Ok((StatusCode::OK, user, vec![]))
+        // let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
+        //
+        // let user: UserDto = serde_json::from_value(value.clone())
+        //     .map_err(|err| format!("Failed to parse current user: {value:?} - Error: {err}"))?;
+        // Ok((status, user, cookie))
     }
 
     pub async fn login(
@@ -828,24 +856,33 @@ impl UserSession {
         app: &Router,
     ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>
     {
-        let body: Body = if self.username.is_some() {
-            json!({"username":self.username, "password":self.password, "email":self.email})
-                .to_string()
-                .into()
+        // Guest users to use comhairle db
+        if self.guest_code.is_some() {
+            let body: Body = if self.username.is_some() {
+                json!({"username":self.username, "password":self.password, "email":self.email})
+                    .to_string()
+                    .into()
+            } else {
+                Body::empty()
+            };
+
+            let (status, value, cookie) = self.post(app, "/auth/signup", body).await?;
+
+            let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
+
+            if let Some(Some(id)) = user.get("id") {
+                let id: String = serde_json::from_value(id.clone()).unwrap();
+                self.id = Some(Uuid::parse_str(&id).unwrap());
+            }
+
+            Ok((status, user, cookie))
         } else {
-            Body::empty()
-        };
+            let user = self.kc_user.clone().unwrap().to_user_dto()?;
+            let user: HashMap<String, Option<Value>> =
+                serde_json::from_value(serde_json::to_value(user)?)?;
 
-        let (status, value, cookie) = self.post(app, "/auth/signup", body).await?;
-
-        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
-
-        if let Some(Some(id)) = user.get("id") {
-            let id: String = serde_json::from_value(id.clone()).unwrap();
-            self.id = Some(Uuid::parse_str(&id).unwrap());
+            Ok((StatusCode::OK, user, vec![]))
         }
-
-        Ok((status, user, cookie))
     }
 
     pub async fn resend_verification_email(

@@ -30,7 +30,8 @@ async fn create(
     RequiredAdminUser(user): RequiredAdminUser,
     Json(payload): Json<CreateEmailTemplateConfig>,
 ) -> Result<(StatusCode, Json<EmailTemplateConfigDto>), ComhairleError> {
-    let email_config = email_template_config::create(&state.db, user.id, &payload).await?;
+    let email_config =
+        email_template_config::create(&state.db, user.id, user.organization_id, &payload).await?;
 
     Ok((StatusCode::CREATED, Json(email_config.into())))
 }
