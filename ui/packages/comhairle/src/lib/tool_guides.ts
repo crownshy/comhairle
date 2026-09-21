@@ -1,3 +1,17 @@
+const guideImages = import.meta.glob(
+	'./assets/tools-{polis,thinkingspace,learnstep,video}.{png,jpg,jpeg,webp,avif}',
+	{
+		eager: true,
+		query: '?url',
+		import: 'default'
+	}
+) as Record<string, string>;
+
+const polisGuideImage = guideImages['./assets/tools-polis.png'];
+const thinkingSpaceGuideImage = guideImages['./assets/tools-thinkingspace.png'];
+const learnStepGuideImage = guideImages['./assets/tools-learnstep.png'];
+const videoGuideImage = guideImages['./assets/tools-video.png'];
+
 /**
  * Editorial content for the Comhairle Tools Guide (/admin/info/tools/<key>).
  *
@@ -5,6 +19,8 @@
  * Figma mockups (obvious typos fixed). Tools without provided copy carry the section
  * scaffold with a "coming soon" stub. Refine copy here — the pages just render it.
  */
+
+const polisTitle = 'Participant-led Poll';
 
 export type GuideSection = {
 	heading?: string;
@@ -17,13 +33,13 @@ export type GuideSection = {
 	};
 };
 
-const polisGuideImage = Object.values(
-	import.meta.glob('./assets/tools-polis.{png,jpg,jpeg,webp,avif}', {
-		eager: true,
-		query: '?url',
-		import: 'default'
-	})
-)[0] as string | undefined;
+// const polisGuideImage = Object.values(
+// 	import.meta.glob('./assets/tools-polis.{png,jpg,jpeg,webp,avif}', {
+// 		eager: true,
+// 		query: '?url',
+// 		import: 'default'
+// 	})
+// )[0] as string | undefined;
 
 export type ToolGuide = {
 	key: string;
@@ -52,42 +68,38 @@ const stub = (title: string, navLabel: string, key: string): ToolGuide => ({
 export const TOOL_GUIDES: Record<string, ToolGuide> = {
 	polis: {
 		key: 'polis',
-		navLabel: 'Wiki Poll (Pol.is)',
-		title: 'Wiki Poll (Pol.is)',
+		navLabel: polisTitle,
+		title: polisTitle,
 		sections: [
 			{
 				heading: 'What you need to know',
-				html: `<p>Wiki Poll (<u>Pol.is</u>) is a crowd survey tool that lets participants input their views and vote agree/pass/disagree on others' contributions. This enables understanding what opinion groups there are for a given topic, what representative views these groups hold, and importantly, revealing shared common ground across opinion groups.</p>
+				html: `<p>${polisTitle} is a crowd survey tool that lets participants input their views and vote agree/pass/disagree on others' contributions. This enables understanding what opinion groups there are for a given topic, what representative views these groups hold, and importantly, revealing shared common ground across opinion groups.</p>
 <p>It is mostly used when the organiser seeks to discover the starting point of reaching common ground of a controversial topic with complex stakeholder groups. (See case study)</p>
 <p>Its built-in feature of opinion groups discovery was also referred to as very useful for early stage consultations, especially its ability to reveal what views people might have given a topic.</p>`
 			},
 			{
 				image: {
 					src: polisGuideImage,
-					alt: 'Wiki Poll interface'
+					alt: 'Participant-led Poll interface'
 				}
 			},
 			{
 				heading: 'How it works',
-				html: `<p>Wiki Poll (<u>Pol.is</u>) is statement based; it lets participants vote agree/pass/disagree on others' statement contributions. The statements are in text form and limited to no more than 140 words. Participants are presented with statements others made and asked to vote 'Agree' if they agree, 'Disagree' if not fully agreed, and 'Pass/Skip' if neither.</p>
-<p>Participants are able to input their views to this wiki-styled poll (where the statements under polling are crowdsourced). They can do this anytime while interacting with Wiki Poll (<u>Pol.is</u>), including while casting their votes on others' statements.</p>
+				html: `${polisTitle} is statement based; it lets participants vote agree/pass/disagree on others' statement contributions. The statements are in text form and limited to no more than 140 words. Participants are presented with statements others made and asked to vote 'Agree' if they agree, 'Disagree' if not fully agreed, and 'Pass/Skip' if neither.</p>
+<p>Participants are able to input their views to this wiki-styled poll (where the statements under polling are crowdsourced). They can do this anytime while interacting with ${polisTitle}, including while casting their votes on others' statements.</p>
 <p>The data of participant votes on each statement enable discovery of opinion groups (forming participant clusters of who voted similarly), and their respective representative opinion. Importantly, this collective data also reveals what their shared understandings might be across opinion groups (identifying bridging opinions capturing the same votes across participants from different opinion groups).</p>`
 			},
 			{
 				heading: 'Mostly used in…',
-				html: `<p>Wiki Poll is mostly used in topics which contain complex stakeholder groups and are anticipated to have controversial opinions. Being able to find common ground helps identify a starting point for further collaborative and constructive discussion. Therefore, Wiki Poll is often seen used before an in-person discussion, which helps ease the tension between formerly opposing opinion groups.</p>`
-			},
-			{
-				heading: 'Data collection and analysis',
-				html: `<p>When running a Wiki Poll (<u>Pol.is</u>), participants should be informed that their statement and votes data will be captured and used for analysis.</p>`
+				html: `<p>${polisTitle} is mostly used in topics which contain complex stakeholder groups and are anticipated to have controversial opinions. Being able to find common ground helps identify a starting point for further collaborative and constructive discussion. Therefore, ${polisTitle} is often seen used before an in-person discussion, which helps ease the tension between formerly opposing opinion groups.</p>`
 			},
 			{
 				heading: 'A typical participant experience',
-				html: `<p>Participants typically interact with Wiki Poll for about 10 to 15 minutes and in this time they go through about 20 statements and perhaps add one or two of their own statements to the poll. Comhairle provides an option for organisers to configure a minimum number of statements each participant should go through, before they can move on to the next step of the end-to-end engagement process.</p>`
+				html: `<p>Participants typically interact with ${polisTitle} for about 10 to 15 minutes and in this time they go through about 20 statements and perhaps add one or two of their own statements to the poll. Comhairle provides an option for organisers to configure a minimum number of statements each participant should go through, before they can move on to the next step of the end-to-end engagement process.</p>`
 			},
 			{
 				heading: 'How to set this up',
-				html: `<p>Setting up a Wiki Poll is extremely easy. Setting up a Wiki Poll typically takes organisers about 15 to 30 minutes adding content and configuring settings when contents are ready.</p>
+				html: `<p>Setting up a ${polisTitle} is extremely easy. Setting up a ${polisTitle} typically takes organisers about 15 to 30 minutes adding content and configuring settings when contents are ready.</p>
 <p>Organisers will need to prepare the following:</p>
 <ul>
 <li>A short overview description of the topic (about 50 words)</li>
@@ -102,7 +114,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				heading: 'The open source tool we use: Pol.is',
-				html: `<p>Wiki Poll (<u>Pol.is</u>) is powered by an open source civic tech tool named Pol.is. Polis is created and stewarded by the Computational Democracy Project, and is a groundbreaking open-source platform for collective intelligence. It allows groups to contribute statements, vote agree/pass/disagree on others' contributions, and visualise where consensus and differences lie.</p>`
+				html: `<p>${polisTitle} is powered by an open source civic tech tool named Pol.is. Polis is created and stewarded by the Computational Democracy Project, and is a groundbreaking open-source platform for collective intelligence. It allows groups to contribute statements, vote agree/pass/disagree on others' contributions, and visualise where consensus and differences lie.</p>`
 			}
 		]
 	},
@@ -118,7 +130,12 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 <p>It's useful when a topic touches ethical, value or principle level questions, such as "Lower voting age to 16." It is also helpful when a topic is too distant to some participants who might find it difficult to come up with their own views while navigating a topic they hardly thought of before, such as "Space sector policy".</p>
 <p>It's reported by organisers that it's helpful to be used right after a learning step which onboards participants about a complex topic, or right before an in-person workshop so the participants at least think about the topic to a certain degree. Some organisers prefer to consider this thinking space as a private reflection space for participants; some prefer to keep it as a collective conversation space where a view from one participant could be viewed by others, which sparks discussion.</p>`
 			},
-			{ image: true },
+			{
+				image: {
+					src: thinkingSpaceGuideImage,
+					alt: 'Thinking space interface'
+				}
+			},
 			{
 				heading: 'How it works',
 				html: `<p>Thinking space is questions-and-responses based. An LLM is prompted to ask coaching questions based on a topic and some questions the organiser sets up; the LLM generates follow-up questions according to the user's response and the intention behind why the organiser set up those questions.</p>
@@ -177,7 +194,12 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 <p>The Media library that comes with the Learning step is a place where organisers can upload files to support their content. Be cautious that these files are shared across conversations within the organisation. Therefore, when uploading media files, be aware that they can be viewed by other organisers in your organisation.</p>
 <p>The Learn step also comes with an optional feature, Learning Assistant, that the organiser can choose to switch on.</p>`
 			},
-			{ image: true },
+			{
+				image: {
+					src: learnStepGuideImage,
+					alt: 'learn step interface'
+				}
+			},
 			{
 				heading: 'How it works',
 				html: `<p>How the Learn step works is quite straightforward; it works similarly to a blog content builder where editors can create articles with optional visual or other rich media content. Our Learn step's rich media editor is very powerful. It allows editors not only to upload rich media but also to attach supporting documents in between articles if desired.</p>
@@ -233,7 +255,12 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 <p>It is mostly used when the organiser wants participants to talk to each other directly, work through disagreement in the moment, or build on the common ground surfaced by earlier tools (such as Wiki Poll) through live discussion.</p>
 <p>Its built-in support for breakout rooms, real-time transcription, and upcoming features such as embedded interactive tools (e.g. polling mid-call) also makes it useful for running an entire structured deliberation event within a single session.</p>`
 			},
-			{ image: true },
+			{
+				image: {
+					src: videoGuideImage,
+					alt: 'video interface'
+				}
+			},
 			{
 				heading: 'How it works',
 				html: `<p>Video Call is session based. A conversation host sets up a call with a start date/time, end time, and a name and description of what the call is about. Hosts can also assign a facilitator, estimate expected capacity, decide whether to use breakout rooms, and choose whether an agenda is shown to participants during the call.</p>
