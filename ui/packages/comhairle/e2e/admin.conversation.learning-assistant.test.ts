@@ -62,7 +62,7 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 	await TargetReadingAge.fill('18');
 
 	cleanup(async () => {
-		TargetReadingAge.fill('9');
+		await TargetReadingAge.fill('9');
 	});
 
 	await TargetReadingAge.fill('19');
