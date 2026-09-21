@@ -1,18 +1,9 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Progress } from '$lib/components/ui/progress';
-	import {
-		Plus,
-		Trash2,
-		Upload,
-		Search,
-		Check,
-		TriangleAlert,
-		Languages,
-		Info
-	} from 'lucide-svelte';
+	import { Plus, Trash2, Upload, Search, Languages, Info } from 'lucide-svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -26,6 +17,8 @@
 	import { parseGlossaryCsv } from '$lib/glossary/glossaryCsv';
 	import type { LocalizedGlossary } from '$lib/glossary/types';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import { Autosave } from './autosave.svelte';
+	import SaveStatusPill from './SaveStatusPill.svelte';
 
 	let {
 		conversationId,
@@ -110,14 +103,18 @@
 	});
 
 	// --- Autosave: persist a debounced snapshot on every edit, like the other config fields.
-	let saveState = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
-	let saveTimer: ReturnType<typeof setTimeout> | undefined;
-	// `dirty` is true from the moment an edit is made until its save lands. Drives both the
-	// status pill and the leave-page guard.
-	let dirty = $state(false);
+	const autosave = new Autosave(() =>
+		apiClient.PatchConversationMetadata(
+			{ [GLOSSARY_METADATA_KEY]: toLocalizedGlossary() },
+			{ params: { conversation_id: conversationId } }
+		)
+	);
 
 	// Warn before leaving (in-app nav or full refresh) while an edit hasn't been saved yet.
-	guardUnsavedChanges(() => dirty);
+	guardUnsavedChanges(() => autosave.dirty);
+
+	// Flush a pending save when leaving the tab so the last keystroke isn't lost.
+	onDestroy(() => autosave.flush());
 
 	/** Rows -> a clean translatable glossary, dropping empties and splitting the terms per locale. */
 	function toLocalizedGlossary(): LocalizedGlossary {
@@ -142,53 +139,14 @@
 		return glossary;
 	}
 
-	async function commit() {
-		saveTimer = undefined;
-		saveState = 'saving';
-		const startedAt = performance.now();
-		const glossary = toLocalizedGlossary();
-		const result = await tryCatchAsync(() =>
-			apiClient.PatchConversationMetadata(
-				{ [GLOSSARY_METADATA_KEY]: glossary },
-				{ params: { conversation_id: conversationId } }
-			)
-		);
-		if (result.err) {
-			saveState = 'error';
-			return; // stay dirty so the guard still warns
-		}
-		// Keep "Saving…" on screen long enough to actually register; a fast local save
-		// would otherwise flip straight to "Saved" and the spinner would never be seen.
-		const elapsed = performance.now() - startedAt;
-		if (elapsed < 500) await new Promise((r) => setTimeout(r, 500 - elapsed));
-		saveState = 'saved';
-		dirty = false;
-	}
-
-	function scheduleSave() {
-		dirty = true;
-		clearTimeout(saveTimer);
-		saveTimer = setTimeout(commit, 700);
-	}
-
-	// Flush a pending save when leaving the tab so the last keystroke isn't lost.
-	$effect(() => {
-		return () => {
-			if (saveTimer) {
-				clearTimeout(saveTimer);
-				commit();
-			}
-		};
-	});
-
 	function setTerms(row: Row, value: string) {
 		row.terms[activeLocale] = value;
-		scheduleSave();
+		autosave.schedule();
 	}
 
 	function setTooltip(row: Row, value: string) {
 		row.tooltips[activeLocale] = value;
-		scheduleSave();
+		autosave.schedule();
 	}
 
 	async function addRow() {
@@ -203,7 +161,7 @@
 	function removeRow(id: number) {
 		rows = rows.filter((row) => row.id !== id);
 		if (rows.length === 0) rows = [toRow({}, {})];
-		scheduleSave();
+		autosave.schedule();
 	}
 
 	/**
@@ -249,7 +207,7 @@
 			return;
 		}
 
-		scheduleSave();
+		autosave.schedule();
 		notifications.addFlash({
 			message: `Imported ${result.ok} term${result.ok === 1 ? '' : 's'} into ${activeName}`,
 			priority: 'SUCCESS'
@@ -305,7 +263,7 @@
 		}
 
 		translating = false;
-		scheduleSave();
+		autosave.schedule();
 
 		const ok = targets.length - failed;
 		notifications.addFlash({
@@ -420,27 +378,7 @@
 			onchange={importCsv}
 		/>
 
-		{#if saveState !== 'idle'}
-			<span
-				class={cn(
-					'ml-auto flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm',
-					saveState === 'error'
-						? 'bg-destructive/10 text-destructive'
-						: saveState === 'saving'
-							? 'bg-primary text-primary-foreground'
-							: 'bg-muted text-muted-foreground'
-				)}
-				aria-live="polite"
-			>
-				{#if saveState === 'saving'}
-					<Spinner class="size-3.5" /> Saving…
-				{:else if saveState === 'saved'}
-					<Check class="size-3.5" /> Saved
-				{:else}
-					<TriangleAlert class="size-3.5" /> Not saved
-				{/if}
-			</span>
-		{/if}
+		<SaveStatusPill status={autosave.status} />
 	</div>
 
 	<!-- Dense, spreadsheet-style grid. On a translation tab the source (primary) term shows

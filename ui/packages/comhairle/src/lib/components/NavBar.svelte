@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
-	import { ProfileMenu, LoginButtons } from '$lib/profile';
+	import { ProfileMenu } from '$lib/profile';
 	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import * as Drawer from '$lib/components/ui/drawer';
@@ -25,6 +25,9 @@
 	import { userInitials } from '$lib/utils';
 	import { Separator } from '$lib/components/ui/separator';
 	import { notificationService } from '$lib/services/notifications.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { notifications } from '$lib/notifications.svelte';
+	import { goto } from '$app/navigation';
 
 	let links = [
 		{
@@ -60,6 +63,20 @@
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
 	const linkIcons = [Home, Info, MessageSquare, Shield];
+
+	async function attemptLogout() {
+		try {
+			await apiClient.LogoutUser(undefined);
+
+			await goto('/', { invalidate: ['user'] });
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				priority: 'ERROR',
+				message: 'An error occurred when attempting to logout '
+			});
+		}
+	}
 </script>
 
 <nav
@@ -133,7 +150,7 @@
 								</Avatar.Root>
 								<div class="flex flex-col">
 									<span class="text-foreground text-sm font-medium">
-										{#if user.authType === 'annon'}Anonymous{:else}{user.username}{/if}
+										{#if user.authType === 'guest'}Guest{:else}{user.guestCode}{/if}
 									</span>
 									{#if user.email}
 										<span class="text-muted-foreground text-xs"
@@ -218,7 +235,14 @@
 						<!-- Auth actions -->
 						{#if user}
 							<Separator />
-							<form method="POST" action="/auth/logout" class="px-0">
+							<form
+								method="POST"
+								onsubmit={(e) => {
+									e.preventDefault();
+									attemptLogout();
+								}}
+								class="px-0"
+							>
 								<Button
 									type="submit"
 									variant="ghost"

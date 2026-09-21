@@ -6,7 +6,7 @@
 	import Speech from 'lucide-svelte/icons/speech';
 	import Drama from 'lucide-svelte/icons/drama';
 	import Scroll from 'lucide-svelte/icons/scroll-text';
-	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import ReportBody from '$lib/reports/ReportBody.svelte';
 
 	let { data } = $props();
 	let { conversation, workflowSteps, report } = data;
@@ -49,7 +49,7 @@
 			<h2 class="text-xl font-bold">Key Takeaways</h2>
 
 			<div class="mb-4">
-				<ContentRenderer content={report.summary} conversationId={conversation.id} />
+				<ReportBody content={report.summary} conversationId={conversation.id} />
 			</div>
 
 			<h2 class="text-xl font-bold">Impacts</h2>

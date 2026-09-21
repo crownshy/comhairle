@@ -9,7 +9,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { page } from '$app/state';
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
-	import { loginRedirect, signupRedirect } from '$lib/urls.js';
+	import { loginRedirectClient, signupRedirect } from '$lib/urls.js';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import { key } from '$lib/utils/invalidationKey.js';
 
@@ -35,7 +35,7 @@
 
 	function doJoin() {
 		if (!user && firstWorkflow.autoLogin) {
-			registerAnnonUserSignupAndRedirect();
+			registerGuestUserSignupAndRedirect();
 		} else {
 			registerUser();
 		}
@@ -66,13 +66,13 @@
 	async function redirectToLogin() {
 		if (isSubmitting) return;
 		isSubmitting = true;
-		loginRedirect(url.pathname, 'Login to join the conversation');
+		loginRedirectClient(url.pathname, 'Login to join the conversation');
 	}
 
-	// Register a new annon user, sign them up for
+	// Register a new guest user, sign them up for
 	// the workflow and redirect to it
-	async function registerAnnonUserSignupAndRedirect() {
-		await apiClient.SignupAnnonUser(undefined, {});
+	async function registerGuestUserSignupAndRedirect() {
+		await apiClient.SignupGuestUser(undefined, {});
 
 		await apiClient.RegisterUserForConversationWorkflow(undefined, {
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }

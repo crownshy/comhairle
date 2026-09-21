@@ -78,13 +78,14 @@ export function renderRichTextToHtml(
 			content: document,
 			extensions,
 			options: {
-				// Embedded report components render as their stored frozen HTML (ADR-0012).
-				// This injects our own trusted, component-generated markup straight into the
-				// output string — it is NOT author-typed content. Keep it that way: never map
-				// a node here to arbitrary user input.
+				// Embedded report components are LIVE (ADR-0012): they mount the real Svelte
+				// component in the editor and on the published page. This static path has no JS
+				// to mount them (it's for no-JS surfaces like email), so it emits a placeholder
+				// rather than the component. The published web report does NOT go through here
+				// for embeds — it interleaves the live component itself.
 				nodeMapping: {
-					reportComponentEmbed: ({ node }) =>
-						`<div class="report-embed">${(node.attrs.frozenHtml as string) ?? ''}</div>`
+					reportComponentEmbed: () =>
+						`<div class="report-embed report-embed--placeholder">This report component is available in the online report.</div>`
 				}
 			}
 		});

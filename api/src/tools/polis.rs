@@ -61,6 +61,10 @@ pub struct PolisToolConfig {
     // with a "conversation starter" label in the participant embed.
     #[serde(default)]
     pub label_seeds_as_conversation_starter: bool,
+    // Reasons offered when rejecting a statement. None means the built-in
+    // defaults in models::moderation_policy::DEFAULT_REASONS.
+    #[serde(default)]
+    pub moderation_policy_id: Option<Uuid>,
 }
 
 fn default_show_remaining_statements() -> bool {
@@ -81,6 +85,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             is_active: self.is_active,
             strict_moderation: self.strict_moderation,
             label_seeds_as_conversation_starter: self.label_seeds_as_conversation_starter,
+            moderation_policy_id: self.moderation_policy_id,
         }
     }
 }
@@ -157,6 +162,21 @@ impl ToolImpl for PolisTool {
                         .summary("Get Polis report data for a workflow step")
                         .description("Fetches the polis data export for a given workflow step")
                         .response::<200, Json<WikiPollReport>>()
+                }),
+            )
+            .api_route(
+                "/polis/vote_count",
+                get_with(get_user_vote_count, |op| {
+                    op.id("PolisGetUserVoteCount")
+                        .tag("Tools")
+                        .summary("Get the calling participant's vote count for a step")
+                        .description(
+                            "Counts the votes the authenticated participant has cast in the \
+                             Polis poll for the given workflow step, mapping their comhairle \
+                             user id to the Polis participant via xids. Used to seed the \
+                             required-votes progress from server data.",
+                        )
+                        .response::<200, Json<VoteCountResponse>>()
                 }),
             )
             .api_route(
@@ -358,6 +378,9 @@ pub enum PolisError {
     #[error("Failed to get xids {0}")]
     FailedToGetXIDs(StatusCode, String),
 
+    #[error("Failed to get votes {0}")]
+    FailedToGetVotes(String),
+
     #[error("Failed to update poll {0}")]
     FailedPollUpdate(StatusCode, String),
 
@@ -478,6 +501,64 @@ async fn get_report_data(
         .await?;
 
     Ok((StatusCode::OK, Json(data)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct VoteCountQuery {
+    pub workflow_step_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct VoteCountResponse {
+    pub vote_count: u32,
+}
+
+/// Returns how many votes the calling participant has cast in the poll for this
+/// step. Used to seed the "required votes" progress from server data so it is
+/// correct across devices, instead of relying only on a per-device local count.
+#[instrument(err(Debug), skip(state))]
+async fn get_user_vote_count(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(VoteCountQuery { workflow_step_id }): Query<VoteCountQuery>,
+) -> Result<(StatusCode, Json<VoteCountResponse>), ComhairleError> {
+    let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    // The participant's comhairle user id is stored as their Polis xid, so we map
+    // it back to the Polis participant id (pid) to count their votes.
+    let pid = client
+        .get_xids(&config.poll_id, &auth_cookies)
+        .await?
+        .into_iter()
+        .find(|row| Uuid::parse_str(&row.xid).ok() == Some(user.id))
+        .map(|row| row.pid);
+
+    // No xid mapping means the participant has not registered in Polis yet, which
+    // only happens before they cast their first vote, so a zero count is correct.
+    let vote_count = match pid {
+        Some(pid) => {
+            client
+                .get_participant_vote_count(&config.poll_id, pid, &auth_cookies)
+                .await?
+        }
+        None => 0,
+    };
+
+    Ok((StatusCode::OK, Json(VoteCountResponse { vote_count })))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -1162,7 +1243,10 @@ pub async fn launch(
             .await?;
     }
 
-    Ok(live_poll_config)
+    Ok(PolisToolConfig {
+        moderation_policy_id: preview_config.moderation_policy_id,
+        ..live_poll_config
+    })
 }
 
 async fn polis_setup(
@@ -1193,6 +1277,7 @@ async fn polis_setup(
         is_active: Some(true),
         strict_moderation: Some(false),
         label_seeds_as_conversation_starter: false,
+        moderation_policy_id: None,
     })
 }
 

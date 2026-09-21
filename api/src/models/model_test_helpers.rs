@@ -74,7 +74,7 @@ pub async fn get_random_user_id(
     app: &Router,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
-    let (_, response, _) = session.signup_annon(app).await?;
+    let (_, response, _) = session.signup_guest(app).await?;
     let user: UserDto = serde_json::from_value(serde_json::to_value(response)?)?;
 
     Ok(user.id)

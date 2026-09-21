@@ -1,19 +1,13 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
-	import { apiClient } from '@crownshy/api-client/client';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
-	import { notifications } from '$lib/notifications.svelte';
 	import ChartNoAxesColumn from 'lucide-svelte/icons/chart-no-axes-column';
 	import ChevronRight from 'lucide-svelte/icons/chevron-right';
-	import Loader from 'lucide-svelte/icons/loader-circle';
-	import { polisInsightsLoader } from '$lib/reports/polis/insights-loader';
 	import {
 		POLIS_EMBEDDABLE_COMPONENTS,
-		type EmbeddableComponentMeta,
-		type PolisEmbeddableComponentType
+		type EmbeddableComponentMeta
 	} from '$lib/reports/polis/embeddableComponents';
-	import { freezePolisComponent } from './reportEmbed/freezeReportComponent';
 
 	/** A report-capable Step offered in stage 1 of the picker. */
 	export type EmbeddableStep = { id: string; name: string; toolType: string };
@@ -22,7 +16,6 @@
 
 	let open = $state(false);
 	let selectedStep = $state<EmbeddableStep | null>(null);
-	let inserting = $state(false);
 
 	// MVP: Polis only. When more tools land, switch the allow-list on selectedStep.toolType.
 	const componentsForStep = $derived<EmbeddableComponentMeta[]>(
@@ -31,41 +24,23 @@
 
 	function reset() {
 		selectedStep = null;
-		inserting = false;
 	}
 
 	function pickStep(step: EmbeddableStep) {
 		selectedStep = step;
 	}
 
-	async function pickComponent(meta: EmbeddableComponentMeta) {
-		if (!editor || !selectedStep || inserting) return;
-		inserting = true;
-		try {
-			const { polis } = await polisInsightsLoader(apiClient, selectedStep.id);
-			const frozenHtml = freezePolisComponent(
-				meta.type as PolisEmbeddableComponentType,
-				polis.reportData,
-				polis.statementAux
-			);
-			editor
-				.chain()
-				.focus()
-				.setReportComponentEmbed({
-					toolStepId: selectedStep.id,
-					componentType: meta.type,
-					frozenHtml
-				})
-				.run();
-			open = false;
-			reset();
-		} catch {
-			notifications.send({
-				message: 'Could not embed that component. Please try again.',
-				priority: 'ERROR'
-			});
-			inserting = false;
-		}
+	// Insert stores only the reference (ADR-0012); the embedded component loads its own data
+	// live, so this is instant — no freeze step.
+	function pickComponent(meta: EmbeddableComponentMeta) {
+		if (!editor || !selectedStep) return;
+		editor
+			.chain()
+			.focus()
+			.setReportComponentEmbed({ toolStepId: selectedStep.id, componentType: meta.type })
+			.run();
+		open = false;
+		reset();
 	}
 </script>
 
@@ -97,7 +72,7 @@
 			</Dialog.Title>
 			<Dialog.Description>
 				{selectedStep
-					? `Pick which part of "${selectedStep.name}" to embed. It's added as a snapshot where your cursor is.`
+					? `Pick which part of "${selectedStep.name}" to embed. It's added where your cursor is.`
 					: 'Embed results from a step in this conversation into the report.'}
 			</Dialog.Description>
 		</Dialog.Header>
@@ -127,31 +102,20 @@
 				{#each componentsForStep as meta (meta.type)}
 					<button
 						type="button"
-						disabled={inserting}
-						class="hover:bg-accent flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left disabled:opacity-60"
+						class="hover:bg-accent flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left"
 						onclick={() => pickComponent(meta)}
 					>
 						<span class="flex flex-col">
 							<span class="text-base font-medium">{meta.label}</span>
 							<span class="text-muted-foreground text-sm">{meta.description}</span>
 						</span>
-						{#if inserting}
-							<Loader class="text-muted-foreground size-4 animate-spin" />
-						{:else}
-							<ChevronRight class="text-muted-foreground size-4" />
-						{/if}
+						<ChevronRight class="text-muted-foreground size-4" />
 					</button>
 				{/each}
 			</div>
 			<Dialog.Footer class="sm:justify-start">
-				<Button
-					variant="ghost"
-					size="sm"
-					disabled={inserting}
-					onclick={() => (selectedStep = null)}
+				<Button variant="ghost" size="sm" onclick={() => (selectedStep = null)}>Back</Button
 				>
-					Back
-				</Button>
 			</Dialog.Footer>
 		{/if}
 	</Dialog.Content>

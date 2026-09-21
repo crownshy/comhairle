@@ -282,7 +282,7 @@ mod tests {
             _ => panic!("Incorrect tool_config type"),
         };
 
-        let user_a = users::create_annon_user(&pool).await?;
+        let user_a = users::create_guest_user(&pool).await?;
         let create_response_a_a = CreateResponse {
             question_responses: vec![
                 Response {
@@ -314,7 +314,7 @@ mod tests {
         create(&pool, &proposal_a.id, &user_a.id, &create_response_a_a).await?;
         create(&pool, &proposal_b.id, &user_a.id, &create_response_a_b).await?;
 
-        let user_b = users::create_annon_user(&pool).await?;
+        let user_b = users::create_guest_user(&pool).await?;
         let create_response_b_a = CreateResponse {
             question_responses: vec![
                 Response {
@@ -346,7 +346,7 @@ mod tests {
         create(&pool, &proposal_a.id, &user_b.id, &create_response_b_a).await?;
         create(&pool, &proposal_b.id, &user_b.id, &create_response_b_b).await?;
 
-        let user_c = users::create_annon_user(&pool).await?;
+        let user_c = users::create_guest_user(&pool).await?;
         let create_response_c_a = CreateResponse {
             question_responses: vec![
                 Response {

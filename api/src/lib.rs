@@ -144,7 +144,7 @@ async fn health_check() -> &'static str {
 /// Note that sub-routers like `routes::auth::router` are async and must be `.await`ed.
 pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi) {
     aide::generate::on_error(|error| {
-        println!("{error}");
+        tracing::error!("{error}");
     });
 
     aide::generate::extract_schemas(true);
@@ -254,6 +254,14 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
                     routes::chats::router(state.clone()),
                 )
                 .nest_api_service(
+                    "/{conversation_id}/chat_instructions",
+                    routes::chat_instructions::router(state.clone()),
+                )
+                .nest_api_service(
+                    "/{conversation_id}/moderation_policies",
+                    routes::moderation_policies::router(state.clone()),
+                )
+                .nest_api_service(
                     "/{conversation_id}/chat_sessions",
                     routes::chat_sessions::router(state.clone()),
                 )
@@ -305,6 +313,7 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
         )
         .nest_api_service("/permissions", routes::permissions::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
+        .nest_api_service("/demographics", routes::demographics::router(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),

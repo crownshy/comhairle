@@ -153,7 +153,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_matching_user_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let user = users::create_annon_user(&pool).await?;
+        let user = users::create_guest_user(&pool).await?;
 
         let key = create(
             &pool,

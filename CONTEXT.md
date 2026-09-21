@@ -153,6 +153,14 @@ Comhairle's `polis_statement_aux` sidecar table, one row per Polis statement, ho
 **Moderation status**:
 The three-value review state of a statement: `accepted · pending · rejected` (enum `ModerationStatus`). Not the same as `is_seed`.
 
+**Moderation policy**:
+The [[#reject-reason]]s a moderator can pick when rejecting a statement. A policy belongs to a Conversation and lives in the `moderation_policy` table, with its reasons (label, optional description, position) in `moderation_policy_reason`. A Polis Step points at one through `moderation_policy_id` in its tool config, and Steps in the same Conversation can share one. A Step with no policy uses the Conversation's policy if it has one, otherwise the five default reasons. The admin UI edits one policy per Conversation, in Configure. See ADR-0038.
+_Avoid_: rejection rules, moderation settings (the Polis `strict_moderation` flag is a different thing).
+
+**Reject reason**:
+One entry in a [[#moderation-policy]]: a short label plus an optional description of what counts under it. When a moderator picks one, the label (and any note) is stored as text in `polis_statement_aux.moderation_reason` as `"Label: note"` (ADR-0015). Only moderators see reasons. Editing the policy never rewrites reasons already recorded.
+_Avoid_: rejection code, category letter.
+
 **Theme**:
 A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. (Future: T3C may write machine themes into the same store.)
 
@@ -180,8 +188,8 @@ _Status_: Partially skeletoned. Each tool folder already exports an (unused) `Re
 The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*) — **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list.
 _Avoid_: report piece (use "section block" for the embeddable unit).
 
-**Report component embed** (a.k.a. the snapshot node):
-A TipTap node in the report's `summary` document that carries an embedded [[#embeddable-section-block]]. It stores both a **reference** (`toolStepId`, `componentType`, `config`) and the **frozen HTML** rendered from that component; the frozen HTML is what renders everywhere, the reference is the recipe for a future re-freeze / refresh (see [ADR-0012](documentation/adr/0012-report-component-embeds-store-reference-plus-frozen-html.md), building on [ADR-0008](documentation/adr/0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md)). Because the HTML is baked in, deleting the source Step does not blank the report — it only disables refresh.
+**Report component embed**:
+A TipTap node in the report's `summary` document that carries an embedded [[#embeddable-section-block]]. It stores **only a reference** (`toolStepId`, `componentType`, `config`); every surface (editor node view + published page) mounts the **live** component against current data (see [ADR-0012](documentation/adr/0012-report-component-embeds-store-reference-plus-frozen-html.md), which reversed the frozen-snapshot direction of [ADR-0008](documentation/adr/0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md) for these embeds). Interactive and always-fresh; if the Step/data no longer resolves the embed shows an inline "data unavailable" state. No-JS surfaces (email/print) get a placeholder, not the component.
 
 **Report view**:
 A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:

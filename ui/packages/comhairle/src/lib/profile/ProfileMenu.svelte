@@ -5,12 +5,14 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import LoginButtons from './LoginButtons.svelte';
 	import { userInitials } from '$lib/utils';
-	import { apiClient } from '@crownshy/api-client/client';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
+	import { goto } from '$app/navigation';
 
 	import { notificationService } from '$lib/services/notifications.svelte';
+	import { notifications } from '$lib/notifications.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
 	import type { UserDto } from '@crownshy/api-client/api';
 
 	type Props = {
@@ -20,6 +22,20 @@
 	const { user, triggerVariant = 'outline' }: Props = $props();
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
+
+	async function attemptLogout() {
+		try {
+			await apiClient.LogoutUser(undefined);
+
+			await goto('/', { invalidate: ['user'] });
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				priority: 'ERROR',
+				message: 'An error occurred when attempting to logout '
+			});
+		}
+	}
 </script>
 
 {#if user}
@@ -34,8 +50,8 @@
 				<Avatar.Fallback class="text-foreground">{user_initials}</Avatar.Fallback>
 			</Avatar.Root>
 			<p class="text-foreground text-base font-normal">
-				{#if user.authType === 'annon'}
-					Anonymous
+				{#if user.authType === 'guest'}
+					Guest
 				{:else}
 					{user.username}
 				{/if}
@@ -48,8 +64,8 @@
 		<DropdownMenu.Content>
 			<DropdownMenu.Group>
 				<DropdownMenu.Item>
-					{#if user.authType === 'annon'}
-						<h2>Your ID: {user.username}</h2>
+					{#if user.authType === 'guest'}
+						<h2>Your ID: {user.guestCode}</h2>
 					{/if}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
@@ -69,7 +85,13 @@
 					</Button>
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
-					<form method="POST" action="/auth/logout">
+					<form
+						method="POST"
+						onsubmit={(e) => {
+							e.preventDefault();
+							attemptLogout();
+						}}
+					>
 						<Button type="submit" variant="ghost"><LogOut />Logout</Button>
 					</form>
 				</DropdownMenu.Item>

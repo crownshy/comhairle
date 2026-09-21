@@ -9,7 +9,7 @@ use super::{
 use crate::ComhairleState;
 use crate::bot_service::{
     ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
-    DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
+    DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT, Variable,
 };
 use crate::config::ComhairleConfig;
 use crate::error::ComhairleError;
@@ -423,7 +423,6 @@ pub async fn delete(
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .inspect_err(|e| println!("{e:#?}"))
         .resolve_db_err("Conversation")?;
 
     if let Some(bot_service) = bot_service {
@@ -499,7 +498,6 @@ pub async fn get_localised_by_id(
     let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .inspect_err(|e| println!("{e:#?}"))
         .resolve_db_err("Conversation")?;
 
     Ok(conversation)
@@ -766,6 +764,16 @@ pub async fn create(
                 opener: Some(DEFAULT_CHAT_OPENER.to_string()),
                 empty_response: Some(DEFAULT_CHAT_NOT_FOUND_RESPONSE.to_string()),
                 cross_languages: None,
+                variables: Some(vec![
+                    Variable {
+                        key: "knowledge".to_string(),
+                        optional: Some(false),
+                    },
+                    Variable {
+                        key: "target_reading_age".to_string(),
+                        optional: Some(false),
+                    },
+                ]),
             }),
             ..Default::default()
         };
@@ -1319,8 +1327,8 @@ mod tests {
         let (_, value, _) = session.create_random_conversation(&app).await?;
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
-        let user_a = users::create_annon_user(&state.db).await?;
-        let user_b = users::create_annon_user(&state.db).await?;
+        let user_a = users::create_guest_user(&state.db).await?;
+        let user_b = users::create_guest_user(&state.db).await?;
 
         let grant_request_a_a = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),

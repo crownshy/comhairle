@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
-	import { annonLoginFormSchema } from '$lib/profile';
+	import { guestLoginFormSchema } from '$lib/profile';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zodClient, zod } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
@@ -15,8 +15,8 @@
 
 	let { backTo }: { backTo?: string } = $props();
 
-	const form = superForm(defaults(zod(annonLoginFormSchema)), {
-		validators: zodClient(annonLoginFormSchema),
+	const form = superForm(defaults(zod(guestLoginFormSchema)), {
+		validators: zodClient(guestLoginFormSchema),
 		onSubmit: async ({ cancel }) => {
 			cancel();
 			await attemptLogin();
@@ -29,11 +29,11 @@
 	async function attemptLogin() {
 		let result = await validateForm({ update: true });
 		if (result.valid) {
-			let { username } = result.data;
+			let { guest_code } = result.data;
 			await loader.run(async () => {
 				try {
-					await apiClient.LoginAnnonUser({
-						username
+					await apiClient.LoginGuestUser({
+						guest_code
 					});
 					await goto(backTo ?? '/', { invalidate: [key('user')] });
 				} catch (e) {
@@ -69,7 +69,7 @@
 	{/if}
 
 	<div class="space-y-6">
-		<Form.Field {form} name="username">
+		<Form.Field {form} name="guest_code">
 			<Form.Control>
 				{#snippet children({ props })}
 					<div class="flex items-center gap-1.5">
@@ -91,7 +91,7 @@
 					<Input
 						{...props}
 						placeholder={m.anonymous_id()}
-						bind:value={$formData.username}
+						bind:value={$formData.guest_code}
 						required
 					/>
 				{/snippet}

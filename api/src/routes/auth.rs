@@ -28,7 +28,7 @@ use time::Duration;
 pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
-        &state,
+        state,
         PermissionRole::Admin.system_triplet(),
         &user.id,
         user.organization_id.as_ref(),
@@ -65,10 +65,11 @@ use crate::models::permissions::{
     Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
     UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
 };
+use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
 use crate::models::users::{
     self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-    create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-    get_user_by_username, get_user_resource_roles, set_signup_metadata, update_user,
+    create_guest_user, create_otp_user, create_user, get_guest_user_by_code, get_user_by_email,
+    get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
@@ -78,6 +79,7 @@ use fake::Dummy;
 
 /// This is the key that we use in the cookie for the JWT
 pub const AUTH_KEY: &str = "auth-token";
+const REFRESH_KEY: &str = "refresh-token";
 
 /// Validate password strength according to security requirements
 ///
@@ -194,10 +196,10 @@ struct LoginRequest {
     password: String,
 }
 
-/// Expected payload for an annon login request
+/// Expected payload for an guest login request
 #[derive(Deserialize, JsonSchema)]
-struct AnnonLoginRequest {
-    username: String,
+struct GuestLoginRequest {
+    guest_code: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -227,12 +229,18 @@ pub(crate) struct EmailLinkClaims {
     pub(crate) email: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SessionClaims {
     username: Option<String>,
     sudo_user: Option<String>, // TODO: Remove at some point
     email_verified: bool,
     roles: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RefreshClaims {
+    /// Corresponds to refresh_token.id in the database.
+    jti: Uuid,
 }
 
 /// JWT Claims
@@ -327,43 +335,55 @@ async fn signup(
 
     send_verification_email(&user, &state)?;
 
-    if let Some(admin_users) = &state.config.admin_users {
-        if admin_users.contains(&user.email.clone().unwrap_or_default()) {
-            grant_role(
-                &state,
-                GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(user.id),
-                    permission_triplet: PermissionRole::Admin.system_triplet(),
-                    grant_reason: "Admin signup",
-                    granted_by: &user.id,
-                },
-            )
-            .await?;
-        }
+    if let Some(admin_users) = &state.config.admin_users
+        && admin_users.contains(&user.email.clone().unwrap_or_default())
+    {
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: UserOrOrganizationId::User(user.id),
+                permission_triplet: PermissionRole::Admin.system_triplet(),
+                grant_reason: "Admin signup",
+                granted_by: &user.id,
+            },
+        )
+        .await?;
     }
 
-    let cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state);
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
+
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
 
     let user: UserDto = user.into();
-    Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
+    Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
-/// Signup handler for annon
+/// Signup handler for guest
 #[instrument(err(Debug), skip(state, client_ip, user_agent))]
-async fn signup_annon(
+async fn signup_guest(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = create_annon_user(&state.db).await?;
+    let user = create_guest_user(&state.db).await?;
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
-    let cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state);
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
+
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
 
     let user: UserDto = user.into();
-    Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
+    Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
@@ -387,16 +407,24 @@ async fn signup_otp(
 
     send_verification_email(&user, &state)?;
 
-    let cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state);
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
+
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
 
     let user: UserDto = user.into();
-    Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
+    Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
 /// Email/Password Login Handler
 #[instrument(err(Debug), skip(state, payload))]
 async fn login(
     State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
     Json(payload): Json<LoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
@@ -416,43 +444,35 @@ async fn login(
         return Err(ComhairleError::WrongPassword);
     }
 
-    let claims = SessionClaims {
-        username: user.username.clone(),
-        sudo_user: None,
-        email_verified: user.email_verified,
-        roles: Vec::new(),
-    };
-    let token = generate_jwt()
-        .user(&user)
-        .secret(&state.config.jwt_secret)
-        .custom_claims(claims)
-        .call();
-    let cookie = Cookie::build((AUTH_KEY, token))
-        .path("/")
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::None)
-        .max_age(Duration::days(7));
+    let session_cookie = create_session_cookie(&user, &state);
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
+
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
 
     let user: UserDto = user.into();
-    Ok((jar.add(cookie), (StatusCode::OK, Json(user))))
+    Ok((jar, (StatusCode::OK, Json(user))))
 }
 
 #[instrument(err(Debug), skip(state, payload))]
-async fn login_annon(
+async fn login_guest(
     State(state): State<Arc<ComhairleState>>,
-    cookies: CookieJar,
-    Json(payload): Json<AnnonLoginRequest>,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
+    jar: CookieJar,
+    Json(payload): Json<GuestLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = get_user_by_username(&payload.username, &state.db).await?;
+    let user = get_guest_user_by_code(&payload.guest_code, &state.db).await?;
 
-    if user.auth_type != UserAuthType::Annon {
+    if user.auth_type != UserAuthType::Guest {
         // return not found to avoid revealing that a correct username has been used.
         return Err(ComhairleError::NoUserFound);
     }
 
     let claims = SessionClaims {
-        username: user.username.clone(),
+        username: user.guest_code.clone(),
         sudo_user: None,
         email_verified: user.email_verified,
         roles: Vec::new(),
@@ -462,15 +482,21 @@ async fn login_annon(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .call();
-    let cookie = Cookie::build((AUTH_KEY, token))
+    let session_cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
         .http_only(true)
         .same_site(SameSite::None)
         .max_age(Duration::days(7));
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
+
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
 
     let user: UserDto = user.into();
-    Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
+    Ok((jar, (StatusCode::OK, Json(user))))
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
@@ -482,7 +508,9 @@ pub struct OtpLoginRequest {
 #[instrument(err(Debug), skip(state))]
 async fn login_otp(
     State(state): State<Arc<ComhairleState>>,
-    cookies: CookieJar,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
+    jar: CookieJar,
     Json(payload): Json<OtpLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = get_user_by_email(&payload.email, &state.db).await?;
@@ -494,9 +522,15 @@ async fn login_otp(
 
     let _otp = otp::accept(&state.db, &user.id, &payload.code, now).await?;
 
-    let cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state);
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
-    Ok((cookies.add(cookie), (StatusCode::OK, Json(user.into()))))
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
+
+    Ok((jar, (StatusCode::OK, Json(user.into()))))
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
@@ -578,7 +612,7 @@ async fn login_otp_token(
     let user = get_user_by_email(&token_data.claims.details.email, &state.db).await?;
     let now = Utc::now();
 
-    if user.auth_type == UserAuthType::Annon {
+    if user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -620,7 +654,7 @@ async fn verify_email_token(
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let current_user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
-    if current_user.auth_type == UserAuthType::Annon {
+    if current_user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -691,7 +725,7 @@ async fn password_reset_update(
 ) -> Result<StatusCode, ComhairleError> {
     let user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
-    if user.auth_type == UserAuthType::Annon {
+    if user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -710,6 +744,38 @@ async fn password_reset_update(
     update_user(&user.id, &updated_password, &state.db).await?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[instrument(err(Debug), skip(state, client_ip, user_agent))]
+async fn refresh_session(
+    State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
+    jar: CookieJar,
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    let refresh_cookie = jar
+        .get(REFRESH_KEY)
+        .ok_or_else(|| ComhairleError::SessionRefreshFailure(RefreshFailure::Missing))?;
+
+    let token_data =
+        decode_jwt::<RefreshClaims>(refresh_cookie.value(), &state.config.refresh_jwt_secret)
+            .ok()
+            .ok_or_else(|| ComhairleError::AuthJWTError("Unable to decode JWT".to_string()))?;
+
+    let user_id = Uuid::parse_str(&token_data.claims.sub)
+        .map_err(|_| ComhairleError::SessionRefreshFailure(RefreshFailure::InvalidClaim))?;
+    let user = users::get_user_by_id(&user_id, &state.db).await?;
+    let jti = token_data.claims.details.jti;
+
+    // Handles expired / re-used / invalid tokens
+    let new_token = refresh_token::rotate(&state.db, jti, user_id, &client_ip, &user_agent).await?;
+
+    let session_cookie = create_session_cookie(&user, &state);
+    let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token);
+
+    let jar = jar.add(session_cookie).add(refresh_cookie);
+
+    Ok((jar, (StatusCode::OK, Json(user.into()))))
 }
 
 /// Decode a JWT
@@ -1058,12 +1124,27 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
 }
 
 /// Destroy the cookie on our session to log a user out
-pub async fn logout(jar: CookieJar) -> (CookieJar, Response) {
-    let cookie = Cookie::build(AUTH_KEY).path("/");
-    (
-        jar.remove(cookie),
-        Json(json!({"msg":"Logged out"})).into_response(),
-    )
+pub async fn logout(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+) -> (CookieJar, Response) {
+    if let Some(refresh_cookie) = jar.get(REFRESH_KEY)
+        && let Ok(token_data) =
+            decode_jwt::<RefreshClaims>(refresh_cookie.value(), &state.config.refresh_jwt_secret)
+        && let Ok(Some(token_record)) =
+            refresh_token::get_by_id(&state.db, token_data.claims.details.jti).await
+        && let Err(error) =
+            refresh_token::revoke_family(&state.db, token_record.family_id, "user_logout").await
+    {
+        warn!("Failed to revoke refresh token: {error:#?}");
+    }
+
+    let session_cookie = Cookie::build(AUTH_KEY).path("/");
+    let refresh_cookie = Cookie::build(REFRESH_KEY).path("/");
+
+    let jar = jar.remove(session_cookie).remove(refresh_cookie);
+
+    (jar, Json(json!({"msg":"Logged out"})).into_response())
 }
 
 /// Handler for the current user if there is one
@@ -1071,7 +1152,7 @@ pub async fn logout(jar: CookieJar) -> (CookieJar, Response) {
 pub async fn current_user(
     OptionalUser(user): OptionalUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLogedInUser)?).into();
+    let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLoggedInUser)?).into();
 
     Ok((StatusCode::OK, Json(user)))
 }
@@ -1135,6 +1216,62 @@ pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> Co
         .max_age(Duration::days(7))
 }
 
+fn build_refresh_token_cookie<'a>(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    token_record: &RefreshToken,
+) -> Cookie<'a> {
+    let refresh_token = generate_jwt()
+        .user(user)
+        .secret(&state.config.refresh_jwt_secret)
+        .custom_claims(RefreshClaims {
+            jti: token_record.id,
+        })
+        .duration(chrono::Duration::days(7))
+        .call();
+
+    Cookie::build((REFRESH_KEY, refresh_token))
+        .path("/") // TODO: can this be more tightly scoped
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::Strict)
+        .max_age(Duration::days(7))
+        .build()
+}
+
+async fn issue_refresh_token<'a>(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    ip_addr: &ClientIp,
+    user_agent: &ClientUserAgent,
+) -> Option<Cookie<'a>> {
+    // Revoke any existing refresh tokens for user
+    if let Err(error) = refresh_token::revoke_for_user(&state.db, user.id, "new_user_login").await {
+        warn!("Failed to revoke existing user refresh tokens: {error}")
+    }
+
+    if let Ok(token_record) = refresh_token::create(
+        &state.db,
+        CreateRefreshToken {
+            user_id: user.id,
+            ip_addr,
+            user_agent,
+            family_id: None,
+            custom_expiry: None,
+        },
+    )
+    .await
+    {
+        Some(build_refresh_token_cookie(state, user, &token_record))
+    } else {
+        warn!(
+            "Failed to create refresh token database record for user {}",
+            user.id
+        );
+        None
+    }
+}
+
 /// Function to set up the auth routes
 pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
     // One strict per-IP bucket, shared by every route that takes or issues
@@ -1145,11 +1282,11 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
     ApiRouter::new()
         .api_route(
-            "/login_annon",
-            post_with(login_annon, |op| {
-                op.id("LoginAnnonUser")
+            "/login_guest",
+            post_with(login_guest, |op| {
+                op.id("LoginGuestUser")
                     .tag("Auth")
-                    .summary("Login an annon user")
+                    .summary("Login an guest user")
                     .response::<200, Json<UserDto>>()
             })
             .layer(credential_limit.clone()),
@@ -1186,11 +1323,11 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             .layer(credential_limit.clone()),
         )
         .api_route(
-            "/signup_annon",
-            post_with(signup_annon, |op| {
-                op.id("SignupAnnonUser")
+            "/signup_guest",
+            post_with(signup_guest, |op| {
+                op.id("SignupGuestUser")
                     .tag("Auth")
-                    .summary("Signup and annon user")
+                    .summary("Signup and guest user")
                     .response::<201, Json<UserDto>>()
             })
             .layer(credential_limit.clone()),
@@ -1280,6 +1417,16 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("CurrentUser")
                     .tag("Auth")
                     .summary("Get the current user")
+                    .response::<200, Json<UserDto>>()
+            }),
+        )
+        .api_route(
+            "/refresh",
+            post_with(refresh_session, |op| {
+                op.id("RefreshSession")
+                    .tag("Auth")
+                    .summary("Refresh user session")
+                    .description("Refresh user session to prevent frequent users logging back in")
                     .response::<200, Json<UserDto>>()
             }),
         )
@@ -1423,7 +1570,50 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_signup_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let email = "test_email";
+        let email = "test_email@email.com";
+        let username = "test_user";
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+
+        mailer.expect_send_verification_email().times(0);
+        mailer.expect_send_password_reset_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/auth/signup_otp",
+                json!({ "email": email, "username": username })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        let user: UserDto = serde_json::from_value(value)?;
+
+        assert_eq!(user.email, Some(email.to_string()), "incorrect email");
+        assert_eq!(
+            user.username,
+            Some(username.to_string()),
+            "incorrect username"
+        );
+        assert_eq!(user.auth_type, UserAuthType::Otp, "incorrect auth type");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_signup_otp_user_with_email_local_if_no_username(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
 
         let mut mailer = MockComhairleMailer::new();
         mailer
@@ -1449,6 +1639,11 @@ mod tests {
         let user: UserDto = serde_json::from_value(value)?;
 
         assert_eq!(user.email, Some(email.to_string()), "incorrect email");
+        assert_eq!(
+            user.username,
+            Some("test_email".to_string()),
+            "incorrect username"
+        );
         assert_eq!(user.auth_type, UserAuthType::Otp, "incorrect auth type");
 
         Ok(())
@@ -1509,6 +1704,7 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
+            guest_code: None,
             auth_type: UserAuthType::EmailPassword,
             avatar_url: None,
             email_verified: false,
@@ -1544,7 +1740,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
@@ -1553,7 +1749,7 @@ mod tests {
         let secret = &state.config.jwt_secret.clone();
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new(username, password, email);
-        let (_, user, _) = session.signup_annon(&app).await?;
+        let (_, user, _) = session.signup_guest(&app).await?;
 
         let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
         let user = User {
@@ -1561,7 +1757,8 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            guest_code: None,
+            auth_type: UserAuthType::Guest,
             avatar_url: None,
             email_verified: false,
             organization_id: None,
@@ -1586,7 +1783,7 @@ mod tests {
         assert_eq!(
             status,
             StatusCode::INTERNAL_SERVER_ERROR,
-            "cannot verify annonymous user"
+            "cannot verify guest user"
         );
 
         Ok(())
@@ -1617,7 +1814,8 @@ mod tests {
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             avatar_url: None,
             email_verified: user.email_verified,
             organization_id: None,
@@ -1696,7 +1894,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn other_user_types_should_not_be_able_to_annon_login(
+    fn other_user_types_should_not_be_able_to_guest_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -1709,38 +1907,42 @@ mod tests {
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
         session.logout(&app).await?;
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
-        assert_eq!(status, StatusCode::NOT_FOUND, "API should return NOT_FOUND");
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "API should return NOT_FOUND"
+        );
         Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_should_be_able_to_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_should_be_able_to_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut session = UserSession::new_anon();
-        session.signup_annon(&app).await?;
+        let mut session = UserSession::new_guest();
+        session.signup_guest(&app).await?;
         session.logout(&app).await?;
 
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
         assert_eq!(status, StatusCode::OK, "API should respond OK");
         Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn unknown_username_should_not_be_able_to_annon_login(
+    fn unknown_guest_code_should_not_be_able_to_guest_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut session = UserSession::new_anon();
-        session.username = Some("foo".to_string());
+        let mut session = UserSession::new_guest();
+        session.guest_code = Some("foo".to_string());
 
-        let (status, _, _) = session.login_annon(&app).await?;
+        let (status, _, _) = session.login_guest(&app).await?;
 
         assert_eq!(
             status,
@@ -1751,7 +1953,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1761,15 +1963,6 @@ mod tests {
 
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
-
-        let mut session = UserSession::new(username, password, "test_email2");
-        let (status, _, _) = session.signup(&app).await?;
-
-        assert_eq!(
-            status,
-            StatusCode::CONFLICT,
-            "Should not be able to have same username"
-        );
 
         let mut session = UserSession::new("test_user2", crate::test_helpers::TEST_PASSWORD, email);
         let (status, _, _) = session.signup(&app).await?;
@@ -1816,34 +2009,34 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_user_should_by_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_user_should_be_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
-        let mut annon_user = UserSession::new_anon();
-        let (status, _, _) = annon_user.signup_annon(&app).await?;
+        let mut guest_user = UserSession::new_guest();
+        let (status, _, _) = guest_user.signup_guest(&app).await?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
 
-        let (status, user_response, _) = annon_user.current_user(&app).await?;
+        let (status, user_response, _) = guest_user.current_user(&app).await?;
 
-        assert_eq!(status, StatusCode::OK, "Should be ok ");
+        assert_eq!(status, StatusCode::OK, "Should be ok");
 
         assert!(
-            user_response.username.is_some(),
-            "current annon user should have a username"
+            user_response.guest_code.is_some(),
+            "current guest user should have a guest_code"
         );
 
         assert_eq!(
             user_response.auth_type,
-            UserAuthType::Annon,
-            "current annon user should have a username"
+            UserAuthType::Guest,
+            "current guest user should have guest auth_type"
         );
 
         assert_ne!(
             user_response.id,
             Uuid::nil(),
-            "current annon user should have an id"
+            "current guest user should have an id"
         );
 
         Ok(())
@@ -1942,6 +2135,7 @@ mod tests {
             password: Some(password.to_string()),
             username: Some(username.to_string()),
             auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             avatar_url: None,
             email_verified: false,
             organization_id: None,
@@ -2009,6 +2203,7 @@ mod tests {
             password: Some(password.to_string()),
             avatar_url: None,
             auth_type: UserAuthType::EmailPassword,
+            guest_code: None,
             email_verified: false,
             organization_id: None,
             created_at: Utc::now(),
@@ -2038,27 +2233,27 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn annon_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn guest_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let secret = state.config.jwt_secret.clone();
         let app = setup_server(Arc::new(state)).await?;
-        let mut session = UserSession::new_anon();
-        let (_, user, _) = session.signup_annon(&app).await?;
+        let mut session = UserSession::new_guest();
+        let (_, user, _) = session.signup_guest(&app).await?;
 
         let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
-        let username = user
-            .get("username")
+        let guest_code = user
+            .get("guestCode")
             .unwrap()
             .as_ref()
-            .unwrap()
-            .as_str()
+            .and_then(|v| v.as_str())
             .unwrap();
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: None,
             password: None,
-            username: Some(username.to_string()),
-            auth_type: UserAuthType::Annon,
+            username: None,
+            auth_type: UserAuthType::Guest,
+            guest_code: Some(guest_code.to_string()),
             avatar_url: None,
             email_verified: false,
             organization_id: None,
@@ -2081,7 +2276,7 @@ mod tests {
         assert_eq!(
             status,
             StatusCode::INTERNAL_SERVER_ERROR,
-            "annon users cannot reset password"
+            "guest users cannot reset password"
         );
 
         Ok(())
@@ -2530,9 +2725,313 @@ mod tests {
 
         assert_eq!(user.id, current_user.id, "ids don't match");
         assert!(
-            cookies.unwrap().to_str()?.contains("auth-token"),
+            cookies
+                .iter()
+                .any(|cookie| cookie.to_str().unwrap().contains("auth-token")),
             "missing auth-token cookie"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn refresh_cookie_has_correct_attributes(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let user = users::create_guest_user(&pool).await?;
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(None);
+
+        let token_record = refresh_token::create(
+            &state.db,
+            CreateRefreshToken {
+                user_id: user.id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
+
+        let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record);
+
+        assert_eq!(token_cookie.name(), REFRESH_KEY, "incorrect name");
+        assert_eq!(token_cookie.path().unwrap(), "/", "incorrect path");
+        assert_eq!(
+            token_cookie.same_site(),
+            Some(SameSite::Strict),
+            "incorrect same_site"
+        );
+        assert!(token_cookie.http_only().unwrap(), "incorrect http_only");
+        assert!(token_cookie.secure().unwrap(), "incorrect secure");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn refresh_jwt_claims_contains_correct_jti(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let user = users::create_guest_user(&pool).await?;
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(None);
+
+        let token_record = refresh_token::create(
+            &state.db,
+            CreateRefreshToken {
+                user_id: user.id,
+                ip_addr: &ip_addr,
+                user_agent: &user_agent,
+                family_id: None,
+                custom_expiry: None,
+            },
+        )
+        .await?;
+
+        let token_cookie =
+            build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record);
+        let token_data =
+            decode_jwt::<RefreshClaims>(token_cookie.value(), &state.config.refresh_jwt_secret)
+                .unwrap();
+
+        assert_eq!(
+            token_data.claims.details.jti, token_record.id,
+            "incorrect jti on token"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn issue_creates_row_and_returns_cookie(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let user = users::create_guest_user(&pool).await?;
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(None);
+
+        let cookie = issue_refresh_token(&Arc::new(state.clone()), &user, &ip_addr, &user_agent)
+            .await
+            .unwrap();
+        let token_data =
+            decode_jwt::<RefreshClaims>(cookie.value(), &state.config.refresh_jwt_secret).unwrap();
+
+        let token_result = refresh_token::get_by_id(&state.db, token_data.claims.details.jti).await;
+
+        assert!(token_result.unwrap().is_some(), "db transaction failed");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn issue_returns_none_if_db_transaction_fails(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let user = User {
+            id: Uuid::nil(),
+            username: None,
+            password: None,
+            avatar_url: None,
+            auth_type: UserAuthType::Guest,
+            guest_code: None,
+            email: None,
+            email_verified: false,
+            organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            signup_ip: None,
+            signup_user_agent: None,
+        };
+        let ip_addr = ClientIp("127.0.0.1".to_string());
+        let user_agent = ClientUserAgent(None);
+
+        let cookie =
+            issue_refresh_token(&Arc::new(state.clone()), &user, &ip_addr, &user_agent).await;
+
+        assert!(cookie.is_none());
+
+        Ok(())
+    }
+
+    async fn get_refresh_token_from_cookies(
+        state: &Arc<ComhairleState>,
+        cookies: &HashMap<String, String>,
+    ) -> Result<RefreshToken, Box<dyn Error>> {
+        let refresh_token = cookies
+            .get(REFRESH_KEY)
+            .unwrap()
+            .replace(&format!("{REFRESH_KEY}="), "");
+        let token_data =
+            decode_jwt::<RefreshClaims>(&refresh_token, &state.config.refresh_jwt_secret).unwrap();
+        let refresh_jti = token_data.claims.details.jti;
+        let token = refresh_token::get_by_id(&state.db, refresh_jti)
+            .await?
+            .unwrap();
+
+        Ok(token)
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_refresh_user_session_and_rotate_refresh_token(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = crate::test_helpers::TEST_PASSWORD;
+        let email = "test_email";
+
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut session = UserSession::new(username, password, email);
+
+        // Signup
+        session.signup(&app).await?;
+        let (_, current_user, _) = session.current_user(&app).await?;
+        let current_user_model = users::get_user_by_id(&current_user.id, &pool).await?;
+
+        // Extract refresh-token from cookies and assert db record is valid
+        let original_refresh_token_record =
+            get_refresh_token_from_cookies(&state, session.cookies.as_ref().unwrap()).await?;
+        assert!(
+            original_refresh_token_record.revoked_at.is_none(),
+            "refresh token already revoked"
+        );
+
+        // Create expired auth-token jwt
+        let expired_session_jwt = generate_jwt()
+            .user(&current_user_model)
+            .secret(&state.config.jwt_secret)
+            .custom_claims(SessionClaims {
+                username: current_user_model.username.clone(),
+                ..Default::default()
+            })
+            .duration(chrono::Duration::hours(-1))
+            .call();
+
+        // Replace auth-token cookie with expired jwt
+        session.cookies.as_mut().unwrap().insert(
+            AUTH_KEY.to_string(),
+            format!("{AUTH_KEY}={expired_session_jwt}"),
+        );
+
+        // Check current user request fails because of authentication
+        let (status, result, _) = session.get(&app, "/auth/current_user").await?;
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "incorrect status for logged out user"
+        );
+        assert_eq!(
+            result.get("err").unwrap(),
+            "No user logged in",
+            "incorrect error message for logged out user"
+        );
+
+        // Run refresh request
+        session
+            .post(&app, "/auth/refresh", axum::body::Body::empty())
+            .await?;
+
+        // Check now able to perform authenticated requests
+        let (_, current_user, _) = session.current_user(&app).await?;
+        assert_eq!(current_user.id, current_user_model.id, "users don't match");
+
+        // Check original refresh token is revoked
+        let revoked_token = refresh_token::get_by_id(&pool, original_refresh_token_record.id)
+            .await?
+            .unwrap();
+        assert!(
+            revoked_token.revoked_at.is_some(),
+            "original refresh token not revoked"
+        );
+        assert_eq!(
+            revoked_token.revoked_reason.unwrap(),
+            "rotated",
+            "incorrect revoked_reason"
+        );
+
+        // Check valid refresh token in cookies with same family_id as original
+        let rotation_token_record =
+            get_refresh_token_from_cookies(&state, session.cookies.as_ref().unwrap()).await?;
+        assert!(
+            rotation_token_record.revoked_at.is_none(),
+            "rotation token already revoked"
+        );
+        assert_eq!(
+            rotation_token_record.family_id, original_refresh_token_record.family_id,
+            "rotation token not in same family"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_return_error_if_refresh_cookie_missing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = crate::test_helpers::TEST_PASSWORD;
+        let email = "test_email";
+
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut session = UserSession::new(username, password, email);
+
+        // Signup
+        session.signup(&app).await?;
+
+        // Remove refresh cookie from session
+        session.cookies.as_mut().unwrap().remove(REFRESH_KEY);
+
+        let (status, res, _) = session
+            .post(&app, "/auth/refresh", axum::body::Body::empty())
+            .await?;
+
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "incorrect status code");
+        assert_eq!(
+            res.get("err").and_then(|v| v.as_str()).unwrap(),
+            ComhairleError::SessionRefreshFailure(RefreshFailure::Missing).to_string(),
+            "incorrect error message"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_remove_session_and_refresh_cookies_on_logout(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = crate::test_helpers::TEST_PASSWORD;
+        let email = "test_email";
+
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut session = UserSession::new(username, password, email);
+
+        session.signup(&app).await?;
+
+        assert!(
+            session.cookies.as_ref().unwrap().contains_key(AUTH_KEY),
+            "missing auth-token cookie after signup"
+        );
+        assert!(
+            session.cookies.as_ref().unwrap().contains_key(REFRESH_KEY),
+            "missing refresh-token cookie after signup"
+        );
+
+        session.logout(&app).await?;
+
+        let (status, _, _) = session.get(&app, "/auth/current_user").await?;
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "incorrect status code from current_user"
+        );
+
+        let (status, _, _) = session
+            .post(&app, "/auth/refresh", axum::body::Body::empty())
+            .await?;
+
+        assert!(!status.is_success(), "incorrect status code from refresh");
 
         Ok(())
     }

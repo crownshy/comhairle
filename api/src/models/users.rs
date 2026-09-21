@@ -30,8 +30,8 @@ use uuid::Uuid;
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
 pub enum UserAuthType {
-    #[sqlx(rename = "annon")]
-    Annon,
+    #[sqlx(rename = "guest")]
+    Guest,
     #[sqlx(rename = "email_password")]
     EmailPassword,
     #[sqlx(rename = "one_time_passcode")]
@@ -49,7 +49,7 @@ impl From<UserAuthType> for sea_query::Value {
 impl fmt::Display for UserAuthType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let value = match self {
-            UserAuthType::Annon => "annon",
+            UserAuthType::Guest => "guest",
             UserAuthType::EmailPassword => "email_password",
             UserAuthType::Otp => "one_time_passcode",
             UserAuthType::ScotAccount => "scot_account",
@@ -144,6 +144,7 @@ pub struct User {
     pub avatar_url: Option<String>,
     pub auth_type: UserAuthType,
     pub email: Option<String>,
+    pub guest_code: Option<String>,
     pub email_verified: bool,
     pub organization_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
@@ -158,13 +159,14 @@ pub struct User {
     pub signup_user_agent: Option<String>,
 }
 
-const DEFAULT_COLUMNS: [UserIden; 12] = [
+const DEFAULT_COLUMNS: [UserIden; 13] = [
     UserIden::Id,
     UserIden::Username,
     UserIden::Password,
     UserIden::AuthType,
     UserIden::AvatarUrl,
     UserIden::Email,
+    UserIden::GuestCode,
     UserIden::EmailVerified,
     UserIden::OrganizationId,
     UserIden::CreatedAt,
@@ -209,12 +211,9 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"
                 && let Some(constraint) = pg_err.constraint()
+                && constraint.contains("email")
             {
-                if constraint.contains("username") {
-                    return Err(ComhairleError::DuplicateUsername(user.username.clone()));
-                } else if constraint.contains("email") {
-                    return Err(ComhairleError::DuplicateEmail(user.email.clone()));
-                }
+                return Err(ComhairleError::DuplicateEmail(user.email.clone()));
             }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
@@ -222,18 +221,17 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
     }
 }
 
-/// Create an annon user
+/// Create an guest user
 #[instrument(err(Debug), skip(db))]
-pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
+pub async fn create_guest_user(db: &PgPool) -> Result<User, ComhairleError> {
     let mut retries = 5; // Retry up to 5 times to generate a unique username
     while retries > 0 {
-        let sudo_random_name = gen_id();
+        let sudo_random_code = gen_id();
 
         let (sql, values) = Query::insert()
             .into_table(UserIden::Table)
-            .columns([UserIden::Username, UserIden::AuthType])
-            .values([sudo_random_name.into(), UserAuthType::Annon.into()])
-            .unwrap()
+            .columns([UserIden::GuestCode, UserIden::AuthType])
+            .values([sudo_random_code.into(), UserAuthType::Guest.into()])?
             .returning(Query::returning().columns(DEFAULT_COLUMNS))
             .build_sqlx(PostgresQueryBuilder);
 
@@ -245,8 +243,8 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
             Ok(user) => return Ok(user),
             Err(sqlx::Error::Database(db_err)) => {
                 let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-                if pg_err.code() == "23505" && pg_err.constraint() == Some("username") {
-                    // handle unique constraint violation on random username collision.
+                if pg_err.code() == "23505" && pg_err.constraint() == Some("guest_code") {
+                    // handle unique constraint violation on random guest_code collision.
                     retries -= 1;
                     continue;
                 }
@@ -255,16 +253,50 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
             Err(e) => return Err(ComhairleError::DatabaseError(e)),
         }
     }
-    Err(ComhairleError::DuplicateUsername(
+    Err(ComhairleError::DuplicateGuestCode(
         "too many retires".to_string(),
     ))
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
-    match &user.username {
-        Some(username) => create_otp_user_with_username(&user.email, username, db).await,
-        None => create_otp_user_random_username(&user.email, db).await,
+    let username = user
+        .username
+        .as_deref()
+        .or_else(|| user.email.split_once("@").map(|(local, _)| local))
+        .ok_or_else(|| ComhairleError::BadRequest("Invalid email address".to_string()))?;
+
+    let columns = vec![UserIden::AuthType, UserIden::Email, UserIden::Username];
+    let values = vec![
+        UserAuthType::Otp.into(),
+        user.email.clone().into(),
+        username.into(),
+    ];
+
+    let (sql, values) = Query::insert()
+        .into_table(UserIden::Table)
+        .columns(columns)
+        .values(values)?
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await;
+
+    match user_result {
+        Ok(user) => return Ok(user),
+        Err(sqlx::Error::Database(db_err)) => {
+            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
+            if pg_err.code() == "23505"
+                && let Some(constraint) = pg_err.constraint()
+                && constraint.contains("email")
+            {
+                return Err(ComhairleError::DuplicateEmail(user.email.to_string()));
+            }
+            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
+        }
+        Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
 }
 
@@ -319,67 +351,6 @@ pub async fn create_organization_admin_user(
     .await?;
 
     Ok(user)
-}
-
-async fn create_otp_user_with_username(
-    email: &str,
-    username: &str,
-    db: &PgPool,
-) -> Result<User, ComhairleError> {
-    insert_otp_user(email, username, db)
-        .await?
-        .ok_or_else(|| ComhairleError::DuplicateUsername(username.to_string()))
-}
-
-async fn create_otp_user_random_username(email: &str, db: &PgPool) -> Result<User, ComhairleError> {
-    for _ in 0..5 {
-        let sudo_random_name = gen_id();
-        match insert_otp_user(email, &sudo_random_name, db).await? {
-            Some(user) => return Ok(user),
-            None => continue, // username collision so retry
-        }
-    }
-    Err(ComhairleError::DuplicateUsername(
-        "too many retries".to_string(),
-    ))
-}
-
-/// Returns Ok(Some(user)) on success, Ok(None) on duplicate username,
-/// Err on duplicate email or any other DB error.
-#[instrument(err(Debug), skip(db))]
-async fn insert_otp_user(
-    email: &str,
-    username: &str,
-    db: &PgPool,
-) -> Result<Option<User>, ComhairleError> {
-    let (sql, values) = Query::insert()
-        .into_table(UserIden::Table)
-        .columns([UserIden::AuthType, UserIden::Email, UserIden::Username])
-        .values([UserAuthType::Otp.into(), email.into(), username.into()])?
-        .returning(Query::returning().columns(DEFAULT_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
-        .await;
-
-    match user_result {
-        Ok(user) => Ok(Some(user)),
-        Err(sqlx::Error::Database(db_err)) => {
-            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505"
-                && let Some(constraint) = pg_err.constraint()
-            {
-                if constraint.contains("username") {
-                    return Ok(None);
-                } else if constraint.contains("email") {
-                    return Err(ComhairleError::DuplicateEmail(email.to_string()));
-                }
-            }
-            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
-        }
-        Err(e) => Err(ComhairleError::DatabaseError(e)),
-    }
 }
 
 /// Record the client IP and browser signature (User-Agent) for a freshly
@@ -519,13 +490,31 @@ pub async fn add_user_resource_role(
     Ok(())
 }
 
-/// Return a user by username
+/// Return a guest user by guest_code
+#[instrument(err(Debug), skip(db))]
+pub async fn get_guest_user_by_code(guest_code: &str, db: &PgPool) -> Result<User, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(UserIden::Table)
+        .and_where(Expr::col(UserIden::GuestCode).eq(guest_code))
+        .and_where(Expr::col(UserIden::AuthType).eq(UserAuthType::Guest))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|_| ComhairleError::NoUserFound)
+}
+
+/// Return a non-guest user by username. Guest users do not have unique constraint
+/// on usernames so should be selected by `guest_code`.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Username).eq(username))
+        .and_where(Expr::col(UserIden::AuthType).not().eq(UserAuthType::Guest))
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_as_with::<_, User, _>(&sql, values)
@@ -630,26 +619,11 @@ pub async fn update_user(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
+    let user = sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
-        .await;
+        .await?;
 
-    match user_result {
-        Ok(user) => Ok(user),
-        Err(sqlx::Error::Database(db_err)) => {
-            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505"
-                && let Some(constraint) = pg_err.constraint()
-                && constraint.contains("username")
-            {
-                return Err(ComhairleError::DuplicateUsername(
-                    update_request.username.clone().unwrap_or_default(),
-                ));
-            }
-            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
-        }
-        Err(e) => Err(ComhairleError::DatabaseError(e)),
-    }
+    Ok(user)
 }
 
 /// Upgrade an anonymous account to email/password account
@@ -662,7 +636,7 @@ pub async fn upgrade_account(
     // First verify the user exists and is an anonymous account
     let current_user = get_user_by_id(user_id, db).await?;
 
-    if current_user.auth_type != UserAuthType::Annon {
+    if current_user.auth_type != UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
     }
 
@@ -691,16 +665,11 @@ pub async fn upgrade_account(
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"
                 && let Some(constraint) = pg_err.constraint()
+                && constraint.contains("email")
             {
-                if constraint.contains("username") {
-                    return Err(ComhairleError::DuplicateUsername(
-                        upgrade_request.username.clone(),
-                    ));
-                } else if constraint.contains("email") {
-                    return Err(ComhairleError::DuplicateEmail(
-                        upgrade_request.email.clone(),
-                    ));
-                }
+                return Err(ComhairleError::DuplicateEmail(
+                    upgrade_request.email.clone(),
+                ));
             }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }

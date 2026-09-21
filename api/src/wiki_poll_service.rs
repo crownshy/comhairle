@@ -87,6 +87,16 @@ pub trait WikiPollService: Send + Sync {
         auth_cookies: &str,
     ) -> Result<Vec<WikiPollXid>, WikiPollServiceError>;
 
+    /// Number of votes a single participant has cast in a poll. Used to gate the
+    /// participant "required votes" threshold on server data instead of a
+    /// per-device local counter.
+    async fn get_participant_vote_count(
+        &self,
+        poll_id: &str,
+        pid: u32,
+        auth_cookies: &str,
+    ) -> Result<u32, WikiPollServiceError>;
+
     async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError>;
 
     async fn moderate_comment(
@@ -203,6 +213,9 @@ impl MockWikiPollService {
         wiki_poll_service
             .expect_get_xids()
             .returning(|_, _| Box::pin(async move { Ok(vec![]) }));
+        wiki_poll_service
+            .expect_get_participant_vote_count()
+            .returning(|_, _, _| Box::pin(async move { Ok(0) }));
         wiki_poll_service
             .expect_moderate_comment()
             .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));

@@ -5,12 +5,15 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { Check, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import StatementModerationRow from './StatementModerationRow.svelte';
 	import RejectReasonPopover from './RejectReasonPopover.svelte';
 
 	type Props = {
 		/** The visible (filtered + searched) statements, already ordered. */
 		rows: PolisStatementAux[];
+		/** The conversation's moderation policy reasons, offered on reject. */
+		rejectReasons: RejectReason[];
 		/** Selection + per-row in-flight state, keyed by aux row id. */
 		selected: Record<string, boolean>;
 		pending: Record<string, boolean>;
@@ -32,6 +35,7 @@
 
 	let {
 		rows,
+		rejectReasons,
 		selected,
 		pending,
 		bulkAction,
@@ -77,6 +81,7 @@
 						Approve
 					</LoadingButton>
 					<RejectReasonPopover
+						reasons={rejectReasons}
 						heading={`Reject ${selectedCount} statement${selectedCount === 1 ? '' : 's'}`}
 						disabled={bulkWorking}
 						onConfirm={(reason) => onBulkModerate('rejected', reason)}
@@ -135,6 +140,7 @@
 			{#each rows as row (row.id)}
 				<StatementModerationRow
 					{row}
+					{rejectReasons}
 					selected={!!selected[row.id]}
 					selectionCount={selectedCount}
 					pending={!!pending[row.id]}

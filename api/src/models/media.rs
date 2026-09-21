@@ -707,8 +707,8 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session.signup(&app).await?;
 
-        let user_1 = users::create_annon_user(&pool).await?;
-        let user_2 = users::create_annon_user(&pool).await?;
+        let user_1 = users::create_guest_user(&pool).await?;
+        let user_2 = users::create_guest_user(&pool).await?;
 
         let params_1 = CreateMedia {
             store_name: "test_media".to_string(),

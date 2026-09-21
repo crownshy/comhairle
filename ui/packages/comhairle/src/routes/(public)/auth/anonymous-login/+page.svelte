@@ -7,7 +7,7 @@
 </script>
 
 <svelte:head>
-	<title>Anonymous Login - Comhairle</title>
+	<title>Guest Login - Comhairle</title>
 </svelte:head>
 
 <AuthLayout>

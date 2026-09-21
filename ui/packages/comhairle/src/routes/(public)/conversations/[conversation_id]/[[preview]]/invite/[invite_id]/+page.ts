@@ -15,8 +15,13 @@ export const load: PageLoad = async ({ params, parent, url }) => {
 			params: { conversation_id: conversation.id, invite_id }
 		});
 
-		if (!user && invite.loginBehaviour == 'auto_create_annon') {
-			await api.SignupAnnonUser(undefined, {});
+		// Temporarily check against `auto_create_annon` for backwards support after rename migration
+		if (
+			!user &&
+			(invite.loginBehaviour == 'auto_create_annon' ||
+				invite.loginBehaviour == 'auto_create_guest')
+		) {
+			await api.SignupGuestUser(undefined, {});
 			redirect(307, conversation_url(conversation.id) + queryString);
 		}
 		if (user && invite.status === 'accepted') {

@@ -20,6 +20,8 @@
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
+	import ModerationPolicyEditor from './ModerationPolicyEditor.svelte';
+	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
@@ -30,10 +32,12 @@
 		ComhairleDocument,
 		ConversationWithTranslations,
 		MediaDto,
+		ModerationPolicyDto,
 		OrganizationWithPermissionDto,
 		UserDto,
 		UserWithPermissionDto,
-		WorkflowDto
+		WorkflowDto,
+		WorkflowStepWithTranslations
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { Image as ImageIcon, Info } from 'lucide-svelte';
@@ -57,6 +61,9 @@
 			usersWithPermission: UserWithPermissionDto[];
 			configureTabs: { id: string; label: string }[];
 			availableDocuments: ComhairleDocument[];
+			moderationPolicies: ModerationPolicyDto[];
+			defaultRejectReasons: RejectReason[];
+			workflowSteps: WorkflowStepWithTranslations[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
@@ -87,6 +94,11 @@
 			title: 'Glossary',
 			description:
 				"Define terms once and their explanation appears as a hover tooltip wherever the term shows up in this conversation's Learn steps. Add synonyms of the same term, separated by commas, and they'll all share one explanation."
+		},
+		moderation: {
+			title: 'Moderation policy',
+			description:
+				'The reasons moderators pick from when they reject a statement. Every conversation starts with a default list you can edit, add to or trim. Only moderators see these reasons.'
 		},
 		access: { title: 'Access', description: 'Visibility, invites and participation.' },
 		team: { title: 'Team', description: 'Manage collaborators.' }
@@ -986,15 +998,14 @@
 								<div class="flex flex-col gap-1">
 									<div class="flex items-center gap-1.5">
 										<Form.Label class="text-sm font-medium"
-											>Show thank you page anonymous instructions</Form.Label
+											>Show thank you page guest instructions</Form.Label
 										>
 										{@render infoPreview(
 											'On the thank-you page, shows anonymous participants their temporary ID and how to log back in later to see the results.'
 										)}
 									</div>
 									<p class="text-muted-foreground text-sm">
-										Display instructions for anonymous users on the thank you
-										page.
+										Display instructions for guest users on the thank you page.
 									</p>
 								</div>
 								<Switch
@@ -1101,6 +1112,16 @@
 			primaryLocale={primaryLanguage}
 			{supportedLanguages}
 			initial={localizedGlossaryFromMetadata(conversation.metadata, primaryLanguage)}
+		/>
+	{/if}
+
+	{#if activeTab === 'moderation'}
+		<ModerationPolicyEditor
+			conversationId={conversation.id}
+			workflowId={workflow?.id}
+			policies={data.moderationPolicies}
+			defaultReasons={data.defaultRejectReasons}
+			steps={data.workflowSteps}
 		/>
 	{/if}
 

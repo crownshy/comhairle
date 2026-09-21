@@ -1,108 +1,88 @@
-# ADR-0012: Report component embeds store a reference plus frozen HTML
+# ADR-0012: Report component embeds are live, referenced by Step
 
-**Status:** accepted (MVP scope; several parts explicitly deferred, see Open questions)
+**Status:** accepted (supersedes the frozen-snapshot direction of [ADR-0008](0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md) for these embeds)
 **Date:** 2026-08-10
-**Builds on:** [ADR-0008](0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md)
 
 ## Context
 
 The End-of-engagement [Report view](../../CONTEXT.md) is a human-authored TipTap document
-(the `Report.summary` field). We want a facilitator to pull real report components (Polis
-areas of consensus, opinion groups, the consensus continuum, etc.) into that document from
-a button in the editor, place them wherever they want in the narrative, and have them show
-up on the published report.
+(the `Report.summary` field). A facilitator pulls real report components (Polis areas of
+consensus, opinion groups, the consensus continuum, etc.) into that document from a button
+in the editor and places them where they want in the narrative.
 
-ADR-0008 already decided the storage question at a high level: report pieces embed as
-**frozen HTML snapshots**, not live bindings. This ADR pins down the concrete shape of the
-embed node, the authoring flow, and what is deliberately out of scope for the first cut.
+ADR-0008 framed the storage choice as frozen-vs-live and chose **frozen HTML snapshots**.
+We started there. In practice the report components are *interactive* (expandable statement
+lists, a hover-driven beeswarm, group selectors), and freezing them to static HTML turned
+every control into a dead element that looked broken. Reviving those controls on a frozen
+blob would have meant re-implementing each one as ambient JS on baked markup. At that point
+the honest, simpler thing is to render the real component. So we reversed: **these embeds
+are live.** ADR-0008's frozen model was considered and is recorded here as the rejected
+alternative.
 
-Two things were true when we started and shaped the decisions below:
+Two facts made live viable without backend work:
 
-- The published report page was rendering `summary` through `marked.parse` (treating a
-  TipTap ProseMirror JSON document as markdown), so it printed raw JSON. Rich text did not
-  render at all. Fixing that is a prerequisite, not a nice-to-have.
-- The report already had two half-built models of "report content": the `summary` TipTap
-  field, and a dormant `section_configs` list (seeded per Step at report generation, tagged
-  with each Step's tool + `ai_generated`/`verified` flags, consumed by nothing).
+- `PolisGetReportData` (the core report export) has **no auth** — a public/anonymous report
+  page can call it.
+- `PolisListStatementAux` requires an authenticated user, so it is best-effort: present for
+  logged-in viewers (themes, moderation counts), gracefully empty for anonymous ones. The
+  components render from `reportData` alone.
 
 ## Decision
 
 **1. One authored surface.** The `summary` TipTap document is the single composition
-surface for the report. Components are embedded inline as nodes; there is no competing
-structured renderer. `section_configs` is repurposed as the *picker's registry* (which
-Steps in this conversation have a report-capable tool), not a second render path.
+surface. `section_configs` is the picker's registry (which Steps are report-capable), not a
+second render path.
 
-**2. The embeddable unit is a section block.** The dialog offers self-contained section
-components (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus
-continuum*, *Opinion groups*) from an explicit allow-list. Sub-primitives that only make
-sense inside a section (`VoteBar`, `OpinionGroupCard`, `StatementVoteBlock`) are not
-offered, and the whole-page `PolisInsights` composition is not offered either (embedding
-the entire thing defeats curation).
+**2. The embeddable unit is a section block** from an explicit allow-list (Polis: *Key
+stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion
+groups*). Not the sub-primitives they compose from; not the whole `PolisInsights` page.
 
-Each component gets a `frozen` mode used for the snapshot: interactive controls (filter
-chips, "See all" toggles, group selectors, hover-driven detail) are dropped and everything
-is shown. The beeswarm (`ConsensusContinuum`) additionally runs its d3-force layout to
-completion *synchronously* at a fixed viewBox width in `frozen` mode, because its normal
-animated, width-measured layout cannot be captured by an innerHTML read.
+**3. The node stores only a reference** — `{ toolStepId, componentType, config }`. There is
+no baked HTML. Every render surface mounts the real Svelte component against current data:
 
-**3. The node stores a reference *and* the frozen HTML.**
+- **Editor**: the node view mounts the live component (full interactivity while composing).
+- **Published web page**: the report body is rendered by walking the document and
+  interleaving the live component at each embed node, between the normally-rendered rich
+  text.
 
-- `reference`: `{ toolStepId, componentType, config }` — the recipe the snapshot was built
-  from.
-- `frozenHtml`: the rendered-to-HTML snapshot of the component.
+**4. Data loading is per-embed and client-side.** A shared `ReportEmbedLive` component loads
+`reportData` (required) and `statementAux` (best-effort via `tryCatchAsync`) by
+`toolStepId`, and renders the section. It owns its loading / empty / error states.
 
-The frozen HTML is what renders, everywhere (editor preview, published web view, and any
-future print/download path). It slots straight into the published page's existing
-string-based render pipeline (`renderRichTextToHtml` + `{@html}`), so "render correctly"
-is the smallest possible change. The reference is cheap insurance: it is what a future
-"refresh snapshot" action re-freezes from, what interim-vs-final re-freezes need, and the
-exact hook a future live-component upgrade would attach to.
-
-**4. Deleted-Step fallback.** Because the HTML is baked in, deleting the source Step does
-**not** blank the report — the snapshot keeps rendering. A dangling reference only disables
-*refresh*: the editor shows the last snapshot with a "source Step was deleted, can't
-refresh" badge and a remove option.
-
-**5. Insert with defaults.** No per-component config stage (filters, top-N) in the first
-cut; components insert with sensible defaults.
+**5. Deleted-Step / no-data fallback.** If the Step or its data no longer resolves, the
+embed shows an inline "this component's data is no longer available" state instead of
+breaking the page. The reference is all that is stored, so there is nothing stale to show.
 
 ## Alternatives considered
 
-- **Live components** (store only the reference, mount the real Svelte component against
-  current data on every view). More truthful, interactive (beeswarm hover, expandable
-  tables), always fresh. Rejected for now: it needs a node-view bridge and a rework of the
-  published render path, it breaks print/email/download (no JS, no DOM), and a report is a
-  snapshot by definition once the conversation is closed. This is a real open question with
-  team-level implications (a whole "live report" concept) — see Open questions. Storing the
-  reference now keeps the door open to add it without a migration.
-- **Whole-tool embed** (drop the entire `PolisInsights` page as one block). Faster, but
-  all-or-nothing — no curation, which is the point of the feature.
-- **Lean into `section_configs`** as the real structure (author toggles/verifies
-  pre-seeded per-Step sections; prose is just glue). More rigid, and it fights the "embed
-  anywhere in the flow" model.
-- **HTML-only node** (drop the reference). Marginally simpler now, but a frozen block with
-  no recipe is a dead end: no refresh, no re-freeze, no upgrade path.
+- **Frozen HTML snapshots** (ADR-0008; our first cut). At freeze time the component renders
+  to HTML baked into the node; every surface shows that static HTML. Portable to no-JS paths
+  (email, print, PDF) and needs no live data access. **Rejected** because the components are
+  interactive and a frozen snapshot makes every control dead; a report that a viewer expects
+  to explore (expand statements, hover the beeswarm) is the product, and freezing removes it.
+  Reconsider if/when a no-JS export (emailed or PDF report) becomes a hard requirement — that
+  path will need a frozen or server-rendered fallback.
+- **Whole-tool embed** (drop the entire `PolisInsights` page). All-or-nothing, no curation.
+- **Lean into `section_configs`** as the real structure. More rigid; fights "embed anywhere".
 
 ## Consequences
 
-- Embedded components are **static** in the published report: the beeswarm and expandable
-  tables become pictures, not widgets. Acceptable for a snapshot; revisit with live
-  components if needed.
-- We can freeze **different snapshots at different stages** (interim reports), which is a
-  genuine upside of the frozen model, not just a limitation.
-- A frozen HTML blob is baked from our own components over our own data (not author markup),
-  but it is still emitted via `{@html}`; the render path must keep treating only our schema
-  as trusted and must not become a general raw-HTML sink.
+- **No-JS surfaces don't render the embeds.** Email / print / a static PDF export will show
+  the surrounding prose but not live components. If we want "download the report" later, it
+  needs a server-side render or a frozen fallback keyed off the same reference — revisit then.
+- **Embeds paint after hydration.** The report body SSRs its text; each live component loads
+  its data client-side and pops in. Acceptable for a report; could be pre-loaded in the page
+  loader later.
+- **Anonymous viewers get reduced fidelity** on anything sourced from `statementAux` (themes,
+  approved/pending counts) until/unless that endpoint is opened up.
+- **`PolisGetReportData` is unauthenticated.** This is what makes the public live report work;
+  noting it here because it is load-bearing and a future auth change to that endpoint would
+  break public reports.
 
 ## Open questions (deferred, for team discussion)
 
-Tracked on the issue tracker, not decided here:
-
-- Single-page vs **multi-page** report and page breaks.
-- What **data** the public report shows (real participant stats, demographics, methodology)
-  instead of today's hardcoded values.
-- Full **presentation rebuild**: retire the per-Step tabs and the hardcoded Polis iframe.
-- **Live components** / the "live report" concept (the alternative above).
-- Making the other report sections (Impacts, Facilitator/Participant feedback) rich text.
-- **Translatable** embeds.
-- **Preview + download** (PDF) of the whole report.
+Tracked on the issue tracker (spike #839), not decided here: multi-page reports + page
+breaks · what participant data the public report shows · full presentation rebuild (retire
+the tabs + hardcoded iframe) · no-JS export / "download the report" (needs the frozen or
+server-rendered fallback above) · rich-text-ifying the Impacts / feedback sections ·
+translatable embeds.

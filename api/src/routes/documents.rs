@@ -981,7 +981,7 @@ mod tests {
             .update_conversation(&app, &conversation_id, json!({ "is_public": true }))
             .await?;
 
-        let mut anon = UserSession::new_anon();
+        let mut anon = UserSession::new_guest();
         let (status, _, _) = anon
             .get(&app, &format!("/conversation/{conversation_id}/documents"))
             .await?;
@@ -1001,7 +1001,7 @@ mod tests {
         })
         .await?;
 
-        let mut anon = UserSession::new_anon();
+        let mut anon = UserSession::new_guest();
         let (status, _, _) = anon
             .get(&app, &format!("/conversation/{conversation_id}/documents"))
             .await?;

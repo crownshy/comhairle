@@ -1,10 +1,10 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type { LoadEvent } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-import { apiClient } from '@crownshy/api-client/client';
 import { key } from '$lib/utils/invalidationKey';
+import type { ChatInstructionsDto } from '@crownshy/api-client/api';
 
-export const load: PageLoad = async ({ depends, params }: LoadEvent) => {
+export const load: PageLoad = async ({ parent, depends, params }: LoadEvent) => {
 	depends(key('knowledge-base/documents'));
 
 	const { conversation_id } = params;
@@ -12,8 +12,10 @@ export const load: PageLoad = async ({ depends, params }: LoadEvent) => {
 		return;
 	}
 
+	const { api } = await parent();
+
 	const docsResponse = await tryCatchAsync(() =>
-		apiClient.ListDocuments({
+		api.ListDocuments({
 			params: { conversation_id }
 		})
 	);
@@ -24,7 +26,7 @@ export const load: PageLoad = async ({ depends, params }: LoadEvent) => {
 	}
 
 	const chatResponse = await tryCatchAsync(() =>
-		apiClient.GetChat({
+		api.GetChat({
 			params: { conversation_id }
 		})
 	);
@@ -34,5 +36,20 @@ export const load: PageLoad = async ({ depends, params }: LoadEvent) => {
 		return;
 	}
 
-	return { documents: docsResponse.ok, chat: chatResponse.ok };
+	let chatInstructions: ChatInstructionsDto | null = null;
+	const chatInstructionsResponse = await tryCatchAsync(() =>
+		api.GetConversationChatInstructions({ params: { conversation_id } })
+	);
+
+	if (chatInstructionsResponse.err !== null) {
+		console.error(chatResponse.err);
+	} else {
+		chatInstructions = chatInstructionsResponse.ok as ChatInstructionsDto;
+	}
+
+	return {
+		documents: docsResponse.ok,
+		chat: chatResponse.ok,
+		chatInstructions: chatInstructions
+	};
 };

@@ -16,6 +16,7 @@ mod tests {
     ) -> Result<Arc<crate::ComhairleState>, Box<dyn Error>> {
         let mut state = test_state().db(pool).call()?;
         state.config.enable_rate_limiting = true; // Enable rate limiting for these tests
+        state.config.refresh_jwt_secret = "refresh_secret".to_string();
         Ok(Arc::new(state))
     }
 

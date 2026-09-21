@@ -7,6 +7,7 @@
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { formatCountdown } from '$lib/utils/formatCountdown';
 	import { getJitsiBreakoutRoomId } from '$lib/utils/jitsiBreakoutRooms';
+	import { isBreakoutWrappingUp, wrapUpEndTime } from '$lib/utils/breakoutWrapUp';
 	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { videoCallService } from '$lib/services/videoCallService.svelte';
@@ -91,7 +92,6 @@
 	let hasJoinedCall = $state(false);
 	let jitsiApi: any = $state(null);
 	let roomContext = $state<RoomContext>('plenary');
-	let activePanel = $state<PanelTab>('agenda');
 	let jitsiModeratorStatus = $state<boolean>(false);
 	let currentJitsiRoomName = $state<string>('');
 	/** This client's own Jitsi participant id, used to detect our own rename events. */
@@ -105,7 +105,6 @@
 	let showBroadcast = $state(false);
 	let showEndMeeting = $state(false);
 	let mobileRoomIndex = $state(0);
-	let mobileAgendaViewIndex = $state(0);
 	/** Whether the mobile bottom sheet is collapsed (peek) or expanded */
 	let mobileSheetCollapsed = $state(false);
 	let seenAssistanceRequests = $state<Set<string>>(new Set());
@@ -133,6 +132,8 @@
 
 	let breakoutTimeRemaining = $state<number | null>(null);
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
+	/** Guards the multi-step teardown against a second click landing mid-flight. */
+	let endingBreakoutSession = $state(false);
 
 	// Prefer the agenda pushed over WS (live edits) over the SSR-loaded one, which can go stale.
 	let agendaItems = $derived(mapApiAgenda(videoCallService.agenda ?? event?.agenda ?? []));
@@ -161,6 +162,18 @@
 	let isBreakoutActive = $derived(breakoutSession !== null);
 	let inBreakoutRoom = $derived(typeof roomContext !== 'string');
 
+	/** Which side panel tab is showing. Moderators land on the rooms list as soon as a
+	 *  breakout starts, everyone else on the agenda. Writable, because the tab buttons and
+	 *  the join and return paths set it directly; those writes hold until the next
+	 *  breakout starts or ends. */
+	let activePanel: PanelTab = $derived(
+		isBreakoutActive && isModerator ? 'breakoutRooms' : 'agenda'
+	);
+
+	/** The agenda item the mobile strip is showing. Follows the live step, and holds
+	 *  wherever the arrows leave it until the step changes. */
+	let mobileAgendaViewIndex = $derived(currentStep);
+
 	let currentAgendaItem = $derived(
 		currentStep >= 0 && currentStep < agendaItems.length ? agendaItems[currentStep] : null
 	);
@@ -179,6 +192,10 @@
 	});
 
 	let timeLeftFormatted = $derived(formatCountdown(breakoutTimeRemaining));
+
+	let isBreakoutWrapUp = $derived(
+		isBreakoutActive && isBreakoutWrappingUp(breakoutTimeRemaining)
+	);
 
 	let breakoutRoomDisplays = $derived.by((): BreakoutRoomDisplay[] => {
 		// Use real rooms from backend if available, otherwise use mock rooms
@@ -284,20 +301,6 @@
 		if (callStatus === 'InProgress' && !hasJoinedCall) {
 			hasJoinedCall = true;
 		}
-	});
-
-	$effect(() => {
-		if (isBreakoutActive && isModerator) {
-			activePanel = 'breakoutRooms';
-		}
-		if (!isBreakoutActive && activePanel === 'breakoutRooms') {
-			activePanel = 'agenda';
-		}
-	});
-
-	// Sync mobile agenda view with current step
-	$effect(() => {
-		mobileAgendaViewIndex = currentStep;
 	});
 
 	// Reset mobile sheet collapse state when a participant enters a breakout room (peek)
@@ -435,6 +438,7 @@
 		showBreakoutEnding = false;
 		breakoutEndingDismissed = false;
 		breakoutAutoEnded = false;
+		endingBreakoutSession = false;
 		trackedRoomIndex = null;
 		jitsiBreakoutRooms = {};
 		breakoutRoomsReady = false;
@@ -591,13 +595,24 @@
 		}
 	}
 
-	function handleEndBreakoutSessionCountdown() {
+	/**
+	 * The End control is two-stage: the first press starts the wrap-up minute, and once the
+	 * session is in that minute the same control closes the rooms straight away. Pressing it
+	 * again during the wrap-up can therefore never put time back on the clock.
+	 */
+	function handleEndSessionPressed() {
 		const currentEnd = videoCallService.getBreakoutSessionEndTime();
 		if (!currentEnd || !isBreakoutActive) {
 			showToast('No active breakout session to end');
 			return;
 		}
-		const newEnd = new Date(Date.now() + 60 * 1000).toISOString();
+
+		if (isBreakoutWrapUp) {
+			handleEndBreakoutSession();
+			return;
+		}
+
+		const newEnd = wrapUpEndTime(currentEnd, Date.now()).toISOString();
 		const message = 'Breakout rooms will finish in 1 min';
 		videoCallService.extendBreakoutSession(eventId, newEnd);
 		videoCallService.broadcastMessage(eventId, message);
@@ -605,6 +620,16 @@
 	}
 
 	async function handleEndBreakoutSession() {
+		if (endingBreakoutSession) return;
+		endingBreakoutSession = true;
+		try {
+			await closeBreakoutRooms();
+		} finally {
+			endingBreakoutSession = false;
+		}
+	}
+
+	async function closeBreakoutRooms() {
 		// Step 1: Ensure moderator is in main room before removing breakout rooms
 		if (typeof roomContext !== 'string') {
 			try {
@@ -857,6 +882,7 @@
 							question={currentAgendaItem?.breakoutQuestion}
 							description={currentAgendaItem?.breakoutDescription}
 							{timeLeftFormatted}
+							isWrappingUp={isBreakoutWrapUp}
 							{isModerator}
 							onCallForSupport={handleCallForSupport}
 							onLeaveBreakoutRoom={handleLeaveBreakoutRoom}
@@ -866,9 +892,11 @@
 							rooms={breakoutRoomDisplays}
 							{timeLeftFormatted}
 							{isModerator}
+							isWrappingUp={isBreakoutWrapUp}
+							endDisabled={endingBreakoutSession}
 							onEnterRoom={handleEnterBreakoutRoom}
 							onUpdateTime={handleUpdateTime}
-							onEndSession={handleEndBreakoutSessionCountdown}
+							onEndSession={handleEndSessionPressed}
 							onBroadcastMessage={() => (showBroadcast = true)}
 						/>
 					{:else}
@@ -1097,10 +1125,10 @@
 		<div
 			class="bg-sidebar-foreground/20 flex items-center justify-center gap-2 rounded-full px-4 py-2 md:px-3 md:py-1"
 		>
-			<span class="text-sidebar-foreground text-sm font-medium md:text-xs">
+			<span class="text-sidebar-foreground/80 text-sm font-medium md:text-xs">
 				{roomChipText}
 			</span>
-			<span class="text-primary text-sm font-medium md:text-xs">
+			<span class="text-sidebar-foreground text-sm font-semibold tabular-nums md:text-xs">
 				<span class="md:hidden">Time left </span>
 				<span class="hidden md:inline">·</span>
 				{timeLeftFormatted}
@@ -1123,7 +1151,7 @@
 	<div
 		class="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 {status ===
 		'current'
-			? 'bg-primary/30 text-foreground'
+			? 'bg-accent text-accent-foreground'
 			: status === 'done'
 				? 'bg-muted-foreground/10 text-muted-foreground'
 				: 'bg-background text-card-foreground'}"
@@ -1216,8 +1244,10 @@
 	<div class="flex min-h-0 flex-col gap-4 overflow-y-auto px-4 pb-5">
 		<!-- Timer + chips -->
 		<div class="flex items-center justify-center gap-2.5">
-			<span class="text-ring text-sm font-semibold">
-				Time left&nbsp;&nbsp;{timeLeftFormatted}
+			<span
+				class="{isBreakoutWrapUp ? 'text-destructive' : 'text-ring'} text-sm font-semibold"
+			>
+				{isBreakoutWrapUp ? 'Ending in' : 'Time left'}&nbsp;&nbsp;{timeLeftFormatted}
 			</span>
 			<div class="flex items-center gap-1.5">
 				<button
@@ -1331,12 +1361,15 @@
 				Broadcast message
 			</Button>
 			<Button
-				variant="outline"
-				class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-11 w-full text-sm font-medium"
-				onclick={handleEndBreakoutSessionCountdown}
+				variant={isBreakoutWrapUp ? 'destructive' : 'outline'}
+				disabled={endingBreakoutSession}
+				class={isBreakoutWrapUp
+					? 'h-11 w-full text-sm font-medium'
+					: 'border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-11 w-full text-sm font-medium'}
+				onclick={handleEndSessionPressed}
 			>
 				<CircleStop class="mr-1.5 h-4 w-4" />
-				End breakout session
+				{isBreakoutWrapUp ? 'End now' : 'End breakout session'}
 			</Button>
 		</div>
 	</div>

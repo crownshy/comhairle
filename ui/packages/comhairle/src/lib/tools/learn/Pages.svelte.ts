@@ -14,7 +14,7 @@ export interface ExtendedLocalizedPage extends LocalizedPage {
 }
 
 type From = 'source' | 'target';
-type RawSave = (options?: { invalidate?: boolean }) => Promise<void>;
+type RawSave = () => Promise<void>;
 type OnMarkSaved = () => void;
 type Order = { id: string; [SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean }[]; // Matching DraggableList "items" props
 
@@ -43,10 +43,7 @@ class Pages {
 	#savedResetTimer: ReturnType<typeof setTimeout> | undefined;
 
 	// Content edits route through here; a single shared timer means rapid typing collapses to one save.
-	#debouncedSave = useDebounce(
-		(invalidate: boolean) => this.#runSave(invalidate),
-		SAVE_DEBOUNCE_MS
-	);
+	#debouncedSave = useDebounce(() => this.#runSave(), SAVE_DEBOUNCE_MS);
 
 	get count() {
 		return Object.keys(this.items).length;
@@ -60,11 +57,11 @@ class Pages {
 		this.#onMarkSaved = fn;
 	}
 
-	async #runSave(invalidate: boolean) {
+	async #runSave() {
 		this.saveState = 'saving';
 		clearTimeout(this.#savedResetTimer);
 		this.#inFlight = (async () => {
-			const res = await tryCatchAsync(() => this.#rawSave({ invalidate }));
+			const res = await tryCatchAsync(() => this.#rawSave());
 			if (res.err !== null) {
 				this.saveState = 'error';
 				return;
@@ -82,7 +79,7 @@ class Pages {
 	}
 
 	/** Queue a debounced save. For content edits, where per-keystroke persistence would be wasteful. */
-	#scheduleSave(invalidate = false) {
+	#scheduleSave() {
 		this.areDirty = true;
 		// Show "Saving" from the first keystroke through the debounce window, not just for the brief
 		// moment the request is in flight, so the indicator reflects "you have unsaved changes".
@@ -91,7 +88,7 @@ class Pages {
 		// A later #saveNow() cancels this debounce, which rejects the pending promise with "Cancelled".
 		// That's expected (the edit is already in the in-memory model, so #saveNow persists it), so
 		// swallow it here rather than leak an unhandled rejection.
-		this.#debouncedSave(invalidate).catch(() => {});
+		this.#debouncedSave().catch(() => {});
 	}
 
 	/**
@@ -99,11 +96,11 @@ class Pages {
 	 * reorder) where the change is discrete and the user expects it to stick right away. The in-memory
 	 * model already holds any un-flushed content edit, so cancelling the timer drops the timer, not data.
 	 */
-	async #saveNow(invalidate = true) {
+	async #saveNow() {
 		this.areDirty = true;
 		this.#debouncedSave.cancel();
 		if (this.#inFlight) await this.#inFlight;
-		await this.#runSave(invalidate);
+		await this.#runSave();
 	}
 
 	/**
@@ -214,7 +211,7 @@ class Pages {
 						break;
 				}
 				this.items[this.currentId] = page;
-				this.#scheduleSave(false);
+				this.#scheduleSave();
 			},
 
 			approve: async (lang: Language, validation: boolean) => {
@@ -222,7 +219,7 @@ class Pages {
 				if (!page || !page[lang]) return;
 				page[lang].requires_validation = !validation;
 				this.items[this.currentId] = page;
-				return this.#saveNow(false);
+				return this.#saveNow();
 			}
 		};
 	}

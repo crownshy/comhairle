@@ -4,6 +4,7 @@ import { paraglideMiddleware } from '$lib/paraglide/server';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName, DEFAULT_THEME, THEMES } from '$lib/types/theme';
 import { getTextDirection } from '$lib/paraglide/runtime';
+import setCookieParser from 'set-cookie-parser';
 
 const isEmbeddable = (pathname: string) =>
 	EMBEDDABLE_PATHS.some((path) => pathname.startsWith(path));
@@ -49,8 +50,19 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 			'geolocation=(), camera=(self, https://jitsi.comhairle.scot), microphone=(self, https://jitsi.comhairle.scot)'
 		);
 	} else {
-		// Deny framing everywhere else
-		response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+		// Deny framing everywhere else except ummami if active
+		let umami_url = env.PUBLIC_UMAMI_SRC;
+		let umami_domain = '';
+		if (umami_url) {
+			try {
+				umami_domain = `'${new URL(umami_url).host}'`;
+			} catch (e) {
+				console.warn('Badly formatted umami domain');
+			}
+		}
+
+		let frameAncestors = "frame-ancestors 'self' " + umami_domain;
+		response.headers.set('Content-Security-Policy', frameAncestors);
 		response.headers.set('X-Frame-Options', 'DENY');
 		response.headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
 	}
@@ -73,7 +85,7 @@ export const handle: Handle = sequence(handleTheme, handleParaglide, handleHeade
 // from the frontend pod, so without this the API records the NAT gateway IP instead
 // of the real client. Forward the browser IP (set by nginx on the inbound request)
 // on same-origin /api requests only, so it never leaks to third-party hosts.
-export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
+export const handleFetch: HandleFetch = async ({ event, request, fetch }) => {
 	const url = new URL(request.url);
 	if (url.origin === event.url.origin && url.pathname.startsWith('/api')) {
 		const xff = event.request.headers.get('x-forwarded-for');
@@ -91,5 +103,40 @@ export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
 			request.headers.set('user-agent', userAgent);
 		}
 	}
-	return fetch(request);
+
+	let response = await fetch(request);
+
+	if (response.status === 401 && !request.url.includes('/api/auth/refresh')) {
+		const refreshResponse = await fetch(`${event.url.origin}/api/auth/refresh`, {
+			method: 'POST',
+			credentials: request.credentials
+		});
+
+		if (refreshResponse.ok) {
+			// Update cookie jar to those from `/refresh` request to get new
+			// `auth-token` cookie.
+			const refreshSetCookieHeader = refreshResponse.headers.getSetCookie();
+			const parsedSetCookies = setCookieParser(refreshSetCookieHeader);
+			for (const cookie of parsedSetCookies) {
+				event.cookies.set(cookie.name, cookie.value, {
+					path: cookie.path ?? '/',
+					maxAge: cookie.maxAge,
+					httpOnly: cookie.httpOnly,
+					secure: cookie.secure,
+					sameSite: cookie.sameSite as SameSite
+				});
+			}
+
+			const retryRequest = request.clone();
+			// Delete cookie header from request after cloning to force updated
+			// cookie jar (`event.cookies`) with valid `auth-token` to be used
+			retryRequest.headers.delete('cookie');
+
+			response = await fetch(retryRequest);
+		}
+	}
+
+	return response;
 };
+
+type SameSite = boolean | 'lax' | 'strict' | 'none' | undefined;

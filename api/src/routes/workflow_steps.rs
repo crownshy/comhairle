@@ -129,6 +129,10 @@ async fn create_workflow_step(
 #[instrument(err(Debug), skip(state))]
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
+    SourcePathCtx {
+        conversation_id: _,
+        event_id: _,
+    }: SourcePathCtx,
     WorkflowStepPathCtx {
         workflow_id,
         workflow_step_id,

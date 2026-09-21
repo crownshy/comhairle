@@ -210,7 +210,7 @@ async fn get_conversation(
                 return Err(ComhairleError::UserNotAuthorized);
             }
         } else {
-            return Err(ComhairleError::UserNotAuthorized);
+            return Err(ComhairleError::NoLoggedInUser);
         }
     }
 
@@ -847,11 +847,36 @@ async fn export_conversation_demographics(
         for profile in demographics {
             writer.write_record(&[
                 profile.user_id.to_string(),
-                profile.ethnicity.unwrap_or_default(),
-                profile.age.map(|a| a.to_string()).unwrap_or_default(),
-                profile.gender.unwrap_or_default(),
-                profile.zipcode.unwrap_or_default(),
-                profile.political_party.unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("ethnicity")
+                    .map(|d| d.value.clone())
+                    .flatten()
+                    .unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("age")
+                    .map(|d| d.value.clone())
+                    .flatten()
+                    .unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("gender")
+                    .map(|d| d.value.clone())
+                    .flatten()
+                    .unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("zipcode")
+                    .map(|d| d.value.clone())
+                    .flatten()
+                    .unwrap_or_default(),
+                profile
+                    .demographics
+                    .get("political_party")
+                    .map(|d| d.value.clone())
+                    .flatten()
+                    .unwrap_or_default(),
                 profile.created_at.to_rfc3339(),
             ])?;
         }
@@ -1052,6 +1077,9 @@ mod tests {
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
     use crate::models::conversation::PartialConversation;
+    use crate::models::demographics::{
+        CreateConversationDemographics, create_conversation_demographics,
+    };
     use crate::models::permissions::{
         GrantRoleRequest, OrganizationWithPermissionDto, Role, UserOrOrganizationId, grant_role,
     };
@@ -2068,6 +2096,19 @@ mod tests {
         let workflow: crate::routes::workflows::dto::WorkflowDto =
             serde_json::from_value(workflow)?;
 
+        // Add default demographics to conversation
+        let default_questions = vec!["age", "ethnicity", "gender", "zipcode", "political_party"];
+        for question_slug in default_questions {
+            let _ = create_conversation_demographics(
+                &pool,
+                CreateConversationDemographics {
+                    conversation_id: conversation.id,
+                    question_slug: question_slug.to_string(),
+                },
+            )
+            .await?;
+        }
+
         // Create test users with profiles
         let user1 = crate::models::users::create_user(
             &SignupRequest {
@@ -2132,7 +2173,7 @@ mod tests {
         let url = format!("/conversation/{}/demographics/export", conversation.id);
         let mut request = Request::builder().uri(&url).method("GET");
 
-        if let Some(cookie) = &admin_session.cookie {
+        if let Some(cookie) = &admin_session.cookie_header() {
             request = request.header("Cookie", cookie);
         }
 
@@ -2140,9 +2181,9 @@ mod tests {
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
+        let body = response.into_body().collect().await?.to_bytes();
         assert_eq!(status, StatusCode::OK, "Should export successfully");
 
-        let body = response.into_body().collect().await?.to_bytes();
         let csv_string = String::from_utf8(body.to_vec())?;
 
         // Verify CSV contains expected headers

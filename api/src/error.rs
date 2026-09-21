@@ -1,9 +1,12 @@
-use crate::{
-    bulk_storage_service::error::BulkStorageError, tools::polis::PolisError,
-    transcription_service::error::TranscriptionServiceError,
-    translation_service::error::TranslationError, websockets::error::WebsocketError,
-    wiki_poll_service::error::WikiPollServiceError, worker_service::error::WorkerServiceError,
-};
+use crate::bulk_storage_service::error::BulkStorageError;
+use crate::models::refresh_token::RefreshFailure;
+use crate::tools::polis::PolisError;
+use crate::transcription_service::error::TranscriptionServiceError;
+use crate::translation_service::error::TranslationError;
+use crate::websockets::error::WebsocketError;
+use crate::wiki_poll_service::error::WikiPollServiceError;
+use crate::worker_service::error::WorkerServiceError;
+
 use aide::OperationIo;
 use axum::{
     Json,
@@ -106,8 +109,8 @@ pub enum ComhairleError {
     #[error("CSS inliner error: {0}")]
     CssInlinerError(#[from] css_inline::error::InlineError),
 
-    #[error("Username {0} already taken")]
-    DuplicateUsername(String),
+    #[error("Guest code {0} already taken")]
+    DuplicateGuestCode(String),
 
     #[error("Email {0} already taken")]
     DuplicateEmail(String),
@@ -169,8 +172,8 @@ pub enum ComhairleError {
     #[error("Update request contained no valid parameters")]
     NoValidUpdates,
 
-    #[error("Failed to create annon user")]
-    FailedToCreateAnnonUser,
+    #[error("Failed to create guest user")]
+    FailedToCreateGuestUser,
 
     #[error("Cant log this type of user in with this flow")]
     WrongUserType,
@@ -182,7 +185,7 @@ pub enum ComhairleError {
     InviteResponseAlreadyCreated,
 
     #[error("No user logged in")]
-    NoLogedInUser,
+    NoLoggedInUser,
 
     #[error("User is not signed up to participate in the conversation")]
     UserIsNotParticipatingInTheConversation,
@@ -255,6 +258,9 @@ pub enum ComhairleError {
 
     #[error("User is not authorized to perform this action")]
     UserNotAuthorized,
+
+    #[error("Session refresh failure: {0}")]
+    SessionRefreshFailure(RefreshFailure),
 
     /// The participant has already finished and the conversation does not allow revisits
     /// afterwards. Distinct from `UserNotAuthorized` so the frontend can send
@@ -371,7 +377,7 @@ pub struct ComhairleErrorResponse {
 impl IntoResponse for ComhairleError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match self {
-            ComhairleError::DuplicateUsername(_)
+            ComhairleError::DuplicateGuestCode(_)
             | ComhairleError::DuplicateEmail(_)
             | ComhairleError::ConversationAlreadyLive
             | ComhairleError::EmailAlreadyVerified
@@ -392,8 +398,9 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WrongPassword
             | ComhairleError::InvalidApiKey
             | ComhairleError::RequiresAuthUser
+            | ComhairleError::SessionRefreshFailure(_)
             | ComhairleError::InviteDoesNotMatchUser
-            | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
+            | ComhairleError::NoLoggedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates
             | ComhairleError::EventHasPast
             | ComhairleError::ConversationNotLive
