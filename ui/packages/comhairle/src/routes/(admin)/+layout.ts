@@ -1,9 +1,11 @@
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
+import { key } from '$lib/utils/invalidationKey';
 
 export const load: LayoutLoad = async ({ parent, data, depends }) => {
 	depends('admin:organizations');
+	depends(key('conversations'));
 	const { api } = await parent();
 
 	try {
