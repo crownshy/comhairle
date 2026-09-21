@@ -8,10 +8,11 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { jsonToHtml } from '$lib/utils/rich-text.js';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type FormState = {
 		subject?: string;
@@ -77,7 +78,9 @@
 				message: 'Successfully create new custom email'
 			});
 
-			goto(`/admin/email-template-configs/${emailConfig.id}`, { invalidateAll: true });
+			goto(`/admin/email-template-configs/${emailConfig.id}`, {
+				invalidate: [key('email-template-config')]
+			});
 		} catch (e) {
 			console.error(e);
 			notifications.send({
