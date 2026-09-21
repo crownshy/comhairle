@@ -31,7 +31,8 @@
 	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import FacilitatorRoleList from './FacilitatorRoleList.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
@@ -194,7 +195,7 @@
 				}
 			});
 
-			await invalidateAll();
+			await invalidate(key('event'));
 			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
@@ -290,7 +291,7 @@
 					}
 				}
 			);
-			await invalidateAll();
+			await invalidate(key('event'));
 			agendaDirty = false;
 			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
 		} catch (e) {
@@ -319,7 +320,7 @@
 				message: 'Role updated'
 			});
 
-			await invalidateAll();
+			await invalidate(key('event'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -330,7 +331,7 @@
 	}
 
 	async function emailInvitesSubmitted() {
-		await invalidateAll();
+		await invalidate(key('event'));
 	}
 </script>
 
