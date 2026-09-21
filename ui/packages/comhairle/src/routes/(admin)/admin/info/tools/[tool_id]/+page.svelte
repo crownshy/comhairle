@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { TOOL_GUIDES } from '$lib/tool_guides';
 	import { ImageIcon } from 'lucide-svelte';
+	import { toSlug } from '$lib/utils/casingUtils';
 
 	// The tool's key is the `[tool_id]` route param, which matches the TOOL_GUIDES keys.
 	let guide = $derived(TOOL_GUIDES[page.params.tool_id ?? '']);
@@ -13,12 +14,12 @@
 		)
 	);
 
-	function sectionId(heading: string): string {
-		return heading
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/^-|-$/g, '');
-	}
+	// function sectionId(heading: string): string {
+	// 	return heading
+	// 		.toLowerCase()
+	// 		.replace(/[^a-z0-9]+/g, '-')
+	// 		.replace(/^-|-$/g, '');
+	// }
 </script>
 
 <svelte:head>
@@ -55,7 +56,7 @@
 		<div class="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.7fr)]">
 			<div class="flex min-w-0 flex-col gap-10">
 				{#each contentSections as section, index (index)}
-					<section id={section.heading ? sectionId(section.heading) : undefined}>
+					<section id={section.heading ? toSlug(section.heading) : undefined}>
 						{#if section.heading}
 							<h2 class="text-foreground text-3xl font-semibold">
 								{section.heading}
@@ -77,7 +78,7 @@
 								{#each jumpSections as section (section.heading)}
 									{#if section.heading}
 										<a
-											href={`#${sectionId(section.heading)}`}
+											href={`#${toSlug(section.heading)}`}
 											class="bg-muted text-foreground hover:bg-accent inline-flex rounded-full px-3 py-1.5 text-base font-medium transition-colors"
 										>
 											{section.heading}

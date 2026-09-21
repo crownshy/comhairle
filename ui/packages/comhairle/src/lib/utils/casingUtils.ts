@@ -51,3 +51,10 @@ export function capitalise(str: string): string {
 		.map((word) => word[0].toUpperCase() + word.slice(1))
 		.join(' ');
 }
+
+export function toSlug(text: string): string {
+	return text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '');
+}

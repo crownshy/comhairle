@@ -1,3 +1,5 @@
+type ToolType = 'polis' | 'thinkingspace' | 'learnstep' | 'video' | 'prioritisation' | 'survey';
+
 const guideImages = import.meta.glob(
 	'./assets/tools-{polis,thinkingspace,learnstep,video,prioritisation,survey}.{png,jpg,jpeg,webp,avif}',
 	{
@@ -7,12 +9,9 @@ const guideImages = import.meta.glob(
 	}
 ) as Record<string, string>;
 
-const polisGuideImage = guideImages['./assets/tools-polis.png'];
-const thinkingSpaceGuideImage = guideImages['./assets/tools-thinkingspace.png'];
-const learnStepGuideImage = guideImages['./assets/tools-learnstep.png'];
-const videoGuideImage = guideImages['./assets/tools-video.png'];
-const prioritisationGuideImage = guideImages['./assets/tools-prioritisation.png'];
-const surveyGuideImage = guideImages['./assets/tools-survey.png'];
+function getImageSrc(toolType: ToolType): string | undefined {
+	return guideImages[`./assets/tools-${toolType}.png`];
+}
 
 /**
  * Editorial content for the Comhairle Tools Guide (/admin/info/tools/<key>).
@@ -47,24 +46,6 @@ export type ToolGuide = {
 	sections: GuideSection[];
 };
 
-// we probably don't need these anymore
-// const stub = (title: string, navLabel: string, key: string): ToolGuide => ({
-// 	key,
-// 	navLabel,
-// 	title,
-// 	sections: [
-// 		{
-// 			heading: 'What you need to know',
-// 			html: '<p>Detailed guidance for this tool is coming soon.</p>'
-// 		},
-// 		{ heading: 'How it works', html: '<p>Coming soon.</p>' },
-// 		{ heading: 'Mostly used in…', html: '<p>Coming soon.</p>' },
-// 		{ heading: 'Data collection and analysis', html: '<p>Coming soon.</p>' },
-// 		{ heading: 'A typical participant experience', html: '<p>Coming soon.</p>' },
-// 		{ heading: 'How to set this up', html: '<p>Coming soon.</p>' }
-// 	]
-// });
-
 export const TOOL_GUIDES: Record<string, ToolGuide> = {
 	polis: {
 		key: 'polis',
@@ -84,7 +65,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				image: {
-					src: polisGuideImage,
+					src: getImageSrc('polis'),
 					alt: 'Participant-led Poll interface'
 				}
 			},
@@ -142,7 +123,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				image: {
-					src: thinkingSpaceGuideImage,
+					src: getImageSrc('thinkingspace'),
 					alt: 'Thinking space interface'
 				}
 			},
@@ -211,7 +192,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				image: {
-					src: learnStepGuideImage,
+					src: getImageSrc('learnstep'),
 					alt: 'learn step interface'
 				}
 			},
@@ -277,7 +258,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				image: {
-					src: videoGuideImage,
+					src: getImageSrc('video'),
 					alt: 'video interface'
 				}
 			},
@@ -336,11 +317,11 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		sections: [
 			{
 				heading: 'What you need to know',
-				html: "<p>Survey is a structured data collection tool that lets organisers ask participants a series of questions and collect their responses in a consistent format. Unlike discussion-based tools, where participants respond to and build on each other\’s contributions, Survey is primarily designed to gather individual views, experiences, preferences, or demographic information. It is mostly used when the organiser wants to collect input from a larger number of participants, understand patterns across a group, or gather information before or after another stage of a Comhairle engagement. Surveys can include a mixture of question types, such as multiple choice, single choice, scales, rankings, and free-text responses. This makes them useful both for collecting structured quantitative data and for giving participants opportunities to explain their views in their own words. Survey can also be used alongside other Comhairle tools. For example, an organiser might use a survey at the beginning of an engagement to understand participants\’ starting views, use a Participant-led Poll or discussion to explore those views in more depth, and then use a second survey to understand whether participants' views have changed.</p>"
+				html: "<p>Survey is a structured data collection tool that lets organisers ask participants a series of questions and collect their responses in a consistent format. Unlike discussion-based tools, where participants respond to and build on each other's contributions, Survey is primarily designed to gather individual views, experiences, preferences, or demographic information. It is mostly used when the organiser wants to collect input from a larger number of participants, understand patterns across a group, or gather information before or after another stage of a Comhairle engagement. Surveys can include a mixture of question types, such as multiple choice, single choice, scales, rankings, and free-text responses. This makes them useful both for collecting structured quantitative data and for giving participants opportunities to explain their views in their own words. Survey can also be used alongside other Comhairle tools. For example, an organiser might use a survey at the beginning of an engagement to understand participants' starting views, use a Participant-led Poll or discussion to explore those views in more depth, and then use a second survey to understand whether participants' views have changed.</p>"
 			},
 			{
 				image: {
-					src: surveyGuideImage,
+					src: getImageSrc('survey'),
 					alt: 'survey interface'
 				}
 			},
@@ -383,7 +364,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				image: {
-					src: prioritisationGuideImage,
+					src: getImageSrc('prioritisation'),
 					alt: 'survey interface'
 				}
 			},
