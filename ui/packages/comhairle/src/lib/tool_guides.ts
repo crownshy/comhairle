@@ -10,7 +10,7 @@ const guideImages = import.meta.glob(
 ) as Record<string, string>;
 
 function getImageSrc(toolType: ToolType): string | undefined {
-	return guideImages[`./assets/tools-${toolType}.png`];
+	return guideImages[`./assets/tools-${toolType}.webp`];
 }
 
 /**
