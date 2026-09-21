@@ -33,18 +33,15 @@ export type GuideSection = {
 	};
 };
 
-// const polisGuideImage = Object.values(
-// 	import.meta.glob('./assets/tools-polis.{png,jpg,jpeg,webp,avif}', {
-// 		eager: true,
-// 		query: '?url',
-// 		import: 'default'
-// 	})
-// )[0] as string | undefined;
-
 export type ToolGuide = {
 	key: string;
 	navLabel: string;
 	title: string;
+	atAGlance?: {
+		bestFor: string;
+		participantTime: string;
+		setupTime: string;
+	};
 	sections: GuideSection[];
 };
 
@@ -70,6 +67,11 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		key: 'polis',
 		navLabel: polisTitle,
 		title: polisTitle,
+		atAGlance: {
+			bestFor: 'Complex stakeholder views',
+			participantTime: '10 to 15 minutes',
+			setupTime: '15 to 30 minutes'
+		},
 		sections: [
 			{
 				heading: 'What you need to know',
@@ -85,7 +87,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				heading: 'How it works',
-				html: `${polisTitle} is statement based; it lets participants vote agree/pass/disagree on others' statement contributions. The statements are in text form and limited to no more than 140 words. Participants are presented with statements others made and asked to vote 'Agree' if they agree, 'Disagree' if not fully agreed, and 'Pass/Skip' if neither.</p>
+				html: `<p>${polisTitle} is statement based; it lets participants vote agree/pass/disagree on others' statement contributions. The statements are in text form and limited to no more than 140 words. Participants are presented with statements others made and asked to vote 'Agree' if they agree, 'Disagree' if not fully agreed, and 'Pass/Skip' if neither.</p>
 <p>Participants are able to input their views to this wiki-styled poll (where the statements under polling are crowdsourced). They can do this anytime while interacting with ${polisTitle}, including while casting their votes on others' statements.</p>
 <p>The data of participant votes on each statement enable discovery of opinion groups (forming participant clusters of who voted similarly), and their respective representative opinion. Importantly, this collective data also reveals what their shared understandings might be across opinion groups (identifying bridging opinions capturing the same votes across participants from different opinion groups).</p>`
 			},
@@ -123,6 +125,11 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		key: 'thinking_space',
 		navLabel: 'Thinking space',
 		title: 'Thinking space',
+		atAGlance: {
+			bestFor: 'Private or shared reflection',
+			participantTime: '10 to 15 minutes',
+			setupTime: '10 to 20 minutes'
+		},
 		sections: [
 			{
 				heading: 'What you need to know',
@@ -185,6 +192,11 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		key: 'learn',
 		navLabel: 'Learn step',
 		title: 'Learning step (Rich content page)',
+		atAGlance: {
+			bestFor: 'Topic onboarding',
+			participantTime: '5 to 45 minutes',
+			setupTime: '15 to 30 minutes once content is ready'
+		},
 		sections: [
 			{
 				heading: 'What you need to know',
@@ -248,6 +260,11 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		key: 'online_group_conversation',
 		navLabel: 'Video call',
 		title: 'Video call',
+		atAGlance: {
+			bestFor: 'Live deliberation',
+			participantTime: '45 to 120 minutes',
+			setupTime: 'Depends on the agenda'
+		},
 		sections: [
 			{
 				heading: 'What you need to know',
@@ -304,8 +321,43 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			}
 		]
 	},
+	survey: {
+		key: 'survey',
+		navLabel: 'Survey',
+		title: 'Survey',
+		atAGlance: {
+			bestFor: 'Add this later',
+			participantTime: 'Add this later',
+			setupTime: 'Add this later'
+		},
+		sections: [
+			{
+				heading: 'What you need to know',
+				html: "<p>Survey is a structured data collection tool that lets organisers ask participants a series of questions and collect their responses in a consistent format. Unlike discussion-based tools, where participants respond to and build on each other\’s contributions, Survey is primarily designed to gather individual views, experiences, preferences, or demographic information. It is mostly used when the organiser wants to collect input from a larger number of participants, understand patterns across a group, or gather information before or after another stage of a Comhairle engagement. Surveys can include a mixture of question types, such as multiple choice, single choice, scales, rankings, and free-text responses. This makes them useful both for collecting structured quantitative data and for giving participants opportunities to explain their views in their own words. Survey can also be used alongside other Comhairle tools. For example, an organiser might use a survey at the beginning of an engagement to understand participants\’ starting views, use a Participant-led Poll or discussion to explore those views in more depth, and then use a second survey to understand whether participants' views have changed.</p>"
+			},
+			{
+				heading: 'How it works',
+				html: '<p>Survey is form based. A conversation host creates a survey by giving it a name and description, then adds the questions they want participants to answer. For each question, hosts can choose the appropriate response format. Depending on the question, this might include selecting one answer, selecting multiple answers, choosing a position on a scale, ranking options, or entering a written response. Hosts can decide which questions are required and which are optional. They can also organise questions into sections where a longer survey needs to be broken into different themes or stages. Once the survey is published, participants can access it through the relevant Comhairle conversation or through an invitation to the entire conversation. They work through the questions at their own pace and submit their responses when they have completed the survey. The survey responses are stored as structured data, allowing organisers to review individual responses as well as analyse patterns across the participant group. Depending on the question type, responses can be summarised through counts, distributions, averages, or other appropriate analysis. Where free-text questions are included, written responses can also be reviewed and analysed for common themes, ideas, or areas of disagreement.</p>'
+			},
+			{
+				heading: 'Mostly used in…',
+				html: "<p>Survey is mostly used when the organiser needs to collect structured information from participants at scale, particularly where responses need to be compared across people or groups. </p> Common uses include: <ul><li> Understanding participants' existing views before a deliberative process </li> <li>Collecting demographic or background information</li> <li>Asking participants to prioritise or choose between options</li><li>Measuring changes in views before and after an engagement</li><li>Collecting ideas or suggestions through open-ended questions</li> </ul> Survey can be particularly useful as part of a wider deliberative process. For example, a survey could establish participants' initial views, followed by a Participant-led Poll or discussion to explore the issue, and then a final survey to capture participants' views after deliberation.</p>"
+			},
 
-	heyform: stub('Survey', 'Survey', 'heyform'),
+			{
+				heading: 'A typical participant experience',
+				html: '<p>Participants typically interact with a Survey for around 5 to 15 minutes, depending on the number and complexity of questions. A short survey might contain around 5 to 10 questions and take only a few minutes to complete. A longer survey may contain 20 or more questions, particularly where demographic information and several different topics are being covered. We suggest the survey to be less than 10 questions. Comhairle provides an option for organisers to configure required questions, meaning participants may need to answer certain questions before they can submit their response. Participants normally access the survey through the relevant Comhairle conversation and commonly a topic learn page would be provided before participants entering a survey step. They work through the questions in sequence, selecting or entering their responses, and submit the survey at the end. Once submitted, participants won’t be able to go back and change their answers. The experience is generally asynchronous, meaning participants do not need to be online at the same time as other participants. This makes Survey suitable for reaching participants who have different schedules or who need more time to consider their answers.</p>'
+			},
+			{
+				heading: 'How to set this up',
+				html: '<p>Conversation hosts will need to prepare the following: <ul><li>Name and description of the survey (required)</li><li>Questions and response options (required)</li><li>Question types, such as multiple choice, scales, rankings, or free text</li><li>Which questions are required and which are optional</li><li>Any sections or grouping of questions</li><li>The introduction or instructions participants should see before starting</li><li>The survey question logic for questions dependent on answer of a previous question </li></ul>Organisers will also need to decide: <ul><li>How the responses will be analysed and reported</li></ul></p>'
+			},
+			{
+				heading: 'The open source tool we use: HeyForm',
+				html: '<p><a target="_new" href="https://heyform.net/">HeyForm (open a new tab)</a> is an open-source form and survey platform that provides the underlying functionality for Comhairle\'s Survey tool. It supports a range of question types and form configurations, allowing organisers to create structured surveys and collect responses through a web-based interface. Using HeyForm as the underlying technology allows Comhairle to provide flexible survey functionality while integrating it into the wider deliberation journey. Rather than treating the survey as a standalone questionnaire, Comhairle can use it alongside other engagement tools to collect information at different stages of a participant\'s journey.The Survey tool is therefore designed not just for collecting responses, but for making those responses useful within a broader process of participation and deliberation.</p>'
+			}
+		]
+	},
 	prioritization: stub('Prioritisation tool', 'Prioritisation tool', 'prioritization'),
 	elicitation_bot: stub('Elicitation Bot', 'Elicitation Bot', 'elicitation_bot'),
 	lived_experience: stub('Lived Experience', 'Lived Experience', 'lived_experience')
@@ -316,7 +368,7 @@ export const GUIDE_NAV_ORDER = [
 	'polis',
 	'thinking_space',
 	'learn',
-	'heyform',
+	'survey',
 	'prioritization',
 	'elicitation_bot',
 	'lived_experience',

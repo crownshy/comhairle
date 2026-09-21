@@ -37,6 +37,7 @@
 		<div class="flex flex-col gap-6 md:flex-row md:items-start md:gap-10 md:pb-10">
 			<!-- Mobile: dropdown nav (the wrapping-pill rail is too tall on a phone) -->
 			<div class="md:hidden">
+				<p class="text-muted-foreground mb-2 text-sm font-medium">Engagement tools</p>
 				<Select.Root
 					type="single"
 					value={currentKey}
@@ -54,6 +55,7 @@
 
 			<!-- Desktop: left rail -->
 			<nav class="hidden shrink-0 flex-col gap-2 md:flex md:w-48" aria-label="Tools">
+				<p class="text-muted-foreground mb-1 px-3 text-sm font-medium">Engagement tools</p>
 				{#each GUIDE_NAV as tool (tool.key)}
 					<a
 						href={`/admin/info/tools/${tool.key}`}
