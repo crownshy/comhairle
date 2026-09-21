@@ -1,5 +1,6 @@
 import type { PageLoad } from './$types';
 import type { ComhairleDocument } from '@crownshy/api-client/api';
+import { key } from '$lib/utils/invalidationKey';
 
 /**
  * The Content tab's rich fields (FAQ, thank-you, privacy policy, short privacy policy) offer an
@@ -14,7 +15,7 @@ export const load: PageLoad = async ({
 	params,
 	depends
 }): Promise<{ availableDocuments: ComhairleDocument[] }> => {
-	depends('conversation:documents');
+	depends(key('conversation/documents'));
 	const { api } = await parent();
 
 	let availableDocuments: ComhairleDocument[] = [];
