@@ -1,0 +1,25 @@
+[package]
+name = "sensemaker"
+version = "0.1.0"
+edition = "2024"
+
+
+[dependencies]
+anyhow = "1.0.104"
+askama = "0.16.1"
+bon = "3.10.1"
+clap = "4.6.7"
+csv = "1.4.0"
+jiff = { version = "0.2.37", features = ["serde"] }
+language-tags = { version = "0.3.2", features = ["serde"] }
+rig = "0.42.0"
+rig-core = "0.42.0"
+schemars = { version = "1.2.2", features = ["jiff02"] }
+serde = { version = "1.0.229", features = ["serde_derive"] }
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["full"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+uuid = { version = "1.26.1", features = ["serde", "v4"] }
+sensemaker_types={path="../sensemaker_types"}
