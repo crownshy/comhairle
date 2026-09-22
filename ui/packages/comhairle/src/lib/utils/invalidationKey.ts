@@ -9,14 +9,16 @@ type InputKey =
 	| 'admin/conversation/documents'
 	| 'admin/conversation/events'
 	| 'admin/event'
+	| 'admin/workflow-steps'
+	| 'admin/knowledge-base/documents'
+	| 'admin/email-template-config'
+	| 'admin/documents'
 	| 'public/conversation'
 	| 'public/event'
-	| 'knowledge-base/documents'
-	| 'notifications'
-	| 'documents'
-	| 'participation'
-	| 'email-template-config'
-	| 'workflow-steps';
+	| 'public/documents'
+	| 'public/notifications'
+	| 'public/participation'
+	| 'public/workflow-steps';
 
 export function key(k: InputKey): InvalidationKey {
 	return `app:${k}`;
