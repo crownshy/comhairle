@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
@@ -12,7 +11,8 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications as notificationService } from '$lib/notifications.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import ConversationContextImage from '$lib/components/ConversationContextImage.svelte';
 	import {
 		Bell,
@@ -29,9 +29,9 @@
 	} from 'lucide-svelte';
 	import type { NotificationWithDelivery } from '@crownshy/api-client/api';
 	import { formatDistanceToNow } from 'date-fns';
+	import { Second } from '$lib/utils/units';
 
-	let { data }: PageData = $props();
-
+	let { data } = $props();
 
 	let showAll = $state(false);
 	let markingAllAsRead = $state(false);
@@ -56,12 +56,11 @@
 	}
 
 	$effect(() => {
-		async function reloadNotifications() {}
 		let timeoutId = setTimeout(async () => {
-			await invalidateAll();
-		}, 5000);
+			await invalidate(key('notifications'));
+		}, 5 * Second);
 		return () => {
-			window.clearTimeout(timeoutId);
+			clearTimeout(timeoutId);
 		};
 	});
 
@@ -88,7 +87,7 @@
 			await apiClient.MarkNotificationAsRead(undefined, {
 				params: { delivery_id: deliveryId }
 			});
-			await invalidateAll();
+			await invalidate(key('notifications'));
 			notificationService.send({
 				message: 'Notification marked as read',
 				priority: 'SUCCESS'
@@ -110,7 +109,7 @@
 		markingAllAsRead = true;
 		try {
 			await apiClient.MarkAllNotificationsAsRead(undefined);
-			await invalidateAll();
+			await invalidate(key('notifications'));
 			notificationService.send({
 				message: 'All notifications marked as read',
 				priority: 'SUCCESS'
