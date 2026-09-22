@@ -36,7 +36,7 @@
 					{ params: { conversation_id: conversation.id } }
 				);
 				open = false;
-				await invalidate(key('conversation'));
+				await invalidate(key('admin/conversation'));
 
 				notifications.send({
 					message: isComplete ? 'Conversation now ended' : 'Conversation re-opened',

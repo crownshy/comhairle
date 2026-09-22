@@ -77,7 +77,7 @@
 				}
 			);
 
-			await invalidate(key('event'));
+			await invalidate(key('admin/event'));
 			notifications.send({ message: 'Updated event location', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);

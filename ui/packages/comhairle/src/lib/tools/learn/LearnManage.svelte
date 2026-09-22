@@ -88,7 +88,7 @@
 			throw response.err;
 		}
 
-		await invalidate(key('conversation'));
+		await invalidate(key('admin/conversation'));
 		pages.markSaved();
 	}
 

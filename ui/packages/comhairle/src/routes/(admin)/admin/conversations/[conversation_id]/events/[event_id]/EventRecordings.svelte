@@ -215,7 +215,7 @@
 			// Keep failed rows so the user can fix and retry; drop successful ones.
 			rows = rows.filter((r) => r.state !== 'done');
 			if (rows.length === 0) rows = [makeRow()];
-			await invalidate(key('event'));
+			await invalidate(key('admin/event'));
 		}
 	}
 
@@ -231,7 +231,7 @@
 				params: { conversation_id, event_id, recording_id: recording.id }
 			});
 			notifications.send({ message: `Deleted "${recording.name}"`, priority: 'INFO' });
-			await invalidate(key('event'));
+			await invalidate(key('admin/event'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -250,7 +250,7 @@
 				params: { conversation_id, event_id, recording_id: recordingId }
 			});
 			notifications.send({ message: 'Processing restarted', priority: 'INFO' });
-			await invalidate(key('event'));
+			await invalidate(key('admin/event'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({ message: 'Failed to restart processing', priority: 'ERROR' });
@@ -258,7 +258,7 @@
 	}
 
 	async function refreshStatus() {
-		await invalidate(key('event'));
+		await invalidate(key('admin/event'));
 	}
 
 	async function loadDownloads(recordingId: string) {
@@ -335,7 +335,7 @@
 	$effect(() => {
 		if (!hasInFlight) return;
 		const interval = setInterval(() => {
-			invalidate(key('event'));
+			invalidate(key('admin/event'));
 		}, 10 * Second);
 		return () => clearInterval(interval);
 	});

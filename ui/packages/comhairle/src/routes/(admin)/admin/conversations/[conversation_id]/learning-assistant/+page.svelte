@@ -95,7 +95,7 @@
 			return;
 		}
 		notifications.send({ message: 'Setting updated', priority: 'INFO' });
-		await invalidate(key('conversation'));
+		await invalidate(key('admin/conversation'));
 	}
 
 	let isSyncing = $state(false);

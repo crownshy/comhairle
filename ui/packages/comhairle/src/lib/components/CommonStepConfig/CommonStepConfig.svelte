@@ -109,7 +109,7 @@
 					}
 				}
 			);
-			await invalidate(key('conversation/workflow'));
+			await invalidate(key('admin/conversation/workflow'));
 		} catch (e) {
 			notifications.send({ message: `Failed to update ${field} status`, priority: 'ERROR' });
 		}
@@ -137,7 +137,7 @@
 			notifications.send({ priority: 'INFO', message: 'Step deleted' });
 			deleteOpen = false;
 			await goto(`/admin/conversations/${conversation_id}/design`, {
-				invalidate: [key('conversation/workflow'))]
+				invalidate: [key('admin/conversation/workflow')]
 			});
 		} catch (e) {
 			console.error(e);
@@ -339,7 +339,7 @@
 	<Dialog.Root
 		bind:open
 		onOpenChange={(isOpen) => {
-			if (!isOpen) invalidate(key('conversation/workflow'));
+			if (!isOpen) invalidate(key('admin/conversation/workflow'));
 		}}
 	>
 		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">

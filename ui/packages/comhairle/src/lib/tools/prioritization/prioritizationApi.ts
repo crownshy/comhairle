@@ -276,7 +276,7 @@ async function putToolConfig(opts: {
 		}
 	});
 
-	await invalidate(key('conversation/workflow'));
+	await invalidate(key('admin/conversation/workflow'));
 }
 
 /* ---------- Responses ---------- */

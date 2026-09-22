@@ -4,7 +4,7 @@ import { redirect } from '@sveltejs/kit';
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ params, parent, depends }) => {
-	depends(key('event'));
+	depends(key('admin/event'));
 	const conversation_id = params.conversation_id;
 	const event_id = params.event_id;
 	const { api, conversation } = await parent();

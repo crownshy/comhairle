@@ -15,7 +15,7 @@ export const load: PageLoad = async ({
 	params,
 	depends
 }): Promise<{ availableDocuments: ComhairleDocument[] }> => {
-	depends(key('conversation/documents'));
+	depends(key('admin/conversation/documents'));
 	const { api } = await parent();
 
 	let availableDocuments: ComhairleDocument[] = [];

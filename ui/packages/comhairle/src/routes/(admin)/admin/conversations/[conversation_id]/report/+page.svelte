@@ -57,7 +57,7 @@
 			await apiClient.CreateImpact(newImpact, {
 				params: { report_id: report.id, conversation_id: report.conversationId }
 			});
-			invalidate(key('conversation/report'));
+			invalidate(key('admin/conversation/report'));
 			impactOpen = false;
 			notifications.send({ message: 'Impact Saved', priority: 'INFO' });
 		} catch (e) {

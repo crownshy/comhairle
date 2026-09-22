@@ -8,7 +8,7 @@ import { key } from '$lib/utils/invalidationKey';
 const REPORT_CAPABLE_TOOLS = new Set(['polis']);
 
 export const load: PageLoad = async ({ parent, depends }) => {
-	depends(key('conversation/report'));
+	depends(key('admin/conversation/report'));
 	const { conversation, api, workflowSteps } = await parent();
 	let report: FullReportDto;
 

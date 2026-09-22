@@ -24,8 +24,8 @@ import { key } from '$lib/utils/invalidationKey';
  * fetch, so it adds no extra latency to a page load.
  */
 export const load: LayoutLoad = async ({ params, parent, depends }) => {
-	depends(key('conversation'));
-	depends(key('conversation/workflow'));
+	depends(key('admin/conversation'));
+	depends(key('admin/conversation/workflow'));
 	depends('conversation:meta');
 	depends('conversation:workflow');
 	depends('conversation:events');

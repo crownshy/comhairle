@@ -198,7 +198,7 @@
 				},
 				{ params: { conversation_id: conversation.id } }
 			);
-			await invalidate(key('conversation'));
+			await invalidate(key('admin/conversation'));
 			notifications.send({ message: 'Primary language updated', priority: 'INFO' });
 		} catch (e) {
 			notifications.send({ message: 'Failed to update primary language', priority: 'ERROR' });
@@ -217,7 +217,7 @@
 				},
 				{ params: { conversation_id: conversation.id } }
 			);
-			await invalidate(key('conversation'));
+			await invalidate(key('admin/conversation'));
 			notifications.send({ message: 'Languages updated', priority: 'INFO' });
 
 			if (newlyAddedLanguages.length > 0) {
@@ -250,7 +250,7 @@
 					);
 				}
 
-				await invalidate(key('conversation'));
+				await invalidate(key('admin/conversation'));
 				notifications.send({ message: 'Translations generated', priority: 'INFO' });
 			}
 		} catch (e) {
@@ -323,7 +323,7 @@
 				}
 			}
 
-			await invalidate(key('conversation'));
+			await invalidate(key('admin/conversation'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -425,7 +425,7 @@
 			return;
 		}
 		notifications.send({ message: 'Setting updated', priority: 'INFO' });
-		await invalidate(key('conversation'));
+		await invalidate(key('admin/conversation'));
 	}
 
 	// `autoLogin` lives on the workflow, not the conversation, so it saves via its own route.
@@ -443,7 +443,7 @@
 			return;
 		}
 		notifications.send({ message: 'Setting updated', priority: 'INFO' });
-		await invalidate(key('conversation/workflow'));
+		await invalidate(key('admin/conversation/workflow'));
 	}
 
 	async function updateConversationMedia(media: MediaDto, field: string) {
@@ -471,7 +471,7 @@
 			priority: 'INFO'
 		});
 
-		await invalidate(key('conversation'));
+		await invalidate(key('admin/conversation'));
 	}
 </script>
 

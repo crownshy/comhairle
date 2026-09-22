@@ -42,7 +42,7 @@
 	}
 
 	async function handleLabelSaved() {
-		await invalidate(key('conversation/invites'));
+		await invalidate(key('admin/conversation/invites'));
 	}
 
 	let openInvites = $derived(invites.filter((invite) => invite.inviteType == 'open'));
@@ -56,7 +56,7 @@
 	);
 
 	function emailInvitesSubmitted() {
-		invalidate(key('conversation/invites'));
+		invalidate(key('admin/conversation/invites'));
 	}
 </script>
 

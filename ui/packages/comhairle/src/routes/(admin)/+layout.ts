@@ -5,7 +5,7 @@ import { key } from '$lib/utils/invalidationKey';
 
 export const load: LayoutLoad = async ({ parent, data, depends }) => {
 	depends('admin:organizations');
-	depends(key('conversations'));
+	depends(key('admin/conversations'));
 	const { api } = await parent();
 
 	try {

@@ -169,7 +169,7 @@
 			});
 
 			goto(`/admin/conversations/${conversation.id}/events`, {
-				invalidate: key('conversation')
+				invalidate: [key('admin/conversation')]
 			});
 		} catch (e) {
 			console.error(e);

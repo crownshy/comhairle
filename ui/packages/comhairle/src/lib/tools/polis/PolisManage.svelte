@@ -75,7 +75,7 @@
 					}
 				}
 			);
-			await invalidate(key('conversation/workflow'));
+			await invalidate(key('admin/conversation/workflow'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to update setup' });

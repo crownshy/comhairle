@@ -29,7 +29,7 @@
 			try {
 				await apiClient.LaunchConversation(undefined, { params: { conversation_id } });
 				open = false;
-				invalidate(key('conversation'));
+				invalidate(key('admin/conversation'));
 			} catch (e) {
 				console.error(e);
 				open = false;

@@ -32,7 +32,7 @@
 			notifications.addFlash({ message: 'Conversation created' });
 			dialogOpen = false;
 			await goto(manage_conversation_url(conversation.id), {
-				invalidate: [key('conversation')]
+				invalidate: [key('admin/conversation')]
 			});
 		} catch (e) {
 			console.warn(e);

@@ -195,7 +195,7 @@
 				}
 			});
 
-			await invalidate(key('event'));
+			await invalidate(key('admin/event'));
 			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
@@ -291,7 +291,7 @@
 					}
 				}
 			);
-			await invalidate(key('event'));
+			await invalidate(key('admin/event'));
 			agendaDirty = false;
 			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
 		} catch (e) {
@@ -320,7 +320,7 @@
 				message: 'Role updated'
 			});
 
-			await invalidate(key('event'));
+			await invalidate(key('admin/event'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -331,7 +331,7 @@
 	}
 
 	async function emailInvitesSubmitted() {
-		await invalidate(key('event'));
+		await invalidate(key('admin/event'));
 	}
 </script>
 
