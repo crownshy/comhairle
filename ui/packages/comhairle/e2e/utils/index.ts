@@ -13,8 +13,13 @@ export const sleep = async (seconds: number): Promise<true> =>
 		}, seconds * Second);
 	});
 
+/**
+ * @description Run tests, then refresh the page and runs the same tests again. Used to make sure that nothing changes with the refresh
+ */
 export async function testWithRefresh(page: Page, tests: () => Promise<void>) {
 	await tests();
+	await sleep(1.5);
 	await page.reload();
+	await sleep(1.5);
 	await tests();
 }

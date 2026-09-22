@@ -3,7 +3,7 @@ import { exists } from '..';
 import type { Page } from '../types';
 
 type Tabs = {
-	Configure: readonly ['Details', 'Content', 'Glossary', 'Access', 'Team'];
+	Configure: readonly ['Details', 'Content', 'Glossary', 'Moderation policy', 'Access', 'Team'];
 	'Process Design': readonly ['Add step'];
 	'Learning Assistant': undefined;
 	Events: readonly ['Add event'];
@@ -19,7 +19,7 @@ type Subtabs<T extends keyof Tabs> = Tabs[T] extends readonly string[]
 
 const Conversation = {
 	open: async (page: Page) => {
-		const conversation = page.getByRole('link', { name: TEST_CONVERSATION_TITLE });
+		const conversation = page.getByRole('link', { name: TEST_CONVERSATION_TITLE }).first();
 
 		// Conversation already exists
 		if (await exists(conversation)) {

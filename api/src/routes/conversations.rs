@@ -851,26 +851,31 @@ async fn export_conversation_demographics(
                     .demographics
                     .get("ethnicity")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("age")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("gender")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("zipcode")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("political_party")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile.created_at.to_rfc3339(),
             ])?;
