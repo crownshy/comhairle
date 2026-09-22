@@ -45,7 +45,7 @@
 		// Once parsing settles, refresh the page data so the rest of the page (e.g. the
 		// "needs parsed docs" gate) reflects the finished sync.
 		if (!isParsing) {
-			await invalidate(key('knowledge-base/documents'));
+			await invalidate(key('admin/knowledge-base/documents'));
 		}
 	}
 

@@ -5,7 +5,7 @@ import type { ChatInstructionsDto } from '@crownshy/api-client/api';
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ depends, params, parent }: LoadEvent) => {
-	depends(key('knowledge-base/documents'));
+	depends(key('admin/knowledge-base/documents'));
 	depends('knowledge-base:documents');
 
 	const { conversation_id } = params;

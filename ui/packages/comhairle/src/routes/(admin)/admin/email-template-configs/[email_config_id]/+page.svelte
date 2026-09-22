@@ -77,7 +77,7 @@
 				message: 'Successfully updated custom email'
 			});
 
-			await invalidate(key('email-template-config'));
+			await invalidate(key('admin/email-template-config'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -94,7 +94,7 @@
 			});
 
 			goto('/admin/email-template-configs', {
-				invalidate: [key('email-template-config')]
+				invalidate: [key('admin/email-template-config')]
 			});
 		} catch (e) {
 			console.error(e);

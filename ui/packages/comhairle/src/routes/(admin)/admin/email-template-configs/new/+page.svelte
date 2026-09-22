@@ -79,7 +79,7 @@
 			});
 
 			goto(`/admin/email-template-configs/${emailConfig.id}`, {
-				invalidate: [key('email-template-config')]
+				invalidate: [key('admin/email-template-config')]
 			});
 		} catch (e) {
 			console.error(e);

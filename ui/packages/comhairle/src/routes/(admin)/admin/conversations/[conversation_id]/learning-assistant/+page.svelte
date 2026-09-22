@@ -205,7 +205,7 @@
 			message: 'Learn content sync started. It will be ready once parsing finishes.',
 			priority: 'INFO'
 		});
-		await invalidate(key('knowledge-base/documents'));
+		await invalidate(key('admin/knowledge-base/documents'));
 	}
 
 	async function uploadFile(file: File) {
@@ -231,7 +231,7 @@
 			message: 'File uploaded successfully',
 			priority: 'INFO'
 		});
-		await invalidate(key('knowledge-base/documents'));
+		await invalidate(key('admin/knowledge-base/documents'));
 	}
 
 	let allLanguageOptions = $derived<Option[]>(
@@ -269,7 +269,7 @@
 			priority: 'INFO',
 			message: 'Successfully updated learning assistant cross languages'
 		});
-		invalidate(key('knowledge-base/documents'));
+		invalidate(key('admin/knowledge-base/documents'));
 	}
 
 	// FIX: Upload from Url functionality

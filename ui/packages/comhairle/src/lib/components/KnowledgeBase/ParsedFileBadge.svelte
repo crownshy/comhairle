@@ -33,7 +33,7 @@
 			});
 			console.error(e);
 		} finally {
-			await invalidate(key('knowledge-base/documents'));
+			await invalidate(key('admin/knowledge-base/documents'));
 		}
 	}
 
@@ -54,7 +54,7 @@
 			});
 			console.error(e);
 		} finally {
-			await invalidate(key('knowledge-base/documents'));
+			await invalidate(key('admin/knowledge-base/documents'));
 		}
 	}
 </script>
