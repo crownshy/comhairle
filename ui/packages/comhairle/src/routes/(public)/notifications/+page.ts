@@ -3,7 +3,7 @@ import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ parent, depends }) => {
-	depends(key('notifications'));
+	depends(key('public/notifications'));
 	const { api, user } = await parent();
 	if (!user) {
 		redirect(307, '/');

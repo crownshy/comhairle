@@ -57,7 +57,7 @@
 
 	$effect(() => {
 		let timeoutId = setTimeout(async () => {
-			await invalidate(key('notifications'));
+			await invalidate(key('public/notifications'));
 		}, 5 * Second);
 		return () => {
 			clearTimeout(timeoutId);
@@ -87,7 +87,7 @@
 			await apiClient.MarkNotificationAsRead(undefined, {
 				params: { delivery_id: deliveryId }
 			});
-			await invalidate(key('notifications'));
+			await invalidate(key('public/notifications'));
 			notificationService.send({
 				message: 'Notification marked as read',
 				priority: 'SUCCESS'
@@ -109,7 +109,7 @@
 		markingAllAsRead = true;
 		try {
 			await apiClient.MarkAllNotificationsAsRead(undefined);
-			await invalidate(key('notifications'));
+			await invalidate(key('public/notifications'));
 			notificationService.send({
 				message: 'All notifications marked as read',
 				priority: 'SUCCESS'
