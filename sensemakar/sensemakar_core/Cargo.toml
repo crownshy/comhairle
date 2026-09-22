@@ -1,5 +1,5 @@
 [package]
-name = "sensemaker"
+name = "sensemakar"
 version = "0.1.0"
 edition = "2024"
 
@@ -22,4 +22,4 @@ tokio = { version = "1.53.1", features = ["full"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid = { version = "1.26.1", features = ["serde", "v4"] }
-sensemaker_types={path="../sensemaker_types"}
+sensemakar_types={path="../sensemakar_types"}

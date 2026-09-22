@@ -4,8 +4,8 @@ use rig::{
     completion::CompletionModel,
     extractor::{ExtractionError, ExtractorBuilder},
 };
-use sensemaker_types::Statement;
-use sensemaker_types::{StatementError, StatementList};
+use sensemakar_types::Statement;
+use sensemakar_types::{StatementError, StatementList};
 use thiserror::Error;
 
 #[derive(Builder, Template)]

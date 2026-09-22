@@ -1,13 +1,12 @@
 [package]
-name = "sensemaker_jobs"
+name = "sensemakar_jobs"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 serde = { version = "1.0.229", features = ["serde_derive"] }
-sensemaker_types= {path='../sensemaker_types'}
+sensemakar_types= {path='../sensemakar_types'}
 jiff = { version = "0.2.37", features = ["serde"] }
-json-serde = "0.0.1-alpha.2"
 language-tags = { version = "0.3.2", features = ["serde"] }
 uuid = { version = "1.26.1", features = ["serde", "v4"] }
 apalis = "0.7.4"

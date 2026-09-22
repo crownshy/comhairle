@@ -5,7 +5,7 @@ use rig::{
     extractor::{ExtractionError, ExtractorBuilder},
 };
 use schemars::JsonSchema;
-use sensemaker_types::thinking_space::{Question, QuestionChain};
+use sensemakar_types::thinking_space::{Question, QuestionChain};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -98,7 +98,7 @@ impl SummaryGenerator {
 
 #[cfg(test)]
 mod tests {
-    use sensemaker_types::thinking_space::{Answer, Question, QuestionChain, QuestionWithAnswer};
+    use sensemakar_types::thinking_space::{Answer, Question, QuestionChain, QuestionWithAnswer};
 
 use crate::{test_helpers::test_model, thinking_space::{FollowUpQuestionGenerator, SummaryGenerator}};
 

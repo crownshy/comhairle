@@ -3,11 +3,11 @@ use std::{ops::Deref, sync::Arc};
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use rig::{client::CompletionClient, completion::CompletionModel, providers::ollama};
-use sensemaker::thinking_space::{
+use sensemakar::thinking_space::{
     FollowUpQuestionGenerator, InterviewSummary, SummaryGenerator, ThinkingSpaceError,
 };
-use sensemaker_jobs::{ThinkingSpaceNextQuestionJob, ThinkingSpaceSummaryJob, redis_conn};
-use sensemaker_types::thinking_space::Question;
+use sensemakar_jobs::{ThinkingSpaceNextQuestionJob, ThinkingSpaceSummaryJob, redis_conn};
+use sensemakar_types::thinking_space::Question;
 
 async fn handle_thinking_space_next_question_generator<M>(
     job: ThinkingSpaceNextQuestionJob,

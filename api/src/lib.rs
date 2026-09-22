@@ -20,7 +20,7 @@ pub mod websockets;
 pub mod wiki_poll_service;
 pub mod worker_service;
 
-pub mod sensemaker_service;
+pub mod sensemakar_service;
 
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
@@ -51,7 +51,7 @@ use crate::routes::workflows::WorkflowRouterContext;
 use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;
-use crate::{bulk_storage_service::BulkStorageService, sensemaker_service::SenseMakerService};
+use crate::{bulk_storage_service::BulkStorageService, sensemakar_service::SenseMakarService};
 
 #[cfg(test)]
 // sqlx::test expands every migration into the test binary for every invocation.
@@ -76,7 +76,7 @@ pub struct ComhairleState {
     pub worker_service: Option<Arc<dyn WorkerService>>,
     pub categorization_service: Option<Arc<dyn CategorizationService>>,
     pub redis_conn: Option<Arc<dyn RedisConnection>>,
-    pub sensemaker_service: Option<SenseMakerService>,
+    pub sensemakar_service: Option<SenseMakarService>,
 }
 
 impl ComhairleState {

@@ -1,4 +1,4 @@
-use sensemaker_types::thinking_space::QuestionChain;
+use sensemakar_types::thinking_space::QuestionChain;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -23,7 +23,7 @@ pub struct ThinkingSpaceSummaryJob {
 }
 
 pub async fn redis_conn() -> apalis_redis::ConnectionManager {
-    let url = std::env::var("SENSEMAKER_REDIS_URL").expect("REDIS_URL not set");
+    let url = std::env::var("SENSEMAKAR_REDIS_URL").expect("REDIS_URL not set");
     apalis_redis::connect(url)
         .await
         .expect("could not connect to redis")
