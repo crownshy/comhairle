@@ -1,16 +1,23 @@
+import learnStepImage from './assets/tools-learnstep.webp';
+import polisImage from './assets/tools-polis.webp';
+import prioritisationImage from './assets/tools-prioritisation.webp';
+import surveyImage from './assets/tools-survey.webp';
+import thinkingSpaceImage from './assets/tools-thinkingspace.webp';
+import videoImage from './assets/tools-video.webp';
+
 type ToolType = 'polis' | 'thinkingspace' | 'learnstep' | 'video' | 'prioritisation' | 'survey';
 
-const guideImages = import.meta.glob(
-	'./assets/tools-{polis,thinkingspace,learnstep,video,prioritisation,survey}.{png,jpg,jpeg,webp,avif}',
-	{
-		eager: true,
-		query: '?url',
-		import: 'default'
-	}
-) as Record<string, string>;
+const guideImages: Record<ToolType, string> = {
+	polis: polisImage,
+	thinkingspace: thinkingSpaceImage,
+	learnstep: learnStepImage,
+	video: videoImage,
+	prioritisation: prioritisationImage,
+	survey: surveyImage
+};
 
-function getImageSrc(toolType: ToolType): string | undefined {
-	return guideImages[`./assets/tools-${toolType}.webp`];
+function getImageSrc(toolType: ToolType): string {
+	return guideImages[toolType];
 }
 
 /**
@@ -27,9 +34,9 @@ export type GuideSection = {
 	heading?: string;
 	/** Trusted static HTML (rendered with {@html}). */
 	html?: string;
-	/** Show a placeholder media block if image doesn't exist, otherwise displace the assigned image. */
+	/** Media displayed alongside the guide content. */
 	image?: {
-		src?: string;
+		src: string;
 		alt?: string;
 	};
 };

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { TOOL_GUIDES } from '$lib/tool_guides';
-	import { ImageIcon } from 'lucide-svelte';
 	import { toSlug } from '$lib/utils/casingUtils';
 
 	// The tool's key is the `[tool_id]` route param, which matches the TOOL_GUIDES keys.
@@ -97,18 +96,12 @@
 					aria-label={`${guide.title} images`}
 				>
 					{#each imageSections as section, index (index)}
-						{#if section.image?.src}
+						{#if section.image}
 							<img
 								class="border-border h-auto w-full rounded-lg border"
 								src={section.image.src}
 								alt={section.image.alt ?? ''}
 							/>
-						{:else}
-							<div
-								class="border-border bg-muted flex aspect-[4/3] w-full items-center justify-center rounded-lg border"
-							>
-								<ImageIcon class="text-muted-foreground/50 size-14" />
-							</div>
 						{/if}
 					{/each}
 				</aside>
