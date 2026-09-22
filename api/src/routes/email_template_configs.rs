@@ -581,7 +581,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let params = PreviewEmailTemplateConfigRequest {
             slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {

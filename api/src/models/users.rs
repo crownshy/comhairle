@@ -865,7 +865,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (status, conversation, _) = session
             .create_conversation(
@@ -893,7 +893,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "test.user@gmail.com",
         );
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         add_user_resource_role(
             Resource::Conversation,

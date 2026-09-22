@@ -343,7 +343,7 @@ mod tests {
         let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let (_, response, _) = session
@@ -630,7 +630,7 @@ mod tests {
         let event: EventDto = serde_json::from_value(response)?;
 
         let mut session = UserSession::new("new_user", "passWORD123$%^qwedsa", "new_user@test.com");
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         session
             .create_random_event_attendance(

@@ -517,7 +517,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -547,7 +547,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -612,7 +612,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -673,7 +673,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -756,7 +756,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -863,7 +863,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -947,7 +947,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 

@@ -336,7 +336,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let body = MultipartBodyBuilder::new(boundary.to_string())
             .add_field("name", &name)
@@ -364,11 +364,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_media_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -387,11 +383,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -415,11 +407,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -461,11 +449,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 

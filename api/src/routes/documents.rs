@@ -688,7 +688,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session
             .create_conversation(
@@ -1045,7 +1045,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "outsider@example.com",
         );
-        outsider.signup(&app).await?;
+        outsider.login(&app).await?;
 
         let (status, _, _) = outsider
             .get(&app, &format!("/conversation/{conversation_id}/documents"))
@@ -1077,7 +1077,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "participant@example.com",
         );
-        participant.signup(&app).await?;
+        participant.login(&app).await?;
         participant
             .post(
                 &app,

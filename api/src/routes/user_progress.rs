@@ -133,7 +133,7 @@ mod tests {
 
         let mut admin_user_session = UserSession::new_admin();
 
-        admin_user_session.signup(&app).await?;
+        admin_user_session.login(&app).await?;
 
         let (_, conversation, _) = admin_user_session.create_random_conversation(&app).await?;
         let conversation_id: String = extract("id", &conversation);
@@ -156,7 +156,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "regular_user@gmail.com",
         );
-        user_session.signup(&app).await?;
+        user_session.login(&app).await?;
 
         // Sign up for the workflow
 
@@ -190,7 +190,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_user_session = UserSession::new_admin();
-        admin_user_session.signup(&app).await?;
+        admin_user_session.login(&app).await?;
 
         let (_, conversation, _) = admin_user_session.create_random_conversation(&app).await?;
         let conversation_id: String = extract("id", &conversation);
@@ -215,7 +215,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "regular_user@gmail.com",
         );
-        user_session.signup(&app).await?;
+        user_session.login(&app).await?;
 
         for id in [&workflow_id, &other_workflow_id] {
             let url = format!("/conversation/{conversation_id}/workflow/{id}/register");

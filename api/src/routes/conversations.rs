@@ -1169,7 +1169,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut owner_session = UserSession::new_admin();
-        owner_session.signup(&app).await?;
+        owner_session.login(&app).await?;
 
         let (_, response, _) = owner_session.create_random_conversation(&app).await?;
         let conversation: ConversationDto = serde_json::from_value(response)?;
@@ -1214,7 +1214,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut owner_session = UserSession::new_admin();
-        owner_session.signup(&app).await?;
+        owner_session.login(&app).await?;
 
         let (_, response, _) = owner_session.create_random_conversation(&app).await?;
         let conversation: ConversationDto = serde_json::from_value(response)?;
@@ -1274,7 +1274,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (status, response, _) = session
             .create_conversation(
@@ -1323,7 +1323,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (status, response, _) = session
             .create_conversation(
@@ -1360,7 +1360,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (status, conversation, _) = session
             .create_conversation(
@@ -1408,7 +1408,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (status, conversation, _) = session
             .create_conversation(
@@ -1458,7 +1458,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         session
             .create_conversation(
@@ -1525,7 +1525,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         for i in 0..10 {
             session
@@ -1587,7 +1587,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         for i in 0..5 {
             session
@@ -1661,7 +1661,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         for i in 0..40 {
             session
@@ -1720,7 +1720,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, convo1, _) = session
             .create_conversation(
@@ -1802,7 +1802,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, convo_res, _) = session
             .create_conversation(
@@ -1936,7 +1936,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
         let (_, value, _) = session
             .create_conversation(
                 &app,
@@ -2031,7 +2031,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
         let (_, conversation, _) = session
             .create_conversation(
                 &app,
@@ -2074,7 +2074,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         session
             .create_conversation(
@@ -2128,7 +2128,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create conversation and workflow
         let (_, conversation, _) = admin_session
@@ -2285,10 +2285,10 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut owner_session = UserSession::new_admin();
-        owner_session.signup(&app).await?;
+        owner_session.login(&app).await?;
 
         let mut non_owner_session = UserSession::new_admin();
-        non_owner_session.signup(&app).await?;
+        non_owner_session.login(&app).await?;
 
         // Create conversation as owner
         let (_, conversation, _) = owner_session
@@ -2410,7 +2410,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin = UserSession::new_admin();
-        admin.signup(&app).await?;
+        admin.login(&app).await?;
 
         let conversation_id = make_conversation(&mut admin, &app, "opt_in_authed").await?;
 
@@ -2527,7 +2527,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin = UserSession::new_admin();
-        admin.signup(&app).await?;
+        admin.login(&app).await?;
 
         let conversation_id = make_conversation(&mut admin, &app, "opt_in_anon").await?;
 
@@ -2597,7 +2597,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin = UserSession::new_admin();
-        admin.signup(&app).await?;
+        admin.login(&app).await?;
 
         let conversation_id = make_conversation(&mut admin, &app, "opt_in_empty").await?;
 
@@ -2652,7 +2652,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin = UserSession::new_admin();
-        admin.signup(&app).await?;
+        admin.login(&app).await?;
 
         let conversation_id = make_conversation(&mut admin, &app, "recipients_preview").await?;
 
@@ -2763,9 +2763,9 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut owner = UserSession::new_admin();
-        owner.signup(&app).await?;
+        owner.login(&app).await?;
         let mut intruder = UserSession::new("intruder", "password", "intruder@test.com");
-        intruder.signup(&app).await?;
+        intruder.login(&app).await?;
 
         let conversation_id = make_conversation(&mut owner, &app, "recipients_auth").await?;
 
@@ -2789,13 +2789,13 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut owner_session = UserSession::new_admin();
-        owner_session.signup(&app).await?;
+        owner_session.login(&app).await?;
 
         let editor_email = "test@crown-shy.com";
         let editor_password = "Password_123(*&)";
 
         let mut editor_session = UserSession::new("editor", editor_password, editor_email);
-        editor_session.signup(&app).await?;
+        editor_session.login(&app).await?;
         let (_, editor, _) = editor_session.current_user(&app).await?;
 
         let (_, value, _) = owner_session
@@ -2868,14 +2868,14 @@ mod tests {
         let app = setup_server(Arc::clone(&state)).await?;
 
         let mut owner_session = UserSession::new_admin();
-        owner_session.signup(&app).await?;
+        owner_session.login(&app).await?;
 
         let other_user_email = "test@crown-shy.com";
         let other_user_password = "Password_123(*&)";
 
         let mut other_user_session =
             UserSession::new("editor", other_user_password, other_user_email);
-        other_user_session.signup(&app).await?;
+        other_user_session.login(&app).await?;
 
         // Grant other user super admin role
         grant_role(
@@ -2937,14 +2937,14 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut owner_session = UserSession::new_admin();
-        owner_session.signup(&app).await?;
+        owner_session.login(&app).await?;
 
         let mut editor_session = UserSession::new(
             "content_editor_user",
             "Password_123(*&)",
             "content_editor@example.com",
         );
-        editor_session.signup(&app).await?;
+        editor_session.login(&app).await?;
         let (_, editor, _) = editor_session.current_user(&app).await?;
 
         let (_, value, _) = owner_session
@@ -3004,14 +3004,14 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut owner_session = UserSession::new_admin();
-        owner_session.signup(&app).await?;
+        owner_session.login(&app).await?;
 
         let mut org_member_session = UserSession::new(
             "org_member_user",
             "Password_123(*&)",
             "org_member@example.com",
         );
-        org_member_session.signup(&app).await?;
+        org_member_session.login(&app).await?;
 
         let (_, org_response, _) = owner_session.create_random_organization(&app).await?;
         let organization: crate::routes::organizations::dto::OrganizationDto =

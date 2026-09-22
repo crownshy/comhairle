@@ -91,7 +91,7 @@ pub struct ComhairleState {
 pub enum AuthBackend {
     Keycloak(Arc<KeycloakAuthInstance>),
     #[cfg(test)]
-    Test(TestAuthUser),
+    Test,
     /// Not for production use, only for use in api_spec_gen crate
     Stub, // TODO: find a better way of satisfying dummy state in api_spec_gen
 }
@@ -114,7 +114,7 @@ impl ComhairleState {
                 None,
             )),
             #[cfg(test)]
-            AuthBackend::Test(user) => test_auth_layer(method_router, Some(user.to_owned())),
+            AuthBackend::Test => test_auth_layer(method_router),
             _ => panic!("Exhausted production variants"),
         }
     }
@@ -140,7 +140,7 @@ impl ComhairleState {
                 audiences,
             )),
             #[cfg(test)]
-            AuthBackend::Test(user) => test_auth_layer(method_router, Some(user.to_owned())),
+            AuthBackend::Test => test_auth_layer(method_router),
             _ => panic!("Exhausted production variants"),
         }
     }

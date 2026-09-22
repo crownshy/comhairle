@@ -486,7 +486,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 
@@ -541,7 +541,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
         let url = format!(
@@ -576,7 +576,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 
@@ -620,7 +620,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
         let missing_recording = Uuid::new_v4();
@@ -663,7 +663,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 
@@ -721,7 +721,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 
@@ -804,7 +804,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 

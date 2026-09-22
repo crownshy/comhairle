@@ -581,7 +581,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -611,14 +611,14 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
         let conversation_id: String = extract("id", &conversation);
         let mut regular_user_session = UserSession::new("bob", "bob", "bob@gmail.com");
 
-        regular_user_session.signup(&app).await?;
+        regular_user_session.login(&app).await?;
 
         let (status, _invite, _) = regular_user_session
             .post(
@@ -646,7 +646,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let convo_id: String = extract("id", &conversation);
@@ -659,14 +659,14 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "bob@some_email.com",
         );
-        regular_user_session.signup(&app).await?;
+        regular_user_session.login(&app).await?;
 
         let mut wrong_regular_user_session = UserSession::new(
             "notbob",
             crate::test_helpers::TEST_PASSWORD,
             "not_bob@some_email.com",
         );
-        wrong_regular_user_session.signup(&app).await?;
+        wrong_regular_user_session.login(&app).await?;
 
         let (_, invite, _) = session
             .post(
@@ -720,7 +720,7 @@ mod tests {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let (_, value, _) = session
@@ -802,7 +802,7 @@ mod tests {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let (_, value, _) = session
@@ -893,7 +893,7 @@ mod tests {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let (_, value, _) = session
@@ -966,7 +966,7 @@ mod tests {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let (_, value, _) = session
@@ -1017,7 +1017,7 @@ mod tests {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 

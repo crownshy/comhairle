@@ -422,7 +422,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -510,7 +510,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -590,7 +590,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -708,7 +708,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, unlaunched_conversation, _) =
             session.create_random_unlaunched_conversation(&app).await?;
@@ -808,7 +808,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -873,7 +873,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -959,7 +959,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 

@@ -21,13 +21,8 @@ pub async fn setup_default_app_and_session(
     let app = setup_server(state.clone()).await?;
 
     let mut session = UserSession::new_admin();
-    let (_, user, _) = session.signup(&app).await?;
-    let user_id = user
-        .get("id")
-        .and_then(|value| value.as_ref())
-        .and_then(|value| value.as_str())
-        .ok_or("missing signup user id")?;
-    let user_id = Uuid::parse_str(user_id)?;
+    session.login(&app).await?;
+    let user_id = session.id.expect("Missing admin user_id");
 
     let _ = grant_role(
         &state,

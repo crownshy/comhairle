@@ -1069,7 +1069,7 @@ mod tests {
         let app = setup_server(Arc::new(state.clone())).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         let (_, response, _) = admin_session.create_random_organization(&app).await?;
         let organization: OrganizationDto = serde_json::from_value(response)?;

@@ -483,7 +483,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent
         let create_request = json!({
@@ -528,7 +528,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent
         let create_request = json!({
@@ -583,7 +583,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent
         let create_request = json!({
@@ -628,7 +628,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent
         let create_request = json!({
@@ -669,7 +669,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent first
         let create_request = json!({
@@ -732,7 +732,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent and translation
         let create_request = json!({
@@ -817,7 +817,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent and translation
         let create_request = json!({
@@ -903,7 +903,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent and translation
         let create_request = json!({
@@ -954,7 +954,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent and translation
         let create_request = json!({
@@ -1017,7 +1017,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent and translation
         let create_request = json!({
@@ -1078,7 +1078,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent and translation
         let create_request = json!({
@@ -1119,7 +1119,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut regular_session = UserSession::new("user", "password", "user@example.com");
-        regular_session.signup(&app).await?;
+        regular_session.login(&app).await?;
 
         // Try to create TextContent as regular user
         let create_request = json!({
@@ -1144,7 +1144,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         let fake_uuid = uuid::Uuid::new_v4();
         let (status, _response, _) = admin_session
@@ -1162,7 +1162,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent but no translation
         let create_request = json!({
@@ -1196,7 +1196,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         let fake_uuid = uuid::Uuid::new_v4();
         let update_request = json!({
@@ -1222,7 +1222,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         // Create TextContent
         let create_request = json!({

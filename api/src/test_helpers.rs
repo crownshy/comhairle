@@ -62,6 +62,8 @@ use crate::{
 /// - Good complexity score
 pub const TEST_PASSWORD: &str = "TestPassword123!";
 
+pub const KC_TEST_SESSION: &str = "kc_test_session";
+
 pub fn mock_mailer() -> Arc<MockComhairleMailer> {
     let mailer = MockComhairleMailer::base();
     Arc::new(mailer)
@@ -135,7 +137,7 @@ pub fn test_state(
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
         video_call_handler: Arc::new(VideoCallMessageHandler::new()),
-        auth_backend: auth_backend.unwrap_or_else(|| AuthBackend::Test(TestAuthUser::default())),
+        auth_backend: auth_backend.unwrap_or_else(|| AuthBackend::Test),
         auth_service: auth_service.unwrap_or_else(|| mock_auth_service()),
         translation_service: translation_service
             .map(Some)
@@ -171,11 +173,20 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
 #[cfg(test)]
 pub fn test_auth_layer(
     method_router: ApiMethodRouter<Arc<ComhairleState>>,
-    user: Option<TestAuthUser>,
 ) -> ApiMethodRouter<Arc<ComhairleState>> {
     method_router.layer(middleware::from_fn(
         move |mut req: extract::Request, next: Next| {
-            let user = user.clone();
+            let user: Option<TestAuthUser> = req
+                .headers()
+                .get(COOKIE)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|header_str| {
+                    header_str
+                        .split("; ")
+                        .find_map(|pair| pair.strip_prefix(&format!("{KC_TEST_SESSION}=")))
+                })
+                .and_then(|v| serde_json::from_str(v).ok());
+
             async move {
                 match user {
                     Some(user) => {
@@ -415,8 +426,11 @@ impl MultipartBodyBuilder {
 #[derive(Debug)]
 pub struct UserSession {
     pub id: Option<Uuid>,
+    #[deprecated] // TODO: remove once tests are passing
     pub username: Option<String>,
+    #[deprecated]
     pub password: Option<String>,
+    #[deprecated]
     pub email: Option<String>,
     pub guest_code: Option<String>,
     pub kc_user: Option<TestAuthUser>,
@@ -449,13 +463,19 @@ impl UserSession {
     }
 
     pub fn new(username: &str, password: &str, email: &str) -> Self {
+        let kc_user_data = TestAuthUser {
+            id: Uuid::new_v4(),
+            email: email.to_string(),
+            username: username.to_string(),
+            ..Default::default()
+        };
         Self {
-            id: None,
+            id: Some(kc_user_data.id),
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
             guest_code: None,
-            kc_user: None,
+            kc_user: Some(kc_user_data),
             cookies: None,
         }
     }
@@ -825,8 +845,6 @@ impl UserSession {
     pub async fn login(
         &mut self,
         _app: &Router,
-        _email: &str,
-        _password: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let user = serde_json::to_value(
             self.kc_user
@@ -834,6 +852,16 @@ impl UserSession {
                 .expect("User data is none")
                 .to_user_dto()?,
         )?;
+
+        let mut cookies = self.cookies.take().unwrap_or_default();
+        cookies.insert(
+            KC_TEST_SESSION.into(),
+            format!(
+                "{KC_TEST_SESSION}={}",
+                serde_json::to_string(&self.kc_user)?
+            ),
+        );
+        self.cookies = Some(cookies);
 
         Ok((StatusCode::OK, user, vec![]))
 
@@ -874,7 +902,8 @@ impl UserSession {
         Ok((status, user, cookie))
     }
 
-    pub async fn signup(
+    #[deprecated]
+    pub async fn legacy_signup(
         &mut self,
         app: &Router,
     ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>

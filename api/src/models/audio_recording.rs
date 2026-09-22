@@ -385,7 +385,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let event = create_random_event(&mut session, &app).await?;
 
@@ -416,7 +416,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let event = create_random_event(&mut session, &app).await?;
 
@@ -465,7 +465,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let event = create_random_event(&mut session, &app).await?;
 
@@ -496,7 +496,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let event = create_random_event(&mut session, &app).await?;
 
@@ -532,7 +532,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let event = create_random_event(&mut session, &app).await?;
 
@@ -580,7 +580,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let event = create_random_event(&mut session, &app).await?;
 
@@ -612,7 +612,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let event = create_random_event(&mut session, &app).await?;
 
@@ -657,7 +657,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let _event = create_random_event(&mut session, &app).await?;
 

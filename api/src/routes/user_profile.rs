@@ -232,7 +232,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "user2@test.com",
         );
-        session2.signup(&app).await?;
+        session2.login(&app).await?;
 
         // User 2 tries to get their own profile (should fail because they don't have one yet)
         let (status, response, _) = session2.get(&app, "/user/profile").await?;

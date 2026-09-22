@@ -1495,7 +1495,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "intruder@example.com",
         );
-        intruder.signup(&app).await?;
+        intruder.login(&app).await?;
 
         let (status, _, _) = intruder
             .post(
@@ -1526,7 +1526,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "intruder@example.com",
         );
-        intruder.signup(&app).await?;
+        intruder.login(&app).await?;
 
         let (status, _, _) = intruder
             .delete_with_body(
@@ -1679,7 +1679,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let workflow_step_id = setup_polis_step(&app, &mut session).await?;
         let owner_id = session.id.expect("session to be signed up");
@@ -1747,7 +1747,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "intruder@example.com",
         );
-        intruder.signup(&app).await?;
+        intruder.login(&app).await?;
 
         let (status, _, _) = intruder
             .post(

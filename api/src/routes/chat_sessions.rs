@@ -229,7 +229,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
         let (_, conversation, _) = session
             .create_conversation(
                 &app,
@@ -340,7 +340,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
         let (_, conversation, _) = session
             .create_conversation(
                 &app,

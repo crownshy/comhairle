@@ -149,7 +149,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         let (status, value, _) = admin_session.create_job(&app, json!(job_1)).await?;
 
@@ -174,7 +174,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
         let (_, value, _) = admin_session.create_job(&app, json!(job_1)).await?;
         let id = value.get("id").and_then(|v| v.as_str()).unwrap();
 
@@ -209,7 +209,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
         let _ = admin_session.create_job(&app, json!(job_1)).await?;
         let _ = admin_session.create_job(&app, json!(job_2)).await?;
         let _ = admin_session.create_job(&app, json!(job_3)).await?;
@@ -253,7 +253,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
         let _ = admin_session.create_job(&app, json!(job_1)).await?;
         let _ = admin_session.create_job(&app, json!(job_2)).await?;
         let _ = admin_session.create_job(&app, json!(job_3)).await?;
@@ -292,7 +292,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
         let (_, value, _) = admin_session.create_job(&app, json!(job_1)).await?;
         let _ = admin_session.create_job(&app, json!(job_2)).await?;
         let _ = admin_session.create_job(&app, json!(job_3)).await?;

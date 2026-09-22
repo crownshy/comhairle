@@ -463,7 +463,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -547,7 +547,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
@@ -599,7 +599,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
 
@@ -706,7 +706,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
@@ -784,7 +784,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
@@ -871,7 +871,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -891,7 +891,7 @@ mod tests {
                 crate::test_helpers::TEST_PASSWORD,
                 &format!("test.user_{i}@gmail.com"),
             );
-            session.signup(&app).await?;
+            session.login(&app).await?;
 
             let url = format!("/conversation/{id}/workflow/{workflow_id}/register");
             session.post(&app, &url, Body::empty()).await?;
