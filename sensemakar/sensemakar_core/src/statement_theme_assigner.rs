@@ -6,8 +6,8 @@ use rig::{
     completion::CompletionModel,
     extractor::{ExtractionError, ExtractorBuilder},
 };
-use sensemaker_types::{Statement, ThemeAssignment, ThemeAssignmentResult, ThemeError};
-use sensemaker_types::{StatementError, StatementList, ThemeList};
+use sensemakar_types::{Statement, ThemeAssignment, ThemeAssignmentResult, ThemeError};
+use sensemakar_types::{StatementError, StatementList, ThemeList};
 use thiserror::Error;
 
 #[derive(Builder, Template)]

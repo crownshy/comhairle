@@ -1,7 +1,7 @@
 use language_tags::LanguageTag;
 use rig::{client::CompletionClient, completion::CompletionModel, providers::ollama};
 
-use sensemaker_types::{Statement, Theme};
+use sensemakar_types::{Statement, Theme};
 
 pub fn test_themes() -> Vec<Theme> {
     vec![

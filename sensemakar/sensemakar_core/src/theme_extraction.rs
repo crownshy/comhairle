@@ -1,4 +1,4 @@
-use sensemaker_types::{StatementError, StatementList, Theme, ThemeList};
+use sensemakar_types::{StatementError, StatementList, Theme, ThemeList};
 use askama::Template;
 use bon::Builder;
 

@@ -127,8 +127,8 @@ futures-util = "0.3.31"
 dashmap = "6.1.0"
 
 # sensemaking 
-sensemaker_jobs ={path="../sensemaker/sensemaker_jobs"}
-sensemaker_types ={path="../sensemaker/sensemaker_types"}
+sensemakar_jobs ={path="../sensemakar/sensemakar_jobs"}
+sensemakar_types ={path="../sensemakar/sensemakar_types"}
 
 # adaptors
 

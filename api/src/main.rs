@@ -152,7 +152,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let video_call_handler = Arc::new(VideoCallMessageHandler::new());
 
-    let sensemaker_service = None;
+    let sensemakar_service = None;
 
     let state = Arc::new(ComhairleState {
         db,
@@ -167,7 +167,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         worker_service,
         bulk_storage_service,
         categorization_service,
-        sensemaker_service,
+        sensemakar_service,
         redis_conn,
     });
 

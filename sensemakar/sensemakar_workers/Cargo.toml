@@ -1,15 +1,15 @@
 [package]
-name = "sensemaker_workers"
+name = "sensemakar_workers"
 version = "0.1.0"
 edition = "2024"
 rust-version.workspace = true
 
 [dependencies]
-sensemaker_jobs= {path='../sensemaker_jobs'}
+sensemakar_jobs= {path='../sensemakar_jobs'}
 tokio = { version = "1.53.1", features = ["full"] }
 serde = { version = "1.0.229", features = ["serde_derive"] }
-sensemaker= {path='../sensemaker_core'}
-sensemaker_types= {path='../sensemaker_types'}
+sensemakar= {path='../sensemakar_core'}
+sensemakar_types= {path='../sensemakar_types'}
 rig = "0.42.0"
 rig-core = "0.42.0"
 apalis = { version = "0.7.4", features = ["uuid","limit"] }
