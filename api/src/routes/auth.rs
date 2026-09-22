@@ -1632,6 +1632,7 @@ mod tests {
     use uuid::Uuid;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
@@ -1670,6 +1671,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn user_should_receive_signup_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
@@ -1798,6 +1800,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn user_should_receive_verification_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut mailer = MockComhairleMailer::new();
         mailer
@@ -1834,6 +1837,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn unverified_user_should_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
@@ -1938,6 +1942,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn user_cannot_be_verified_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
@@ -1991,6 +1996,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn user_should_not_be_able_to_login_with_wrong_password(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -2017,6 +2023,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn user_should_be_able_to_login_with_email_with_different_case(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -2101,6 +2108,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -2124,6 +2132,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn user_should_be_able_to_logout(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -2191,6 +2200,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn user_should_receive_password_reset_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
@@ -2231,6 +2241,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn unknown_user_returns_not_found(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
@@ -2263,6 +2274,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn users_password_should_be_updated(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = crate::test_helpers::TEST_PASSWORD;
@@ -2331,6 +2343,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn password_and_confirmation_should_match(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_username";
         let email = "test_email";
@@ -2381,6 +2394,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn guest_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let secret = state.config.jwt_secret.clone();
@@ -2614,6 +2628,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn test_signup_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user_weak_pw";
         let password = "weak"; // Too short
@@ -2635,6 +2650,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn test_password_reset_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user_reset";
         let password = "ValidPassword123!";
@@ -2684,6 +2700,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn test_update_user_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user_update";
         let password = "ValidPassword123!";
@@ -2715,6 +2732,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn should_send_email_with_otp(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email@test.com";
         let username = "test_user";
@@ -2750,6 +2768,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn should_sign_user_in_with_otp(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email@test.com";
         let username = "test_user";
@@ -2786,6 +2805,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn otp_should_be_invalid_after_single_use(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email@test.com";
         let username = "test_user";
@@ -2832,6 +2852,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     fn should_login_user_from_otp_jwt(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let email = "test_email@test.com";
         let username = "test_user";

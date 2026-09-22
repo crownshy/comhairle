@@ -6337,11 +6337,7 @@ curl -X POST \
     method: "post",
     path: "/tools/elicitation_bot/workflow_step/:workflow_step_id",
     alias: "postToolselicitation_botworkflow_stepWorkflow_step_id",
-    description: `
-Streamed LLM response.
-⚠️ This endpoint returns a streaming response on success.
-Generated API clients are NOT suitable for consuming this endpoint.
-Use a raw HTTP request and process the response body incrementally.
+    description: `Streamed LLM response. This endpoint returns a streaming response on success.Generated API clients are NOT suitable for consuming this endpoint.Use a raw HTTP request and process the response body incrementally.
 `,
     requestFormat: "json",
     parameters: [

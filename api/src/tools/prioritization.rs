@@ -260,104 +260,128 @@ impl ToolImpl for PrioritizationTool {
         ApiRouter::new()
             .api_route(
                 "/prioritization/proposals",
-                post_with(create_proposal, |op| {
-                    op.id("CreateProposal")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Create proposal")
-                        .description(
-                            "
+                state.required_auth(
+                    post_with(create_proposal, |op| {
+                        op.id("CreateProposal")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Create proposal")
+                            .description(
+                                "
 Create a new prioritization tool proposal for a given prioritization tool workflow_step
 ",
-                        )
-                        .response::<201, Json<ProposalDto>>()
-                }),
+                            )
+                            .response::<201, Json<ProposalDto>>()
+                    }),
+                    None,
+                ),
             )
             .api_route(
                 "/prioritization/proposals",
-                get_with(list_proposals, |op| {
-                    op.id("ListProposals")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("List proposals")
-                        .description(
-                            "List proposals for a given prioritization tool workflow_step. \
+                state.required_auth(
+                    get_with(list_proposals, |op| {
+                        op.id("ListProposals")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("List proposals")
+                            .description(
+                                "List proposals for a given prioritization tool workflow_step. \
                              Admin callers may pass `withTranslations=true` to receive raw \
                              TextContentId references plus full translation data so the \
                              admin UI can drive the standard TranslatableField component.",
-                        )
-                        .response::<200, Json<ProposalsListResponse>>()
-                }),
+                            )
+                            .response::<200, Json<ProposalsListResponse>>()
+                    }),
+                    None,
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}",
-                delete_with(delete_proposal, |op| {
-                    op.id("DeleteProposal")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Delete proposal")
-                        .description("Delete a prioritization tool proposal")
-                        .response::<200, Json<ProposalDto>>()
-                }),
+                state.required_auth(
+                    delete_with(delete_proposal, |op| {
+                        op.id("DeleteProposal")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Delete proposal")
+                            .description("Delete a prioritization tool proposal")
+                            .response::<200, Json<ProposalDto>>()
+                    }),
+                    None,
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/sections",
-                post_with(create_proposal_section, |op| {
-                    op.id("CreateProposalSection")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Create proposal section")
-                        .description("Append a section to a prioritization tool proposal")
-                        .response::<201, Json<ProposalSectionDto>>()
-                }),
+                state.required_auth(
+                    post_with(create_proposal_section, |op| {
+                        op.id("CreateProposalSection")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Create proposal section")
+                            .description("Append a section to a prioritization tool proposal")
+                            .response::<201, Json<ProposalSectionDto>>()
+                    }),
+                    None,
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/sections/{section_id}",
-                delete_with(delete_proposal_section, |op| {
-                    op.id("DeleteProposalSection")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Delete proposal section")
-                        .description("Delete a section from a prioritization tool proposal")
-                        .response::<200, Json<ProposalSectionDto>>()
-                }),
+                state.required_auth(
+                    delete_with(delete_proposal_section, |op| {
+                        op.id("DeleteProposalSection")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Delete proposal section")
+                            .description("Delete a section from a prioritization tool proposal")
+                            .response::<200, Json<ProposalSectionDto>>()
+                    }),
+                    None,
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/responses",
-                post_with(create_proposal_response, |op| {
-                    op.id("CreateProposalResponse")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Create proposal response")
-                        .description(
-                            "
+                state.required_auth(
+                    post_with(create_proposal_response, |op| {
+                        op.id("CreateProposalResponse")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Create proposal response")
+                            .description(
+                                "
 Create a response for prioritization tool proposal
 ",
-                        )
-                        .response::<201, Json<ProposalResponseDto>>()
-                }),
+                            )
+                            .response::<201, Json<ProposalResponseDto>>()
+                    }),
+                    None,
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/responses",
-                get_with(list_proposal_responses, |op| {
-                    op.id("ListProposalResponses")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("List proposal responses")
-                        .description("List responses for a prioritization tool proposal")
-                        .response::<200, Json<Vec<ProposalResponseDto>>>()
-                }),
+                state.required_auth(
+                    get_with(list_proposal_responses, |op| {
+                        op.id("ListProposalResponses")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("List proposal responses")
+                            .description("List responses for a prioritization tool proposal")
+                            .response::<200, Json<Vec<ProposalResponseDto>>>()
+                    }),
+                    None,
+                ),
             )
             .api_route(
                 "/prioritization/insights",
-                get_with(get_prioritization_insights, |op| {
-                    op.id("GetPrioritizationInsights")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Get prioritization insights")
-                        .description("Insights reporting data for prioritization tool step")
-                        .response::<200, Json<PrioritizationInsightsResponse>>()
-                }),
+                state.required_auth(
+                    get_with(get_prioritization_insights, |op| {
+                        op.id("GetPrioritizationInsights")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Get prioritization insights")
+                            .description("Insights reporting data for prioritization tool step")
+                            .response::<200, Json<PrioritizationInsightsResponse>>()
+                    }),
+                    None,
+                ),
             )
             .with_state(state.clone())
     }

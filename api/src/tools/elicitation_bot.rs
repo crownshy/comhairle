@@ -138,30 +138,38 @@ impl ToolImpl for ElicitationBotTool {
         ApiRouter::new()
             .api_route(
                 "/elicitation_bot/workflow_step/{workflow_step_id}",
-                get_with(get_session_history, |op| {
-                    op.id("GetElicitationBotSessionHistory")
-                        .tag("Tools")
-                        .summary("Get user session history for an elicitation bot")
-                        .security_requirement("JWT")
-                        .description("Returns a user session for an elicitation bot including message history")
-                        .response::<200, Json<ComhairleAgentSession>>()
-                }),
+                state.required_auth(
+                    get_with(get_session_history, |op| {
+                        op.id("GetElicitationBotSessionHistory")
+                            .tag("Tools")
+                            .summary("Get user session history for an elicitation bot")
+                            .security_requirement("JWT")
+                            .description(
+                                "Returns a user session for an elicitation bot \
+                                including message history",
+                            )
+                            .response::<200, Json<ComhairleAgentSession>>()
+                    }),
+                    None,
+                ),
             )
             .api_route(
                 "/elicitation_bot/workflow_step/{workflow_step_id}",
-                post_with(converse, |op| {
-                    op.tag("Tools")
-                        .summary("Converse with an elicitation bot")
-                        .security_requirement("JWT")
-                        .description(
-"
-Streamed LLM response.
-⚠️ This endpoint returns a streaming response on success.
-Generated API clients are NOT suitable for consuming this endpoint.
-Use a raw HTTP request and process the response body incrementally.
-"
-                        )
-                }),
+                state.required_auth(
+                    post_with(converse, |op| {
+                        op.tag("Tools")
+                            .summary("Converse with an elicitation bot")
+                            .security_requirement("JWT")
+                            .description(
+                                "Streamed LLM response. \
+                                This endpoint returns a streaming response on success.\
+                                Generated API clients are NOT suitable for consuming this endpoint.\
+                                Use a raw HTTP request and process the response body incrementally.
+",
+                            )
+                    }),
+                    None,
+                ),
             )
             .with_state(state.clone())
     }

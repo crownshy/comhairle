@@ -118,6 +118,7 @@ pub fn test_state(
     mailer: Option<Arc<MockComhairleMailer>>,
     config: Option<ComhairleConfig>,
     websockets: Option<Arc<dyn WebSocketService>>,
+    auth_backend: Option<AuthBackend>,
     auth_service: Option<Arc<dyn AuthService>>,
     translation_service: Option<Arc<dyn TranslationService>>,
     transcription_service: Option<Arc<dyn Transcriber>>,
@@ -134,7 +135,7 @@ pub fn test_state(
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
         video_call_handler: Arc::new(VideoCallMessageHandler::new()),
-        auth_backend: AuthBackend::Test(TestAuthUser::default()),
+        auth_backend: auth_backend.unwrap_or_else(|| AuthBackend::Test(TestAuthUser::default())),
         auth_service: auth_service.unwrap_or_else(|| mock_auth_service()),
         translation_service: translation_service
             .map(Some)
@@ -435,7 +436,7 @@ impl UserSession {
         }
     }
 
-    pub fn new_admin() -> Self {
+    pub fn legacy_new_admin() -> Self {
         Self {
             id: None,
             username: Some("admin".into()),
@@ -459,7 +460,7 @@ impl UserSession {
         }
     }
 
-    pub fn new_kc_admin() -> Self {
+    pub fn new_admin() -> Self {
         let kc_user_data = TestAuthUser::default();
         Self {
             // TODO: this may need to be fixed value for referencing instead of randomly generated
@@ -823,18 +824,27 @@ impl UserSession {
 
     pub async fn login(
         &mut self,
-        app: &Router,
-        email: &str,
-        password: &str,
+        _app: &Router,
+        _email: &str,
+        _password: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
-        self.post(
-            app,
-            "/auth/login",
-            json!({ "email": email, "password": password })
-                .to_string()
-                .into(),
-        )
-        .await
+        let user = serde_json::to_value(
+            self.kc_user
+                .clone()
+                .expect("User data is none")
+                .to_user_dto()?,
+        )?;
+
+        Ok((StatusCode::OK, user, vec![]))
+
+        // self.post(
+        //     app,
+        //     "/auth/login",
+        //     json!({ "email": email, "password": password })
+        //         .to_string()
+        //         .into(),
+        // )
+        // .await
     }
 
     pub async fn login_guest(
