@@ -21,14 +21,12 @@ export const load: LayoutLoad = async ({
 	user: any; // TODO:
 	preview: any; // TODO:
 }> => {
-	depends('app:documents');
 	// The participation row carries the seal, which the write that finishes the flow brings
 	// into existence. Without its own key, invalidating after that write reruns the workflow
 	// layout but not this one, so `sealed` here would stay false for the rest of the session
 	// and browser Back would walk straight into a step. See ADR-0016.
-	depends('app:participation');
-	depends(key('public/conversation'));
 	depends(key('public/participation'));
+	depends(key('public/conversation'));
 	depends(key('public/documents'));
 	const { api, user } = await parent();
 	const conversation_id = params.conversation_id;
