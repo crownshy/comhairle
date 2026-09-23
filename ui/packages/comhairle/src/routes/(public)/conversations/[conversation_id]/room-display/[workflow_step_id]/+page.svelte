@@ -32,10 +32,13 @@
 		resolveBoard,
 		serializeBlocks,
 		toggleBlock,
+		type LatestStyle,
 		type RoomBlock,
 		type RoomBoard,
-		type RoomLayout
+		type RoomLayout,
+		type RoomTheme
 	} from '$lib/room-display/blocks';
+	import { themeStore } from '$lib/stores/theme.svelte';
 	import { readStoredBoard, writeStoredBoard } from '$lib/room-display/storedBoard';
 	import WarmingScreen from '$lib/room-display/WarmingScreen.svelte';
 	import PrototypeBar from './PrototypeBar.svelte';
@@ -81,6 +84,7 @@
 		// only be folded in here. Resolving again rather than assigning the stored board
 		// keeps the precedence rule in one place: an explicit URL still wins.
 		board = resolveBoard({ ...data.boardParams, stored: readStoredBoard() });
+		applyTheme(board.theme);
 	});
 
 	/**
@@ -92,11 +96,14 @@
 	function applyBoard(next: RoomBoard) {
 		board = next;
 		writeStoredBoard(next);
+		applyTheme(next.theme);
 
 		const url = new URL(window.location.href);
 		url.searchParams.delete('variant');
 		url.searchParams.set('layout', next.layout);
 		url.searchParams.set('blocks', serializeBlocks(next.blocks));
+		url.searchParams.set('latest', next.latest);
+		url.searchParams.set('theme', next.theme);
 		// This rewrites the query string of the page we are already on rather than
 		// navigating anywhere, so there is no route for `resolve()` to resolve.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
@@ -108,7 +115,28 @@
 	}
 
 	function onSetLayout(layout: RoomLayout) {
-		applyBoard({ layout, blocks: board.blocks });
+		applyBoard({ ...board, layout });
+	}
+
+	function onSetLatest(latest: LatestStyle) {
+		applyBoard({ ...board, latest });
+	}
+
+	function onSetTheme(theme: RoomTheme) {
+		applyBoard({ ...board, theme });
+	}
+
+	/**
+	 * `auto` deliberately does nothing rather than restoring a previous mode: dark is a
+	 * class on `<html>` and there is no per-page scope for it, so the display drives the
+	 * app-wide store. Forcing a mode on every load would override the viewer's own
+	 * preference just for opening this page, so only an explicit pick touches it. That
+	 * does mean going back to `auto` leaves the last pick in place until something else
+	 * changes it, which on a projector is what you want anyway.
+	 */
+	function applyTheme(theme: RoomTheme) {
+		if (theme === 'auto') return;
+		themeStore.setMode(theme);
 	}
 
 	function onReset() {
@@ -147,7 +175,7 @@
 	{/if}
 </div>
 
-<BoardSettings {board} {onToggleBlock} {onSetLayout} {onReset} />
+<BoardSettings {board} {onToggleBlock} {onSetLayout} {onSetLatest} {onSetTheme} {onReset} />
 
 {#if dev && driver}
 	<PrototypeBar {driver} />
