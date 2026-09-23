@@ -51,6 +51,13 @@
 	let open = $state(false);
 	let copied = $state(false);
 
+	// "Beside" means the column under the statement strip, which only the one-wall
+	// layout has. Offering it elsewhere would be a button that silently does something
+	// else.
+	const latestOptions = $derived(
+		LATEST_STYLES.filter((option) => !option.splitOnly || board.layout === 'split')
+	);
+
 	function onkeydown(event: KeyboardEvent) {
 		const target = event.target as HTMLElement | null;
 		if (target?.closest('input, textarea, [contenteditable]')) return;
@@ -157,11 +164,11 @@
 					-->
 					<div class="border-border flex flex-col gap-2 border-l pb-1 pl-4">
 						<p class="text-muted-foreground text-base">Latest statements as</p>
-						<div class="flex gap-2">
-							{#each LATEST_STYLES as option (option.id)}
+						<div class="flex flex-wrap gap-2">
+							{#each latestOptions as option (option.id)}
 								<button
 									type="button"
-									class="border-border hover:bg-muted flex-1 rounded-md border px-2 py-2 text-base transition-colors"
+									class="border-border hover:bg-muted min-w-16 flex-1 rounded-md border px-2 py-2 text-base transition-colors"
 									class:bg-muted={board.latest === option.id}
 									class:border-primary={board.latest === option.id}
 									aria-pressed={board.latest === option.id}

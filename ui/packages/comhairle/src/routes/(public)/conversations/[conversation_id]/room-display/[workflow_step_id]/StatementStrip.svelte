@@ -75,6 +75,14 @@
 				<ForceSimulation {forces} data={simData} cloneNodes>
 					{#snippet children({ nodes: placed })}
 						{#each placed as n (n.tid)}
+							<!--
+								`outline-none` rather than `focus-visible:outline-none`: Chrome
+								draws a focus ring on an SVG shape as its bounding box, so a
+								focused dot gets a square around a circle, and a click counts as
+								`:focus` without counting as `:focus-visible`. Nothing is lost by
+								removing it because focus already moves the selection: `onfocus`
+								sets the focused statement, and the dot grows and turns primary.
+							-->
 							{@const isActive = n.tid === focusedTid}
 							<circle
 								role="button"
@@ -86,7 +94,7 @@
 								r={isActive ? RADIUS + 3 : RADIUS}
 								fill={isActive ? 'var(--primary)' : 'var(--muted-foreground)'}
 								opacity={isActive ? 1 : 0.45}
-								class="transition-all duration-200 focus-visible:outline-none"
+								class="transition-all duration-200 outline-none"
 								class:cursor-pointer={interactive}
 								onmouseenter={() => interactive && onfocusstatement?.(n.tid)}
 								onfocus={() => interactive && onfocusstatement?.(n.tid)}
