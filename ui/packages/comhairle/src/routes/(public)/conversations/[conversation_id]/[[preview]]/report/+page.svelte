@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Badge } from '$lib/components/ui/badge';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import '@carbon/charts-svelte/styles.css';
 	import StatsBar from '$lib/components/StatsBar.svelte';
@@ -33,8 +34,26 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-	<h1 class="mb-4 text-4xl">{conversation.title} report</h1>
+<main class="bg-primary/10 flex flex-col items-center overflow-hidden pb-20">
+	<header
+		class="bg-card mb-8 flex w-full flex-col items-center gap-4 rounded-xl px-5 pt-10 pb-8 text-center md:mb-16 md:px-24 md:pt-24 md:pb-12"
+	>
+		<Badge
+			class="bg-primary/10 text-muted-foreground rounded-3xl px-4 py-2 text-lg font-semibold"
+		>
+			Final report
+		</Badge>
+		<h1
+			class="text-foreground max-w-4xl text-3xl leading-10 font-bold md:text-5xl md:leading-[52px]"
+		>
+			{data.conversation.title}
+		</h1>
+		<p class="text-muted-foreground max-w-3xl text-lg leading-7">
+			A record of what participants shared, where they found common ground, and where views
+			remain different.
+		</p>
+	</header>
+
 	<Tabs.Root value="Overview" class="space-y-4">
 		<Tabs.List>
 			<Tabs.Trigger value="Overview">Overview</Tabs.Trigger>
@@ -116,4 +135,4 @@
 			{/each}
 		</Tabs.Content>
 	</Tabs.Root>
-</div>
+</main>
