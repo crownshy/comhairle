@@ -180,16 +180,16 @@
 							class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1"
 						>
 							<!--
-								A live source has no per-participant votes, so the map keeps its
-								group colours and a placed participant counts as settled: Polis
-								only gives someone a position once they have voted enough to
-								have one.
+								An apportioned matrix says nothing about how often one person
+								voted, so a placed participant counts as settled: Polis only
+								gives someone a position once they have voted enough to have
+								one.
 							-->
 							<OpinionMap
 								nodes={source.state.nodes}
 								votesByTid={source.state.votesByTid}
-								focusedTid={source.perParticipantVotes ? focusedTid : null}
-								settleVotes={source.perParticipantVotes ? 6 : 0}
+								{focusedTid}
+								settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
 								{groupIds}
 							/>
 						</div>
@@ -229,7 +229,8 @@
 									>
 										{focused.text}
 									</p>
-									{#if !source.perParticipantVotes}
+									<!-- The dots round, so the exact split is spelled out beside them. -->
+									{#if source.voteMatrix === 'apportioned'}
 										{@const bars = voteBarsFor(source, focused)}
 										<div
 											class="fade-in grid gap-6"
@@ -246,10 +247,8 @@
 							{:else}
 								<p class="text-muted-foreground text-base sm:text-xl lg:text-2xl">
 									{#if hasBlock(board, 'strip')}
-										Every dot below is a statement. Pick one to
-										{source.perParticipantVotes
-											? 'colour the room by it.'
-											: 'see how the room split.'}
+										Every dot below is a statement. Pick one to see how the room
+										splits on it.
 									{:else}
 										Turn the statement strip on to pick one.
 									{/if}

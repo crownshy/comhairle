@@ -7,14 +7,16 @@
  *  - Participants carry a PCA position and a group id, which is exactly a map node.
  *  - Comments carry aggregate and per-group vote counts plus Polis's scores, which is
  *    everything the strip and the vote bars need.
- *  - There is no per-participant vote matrix, so `votesByTid` is empty and the map
- *    cannot be coloured by one statement. The source flags this and the display
- *    degrades to group bars.
+ *  - There is no per-participant vote matrix. Rather than leave the map uncoloured,
+ *    `votesByTid` is dealt out from each group's real counts (`apportionedVotes.ts`):
+ *    the proportions are exact, the dot-to-person mapping is not. The source flags
+ *    which kind of matrix it carries so the display can say so.
  *  - There is no publish timestamp. Polis assigns `tid` in creation order, so newest
  *    first is highest `tid` first.
  */
 
 import type { PolisReportData } from '$lib/tools/polis/reportTypes';
+import { apportionVotes } from './apportionedVotes';
 import { totalVotes } from '$lib/tools/polis/report';
 import { DEFAULT_THRESHOLDS, scoredCount } from './revealStage';
 import type { DisplayState, MapNode, RevealStage } from './types';
@@ -54,7 +56,7 @@ export function displayStateFromReport(report: PolisReportData, atMs = 0): Displ
 		atMs,
 		nodes: nodesFromReport(report),
 		published: [...report.comments].sort((a, b) => b.tid - a.tid),
-		votesByTid: new Map(),
+		votesByTid: apportionVotes(report),
 		totalVotes: report.comments.reduce((sum, c) => sum + totalVotes(c), 0)
 	};
 }

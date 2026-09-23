@@ -186,7 +186,7 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 		scenario,
 		groups: scenario.groups,
 		// The scenario scripts every vote, so the map can be coloured per person.
-		perParticipantVotes: true,
+		voteMatrix: 'per-participant',
 		get playheadMs() {
 			return playheadMs;
 		},
