@@ -386,8 +386,9 @@ migrate them.
       runs at event time via a getter).
 
 ### SvelteKit
-
-- Use `depends()` in `load` functions to declare explicit cache keys for invalidation.
+- Use `depends()` in `load` functions to declare explicit cache keys for invalidation. Use
+the `key()` function from the `invalidationKeys` file to make sure that the keys are
+type safe
 - When sibling pages fetch the same resource, hoist the fetch to the nearest shared layout
   `load` and read it via `await parent()` in children.
 
