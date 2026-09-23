@@ -1,4 +1,4 @@
-type ErrorType = string | object;
+export type ErrorType = string | object;
 type Ok<K extends string, T> = Record<K, T> & { err: null };
 type Err<K extends string, E extends ErrorType> = Record<K, null> & { err: E };
 export type Result<K extends string, T, E extends ErrorType> = Ok<K, T> | Err<K, E>;
