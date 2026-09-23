@@ -47,19 +47,34 @@ export type RoomLayout = 'split' | 'console' | 'deck';
 const LAYOUTS: readonly RoomLayout[] = ['split', 'console', 'deck'];
 
 /**
- * How the `marquee` block presents itself.
+ * How the `marquee` block presents itself, and where it sits.
  *
- * `row` and `column` are still: they move only when a statement arrives. `marquee`
- * scrolls continuously, which reads badly at room distance and is kept so the two can
- * be judged against each other in an actual room rather than argued about.
+ * One setting rather than a style and a placement, because only a few of the
+ * combinations are worth having: a row is only readable in a wide slot, and a narrow
+ * column beside the strip can only be a column.
+ *
+ * `row`, `column` and `aside` are still: they move only when a statement arrives.
+ * `marquee` scrolls continuously, which reads badly at room distance and is kept so
+ * the two can be judged against each other in an actual room rather than argued about.
+ *
+ * `aside` moves the block out of the band along the bottom and into the column under
+ * the statement strip, which is otherwise dead space in the `split` layout. It needs
+ * that column to exist, so only `split` offers it; elsewhere it falls back to a
+ * column along the bottom.
  */
-export type LatestStyle = 'row' | 'column' | 'marquee';
+export type LatestStyle = 'row' | 'column' | 'marquee' | 'aside';
 
 export const LATEST_STYLES = [
-	{ id: 'row', label: 'Row', hint: 'Newest first, still between arrivals' },
-	{ id: 'column', label: 'Column', hint: 'Top to bottom, still between arrivals' },
-	{ id: 'marquee', label: 'Marquee', hint: 'Scrolls continuously' }
-] as const satisfies readonly { id: LatestStyle; label: string; hint: string }[];
+	{ id: 'row', label: 'Row', hint: 'Along the bottom, newest first', splitOnly: false },
+	{ id: 'column', label: 'Column', hint: 'Along the bottom, top to bottom', splitOnly: false },
+	{ id: 'aside', label: 'Beside', hint: 'Under the statement strip', splitOnly: true },
+	{ id: 'marquee', label: 'Marquee', hint: 'Scrolls continuously', splitOnly: false }
+] as const satisfies readonly {
+	id: LatestStyle;
+	label: string;
+	hint: string;
+	splitOnly: boolean;
+}[];
 
 const LATEST_STYLE_IDS: readonly LatestStyle[] = LATEST_STYLES.map((s) => s.id);
 
@@ -139,6 +154,21 @@ export function isLatestStyle(value: string): value is LatestStyle {
 
 export function isRoomTheme(value: string): value is RoomTheme {
 	return (ROOM_THEME_IDS as readonly string[]).includes(value);
+}
+
+/**
+ * Which way the still list runs, for the layouts that have already decided they are
+ * not drawing the marquee. `aside` says where the block goes rather than how it looks,
+ * and what goes there is a column: a row of four in a third of the wall's width would
+ * be four slivers.
+ */
+export function stillLatestDirection(board: RoomBoard): 'row' | 'column' {
+	return board.latest === 'row' ? 'row' : 'column';
+}
+
+/** Whether the block sits in the column under the strip rather than along the bottom. */
+export function latestIsBeside(board: RoomBoard): boolean {
+	return board.latest === 'aside' && board.layout === 'split';
 }
 
 export function isBoardPreset(value: string): value is BoardPreset {

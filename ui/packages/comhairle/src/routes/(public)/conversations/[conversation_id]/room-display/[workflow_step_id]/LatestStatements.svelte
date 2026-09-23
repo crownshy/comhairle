@@ -29,13 +29,19 @@
 		 * block has height to spend and the list should read top to bottom.
 		 */
 		direction?: 'row' | 'column';
+		/**
+		 * How many to show. Defaults to what fits the block's own slot along the bottom
+		 * of a wall; the column beside the statement strip is shorter and passes its own.
+		 */
+		max?: number;
 	};
 
-	let { comments, direction = 'row' }: Props = $props();
+	let { comments, direction = 'row', max }: Props = $props();
 
 	// A row runs out of width before it runs out of statements, and a column out of
 	// height. Both are small: this block is "what was just said", not a transcript.
-	const shown = $derived(comments.slice(0, direction === 'row' ? 4 : 3));
+	const limit = $derived(max ?? (direction === 'row' ? 4 : 3));
+	const shown = $derived(comments.slice(0, limit));
 
 	/** Oldest is faintest. Never fully transparent: it is still a statement someone wrote. */
 	function fade(index: number, total: number): number {

@@ -66,13 +66,26 @@ is reading type that is not moving, which is the only way it gets read at all.
 Recency is carried by an opacity ramp rather than by movement. Oldest is faintest, and
 that says "this is a running list, newest first" without anything having to move.
 
-**Three presentations, one block.** `?latest=` picks:
+**Four presentations, one block.** `?latest=` picks:
 
 | value     | what it is                                  | where it suits                 |
 | --------- | ------------------------------------------- | ------------------------------ |
-| `row`     | still, newest leftmost, 4 across (default)  | the wide short slot on a wall  |
-| `column`  | still, newest at top, 3 down                | when the block has height      |
+| `row`     | still, newest leftmost, 4 across (default)  | the wide band along the bottom |
+| `column`  | still, newest at top, 3 down                | the bottom band, given height  |
+| `aside`   | still, in the column under the strip        | `split` only                   |
 | `marquee` | the original continuous scroll, much slower | the thing being argued against |
+
+`aside` says _where_ rather than _how_, which is why it is a fourth value of the same
+setting rather than a second setting: a row of four in a third of the wall's width
+would be four slivers, so what goes beside the strip can only be a column. It exists
+because the strip is a fixed-height plot, so in a full-height column it leaves dead
+space under itself, and that space is the right size for what was just said. Only
+`split` has that column; elsewhere `aside` falls back to a column along the bottom and
+the settings panel does not offer it.
+
+How many fit there depends on the screen: two on a projector, one on a laptop window,
+because a second cut off halfway down its box reads as broken rather than as "there is
+more". That is the one place the display measures the viewport.
 
 The marquee is kept rather than deleted so the claim above can lose in an actual room
 instead of winning in a review. It is slowed right down, which is the most generous
@@ -82,6 +95,13 @@ version of the idea. If it still loses in front of an audience, delete
 **Known cost of `column`:** in the `split` layout it competes with the opinion map for
 height, and three statements is enough to squash the map noticeably. `row` is the right
 default there. Column is waiting for a layout that gives the block a real column.
+
+**A second trap:** the statement strip's dots are SVG `<circle>`s with `tabindex`, and
+Chrome draws a focus ring on an SVG shape as its _bounding box_, so a focused dot got a
+square around a circle. `focus-visible:outline-none` did not catch it, because a click
+counts as `:focus` without counting as `:focus-visible`. It is now `outline-none`
+outright, which costs the keyboard nothing: focus already moves the selection, so the
+focused dot grows and turns primary of its own accord.
 
 **A trap worth remembering:** the list uses `animate:flip`, and Svelte drives that with
 a generated keyframe on the element's own `animation` property. Putting our own CSS
