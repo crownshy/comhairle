@@ -72,7 +72,7 @@
 {#each segments as segment, i (i)}
 	{#if segment.kind === 'embed'}
 		{#if segment.toolStepId && segment.componentType}
-			<div class="report-embed my-4">
+			<div id={`report-${segment.componentType}`} class="report-embed my-4 scroll-mt-8">
 				<ReportEmbedLive
 					toolStepId={segment.toolStepId}
 					componentType={segment.componentType}
