@@ -95,7 +95,7 @@
 			priority: 'INFO'
 		});
 
-		await invalidate(key('conversation'));
+		await invalidate(key('admin/conversation'));
 	}
 
 	//#Region Translations
@@ -143,7 +143,7 @@
 			return;
 		}
 
-		await invalidate(key('conversation'));
+		await invalidate(key('admin/conversation'));
 		notifications.send({ message: 'Primary language updated', priority: 'INFO' });
 	}
 
@@ -207,7 +207,7 @@
 			notifications.send({ message: 'Translations generated', priority: 'INFO' });
 		}
 
-		await invalidate(key('conversation'));
+		await invalidate(key('admin/conversation'));
 	}
 	//#EndRegion Translations
 </script>
