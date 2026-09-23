@@ -52,6 +52,9 @@
 	let focusedTid = $state<number | null>(null);
 	let wallView = $state<WallView>({ kind: 'map' });
 	let viewportHeight = $state(0);
+	let viewportWidth = $state(0);
+	/** Measured height of the map's slot, which is what decides how wide the map can be. */
+	let mapSlotHeight = $state(0);
 
 	const groupIds = $derived(source.groups.map((g) => g.group_id));
 	const clustered = $derived(source.stage === 'shaped' || source.stage === 'rich');
@@ -99,6 +102,14 @@
 	 */
 	const asideLatestMax = $derived(viewportHeight >= 1000 ? 2 : 1);
 
+	/**
+	 * A wall short enough that room-scale type and spacing stop fitting. A projector at
+	 * 1080p is not this; a laptop window with every block switched on is. Without the
+	 * step down the header and the latest row eat the height the map and the strip need,
+	 * and the blocks that lose are clipped rather than shrunk.
+	 */
+	const compactWall = $derived(viewportHeight > 0 && viewportHeight < 900);
+
 	// The focus column earns its space either because the map is on, or because the
 	// bottom bar has put a list of statements in it. With neither, it is a hole.
 	const showFocus = $derived(hasBlock(board, 'map') || wallView.kind !== 'map');
@@ -106,20 +117,45 @@
 		hasBlock(board, 'statement') || hasBlock(board, 'strip') || latestBeside
 	);
 	const columns = $derived(showFocus && showAside ? 'lg:grid-cols-[1.1fr_1fr]' : 'grid-cols-1');
+
+	/**
+	 * The opinion map is a square plot: its SVG keeps a 1:1 viewBox, so in a column wider
+	 * than it is tall it draws a small square in the middle and leaves the rest of the
+	 * column empty. That dead space is most of what makes a short wall look broken.
+	 *
+	 * So the map's column is sized to the map rather than to a fraction of the wall: as
+	 * wide as its slot is tall, which is exactly what the square can use. A CSS `auto`
+	 * column cannot do this (it resolves to the legend's intrinsic width, not the
+	 * square's), and `aspect-square` on the slot only moves the empty space inside it.
+	 * The width the map was wasting goes to the statement and the strip.
+	 */
+	const wallColumns = $derived(
+		viewportWidth >= 1024 &&
+			showFocus &&
+			showAside &&
+			hasBlock(board, 'map') &&
+			mapSlotHeight > 0
+			? `grid-template-columns: ${Math.round(
+					Math.max(240, Math.min(mapSlotHeight, viewportWidth * 0.45))
+				)}px minmax(0, 1fr);`
+			: ''
+	);
 	const showHeader = $derived(
 		hasBlock(board, 'question') || hasBlock(board, 'counts') || hasBlock(board, 'qr')
 	);
 </script>
 
-<svelte:window bind:innerHeight={viewportHeight} />
+<svelte:window bind:innerHeight={viewportHeight} bind:innerWidth={viewportWidth} />
 
-<div class="flex min-h-0 flex-col gap-6 lg:h-full">
+<div class="flex min-h-0 flex-col gap-6 lg:h-full lg:overflow-hidden">
 	{#if showHeader}
 		<header class="flex shrink-0 items-start justify-between gap-4 sm:gap-8">
 			<div class="flex min-w-0 flex-col gap-3">
 				{#if hasBlock(board, 'question')}
 					<h1
-						class="text-foreground max-w-5xl text-2xl leading-tight font-bold text-balance sm:text-3xl lg:text-5xl"
+						class="text-foreground max-w-5xl text-2xl leading-tight font-bold text-balance sm:text-3xl {compactWall
+							? 'lg:text-4xl'
+							: 'lg:text-5xl'}"
 					>
 						{question}
 					</h1>
@@ -167,9 +203,12 @@
 	{/if}
 
 	{#if showFocus || showAside}
-		<div class="grid min-h-0 flex-1 gap-6 lg:gap-8 {columns}">
+		<div
+			class="grid min-h-0 flex-1 gap-6 lg:gap-8 lg:overflow-hidden {columns}"
+			style={wallColumns}
+		>
 			{#if showFocus}
-				<section class="flex min-h-0 flex-col gap-4">
+				<section class="flex min-h-0 flex-col gap-4 lg:overflow-hidden">
 					{#if wallView.kind === 'map'}
 						<p
 							class="text-muted-foreground shrink-0 text-base font-medium tracking-wide uppercase"
@@ -177,7 +216,8 @@
 							Opinion groups
 						</p>
 						<div
-							class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1"
+							class="aspect-square min-h-0 w-full self-center lg:aspect-auto lg:h-auto lg:w-full lg:flex-1 lg:self-stretch"
+							bind:clientHeight={mapSlotHeight}
 						>
 							<!--
 								An apportioned matrix says nothing about how often one person
@@ -212,7 +252,7 @@
 			{/if}
 
 			{#if showAside}
-				<section class="flex min-h-0 flex-col gap-4">
+				<section class="flex min-h-0 flex-col gap-4 lg:overflow-hidden">
 					{#if hasBlock(board, 'statement')}
 						<p
 							class="text-muted-foreground shrink-0 text-base font-medium tracking-wide uppercase"
@@ -220,7 +260,9 @@
 							Selected statement
 						</p>
 						<div
-							class="border-border bg-card flex min-h-40 shrink-0 flex-col justify-center gap-4 rounded-lg border px-6 py-5"
+							class="border-border bg-card flex min-h-32 shrink-0 flex-col justify-center gap-3 rounded-lg border px-5 py-4 lg:px-6 lg:py-5 {compactWall
+								? ''
+								: 'lg:min-h-40 lg:gap-4'}"
 						>
 							{#if focused}
 								{#key focused.tid}
@@ -233,9 +275,8 @@
 									{#if source.voteMatrix === 'apportioned'}
 										{@const bars = voteBarsFor(source, focused)}
 										<div
-											class="fade-in grid gap-6"
-											style="grid-template-columns: repeat({1 +
-												bars.groups.length}, minmax(0, 1fr));"
+											class="fade-in grid gap-x-6 gap-y-3"
+											style="grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));"
 										>
 											<RoomVoteBar {...bars.overall} />
 											{#each bars.groups as bar (bar.label)}
@@ -258,12 +299,15 @@
 					{/if}
 
 					{#if hasBlock(board, 'strip')}
-						<div class={latestBeside ? 'shrink-0' : 'min-h-0 flex-1'}>
+						<div
+							class="flex-1 {compactWall ? 'min-h-24' : 'min-h-28'} {latestBeside
+								? 'lg:max-h-40'
+								: ''}"
+						>
 							<StatementStrip
 								comments={source.state.published}
 								{focusedTid}
 								interactive
-								height={110}
 								onfocusstatement={(tid) => (focusedTid = tid)}
 							/>
 						</div>
@@ -284,14 +328,17 @@
 	{/if}
 
 	{#if latestBelow}
-		{#if board.latest === 'marquee'}
-			<LatestStatementsMarquee comments={source.state.published} />
-		{:else}
-			<LatestStatements
-				comments={source.state.published}
-				direction={stillLatestDirection(board)}
-			/>
-		{/if}
+		<div class="min-h-0 shrink-0 overflow-hidden">
+			{#if board.latest === 'marquee'}
+				<LatestStatementsMarquee comments={source.state.published} />
+			{:else}
+				<LatestStatements
+					comments={source.state.published}
+					direction={stillLatestDirection(board)}
+					compact={compactWall}
+				/>
+			{/if}
+		</div>
 	{/if}
 
 	{#if hasBlock(board, 'groups')}

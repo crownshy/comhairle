@@ -21,18 +21,10 @@
 		comments: ReportComment[];
 		focusedTid?: number | null;
 		interactive?: boolean;
-		/** Plot height in px. Room-scale wants more air than the report's 144. */
-		height?: number;
 		onfocusstatement?: (tid: number) => void;
 	};
 
-	let {
-		comments,
-		focusedTid = null,
-		interactive = false,
-		height = 120,
-		onfocusstatement
-	}: Props = $props();
+	let { comments, focusedTid = null, interactive = false, onfocusstatement }: Props = $props();
 
 	// Room scale. The report's continuum uses 5, which disappears on a projector.
 	const MAX_RADIUS = 14;
@@ -43,6 +35,9 @@
 	// off, a phone is narrow and held at arm's length. Room scale on a phone just means
 	// four dots fill the strip.
 	const WIDTH_PER_RADIUS = 50;
+	// Plot height that earns one, so a strip squeezed by a short wall shrinks its dots
+	// rather than packing them into a band they do not fit.
+	const HEIGHT_PER_RADIUS = 5;
 	// Clear space between neighbouring dots, and between a dot and the plot edge.
 	const GAP = 2;
 
@@ -74,14 +69,25 @@
 		return force;
 	}
 
+	// The plot takes the box it is given rather than declaring a height of its own: the
+	// board is a fixed screen divided between blocks, and a block that insists on a pixel
+	// height is the thing that pushes its neighbours off the wall.
 	let plotWidth = $state(0);
+	let plotHeight = $state(0);
 
 	const scored = $derived(scoredComments(comments));
 
 	const radius = $derived(
-		plotWidth <= 0
+		plotWidth <= 0 || plotHeight <= 0
 			? MAX_RADIUS
-			: Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, plotWidth / WIDTH_PER_RADIUS))
+			: Math.max(
+					MIN_RADIUS,
+					Math.min(
+						MAX_RADIUS,
+						plotWidth / WIDTH_PER_RADIUS,
+						plotHeight / HEIGHT_PER_RADIUS
+					)
+				)
 	);
 
 	// The focused dot grows, so keep that much clear of every edge too.
@@ -100,7 +106,7 @@
 			text: c.text,
 			divisiveness: c.divisiveness,
 			x: xScale(c.divisiveness),
-			y: height / 2
+			y: plotHeight / 2
 		}))
 	);
 
@@ -109,17 +115,21 @@
 	// resolve it vertically.
 	const forces = $derived<Record<string, Force<SwarmNode, undefined>>>({
 		x: forceX<SwarmNode>((d) => xScale(d.divisiveness)).strength(0.5),
-		y: forceY<SwarmNode>(height / 2).strength(0.15),
+		y: forceY<SwarmNode>(plotHeight / 2).strength(0.15),
 		collide: forceCollide<SwarmNode>(radius + GAP).strength(1),
-		bounds: forceBounds(plotWidth, height, margin)
+		bounds: forceBounds(plotWidth, plotHeight, margin)
 	});
 
 	const simData = $derived({ nodes });
 </script>
 
-<div class="flex flex-col gap-2">
-	<div class="relative overflow-hidden" style="height: {height}px" bind:clientWidth={plotWidth}>
-		{#if plotWidth > 0 && scored.length > 0}
+<div class="flex h-full min-h-0 flex-col gap-2">
+	<div
+		class="relative min-h-0 w-full flex-1 overflow-hidden"
+		bind:clientWidth={plotWidth}
+		bind:clientHeight={plotHeight}
+	>
+		{#if plotWidth > 0 && plotHeight > 0 && scored.length > 0}
 			<svg class="h-full w-full" role="presentation">
 				<ForceSimulation {forces} data={simData} cloneNodes>
 					{#snippet children({ nodes: placed })}
@@ -139,7 +149,7 @@
 								aria-disabled={!interactive}
 								aria-label={n.text.trim()}
 								cx={n.x ?? 0}
-								cy={n.y ?? height / 2}
+								cy={n.y ?? plotHeight / 2}
 								r={isActive ? radius + activeGrowth : radius}
 								fill={isActive ? 'var(--primary)' : 'var(--muted-foreground)'}
 								opacity={isActive ? 1 : 0.45}
@@ -162,7 +172,7 @@
 		{/if}
 	</div>
 
-	<div class="text-muted-foreground flex justify-between text-base font-medium">
+	<div class="text-muted-foreground flex shrink-0 justify-between text-base font-medium">
 		<span>Agreed on</span>
 		<span>Divides the room</span>
 	</div>

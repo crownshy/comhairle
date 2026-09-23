@@ -269,12 +269,11 @@
 			{/if}
 
 			{#if hasBlock(board, 'strip')}
-				<div class="shrink-0">
+				<div class="h-24 shrink-0 lg:h-28">
 					<StatementStrip
 						comments={source.state.published}
 						{focusedTid}
 						interactive
-						height={90}
 						onfocusstatement={(tid) => (focusedTid = tid)}
 					/>
 				</div>
