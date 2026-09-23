@@ -8,8 +8,9 @@
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { backTo }: { backTo: string } = $props();
 
@@ -42,7 +43,7 @@
 
 					let redirectTo = `/auth/login-otp?backTo=${encodeURIComponent(backTo)}`;
 
-					await goto(resolve(redirectTo), { invalidateAll: true });
+					await goto(resolve(redirectTo), { invalidate: [key('user')] });
 				} catch (e) {
 					responseMessage = e.response?.data?.err ?? 'Failed to send one-time-passcode';
 				}

@@ -11,6 +11,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 	import { resolve } from '$app/paths';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -52,7 +53,7 @@
 						} catch {}
 					}
 
-					await goto(resolve(redirectTo), { invalidateAll: true });
+					await goto(resolve(redirectTo), { invalidate: [key('user')] });
 				} catch (e) {
 					responseMessage = e.response.data.err;
 				}

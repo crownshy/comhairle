@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
@@ -42,7 +43,7 @@
 				priority: 'INFO'
 			});
 
-			await goto(resolve(redirectUrl), { invalidateAll: true });
+			await goto(resolve(redirectUrl), { invalidate: [key('public/event')] });
 		} catch (e) {
 			console.error(e);
 			error = e.message;
@@ -60,7 +61,7 @@
 				priority: 'INFO'
 			});
 
-			await goto(resolve(redirectUrl), { invalidateAll: true });
+			await goto(resolve(redirectUrl), { invalidate: [key('public/event')] });
 		} catch (e) {
 			console.error(e);
 			if (
