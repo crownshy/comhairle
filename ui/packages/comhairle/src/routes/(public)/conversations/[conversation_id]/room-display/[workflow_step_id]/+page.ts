@@ -1,6 +1,7 @@
 import type { PageLoad } from './$types';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { conversation_url } from '$lib/urls';
+import { resolveBoard } from '$lib/room-display/blocks';
 
 export type RoomDisplayMode = 'live' | 'demo';
 
@@ -11,7 +12,9 @@ export type RoomDisplayMode = 'live' | 'demo';
  *
  *   ?mode=demo         scripted scenario with animated joins and votes, for showing
  *                      the thing off; the default polls the real step
- *   ?variant=deck      the Deck direction instead of the console
+ *   ?variant=<name>    a named board: console (default), marquee or deck
+ *   ?layout=<name>     the arrangement on its own: split, console or deck
+ *   ?blocks=a,b,c      exactly which regions are on, overriding the variant's set
  *   ?join=<url>        where the QR code points; defaults to the conversation page
  *   ?question=<text>   override the heading (the Polis topic by default)
  *   ?rate=<n>          demo only: playback speed
@@ -25,6 +28,11 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 	const { api } = await parent();
 	const { conversation_id, workflow_step_id } = params;
 	const mode: RoomDisplayMode = url.searchParams.get('mode') === 'demo' ? 'demo' : 'live';
+	const boardParams = {
+		preset: url.searchParams.get('variant'),
+		layout: url.searchParams.get('layout'),
+		blocks: url.searchParams.get('blocks')
+	};
 
 	const conversation = await tryCatchAsync(() =>
 		api.GetConversation({ params: { conversation_id } })
@@ -72,7 +80,12 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 			(mode === 'demo' ? 'What has to change for the Arctic over the next decade?' : 'Polis'),
 		joinUrl:
 			url.searchParams.get('join') ?? `${url.origin}${conversation_url(conversation_id)}`,
-		variant: url.searchParams.get('variant') === 'deck' ? 'deck' : 'console',
+		// The board is resolved twice: here without what the display remembered, which
+		// is what the server can know, and again on the client where localStorage is
+		// readable. The raw parameters travel so the second pass can tell an explicit
+		// URL from an absent one.
+		boardParams,
+		board: resolveBoard(boardParams),
 		rate: Number(url.searchParams.get('rate')) || 90
 	};
 };
