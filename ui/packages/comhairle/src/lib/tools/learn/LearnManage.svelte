@@ -23,6 +23,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import { key } from '$lib/utils/invalidationKey';
 
 	interface Props {
 		conversationId: string;
@@ -87,15 +88,7 @@
 			throw response.err;
 		}
 
-		// Every save refreshes the step list, content edits included. This step's config is served
-		// from the conversation layout's `workflowSteps`, and that load keys off `conversation_id`
-		// alone, so hopping between steps never refetches it. A save that skipped this left the
-		// cache holding pre-edit pages: leave the step, come back, and the editor remounts from
-		// stale props and the next autosave writes them back over the real content.
-		//
-		// Ordering matters. Invalidating before markSaved() means the fresh props land while
-		// `areDirty` is still true, so the reload effect below leaves the editor alone.
-		await invalidate('conversation:workflow');
+		await invalidate(key('admin/conversation'));
 		pages.markSaved();
 	}
 
