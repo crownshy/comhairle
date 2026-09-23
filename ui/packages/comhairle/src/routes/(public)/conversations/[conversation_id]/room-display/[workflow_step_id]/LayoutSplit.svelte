@@ -23,7 +23,12 @@
 	import { participantCount } from '$lib/room-display/scenario';
 	import { presentByGroup, voteBarsFor } from '$lib/room-display/liveVotes';
 	import { groupColor } from '$lib/room-display/opinionMap';
-	import { hasBlock, type RoomBoard } from '$lib/room-display/blocks';
+	import {
+		stillLatestDirection,
+		hasBlock,
+		latestIsBeside,
+		type RoomBoard
+	} from '$lib/room-display/blocks';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import OpinionMap from '$lib/room-display/OpinionMap.svelte';
 	import StatementStrip from './StatementStrip.svelte';
@@ -46,6 +51,7 @@
 
 	let focusedTid = $state<number | null>(null);
 	let wallView = $state<WallView>({ kind: 'map' });
+	let viewportHeight = $state(0);
 
 	const groupIds = $derived(source.groups.map((g) => g.group_id));
 	const clustered = $derived(source.stage === 'shaped' || source.stage === 'rich');
@@ -81,15 +87,31 @@
 		wallView = isShowing(view) ? { kind: 'map' } : view;
 	}
 
+	// The strip is a fixed-height plot, so in a full-height column it leaves dead space
+	// underneath. `aside` spends that space on the latest statements instead.
+	const showLatest = $derived(hasBlock(board, 'marquee'));
+	const latestBeside = $derived(showLatest && latestIsBeside(board));
+	const latestBelow = $derived(showLatest && !latestBeside);
+	/**
+	 * What fits under the strip. A projector has room for two; a laptop window is short
+	 * enough that the second would be cut off halfway down its box, which reads as
+	 * broken rather than as "there is more".
+	 */
+	const asideLatestMax = $derived(viewportHeight >= 1000 ? 2 : 1);
+
 	// The focus column earns its space either because the map is on, or because the
 	// bottom bar has put a list of statements in it. With neither, it is a hole.
 	const showFocus = $derived(hasBlock(board, 'map') || wallView.kind !== 'map');
-	const showAside = $derived(hasBlock(board, 'statement') || hasBlock(board, 'strip'));
+	const showAside = $derived(
+		hasBlock(board, 'statement') || hasBlock(board, 'strip') || latestBeside
+	);
 	const columns = $derived(showFocus && showAside ? 'lg:grid-cols-[1.1fr_1fr]' : 'grid-cols-1');
 	const showHeader = $derived(
 		hasBlock(board, 'question') || hasBlock(board, 'counts') || hasBlock(board, 'qr')
 	);
 </script>
+
+<svelte:window bind:innerHeight={viewportHeight} />
 
 <div class="flex h-full min-h-0 flex-col gap-6">
 	{#if showHeader}
@@ -239,7 +261,7 @@
 					{/if}
 
 					{#if hasBlock(board, 'strip')}
-						<div class="min-h-0 flex-1">
+						<div class={latestBeside ? 'shrink-0' : 'min-h-0 flex-1'}>
 							<StatementStrip
 								comments={source.state.published}
 								{focusedTid}
@@ -249,16 +271,29 @@
 							/>
 						</div>
 					{/if}
+
+					{#if latestBeside}
+						<div class="min-h-0 flex-1 overflow-hidden">
+							<LatestStatements
+								comments={source.state.published}
+								direction="column"
+								max={asideLatestMax}
+							/>
+						</div>
+					{/if}
 				</section>
 			{/if}
 		</div>
 	{/if}
 
-	{#if hasBlock(board, 'marquee')}
+	{#if latestBelow}
 		{#if board.latest === 'marquee'}
 			<LatestStatementsMarquee comments={source.state.published} />
 		{:else}
-			<LatestStatements comments={source.state.published} direction={board.latest} />
+			<LatestStatements
+				comments={source.state.published}
+				direction={stillLatestDirection(board)}
+			/>
 		{/if}
 	{/if}
 

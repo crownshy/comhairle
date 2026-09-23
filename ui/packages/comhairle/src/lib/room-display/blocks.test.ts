@@ -8,6 +8,8 @@ import {
 	presetBoard,
 	resolveBoard,
 	ROOM_BLOCKS,
+	stillLatestDirection,
+	latestIsBeside,
 	serializeBlocks,
 	toggleBlock,
 	type RoomBoard
@@ -146,6 +148,34 @@ describe('resolveBoard', () => {
 	it('puts a remembered board back into canonical order', () => {
 		const scrambled: RoomBoard = { ...stored, blocks: ['qr', 'map', 'question'] };
 		expect(resolveBoard({ stored: scrambled }).blocks).toEqual(['question', 'map', 'qr']);
+	});
+});
+
+describe('latest placement', () => {
+	it('draws aside as a column, since that is what fits under the strip', () => {
+		const board: RoomBoard = { ...presetBoard('marquee'), latest: 'aside' };
+		expect(stillLatestDirection(board)).toBe('column');
+	});
+
+	it('is a row only when the style is a row', () => {
+		expect(stillLatestDirection({ ...presetBoard('marquee'), latest: 'row' })).toBe('row');
+		expect(stillLatestDirection({ ...presetBoard('marquee'), latest: 'column' })).toBe(
+			'column'
+		);
+	});
+
+	it('only sits beside the strip on the one layout that has one', () => {
+		expect(latestIsBeside({ ...presetBoard('marquee'), latest: 'aside' })).toBe(true);
+		expect(latestIsBeside({ ...presetBoard('console'), latest: 'aside' })).toBe(false);
+		expect(latestIsBeside({ ...presetBoard('deck'), latest: 'aside' })).toBe(false);
+	});
+
+	it('is not beside anything when the style is not aside', () => {
+		expect(latestIsBeside(presetBoard('marquee'))).toBe(false);
+	});
+
+	it('survives a round trip through the URL', () => {
+		expect(resolveBoard({ preset: 'marquee', latest: 'aside' }).latest).toBe('aside');
 	});
 });
 

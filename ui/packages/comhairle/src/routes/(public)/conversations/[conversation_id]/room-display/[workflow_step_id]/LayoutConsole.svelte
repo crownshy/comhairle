@@ -34,7 +34,7 @@
 	import { nextUnlock, describeUnlock } from '$lib/room-display/revealStage';
 	import { presentByGroup, voteBarsFor } from '$lib/room-display/liveVotes';
 	import { groupColor } from '$lib/room-display/opinionMap';
-	import { hasBlock, type RoomBoard } from '$lib/room-display/blocks';
+	import { stillLatestDirection, hasBlock, type RoomBoard } from '$lib/room-display/blocks';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import OpinionMap from '$lib/room-display/OpinionMap.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -200,7 +200,11 @@
 			{#if board.latest === 'marquee'}
 				<LatestStatementsMarquee comments={source.state.published} />
 			{:else}
-				<LatestStatements comments={source.state.published} direction={board.latest} />
+				<!-- `aside` needs a column under a strip, which this layout has not got. -->
+				<LatestStatements
+					comments={source.state.published}
+					direction={stillLatestDirection(board)}
+				/>
 			{/if}
 		{/if}
 
