@@ -3,6 +3,7 @@ pub mod error;
 pub mod keycloak;
 
 use async_trait::async_trait;
+use hyper::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -11,7 +12,7 @@ use uuid::Uuid;
 use mockall::automock;
 
 use crate::auth_service::error::AuthServiceError;
-use crate::models::users::{User, UserAuthType};
+use crate::models::users::{UpdateUserRequest, User, UserAuthType};
 use crate::routes::user::dto::UserDto;
 
 #[async_trait]
@@ -27,6 +28,12 @@ pub trait AuthService: Send + Sync {
     async fn get_user_by_id(&self, id: Uuid) -> Result<UserDto, AuthServiceError>;
 
     async fn get_user_by_email(&self, email: &str) -> Result<UserDto, AuthServiceError>;
+
+    async fn update_user_details(
+        &self,
+        id: Uuid,
+        payload: &UpdateUserRequest,
+    ) -> Result<StatusCode, AuthServiceError>;
 
     async fn get_authorization_tokens(
         &self,
@@ -92,6 +99,20 @@ impl MockAuthService {
             })
         });
         auth_service.expect_get_user_by_email().returning(|_| {
+            Box::pin(async move {
+                Ok(UserDto {
+                    id: Uuid::new_v4(),
+                    username: Some("admin".to_string()),
+                    email: Some("admin@crown-shy.com".to_string()),
+                    auth_type: UserAuthType::EmailPassword,
+                    guest_code: None,
+                    avatar_url: None,
+                    email_verified: false,
+                    organization_id: None,
+                })
+            })
+        });
+        auth_service.expect_update_user_details().returning(|_, _| {
             Box::pin(async move {
                 Ok(UserDto {
                     id: Uuid::new_v4(),

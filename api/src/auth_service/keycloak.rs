@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::auth_service::{GetAuthorizationTokensResponse, GetUserInfoResponse};
 use crate::config::AuthServiceConfig;
-use crate::models::users::User;
+use crate::models::users::{UpdateUserRequest, User};
 use crate::routes::user::dto::UserDto;
 
 use super::{AuthService, error::AuthServiceError};
@@ -10,6 +10,7 @@ use super::{AuthService, error::AuthServiceError};
 use argon2::password_hash::{PasswordHash, Salt};
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use hyper::StatusCode;
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakRealmAdmin,
     prelude::reqwest,
@@ -298,6 +299,38 @@ impl AuthService for KeycloakClient {
             .map_err(|e| AuthServiceError::InvalidData(e.to_string()))?;
 
         Ok(user)
+    }
+
+    async fn update_user_details(
+        &self,
+        id: Uuid,
+        payload: &UpdateUserRequest,
+    ) -> Result<StatusCode, AuthServiceError> {
+        let realm = self.realm();
+
+        // Attribute updates only work with full representation as params
+        let mut current_user = realm.users_with_user_id_get(&id.to_string()).await?;
+        let mut custom_attrs = current_user.attributes.unwrap_or_default();
+
+        if let Some(username) = &payload.username {
+            current_user.username = Some(username.to_owned());
+        }
+
+        if let Some(organization_id) = &payload.organization_id {
+            custom_attrs.insert(
+                "organization_id".to_string(),
+                vec![organization_id.to_string()],
+            );
+        }
+
+        current_user.attributes = Some(custom_attrs);
+
+        let result = realm
+            .users_with_user_id_put(&id.to_string(), current_user)
+            .await?;
+        let response = result.into_response();
+
+        Ok(response.status())
     }
 
     async fn get_authorization_tokens(
