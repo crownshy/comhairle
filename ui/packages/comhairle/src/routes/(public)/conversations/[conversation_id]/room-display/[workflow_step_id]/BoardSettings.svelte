@@ -14,11 +14,15 @@
 <script lang="ts">
 	import { Settings2, Check, Link } from '@lucide/svelte';
 	import {
+		LATEST_STYLES,
 		ROOM_BLOCKS,
+		ROOM_THEMES,
 		hasBlock,
+		type LatestStyle,
 		type RoomBlock,
 		type RoomBoard,
-		type RoomLayout
+		type RoomLayout,
+		type RoomTheme
 	} from '$lib/room-display/blocks';
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
@@ -29,10 +33,12 @@
 		board: RoomBoard;
 		onToggleBlock: (block: RoomBlock) => void;
 		onSetLayout: (layout: RoomLayout) => void;
+		onSetLatest: (latest: LatestStyle) => void;
+		onSetTheme: (theme: RoomTheme) => void;
 		onReset: () => void;
 	};
 
-	let { board, onToggleBlock, onSetLayout, onReset }: Props = $props();
+	let { board, onToggleBlock, onSetLayout, onSetLatest, onSetTheme, onReset }: Props = $props();
 
 	// Named for what they do to the room rather than for the component that renders
 	// them, because this list is read by a facilitator, not by us.
@@ -110,6 +116,25 @@
 				{/each}
 			</fieldset>
 
+			<fieldset class="flex flex-col gap-2">
+				<legend class="text-muted-foreground pb-2 text-base font-medium">Lighting</legend>
+				<div class="flex gap-2">
+					{#each ROOM_THEMES as option (option.id)}
+						<button
+							type="button"
+							class="border-border hover:bg-muted flex-1 rounded-md border px-2 py-2 text-base transition-colors"
+							class:bg-muted={board.theme === option.id}
+							class:border-primary={board.theme === option.id}
+							aria-pressed={board.theme === option.id}
+							title={option.hint}
+							onclick={() => onSetTheme(option.id)}
+						>
+							{option.label}
+						</button>
+					{/each}
+				</div>
+			</fieldset>
+
 			<fieldset class="flex flex-col gap-3">
 				<legend class="text-muted-foreground pb-2 text-base font-medium">Showing</legend>
 				{#each ROOM_BLOCKS as block (block.id)}
@@ -125,6 +150,37 @@
 						/>
 					</div>
 				{/each}
+				{#if hasBlock(board, 'marquee')}
+					<!--
+						Nested under the block it belongs to: it is how that block draws
+						itself, not a fourth thing to switch on.
+					-->
+					<div class="border-border flex flex-col gap-2 border-l pb-1 pl-4">
+						<p class="text-muted-foreground text-base">Latest statements as</p>
+						<div class="flex gap-2">
+							{#each LATEST_STYLES as option (option.id)}
+								<button
+									type="button"
+									class="border-border hover:bg-muted flex-1 rounded-md border px-2 py-2 text-base transition-colors"
+									class:bg-muted={board.latest === option.id}
+									class:border-primary={board.latest === option.id}
+									aria-pressed={board.latest === option.id}
+									title={option.hint}
+									onclick={() => onSetLatest(option.id)}
+								>
+									{option.label}
+								</button>
+							{/each}
+						</div>
+						{#if board.latest === 'marquee'}
+							<p class="text-muted-foreground text-base">
+								Scrolling text is hard to read across a room. Kept so you can judge
+								it against the still versions in the room itself.
+							</p>
+						{/if}
+					</div>
+				{/if}
+
 				{#if board.layout === 'deck'}
 					<!--
 						Slides are advanced by hand, so there is nothing for the group buttons

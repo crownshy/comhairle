@@ -46,10 +46,54 @@ export type RoomLayout = 'split' | 'console' | 'deck';
 
 const LAYOUTS: readonly RoomLayout[] = ['split', 'console', 'deck'];
 
+/**
+ * How the `marquee` block presents itself.
+ *
+ * `row` and `column` are still: they move only when a statement arrives. `marquee`
+ * scrolls continuously, which reads badly at room distance and is kept so the two can
+ * be judged against each other in an actual room rather than argued about.
+ */
+export type LatestStyle = 'row' | 'column' | 'marquee';
+
+export const LATEST_STYLES = [
+	{ id: 'row', label: 'Row', hint: 'Newest first, still between arrivals' },
+	{ id: 'column', label: 'Column', hint: 'Top to bottom, still between arrivals' },
+	{ id: 'marquee', label: 'Marquee', hint: 'Scrolls continuously' }
+] as const satisfies readonly { id: LatestStyle; label: string; hint: string }[];
+
+const LATEST_STYLE_IDS: readonly LatestStyle[] = LATEST_STYLES.map((s) => s.id);
+
+export const DEFAULT_LATEST_STYLE: LatestStyle = 'row';
+
+/**
+ * What the room is lit like, which the display cannot work out for itself: the same
+ * projector is unreadable dark in a bright hall and glaring light in a dim one.
+ *
+ * `auto` means "do not touch", leaving whatever the app resolved from the viewer's
+ * preference. Picking light or dark drives the app-wide `themeStore`, because dark is
+ * a `.dark` class on `<html>` and themed deployments key off `[data-theme=x].dark` on
+ * that same element, so there is no way to scope it to this page without breaking the
+ * theme. On a projector that is the right trade; on a laptop it does mean the rest of
+ * the app follows, which is the same thing the site's own mode toggle does.
+ */
+export type RoomTheme = 'auto' | 'light' | 'dark';
+
+export const ROOM_THEMES = [
+	{ id: 'auto', label: 'Auto', hint: 'Whatever the app is set to' },
+	{ id: 'light', label: 'Light', hint: 'For a bright room' },
+	{ id: 'dark', label: 'Dark', hint: 'For a dim room' }
+] as const satisfies readonly { id: RoomTheme; label: string; hint: string }[];
+
+const ROOM_THEME_IDS: readonly RoomTheme[] = ROOM_THEMES.map((t) => t.id);
+
 export interface RoomBoard {
 	layout: RoomLayout;
 	/** Blocks that are on, in `ROOM_BLOCKS` order so a serialised board is stable. */
 	blocks: RoomBlock[];
+	/** How the `marquee` block draws itself. Ignored when that block is off. */
+	latest: LatestStyle;
+	/** Light or dark for the room, or `auto` to leave the app's own setting alone. */
+	theme: RoomTheme;
 }
 
 /**
@@ -59,15 +103,21 @@ export interface RoomBoard {
 export const BOARD_PRESETS = {
 	console: {
 		layout: 'console',
-		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'groups', 'qr']
+		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'groups', 'qr'],
+		latest: 'row',
+		theme: 'auto'
 	},
 	marquee: {
 		layout: 'split',
-		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'marquee', 'groups', 'qr']
+		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'marquee', 'groups', 'qr'],
+		latest: 'row',
+		theme: 'auto'
 	},
 	deck: {
 		layout: 'deck',
-		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'marquee', 'qr']
+		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'marquee', 'qr'],
+		latest: 'row',
+		theme: 'auto'
 	}
 } as const satisfies Record<string, RoomBoard>;
 
@@ -81,6 +131,14 @@ export function isRoomBlock(value: string): value is RoomBlock {
 
 export function isRoomLayout(value: string): value is RoomLayout {
 	return (LAYOUTS as readonly string[]).includes(value);
+}
+
+export function isLatestStyle(value: string): value is LatestStyle {
+	return (LATEST_STYLE_IDS as readonly string[]).includes(value);
+}
+
+export function isRoomTheme(value: string): value is RoomTheme {
+	return (ROOM_THEME_IDS as readonly string[]).includes(value);
 }
 
 export function isBoardPreset(value: string): value is BoardPreset {
@@ -118,8 +176,8 @@ export function parseBlocks(raw: string | null | undefined): RoomBlock[] | null 
 }
 
 export function presetBoard(preset: BoardPreset): RoomBoard {
-	const { layout, blocks } = BOARD_PRESETS[preset];
-	return { layout, blocks: [...blocks] };
+	const { layout, blocks, latest, theme } = BOARD_PRESETS[preset];
+	return { layout, blocks: [...blocks], latest, theme };
 }
 
 /** Flips one block, keeping the rest in canonical order. */
@@ -127,14 +185,21 @@ export function toggleBlock(board: RoomBoard, block: RoomBlock): RoomBoard {
 	const on = new Set(board.blocks);
 	if (on.has(block)) on.delete(block);
 	else on.add(block);
-	return { layout: board.layout, blocks: orderBlocks(on) };
+	return { ...board, blocks: orderBlocks(on) };
 }
 
 /** Anything that is not one of the three shapes we can render is not a board. */
 export function isRoomBoard(value: unknown): value is RoomBoard {
 	if (typeof value !== 'object' || value === null) return false;
-	const candidate = value as { layout?: unknown; blocks?: unknown };
+	const candidate = value as {
+		layout?: unknown;
+		blocks?: unknown;
+		latest?: unknown;
+		theme?: unknown;
+	};
 	if (typeof candidate.layout !== 'string' || !isRoomLayout(candidate.layout)) return false;
+	if (typeof candidate.latest !== 'string' || !isLatestStyle(candidate.latest)) return false;
+	if (typeof candidate.theme !== 'string' || !isRoomTheme(candidate.theme)) return false;
 	if (!Array.isArray(candidate.blocks)) return false;
 	return candidate.blocks.every((b) => typeof b === 'string' && isRoomBlock(b));
 }
@@ -146,6 +211,10 @@ export interface ResolveBoardInput {
 	layout?: string | null;
 	/** `?blocks=`, which overrides the preset's blocks on its own. */
 	blocks?: string | null;
+	/** `?latest=`, how the latest-statements block draws itself. */
+	latest?: string | null;
+	/** `?theme=`, light or dark for the room. */
+	theme?: string | null;
 	/** What this display remembered from last time, if anything. */
 	stored?: RoomBoard | null;
 }
@@ -163,13 +232,29 @@ export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 
 	const urlBlocks = parseBlocks(input.blocks);
 	const urlLayout = input.layout && isRoomLayout(input.layout) ? input.layout : null;
-	const pinnedByUrl = urlBlocks !== null || urlLayout !== null || input.preset != null;
+	const urlLatest = input.latest && isLatestStyle(input.latest) ? input.latest : null;
+	const urlTheme = input.theme && isRoomTheme(input.theme) ? input.theme : null;
+	const pinnedByUrl =
+		urlBlocks !== null ||
+		urlLayout !== null ||
+		urlLatest !== null ||
+		urlTheme !== null ||
+		input.preset != null;
 
 	const stored = !pinnedByUrl && input.stored ? input.stored : null;
-	if (stored) return { layout: stored.layout, blocks: orderBlocks(stored.blocks) };
+	if (stored) {
+		return {
+			layout: stored.layout,
+			blocks: orderBlocks(stored.blocks),
+			latest: stored.latest,
+			theme: stored.theme
+		};
+	}
 
 	return {
 		layout: urlLayout ?? base.layout,
-		blocks: urlBlocks ?? base.blocks
+		blocks: urlBlocks ?? base.blocks,
+		latest: urlLatest ?? base.latest,
+		theme: urlTheme ?? base.theme
 	};
 }

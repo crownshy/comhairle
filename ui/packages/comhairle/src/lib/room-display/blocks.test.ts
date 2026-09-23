@@ -13,6 +13,14 @@ import {
 	type RoomBoard
 } from './blocks';
 
+/** A board as the store would hold one, so a field added later fails loudly here. */
+const stored: RoomBoard = {
+	layout: 'split',
+	blocks: ['map', 'qr'],
+	latest: 'marquee',
+	theme: 'dark'
+};
+
 describe('parseBlocks', () => {
 	it('tells an absent parameter apart from an empty board', () => {
 		expect(parseBlocks(null)).toBeNull();
@@ -48,8 +56,12 @@ describe('toggleBlock', () => {
 		expect(toggleBlock(without, 'map').blocks).toEqual(board.blocks);
 	});
 
-	it('keeps the layout', () => {
-		expect(toggleBlock(presetBoard('deck'), 'qr').layout).toBe('deck');
+	it('keeps everything that is not the block set', () => {
+		const board: RoomBoard = { ...presetBoard('deck'), latest: 'column', theme: 'light' };
+		const toggled = toggleBlock(board, 'qr');
+		expect(toggled.layout).toBe('deck');
+		expect(toggled.latest).toBe('column');
+		expect(toggled.theme).toBe('light');
 	});
 
 	it('can empty the board', () => {
@@ -97,8 +109,6 @@ describe('resolveBoard', () => {
 		expect(resolveBoard({ blocks: '' }).blocks).toEqual([]);
 	});
 
-	const stored: RoomBoard = { layout: 'split', blocks: ['map', 'qr'] };
-
 	it('comes back to what the display remembered when the URL says nothing', () => {
 		expect(resolveBoard({ stored })).toEqual(stored);
 	});
@@ -108,10 +118,33 @@ describe('resolveBoard', () => {
 		expect(resolveBoard({ preset: 'deck', stored })).toEqual(presetBoard('deck'));
 		expect(resolveBoard({ blocks: 'question', stored }).blocks).toEqual(['question']);
 		expect(resolveBoard({ layout: 'deck', stored }).layout).toBe('deck');
+		expect(resolveBoard({ latest: 'column', stored }).latest).toBe('column');
+		expect(resolveBoard({ theme: 'light', stored }).theme).toBe('light');
+	});
+
+	it('defaults the latest style and leaves the theme alone', () => {
+		const board = resolveBoard({});
+		expect(board.latest).toBe('row');
+		expect(board.theme).toBe('auto');
+	});
+
+	it('reads the latest style and theme off the URL', () => {
+		expect(resolveBoard({ latest: 'marquee' }).latest).toBe('marquee');
+		expect(resolveBoard({ theme: 'dark' }).theme).toBe('dark');
+	});
+
+	it('ignores a latest style or theme it does not know', () => {
+		expect(resolveBoard({ latest: 'ticker' }).latest).toBe('row');
+		expect(resolveBoard({ theme: 'sepia' }).theme).toBe('auto');
+	});
+
+	it('does not let an unknown latest style pin the board away from storage', () => {
+		// `?latest=ticker` is noise, not an instruction, so the remembered board stands.
+		expect(resolveBoard({ latest: 'ticker', stored })).toEqual(stored);
 	});
 
 	it('puts a remembered board back into canonical order', () => {
-		const scrambled: RoomBoard = { layout: 'split', blocks: ['qr', 'map', 'question'] };
+		const scrambled: RoomBoard = { ...stored, blocks: ['qr', 'map', 'question'] };
 		expect(resolveBoard({ stored: scrambled }).blocks).toEqual(['question', 'map', 'qr']);
 	});
 });
@@ -127,5 +160,9 @@ describe('isRoomBoard', () => {
 		expect(isRoomBoard({ layout: 'narrator', blocks: [] })).toBe(false);
 		expect(isRoomBoard({ layout: 'split' })).toBe(false);
 		expect(isRoomBoard({ layout: 'split', blocks: ['map', 'sparkline'] })).toBe(false);
+		// A board written before `latest` and `theme` existed.
+		expect(isRoomBoard({ layout: 'split', blocks: ['map'] })).toBe(false);
+		expect(isRoomBoard({ ...stored, latest: 'ticker' })).toBe(false);
+		expect(isRoomBoard({ ...stored, theme: 'sepia' })).toBe(false);
 	});
 });

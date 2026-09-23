@@ -29,6 +29,7 @@
 	import StatementStrip from './StatementStrip.svelte';
 	import WallStatements from './WallStatements.svelte';
 	import RoomVoteBar from './RoomVoteBar.svelte';
+	import LatestStatements from './LatestStatements.svelte';
 	import LatestStatementsMarquee from './LatestStatementsMarquee.svelte';
 
 	/** What the focus column shows. The map unless the bottom bar asks for a list. */
@@ -254,7 +255,11 @@
 	{/if}
 
 	{#if hasBlock(board, 'marquee')}
-		<LatestStatementsMarquee comments={source.state.published} />
+		{#if board.latest === 'marquee'}
+			<LatestStatementsMarquee comments={source.state.published} />
+		{:else}
+			<LatestStatements comments={source.state.published} direction={board.latest} />
+		{/if}
 	{/if}
 
 	{#if hasBlock(board, 'groups')}
