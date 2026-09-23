@@ -34,9 +34,15 @@
 		 * of a wall; the column beside the statement strip is shorter and passes its own.
 		 */
 		max?: number;
+		/**
+		 * Less chrome for a wall that is short of height. The block keeps every statement
+		 * it would otherwise show: what gives is padding and type size, because a
+		 * statement dropped is a person unheard.
+		 */
+		compact?: boolean;
 	};
 
-	let { comments, direction = 'row', max }: Props = $props();
+	let { comments, direction = 'row', max, compact = false }: Props = $props();
 
 	// A row runs out of width before it runs out of statements, and a column out of
 	// height. Both are small: this block is "what was just said", not a transcript.
@@ -85,7 +91,9 @@
 						style="opacity: {fade(index, shown.length)}"
 					>
 						<div
-							class="arrive border-border bg-card text-card-foreground h-full rounded-lg border px-5 py-3 text-xl leading-snug text-balance lg:text-2xl"
+							class="arrive border-border bg-card text-card-foreground h-full rounded-lg border leading-snug text-balance {compact
+								? 'px-4 py-2 text-base lg:text-lg'
+								: 'px-5 py-3 text-xl lg:text-2xl'}"
 						>
 							{comment.text}
 						</div>
