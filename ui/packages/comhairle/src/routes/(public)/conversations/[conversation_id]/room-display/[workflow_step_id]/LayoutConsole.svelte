@@ -108,7 +108,9 @@
 	const showConsole = $derived(consoleOpen && hasConsoleBlocks);
 </script>
 
-<div class="grid h-full min-h-0 gap-6 {showConsole ? 'lg:grid-cols-[1.6fr_1fr]' : 'grid-cols-1'}">
+<div
+	class="grid min-h-0 gap-6 lg:h-full {showConsole ? 'lg:grid-cols-[1.6fr_1fr]' : 'grid-cols-1'}"
+>
 	<!-- Wall -->
 	<section
 		class="border-border relative flex min-h-0 flex-col gap-4 rounded-lg border p-6 lg:p-8"
@@ -118,7 +120,7 @@
 		</p>
 		{#if hasBlock(board, 'question')}
 			<h1
-				class="text-foreground max-w-5xl shrink-0 text-3xl leading-tight font-bold text-balance lg:text-5xl"
+				class="text-foreground max-w-5xl shrink-0 text-2xl leading-tight font-bold text-balance sm:text-3xl lg:text-5xl"
 			>
 				{question}
 			</h1>
@@ -129,8 +131,8 @@
 			{#if !showWallMain}
 				<!-- Deliberately empty: every block that could fill this is switched off. -->
 			{:else if wallView.kind === 'map'}
-				<div class="flex h-full min-h-0 flex-col gap-4">
-					<div class="min-h-0 flex-1">
+				<div class="flex min-h-0 flex-col gap-4 lg:h-full">
+					<div class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1">
 						<!--
 							A live source has no per-participant votes, so the map keeps its group
 							colours and a placed participant counts as settled: Polis only gives
@@ -150,7 +152,7 @@
 							{#if focused}
 								{#key focused.tid}
 									<p
-										class="text-foreground fade-in text-3xl leading-snug font-medium text-balance lg:text-4xl"
+										class="text-foreground fade-in text-xl leading-snug font-medium text-balance sm:text-3xl lg:text-4xl"
 									>
 										{focused.text}
 									</p>
@@ -169,7 +171,7 @@
 									{/if}
 								{/key}
 							{:else}
-								<p class="text-muted-foreground text-2xl lg:text-3xl">
+								<p class="text-muted-foreground text-base sm:text-2xl lg:text-3xl">
 									Every dot is a person. Pick a statement on the console to
 									{source.perParticipantVotes
 										? 'colour the room by it.'
@@ -215,10 +217,10 @@
 				recruitment screen the room saw at the start.
 			-->
 			<div
-				class="absolute right-6 bottom-6 flex flex-col items-center gap-1 lg:right-8 lg:bottom-8"
+				class="flex flex-col items-center gap-1 self-end lg:absolute lg:right-8 lg:bottom-8"
 			>
 				<div class="rounded-xl bg-white p-2">
-					<JoinQrCode value={joinUrl} class="size-24 lg:size-32" />
+					<JoinQrCode value={joinUrl} class="size-20 sm:size-24 lg:size-32" />
 				</div>
 				<span class="text-muted-foreground text-base font-medium">Scan to join</span>
 			</div>
@@ -240,20 +242,20 @@
 			{#if hasBlock(board, 'counts')}
 				<dl class="grid shrink-0 grid-cols-3 gap-3">
 					<div>
-						<dt class="text-muted-foreground text-lg">Here</dt>
-						<dd class="text-foreground text-3xl font-bold tabular-nums">
+						<dt class="text-muted-foreground text-base sm:text-lg">Here</dt>
+						<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
 							{participantCount(source.state)}
 						</dd>
 					</div>
 					<div>
-						<dt class="text-muted-foreground text-lg">Votes</dt>
-						<dd class="text-foreground text-3xl font-bold tabular-nums">
+						<dt class="text-muted-foreground text-base sm:text-lg">Votes</dt>
+						<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
 							{source.state.totalVotes}
 						</dd>
 					</div>
 					<div>
-						<dt class="text-muted-foreground text-lg">Statements</dt>
-						<dd class="text-foreground text-3xl font-bold tabular-nums">
+						<dt class="text-muted-foreground text-base sm:text-lg">Statements</dt>
+						<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
 							{source.state.published.length}
 						</dd>
 					</div>
@@ -285,13 +287,13 @@
 						{#if focused}
 							{#key focused.tid}
 								<p
-									class="text-foreground fade-in text-xl leading-snug font-medium lg:text-2xl"
+									class="text-foreground fade-in text-base leading-snug font-medium sm:text-xl lg:text-2xl"
 								>
 									{focused.text}
 								</p>
 							{/key}
 						{:else}
-							<p class="text-muted-foreground text-xl">
+							<p class="text-muted-foreground text-base sm:text-xl">
 								Hover a dot on the strip to see its statement.
 							</p>
 						{/if}
@@ -312,7 +314,7 @@
 							{@const view: WallView = { kind: 'group', groupId: group.group_id }}
 							<button
 								type="button"
-								class="border-border hover:bg-background flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-xl transition-colors"
+								class="border-border hover:bg-background flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-base transition-colors sm:text-xl"
 								class:bg-background={isShowing(view)}
 								class:border-primary={isShowing(view)}
 								aria-pressed={isShowing(view)}
@@ -332,7 +334,7 @@
 						{/each}
 						<button
 							type="button"
-							class="border-border hover:bg-background flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-xl transition-colors"
+							class="border-border hover:bg-background flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-base transition-colors sm:text-xl"
 							class:bg-background={isShowing({ kind: 'consensus' })}
 							class:border-primary={isShowing({ kind: 'consensus' })}
 							aria-pressed={isShowing({ kind: 'consensus' })}
