@@ -1237,7 +1237,7 @@ pub async fn current_user(
         Some(token) => {
             let user = state
                 .auth_service
-                .get_user(&token)
+                .get_user_info(&token)
                 .await
                 // Token exists but is invalid
                 .map_err(|_| ComhairleError::NoLoggedInUser)?;

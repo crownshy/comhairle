@@ -16,6 +16,15 @@ pub enum AuthServiceError {
     #[error("Sync user error: {0}")]
     SyncUserError(String),
 
+    #[error("Invalid data: {0}")]
+    InvalidData(String),
+
+    #[error("Resource not found: {0}")]
+    ResourceNotFound(String),
+
+    #[error("Conflict: {0}")]
+    Conflict(String),
+
     #[error("Credential extraction failure: {0}")]
     CredentialExtractionFailure(String),
 }

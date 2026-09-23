@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{
-    auth_service::{GetAuthorizationTokensResponse, GetUserResponse},
-    config::AuthServiceConfig,
-    models::users::User,
-};
+use crate::auth_service::{GetAuthorizationTokensResponse, GetUserInfoResponse};
+use crate::config::AuthServiceConfig;
+use crate::models::users::User;
+use crate::routes::user::dto::UserDto;
 
 use super::{AuthService, error::AuthServiceError};
 
@@ -19,6 +18,7 @@ use keycloak::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::warn;
+use uuid::Uuid;
 
 #[allow(dead_code)]
 pub struct KeycloakClient {
@@ -244,7 +244,7 @@ impl AuthService for KeycloakClient {
         Ok(serde_json::json!({ "status": status.to_string() }))
     }
 
-    async fn get_user(&self, token: &str) -> Result<GetUserResponse, AuthServiceError> {
+    async fn get_user_info(&self, token: &str) -> Result<GetUserInfoResponse, AuthServiceError> {
         let url = format!(
             "{}/realms/{}/protocol/openid-connect/userinfo",
             self.domain, self.realm_name
@@ -260,6 +260,44 @@ impl AuthService for KeycloakClient {
             .await?;
 
         Ok(result)
+    }
+
+    async fn get_user_by_id(&self, id: Uuid) -> Result<UserDto, AuthServiceError> {
+        let realm = self.realm();
+
+        let result = realm.users_with_user_id_get(&id.to_string()).await?;
+
+        let user =
+            UserDto::try_from(result).map_err(|e| AuthServiceError::InvalidData(e.to_string()))?;
+
+        Ok(user)
+    }
+
+    async fn get_user_by_email(&self, email: &str) -> Result<UserDto, AuthServiceError> {
+        let realm = self.realm();
+
+        let mut results = realm
+            .users_get()
+            .email(email.to_string())
+            .exact(true)
+            .await?;
+
+        if results.is_empty() {
+            return Err(AuthServiceError::ResourceNotFound(format!(
+                "User not found with email {email}"
+            )));
+        }
+
+        if results.len() > 1 {
+            return Err(AuthServiceError::Conflict(format!(
+                "Multiple users found with email {email}"
+            )));
+        }
+
+        let user = UserDto::try_from(results.remove(0))
+            .map_err(|e| AuthServiceError::InvalidData(e.to_string()))?;
+
+        Ok(user)
     }
 
     async fn get_authorization_tokens(

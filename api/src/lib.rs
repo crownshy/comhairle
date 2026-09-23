@@ -53,7 +53,7 @@ use crate::redis_connection::RedisConnection;
 use crate::routes::auth::extract::{ComhairleExtAttrs, KcAccessTokenCookieExtractor};
 use crate::routes::workflows::WorkflowRouterContext;
 #[cfg(test)]
-use crate::test_helpers::{TestAuthUser, test_auth_layer};
+use crate::test_helpers::test_auth_layer;
 use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;

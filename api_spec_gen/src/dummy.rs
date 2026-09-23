@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use comhairle::auth_service::error::AuthServiceError;
-use comhairle::auth_service::{GetAuthorizationTokensResponse, GetUserResponse};
+use comhairle::auth_service::{GetAuthorizationTokensResponse, GetUserInfoResponse};
 use comhairle::config::{AuthServiceConfig, ComhairleConfig, MailerConfig};
 use comhairle::error::ComhairleError;
 use comhairle::models::permissions::ResourcePermission;
@@ -33,7 +33,15 @@ impl auth_service::AuthService for DummyAuthService {
         todo!();
     }
 
-    async fn get_user(&self, _token: &str) -> Result<GetUserResponse, AuthServiceError> {
+    async fn get_user_info(&self, _token: &str) -> Result<GetUserInfoResponse, AuthServiceError> {
+        todo!();
+    }
+
+    async fn get_user_by_id(&self, _id: Uuid) -> Result<UserDto, AuthServiceError> {
+        todo!();
+    }
+
+    async fn get_user_by_email(&self, _email: &str) -> Result<UserDto, AuthServiceError> {
         todo!();
     }
 
