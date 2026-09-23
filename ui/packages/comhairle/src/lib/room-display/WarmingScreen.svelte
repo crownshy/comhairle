@@ -37,7 +37,7 @@
 	the same screen works on a preview pane and a projector.
 -->
 <div
-	class="flex h-full min-h-0 flex-col items-center justify-center gap-6 overflow-hidden text-center lg:gap-10"
+	class="flex min-h-[85vh] flex-col items-center justify-center gap-6 overflow-hidden text-center lg:h-full lg:min-h-0 lg:gap-10"
 >
 	<div class="flex max-w-4xl flex-col gap-2 lg:gap-4">
 		<p class="text-muted-foreground text-base font-medium tracking-wide uppercase lg:text-xl">

@@ -35,9 +35,16 @@
 	}: Props = $props();
 
 	// Room scale. The report's continuum uses 5, which disappears on a projector.
-	const RADIUS = 14;
-	// The focused dot grows by 3, so keep that much clear of every edge.
-	const MARGIN = RADIUS + 3;
+	const MAX_RADIUS = 14;
+	// Below this a dot stops reading as a dot at any distance.
+	const MIN_RADIUS = 6;
+	// Plot width that earns a full-size dot. A dot is sized for how far away the screen
+	// is, and width is the only proxy for that we have: a wall is wide and eight metres
+	// off, a phone is narrow and held at arm's length. Room scale on a phone just means
+	// four dots fill the strip.
+	const WIDTH_PER_RADIUS = 50;
+	// Clear space between neighbouring dots, and between a dot and the plot edge.
+	const GAP = 2;
 
 	type SwarmNode = SimulationNodeDatum & { tid: number; text: string; divisiveness: number };
 
@@ -47,14 +54,18 @@
 	 * edges by forceCollide and clipped. Clamping after each tick makes the box a wall that
 	 * collision resolves against instead.
 	 */
-	function forceBounds(width: number, height: number): Force<SwarmNode, undefined> {
+	function forceBounds(
+		width: number,
+		height: number,
+		margin: number
+	): Force<SwarmNode, undefined> {
 		let bounded: SwarmNode[] = [];
 		const clamp = (v: number, max: number) =>
-			Math.min(Math.max(v, MARGIN), Math.max(MARGIN, max));
+			Math.min(Math.max(v, margin), Math.max(margin, max));
 		const force = () => {
 			for (const n of bounded) {
-				n.x = clamp(n.x ?? MARGIN, width - MARGIN);
-				n.y = clamp(n.y ?? height / 2, height - MARGIN);
+				n.x = clamp(n.x ?? margin, width - margin);
+				n.y = clamp(n.y ?? height / 2, height - margin);
 			}
 		};
 		force.initialize = (n: SwarmNode[]) => {
@@ -67,10 +78,20 @@
 
 	const scored = $derived(scoredComments(comments));
 
+	const radius = $derived(
+		plotWidth <= 0
+			? MAX_RADIUS
+			: Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, plotWidth / WIDTH_PER_RADIUS))
+	);
+
+	// The focused dot grows, so keep that much clear of every edge too.
+	const activeGrowth = $derived(Math.round(radius / 4));
+	const margin = $derived(radius + activeGrowth);
+
 	const xScale = $derived(
 		scaleSqrt()
 			.domain([0, Math.max(...scored.map((c) => c.divisiveness), 1)])
-			.range([MARGIN, Math.max(MARGIN, plotWidth - MARGIN)])
+			.range([margin, Math.max(margin, plotWidth - margin)])
 	);
 
 	const nodes = $derived<SwarmNode[]>(
@@ -89,8 +110,8 @@
 	const forces = $derived<Record<string, Force<SwarmNode, undefined>>>({
 		x: forceX<SwarmNode>((d) => xScale(d.divisiveness)).strength(0.5),
 		y: forceY<SwarmNode>(height / 2).strength(0.15),
-		collide: forceCollide<SwarmNode>(RADIUS + 2).strength(1),
-		bounds: forceBounds(plotWidth, height)
+		collide: forceCollide<SwarmNode>(radius + GAP).strength(1),
+		bounds: forceBounds(plotWidth, height, margin)
 	});
 
 	const simData = $derived({ nodes });
@@ -119,7 +140,7 @@
 								aria-label={n.text.trim()}
 								cx={n.x ?? 0}
 								cy={n.y ?? height / 2}
-								r={isActive ? RADIUS + 3 : RADIUS}
+								r={isActive ? radius + activeGrowth : radius}
 								fill={isActive ? 'var(--primary)' : 'var(--muted-foreground)'}
 								opacity={isActive ? 1 : 0.45}
 								class="transition-all duration-200 outline-none"
