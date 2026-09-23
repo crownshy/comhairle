@@ -108,11 +108,6 @@ export function withSavedReasonIds<T extends RejectReason>(
 	});
 }
 
-type StepToolConfigs = Pick<
-	WorkflowStepWithTranslations,
-	'id' | 'toolConfig' | 'previewToolConfig'
->;
-
 /**
  * The step updates that point every Polis step's preview and live configs at `policyId`, or
  * at no policy when it is null. Configs already pointing there are skipped. `pointedAt` holds
@@ -120,7 +115,7 @@ type StepToolConfigs = Pick<
  * are loaded again.
  */
 export function policyStepUpdates(
-	steps: StepToolConfigs[],
+	steps: WorkflowStepWithTranslations[],
 	policyId: string | null,
 	pointedAt: ReadonlyMap<string, string | null> = new Map()
 ): { stepId: string; body: PartialWorkflowStep }[] {
