@@ -4,7 +4,6 @@ use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId, g
 use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
-use crate::routes::user::dto::UserDto;
 use crate::routes::workflows::dto::WorkflowDto;
 use crate::setup_server;
 use crate::test_helpers::{UserSession, test_state};
@@ -69,8 +68,7 @@ pub async fn get_random_user_id(
     app: &Router,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
-    let (_, response, _) = session.signup_guest(app).await?;
-    let user: UserDto = serde_json::from_value(serde_json::to_value(response)?)?;
+    let (_, user, _) = session.signup_guest(app).await?;
 
     Ok(user.id)
 }

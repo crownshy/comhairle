@@ -1249,6 +1249,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    #[ignore]
     async fn should_list_conversations_by_organization_id(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -1261,6 +1262,8 @@ mod tests {
         let _ = session.create_random_conversation(&app).await?;
         let _ = session.create_random_conversation(&app).await?;
 
+        // FIXME: user detail updates will need to go via keycloak and test session
+        // will need to be updated
         let _ = session
             .put(
                 &app,

@@ -216,8 +216,10 @@ pub fn test_auth_layer(
 pub struct TestAuthUser {
     pub id: Uuid,
     pub auth_type: UserAuthType,
-    pub email: String,
-    pub username: String,
+    pub email: Option<String>,
+    pub username: Option<String>,
+    pub guest_code: Option<String>,
+    pub organization_id: Option<Uuid>,
 }
 
 impl Default for TestAuthUser {
@@ -225,8 +227,10 @@ impl Default for TestAuthUser {
         Self {
             id: Uuid::new_v4(),
             auth_type: UserAuthType::EmailPassword,
-            email: "admin@crown-shy.com".to_string(),
-            username: "admin".to_string(),
+            email: Some("admin@crown-shy.com".to_string()),
+            username: Some("admin".to_string()),
+            guest_code: None,
+            organization_id: None,
         }
     }
 }
@@ -249,22 +253,22 @@ impl TestAuthUser {
                         given_name: None,
                         family_name: None,
                         full_name: None,
-                        preferred_username: self.username,
+                        preferred_username: self.username.unwrap_or_default(),
                     },
                     email: Email {
-                        email: self.email,
+                        email: self.email.unwrap_or_default(),
                         email_verified: true,
                     },
                 },
                 comhairle_auth_type: self.auth_type,
                 avatar_url: None,
-                organization_id: None,
-                guest_code: None,
+                organization_id: self.organization_id,
+                guest_code: self.guest_code,
             },
         }
     }
 
-    fn to_user_dto(self) -> Result<UserDto, Box<dyn Error>> {
+    fn into_user_dto(self) -> Result<UserDto, Box<dyn Error>> {
         let token_data = self.into_test_token();
         let user = UserDto::try_from(token_data)?;
 
@@ -465,8 +469,8 @@ impl UserSession {
     pub fn new(username: &str, password: &str, email: &str) -> Self {
         let kc_user_data = TestAuthUser {
             id: Uuid::new_v4(),
-            email: email.to_string(),
-            username: username.to_string(),
+            email: Some(email.to_string()),
+            username: Some(username.to_string()),
             ..Default::default()
         };
         Self {
@@ -492,6 +496,20 @@ impl UserSession {
             kc_user: Some(kc_user_data),
             cookies: None,
         }
+    }
+
+    fn set_kc_user_cookie(&mut self) -> Result<(), Box<dyn Error>> {
+        let mut cookies = self.cookies.take().unwrap_or_default();
+        cookies.insert(
+            KC_TEST_SESSION.into(),
+            format!(
+                "{KC_TEST_SESSION}={}",
+                serde_json::to_string(&self.kc_user)?
+            ),
+        );
+        self.cookies = Some(cookies);
+
+        Ok(())
     }
 
     pub fn cookie_header(&self) -> Option<String> {
@@ -831,15 +849,9 @@ impl UserSession {
         &mut self,
         _app: &Router,
     ) -> Result<(StatusCode, UserDto, Vec<HeaderValue>), Box<dyn Error>> {
-        // TODO: account for guest users
-        let user = self.kc_user.clone().unwrap().to_user_dto()?;
+        let user = self.kc_user.clone().unwrap().into_user_dto()?;
 
         Ok((StatusCode::OK, user, vec![]))
-        // let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
-        //
-        // let user: UserDto = serde_json::from_value(value.clone())
-        //     .map_err(|err| format!("Failed to parse current user: {value:?} - Error: {err}"))?;
-        // Ok((status, user, cookie))
     }
 
     pub async fn login(
@@ -849,30 +861,13 @@ impl UserSession {
         let user = serde_json::to_value(
             self.kc_user
                 .clone()
-                .expect("User data is none")
-                .to_user_dto()?,
+                .expect("Missing user data")
+                .into_user_dto()?,
         )?;
 
-        let mut cookies = self.cookies.take().unwrap_or_default();
-        cookies.insert(
-            KC_TEST_SESSION.into(),
-            format!(
-                "{KC_TEST_SESSION}={}",
-                serde_json::to_string(&self.kc_user)?
-            ),
-        );
-        self.cookies = Some(cookies);
+        self.set_kc_user_cookie()?;
 
         Ok((StatusCode::OK, user, vec![]))
-
-        // self.post(
-        //     app,
-        //     "/auth/login",
-        //     json!({ "email": email, "password": password })
-        //         .to_string()
-        //         .into(),
-        // )
-        // .await
     }
 
     pub async fn login_guest(
@@ -890,15 +885,25 @@ impl UserSession {
     pub async fn signup_guest(
         &mut self,
         app: &Router,
-    ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>
-    {
+    ) -> Result<(StatusCode, UserDto, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.post(app, "/auth/signup_guest", Body::empty()).await?;
-        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
-        let guest_code: String =
-            serde_json::from_value(user.get("guestCode").unwrap().clone().unwrap()).unwrap();
-        self.guest_code = Some(guest_code);
-        let id: String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
-        self.id = Some(Uuid::parse_str(&id).unwrap());
+        let user: UserDto = serde_json::from_value(value)?;
+
+        let kc_user_data = TestAuthUser {
+            id: user.id,
+            guest_code: user.guest_code.clone(),
+            auth_type: UserAuthType::Guest,
+            email: None,
+            username: None,
+            organization_id: user.organization_id,
+        };
+
+        self.id = Some(user.id);
+        self.guest_code = user.guest_code.clone();
+        self.kc_user = Some(kc_user_data);
+
+        self.set_kc_user_cookie()?;
+
         Ok((status, user, cookie))
     }
 
@@ -929,7 +934,7 @@ impl UserSession {
 
             Ok((status, user, cookie))
         } else {
-            let user = self.kc_user.clone().unwrap().to_user_dto()?;
+            let user = self.kc_user.clone().unwrap().into_user_dto()?;
             let user: HashMap<String, Option<Value>> =
                 serde_json::from_value(serde_json::to_value(user)?)?;
 

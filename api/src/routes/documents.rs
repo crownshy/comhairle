@@ -593,8 +593,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/",
-            post_with(upload, |op| {
-                op.id("PostDocuments")
+            state.required_auth(
+                post_with(upload, |op| {
+                    op.id("PostDocuments")
                     .tag("Documents")
                     .description(
                         "⚠️ This endpoint requires multipart/form-data.\n\n\
@@ -614,7 +615,9 @@ curl -X POST \\
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<UploadFileResponse>>()
-            }),
+                }),
+                None,
+            ),
         )
         .with_state(state)
 }
