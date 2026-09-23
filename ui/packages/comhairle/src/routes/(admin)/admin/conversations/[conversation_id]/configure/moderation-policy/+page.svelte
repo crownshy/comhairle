@@ -11,20 +11,24 @@
 		policyStepUpdates,
 		rejectReasonLabelProblems,
 		rejectReasonsFromPolicy,
-		withSavedReasonIds,
-		type RejectReason
+		withSavedReasonIds
 	} from '$lib/moderation/moderationPolicy';
 	import { Autosave } from './autosave.svelte';
 	import SaveStatusPill from './SaveStatusPill.svelte';
 	import { notifications } from '$lib/notifications.svelte';
+	import type { UpdateModerationPolicyReason } from '@crownshy/api-client/api';
 
 	let { data, params } = $props();
 
 	// `key` is a stable {#each} key: labels can be blank or repeated while editing, and a new
 	// reason has no id until its first save lands.
-	type Row = RejectReason & { key: number; description: string };
+	type Row = {
+		key: number;
+		label: string;
+		description: string;
+	};
 
-	const toRows = (reasons: RejectReason[]): Row[] =>
+	const toRows = (reasons: UpdateModerationPolicyReason[]): Row[] =>
 		reasons.map((reason, index) => ({
 			...reason,
 			key: index + 1,
@@ -32,7 +36,9 @@
 		}));
 
 	let policyId = $derived<string | null>(data.policies[0]?.id ?? null);
-	let rows = $derived.by<Row[]>(() =>
+
+	// $state needed for deep reactivity, should be ok since we're only using the initial value, derived isn't necessary
+	let rows = $state<Row[]>(
 		toRows(data.policies[0] ? rejectReasonsFromPolicy(data.policies[0]) : data.defaultReasons)
 	);
 
@@ -145,13 +151,17 @@
 
 	async function addRow() {
 		const row: Row = { key: rows[rows.length - 1].key + 1, label: '', description: '' };
-		rows = [...rows, row];
+		rows.push(row);
 		await tick();
 		document.querySelector<HTMLInputElement>(`#reject-reason-label-${row.key}`)?.focus();
 	}
 
 	function removeRow(key: number) {
-		rows = rows.filter((row) => row.key !== key);
+		const index = rows.findIndex((row) => row.key === key);
+		if (index < 0) {
+			return;
+		}
+		rows.splice(index, 1);
 		usingDefault = false;
 		autosave.schedule();
 	}
