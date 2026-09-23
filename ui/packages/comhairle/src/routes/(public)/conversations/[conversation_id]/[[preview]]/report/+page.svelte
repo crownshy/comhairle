@@ -1,20 +1,45 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import { Switch } from '$lib/components/ui/switch';
 	import '@carbon/charts-svelte/styles.css';
-	import { formatDistanceToNow } from 'date-fns';
-	import Speech from 'lucide-svelte/icons/speech';
-	import Drama from 'lucide-svelte/icons/drama';
-	import Scroll from 'lucide-svelte/icons/scroll-text';
+	import { format } from 'date-fns';
 	import ReportBody from '$lib/reports/ReportBody.svelte';
 
 	let { data } = $props();
 	let { conversation, workflowSteps, report } = data;
 
-	//find polis step
 	let polisSteps = $derived(workflowSteps.filter((step) => step.toolConfig.type === 'polis'));
+	let showPolis = $state(false);
 
 	let pageTitle = $derived(`${conversation.title} Report`);
+	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
+	const reportPills = [
+		{ componentType: 'polis-area-consensus', label: 'Areas of agreement' },
+		{ componentType: 'polis-area-disagreement', label: 'Areas of disagreement' },
+		{ componentType: 'polis-opinion-groups', label: 'Opinion groups' }
+	];
+	const embeddedComponentTypes = $derived.by<Set<string>>(() => {
+		try {
+			const document: unknown = JSON.parse(report.summary);
+			if (
+				!document ||
+				typeof document !== 'object' ||
+				!Array.isArray((document as { content?: unknown[] }).content)
+			) {
+				return new Set();
+			}
+
+			return new Set(
+				(
+					document as { content: { type?: string; attrs?: Record<string, unknown> }[] }
+				).content
+					.filter((node) => node.type === 'reportComponentEmbed')
+					.map((node) => String(node.attrs?.componentType ?? ''))
+			);
+		} catch {
+			return new Set();
+		}
+	});
 
 	let stats = [
 		{
@@ -51,8 +76,7 @@
 			{data.conversation.title}
 		</h1>
 		<p class="text-muted-foreground max-w-3xl text-lg leading-7">
-			<!-- this is to be ported in later-->
-			Created on 23 September, 2026
+			Created on {reportCreatedAt}
 		</p>
 		<div class="mt-6 grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
 			{#each stats as stat (stat.name)}
@@ -71,57 +95,58 @@
 					</p>
 				</div>
 			{/each}
+
+			{#if polisSteps.length > 0}
+				<div class="mt-2 flex items-center gap-3 self-start">
+					<Switch id="show-polis" bind:checked={showPolis} />
+					<label for="show-polis" class="text-foreground text-base font-medium">
+						Show Polis iframe1
+					</label>
+				</div>
+			{/if}
 		</div>
+		{#if !showPolis}
+			<nav
+				class="flex w-full max-w-4xl flex-wrap justify-center gap-2"
+				aria-label="Report sections"
+			>
+				<a
+					href="#report-overview"
+					class="bg-muted text-foreground hover:bg-accent rounded-full px-4 py-2 text-base font-medium transition-colors"
+				>
+					Overview
+				</a>
+				{#each reportPills as pill (pill.componentType)}
+					{#if embeddedComponentTypes.has(pill.componentType)}
+						<a
+							href={`#report-${pill.componentType}`}
+							class="bg-muted text-foreground hover:bg-accent rounded-full px-4 py-2 text-base font-medium transition-colors"
+						>
+							{pill.label}
+						</a>
+					{/if}
+				{/each}
+			</nav>
+		{/if}
 	</header>
 
-	<Tabs.Root value="Overview" class="w-full max-w-[1400px] space-y-4 px-5 md:px-10">
-		<Tabs.List>
-			<Tabs.Trigger value="Overview">Overview</Tabs.Trigger>
+	<div class="w-full px-10 font-sans {showPolis ? 'max-w-[1400px]' : 'max-w-4xl'}">
+		{#if showPolis}
 			{#each polisSteps as step (step.id)}
-				<Tabs.Trigger value={step.id}>{step.name}</Tabs.Trigger>
-			{/each}
-		</Tabs.List>
-		<Tabs.Content value="Overview" class="space-y-4">
-			<h2 class="text-xl font-bold">Key Takeaways</h2>
-
-			<div class="mb-4">
-				<ReportBody content={report.summary} conversationId={conversation.id} />
-			</div>
-
-			<h2 class="text-xl font-bold">Impacts</h2>
-			<ul class="flex flex-col gap-4 divide-y-3 divide-solid divide-gray-200">
-				{#each report.impacts as impact (impact.id)}
-					<li class="flex flex-col gap-2 border-solid p-4">
-						<div class="flex flex-row justify-between">
-							<div class="flex flex-row gap-2">
-								{#if impact.kind === 'policy'}
-									<Scroll />
-								{:else if impact.kind === 'debate'}
-									<Drama />
-								{:else}
-									<Speech />
-								{/if}
-								<h3 class="font-bold">{impact.title}</h3>
-							</div>
-							<span>{formatDistanceToNow(impact.createdAt, { addSuffix: true })}</span
-							>
-						</div>
-						<p>
-							{impact.details}
-						</p>
-					</li>
-				{/each}
-			</ul>
-		</Tabs.Content>
-
-		{#each polisSteps as step (step.id)}
-			<Tabs.Content value={step.id} class="space-y-4">
 				<iframe
-					class="h-[100vh] w-full border-none"
+					class="h-[1000vh] w-full border-none"
+					title={`${step.name} results`}
 					src="https://poliscommunity.crown-shy.com/report/r4hrfdtemrjsxbn3ieyyb"
 				>
 				</iframe>
-			</Tabs.Content>
-		{/each}
-	</Tabs.Root>
+			{/each}
+		{:else}
+			<div
+				id="report-overview"
+				class="mb-4 max-w-4xl scroll-mt-8 text-lg leading-8 [&_.tiptap]:text-lg [&_.tiptap]:leading-8 [&_.tiptap_h1]:text-xl [&_.tiptap_h1]:md:text-3xl [&_.tiptap_h2]:text-2xl [&_.tiptap_h2]:leading-8 [&_.tiptap_h2]:font-semibold [&_.tiptap_h3]:text-xl [&_.tiptap_h3]:leading-7 [&_.tiptap_h3]:font-semibold [&_.tiptap_li]:my-2 [&_.tiptap_p]:my-4 [&_.tiptap_p]:text-lg [&_.tiptap_p]:leading-8"
+			>
+				<ReportBody content={report.summary} conversationId={conversation.id} />
+			</div>
+		{/if}
+	</div>
 </main>
