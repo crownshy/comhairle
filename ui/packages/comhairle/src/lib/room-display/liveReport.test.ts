@@ -53,7 +53,18 @@ describe('displayStateFromReport', () => {
 		const state = displayStateFromReport(report());
 		expect(state.published.map((c) => c.tid)).toEqual([1, 0]);
 		expect(state.totalVotes).toBe(6);
-		expect(state.votesByTid.size).toBe(0);
+	});
+
+	it('carries an apportioned vote matrix, one entry per statement', () => {
+		const state = displayStateFromReport(report());
+		expect([...state.votesByTid.keys()].sort()).toEqual([0, 1]);
+	});
+
+	it('colours the dots in the proportion the report counts', () => {
+		// One placed participant per group, three agrees overall and none of them from
+		// a group, so both dots take the unclustered leftover.
+		const state = displayStateFromReport(report());
+		expect([...state.votesByTid.get(0)!.values()]).toEqual(['agree', 'agree']);
 	});
 });
 

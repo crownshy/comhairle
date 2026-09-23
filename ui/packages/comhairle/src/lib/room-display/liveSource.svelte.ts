@@ -80,7 +80,7 @@ export function createLiveRoomDisplaySource(options: LiveSourceOptions): LiveRoo
 		get groups() {
 			return report.groups;
 		},
-		perParticipantVotes: false,
+		voteMatrix: 'apportioned',
 		get updatedAtMs() {
 			return updatedAtMs;
 		},

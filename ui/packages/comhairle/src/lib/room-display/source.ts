@@ -16,11 +16,18 @@ export interface RoomDisplaySource {
 	/** Opinion groups Polis has produced, in report shape. Empty before clustering. */
 	readonly groups: ReportGroup[];
 	/**
-	 * Whether `state.votesByTid` is populated per participant. The scripted scenario
-	 * carries every vote; live `report_data` carries only per-group aggregates, so a
-	 * live display cannot colour individual dots by a vote (CONTEXT.md,
-	 * "Cross-highlight") and falls back to group bars until an endpoint exists.
+	 * Where `state.votesByTid` came from, which is the one thing the two sources do
+	 * not agree on.
+	 *
+	 * `per-participant`: every entry is a real vote by that participant. Only the
+	 * scripted scenario has this; no live endpoint returns the matrix.
+	 *
+	 * `apportioned`: each group's real counts dealt across its dots
+	 * (`apportionedVotes.ts`). Proportions are exact, the dot-to-person mapping is
+	 * not, so the display may colour the map by a statement but must not claim a dot
+	 * shows how that person voted, and anything counting individual voters is off.
+	 * See CONTEXT.md, "Cross-highlight".
 	 */
-	readonly perParticipantVotes: boolean;
+	readonly voteMatrix: 'per-participant' | 'apportioned';
 	destroy(): void;
 }

@@ -15,9 +15,12 @@
 	  someone belongs until they have voted a few times, so an unsettled dot is one
 	  whose position is not yet earned.
 
-	Cross-highlight: pass `focusedTid` and every dot recolours to how that node voted
-	on that statement. At roundtable scale a dot is one person and the colour is simply
-	their vote.
+	Cross-highlight: pass `focusedTid` and every dot recolours by `votesByTid` for that
+	statement. What that means depends on the source, and the component does not need
+	to know: a scripted scenario carries each person's real vote, while a live one
+	deals each group's real counts across its dots, so the proportions are exact and
+	the dot-to-person mapping is not (`apportionedVotes.ts`). Copy around the map is
+	worded for both, and never promises a dot is a named person's ballot.
 
 	Group labels sit under each cluster and follow it: they are placed at the centroid
 	of the group's settled dots, so a label appears when the first member arrives and
@@ -176,7 +179,7 @@
 		role="img"
 		aria-label="Opinion map: {nodes.length} participants{focusedTid === null
 			? ''
-			: ', coloured by their vote on the focused statement'}"
+			: ', coloured by how the room voted on the focused statement'}"
 	>
 		{#each dots as dot (dot.node.id)}
 			<!--

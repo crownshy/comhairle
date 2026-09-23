@@ -36,10 +36,10 @@ export function groupColor(groupId: number | null): string {
 }
 
 /**
- * Cross-highlight fill: how this dot voted on the focused statement.
+ * Cross-highlight fill: how this dot counts on the focused statement.
  *
  * Takes the dominant category rather than drawing a split. At roundtable scale a dot
- * holds one person, so "dominant" is exact and the colour is simply their vote. Above
+ * holds one member, so "dominant" is exact and the dot takes a single colour. Above
  * Polis's 100-cluster cap a dot holds several and a 51/49 split would render as a flat
  * majority colour, which is a known gap: that case wants a pie or a size-weighted
  * treatment, and is deferred with the rest of the over-100 work.

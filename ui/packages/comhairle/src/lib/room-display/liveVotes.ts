@@ -12,6 +12,7 @@
 
 import { computeMemberVoteBars, groupLabel } from '$lib/tools/polis/report';
 import type { MemberVotePercent, ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
+import type { RoomDisplaySource } from './source';
 import type { DisplayState, MapNode } from './types';
 
 function bar(label: string, nodes: MapNode[], state: DisplayState, tid: number): MemberVotePercent {
@@ -68,7 +69,8 @@ export function presentByGroup(state: DisplayState, groups: ReportGroup[]): Map<
 
 /**
  * The same bars read off the report comment instead of the vote stream, for a source
- * that carries no per-participant votes. Shares are over each group's total
+ * whose matrix is apportioned. The bars are where the exact numbers live, so they
+ * come from the payload rather than from dots that round. Shares are over each group's total
  * membership, which is what the Insights tab shows too; only the labels differ, so
  * the wall reads the same whichever source is behind it.
  */
@@ -88,10 +90,10 @@ export function reportVoteBars(
 
 /** Picks the bar computation a source supports. */
 export function voteBarsFor(
-	source: { state: DisplayState; groups: ReportGroup[]; perParticipantVotes: boolean },
+	source: Pick<RoomDisplaySource, 'state' | 'groups' | 'voteMatrix'>,
 	comment: ReportComment
 ): { overall: MemberVotePercent; groups: MemberVotePercent[] } {
-	return source.perParticipantVotes
+	return source.voteMatrix === 'per-participant'
 		? liveVoteBars(source.state, source.groups, comment.tid)
 		: reportVoteBars(comment, source.groups);
 }

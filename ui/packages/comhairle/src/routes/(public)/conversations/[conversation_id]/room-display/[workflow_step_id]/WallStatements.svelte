@@ -7,8 +7,8 @@
 	is what fits on a projector; a longer list would have to shrink to body copy, which
 	is the failure the whole display exists to avoid.
 
-	Bars come from the source: folded from the live vote stream when it carries one,
-	read off the report comment when it does not (`voteBarsFor`).
+	Bars come from the source: folded from the vote stream when it carries real votes,
+	read off the report comment when its matrix is apportioned (`voteBarsFor`).
 -->
 <script lang="ts">
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';

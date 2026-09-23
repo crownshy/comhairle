@@ -137,7 +137,7 @@
 						nodes={source.state.nodes}
 						votesByTid={source.state.votesByTid}
 						focusedTid={null}
-						settleVotes={source.perParticipantVotes ? 6 : 0}
+						settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
 						{groupIds}
 					/>
 				</div>
@@ -173,7 +173,7 @@
 						>
 							{divisive.text}
 						</p>
-						{#if source.perParticipantVotes}
+						{#if source.voteMatrix === 'per-participant'}
 							<p class="text-muted-foreground text-xl lg:text-2xl">
 								Every dot is a person, coloured by how they voted on this one.
 							</p>
@@ -199,8 +199,8 @@
 					<OpinionMap
 						nodes={source.state.nodes}
 						votesByTid={source.state.votesByTid}
-						focusedTid={source.perParticipantVotes ? divisiveTid : null}
-						settleVotes={source.perParticipantVotes ? 6 : 0}
+						focusedTid={divisiveTid}
+						settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
 						{groupIds}
 					/>
 				</div>

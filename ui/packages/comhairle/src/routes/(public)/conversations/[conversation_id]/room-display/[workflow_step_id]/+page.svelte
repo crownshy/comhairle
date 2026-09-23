@@ -143,8 +143,10 @@
 		applyBoard(resolveBoard({ preset: data.boardParams.preset }));
 	}
 
+	// Counts voters, which an apportioned matrix cannot tell you: it knows how many
+	// votes a statement got, not how many people cast them.
 	const unlock = $derived(
-		source.perParticipantVotes ? nextUnlock(source.state, source.stage) : null
+		source.voteMatrix === 'per-participant' ? nextUnlock(source.state, source.stage) : null
 	);
 	const recruiting = $derived(source.stage === 'empty' || source.stage === 'warming');
 </script>
