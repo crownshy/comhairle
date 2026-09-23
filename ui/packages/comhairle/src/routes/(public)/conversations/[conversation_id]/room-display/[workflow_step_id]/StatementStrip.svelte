@@ -36,8 +36,32 @@
 
 	// Room scale. The report's continuum uses 5, which disappears on a projector.
 	const RADIUS = 14;
+	// The focused dot grows by 3, so keep that much clear of every edge.
+	const MARGIN = RADIUS + 3;
 
 	type SwarmNode = SimulationNodeDatum & { tid: number; text: string; divisiveness: number };
+
+	/**
+	 * Keeps every dot inside the plot box. forceX/forceY only pull towards a target, so a
+	 * cluster of statements with the same divisiveness gets stacked past the top and left
+	 * edges by forceCollide and clipped. Clamping after each tick makes the box a wall that
+	 * collision resolves against instead.
+	 */
+	function forceBounds(width: number, height: number): Force<SwarmNode, undefined> {
+		let bounded: SwarmNode[] = [];
+		const clamp = (v: number, max: number) =>
+			Math.min(Math.max(v, MARGIN), Math.max(MARGIN, max));
+		const force = () => {
+			for (const n of bounded) {
+				n.x = clamp(n.x ?? MARGIN, width - MARGIN);
+				n.y = clamp(n.y ?? height / 2, height - MARGIN);
+			}
+		};
+		force.initialize = (n: SwarmNode[]) => {
+			bounded = n;
+		};
+		return force;
+	}
 
 	let plotWidth = $state(0);
 
@@ -46,7 +70,7 @@
 	const xScale = $derived(
 		scaleSqrt()
 			.domain([0, Math.max(...scored.map((c) => c.divisiveness), 1)])
-			.range([RADIUS * 2, Math.max(RADIUS * 2, plotWidth - RADIUS * 2)])
+			.range([MARGIN, Math.max(MARGIN, plotWidth - MARGIN)])
 	);
 
 	const nodes = $derived<SwarmNode[]>(
@@ -59,10 +83,14 @@
 		}))
 	);
 
+	// x is deliberately weaker than the report's 1: against the bounds the only way a pile of
+	// same-score statements can resolve is sideways, and a strip this short has no room to
+	// resolve it vertically.
 	const forces = $derived<Record<string, Force<SwarmNode, undefined>>>({
-		x: forceX<SwarmNode>((d) => xScale(d.divisiveness)).strength(1),
-		y: forceY<SwarmNode>(height / 2).strength(0.2),
-		collide: forceCollide<SwarmNode>(RADIUS + 2).strength(1)
+		x: forceX<SwarmNode>((d) => xScale(d.divisiveness)).strength(0.5),
+		y: forceY<SwarmNode>(height / 2).strength(0.15),
+		collide: forceCollide<SwarmNode>(RADIUS + 2).strength(1),
+		bounds: forceBounds(plotWidth, height)
 	});
 
 	const simData = $derived({ nodes });
