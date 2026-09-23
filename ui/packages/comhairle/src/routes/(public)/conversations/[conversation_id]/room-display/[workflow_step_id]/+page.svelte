@@ -9,13 +9,16 @@
 	          and votes, so the thing can be shown off without a room. Only the demo
 	          carries per-participant votes, so only the demo colours dots by a vote.
 
-	Two directions, chosen by `?variant=`: console (the pick) and deck. The demo's
-	transport controls sit in a floating bar in dev builds only.
+	What the display shows is a board: a layout plus a set of blocks (`blocks.ts`).
+	`?variant=` names a familiar one, `?layout=` and `?blocks=` say it exactly, and the
+	settings panel on the display edits it live. The demo's transport controls sit in a
+	floating bar in dev builds only.
 -->
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { dev } from '$app/environment';
+	import { replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';
 	import type { RoomDisplaySource } from '$lib/room-display/source';
 	import { createRoomDisplayDriver } from '$lib/room-display/driver.svelte';
@@ -25,10 +28,21 @@
 	import { buildPlaceholderComments } from '$lib/room-display/placeholderReport';
 	import { nextUnlock, describeUnlock } from '$lib/room-display/revealStage';
 	import { participantCount } from '$lib/room-display/scenario';
+	import {
+		resolveBoard,
+		serializeBlocks,
+		toggleBlock,
+		type RoomBlock,
+		type RoomBoard,
+		type RoomLayout
+	} from '$lib/room-display/blocks';
+	import { readStoredBoard, writeStoredBoard } from '$lib/room-display/storedBoard';
 	import WarmingScreen from '$lib/room-display/WarmingScreen.svelte';
 	import PrototypeBar from './PrototypeBar.svelte';
-	import VariantDeck from './VariantDeck.svelte';
-	import VariantConsole from './VariantConsole.svelte';
+	import BoardSettings from './BoardSettings.svelte';
+	import LayoutDeck from './LayoutDeck.svelte';
+	import LayoutConsole from './LayoutConsole.svelte';
+	import LayoutSplit from './LayoutSplit.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -58,6 +72,49 @@
 		createLiveRoomDisplaySource({ api: page.data.api, workflowStepId: data.workflowStepId });
 	onDestroy(() => source.destroy());
 
+	// Starts at what the server could work out, which is the URL and nothing else.
+	// svelte-ignore state_referenced_locally
+	let board = $state<RoomBoard>(data.board);
+
+	onMount(() => {
+		// localStorage is not readable during SSR, so what this display remembered can
+		// only be folded in here. Resolving again rather than assigning the stored board
+		// keeps the precedence rule in one place: an explicit URL still wins.
+		board = resolveBoard({ ...data.boardParams, stored: readStoredBoard() });
+	});
+
+	/**
+	 * The URL is rewritten to spell the board out, so the address bar is always a link
+	 * that reproduces what is on screen. `variant` goes: once a block has been touched
+	 * by hand the preset name is no longer true, and leaving it would make the link
+	 * mean something different from the screen that produced it.
+	 */
+	function applyBoard(next: RoomBoard) {
+		board = next;
+		writeStoredBoard(next);
+
+		const url = new URL(window.location.href);
+		url.searchParams.delete('variant');
+		url.searchParams.set('layout', next.layout);
+		url.searchParams.set('blocks', serializeBlocks(next.blocks));
+		// This rewrites the query string of the page we are already on rather than
+		// navigating anywhere, so there is no route for `resolve()` to resolve.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		replaceState(url, page.state);
+	}
+
+	function onToggleBlock(block: RoomBlock) {
+		applyBoard(toggleBlock(board, block));
+	}
+
+	function onSetLayout(layout: RoomLayout) {
+		applyBoard({ layout, blocks: board.blocks });
+	}
+
+	function onReset() {
+		applyBoard(resolveBoard({ preset: data.boardParams.preset }));
+	}
+
 	const unlock = $derived(
 		source.perParticipantVotes ? nextUnlock(source.state, source.stage) : null
 	);
@@ -67,11 +124,12 @@
 <svelte:head><title>Room display</title></svelte:head>
 
 <div class="bg-background text-foreground h-screen overflow-hidden p-8 pb-20">
-	{#if recruiting && data.variant !== 'deck'}
+	{#if recruiting && board.layout !== 'deck'}
 		<!--
 			Before Polis clusters there is genuinely nothing to plot, so the whole display
-			recruits instead of showing an empty map. Deck opts out: its first slide is
-			already the recruitment screen.
+			recruits instead of showing an empty map. It is the recruitment screen rather
+			than the board, so the block set does not apply to it. Deck opts out: its
+			first slide is already this screen.
 		-->
 		<WarmingScreen
 			question={data.question}
@@ -80,12 +138,16 @@
 			votes={source.state.totalVotes}
 			unlockLabel={unlock ? describeUnlock(unlock) : null}
 		/>
-	{:else if data.variant === 'deck'}
-		<VariantDeck {source} question={data.question} joinUrl={data.joinUrl} />
+	{:else if board.layout === 'deck'}
+		<LayoutDeck {source} {board} question={data.question} joinUrl={data.joinUrl} />
+	{:else if board.layout === 'split'}
+		<LayoutSplit {source} {board} question={data.question} joinUrl={data.joinUrl} />
 	{:else}
-		<VariantConsole {source} question={data.question} joinUrl={data.joinUrl} />
+		<LayoutConsole {source} {board} question={data.question} joinUrl={data.joinUrl} />
 	{/if}
 </div>
+
+<BoardSettings {board} {onToggleBlock} {onSetLayout} {onReset} />
 
 {#if dev && driver}
 	<PrototypeBar {driver} />

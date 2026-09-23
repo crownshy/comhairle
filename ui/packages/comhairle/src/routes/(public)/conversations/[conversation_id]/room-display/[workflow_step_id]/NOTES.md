@@ -16,6 +16,35 @@ path). Linked from the step's admin Insights tab. Two sources behind one display
 - `?mode=demo`: the scripted scenario with animated joins and votes, for showing the
   thing off without a room. Transport controls appear in dev builds.
 
+## The board
+
+What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md,
+"Block / Layout / Board"). `blocks.ts` holds the vocabulary and the precedence rule;
+`BoardSettings.svelte` is the panel on the display that edits it.
+
+- `?variant=console|marquee|deck` names a board. Console is the default and is the
+  direction the team picked below.
+- `?layout=split|console|deck` and `?blocks=a,b,c` say one exactly. Either of them
+  present pins the board, so a link reproduces the sender's screen.
+- With no board parameter at all, the display comes back to whatever this machine was
+  last left showing (`storedBoard.ts`). A projector that reboots ten minutes before
+  the room arrives should not come back to the factory default.
+- The settings panel rewrites the URL as you toggle, and drops `variant`: once a block
+  has been touched by hand the preset name is no longer true.
+
+Why the panel is on the display rather than in admin: the question "is the map landing
+with this group?" is asked in the room, with the room watching. A round trip through a
+settings page means the answer is always "leave it".
+
+The deck is the loosest fit for the vocabulary. Its five slides are five blocks, so
+switching one off removes a slide, but it has no facilitator controls for `groups` to
+address and its question and counts live inside the join slide rather than being
+separately switchable. The settings panel says so rather than showing a switch that
+does nothing.
+
+The recruitment screen is not the board: before Polis clusters there is nothing to
+arrange, so `WarmingScreen` ignores the block set.
+
 Below is the record of how the direction was chosen.
 
 ## Which direction?
@@ -35,6 +64,10 @@ driver controls live in the floating bar so no variant has to carry them.
 | `deck`      | Deck      | The facilitator | Five fixed slides with live content, advanced by hand.        |
 | `narrator`  | Narrator  | The machine     | The same slides, advanced by a timer, so nobody has to drive. |
 | `console`   | (new)     | Split           | The busy-ness belongs on a laptop, not on the wall.           |
+
+(`board` and `narrator` are gone; `board` came back later as the `split` layout, which
+is the one-screen bet again with the statement marquee and the controls moved to the
+bottom.)
 
 `board`, `deck` and `narrator` are the three directions CONTEXT.md already names.
 `console` is a fourth: it says the board is busy because one surface is doing two jobs,
@@ -84,6 +117,9 @@ Folded in from the review of the videos:
 
 ## Still open
 
+- **Which blocks anyone actually turns off.** The panel exists partly to find out.
+  If the answer after a few rooms is "nobody touches it", the board belongs in the
+  step's config where it is set once, not on the display.
 - **Density.** Hundreds or thousands of participants will overlap. Polis caps base
   clusters at 100 and `memberCount` is already carried, so the next step is sizing
   dots by members and drawing a split (pie or ring) for the cross-highlight, not a
@@ -102,4 +138,4 @@ Folded in from the review of the videos:
 - **Events product.** Whether this is a separate Slido-style product is a positioning
   question, not a build one. Build the basic version first.
 - `moments.ts` is still computed and rendered nowhere. The console has a slot for it
-  (the statement box); the wall does not, deliberately.
+  (the statement box); the wall does not, deliberately. It is the obvious next block.

@@ -13,9 +13,15 @@
 
 	A slide with nothing to say yet keeps its place and says so, rather than vanishing:
 	a deck whose length changes under the facilitator is one they cannot rehearse.
+
+	Each slide is one of the blocks in `blocks.ts`, so switching a block off anywhere
+	removes that slide here. That is a deliberate exception to the paragraph above:
+	turning a block off is the facilitator changing the deck on purpose, not the data
+	changing it under them.
 -->
 <script lang="ts">
 	import type { RoomDisplaySource } from '$lib/room-display/source';
+	import { hasBlock, type RoomBoard, type RoomBlock } from '$lib/room-display/blocks';
 	import { resolveIntent } from '$lib/room-display/ambientFocus';
 	import { participantCount } from '$lib/room-display/scenario';
 	import { voteBarsFor } from '$lib/room-display/liveVotes';
@@ -27,20 +33,26 @@
 		source: RoomDisplaySource;
 		question: string;
 		joinUrl: string;
+		board: RoomBoard;
 	};
 
-	let { source, question, joinUrl }: Props = $props();
+	let { source, question, joinUrl, board }: Props = $props();
 
-	const SLIDES = [
-		{ key: 'join', title: 'Join in' },
-		{ key: 'room', title: 'Who is in the room' },
-		{ key: 'agree', title: 'What we agree on' },
-		{ key: 'split', title: 'Where we split' },
-		{ key: 'latest', title: 'Just said' }
-	] as const;
+	const SLIDES: { key: string; title: string; block: RoomBlock }[] = [
+		{ key: 'join', title: 'Join in', block: 'qr' },
+		{ key: 'room', title: 'Who is in the room', block: 'map' },
+		{ key: 'agree', title: 'What we agree on', block: 'statement' },
+		{ key: 'split', title: 'Where we split', block: 'strip' },
+		{ key: 'latest', title: 'Just said', block: 'marquee' }
+	];
 
+	const slides = $derived(SLIDES.filter((s) => hasBlock(board, s.block)));
+
+	// Wrapped on read rather than clamped on write, so a slide switched off while the
+	// deck sits on it lands somewhere valid without an effect mirroring the length.
 	let index = $state(0);
-	const slide = $derived(SLIDES[index]);
+	const position = $derived(slides.length > 0 ? index % slides.length : 0);
+	const slide = $derived(slides[position] ?? null);
 
 	const groupIds = $derived(source.groups.map((g) => g.group_id));
 	const clustered = $derived(source.stage === 'shaped' || source.stage === 'rich');
@@ -56,7 +68,8 @@
 	const divisiveBars = $derived(divisive ? voteBarsFor(source, divisive) : null);
 
 	function step(delta: number) {
-		index = (index + delta + SLIDES.length) % SLIDES.length;
+		if (slides.length === 0) return;
+		index = (position + delta + slides.length) % slides.length;
 	}
 
 	function onkeydown(event: KeyboardEvent) {
@@ -83,20 +96,26 @@
 >
 	<header class="flex shrink-0 items-baseline justify-between gap-6">
 		<h2 class="text-muted-foreground text-xl font-medium tracking-wide uppercase lg:text-2xl">
-			{slide.title}
+			{slide?.title ?? 'Nothing to show'}
 		</h2>
 		<div class="flex items-center gap-2">
-			{#each SLIDES as s, i (s.key)}
+			{#each slides as s, i (s.key)}
 				<span
 					class="size-2.5 rounded-full transition-colors"
-					style="background: {i === index ? 'var(--primary)' : 'var(--border)'}"
+					style="background: {i === position ? 'var(--primary)' : 'var(--border)'}"
 				></span>
 			{/each}
 		</div>
 	</header>
 
 	<div class="min-h-0 flex-1">
-		{#if slide.key === 'join'}
+		{#if slide === null}
+			<div class="flex h-full items-center justify-center">
+				<p class="text-muted-foreground text-2xl">
+					Every slide is switched off. Turn one back on in the board settings.
+				</p>
+			</div>
+		{:else if slide.key === 'join'}
 			<WarmingScreen
 				{question}
 				{joinUrl}
@@ -206,7 +225,9 @@
 		{/if}
 	</div>
 
-	<p class="text-muted-foreground shrink-0 text-base">
-		{index + 1} of {SLIDES.length} · click or arrow keys to move
-	</p>
+	{#if slides.length > 0}
+		<p class="text-muted-foreground shrink-0 text-base">
+			{position + 1} of {slides.length} · click or arrow keys to move
+		</p>
+	{/if}
 </div>
