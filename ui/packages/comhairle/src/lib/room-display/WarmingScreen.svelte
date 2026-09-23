@@ -15,7 +15,7 @@
 	or drivers.
 -->
 <script lang="ts">
-	import QrCode from 'svelte-qrcode';
+	import JoinQrCode from './JoinQrCode.svelte';
 
 	type Props = {
 		/** The Polis question the room is answering. */
@@ -55,13 +55,7 @@
 		to act on from eight metres away, so it gets the most pixels.
 	-->
 	<div class="shrink-0 rounded-2xl bg-white p-3 lg:p-6">
-		<QrCode
-			value={joinUrl}
-			size="1024"
-			padding={null}
-			errorCorrection="M"
-			className="size-36 sm:size-48 lg:size-64"
-		/>
+		<JoinQrCode value={joinUrl} resolution={1024} class="size-36 sm:size-48 lg:size-64" />
 	</div>
 
 	<div class="flex flex-wrap items-baseline justify-center gap-x-6 gap-y-2 lg:gap-x-10">

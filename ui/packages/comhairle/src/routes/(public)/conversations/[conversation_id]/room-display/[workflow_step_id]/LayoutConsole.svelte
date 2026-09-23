@@ -27,7 +27,7 @@
 	being the wall on its own.
 -->
 <script lang="ts">
-	import QrCode from 'svelte-qrcode';
+	import JoinQrCode from '$lib/room-display/JoinQrCode.svelte';
 	import type { RoomDisplaySource } from '$lib/room-display/source';
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
 	import { participantCount } from '$lib/room-display/scenario';
@@ -218,13 +218,7 @@
 				class="absolute right-6 bottom-6 flex flex-col items-center gap-1 lg:right-8 lg:bottom-8"
 			>
 				<div class="rounded-xl bg-white p-2">
-					<QrCode
-						value={joinUrl}
-						size="512"
-						padding={null}
-						errorCorrection="M"
-						className="size-24 lg:size-32"
-					/>
+					<JoinQrCode value={joinUrl} class="size-24 lg:size-32" />
 				</div>
 				<span class="text-muted-foreground text-base font-medium">Scan to join</span>
 			</div>
