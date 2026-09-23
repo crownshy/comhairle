@@ -494,10 +494,14 @@ async fn get_report_data(
         _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
     };
 
+    // Polis defaults a new conversation to strict_moderation off, so an unset flag means
+    // participants are already seeing pending statements.
+    let include_pending = !config.strict_moderation.unwrap_or(false);
+
     // Get the report data
     let data = state
         .wiki_poll_service
-        .get_report_data(&config.poll_id)
+        .get_report_data(&config.poll_id, include_pending)
         .await?;
 
     Ok((StatusCode::OK, Json(data)))
