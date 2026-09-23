@@ -2,7 +2,6 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import '@carbon/charts-svelte/styles.css';
-	import StatsBar from '$lib/components/StatsBar.svelte';
 	import { formatDistanceToNow } from 'date-fns';
 	import Speech from 'lucide-svelte/icons/speech';
 	import Drama from 'lucide-svelte/icons/drama';
@@ -12,20 +11,23 @@
 	let { data } = $props();
 	let { conversation, workflowSteps, report } = data;
 
+	//find polis step
+	let polisSteps = $derived(workflowSteps.filter((step) => step.toolConfig.type === 'polis'));
+
 	let pageTitle = $derived(`${conversation.title} Report`);
 
 	let stats = [
 		{
-			name: 'Participants',
-			amount: 30
+			name: 'Participants took part',
+			amount: 300
 		},
 		{
-			name: 'Time Spent',
-			amount: 30
+			name: 'Statements submitted',
+			amount: 319
 		},
 		{
-			name: 'Completed',
-			amount: 1
+			name: 'Opinion groups identified',
+			amount: 3
 		}
 	];
 </script>
@@ -49,22 +51,37 @@
 			{data.conversation.title}
 		</h1>
 		<p class="text-muted-foreground max-w-3xl text-lg leading-7">
-			A record of what participants shared, where they found common ground, and where views
-			remain different.
+			<!-- this is to be ported in later-->
+			Created on 23 September, 2026
 		</p>
+		<div class="mt-6 grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
+			{#each stats as stat (stat.name)}
+				<div
+					class="bg-card ring-border content-center items-center rounded-xl p-5 text-center shadow-sm ring-1 md:h-44 md:p-6"
+				>
+					<p
+						class="text-card-foreground text-2xl leading-8 font-semibold tabular-nums md:text-3xl md:leading-9"
+					>
+						{stat.amount}
+					</p>
+					<p
+						class="text-muted-foreground mt-1 text-base leading-6 font-semibold md:mt-1.5 md:text-lg md:leading-7"
+					>
+						{stat.name}
+					</p>
+				</div>
+			{/each}
+		</div>
 	</header>
 
-	<Tabs.Root value="Overview" class="space-y-4">
+	<Tabs.Root value="Overview" class="w-full max-w-[1400px] space-y-4 px-5 md:px-10">
 		<Tabs.List>
 			<Tabs.Trigger value="Overview">Overview</Tabs.Trigger>
-			{#each workflowSteps as step (step.id)}
+			{#each polisSteps as step (step.id)}
 				<Tabs.Trigger value={step.id}>{step.name}</Tabs.Trigger>
 			{/each}
-			<Tabs.Trigger value="Feedback">Feedback</Tabs.Trigger>
-			<Tabs.Trigger value="ModerationReport">Moderation Report</Tabs.Trigger>
 		</Tabs.List>
 		<Tabs.Content value="Overview" class="space-y-4">
-			<StatsBar {stats} />
 			<h2 class="text-xl font-bold">Key Takeaways</h2>
 
 			<div class="mb-4">
@@ -97,42 +114,14 @@
 			</ul>
 		</Tabs.Content>
 
-		{#each workflowSteps as step (step.id)}
-			<Tabs.Content value={step.id} class="spage-y-4">
-				{#if step.toolConfig.type === 'polis'}
-					<iframe
-						class="h-[100vh] w-full border-none"
-						src="https://poliscommunity.crown-shy.com/report/r4hrfdtemrjsxbn3ieyyb"
-					>
-					</iframe>
-				{:else}
-					<h1>Placeholder for results of {step.title}</h1>
-				{/if}
+		{#each polisSteps as step (step.id)}
+			<Tabs.Content value={step.id} class="space-y-4">
+				<iframe
+					class="h-[100vh] w-full border-none"
+					src="https://poliscommunity.crown-shy.com/report/r4hrfdtemrjsxbn3ieyyb"
+				>
+				</iframe>
 			</Tabs.Content>
 		{/each}
-
-		<Tabs.Content value="Moderation">
-			<h2 class="text-xl2">Moderation</h2>
-		</Tabs.Content>
-
-		<Tabs.Content value="Feedback">
-			<h3 class="mb-4 text-xl font-bold">Facilitator Feedback</h3>
-			<h3 class="mb-4 text-xl font-bold">Participant feedback</h3>
-			{#each report.facilitatorFeedback as feedback (feedback.id)}
-				<article
-					class="relative mb-4 rounded-lg border-l-4 border-blue-500 bg-gray-100 p-6 shadow-md dark:border-blue-400 dark:bg-gray-800"
-				>
-					<span
-						class="absolute top-2 left-3 font-serif text-5xl text-blue-500 dark:text-blue-400"
-						>"</span
-					>
-					{feedback.content}
-					<span
-						class="absolute right-3 bottom-2 font-serif text-5xl text-blue-500 dark:text-blue-400"
-						>"</span
-					>
-				</article>
-			{/each}
-		</Tabs.Content>
 	</Tabs.Root>
 </main>
