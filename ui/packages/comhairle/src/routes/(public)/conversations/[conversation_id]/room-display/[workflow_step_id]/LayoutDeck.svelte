@@ -88,7 +88,7 @@
 	means "next", nothing else.
 -->
 <div
-	class="flex h-full min-h-0 flex-col gap-6"
+	class="flex min-h-[85vh] flex-col gap-6 lg:h-full lg:min-h-0"
 	role="button"
 	tabindex="0"
 	onclick={() => step(1)}

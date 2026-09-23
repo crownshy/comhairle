@@ -113,13 +113,13 @@
 
 <svelte:window bind:innerHeight={viewportHeight} />
 
-<div class="flex h-full min-h-0 flex-col gap-6">
+<div class="flex min-h-0 flex-col gap-6 lg:h-full">
 	{#if showHeader}
-		<header class="flex shrink-0 items-start justify-between gap-8">
+		<header class="flex shrink-0 items-start justify-between gap-4 sm:gap-8">
 			<div class="flex min-w-0 flex-col gap-3">
 				{#if hasBlock(board, 'question')}
 					<h1
-						class="text-foreground max-w-5xl text-3xl leading-tight font-bold text-balance lg:text-5xl"
+						class="text-foreground max-w-5xl text-2xl leading-tight font-bold text-balance sm:text-3xl lg:text-5xl"
 					>
 						{question}
 					</h1>
@@ -129,21 +129,23 @@
 						The console carried these; without it the room would have no running
 						count of itself at all, so they come along under the question.
 					-->
-					<dl class="text-muted-foreground flex flex-wrap items-baseline gap-x-8 text-xl">
+					<dl
+						class="text-muted-foreground flex flex-wrap items-baseline gap-x-6 text-base sm:gap-x-8 sm:text-xl"
+					>
 						<div class="flex items-baseline gap-2">
-							<dd class="text-foreground text-2xl font-bold tabular-nums">
+							<dd class="text-foreground text-xl font-bold tabular-nums sm:text-2xl">
 								{participantCount(source.state)}
 							</dd>
 							<dt>here</dt>
 						</div>
 						<div class="flex items-baseline gap-2">
-							<dd class="text-foreground text-2xl font-bold tabular-nums">
+							<dd class="text-foreground text-xl font-bold tabular-nums sm:text-2xl">
 								{source.state.totalVotes}
 							</dd>
 							<dt>votes</dt>
 						</div>
 						<div class="flex items-baseline gap-2">
-							<dd class="text-foreground text-2xl font-bold tabular-nums">
+							<dd class="text-foreground text-xl font-bold tabular-nums sm:text-2xl">
 								{source.state.published.length}
 							</dd>
 							<dt>statements</dt>
@@ -156,7 +158,7 @@
 				<!-- Latecomers have to be able to join from whatever the wall happens to show. -->
 				<div class="flex shrink-0 flex-col items-center gap-1">
 					<div class="rounded-xl bg-white p-2">
-						<JoinQrCode value={joinUrl} class="size-24 lg:size-28" />
+						<JoinQrCode value={joinUrl} class="size-20 sm:size-24 lg:size-28" />
 					</div>
 					<span class="text-muted-foreground text-base font-medium">Scan to join</span>
 				</div>
@@ -165,7 +167,7 @@
 	{/if}
 
 	{#if showFocus || showAside}
-		<div class="grid min-h-0 flex-1 gap-8 {columns}">
+		<div class="grid min-h-0 flex-1 gap-6 lg:gap-8 {columns}">
 			{#if showFocus}
 				<section class="flex min-h-0 flex-col gap-4">
 					{#if wallView.kind === 'map'}
@@ -174,7 +176,9 @@
 						>
 							Opinion groups
 						</p>
-						<div class="min-h-0 flex-1">
+						<div
+							class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1"
+						>
 							<!--
 								A live source has no per-participant votes, so the map keeps its
 								group colours and a placed participant counts as settled: Polis
@@ -221,7 +225,7 @@
 							{#if focused}
 								{#key focused.tid}
 									<p
-										class="text-card-foreground fade-in text-2xl leading-snug font-medium text-balance lg:text-3xl"
+										class="text-card-foreground fade-in text-xl leading-snug font-medium text-balance sm:text-2xl lg:text-3xl"
 									>
 										{focused.text}
 									</p>
@@ -240,7 +244,7 @@
 									{/if}
 								{/key}
 							{:else}
-								<p class="text-muted-foreground text-xl lg:text-2xl">
+								<p class="text-muted-foreground text-base sm:text-xl lg:text-2xl">
 									{#if hasBlock(board, 'strip')}
 										Every dot below is a statement. Pick one to
 										{source.perParticipantVotes
@@ -302,7 +306,7 @@
 					{@const view: WallView = { kind: 'group', groupId: group.group_id }}
 					<button
 						type="button"
-						class="border-border hover:bg-muted flex items-center gap-3 rounded-md border px-5 py-3 text-xl transition-colors"
+						class="border-border hover:bg-muted flex items-center gap-3 rounded-md border px-4 py-2.5 text-base transition-colors sm:px-5 sm:py-3 sm:text-xl"
 						class:bg-muted={isShowing(view)}
 						class:border-primary={isShowing(view)}
 						aria-pressed={isShowing(view)}
@@ -322,7 +326,7 @@
 				{/each}
 				<button
 					type="button"
-					class="border-border hover:bg-muted flex items-center gap-3 rounded-md border px-5 py-3 text-xl transition-colors"
+					class="border-border hover:bg-muted flex items-center gap-3 rounded-md border px-4 py-2.5 text-base transition-colors sm:px-5 sm:py-3 sm:text-xl"
 					class:bg-muted={isShowing({ kind: 'consensus' })}
 					class:border-primary={isShowing({ kind: 'consensus' })}
 					aria-pressed={isShowing({ kind: 'consensus' })}
@@ -331,7 +335,7 @@
 					<span class="text-foreground font-semibold">Consensus statements</span>
 				</button>
 			{:else}
-				<p class="text-muted-foreground text-xl">
+				<p class="text-muted-foreground text-base sm:text-xl">
 					Groups appear once the room has voted enough for Polis to cluster it.
 				</p>
 			{/if}

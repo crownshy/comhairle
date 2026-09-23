@@ -151,7 +151,15 @@
 
 <svelte:head><title>Room display</title></svelte:head>
 
-<div class="bg-background text-foreground h-screen overflow-hidden p-8 pb-20">
+<!--
+	The wall is a fixed viewport with nothing to scroll: that is the whole point of a
+	projected surface. A phone or a narrow window cannot honour that without painting
+	the blocks on top of each other, so below `lg` the display stops pretending to be a
+	wall and becomes an ordinary scrolling page.
+-->
+<div
+	class="bg-background text-foreground min-h-screen p-4 pb-24 lg:h-screen lg:overflow-hidden lg:p-8 lg:pb-20"
+>
 	{#if recruiting && board.layout !== 'deck'}
 		<!--
 			Before Polis clusters there is genuinely nothing to plot, so the whole display
