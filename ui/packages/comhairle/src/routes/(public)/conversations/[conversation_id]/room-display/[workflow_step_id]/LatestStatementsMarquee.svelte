@@ -1,9 +1,13 @@
 <!--
-	@component The newest statements, scrolling along the bottom of the wall.
+	@component The newest statements, scrolling along the bottom of the wall. The
+	alternative presentation of the `marquee` block; `LatestStatements.svelte` is the
+	still one, and the default.
 
-	The room needs to see that the thing is alive: a statement someone typed two
-	minutes ago going past is the cheapest proof of that, and it reads at a glance
-	from the back of a room in a way a static list does not.
+	Kept rather than deleted because the claim against it ("moving text cannot be read
+	at room distance") is worth testing in a room rather than settling in a review. The
+	scroll is deliberately slow now: slow enough that a sentence is on screen long
+	enough to finish, which is the most generous version of the idea. If it still loses
+	to the still list in front of an actual audience, delete this file.
 
 	Two copies of the track ride a single `translateX(-50%)` loop, so the seam between
 	the last chip and the first is invisible. The list is capped: once the room is past
@@ -22,7 +26,7 @@
 		secondsPerStatement?: number;
 	};
 
-	let { comments, secondsPerStatement = 7 }: Props = $props();
+	let { comments, secondsPerStatement = 18 }: Props = $props();
 
 	const MAX_CHIPS = 12;
 

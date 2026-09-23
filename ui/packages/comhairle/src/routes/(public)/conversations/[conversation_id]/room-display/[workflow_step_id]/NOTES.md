@@ -45,6 +45,66 @@ does nothing.
 The recruitment screen is not the board: before Polis clusters there is nothing to
 arrange, so `WarmingScreen` ignores the block set.
 
+## Latest statements: marquee or still?
+
+**Question:** the `marquee` block started as a horizontal ticker, statements scrolling
+continuously along the bottom of the wall. It looked alive and read badly.
+
+**The argument against scrolling:** you cannot read moving text across a room. The eye
+has to acquire a moving target and then track it, and at eight metres it loses before
+the sentence finishes. That is the same failure the whole display was built to avoid,
+reintroduced at the bottom of the screen. Slowing it down does not fix it, because the
+problem is the motion rather than the speed: a slower scroll just means fewer
+statements go past while still being unreadable.
+
+**What replaced it:** motion on arrival and nowhere else. A new statement animates in
+at the head, the rest slide along, the oldest drops off, and then everything is
+completely still until the next one. This is exactly the **accent** CONTEXT.md already
+describes: in-place, non-blocking, never taking the screen. Between arrivals the room
+is reading type that is not moving, which is the only way it gets read at all.
+
+Recency is carried by an opacity ramp rather than by movement. Oldest is faintest, and
+that says "this is a running list, newest first" without anything having to move.
+
+**Three presentations, one block.** `?latest=` picks:
+
+| value     | what it is                                  | where it suits                 |
+| --------- | ------------------------------------------- | ------------------------------ |
+| `row`     | still, newest leftmost, 4 across (default)  | the wide short slot on a wall  |
+| `column`  | still, newest at top, 3 down                | when the block has height      |
+| `marquee` | the original continuous scroll, much slower | the thing being argued against |
+
+The marquee is kept rather than deleted so the claim above can lose in an actual room
+instead of winning in a review. It is slowed right down, which is the most generous
+version of the idea. If it still loses in front of an audience, delete
+`LatestStatementsMarquee.svelte`.
+
+**Known cost of `column`:** in the `split` layout it competes with the opinion map for
+height, and three statements is enough to squash the map noticeably. `row` is the right
+default there. Column is waiting for a layout that gives the block a real column.
+
+**A trap worth remembering:** the list uses `animate:flip`, and Svelte drives that with
+a generated keyframe on the element's own `animation` property. Putting our own CSS
+`animation` on that same element left permanent stuck transforms (items frozen at
+`scale(0.24, 2.12)`) whenever the layout changed under it. The arrival animation lives
+on a box inside the flipped element for that reason. The list is also keyed on the
+direction, so switching presentation rebuilds rather than flying every item from its
+old position to its new one.
+
+## Lighting
+
+`?theme=light|dark`, or `auto` to leave the app's own setting alone. The display cannot
+work this out for itself: the same projector is unreadable dark in a bright hall and
+glaring light in a dim one, and that is a property of the room rather than of the
+viewer.
+
+It drives the app-wide `themeStore` rather than scoping itself, because dark is a
+`.dark` class on `<html>` and themed deployments key off `[data-theme=x].dark` on that
+same element. There is no way to scope it to this page without breaking the theme on
+every branded deployment. On a projector that is the right trade. `auto` therefore does
+nothing rather than restoring a previous mode, so merely opening this page never
+overrides someone's own preference.
+
 Below is the record of how the direction was chosen.
 
 ## Which direction?

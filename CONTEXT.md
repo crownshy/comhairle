@@ -82,7 +82,7 @@ by both breakpoints. Replaces the old `StepHeader` plus `StepSelector` pair. See
 [ADR-0022](documentation/adr/0022-a-step-ends-on-a-completion-screen.md).
 
 **Step brief**:
-A Step's description *as presented to participants*: a sequence of [[#slide]]s rather than
+A Step's description _as presented to participants_: a sequence of [[#slide]]s rather than
 one block of prose. The description is the source, the brief is the presentation. The brief
 has exactly two surfaces, the [[#cover]] and the [[#hint]], and both show the same content.
 _Avoid_: Intro, blurb.
@@ -341,9 +341,12 @@ A **block** is one switchable region of the display: question, counts, [[#opinio
 
 A **layout** is how the space is spent, distinguished by _who does the interpreting_: **Split** (one full-width wall, facilitator controls along the bottom, the room interprets), **Console** (a calm wall beside a dense facilitator panel, interpretation split between the two), **Deck** (one idea per screen in sequence, advanced by hand, the facilitator interprets). Layouts are [[#report-view]]s, not separate products, and share one component set.
 
-A **board** is a layout plus the set of blocks that are on. It is spelled out by `?layout=` and `?blocks=`, named by `?variant=`, and edited live from the settings panel on the display itself, so any arrangement is a link you can send. A board a facilitator builds is remembered per display, but an explicit URL always wins over what the machine remembers.
+A **board** is a layout, the set of blocks that are on, how the latest-statements block draws itself, and the room's lighting. It is spelled out by `?layout=`, `?blocks=`, `?latest=` and `?theme=`, named by `?variant=`, and edited live from the settings panel on the display itself, so any arrangement is a link you can send. A board a facilitator builds is remembered per display, but an explicit URL always wins over what the machine remembers.
 
 _Avoid_: "direction" (the earlier word for a layout, when there were three: Board, Deck and **Narrator**, a templated rolling commentary the machine interpreted; Narrator was cut and the one-screen Board became Split with every block on). Avoid "variant" for anything but a named board.
+
+**Room lighting**:
+Whether the display renders light or dark, set per display by `?theme=light|dark`; `auto` leaves the app's own setting alone. A property of the room rather than of the viewer: the same projector is unreadable dark in a bright hall and glaring light in a dim one. Drives the app-wide theme, because dark is a class on `<html>` and branded deployments key off it there, so it cannot be scoped to one page.
 
 **Ambient mode / Driven mode**:
 The Room display's two operating modes. **Ambient** is the default and has no pointer: it autoplays and must be legible across a room with no tooltips. **Driven** starts when the facilitator touches anything, making hover and click live, and lapses back to ambient after an idle period. Every Room display component needs both behaviours.
@@ -359,7 +362,7 @@ One dot per **participant**, positioned by `ParticipantReportData.pca_position` 
 _Avoid_: "user clusters", "the beeswarm" (that is the continuum).
 
 **Statement ticker**:
-The Room display's running list of the most recently published statements, ordered by `polis_statement_aux.created_at` (the report payload carries no timestamp). A [[#block--layout--board|block]], rendered as a scrolling marquee along the bottom of a wall and as its own slide on a deck. Deliberately **inert**: not clickable, not highlighted, not linked to anything else on the display. It is something the room watches. The only relationship on a Room display is [[#consensus-continuum]] dot to [[#opinion-map]] dot, and the continuum is the one surface a facilitator touches, so focus has a single origin.
+The Room display's running list of the most recently published statements, ordered by `polis_statement_aux.created_at` (the report payload carries no timestamp). A [[#block--layout--board|block]], and its own slide on a deck. Drawn three ways (`?latest=`): **row** and **column** are still, moving only when a statement arrives, which is the default because moving text cannot be read across a room; **marquee** scrolls continuously and is kept only so the two can be judged in an actual room. Deliberately **inert**: not clickable, not highlighted, not linked to anything else on the display. It is something the room watches. The only relationship on a Room display is [[#consensus-continuum]] dot to [[#opinion-map]] dot, and the continuum is the one surface a facilitator touches, so focus has a single origin.
 
 **Cross-highlight**:
 Hovering or selecting a statement on the [[#consensus-continuum]] recolours the dots on the [[#opinion-map]] by how each participant voted on that statement. The continuum drives the map, which is why it takes an optional controlled `focusedTid`: in [[#ambient-mode--driven-mode|ambient mode]] nobody hovers, so something else has to decide what the swarm is pointing at. Needs a per-participant vote matrix, which no live endpoint currently returns; `report_data` carries only per-group aggregates. Prototyped against synthetic data, and must be backed by a real endpoint before any public event.
