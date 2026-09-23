@@ -97,7 +97,17 @@ pub trait WikiPollService: Send + Sync {
         auth_cookies: &str,
     ) -> Result<u32, WikiPollServiceError>;
 
-    async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError>;
+    /// Report data for a poll.
+    ///
+    /// `include_pending` mirrors the conversation's `strict_moderation` setting inverted:
+    /// with strict moderation off, Polis shows participants everything that has not been
+    /// rejected, so the report has to carry pending statements or the display and the
+    /// participant interface disagree about what is in the conversation.
+    async fn get_report_data(
+        &self,
+        poll_id: &str,
+        include_pending: bool,
+    ) -> Result<WikiPollReport, WikiPollServiceError>;
 
     async fn moderate_comment(
         &self,

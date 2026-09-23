@@ -335,15 +335,27 @@ impl PolisClient {
         &self,
         math_pca: PolisMathPca,
         comments_data: Vec<PolisCommentWithVoting>,
+        include_pending: bool,
     ) -> Result<WikiPollReport, WikiPollServiceError> {
         // Create maps for easy lookup
         let mut comment_texts = HashMap::new();
         let mut comment_votes = HashMap::new();
         let mut comment_is_seed = HashMap::new();
 
+        // Polis `mod`: 1 accepted, 0 pending, -1 rejected. Rejected is out either way;
+        // pending follows the conversation's moderation setting so the report shows what
+        // participants are actually being asked to vote on.
+        let is_visible = |moderation: f64| {
+            if include_pending {
+                moderation >= 0.0
+            } else {
+                moderation > 0.0
+            }
+        };
+
         for comment in comments_data.iter() {
             comment_texts.insert(comment.tid, comment.txt.clone());
-            if comment.moderation > 0.0 {
+            if is_visible(comment.moderation) {
                 comment_is_seed.insert(comment.tid, comment.is_seed);
                 comment_votes.insert(
                     comment.tid,
@@ -780,13 +792,17 @@ impl WikiPollService for PolisClient {
         Ok(votes.len() as u32)
     }
 
-    async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError> {
+    async fn get_report_data(
+        &self,
+        poll_id: &str,
+        include_pending: bool,
+    ) -> Result<WikiPollReport, WikiPollServiceError> {
         // Fetch all the data that powers the report page
         let math_pca = self.get_math_pca(poll_id).await?;
         let comments_data = self.get_comments_with_voting(poll_id).await?;
 
         // Transform the raw data into structured report format
-        self.transform_report_data(math_pca, comments_data)
+        self.transform_report_data(math_pca, comments_data, include_pending)
     }
 
     #[instrument(err(Debug), skip(self, auth_cookies))]
@@ -992,5 +1008,58 @@ mod tests {
         assert!(poll.is_active.unwrap(), "should be true");
 
         Ok(())
+    }
+
+    fn comment(tid: u32, moderation: f64) -> PolisCommentWithVoting {
+        PolisCommentWithVoting {
+            tid,
+            txt: format!("statement {tid}"),
+            agree_count: 1,
+            disagree_count: 0,
+            pass_count: 0,
+            is_seed: false,
+            moderation,
+        }
+    }
+
+    /// One accepted, one pending, one rejected, all three placed by the math.
+    fn math_for(tids: Vec<u32>) -> PolisMathPca {
+        PolisMathPca {
+            tids: tids.clone(),
+            group_votes: BTreeMap::new(),
+            group_aware_consensus: HashMap::new(),
+            pca: PcaData {
+                comment_extremity: tids.iter().map(|_| 0.5).collect(),
+            },
+            group_clusters: Vec::new(),
+            repness: HashMap::new(),
+            base_clusters: BaseClusters {
+                members: Vec::new(),
+                x: Vec::new(),
+                y: Vec::new(),
+            },
+        }
+    }
+
+    fn reported_tids(include_pending: bool) -> Vec<u32> {
+        let client = PolisClient::new("polis.comhairle.scot");
+        let report = client
+            .transform_report_data(
+                math_for(vec![1, 2, 3]),
+                vec![comment(1, 1.0), comment(2, 0.0), comment(3, -1.0)],
+                include_pending,
+            )
+            .expect("transform should succeed");
+        report.comments.iter().map(|c| c.tid).collect()
+    }
+
+    #[test]
+    fn strict_moderation_reports_accepted_statements_only() {
+        assert_eq!(reported_tids(false), vec![1]);
+    }
+
+    #[test]
+    fn open_moderation_reports_pending_statements_too() {
+        assert_eq!(reported_tids(true), vec![1, 2]);
     }
 }
