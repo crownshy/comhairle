@@ -334,8 +334,16 @@ _Avoid_: "live event page" and "live view" (taken: `events/[event_id]/live` is t
 **Demo mode / Live mode**:
 The two sources a Room display can render from, chosen by `?mode=`. **Live** polls the Step's real `report_data`. **Demo** replays a scripted scenario with animated joins and votes, for showing the display without a room; it is the only source that carries per-participant votes, so only a demo can colour the [[#opinion-map]] by a single statement ([[#cross-highlight]]).
 
-**Room display direction**:
-One of the three arrangements of the same report components the Room display can run in, distinguished by _who does the interpreting_: **Board** (everything on one screen, the room interprets), **Deck** (one idea per screen in sequence, the facilitator interprets), **Narrator** (a templated rolling commentary, the machine interprets). Directions are [[#report-view]]s, not separate products, and share one component set.
+**Block / Layout / Board**:
+What a Room display is showing, and how it is arranged.
+
+A **block** is one switchable region of the display: question, counts, [[#opinion-map]], selected statement, statement strip, [[#statement-ticker|latest statements]], group controls, QR code. A block that is off is off wherever you are.
+
+A **layout** is how the space is spent, distinguished by _who does the interpreting_: **Split** (one full-width wall, facilitator controls along the bottom, the room interprets), **Console** (a calm wall beside a dense facilitator panel, interpretation split between the two), **Deck** (one idea per screen in sequence, advanced by hand, the facilitator interprets). Layouts are [[#report-view]]s, not separate products, and share one component set.
+
+A **board** is a layout plus the set of blocks that are on. It is spelled out by `?layout=` and `?blocks=`, named by `?variant=`, and edited live from the settings panel on the display itself, so any arrangement is a link you can send. A board a facilitator builds is remembered per display, but an explicit URL always wins over what the machine remembers.
+
+_Avoid_: "direction" (the earlier word for a layout, when there were three: Board, Deck and **Narrator**, a templated rolling commentary the machine interpreted; Narrator was cut and the one-screen Board became Split with every block on). Avoid "variant" for anything but a named board.
 
 **Ambient mode / Driven mode**:
 The Room display's two operating modes. **Ambient** is the default and has no pointer: it autoplays and must be legible across a room with no tooltips. **Driven** starts when the facilitator touches anything, making hover and click live, and lapses back to ambient after an idle period. Every Room display component needs both behaviours.
@@ -347,11 +355,11 @@ The two classes of live event on the Room display. An **accent** is in-place and
 How much of the Room display is unlocked, gated on what Polis's math can actually support: **Empty** (no votes), **Warming** (votes arriving, no clusters yet, so only `overall_votes` bars plus the QR recruitment screen), **Shaped** (Polis has produced opinion groups, so [[#opinion-map]] and [[#consensus-continuum]] unlock), **Rich** (enough scored statements for consensus and divisiveness rankings to mean something). Stages **ratchet**: once reached, never re-locked, because Polis's group count genuinely oscillates. The current threshold is shown to the room as a countdown.
 
 **Opinion map**:
-One dot per **participant**, positioned by `ParticipantReportData.pca_position` and coloured by [[#opinion-group]]. The "who is in the room and where do they sit" view. Distinct from the [[#consensus-continuum]], where one dot is one **statement**. Not built yet.
+One dot per **participant**, positioned by `ParticipantReportData.pca_position` and coloured by [[#opinion-group]]. The "who is in the room and where do they sit" view. Distinct from the [[#consensus-continuum]], where one dot is one **statement**.
 _Avoid_: "user clusters", "the beeswarm" (that is the continuum).
 
 **Statement ticker**:
-The Room display's running list of the most recently published statements, ordered by `polis_statement_aux.created_at` (the report payload carries no timestamp). Deliberately **inert**: not clickable, not highlighted, not linked to anything else on the display. It is something the room watches. The only relationship on a Room display is [[#consensus-continuum]] dot to [[#opinion-map]] dot, and the continuum is the one surface a facilitator touches, so focus has a single origin.
+The Room display's running list of the most recently published statements, ordered by `polis_statement_aux.created_at` (the report payload carries no timestamp). A [[#block--layout--board|block]], rendered as a scrolling marquee along the bottom of a wall and as its own slide on a deck. Deliberately **inert**: not clickable, not highlighted, not linked to anything else on the display. It is something the room watches. The only relationship on a Room display is [[#consensus-continuum]] dot to [[#opinion-map]] dot, and the continuum is the one surface a facilitator touches, so focus has a single origin.
 
 **Cross-highlight**:
 Hovering or selecting a statement on the [[#consensus-continuum]] recolours the dots on the [[#opinion-map]] by how each participant voted on that statement. The continuum drives the map, which is why it takes an optional controlled `focusedTid`: in [[#ambient-mode--driven-mode|ambient mode]] nobody hovers, so something else has to decide what the swarm is pointing at. Needs a per-participant vote matrix, which no live endpoint currently returns; `report_data` carries only per-group aggregates. Prototyped against synthetic data, and must be backed by a real endpoint before any public event.
