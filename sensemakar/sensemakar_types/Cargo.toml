@@ -1,0 +1,13 @@
+[package]
+name = "sensemakar_types"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dependencies]
+serde_json = "1.0.151"
+serde = { version = "1.0.229", features = ["serde_derive"] }
+schemars = { version = "1.2.2", features = ["jiff02"] }
+thiserror = "2.0.20"
+language-tags = { version = "0.3.2", features = ["serde"] }
+jiff = { version = "0.2.37", features = ["serde"] }

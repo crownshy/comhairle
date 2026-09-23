@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "api", "comhairle_macros","adaptors/heyform-rust-sdk", "adaptors/ragflow", "api_spec_gen"]
+    "api", "comhairle_macros","adaptors/heyform-rust-sdk", "adaptors/ragflow", "api_spec_gen", "sensemakar/*"]
 resolver="2"
 
 [workspace.package]

@@ -126,6 +126,10 @@ tokio-tungstenite = "0.27.0"
 futures-util = "0.3.31"
 dashmap = "6.1.0"
 
+# sensemaking 
+sensemakar_jobs ={path="../sensemakar/sensemakar_jobs"}
+sensemakar_types ={path="../sensemakar/sensemakar_types"}
+
 # adaptors
 
 heyform-sdk = { path = "../adaptors/heyform-rust-sdk" }
