@@ -26,7 +26,9 @@ export const test = base.extend<Fixtures>({
 
 		await use((fn) => cleanups.push(fn));
 
-		await Promise.all(cleanups.map((fn) => fn()));
+		for (const cleanup of cleanups) {
+			await cleanup();
+		}
 
 		// Wait for fields to save before exiting
 		await sleep(1.5);

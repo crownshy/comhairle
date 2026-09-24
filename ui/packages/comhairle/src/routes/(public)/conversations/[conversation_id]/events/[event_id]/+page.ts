@@ -4,7 +4,7 @@ import type { LocalizedEventDto, EventAttendanceDto } from '@crownshy/api-client
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ parent, params, url, depends }) => {
-	depends(key('event'));
+	depends(key('public/event'));
 	const { api, user } = await parent();
 	const { conversation_id, event_id } = params;
 

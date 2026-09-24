@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import { page } from '$app/stores';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Badge } from '$lib/components/ui/badge';
@@ -9,7 +10,6 @@
 	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck, Info } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
-	import { key } from '$lib/utils/invalidationKey';
 
 	let { data }: PageProps = $props();
 
@@ -113,7 +113,7 @@
 				}
 			);
 			// Reload to refresh attendance data
-			await invalidate(key('event'));
+			await invalidate(key('public/event'));
 		} catch (e: any) {
 			error = e?.message || 'Failed to register';
 		} finally {

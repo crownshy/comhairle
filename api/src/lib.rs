@@ -189,6 +189,8 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
         ])
         .allow_origin(allowed_origins);
 
+    let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
+
     // Rate limiting is applied per route inside the auth router: the strict
     // limiter belongs on the credential endpoints, not on session reads.
     // Added `.await` here to resolve the opaque Future issue
@@ -196,6 +198,10 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
 
     let router = ApiRouter::new()
         .route("/health", axum::routing::get(health_check))
+        .route(
+            "/metrics",
+            axum::routing::get(move || async move { metric_handle.render() }),
+        )
         .nest_api_service("/auth", auth_router)
         .nest_api_service(
             "/user",
@@ -321,7 +327,8 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
         ))
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
         .layer(DefaultBodyLimit::max(500 * 1024 * 1024))
-        .layer(cors);
+        .layer(cors)
+        .layer(prometheus_layer);
 
     (router, api)
 }
