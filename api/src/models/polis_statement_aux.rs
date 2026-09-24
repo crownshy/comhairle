@@ -14,8 +14,9 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::{self, SqlxResultExt, users::User};
+use crate::models::{self, SqlxResultExt};
 use crate::routes::auth::authorize;
+use crate::routes::user::dto::UserDto;
 use crate::wiki_poll_service::ModerationStatus;
 
 impl From<ModerationStatus> for sea_query::Value {
@@ -558,7 +559,7 @@ pub async fn check_is_commentor(
 #[instrument(err(Debug), skip(state))]
 pub async fn check_can_moderate(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     workflow_step_id: &Uuid,
 ) -> Result<(), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, workflow_step_id).await?;

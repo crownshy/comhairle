@@ -4,30 +4,24 @@ use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId, g
 use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
-use crate::routes::user::dto::UserDto;
 use crate::routes::workflows::dto::WorkflowDto;
 use crate::setup_server;
 use crate::test_helpers::{UserSession, test_state};
 
-use axum::Router;
+use crate::App;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 /// Sets up a default app `Router` and `UserSession` for testing.
 pub async fn setup_default_app_and_session(
     pool: &PgPool,
-) -> Result<(Router, UserSession), Box<dyn Error>> {
+) -> Result<(App, UserSession), Box<dyn Error>> {
     let state = Arc::new(test_state().db(pool.clone()).call()?);
     let app = setup_server(state.clone()).await?;
 
     let mut session = UserSession::new_admin();
-    let (_, user, _) = session.signup(&app).await?;
-    let user_id = user
-        .get("id")
-        .and_then(|value| value.as_ref())
-        .and_then(|value| value.as_str())
-        .ok_or("missing signup user id")?;
-    let user_id = Uuid::parse_str(user_id)?;
+    session.login(&app).await?;
+    let user_id = session.id.expect("Missing admin user_id");
 
     let _ = grant_role(
         &state,
@@ -45,7 +39,7 @@ pub async fn setup_default_app_and_session(
 
 /// Creates a new workflow with a random name and returns the ID.
 pub async fn get_random_workflow_id(
-    app: &Router,
+    app: &App,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
     let (_, response, _) = session.create_random_conversation(app).await?;
@@ -60,7 +54,7 @@ pub async fn get_random_workflow_id(
 
 /// Creates a new conversation with a random name and returns the ID.
 pub async fn get_random_conversation_id(
-    app: &Router,
+    app: &App,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
     let (_, response, _) = session.create_random_conversation(app).await?;
@@ -71,18 +65,17 @@ pub async fn get_random_conversation_id(
 
 /// Creates a new anonymous user and returns the ID.
 pub async fn get_random_user_id(
-    app: &Router,
+    app: &App,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
-    let (_, response, _) = session.signup_guest(app).await?;
-    let user: UserDto = serde_json::from_value(serde_json::to_value(response)?)?;
+    let (_, user, _) = session.signup_guest(app).await?;
 
     Ok(user.id)
 }
 
 /// Creates a new organization and returns the ID.
 pub async fn get_random_organization_id(
-    app: &Router,
+    app: &App,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
     let (status, response, _) = session.create_random_organization(app).await?;

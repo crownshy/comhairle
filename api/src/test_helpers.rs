@@ -1,13 +1,28 @@
+use crate::App;
+use crate::auth_service::{AuthService, MockAuthService};
 use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
+use crate::models::users::UserAuthType;
 use crate::redis_connection::RedisConnection;
+use crate::routes::auth::extract::ComhairleExtAttrs;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
+#[cfg(test)]
+use aide::axum::routing::ApiMethodRouter;
+#[cfg(test)]
+use axum::extract;
+#[cfg(test)]
+use axum::middleware::{self, Next};
+use axum_keycloak_auth::KeycloakAuthStatus;
+use axum_keycloak_auth::decode::{Email, KeycloakToken, Profile, ProfileAndEmail};
+#[cfg(test)]
+use axum_keycloak_auth::error::AuthError;
 use chrono::Utc;
 use hyper::header::AUTHORIZATION;
+#[cfg(test)]
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
 use axum::{
-    Router,
     body::Body,
     http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header::COOKIE},
     response::Response,
@@ -46,6 +61,8 @@ use crate::{
 /// - Good complexity score
 pub const TEST_PASSWORD: &str = "TestPassword123!";
 
+pub const KC_TEST_SESSION: &str = "kc_test_session";
+
 pub fn mock_mailer() -> Arc<MockComhairleMailer> {
     let mailer = MockComhairleMailer::base();
     Arc::new(mailer)
@@ -54,6 +71,11 @@ pub fn mock_mailer() -> Arc<MockComhairleMailer> {
 pub fn mock_websockets() -> Arc<dyn WebSocketService> {
     let websockets = MockWebSocketService::base();
     Arc::new(websockets)
+}
+
+pub fn mock_auth_service() -> Arc<dyn AuthService> {
+    let auth_service = MockAuthService::base();
+    Arc::new(auth_service)
 }
 
 pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
@@ -97,6 +119,7 @@ pub fn test_state(
     mailer: Option<Arc<MockComhairleMailer>>,
     config: Option<ComhairleConfig>,
     websockets: Option<Arc<dyn WebSocketService>>,
+    auth_service: Option<Arc<dyn AuthService>>,
     translation_service: Option<Arc<dyn TranslationService>>,
     transcription_service: Option<Arc<dyn Transcriber>>,
     bot_service: Option<Arc<dyn ComhairleBotService>>,
@@ -112,6 +135,7 @@ pub fn test_state(
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
         video_call_handler: Arc::new(VideoCallMessageHandler::new()),
+        auth_service: auth_service.unwrap_or_else(|| mock_auth_service()),
         translation_service: translation_service
             .map(Some)
             .unwrap_or_else(|| mock_translation_service()),
@@ -141,6 +165,112 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     config.refresh_jwt_secret = "refresh_secret".to_string();
     config.enable_rate_limiting = false; // Disable rate limiting for tests by default
     Ok(config)
+}
+
+#[cfg(test)]
+pub fn test_auth_layer(
+    method_router: ApiMethodRouter<Arc<ComhairleState>>,
+) -> ApiMethodRouter<Arc<ComhairleState>> {
+    method_router.layer(middleware::from_fn(
+        move |mut req: extract::Request, next: Next| {
+            let user: Option<TestAuthUser> = req
+                .headers()
+                .get(COOKIE)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|header_str| {
+                    header_str
+                        .split("; ")
+                        .find_map(|pair| pair.strip_prefix(&format!("{KC_TEST_SESSION}=")))
+                })
+                .and_then(|v| serde_json::from_str(v).ok());
+
+            async move {
+                match user {
+                    Some(user) => {
+                        let token = user.into_test_token();
+                        // Account for `PassthroughMode::Block`, see `required_auth` on
+                        // `ComhairleState`
+                        req.extensions_mut().insert(token.clone());
+                        // Account for `PassthroughMode::Pass`, see `optional_auth` on
+                        // `ComhairleState`
+                        req.extensions_mut()
+                            .insert(KeycloakAuthStatus::Success(token))
+                    }
+                    None => req
+                        .extensions_mut()
+                        .insert(KeycloakAuthStatus::Failure(Arc::new(
+                            AuthError::MissingToken,
+                        ))),
+                };
+                next.run(req).await
+            }
+        },
+    ))
+}
+
+#[cfg(test)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TestAuthUser {
+    pub id: Uuid,
+    pub auth_type: UserAuthType,
+    pub email: Option<String>,
+    pub username: Option<String>,
+    pub guest_code: Option<String>,
+    pub organization_id: Option<Uuid>,
+}
+
+impl Default for TestAuthUser {
+    fn default() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            auth_type: UserAuthType::EmailPassword,
+            email: Some("admin@crown-shy.com".to_string()),
+            username: Some("admin".to_string()),
+            guest_code: None,
+            organization_id: None,
+        }
+    }
+}
+
+#[cfg(test)]
+impl TestAuthUser {
+    fn into_test_token(self) -> KeycloakToken<String, ComhairleExtAttrs> {
+        KeycloakToken {
+            subject: self.id.to_string(),
+            jwt_id: Uuid::new_v4().to_string(),
+            roles: vec![],
+            expires_at: time::OffsetDateTime::now_utc() + time::Duration::minutes(5),
+            issued_at: time::OffsetDateTime::now_utc(),
+            issuer: "comhairle".to_string(),
+            audience: vec!["account".to_string()],
+            authorized_party: "comhairle".to_string(),
+            extra: ComhairleExtAttrs {
+                profile: ProfileAndEmail {
+                    profile: Profile {
+                        given_name: None,
+                        family_name: None,
+                        full_name: None,
+                        preferred_username: self.username.unwrap_or_default(),
+                    },
+                    email: Email {
+                        email: self.email.unwrap_or_default(),
+                        email_verified: true,
+                    },
+                },
+                comhairle_auth_type: self.auth_type,
+                avatar_url: None,
+                organization_id: self.organization_id,
+                guest_code: self.guest_code,
+            },
+        }
+    }
+
+    fn into_user_dto(self) -> Result<UserDto, Box<dyn Error>> {
+        let token_data = self.into_test_token();
+        let user = UserDto::try_from(token_data)?;
+
+        Ok(user)
+    }
 }
 
 pub const TEST_RESOURCE_TYPE: &str = "test";
@@ -297,10 +427,14 @@ impl MultipartBodyBuilder {
 #[derive(Debug)]
 pub struct UserSession {
     pub id: Option<Uuid>,
+    #[deprecated] // TODO: remove once tests are passing
     pub username: Option<String>,
+    #[deprecated]
     pub password: Option<String>,
+    #[deprecated]
     pub email: Option<String>,
     pub guest_code: Option<String>,
+    pub kc_user: Option<TestAuthUser>,
     pub cookies: Option<HashMap<String, String>>,
 }
 
@@ -312,30 +446,67 @@ impl UserSession {
             password: None,
             guest_code: None,
             email: None,
+            kc_user: None,
             cookies: None,
         }
     }
 
-    pub fn new_admin() -> Self {
+    pub fn legacy_new_admin() -> Self {
         Self {
             id: None,
             username: Some("admin".into()),
             password: Some(TEST_PASSWORD.into()),
             email: Some("admin@crown-shy.com".into()),
             guest_code: None,
+            kc_user: None,
             cookies: None,
         }
     }
 
     pub fn new(username: &str, password: &str, email: &str) -> Self {
+        let kc_user_data = TestAuthUser {
+            id: Uuid::new_v4(),
+            email: Some(email.to_string()),
+            username: Some(username.to_string()),
+            ..Default::default()
+        };
         Self {
-            id: None,
+            id: Some(kc_user_data.id),
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
             guest_code: None,
+            kc_user: Some(kc_user_data),
             cookies: None,
         }
+    }
+
+    pub fn new_admin() -> Self {
+        let kc_user_data = TestAuthUser::default();
+        Self {
+            // TODO: this may need to be fixed value for referencing instead of randomly generated
+            id: Some(kc_user_data.id),
+            username: None,
+            email: None,
+            password: None,
+            guest_code: None,
+            kc_user: Some(kc_user_data),
+            cookies: None,
+        }
+    }
+
+    fn set_kc_user_cookie(&mut self) -> Result<(), Box<dyn Error>> {
+        let mut cookies = self.cookies.take().unwrap_or_default();
+        cookies.insert(
+            KC_TEST_SESSION.into(),
+            format!(
+                "{KC_TEST_SESSION}={}",
+                serde_json::to_string(&self.kc_user)?
+            ),
+        );
+        self.cookies = Some(cookies);
+
+        Ok(())
     }
 
     pub fn cookie_header(&self) -> Option<String> {
@@ -361,7 +532,7 @@ impl UserSession {
 
     pub async fn get(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder().uri(url).method("GET");
@@ -389,7 +560,7 @@ impl UserSession {
 
     pub async fn get_with_api_key(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
         api_key: &str,
     ) -> Result<(StatusCode, Value), Box<dyn Error>> {
@@ -407,7 +578,7 @@ impl UserSession {
 
     pub async fn delete(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder().uri(url).method("DELETE");
@@ -435,7 +606,7 @@ impl UserSession {
 
     pub async fn delete_with_body(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -467,7 +638,7 @@ impl UserSession {
 
     pub async fn post(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -499,7 +670,7 @@ impl UserSession {
 
     pub async fn post_raw_response(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Body, Vec<HeaderValue>), Box<dyn Error>> {
@@ -532,7 +703,7 @@ impl UserSession {
 
     pub async fn post_multipart(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
         boundary: &str,
         body: Body,
@@ -565,7 +736,7 @@ impl UserSession {
 
     pub async fn post_with_headers(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
         body: Body,
         headers: &[(HeaderName, HeaderValue)],
@@ -602,7 +773,7 @@ impl UserSession {
 
     pub async fn put(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -634,7 +805,7 @@ impl UserSession {
 
     pub async fn patch(
         &mut self,
-        app: &Router,
+        app: &App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -666,41 +837,39 @@ impl UserSession {
 
     pub async fn logout(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/auth/logout", Body::empty()).await
     }
 
     pub async fn current_user(
         &mut self,
-        app: &Router,
+        _app: &App,
     ) -> Result<(StatusCode, UserDto, Vec<HeaderValue>), Box<dyn Error>> {
-        let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
+        let user = self.kc_user.clone().unwrap().into_user_dto()?;
 
-        let user: UserDto = serde_json::from_value(value.clone())
-            .map_err(|err| format!("Failed to parse current user: {value:?} - Error: {err}"))?;
-        Ok((status, user, cookie))
+        Ok((StatusCode::OK, user, vec![]))
     }
 
     pub async fn login(
         &mut self,
-        app: &Router,
-        email: &str,
-        password: &str,
+        _app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
-        self.post(
-            app,
-            "/auth/login",
-            json!({ "email": email, "password": password })
-                .to_string()
-                .into(),
-        )
-        .await
+        let user = serde_json::to_value(
+            self.kc_user
+                .clone()
+                .expect("Missing user data")
+                .into_user_dto()?,
+        )?;
+
+        self.set_kc_user_cookie()?;
+
+        Ok((StatusCode::OK, user, vec![]))
     }
 
     pub async fn login_guest(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
@@ -712,47 +881,67 @@ impl UserSession {
 
     pub async fn signup_guest(
         &mut self,
-        app: &Router,
-    ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>
-    {
+        app: &App,
+    ) -> Result<(StatusCode, UserDto, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.post(app, "/auth/signup_guest", Body::empty()).await?;
-        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
-        let guest_code: String =
-            serde_json::from_value(user.get("guestCode").unwrap().clone().unwrap()).unwrap();
-        self.guest_code = Some(guest_code);
-        let id: String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
-        self.id = Some(Uuid::parse_str(&id).unwrap());
+        let user: UserDto = serde_json::from_value(value)?;
+
+        let kc_user_data = TestAuthUser {
+            id: user.id,
+            guest_code: user.guest_code.clone(),
+            auth_type: UserAuthType::Guest,
+            email: None,
+            username: None,
+            organization_id: user.organization_id,
+        };
+
+        self.id = Some(user.id);
+        self.guest_code = user.guest_code.clone();
+        self.kc_user = Some(kc_user_data);
+
+        self.set_kc_user_cookie()?;
+
         Ok((status, user, cookie))
     }
 
-    pub async fn signup(
+    #[deprecated]
+    pub async fn legacy_signup(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>
     {
-        let body: Body = if self.username.is_some() {
-            json!({"username":self.username, "password":self.password, "email":self.email})
-                .to_string()
-                .into()
+        // Guest users to use comhairle db
+        if self.guest_code.is_some() {
+            let body: Body = if self.username.is_some() {
+                json!({"username":self.username, "password":self.password, "email":self.email})
+                    .to_string()
+                    .into()
+            } else {
+                Body::empty()
+            };
+
+            let (status, value, cookie) = self.post(app, "/auth/signup", body).await?;
+
+            let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
+
+            if let Some(Some(id)) = user.get("id") {
+                let id: String = serde_json::from_value(id.clone()).unwrap();
+                self.id = Some(Uuid::parse_str(&id).unwrap());
+            }
+
+            Ok((status, user, cookie))
         } else {
-            Body::empty()
-        };
+            let user = self.kc_user.clone().unwrap().into_user_dto()?;
+            let user: HashMap<String, Option<Value>> =
+                serde_json::from_value(serde_json::to_value(user)?)?;
 
-        let (status, value, cookie) = self.post(app, "/auth/signup", body).await?;
-
-        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
-
-        if let Some(Some(id)) = user.get("id") {
-            let id: String = serde_json::from_value(id.clone()).unwrap();
-            self.id = Some(Uuid::parse_str(&id).unwrap());
+            Ok((StatusCode::OK, user, vec![]))
         }
-
-        Ok((status, user, cookie))
     }
 
     pub async fn resend_verification_email(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
@@ -764,7 +953,7 @@ impl UserSession {
 
     pub async fn verify_email_token(
         &mut self,
-        app: &Router,
+        app: &App,
         token: String,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
@@ -777,7 +966,7 @@ impl UserSession {
 
     pub async fn update_user_details(
         &mut self,
-        app: &Router,
+        app: &App,
         update_user: UpdateUserRequest,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.put(
@@ -791,7 +980,7 @@ impl UserSession {
 
     pub async fn password_reset_create(
         &mut self,
-        app: &Router,
+        app: &App,
         email: String,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
@@ -804,7 +993,7 @@ impl UserSession {
 
     pub async fn password_reset_update(
         &mut self,
-        app: &Router,
+        app: &App,
         token: &str,
         password: &str,
         confirm_password: &str,
@@ -821,7 +1010,7 @@ impl UserSession {
 
     pub async fn create_conversation(
         &mut self,
-        app: &Router,
+        app: &App,
         new_coversation: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self
@@ -832,7 +1021,7 @@ impl UserSession {
 
     pub async fn update_conversation(
         &mut self,
-        app: &Router,
+        app: &App,
         id: &str,
         conversation_update: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -848,7 +1037,7 @@ impl UserSession {
 
     pub async fn list_conversations(
         &mut self,
-        app: &Router,
+        app: &App,
         offset: i32,
         limit: i32,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -861,7 +1050,7 @@ impl UserSession {
 
     pub async fn delete_conversation(
         &mut self,
-        app: &Router,
+        app: &App,
         id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.delete(app, &format!("/conversation/{id}")).await
@@ -870,7 +1059,7 @@ impl UserSession {
     /// Creates a random launched conversation
     pub async fn create_random_conversation(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let title: String = Sentence(1..10).fake();
         let description: String = Paragraph(3..4).fake();
@@ -901,7 +1090,7 @@ impl UserSession {
     /// Creates a random unlaunched conversation
     pub async fn create_random_unlaunched_conversation(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let title: String = Sentence(1..10).fake();
         let description: String = Paragraph(3..4).fake();
@@ -931,7 +1120,7 @@ impl UserSession {
 
     pub async fn create_workflow_step(
         &mut self,
-        app: &Router,
+        app: &App,
         conversation_id: &str,
         workflow_id: &str,
         new_workflow_step: Value,
@@ -946,7 +1135,7 @@ impl UserSession {
 
     pub async fn create_random_workflow_steps(
         &mut self,
-        app: &Router,
+        app: &App,
         conversation_id: &str,
         workflow_id: &str,
         no: i32,
@@ -979,7 +1168,7 @@ impl UserSession {
 
     pub async fn create_random_workflow(
         &mut self,
-        app: &Router,
+        app: &App,
         convo_id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let name: String = Sentence(1..10).fake();
@@ -1005,7 +1194,7 @@ impl UserSession {
 
     pub async fn create_event(
         &mut self,
-        app: &Router,
+        app: &App,
         conversation_id: &str,
         event: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -1019,7 +1208,7 @@ impl UserSession {
 
     pub async fn create_random_event(
         &mut self,
-        app: &Router,
+        app: &App,
         conversation_id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
@@ -1041,7 +1230,7 @@ impl UserSession {
 
     pub async fn create_random_event_attendance(
         &mut self,
-        app: &Router,
+        app: &App,
         conversation_id: &str,
         event_id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -1059,7 +1248,7 @@ impl UserSession {
 
     pub async fn create_random_event_workflow(
         &mut self,
-        app: &Router,
+        app: &App,
         conversation_id: &str,
         event_id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -1081,7 +1270,7 @@ impl UserSession {
 
     pub async fn create_random_event_workflow_step(
         &mut self,
-        app: &Router,
+        app: &App,
         conversation_id: &str,
         event_id: &str,
         workflow_id: &str,
@@ -1106,7 +1295,7 @@ impl UserSession {
 
     pub async fn create_organization(
         &mut self,
-        app: &Router,
+        app: &App,
         organization: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/organizations", organization.to_string().into())
@@ -1115,7 +1304,7 @@ impl UserSession {
 
     pub async fn create_random_organization(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
@@ -1134,7 +1323,7 @@ impl UserSession {
 
     pub async fn create_region_area(
         &mut self,
-        app: &Router,
+        app: &App,
         region_area: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/region_areas", region_area.to_string().into())
@@ -1143,7 +1332,7 @@ impl UserSession {
 
     pub async fn create_random_region_area(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let zip_prefix = format!("test-{}", Uuid::new_v4());
         self.post(
@@ -1160,7 +1349,7 @@ impl UserSession {
 
     pub async fn create_region(
         &mut self,
-        app: &Router,
+        app: &App,
         region: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/regions", region.to_string().into()).await
@@ -1168,7 +1357,7 @@ impl UserSession {
 
     pub async fn create_random_region(
         &mut self,
-        app: &Router,
+        app: &App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
@@ -1186,7 +1375,7 @@ impl UserSession {
 
     pub async fn get_conversation(
         &mut self,
-        app: &Router,
+        app: &App,
         id: &str,
     ) -> Result<(StatusCode, HashMap<String, Value>, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, &format!("/conversation/{id}")).await?;
@@ -1196,7 +1385,7 @@ impl UserSession {
 
     pub async fn create_job(
         &mut self,
-        app: &Router,
+        app: &App,
         new_job: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.post(app, "/jobs", new_job.to_string().into()).await?;
@@ -1206,7 +1395,7 @@ impl UserSession {
 
     pub async fn create_prioritization_workflow_step(
         &mut self,
-        app: &Router,
+        app: &App,
         conversation_id: &Uuid,
         workflow_id: &Uuid,
     ) -> Result<WorkflowStepDto, Box<dyn Error>> {

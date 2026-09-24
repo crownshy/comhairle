@@ -7,11 +7,12 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use std::sync::Arc;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::ComhairleState;
+use crate::{ComhairleState, required_auth};
 use crate::{
     error::ComhairleError,
     models::user_progress::{self, UpdateUserProgress},
@@ -19,7 +20,7 @@ use crate::{
     routes::user_progress::dto::UserProgressDto,
 };
 
-use super::auth::RequiredUser;
+use super::auth::extract::RequiredUser;
 
 pub mod dto;
 
@@ -84,25 +85,32 @@ pub async fn update_user_progress(
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get_user_progress_for_workflow, |op| {
-                op.id("GetUserProgress")
-                    .summary("Get the users progress on this workflow")
-                    .response::<200, Json<Vec<UserProgressDto>>>()
-            }),
+            required_auth(
+                get_with(get_user_progress_for_workflow, |op| {
+                    op.id("GetUserProgress")
+                        .summary("Get the users progress on this workflow")
+                        .response::<200, Json<Vec<UserProgressDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{workflow_step_id}",
-            put_with(update_user_progress, |op| {
-                op.id("SetUserProgress")
-                    .summary("Set the user progress for a given workflow step")
-                    .response::<200, Json<UserProgressDto>>()
-            }),
+            required_auth(
+                put_with(update_user_progress, |op| {
+                    op.id("SetUserProgress")
+                        .summary("Set the user progress for a given workflow step")
+                        .response::<200, Json<UserProgressDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -127,7 +135,7 @@ mod tests {
 
         let mut admin_user_session = UserSession::new_admin();
 
-        admin_user_session.signup(&app).await?;
+        admin_user_session.login(&app).await?;
 
         let (_, conversation, _) = admin_user_session.create_random_conversation(&app).await?;
         let conversation_id: String = extract("id", &conversation);
@@ -150,7 +158,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "regular_user@gmail.com",
         );
-        user_session.signup(&app).await?;
+        user_session.login(&app).await?;
 
         // Sign up for the workflow
 
@@ -184,7 +192,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_user_session = UserSession::new_admin();
-        admin_user_session.signup(&app).await?;
+        admin_user_session.login(&app).await?;
 
         let (_, conversation, _) = admin_user_session.create_random_conversation(&app).await?;
         let conversation_id: String = extract("id", &conversation);
@@ -209,7 +217,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "regular_user@gmail.com",
         );
-        user_session.signup(&app).await?;
+        user_session.login(&app).await?;
 
         for id in [&workflow_id, &other_workflow_id] {
             let url = format!("/conversation/{conversation_id}/workflow/{id}/register");

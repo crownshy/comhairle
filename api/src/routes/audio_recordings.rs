@@ -17,11 +17,11 @@ use axum::{
     extract::{Json, Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use hyper::HeaderMap;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::ComhairleState;
 use crate::bulk_storage_service::FileMetadata;
 use crate::error::ComhairleError;
 use crate::models::audio_recording::{self, CreateAudioRecording};
@@ -31,8 +31,9 @@ use crate::routes::audio_recordings::dto::{
     AudioRecordingDto, CreateRecordingRequest, CreateRecordingResponse, DeleteRecordingResponse,
     ProcessRecordingResponse, RecordingDetailResponse, RecordingDownloadUrls, SubmitReportResponse,
 };
-use crate::routes::auth::{RequiredAdminUser, verify_webhook_signature};
+use crate::routes::auth::{extract::RequiredAdminUser, verify_webhook_signature};
 use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
+use crate::{ComhairleState, required_auth};
 
 /// Create an audio recording and return a presigned URL for uploading its audio.
 ///
@@ -330,62 +331,98 @@ async fn submit_report(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_recording, |op| {
-                op.id("CreateAudioRecording")
-                    .tag("Audio Recordings")
-                    .summary("Create an audio recording and get an upload URL")
-                    .description("Create a named audio recording for an event and return a presigned S3 URL for uploading its audio.")
-                    .security_requirement("JWT")
-                    .response::<201, Json<CreateRecordingResponse>>()
-            }),
+            required_auth(
+                post_with(create_recording, |op| {
+                    op.id("CreateAudioRecording")
+                        .tag("Audio Recordings")
+                        .summary("Create an audio recording and get an upload URL")
+                        .description(
+                            "Create a named audio recording for an \
+                            event and return a presigned S3 URL for uploading \
+                            its audio.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<201, Json<CreateRecordingResponse>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            get_with(list_recordings, |op| {
-                op.id("ListAudioRecordings")
-                    .tag("Audio Recordings")
-                    .summary("List audio recordings for an event")
-                    .description("List all audio recordings for an event with their processing status.")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<AudioRecordingDto>>>()
-            }),
+            required_auth(
+                get_with(list_recordings, |op| {
+                    op.id("ListAudioRecordings")
+                        .tag("Audio Recordings")
+                        .summary("List audio recordings for an event")
+                        .description(
+                            "List all audio recordings for an event with their processing status.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<AudioRecordingDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{recording_id}",
-            get_with(get_recording, |op| {
-                op.id("GetAudioRecording")
-                    .tag("Audio Recordings")
-                    .summary("Get an audio recording and its download URLs")
-                    .description("Get an audio recording's details and presigned S3 URLs for its audio, transcript, and report.")
-                    .security_requirement("JWT")
-                    .response::<200, Json<RecordingDetailResponse>>()
-            }),
+            required_auth(
+                get_with(get_recording, |op| {
+                    op.id("GetAudioRecording")
+                        .tag("Audio Recordings")
+                        .summary("Get an audio recording and its download URLs")
+                        .description(
+                            "Get an audio recording's details and presigned \
+                        S3 URLs for its audio, transcript, and report.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<RecordingDetailResponse>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{recording_id}",
-            delete_with(delete_recording, |op| {
-                op.id("DeleteAudioRecording")
-                    .tag("Audio Recordings")
-                    .summary("Delete an audio recording")
-                    .description("Delete an audio recording and best-effort-clean its files from bulk storage. Useful for clearing stuck rows left behind by a failed upload.")
-                    .security_requirement("JWT")
-                    .response::<200, Json<DeleteRecordingResponse>>()
-            }),
+            required_auth(
+                delete_with(delete_recording, |op| {
+                    op.id("DeleteAudioRecording")
+                        .tag("Audio Recordings")
+                        .summary("Delete an audio recording")
+                        .description(
+                            "Delete an audio recording and best-effort-clean \
+                        its files from bulk storage. Useful for clearing stuck \
+                        rows left behind by a failed upload.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<DeleteRecordingResponse>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{recording_id}/process",
-            post_with(process_recording, |op| {
-                op.id("ProcessAudioRecording")
-                    .tag("Audio Recordings")
-                    .summary("Start processing an audio recording")
-                    .description("Enqueue a background job to transcribe and categorize a single audio recording.")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ProcessRecordingResponse>>()
-            }),
+            required_auth(
+                post_with(process_recording, |op| {
+                    op.id("ProcessAudioRecording")
+                        .tag("Audio Recordings")
+                        .summary("Start processing an audio recording")
+                        .description(
+                            "Enqueue a background job to transcribe and \
+                        categorize a single audio recording.",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ProcessRecordingResponse>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{recording_id}/report",
@@ -393,11 +430,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("SubmitAudioRecordingReport")
                     .tag("Audio Recordings")
                     .summary("Categorization report webhook")
-                    .description("Webhook for the categorization service to submit a recording's report. Authenticated by HMAC signature headers.")
+                    .description(
+                        "Webhook for the categorization service to \
+                        submit a recording's report. Authenticated by HMAC \
+                        signature headers.",
+                    )
                     .response::<201, Json<SubmitReportResponse>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -407,6 +447,7 @@ mod tests {
     use serde_json::json;
     use std::sync::Arc;
 
+    use crate::App;
     use crate::models::audio_recording::AudioFormat;
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
@@ -415,7 +456,7 @@ mod tests {
 
     async fn create_random_event(
         session: &mut UserSession,
-        app: &axum::Router,
+        app: &App,
     ) -> Result<(ConversationDto, EventDto), Box<dyn std::error::Error>> {
         let conversation_response = session.create_random_conversation(app).await?;
         let conversation: ConversationDto = serde_json::from_value(conversation_response.1)?;
@@ -451,7 +492,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 
@@ -506,7 +547,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
         let url = format!(
@@ -541,7 +582,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 
@@ -585,7 +626,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
         let missing_recording = Uuid::new_v4();
@@ -628,7 +669,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 
@@ -686,7 +727,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 
@@ -769,7 +810,7 @@ mod tests {
         let app = setup_server(state.clone()).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
 

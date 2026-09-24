@@ -14,13 +14,12 @@ use sqlx::{PgPool, prelude::FromRow};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{ComhairleState, error::ComhairleError};
+use crate::{ComhairleState, error::ComhairleError, routes::user::dto::UserDto};
 
 use super::{
     user_conversation_preferences,
     user_participation::{self, UserParticipation, UserParticipationIden},
     user_progress::{self, UserProgressIden},
-    users::User,
     workflow_step::{self, WorkflowStepIden},
 };
 
@@ -182,7 +181,7 @@ impl CreateWorkflow {
 pub async fn register_user(
     db: &PgPool,
     workflow_id: &Uuid,
-    user: &User,
+    user: &UserDto,
 ) -> Result<UserParticipation, ComhairleError> {
     let workflow = get_by_id(db, workflow_id).await?;
     let user_participation = user_participation::create(db, &user.id, workflow_id).await?;

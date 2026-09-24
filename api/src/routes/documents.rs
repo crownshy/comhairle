@@ -10,6 +10,7 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
@@ -24,7 +25,11 @@ use crate::{
         job::{self, CreateJob},
         translations, user_participation, workflow, workflow_step,
     },
-    routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin},
+    optional_auth, required_auth,
+    routes::auth::{
+        extract::{OptionalUser, RequiredAdminUser},
+        is_user_admin,
+    },
     tools::{
         ToolConfig,
         learn::{LearnPageEntry, PageContent},
@@ -489,79 +494,105 @@ async fn learn_content(
     Ok((StatusCode::OK, Json(LearnContentResponse { sections })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListDocuments")
-                    .tag("Documents")
-                    .summary("Get a list of documents from a conversation's knowledge base")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<ComhairleDocument>>>()
-            }),
+            optional_auth(
+                get_with(list, |op| {
+                    op.id("ListDocuments")
+                        .tag("Documents")
+                        .summary("Get a list of documents from a conversation's knowledge base")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<ComhairleDocument>>>()
+                }),
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{document_id}",
-            get_with(get, |op| {
-                op.id("GetDocument")
-                    .tag("Documents")
-                    .summary("Get a document from a conversation's knowledge base by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleDocument>>()
-            }),
+            required_auth(
+                get_with(get, |op| {
+                    op.id("GetDocument")
+                        .tag("Documents")
+                        .summary("Get a document from a conversation's knowledge base by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ComhairleDocument>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{document_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteDocument")
-                    .tag("Documents")
-                    .summary("Delete a document from a conversation's knowledge base")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteDocument")
+                        .tag("Documents")
+                        .summary("Delete a document from a conversation's knowledge base")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{document_id}/parse",
-            post_with(parse_document, |op| {
-                op.id("ParseDocument")
-                    .tag("Documents")
-                    .summary("Begin parsing a document")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                post_with(parse_document, |op| {
+                    op.id("ParseDocument")
+                        .tag("Documents")
+                        .summary("Begin parsing a document")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{document_id}/stop_parse",
-            post_with(stop_parsing_document, |op| {
-                op.id("StopParsingDocument")
-                    .tag("Documents")
-                    .summary("Stop parsing a document")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                post_with(stop_parsing_document, |op| {
+                    op.id("StopParsingDocument")
+                        .tag("Documents")
+                        .summary("Stop parsing a document")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{document_id}/download",
-            get_with(download_document, |op| {
-                op.id("DownloadDocument")
-                    .tag("Documents")
-                    .summary("Download a document")
-                    .security_requirement("JWT")
-                    .response::<204, Response<Body>>()
-            }),
+            optional_auth(
+                get_with(download_document, |op| {
+                    op.id("DownloadDocument")
+                        .tag("Documents")
+                        .summary("Download a document")
+                        .security_requirement("JWT")
+                        .response::<204, Response<Body>>()
+                }),
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/sync_learning_content",
-            post_with(sync_learning_content, |op| {
-                op.id("SyncLearningContent")
-                    .tag("Documents")
-                    .summary(
-                        "Rebuild the conversation's learn-step content knowledge-base document",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<SyncLearningContentResponse>>()
-            }),
+            required_auth(
+                post_with(sync_learning_content, |op| {
+                    op.id("SyncLearningContent")
+                        .tag("Documents")
+                        .summary(
+                            "Rebuild the conversation's learn-step content knowledge-base document",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<SyncLearningContentResponse>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/learn_content",
@@ -575,8 +606,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/",
-            post_with(upload, |op| {
-                op.id("PostDocuments")
+            required_auth(
+                post_with(upload, |op| {
+                    op.id("PostDocuments")
                     .tag("Documents")
                     .description(
                         "⚠️ This endpoint requires multipart/form-data.\n\n\
@@ -596,19 +628,22 @@ curl -X POST \\
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<UploadFileResponse>>()
-            }),
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use crate::App;
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::test_helpers::{MultipartBodyBuilder, test_state};
     use crate::{setup_server, test_helpers::UserSession};
-    use axum::{Router, body::Body, http::StatusCode};
+    use axum::{body::Body, http::StatusCode};
     use mockall::predicate::eq;
     use serde_json::json;
     use sqlx::PgPool;
@@ -659,7 +694,7 @@ mod tests {
         pool: PgPool,
         kb_id: String,
         configure_bot_service: F,
-    ) -> Result<(Router, UserSession, String), Box<dyn Error>>
+    ) -> Result<(App, UserSession, String), Box<dyn Error>>
     where
         F: FnOnce(&mut MockComhairleBotService),
     {
@@ -670,7 +705,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session
             .create_conversation(
@@ -1027,7 +1062,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "outsider@example.com",
         );
-        outsider.signup(&app).await?;
+        outsider.login(&app).await?;
 
         let (status, _, _) = outsider
             .get(&app, &format!("/conversation/{conversation_id}/documents"))
@@ -1059,7 +1094,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "participant@example.com",
         );
-        participant.signup(&app).await?;
+        participant.login(&app).await?;
         participant
             .post(
                 &app,

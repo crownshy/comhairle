@@ -14,6 +14,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -21,10 +22,6 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::thinking_space_follow_up_question::{
-    self, CreateFollowUpQuestions, ThinkingSpaceFollowUpQuestion,
-    ThinkingSpaceFollowUpQuestionFilterOptions, UpdateFollowUpQuestions,
-};
 use crate::models::thinking_space_summary::{
     self, CreateSummary, ThinkingSpaceSummary, ThinkingSpaceSummaryFilterOptions, UpdateSummary,
 };
@@ -37,12 +34,19 @@ use crate::models::{
     },
     translations::localize_translations,
 };
-use crate::routes::auth::{RequiredAdminUser, RequiredUser};
+use crate::routes::auth::extract::{RequiredAdminUser, RequiredUser};
 use crate::{ComhairleError, ComhairleState};
 use crate::{bot_service::AgentConversationRequest, models::translations::TextFormat};
 use crate::{
     models::bot_service_user_session::{self, BotServiceSessionContext},
     routes::translations::LocaleExtractor,
+};
+use crate::{
+    models::thinking_space_follow_up_question::{
+        self, CreateFollowUpQuestions, ThinkingSpaceFollowUpQuestion,
+        ThinkingSpaceFollowUpQuestionFilterOptions, UpdateFollowUpQuestions,
+    },
+    required_auth,
 };
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
@@ -234,136 +238,189 @@ impl ToolImpl for ThinkingSpaceTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/thinking_space",
-                post_with(converse, |op| {
-                    op.tag("Tools")
-                        .summary("Converse with thinking space")
-                        .security_requirement("JWT")
-                        .description(
-                            "
+                required_auth(
+                    post_with(converse, |op| {
+                        op.tag("Tools")
+                            .summary("Converse with thinking space")
+                            .security_requirement("JWT")
+                            .description(
+                                "
 Streamed LLM response.
 ⚠️ This endpoint returns a streaming response on success.
 Generated API clients are NOT suitable for consuming this endpoint.
 Use a raw HTTP request and process the response body incrementally.
 ",
-                        )
-                }),
+                            )
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/answers",
-                post_with(create_thinking_space_answer, |op| {
-                    op.id("CreateThinkingSpaceAnswer")
-                        .summary("Create thinking space answer")
-                        .description("Create an answer for thinking space workflow step question")
-                        .security_requirement("JWT")
-                        .response::<201, Json<ThinkingSpaceAnswerDto>>()
-                }),
+                required_auth(
+                    post_with(create_thinking_space_answer, |op| {
+                        op.id("CreateThinkingSpaceAnswer")
+                            .summary("Create thinking space answer")
+                            .description(
+                                "Create an answer for thinking space workflow step question",
+                            )
+                            .security_requirement("JWT")
+                            .response::<201, Json<ThinkingSpaceAnswerDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/answers",
-                get_with(list_thinking_space_answers, |op| {
-                    op.id("ListThinkingSpaceAnswers")
-                        .summary("List thinking space answers")
-                        .description("List answer for thinking space workflow step")
-                        .security_requirement("JWT")
-                        .response::<200, Json<Vec<ThinkingSpaceAnswerDto>>>()
-                }),
+                required_auth(
+                    get_with(list_thinking_space_answers, |op| {
+                        op.id("ListThinkingSpaceAnswers")
+                            .summary("List thinking space answers")
+                            .description("List answer for thinking space workflow step")
+                            .security_requirement("JWT")
+                            .response::<200, Json<Vec<ThinkingSpaceAnswerDto>>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/answers/{answer_id}",
-                put_with(update_thinking_space_answer, |op| {
-                    op.id("UpdateThinkingSpaceAnswer")
-                        .summary("Update thinking space answer")
-                        .description("Update an answer for thinking space workflow step question")
-                        .security_requirement("JWT")
-                        .response::<200, Json<ThinkingSpaceAnswerDto>>()
-                }),
+                required_auth(
+                    put_with(update_thinking_space_answer, |op| {
+                        op.id("UpdateThinkingSpaceAnswer")
+                            .summary("Update thinking space answer")
+                            .description(
+                                "Update an answer for thinking space workflow step question",
+                            )
+                            .security_requirement("JWT")
+                            .response::<200, Json<ThinkingSpaceAnswerDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/summaries/generate",
-                post_with(generate_thinking_space_summary, |op| {
-                    op.id("GenerateThinkingSpaceSummary")
-                        .summary("Generate thinking space summary")
-                        .description("Generates a thinking space summary via bot service agent")
-                        .security_requirement("JWT")
-                        .response::<201, Json<ThinkingSpaceSummaryDto>>()
-                }),
+                required_auth(
+                    post_with(generate_thinking_space_summary, |op| {
+                        op.id("GenerateThinkingSpaceSummary")
+                            .summary("Generate thinking space summary")
+                            .description("Generates a thinking space summary via bot service agent")
+                            .security_requirement("JWT")
+                            .response::<201, Json<ThinkingSpaceSummaryDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/summaries",
-                post_with(update_or_create_thinking_space_summary, |op| {
-                    op.id("UpdateOrCreateThinkingSpaceSummary")
-                        .summary("Update or create thinking space summary")
-                        .description("Update a summary if already exists or create a new summary")
-                        .security_requirement("JWT")
-                        .response::<200, Json<ThinkingSpaceSummaryDto>>()
-                        .response::<201, Json<ThinkingSpaceSummaryDto>>()
-                }),
+                required_auth(
+                    post_with(update_or_create_thinking_space_summary, |op| {
+                        op.id("UpdateOrCreateThinkingSpaceSummary")
+                            .summary("Update or create thinking space summary")
+                            .description(
+                                "Update a summary if already exists or create a new summary",
+                            )
+                            .security_requirement("JWT")
+                            .response::<200, Json<ThinkingSpaceSummaryDto>>()
+                            .response::<201, Json<ThinkingSpaceSummaryDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/summaries/{summary_id}",
-                get_with(get_thinkin_space_summary, |op| {
-                    op.id("GetThinkingSpaceSummary")
-                        .summary("Get thinking space summary")
-                        .description("Get a thinking space summary by id")
-                        .security_requirement("JWT")
-                        .response::<200, Json<ThinkingSpaceSummaryDto>>()
-                }),
+                required_auth(
+                    get_with(get_thinkin_space_summary, |op| {
+                        op.id("GetThinkingSpaceSummary")
+                            .summary("Get thinking space summary")
+                            .description("Get a thinking space summary by id")
+                            .security_requirement("JWT")
+                            .response::<200, Json<ThinkingSpaceSummaryDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/summaries",
-                get_with(list_thinking_space_summaries, |op| {
-                    op.id("ListThinkingSpaceSummaries")
-                        .summary("List thinking space summaries")
-                        .description("List thinking space summaries")
-                        .security_requirement("JWT")
-                        .response::<200, Json<Vec<ThinkingSpaceSummaryDto>>>()
-                }),
+                required_auth(
+                    get_with(list_thinking_space_summaries, |op| {
+                        op.id("ListThinkingSpaceSummaries")
+                            .summary("List thinking space summaries")
+                            .description("List thinking space summaries")
+                            .security_requirement("JWT")
+                            .response::<200, Json<Vec<ThinkingSpaceSummaryDto>>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/follow_ups",
-                post_with(create_thinking_space_follow_up_questions, |op| {
-                    op.id("CreateThinkingSpaceFollowUpQuestions")
-                        .summary("Create thinking space follow up questions")
-                        .description("Create thinking space follow up questions")
-                        .security_requirement("JWT")
-                        .response::<201, Json<ThinkingSpaceFollowUpQuestionDto>>()
-                }),
+                required_auth(
+                    post_with(create_thinking_space_follow_up_questions, |op| {
+                        op.id("CreateThinkingSpaceFollowUpQuestions")
+                            .summary("Create thinking space follow up questions")
+                            .description("Create thinking space follow up questions")
+                            .security_requirement("JWT")
+                            .response::<201, Json<ThinkingSpaceFollowUpQuestionDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/follow_ups/{follow_up_id}",
-                put_with(update_thinking_space_follow_up_questions, |op| {
-                    op.id("UpdateThinkingSpaceFollowUpQuestions")
-                        .summary("Update thinking space follow up questions")
-                        .description("Update thinking space follow up questions")
-                        .security_requirement("JWT")
-                        .response::<200, Json<ThinkingSpaceFollowUpQuestionDto>>()
-                }),
+                required_auth(
+                    put_with(update_thinking_space_follow_up_questions, |op| {
+                        op.id("UpdateThinkingSpaceFollowUpQuestions")
+                            .summary("Update thinking space follow up questions")
+                            .description("Update thinking space follow up questions")
+                            .security_requirement("JWT")
+                            .response::<200, Json<ThinkingSpaceFollowUpQuestionDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/follow_ups",
-                get_with(list_thinking_space_follow_up_questions, |op| {
-                    op.id("ListThinkingSpaceFollowUpQuestions")
-                        .summary("List thinking space follow up questions")
-                        .description("List thinking space follow up questions")
-                        .security_requirement("JWT")
-                        .response::<200, Json<Vec<ThinkingSpaceFollowUpQuestionDto>>>()
-                }),
+                required_auth(
+                    get_with(list_thinking_space_follow_up_questions, |op| {
+                        op.id("ListThinkingSpaceFollowUpQuestions")
+                            .summary("List thinking space follow up questions")
+                            .description("List thinking space follow up questions")
+                            .security_requirement("JWT")
+                            .response::<200, Json<Vec<ThinkingSpaceFollowUpQuestionDto>>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/thinking_space/insights",
-                get_with(get_thinking_space_insights, |op| {
-                    op.id("GetThinkingSpaceInsights")
-                        .summary("Get thinking space insights data")
-                        .description("Get thinking space insights data")
-                        .security_requirement("JWT")
-                        .response::<200, Json<ThinkingSpaceInsightsResponse>>()
-                }),
+                required_auth(
+                    get_with(get_thinking_space_insights, |op| {
+                        op.id("GetThinkingSpaceInsights")
+                            .summary("Get thinking space insights data")
+                            .description("Get thinking space insights data")
+                            .security_requirement("JWT")
+                            .response::<200, Json<ThinkingSpaceInsightsResponse>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
-            .with_state(state.clone())
     }
 }
 

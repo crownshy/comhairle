@@ -8,6 +8,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -18,7 +19,8 @@ use crate::{
         job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
-    routes::auth::RequiredAdminUser,
+    required_auth,
+    routes::auth::extract::RequiredAdminUser,
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -67,49 +69,64 @@ async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListJobs")
-                    .tag("Jobs")
-                    .summary("List jobs")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<Job>>>()
-            }),
+            required_auth(
+                get_with(list, |op| {
+                    op.id("ListJobs")
+                        .tag("Jobs")
+                        .summary("List jobs")
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<Job>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{job_id}",
-            get_with(get, |op| {
-                op.id("GetJob")
-                    .tag("Jobs")
-                    .summary("Get a job by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Job>>()
-            }),
+            required_auth(
+                get_with(get, |op| {
+                    op.id("GetJob")
+                        .tag("Jobs")
+                        .summary("Get a job by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Job>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            post_with(create, |op| {
-                op.id("CreateJob")
-                    .tag("Jobs")
-                    .summary("Create a new job")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Job>>()
-            }),
+            required_auth(
+                post_with(create, |op| {
+                    op.id("CreateJob")
+                        .tag("Jobs")
+                        .summary("Create a new job")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Job>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{job_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteJob")
-                    .tag("Jobs")
-                    .summary("Delete a job by id")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteJob")
+                        .tag("Jobs")
+                        .summary("Delete a job by id")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -137,7 +154,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
 
         let (status, value, _) = admin_session.create_job(&app, json!(job_1)).await?;
 
@@ -162,7 +179,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
         let (_, value, _) = admin_session.create_job(&app, json!(job_1)).await?;
         let id = value.get("id").and_then(|v| v.as_str()).unwrap();
 
@@ -197,7 +214,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
         let _ = admin_session.create_job(&app, json!(job_1)).await?;
         let _ = admin_session.create_job(&app, json!(job_2)).await?;
         let _ = admin_session.create_job(&app, json!(job_3)).await?;
@@ -241,7 +258,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
         let _ = admin_session.create_job(&app, json!(job_1)).await?;
         let _ = admin_session.create_job(&app, json!(job_2)).await?;
         let _ = admin_session.create_job(&app, json!(job_3)).await?;
@@ -280,7 +297,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
+        admin_session.login(&app).await?;
         let (_, value, _) = admin_session.create_job(&app, json!(job_1)).await?;
         let _ = admin_session.create_job(&app, json!(job_2)).await?;
         let _ = admin_session.create_job(&app, json!(job_3)).await?;

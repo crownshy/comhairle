@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use async_trait::async_trait;
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use comhairle_macros::{DbJsonBEnum, TranslatableJson};
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
@@ -80,10 +81,10 @@ pub trait ToolImpl: Send + Sync + 'static {
     }
 
     /// Register HTTP routes for this tool
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         // Default: no routes
-        let _ = state;
-        ApiRouter::new()
+        let _ = keycloak_auth_instance;
+        ApiRouter::<Arc<ComhairleState>>::new()
     }
 
     /// Register background workers/tasks
@@ -282,15 +283,21 @@ impl ToolSetup {
 }
 
 /// Register all tool routes
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
-        .merge(polis::PolisTool::routes(&state))
-        .merge(learn::LearnTool::routes(&state))
-        .merge(heyform::HeyFormTool::routes(&state))
-        .merge(stories::StoriesTool::routes(&state))
-        .merge(elicitation_bot::ElicitationBotTool::routes(&state))
-        .merge(prioritization::PrioritizationTool::routes(&state))
-        .merge(thinking_space::ThinkingSpaceTool::routes(&state))
+        .merge(polis::PolisTool::routes(keycloak_auth_instance.clone()))
+        .merge(learn::LearnTool::routes(keycloak_auth_instance.clone()))
+        .merge(heyform::HeyFormTool::routes(keycloak_auth_instance.clone()))
+        .merge(stories::StoriesTool::routes(keycloak_auth_instance.clone()))
+        .merge(elicitation_bot::ElicitationBotTool::routes(
+            keycloak_auth_instance.clone(),
+        ))
+        .merge(prioritization::PrioritizationTool::routes(
+            keycloak_auth_instance.clone(),
+        ))
+        .merge(thinking_space::ThinkingSpaceTool::routes(
+            keycloak_auth_instance.clone(),
+        ))
 }
 
 #[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]

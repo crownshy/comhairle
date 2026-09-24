@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -16,7 +17,8 @@ use crate::{
     ComhairleState,
     error::ComhairleError,
     models::region_area::{self, CreateRegionArea, PartialRegionArea},
-    routes::{auth::RequiredAdminUser, region_areas::dto::RegionAreaDto},
+    required_auth,
+    routes::{auth::extract::RequiredAdminUser, region_areas::dto::RegionAreaDto},
 };
 
 pub mod dto;
@@ -81,57 +83,76 @@ async fn delete_region_area(
     Ok((StatusCode::OK, Json(area)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_region_area, |op| {
-                op.id("CreateRegionArea")
-                    .tag("Region Areas")
-                    .security_requirement("JWT")
-                    .summary("Create a region area")
-                    .response::<201, Json<RegionAreaDto>>()
-            }),
+            required_auth(
+                post_with(create_region_area, |op| {
+                    op.id("CreateRegionArea")
+                        .tag("Region Areas")
+                        .security_requirement("JWT")
+                        .summary("Create a region area")
+                        .response::<201, Json<RegionAreaDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            get_with(list_region_areas, |op| {
-                op.id("ListRegionAreas")
-                    .tag("Region Areas")
-                    .security_requirement("JWT")
-                    .summary("List region areas")
-                    .response::<200, Json<Vec<RegionAreaDto>>>()
-            }),
+            required_auth(
+                get_with(list_region_areas, |op| {
+                    op.id("ListRegionAreas")
+                        .tag("Region Areas")
+                        .security_requirement("JWT")
+                        .summary("List region areas")
+                        .response::<200, Json<Vec<RegionAreaDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_area_id}",
-            get_with(get_region_area, |op| {
-                op.id("GetRegionArea")
-                    .tag("Region Areas")
-                    .security_requirement("JWT")
-                    .summary("Get a region area by id")
-                    .response::<200, Json<RegionAreaDto>>()
-            }),
+            required_auth(
+                get_with(get_region_area, |op| {
+                    op.id("GetRegionArea")
+                        .tag("Region Areas")
+                        .security_requirement("JWT")
+                        .summary("Get a region area by id")
+                        .response::<200, Json<RegionAreaDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_area_id}",
-            put_with(update_region_area, |op| {
-                op.id("UpdateRegionArea")
-                    .tag("Region Areas")
-                    .security_requirement("JWT")
-                    .summary("Update a region area")
-                    .response::<200, Json<RegionAreaDto>>()
-            }),
+            required_auth(
+                put_with(update_region_area, |op| {
+                    op.id("UpdateRegionArea")
+                        .tag("Region Areas")
+                        .security_requirement("JWT")
+                        .summary("Update a region area")
+                        .response::<200, Json<RegionAreaDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_area_id}",
-            delete_with(delete_region_area, |op| {
-                op.id("DeleteRegionArea")
-                    .tag("Region Areas")
-                    .security_requirement("JWT")
-                    .summary("Delete a region area")
-                    .response::<200, Json<RegionAreaDto>>()
-            }),
+            required_auth(
+                delete_with(delete_region_area, |op| {
+                    op.id("DeleteRegionArea")
+                        .tag("Region Areas")
+                        .security_requirement("JWT")
+                        .summary("Delete a region area")
+                        .response::<200, Json<RegionAreaDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }

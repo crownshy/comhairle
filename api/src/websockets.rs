@@ -31,11 +31,10 @@ use mockall::{automock, predicate::*};
 
 use async_trait::async_trait;
 
-use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::users::User;
-use crate::routes::auth::RequiredUser;
+use crate::routes::auth::extract::RequiredUser;
 use crate::websockets::config::WebsocketConfig;
+use crate::{ComhairleState, routes::user::dto::UserDto};
 
 /// Trait for handling domain-specific WebSocket messages.
 ///
@@ -158,13 +157,13 @@ impl ConnectionId {
 #[derive(Debug, Clone)]
 pub struct WebSocketConnection {
     pub id: ConnectionId,
-    pub user: User,
+    pub user: UserDto,
     pub addr: SocketAddr,
     pub sender: mpsc::UnboundedSender<Message>,
 }
 
 impl WebSocketConnection {
-    pub fn new(user: User, addr: SocketAddr) -> (Self, mpsc::UnboundedReceiver<Message>) {
+    pub fn new(user: UserDto, addr: SocketAddr) -> (Self, mpsc::UnboundedReceiver<Message>) {
         let id = ConnectionId::new();
         let (sender, receiver) = mpsc::unbounded_channel();
 
@@ -846,7 +845,7 @@ pub async fn websocket_handler(
 
 async fn handle_websocket(
     socket: WebSocket,
-    user: User,
+    user: UserDto,
     addr: SocketAddr,
     state: Arc<ComhairleState>,
 ) {
@@ -1120,6 +1119,7 @@ mod tests {
         };
 
         let addr = "127.0.0.1:9999".parse().unwrap();
+        let user: UserDto = user.into();
         let (connection_1, mut receiver_1) = WebSocketConnection::new(user.clone(), addr);
         let (connection_2, mut receiver_2) = WebSocketConnection::new(user.clone(), addr);
 
@@ -1311,8 +1311,8 @@ mod tests {
         service_2.register_handler(handler_2);
 
         let addr = "127.0.0.1:9999".parse().unwrap();
-        let (conn_a, mut recv_a) = WebSocketConnection::new(test_user(user_a), addr);
-        let (conn_b, mut recv_b) = WebSocketConnection::new(test_user(user_b), addr);
+        let (conn_a, mut recv_a) = WebSocketConnection::new(test_user(user_a).into(), addr);
+        let (conn_b, mut recv_b) = WebSocketConnection::new(test_user(user_b).into(), addr);
         service_1.add_connection(conn_a);
         service_2.add_connection(conn_b);
 

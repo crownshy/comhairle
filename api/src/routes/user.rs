@@ -2,16 +2,17 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{get_with, put_with},
+    routing::{get_with, post_with, put_with},
 };
 use axum::{
     Json,
     extract::{Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -26,6 +27,7 @@ use crate::{
         permissions::{Action, Role, can_perform_resource_action, has_resource_permission},
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
+    required_auth,
     routes::{
         conversations::dto::LocalizedConversationDto, organizations::dto::LocalizedOrganizationDto,
         user::dto::UserDto,
@@ -34,7 +36,10 @@ use crate::{
 
 pub mod dto;
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{
+    extract::{RequiredAdminUser, RequiredUser},
+    is_user_admin,
+};
 use super::translations::LocaleExtractor;
 
 #[instrument(err(Debug), skip(state))]
@@ -304,79 +309,185 @@ pub async fn upgrade_account(
     Ok((StatusCode::OK, Json(user)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+#[derive(Deserialize, Debug, JsonSchema)]
+struct SyncKcUsersRequest {
+    user_ids: Vec<Uuid>,
+}
+
+#[derive(Serialize, Debug, JsonSchema)]
+struct SkippedUser {
+    user_id: Uuid,
+    reason: String,
+}
+
+#[derive(Serialize, Debug, JsonSchema)]
+struct SyncKcUserResponse {
+    synced_users: Vec<Uuid>,
+    skipped_users: Vec<SkippedUser>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn sync_kc_users(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_): RequiredAdminUser,
+    Json(SyncKcUsersRequest { user_ids }): Json<SyncKcUsersRequest>,
+) -> Result<(StatusCode, Json<SyncKcUserResponse>), ComhairleError> {
+    if user_ids.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "Require minimum 1 user id".to_string(),
+        ));
+    }
+
+    let mut synced_users = Vec::with_capacity(user_ids.len());
+    let mut skipped_users = Vec::with_capacity(user_ids.len());
+
+    for user_id in user_ids {
+        let user = models::users::get_user_by_id(&user_id, &state.db).await?;
+
+        let result = state.auth_service.import_user(&user).await;
+
+        match result {
+            Ok(_) => synced_users.push(user.id),
+            Err(e) => {
+                warn!("Error syncing user to keycloak: {e:#?}");
+
+                skipped_users.push(SkippedUser {
+                    user_id: user.id,
+                    reason: e.to_string(),
+                });
+            }
+        }
+    }
+
+    Ok((
+        StatusCode::CREATED,
+        Json(SyncKcUserResponse {
+            synced_users,
+            skipped_users,
+        }),
+    ))
+}
+
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/roles",
-            get_with(get_user_roles, |op| {
-                op.id("GetUserRoles")
-                    .tag("User")
-                    .description("Gets a list of roles the current user has")
-                    .security_requirement("JWT")
-                    .response::<201, Json<Vec<UserRoles>>>()
-            }),
+            required_auth(
+                get_with(get_user_roles, |op| {
+                    op.id("GetUserRoles")
+                        .tag("User")
+                        .description("Gets a list of roles the current user has")
+                        .security_requirement("JWT")
+                        .response::<201, Json<Vec<UserRoles>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/conversations",
-            get_with(get_conversations_user_participating_in, |op| {
-                op.id("GetConversationsUserIsParticipatingIn")
-                    .tag("User")
-                    .description(
-                        "Returns a list of all the conversations the user has taken part in",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<LocalizedConversationDto>>>()
-            }),
+            required_auth(
+                get_with(get_conversations_user_participating_in, |op| {
+                    op.id("GetConversationsUserIsParticipatingIn")
+                        .tag("User")
+                        .description(
+                            "Returns a list of all the conversations the user has taken part in",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<LocalizedConversationDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/owned_conversations",
-            get_with(get_user_owned_conversations, |op| {
-                op.id("GetOwnedConversations")
-                    .tag("User")
-                    .description("Gets a list of the conversations a user owns")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
-            }),
+            required_auth(
+                get_with(get_user_owned_conversations, |op| {
+                    op.id("GetOwnedConversations")
+                        .tag("User")
+                        .description("Gets a list of the conversations a user owns")
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/permitted_conversations",
-            get_with(get_user_permitted_conversations, |op| {
-                op.id("GetPermittedConversations")
-                    .tag("User")
-                    .description("Gets a list of the conversations a user is permitted access to")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
-            }),
+            required_auth(
+                get_with(get_user_permitted_conversations, |op| {
+                    op.id("GetPermittedConversations")
+                        .tag("User")
+                        .description(
+                            "Gets a list of the conversations a user is permitted access to",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/organizations",
-            get_with(get_user_organizations, |op| {
-                op.id("GetUserOrganizations")
-                    .tag("User")
-                    .description("Gets the organizations associated with the current user and those they can manage")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserOrganizationsResponse>>()
-            }),
+            required_auth(
+                get_with(get_user_organizations, |op| {
+                    op.id("GetUserOrganizations")
+                        .tag("User")
+                        .description(
+                            "Gets the organizations associated with the \
+                        current user and those they can manage",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserOrganizationsResponse>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/details",
-            put_with(update_user_details, |op| {
-                op.id("UpdateUserDetails")
-                    .tag("User")
-                    .description("Update user details (username and/or password)")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserDto>>()
-            }),
+            required_auth(
+                put_with(update_user_details, |op| {
+                    op.id("UpdateUserDetails")
+                        .tag("User")
+                        .description("Update user details (username and/or password)")
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/upgrade",
-            put_with(upgrade_account, |op| {
-                op.id("UpgradeAccount")
-                    .tag("User")
-                    .description("Upgrade anonymous account to email/password account")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserDto>>()
-            }),
+            required_auth(
+                put_with(upgrade_account, |op| {
+                    op.id("UpgradeAccount")
+                        .tag("User")
+                        .description("Upgrade anonymous account to email/password account")
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
+        .api_route(
+            "/sync_kc",
+            required_auth(
+                post_with(sync_kc_users, |op| {
+                    op.id("SyncKcUsers")
+                        .tag("User")
+                        .description("Sync users with Keycloak")
+                        .description("Sync comhairle_users from postgres to Keycloak")
+                        .security_requirement("JWT")
+                        .response::<201, Json<SyncKcUserResponse>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
+        )
 }

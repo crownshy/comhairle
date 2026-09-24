@@ -1,4 +1,6 @@
 use aws_config::BehaviorVersion;
+use axum::ServiceExt;
+use comhairle::auth_service::{AuthService, keycloak::KeycloakClient};
 use comhairle::redis_connection::RedisImpl;
 use comhairle::{
     ComhairleState,
@@ -83,6 +85,10 @@ async fn run() -> Result<(), Box<dyn Error>> {
                 )) as Arc<dyn comhairle::translation_service::TranslationService>
             });
 
+    // Setup Auth Service
+    let auth_service =
+        Arc::new(KeycloakClient::new(&config.auth_service).await?) as Arc<dyn AuthService>;
+
     // Setup Bulk Storage Service
     let bulk_storage_service = if let Some(bulk_storage_config) = &config.bulk_storage_service {
         let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
@@ -158,6 +164,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         config,
         websockets,
         video_call_handler,
+        auth_service,
         translation_service,
         transcription_service,
         bot_service,
@@ -179,7 +186,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         tracing::info!("listening on {}", listener.local_addr().unwrap());
         axum::serve(
             listener,
-            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            ServiceExt::<axum::http::Request<axum::body::Body>>::into_make_service_with_connect_info::<std::net::SocketAddr>(app),
         )
         .await
         .unwrap();

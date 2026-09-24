@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::polis_statement_aux;
+use crate::{models::polis_statement_aux, required_auth};
 use aide::axum::{
     ApiRouter,
     routing::{delete_with, get_with, post_with, put_with},
@@ -10,6 +10,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -27,7 +28,7 @@ use crate::{
             UpsertFromPolis,
         },
     },
-    routes::auth::{RequiredAdminUser, RequiredUser},
+    routes::auth::extract::{RequiredAdminUser, RequiredUser},
     wiki_poll_service::{
         ModerationStatus, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
         polis_service::WikiPollReport,
@@ -152,7 +153,7 @@ impl ToolImpl for PolisTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/polis/report_data",
@@ -166,23 +167,28 @@ impl ToolImpl for PolisTool {
             )
             .api_route(
                 "/polis/vote_count",
-                get_with(get_user_vote_count, |op| {
-                    op.id("PolisGetUserVoteCount")
-                        .tag("Tools")
-                        .summary("Get the calling participant's vote count for a step")
-                        .description(
-                            "Counts the votes the authenticated participant has cast in the \
+                required_auth(
+                    get_with(get_user_vote_count, |op| {
+                        op.id("PolisGetUserVoteCount")
+                            .tag("Tools")
+                            .summary("Get the calling participant's vote count for a step")
+                            .description(
+                                "Counts the votes the authenticated participant has cast in the \
                              Polis poll for the given workflow step, mapping their comhairle \
                              user id to the Polis participant via xids. Used to seed the \
                              required-votes progress from server data.",
-                        )
-                        .response::<200, Json<VoteCountResponse>>()
-                }),
+                            )
+                            .response::<200, Json<VoteCountResponse>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/config",
-                put_with(update_polis_config, |op| {
-                    op.id("PolisUpdateConfig")
+                required_auth(
+                    put_with(update_polis_config, |op| {
+                        op.id("PolisUpdateConfig")
                         .tag("Tools")
                         .summary("Update the Polis conversation configuration")
                         .description(
@@ -191,167 +197,213 @@ impl ToolImpl for PolisTool {
                              fields are written.",
                         )
                         .response::<200, Json<WikiPoll>>()
-                }),
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/seed",
-                post_with(post_seed, |op| {
-                    op.id("PolisPostSeed")
-                        .tag("Tools")
-                        .summary("Post a seed statement to the Polis conversation")
-                        .description(
-                            "Posts a moderator-authored seed statement (is_seed) to the active \
+                required_auth(
+                    post_with(post_seed, |op| {
+                        op.id("PolisPostSeed")
+                            .tag("Tools")
+                            .summary("Post a seed statement to the Polis conversation")
+                            .description(
+                                "Posts a moderator-authored seed statement (is_seed) to the active \
                              Polis poll via the server-side admin session. Re-sync to surface it \
                              in the local statement_aux table.",
-                        )
-                        .response::<201, Json<PostSeedResponse>>()
-                }),
+                            )
+                            .response::<201, Json<PostSeedResponse>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux",
-                post_with(create_statement_aux, |op| {
-                    op.id("PolisCreateStatementAux")
-                        .tag("Tools")
-                        .summary("Create auxiliary data for a Polis statement")
-                        .description(
-                            "Creates a polis_statement_aux row capturing statement text, \
+                required_auth(
+                    post_with(create_statement_aux, |op| {
+                        op.id("PolisCreateStatementAux")
+                            .tag("Tools")
+                            .summary("Create auxiliary data for a Polis statement")
+                            .description(
+                                "Creates a polis_statement_aux row capturing statement text, \
                              moderation status, themes and the visible statement at \
                              submission time",
-                        )
-                        .response::<201, Json<PolisStatementAux>>()
-                }),
+                            )
+                            .response::<201, Json<PolisStatementAux>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux/{id}",
-                put_with(update_statement_aux, |op| {
-                    op.id("PolisUpdateStatementAux")
-                        .tag("Tools")
-                        .summary("Update auxiliary data for a Polis statement")
-                        .description(
-                            "Updates statement_text, moderation_status, themes, \
+                required_auth(
+                    put_with(update_statement_aux, |op| {
+                        op.id("PolisUpdateStatementAux")
+                            .tag("Tools")
+                            .summary("Update auxiliary data for a Polis statement")
+                            .description(
+                                "Updates statement_text, moderation_status, themes, \
                              visible_statement_when_submitted, or moderation_reason",
-                        )
-                        .response::<200, Json<PolisStatementAux>>()
-                }),
+                            )
+                            .response::<200, Json<PolisStatementAux>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux",
-                get_with(list_statement_aux, |op| {
-                    op.id("PolisListStatementAux")
-                        .tag("Tools")
-                        .summary("List polis_statement_aux rows for a poll")
-                        .description(
-                            "Returns auxiliary statement data filtered by workflow_step_id \
+                required_auth(
+                    get_with(list_statement_aux, |op| {
+                        op.id("PolisListStatementAux")
+                            .tag("Tools")
+                            .summary("List polis_statement_aux rows for a poll")
+                            .description(
+                                "Returns auxiliary statement data filtered by workflow_step_id \
                              and/or polis_conversation_id (at least one is required)",
-                        )
-                        .response::<200, Json<Vec<PolisStatementAux>>>()
-                }),
+                            )
+                            .response::<200, Json<Vec<PolisStatementAux>>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux/sync",
-                post_with(sync_statement_aux, |op| {
-                    op.id("PolisSyncStatementAux")
-                        .tag("Tools")
-                        .summary("Sync polis_statement_aux with the live Polis poll")
-                        .description(
-                            "Fetches comments and xid mappings from Polis and upserts a row \
+                required_auth(
+                    post_with(sync_statement_aux, |op| {
+                        op.id("PolisSyncStatementAux")
+                            .tag("Tools")
+                            .summary("Sync polis_statement_aux with the live Polis poll")
+                            .description(
+                                "Fetches comments and xid mappings from Polis and upserts a row \
                              per statement. Existing rows have their statement_text and \
                              is_seed refreshed; moderation_status, moderation_reason, themes, \
                              visible_statement_when_submitted and user_id are preserved.",
-                        )
-                        .response::<200, Json<SyncStatementAuxResponse>>()
-                }),
+                            )
+                            .response::<200, Json<SyncStatementAuxResponse>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux/theme_stats",
-                get_with(theme_stats, |op| {
-                    op.id("PolisStatementAuxThemeStats")
-                        .tag("Tools")
-                        .summary("Statement counts per theme for a poll")
-                        .description(
-                            "Returns the count of polis_statement_aux rows tagged with each \
+                required_auth(
+                    get_with(theme_stats, |op| {
+                        op.id("PolisStatementAuxThemeStats")
+                            .tag("Tools")
+                            .summary("Statement counts per theme for a poll")
+                            .description(
+                                "Returns the count of polis_statement_aux rows tagged with each \
                              theme, filtered by workflow_step_id and/or polis_conversation_id \
                              (at least one is required)",
-                        )
-                        .response::<200, Json<Vec<ThemeStatistic>>>()
-                }),
+                            )
+                            .response::<200, Json<Vec<ThemeStatistic>>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux/{id}/themes",
-                post_with(add_statement_aux_theme, |op| {
-                    op.id("PolisAddStatementAuxTheme")
-                        .tag("Tools")
-                        .summary("Add a theme to a polis_statement_aux row")
-                        .description(
-                            "Adds a theme to the statement's themes array. Idempotent: \
+                required_auth(
+                    post_with(add_statement_aux_theme, |op| {
+                        op.id("PolisAddStatementAuxTheme")
+                            .tag("Tools")
+                            .summary("Add a theme to a polis_statement_aux row")
+                            .description(
+                                "Adds a theme to the statement's themes array. Idempotent: \
                              adding a theme that is already present is a no-op. Caller \
                              must be the owner of the conversation the statement belongs to.",
-                        )
-                        .response::<200, Json<PolisStatementAux>>()
-                }),
+                            )
+                            .response::<200, Json<PolisStatementAux>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux/{id}/themes",
-                delete_with(remove_statement_aux_theme, |op| {
-                    op.id("PolisRemoveStatementAuxTheme")
-                        .tag("Tools")
-                        .summary("Remove a theme from a polis_statement_aux row")
-                        .description(
-                            "Removes a theme from the statement's themes array. Idempotent: \
+                required_auth(
+                    delete_with(remove_statement_aux_theme, |op| {
+                        op.id("PolisRemoveStatementAuxTheme")
+                            .tag("Tools")
+                            .summary("Remove a theme from a polis_statement_aux row")
+                            .description(
+                                "Removes a theme from the statement's themes array. Idempotent: \
                              removing a theme that is not present is a no-op. Caller must be \
                              the owner of the conversation the statement belongs to.",
-                        )
-                        .response::<200, Json<PolisStatementAux>>()
-                }),
+                            )
+                            .response::<200, Json<PolisStatementAux>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux/{id}/moderate",
-                post_with(moderate_statement_aux, |op| {
-                    op.id("PolisModerateStatementAux")
-                        .tag("Tools")
-                        .summary("Moderate a Polis statement")
-                        .description(
-                            "Forwards a moderation decision (accept/reject) to the Polis \
+                required_auth(
+                    post_with(moderate_statement_aux, |op| {
+                        op.id("PolisModerateStatementAux")
+                            .tag("Tools")
+                            .summary("Moderate a Polis statement")
+                            .description(
+                                "Forwards a moderation decision (accept/reject) to the Polis \
                              server using the admin account, then updates the \
                              polis_statement_aux row's moderation_status and \
                              moderation_reason",
-                        )
-                        .response::<200, Json<PolisStatementAux>>()
-                }),
+                            )
+                            .response::<200, Json<PolisStatementAux>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux/moderate_batch",
-                post_with(moderate_statement_aux_batch, |op| {
-                    op.id("PolisModerateStatementAuxBatch")
-                        .tag("Tools")
-                        .summary("Moderate multiple Polis statements in one request")
-                        .description(
-                            "Forwards an accept/reject decision for many polis_statement_aux \
+                required_auth(
+                    post_with(moderate_statement_aux_batch, |op| {
+                        op.id("PolisModerateStatementAuxBatch")
+                            .tag("Tools")
+                            .summary("Moderate multiple Polis statements in one request")
+                            .description(
+                                "Forwards an accept/reject decision for many polis_statement_aux \
                              rows to Polis using a single admin login, then bulk-updates the \
                              rows that succeeded. All ids must belong to the same workflow \
                              step. Returns the updated rows plus any per-row failures.",
-                        )
-                        .response::<200, Json<ModerateStatementAuxBatchResponse>>()
-                }),
+                            )
+                            .response::<200, Json<ModerateStatementAuxBatchResponse>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/polis/statement_aux/{id}/split",
-                post_with(split_statement, |op| {
-                    op.id("PolisSplitStatement")
-                        .tag("Tools")
-                        .summary("Split or reword a Polis statement")
-                        .description(
-                            "Posts one or more admin-authored replacement statements as \
+                required_auth(
+                    post_with(split_statement, |op| {
+                        op.id("PolisSplitStatement")
+                            .tag("Tools")
+                            .summary("Split or reword a Polis statement")
+                            .description(
+                                "Posts one or more admin-authored replacement statements as \
                              non-seed (is_seed: false), auto-accepts them, rejects the \
                              original statement, and records lineage \
                              (original_statement_id) on each replacement. The replacements \
                              are real, votable statements, never host seeds. Returns the \
                              now-rejected original and the derived replacements.",
-                        )
-                        .response::<201, Json<SplitStatementResponse>>()
-                }),
+                            )
+                            .response::<201, Json<SplitStatementResponse>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -1286,24 +1338,20 @@ mod tests {
     use std::error::Error;
     use std::sync::Arc;
 
-    use axum::Router;
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            polis_statement_aux::{self, CreatePolisStatementAux},
-        },
-        setup_server,
-        test_helpers::{UserSession, extract, polis_tool_config, test_state},
-        wiki_poll_service::{MockWikiPollService, WikiPollService, error::WikiPollServiceError},
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::polis_statement_aux::{self, CreatePolisStatementAux};
+    use crate::test_helpers::{UserSession, extract, polis_tool_config, test_state};
+    use crate::wiki_poll_service::error::WikiPollServiceError;
+    use crate::wiki_poll_service::{MockWikiPollService, WikiPollService};
+    use crate::{App, setup_server};
 
     use super::*;
 
     async fn setup_polis_aux(
-        app: &Router,
+        app: &App,
         pool: &PgPool,
         session: &mut UserSession,
         themes: Vec<String>,
@@ -1456,7 +1504,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "intruder@example.com",
         );
-        intruder.signup(&app).await?;
+        intruder.login(&app).await?;
 
         let (status, _, _) = intruder
             .post(
@@ -1487,7 +1535,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "intruder@example.com",
         );
-        intruder.signup(&app).await?;
+        intruder.login(&app).await?;
 
         let (status, _, _) = intruder
             .delete_with_body(
@@ -1506,7 +1554,7 @@ mod tests {
 
     /// Create a conversation + workflow + Polis workflow step, returning the step id.
     async fn setup_polis_step(
-        app: &Router,
+        app: &App,
         session: &mut UserSession,
     ) -> Result<Uuid, Box<dyn Error>> {
         let (_, conversation, _) = session.create_random_conversation(app).await?;
@@ -1640,7 +1688,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let workflow_step_id = setup_polis_step(&app, &mut session).await?;
         let owner_id = session.id.expect("session to be signed up");
@@ -1708,7 +1756,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "intruder@example.com",
         );
-        intruder.signup(&app).await?;
+        intruder.login(&app).await?;
 
         let (status, _, _) = intruder
             .post(

@@ -7,6 +7,7 @@ use aide::axum::{
     routing::{delete_with, get_with, patch_with, post_with},
 };
 use axum::extract::{Json, Multipart, Path, Query, State};
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
@@ -22,7 +23,8 @@ use crate::{
         },
         pagination::{PageOptions, PaginatedResults},
     },
-    routes::{auth::RequiredAdminUser, media::dto::MediaDto},
+    required_auth,
+    routes::{auth::extract::RequiredAdminUser, media::dto::MediaDto},
     tools::id::gen_id,
 };
 
@@ -185,37 +187,46 @@ async fn delete(
     Ok((StatusCode::OK, Json(media.into())))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListMedia")
-                    .tag("Media")
-                    .summary("List media records")
-                    .description("List media records")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<MediaDto>>>()
-            }),
+            required_auth(
+                get_with(list, |op| {
+                    op.id("ListMedia")
+                        .tag("Media")
+                        .summary("List media records")
+                        .description("List media records")
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<MediaDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{media_id}",
-            get_with(get, |op| {
-                op.id("GetMedia")
-                    .tag("Media")
-                    .summary("Get media record")
-                    .description("Get media record by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<MediaDto>>()
-            }),
+            required_auth(
+                get_with(get, |op| {
+                    op.id("GetMedia")
+                        .tag("Media")
+                        .summary("Get media record")
+                        .description("Get media record by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<MediaDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            post_with(upload, |op| {
-                op.tag("Media")
-                    .summary("Upload media resource")
-                    .description(
-                        "
+            required_auth(
+                post_with(upload, |op| {
+                    op.tag("Media")
+                        .summary("Upload media resource")
+                        .description(
+                            "
 Upload a media resource to the bulk_storage_service 
 and create a new record in the database.\n\n
 This endpoint requires multipart/form-data.\n\n\
@@ -229,34 +240,44 @@ curl -X POST \\
 --form 'file=@/path-to-document.pdf'
 ```
                             ",
-                    )
-                    .security_requirement("JWT")
-                    .response::<201, Json<Vec<MediaDto>>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<201, Json<Vec<MediaDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{media_id}",
-            patch_with(update, |op| {
-                op.id("UpdateMedia")
-                    .tag("Media")
-                    .summary("Update a media record")
-                    .description("Update a media record by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<MediaDto>>()
-            }),
+            required_auth(
+                patch_with(update, |op| {
+                    op.id("UpdateMedia")
+                        .tag("Media")
+                        .summary("Update a media record")
+                        .description("Update a media record by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<MediaDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{media_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteMedia")
-                    .tag("Media")
-                    .summary("Delete media record")
-                    .description("Delete media record by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<MediaDto>>()
-            }),
+            required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteMedia")
+                        .tag("Media")
+                        .summary("Delete media record")
+                        .description("Delete media record by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<MediaDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -321,7 +342,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let body = MultipartBodyBuilder::new(boundary.to_string())
             .add_field("name", &name)
@@ -349,11 +370,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_media_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -372,11 +389,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -400,11 +413,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -446,11 +455,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 

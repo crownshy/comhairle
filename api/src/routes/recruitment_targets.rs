@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -19,8 +20,9 @@ use crate::{
         self,
         recruitment_target::{CreateRecruitmentTarget, PartialRecruitmentTarget},
     },
+    required_auth,
     routes::{
-        auth::RequiredAdminUser, recruitment_targets::dto::RecruitmentTargetDto,
+        auth::extract::RequiredAdminUser, recruitment_targets::dto::RecruitmentTargetDto,
         workflows::WorkflowPathCtx,
     },
 };
@@ -91,64 +93,83 @@ async fn delete_recruitment_target(
     Ok((StatusCode::OK, Json(target)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_recruitment_target, |op| {
-                op.id("CreateRecruitmentTarget")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("Create a recruitment target for a workflow")
-                    .description(
-                        "Records the target number of participants for a given demographic \
+            required_auth(
+                post_with(create_recruitment_target, |op| {
+                    op.id("CreateRecruitmentTarget")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("Create a recruitment target for a workflow")
+                        .description(
+                            "Records the target number of participants for a given demographic \
                          metric/bucket combination on this workflow. Upserts on \
                          (workflow_id, metric, bucket).",
-                    )
-                    .response::<201, Json<RecruitmentTargetDto>>()
-            }),
+                        )
+                        .response::<201, Json<RecruitmentTargetDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            get_with(list_recruitment_targets, |op| {
-                op.id("ListRecruitmentTargets")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("List recruitment targets for a workflow")
-                    .response::<200, Json<Vec<RecruitmentTargetDto>>>()
-            }),
+            required_auth(
+                get_with(list_recruitment_targets, |op| {
+                    op.id("ListRecruitmentTargets")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("List recruitment targets for a workflow")
+                        .response::<200, Json<Vec<RecruitmentTargetDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{recruitment_target_id}",
-            get_with(get_recruitment_target, |op| {
-                op.id("GetRecruitmentTarget")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("Get a recruitment target by id")
-                    .response::<200, Json<RecruitmentTargetDto>>()
-            }),
+            required_auth(
+                get_with(get_recruitment_target, |op| {
+                    op.id("GetRecruitmentTarget")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("Get a recruitment target by id")
+                        .response::<200, Json<RecruitmentTargetDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{recruitment_target_id}",
-            put_with(update_recruitment_target, |op| {
-                op.id("UpdateRecruitmentTarget")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("Update a recruitment target")
-                    .response::<200, Json<RecruitmentTargetDto>>()
-            }),
+            required_auth(
+                put_with(update_recruitment_target, |op| {
+                    op.id("UpdateRecruitmentTarget")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("Update a recruitment target")
+                        .response::<200, Json<RecruitmentTargetDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{recruitment_target_id}",
-            delete_with(delete_recruitment_target, |op| {
-                op.id("DeleteRecruitmentTarget")
-                    .tag("Recruitment Target")
-                    .security_requirement("JWT")
-                    .summary("Delete a recruitment target")
-                    .response::<200, Json<RecruitmentTargetDto>>()
-            }),
+            required_auth(
+                delete_with(delete_recruitment_target, |op| {
+                    op.id("DeleteRecruitmentTarget")
+                        .tag("Recruitment Target")
+                        .security_requirement("JWT")
+                        .summary("Delete a recruitment target")
+                        .response::<200, Json<RecruitmentTargetDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -164,15 +185,8 @@ mod tests {
 
     async fn setup(
         pool: &PgPool,
-    ) -> Result<
-        (
-            axum::Router,
-            crate::test_helpers::UserSession,
-            String,
-            String,
-        ),
-        Box<dyn Error>,
-    > {
+    ) -> Result<(crate::App, crate::test_helpers::UserSession, String, String), Box<dyn Error>>
+    {
         let (app, mut session) = setup_default_app_and_session(pool).await?;
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let conversation: ConversationDto = serde_json::from_value(conversation)?;

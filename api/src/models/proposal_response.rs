@@ -212,10 +212,7 @@ mod tests {
         )
         .await?;
 
-        let (_, value, _) = session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
-        let user: UserDto = serde_json::from_value(value)?;
+        let (_, user, _) = session.current_user(&app).await?;
 
         let tool_config = match workflow_step.preview_tool_config {
             ToolConfig::Prioritization(config) => config,
