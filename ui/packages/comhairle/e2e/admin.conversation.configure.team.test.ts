@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
-import { test } from './utils/testing';
+import { eventually, test } from './utils/testing';
 import { exists } from './utils';
 
 test.beforeEach(async ({ page }) => {
@@ -35,7 +35,9 @@ test('Configure/team page', async ({ page }) => {
 	await EmailTextbox.fill(NEW_USER);
 	await Submit.click();
 
-	expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(true);
+	await eventually(async () => {
+		expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(true);
+	});
 
 	const RevokePermission = page.getByRole('button', { name: 'Revoke permission' });
 	await RevokePermission.click();
@@ -50,5 +52,7 @@ test('Configure/team page', async ({ page }) => {
 	const Revoke = page.getByRole('button', { name: 'Revoke', exact: true });
 	await Revoke.click();
 
-	expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(false);
+	await eventually(async () => {
+		expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(false);
+	});
 });
