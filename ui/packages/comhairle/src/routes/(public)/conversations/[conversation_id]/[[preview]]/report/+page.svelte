@@ -10,7 +10,7 @@
 	let { data } = $props();
 	let { conversation, workflowSteps, report } = data;
 
-	let polisSteps = $derived(workflowSteps.filter((step) => step.toolConfig.type === 'polis'));
+	let polisSteps = $derived(workflowSteps.filter((step) => step.toolConfig?.type === 'polis'));
 	let showPolis = $state(false);
 
 	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
@@ -102,6 +102,7 @@
 	}
 
 	console.log('data: ', data);
+	console.log('polisSteps : ', polisSteps);
 </script>
 
 <svelte:head>
