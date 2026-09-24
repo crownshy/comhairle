@@ -17,7 +17,7 @@ test('Configure/Access page', async ({ page, cleanup }) => {
 			['only_allow_participation_by', 'Only allow participation by'],
 			['automatically_log_in_with_an', 'Automatically log in with an'],
 			['enable_signup_prompts', 'Enable signup prompts'],
-			['show_thank_you_page_guest', 'Show thank you page guest'],
+			['show_thank_you_page_anonymous', 'Show thank you page anonymous'],
 			['show_thank_you_page_feedback', 'Show thank you page feedback'],
 			['allow_revisit_after_finishing', 'Allow revisit after finishing']
 		],
@@ -28,7 +28,7 @@ test('Configure/Access page', async ({ page, cleanup }) => {
 	await switches.toggle('only_allow_participation_by');
 	await switches.toggle('automatically_log_in_with_an');
 	await switches.toggle('enable_signup_prompts');
-	await switches.toggle('show_thank_you_page_guest');
+	await switches.toggle('show_thank_you_page_anonymous');
 	await switches.toggle('show_thank_you_page_feedback');
 	await switches.toggle('allow_revisit_after_finishing');
 
