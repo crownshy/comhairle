@@ -46,6 +46,7 @@ pub mod user_participation;
 pub mod user_profile;
 pub mod user_progress;
 pub mod users;
+pub mod wikipoll_conversation_summary;
 pub mod workflow;
 pub mod workflow_step;
 
