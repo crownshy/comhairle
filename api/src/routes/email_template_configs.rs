@@ -143,7 +143,7 @@ async fn preview(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -233,7 +233,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<PreviewEmailTemplateConfigResponse>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

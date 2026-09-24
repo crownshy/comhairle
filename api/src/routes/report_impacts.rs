@@ -77,7 +77,7 @@ async fn list_impacts_for_conversation(
     Ok((StatusCode::OK, Json(impacts)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -103,5 +103,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<Vec<ReportImpactDto>>>()
             }),
         )
-        .with_state(state)
 }

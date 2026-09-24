@@ -590,7 +590,7 @@ async fn delete(
     Ok((StatusCode::OK, Json(organization)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -715,7 +715,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<OrganizationDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

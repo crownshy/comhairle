@@ -147,7 +147,7 @@ pub async fn get_all_notifications(
     Ok((StatusCode::OK, Json(deliveries)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/unread",
@@ -199,5 +199,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<serde_json::Value>>()
             }),
         )
-        .with_state(state)
 }

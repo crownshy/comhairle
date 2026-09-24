@@ -35,14 +35,12 @@ async fn create(
     Ok((StatusCode::CREATED, Json(CreateResponse { key })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    ApiRouter::new()
-        .api_route(
-            "/",
-            post_with(create, |op| {
-                op.summary("Generate api key")
-                    .response::<201, Json<CreateResponse>>()
-            }),
-        )
-        .with_state(state)
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
+    ApiRouter::new().api_route(
+        "/",
+        post_with(create, |op| {
+            op.summary("Generate api key")
+                .response::<201, Json<CreateResponse>>()
+        }),
+    )
 }

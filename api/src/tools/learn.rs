@@ -102,7 +102,7 @@ impl ToolImpl for LearnTool {
         config.sanitize()
     }
 
-    fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         // Learn tool has no routes
         ApiRouter::new()
     }

@@ -81,7 +81,7 @@ async fn delete_region_area(
     Ok((StatusCode::OK, Json(area)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -133,5 +133,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<RegionAreaDto>>()
             }),
         )
-        .with_state(state)
 }

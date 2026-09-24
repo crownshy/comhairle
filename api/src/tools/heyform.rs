@@ -293,7 +293,7 @@ impl ToolImpl for HeyFormTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/form",
@@ -339,7 +339,6 @@ impl ToolImpl for HeyFormTool {
                         .response::<200, Json<SurveyInsights>>()
                 }),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -861,6 +860,7 @@ mod tests {
     use sqlx::PgPool;
     use tokio::net::TcpListener;
 
+    use crate::App;
     use crate::{
         models::model_test_helpers::{
             get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
@@ -1147,7 +1147,7 @@ mod tests {
     }
 
     async fn create_heyform_workflow_step(
-        app: &axum::Router,
+        app: &App,
         session: &mut crate::test_helpers::UserSession,
         server_url: &str,
     ) -> Result<WorkflowStepDto, Box<dyn Error>> {

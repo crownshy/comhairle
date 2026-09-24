@@ -67,7 +67,7 @@ async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -109,7 +109,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<204, ()>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

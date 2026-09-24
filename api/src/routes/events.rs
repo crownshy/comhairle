@@ -247,7 +247,7 @@ async fn get_jwt(
     Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route("/", get_with(list, |op| {
             op.id("ListEvents")
@@ -353,7 +353,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<breakout::BreakoutPlanDto>>()
         }))
-        .with_state(state)
 }
 
 #[cfg(test)]

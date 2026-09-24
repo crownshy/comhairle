@@ -20,12 +20,12 @@ pub mod websockets;
 pub mod wiki_poll_service;
 pub mod worker_service;
 
+use std::sync::Arc;
+
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
-use axum::{
-    Extension, Router,
-    extract::DefaultBodyLimit,
-    http::{HeaderValue, Method, header},
-};
+use axum::extract::DefaultBodyLimit;
+use axum::http::{HeaderValue, Method, header};
+use axum::{Extension, Router};
 use bot_service::ComhairleBotService;
 use clap::Parser;
 use config::ComhairleConfig;
@@ -36,20 +36,25 @@ use mailer::ComhairleMailer;
 use routes::auth::AUTH_KEY;
 pub use routes::auth::hash_pw;
 use sqlx_postgres::PgPool;
-use std::sync::Arc;
-use tokio::fs;
+use tower::Layer;
+use tower::util::option_layer;
 use tower_http::cors::CorsLayer;
+use tower_http::normalize_path::{NormalizePath, NormalizePathLayer};
 use translation_service::TranslationService;
 use websockets::WebSocketService;
 use websockets::handlers::video_call::VideoCallMessageHandler;
 
-use crate::bulk_storage_service::BulkStorageService;
 use crate::categorization_service::CategorizationService;
 use crate::redis_connection::RedisConnection;
 use crate::routes::workflows::WorkflowRouterContext;
 use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;
+use crate::{
+    bulk_storage_service::BulkStorageService, middleware::rate_limit::auth_rate_limiter_if_enabled,
+};
+
+pub type App = NormalizePath<Router<()>>;
 
 #[cfg(test)]
 // sqlx::test expands every migration into the test binary for every invocation.
@@ -140,9 +145,10 @@ pub struct Args {
 async fn health_check() -> &'static str {
     "OK"
 }
-/// Constructs the ApiRouter and extracts the OpenAPI spec.
-/// Note that sub-routers like `routes::auth::router` are async and must be `.await`ed.
-pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi) {
+
+pub async fn build_router_and_spec(
+    enable_auth_rate_limiting: bool,
+) -> (Router<Arc<ComhairleState>>, OpenApi) {
     aide::generate::on_error(|error| {
         tracing::error!("{error}");
     });
@@ -150,6 +156,104 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
     aide::generate::extract_schemas(true);
     let mut api = OpenApi::default();
 
+    let credential_limit_layer =
+        option_layer(auth_rate_limiter_if_enabled(enable_auth_rate_limiting));
+
+    let router = ApiRouter::<Arc<ComhairleState>>::new()
+        .route("/health", axum::routing::get(health_check))
+        .nest("/auth", routes::auth::router(credential_limit_layer).await)
+        .nest(
+            "/user",
+            routes::user::router()
+                .nest(
+                    "/preferences",
+                    routes::user_conversation_preferences::router(),
+                )
+                .nest("/profile", routes::user_profile::router()),
+        )
+        .nest("/notifications", routes::notifications::router())
+        .nest("/translations", routes::translations::router())
+        .nest("/tools", tools::router())
+        .nest(
+            "/conversation",
+            routes::conversations::router()
+                .nest(
+                    "/{conversation_id}/workflow",
+                    routes::workflows::router(WorkflowRouterContext::Conversation)
+                        .nest(
+                            "/{workflow_id}/workflow_step",
+                            routes::workflow_steps::router(WorkflowRouterContext::Conversation),
+                        )
+                        .nest("/{workflow_id}/progress", routes::user_progress::router())
+                        .nest(
+                            "/{workflow_id}/recruitment_targets",
+                            routes::recruitment_targets::router(),
+                        ),
+                )
+                .nest("/{conversation_id}/invite", routes::invites::router())
+                .nest(
+                    "/{conversation_id}/report",
+                    routes::reports::router()
+                        .nest("/{report_id}/impacts", routes::report_impacts::router()),
+                )
+                .nest("/{conversation_id}/feedback", routes::feedback::router())
+                .nest("/{conversation_id}/chats", routes::chats::router())
+                .nest(
+                    "/{conversation_id}/chat_instructions",
+                    routes::chat_instructions::router(),
+                )
+                .nest(
+                    "/{conversation_id}/moderation_policies",
+                    routes::moderation_policies::router(),
+                )
+                .nest(
+                    "/{conversation_id}/chat_sessions",
+                    routes::chat_sessions::router(),
+                )
+                .nest("/{conversation_id}/documents", routes::documents::router())
+                .nest(
+                    "/{conversation_id}/events",
+                    routes::events::router()
+                        .nest(
+                            "/{event_id}/attendances",
+                            routes::event_attendances::router(),
+                        )
+                        .nest(
+                            "/{event_id}/workflows",
+                            routes::workflows::router(WorkflowRouterContext::Event).nest(
+                                "/{workflow_id}/workflow_steps",
+                                routes::workflow_steps::router(WorkflowRouterContext::Event),
+                            ),
+                        )
+                        .nest(
+                            "/{event_id}/audio_recordings",
+                            routes::audio_recordings::router(),
+                        ),
+                ),
+        )
+        .nest("/ws", websockets::routes::websocket_routes())
+        .nest("/organizations", routes::organizations::router())
+        .nest("/regions", routes::regions::router())
+        .nest("/region_areas", routes::region_areas::router())
+        .nest("/media", routes::media::router())
+        .nest("/jobs", routes::jobs::router())
+        .nest("/services", routes::services::router())
+        .nest("/api_keys", routes::api_keys::router())
+        .nest(
+            "/email_template_configs",
+            routes::email_template_configs::router(),
+        )
+        .nest("/permissions", routes::permissions::router())
+        .nest("/docs", docs_routes())
+        .nest("/demographics", routes::demographics::router())
+        .finish_api_with(&mut api, api_docs);
+
+    (router, api)
+}
+
+/// Constructs the ApiRouter and extracts the OpenAPI spec.
+/// Note that sub-routers like `routes::auth::router` are async and must be `.await`ed.
+pub async fn build_app(state: Arc<ComhairleState>, export_spec: bool) -> App {
     // Setup CORS
     let mut allowed_origins = vec![
         "http://localhost".parse::<HeaderValue>().unwrap(),
@@ -189,156 +293,34 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
         ])
         .allow_origin(allowed_origins);
 
-    // Rate limiting is applied per route inside the auth router: the strict
-    // limiter belongs on the credential endpoints, not on session reads.
-    // Added `.await` here to resolve the opaque Future issue
-    let auth_router = routes::auth::router(state.clone()).await;
+    let (router, api) = build_router_and_spec(state.config.enable_rate_limiting).await;
 
-    let router = ApiRouter::new()
-        .route("/health", axum::routing::get(health_check))
-        .nest_api_service("/auth", auth_router)
-        .nest_api_service(
-            "/user",
-            routes::user::router(state.clone())
-                .nest_api_service(
-                    "/preferences",
-                    routes::user_conversation_preferences::router(state.clone()),
-                )
-                .nest_api_service("/profile", routes::user_profile::router(state.clone())),
-        )
-        .nest_api_service(
-            "/notifications",
-            routes::notifications::router(state.clone()),
-        )
-        .nest_api_service("/translations", routes::translations::router(state.clone()))
-        .nest_api_service("/tools", tools::router(state.clone()))
-        .nest_api_service(
-            "/conversation",
-            routes::conversations::router(state.clone())
-                .nest_api_service(
-                    "/{conversation_id}/workflow",
-                    routes::workflows::router(state.clone(), WorkflowRouterContext::Conversation)
-                        .nest_api_service(
-                            "/{workflow_id}/workflow_step",
-                            routes::workflow_steps::router(
-                                state.clone(),
-                                WorkflowRouterContext::Conversation,
-                            ),
-                        )
-                        .nest_api_service(
-                            "/{workflow_id}/progress",
-                            routes::user_progress::router(state.clone()),
-                        )
-                        .nest_api_service(
-                            "/{workflow_id}/recruitment_targets",
-                            routes::recruitment_targets::router(state.clone()),
-                        ),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/invite",
-                    routes::invites::router(state.clone()),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/report",
-                    routes::reports::router(state.clone()).nest_api_service(
-                        "/{report_id}/impacts",
-                        routes::report_impacts::router(state.clone()),
-                    ),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/feedback",
-                    routes::feedback::router(state.clone()),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/chats",
-                    routes::chats::router(state.clone()),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/chat_instructions",
-                    routes::chat_instructions::router(state.clone()),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/moderation_policies",
-                    routes::moderation_policies::router(state.clone()),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/chat_sessions",
-                    routes::chat_sessions::router(state.clone()),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/documents",
-                    routes::documents::router(state.clone()),
-                )
-                .nest_api_service(
-                    "/{conversation_id}/events",
-                    routes::events::router(state.clone())
-                        .nest_api_service(
-                            "/{event_id}/attendances",
-                            routes::event_attendances::router(state.clone()),
-                        )
-                        .nest_api_service(
-                            "/{event_id}/workflows",
-                            routes::workflows::router(state.clone(), WorkflowRouterContext::Event)
-                                .nest(
-                                    "/{workflow_id}/workflow_steps",
-                                    routes::workflow_steps::router(
-                                        state.clone(),
-                                        WorkflowRouterContext::Event,
-                                    ),
-                                ),
-                        )
-                        .nest_api_service(
-                            "/{event_id}/audio_recordings",
-                            routes::audio_recordings::router(state.clone()),
-                        ),
-                ),
-        )
-        .nest_api_service(
-            "/ws",
-            websockets::routes::websocket_routes().with_state(state.clone()),
-        )
-        .nest_api_service(
-            "/organizations",
-            routes::organizations::router(state.clone()),
-        )
-        .nest_api_service("/regions", routes::regions::router(state.clone()))
-        .nest_api_service("/region_areas", routes::region_areas::router(state.clone()))
-        .nest_api_service("/media", routes::media::router(state.clone()))
-        .nest_api_service("/jobs", routes::jobs::router(state.clone()))
-        .nest_api_service("/services", routes::services::router(state.clone()))
-        .nest_api_service("/api_keys", routes::api_keys::router(state.clone()))
-        .nest_api_service(
-            "/email_template_configs",
-            routes::email_template_configs::router(state.clone()),
-        )
-        .nest_api_service("/permissions", routes::permissions::router(state.clone()))
-        .nest_api_service("/docs", docs_routes(state.clone()))
-        .nest_api_service("/demographics", routes::demographics::router(state.clone()))
-        .finish_api_with(&mut api, api_docs)
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            middleware::request_logging::log_requests,
-        ))
-        .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
-        .layer(DefaultBodyLimit::max(500 * 1024 * 1024))
-        .layer(cors);
+    if export_spec {
+        let json = serde_json::to_string_pretty(&api).unwrap();
+        tokio::fs::write("open-api-spec.json", json.as_bytes())
+            .await
+            .unwrap();
+    }
 
-    (router, api)
+    NormalizePathLayer::trim_trailing_slash().layer(
+        router
+            .with_state(state.clone())
+            .layer(axum::middleware::from_fn_with_state(
+                state,
+                middleware::request_logging::log_requests,
+            ))
+            .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
+            .layer(DefaultBodyLimit::max(500 * 1024 * 1024))
+            .layer(cors),
+    )
 }
 
-pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, ComhairleError> {
+pub async fn setup_server(state: Arc<ComhairleState>) -> Result<App, ComhairleError> {
     let args = Args::try_parse().unwrap_or_default();
 
     tracing::info!("Running with config {:#?}", state.config);
 
     run_migrations(&state.db).await?;
 
-    let (app, api) = build_app_and_spec(state).await;
-
-    if args.export_api_spec {
-        let json = serde_json::to_string_pretty(&api).unwrap();
-        fs::write("open-api-spec.json", json.as_bytes()).await?;
-    }
-
-    Ok(app)
+    Ok(build_app(state, args.export_api_spec).await)
 }

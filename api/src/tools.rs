@@ -80,10 +80,9 @@ pub trait ToolImpl: Send + Sync + 'static {
     }
 
     /// Register HTTP routes for this tool
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         // Default: no routes
-        let _ = state;
-        ApiRouter::new()
+        ApiRouter::<Arc<ComhairleState>>::new()
     }
 
     /// Register background workers/tasks
@@ -282,15 +281,15 @@ impl ToolSetup {
 }
 
 /// Register all tool routes
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
-        .merge(polis::PolisTool::routes(&state))
-        .merge(learn::LearnTool::routes(&state))
-        .merge(heyform::HeyFormTool::routes(&state))
-        .merge(stories::StoriesTool::routes(&state))
-        .merge(elicitation_bot::ElicitationBotTool::routes(&state))
-        .merge(prioritization::PrioritizationTool::routes(&state))
-        .merge(thinking_space::ThinkingSpaceTool::routes(&state))
+        .merge(polis::PolisTool::routes())
+        .merge(learn::LearnTool::routes())
+        .merge(heyform::HeyFormTool::routes())
+        .merge(stories::StoriesTool::routes())
+        .merge(elicitation_bot::ElicitationBotTool::routes())
+        .merge(prioritization::PrioritizationTool::routes())
+        .merge(thinking_space::ThinkingSpaceTool::routes())
 }
 
 #[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]

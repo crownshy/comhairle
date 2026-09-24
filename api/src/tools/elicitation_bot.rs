@@ -134,7 +134,7 @@ impl ToolImpl for ElicitationBotTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/elicitation_bot/workflow_step/{workflow_step_id}",
@@ -163,7 +163,6 @@ Use a raw HTTP request and process the response body incrementally.
                         )
                 }),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -274,15 +273,13 @@ mod tests {
     use super::*;
 
     use crate::{
+        App,
         bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService},
         setup_server,
         test_helpers::{UserSession, elicitation_bot_tool_config, test_state},
     };
 
-    use axum::{
-        Router,
-        body::{Bytes, to_bytes},
-    };
+    use axum::body::{Bytes, to_bytes};
     use futures::{Stream, stream};
     use mockall::predicate::always;
     use serde_json::json;
@@ -331,7 +328,7 @@ mod tests {
     async fn setup_test_app_with_workflow_step<F>(
         pool: PgPool,
         configure_bot_service: F,
-    ) -> Result<(Router, UserSession, String), Box<dyn Error>>
+    ) -> Result<(App, UserSession, String), Box<dyn Error>>
     where
         F: FnOnce(&mut MockComhairleBotService),
     {

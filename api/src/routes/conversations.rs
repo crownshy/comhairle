@@ -906,7 +906,7 @@ async fn export_conversation_demographics(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -1068,11 +1068,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Conversation")
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::App;
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
@@ -2303,7 +2303,7 @@ mod tests {
     /// Helper: create the conversation and return its id.
     async fn make_conversation(
         session: &mut UserSession,
-        app: &axum::Router,
+        app: &App,
         slug: &str,
     ) -> Result<uuid::Uuid, Box<dyn Error>> {
         let (_, conversation, _) = session

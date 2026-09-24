@@ -110,7 +110,7 @@ async fn converse(
     Ok(StreamBody(body))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -131,7 +131,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Streamed LLM response.\n\n⚠️ This endpoint returns a streaming response on success.\nGenerated API clients are NOT suitable for consuming this endpoint.\nUse a raw HTTP request and process the response body incrementally.")
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

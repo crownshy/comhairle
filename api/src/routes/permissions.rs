@@ -326,7 +326,7 @@ async fn list_users_with_permission(
 }
 
 /// Creates the permissions API router with all the defined routes and their corresponding handlers.
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -418,7 +418,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<Vec<UserWithPermissionDto>>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

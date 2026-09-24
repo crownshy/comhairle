@@ -152,7 +152,7 @@ impl ToolImpl for PolisTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/polis/report_data",
@@ -351,7 +351,6 @@ impl ToolImpl for PolisTool {
                         .response::<201, Json<SplitStatementResponse>>()
                 }),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -1286,24 +1285,20 @@ mod tests {
     use std::error::Error;
     use std::sync::Arc;
 
-    use axum::Router;
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            polis_statement_aux::{self, CreatePolisStatementAux},
-        },
-        setup_server,
-        test_helpers::{UserSession, extract, polis_tool_config, test_state},
-        wiki_poll_service::{MockWikiPollService, WikiPollService, error::WikiPollServiceError},
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::polis_statement_aux::{self, CreatePolisStatementAux};
+    use crate::test_helpers::{UserSession, extract, polis_tool_config, test_state};
+    use crate::wiki_poll_service::error::WikiPollServiceError;
+    use crate::wiki_poll_service::{MockWikiPollService, WikiPollService};
+    use crate::{App, setup_server};
 
     use super::*;
 
     async fn setup_polis_aux(
-        app: &Router,
+        app: &App,
         pool: &PgPool,
         session: &mut UserSession,
         themes: Vec<String>,
@@ -1506,7 +1501,7 @@ mod tests {
 
     /// Create a conversation + workflow + Polis workflow step, returning the step id.
     async fn setup_polis_step(
-        app: &Router,
+        app: &App,
         session: &mut UserSession,
     ) -> Result<Uuid, Box<dyn Error>> {
         let (_, conversation, _) = session.create_random_conversation(app).await?;

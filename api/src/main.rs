@@ -1,4 +1,5 @@
 use aws_config::BehaviorVersion;
+use axum::ServiceExt;
 use comhairle::redis_connection::RedisImpl;
 use comhairle::{
     ComhairleState,
@@ -179,7 +180,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         tracing::info!("listening on {}", listener.local_addr().unwrap());
         axum::serve(
             listener,
-            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            ServiceExt::<axum::http::Request<axum::body::Body>>::into_make_service_with_connect_info::<std::net::SocketAddr>(app),
         )
         .await
         .unwrap();

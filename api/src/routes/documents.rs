@@ -489,7 +489,7 @@ async fn learn_content(
     Ok((StatusCode::OK, Json(LearnContentResponse { sections })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -598,17 +598,17 @@ curl -X POST \\
                     .response::<200, Json<UploadFileResponse>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use crate::App;
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::test_helpers::{MultipartBodyBuilder, test_state};
     use crate::{setup_server, test_helpers::UserSession};
-    use axum::{Router, body::Body, http::StatusCode};
+    use axum::{body::Body, http::StatusCode};
     use mockall::predicate::eq;
     use serde_json::json;
     use sqlx::PgPool;
@@ -659,7 +659,7 @@ mod tests {
         pool: PgPool,
         kb_id: String,
         configure_bot_service: F,
-    ) -> Result<(Router, UserSession, String), Box<dyn Error>>
+    ) -> Result<(App, UserSession, String), Box<dyn Error>>
     where
         F: FnOnce(&mut MockComhairleBotService),
     {

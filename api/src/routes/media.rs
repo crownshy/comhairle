@@ -185,7 +185,7 @@ async fn delete(
     Ok((StatusCode::OK, Json(media.into())))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -256,7 +256,6 @@ curl -X POST \\
                     .response::<200, Json<MediaDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

@@ -91,7 +91,7 @@ async fn delete_recruitment_target(
     Ok((StatusCode::OK, Json(target)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -148,7 +148,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<RecruitmentTargetDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -164,15 +163,8 @@ mod tests {
 
     async fn setup(
         pool: &PgPool,
-    ) -> Result<
-        (
-            axum::Router,
-            crate::test_helpers::UserSession,
-            String,
-            String,
-        ),
-        Box<dyn Error>,
-    > {
+    ) -> Result<(crate::App, crate::test_helpers::UserSession, String, String), Box<dyn Error>>
+    {
         let (app, mut session) = setup_default_app_and_session(pool).await?;
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let conversation: ConversationDto = serde_json::from_value(conversation)?;
