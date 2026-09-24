@@ -12,7 +12,7 @@
 	let polisSteps = $derived(workflowSteps.filter((step) => step.toolConfig.type === 'polis'));
 	let showPolis = $state(false);
 
-	let pageTitle = $derived(`${conversation.title} Report`);
+	// let pageTitle = $derived(`${conversation.title} Report`);
 	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
 	const reportPills = [
 		{ componentType: 'polis-area-consensus', label: 'Areas of agreement' },
@@ -100,10 +100,12 @@
 	function scrollToTop() {
 		window.scrollTo({ top: 0, behavior: scrollBehavior() });
 	}
+
+	console.log('data: ', data);
 </script>
 
 <svelte:head>
-	<title>{pageTitle} - Comhairle</title>
+	<title>Report | {conversation.title}</title>
 </svelte:head>
 
 <main class="bg-background flex flex-col items-center pb-20">
@@ -118,7 +120,7 @@
 		<h1
 			class="text-foreground max-w-4xl text-3xl leading-10 font-bold md:text-5xl md:leading-[52px]"
 		>
-			{data.conversation.title}
+			{conversation.title}
 		</h1>
 		<p class="text-muted-foreground max-w-3xl text-lg leading-7">
 			Created on {reportCreatedAt}
