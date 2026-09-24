@@ -138,7 +138,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
 /// An extractor to get the current user if they exist and return None if no user
 /// is logged in.
 ///
-/// To be used on endpoints authenticated with [`state.optional_auth`].
+/// To be used on endpoints authenticated with [`crate::optional_auth`].
 #[derive(OperationIo, Debug)]
 pub struct OptionalUser(pub Option<UserDto>);
 
@@ -176,7 +176,7 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
 /// auth requests via Authorization header. Returns None if no access token
 /// is found.
 ///
-/// To be used on endpoints authenticated with [`state.layer::optional_auth`].
+/// To be used on endpoints authenticated with [`crate::optional_auth`].
 #[derive(OperationIo, Debug)]
 pub struct OptionalRawAccessToken(pub Option<String>);
 

@@ -5,6 +5,7 @@ use aide::axum::{
     routing::{get_with, put_with},
 };
 use axum::{Json, extract::State, http::StatusCode};
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 
 use crate::{
@@ -14,6 +15,7 @@ use crate::{
         self,
         user_profile::{CreateUserProfile, PartialUserProfile},
     },
+    required_auth,
     routes::{auth::extract::RequiredUser, user_profile::dto::UserProfileDto},
 };
 
@@ -75,11 +77,11 @@ pub async fn upsert_profile(
     Ok((StatusCode::OK, Json(profile.into())))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(get_profile, |op| {
                     op.id("GetUserProfile")
                         .tag("User Profile")
@@ -88,11 +90,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<UserProfileDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 put_with(upsert_profile, |op| {
                     op.id("UpsertUserProfile")
                         .tag("User Profile")
@@ -101,9 +104,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<UserProfileDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

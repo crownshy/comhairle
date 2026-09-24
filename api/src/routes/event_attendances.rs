@@ -8,6 +8,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -25,6 +26,7 @@ use crate::{
         pagination::{PageOptions, PaginatedResults},
         users,
     },
+    required_auth,
     routes::{
         auth::extract::{RequiredAdminUser, RequiredUser},
         event_attendances::dto::EventAttendanceDto,
@@ -214,11 +216,11 @@ pub async fn delete(
     Ok((StatusCode::OK, Json(event_attendance)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(list, |op| {
                     op.id("ListEventAttendances")
                         .summary("List attendances for an event")
@@ -231,11 +233,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<PaginatedResults<EventAttendanceEtx>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{attendance_id}",
-            state.required_auth(
+            required_auth(
                 get_with(get, |op| {
                     op.id("GetEventAttendance")
                         .summary("Get an event attendance by id")
@@ -245,11 +248,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<EventAttendanceDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create, |op| {
                     op.id("CreateEventAttendance")
                         .summary("Create a new event attendance")
@@ -259,11 +263,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<EventAttendanceDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/facilitator",
-            state.required_auth(
+            required_auth(
                 post_with(create_facilitator, |op| {
                     op.id("CreateFacilitatorEventAttendance")
                     .summary("Create a new event attendance with facilitator role")
@@ -275,11 +280,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<EventAttendanceDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{attendance_id}",
-            state.required_auth(
+            required_auth(
                 put_with(update, |op| {
                     op.id("UpdateEventAttendance")
                         .summary("Update an event attendance")
@@ -289,11 +295,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<EventAttendanceDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{attendance_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteEventAttendance")
                         .summary("Delete an event attendance")
@@ -303,9 +310,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<EventAttendanceDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

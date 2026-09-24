@@ -8,6 +8,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -24,6 +25,7 @@ use crate::{
         event_attendance,
         pagination::{PageOptions, PaginatedResults},
     },
+    required_auth,
     routes::{
         auth::{
             extract::{RequiredAdminUser, RequiredUser},
@@ -250,11 +252,11 @@ async fn get_jwt(
     Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(list, |op| {
                     op.id("ListEvents")
                         .tag("Events")
@@ -267,11 +269,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<PaginatedResults<LocalizedEventDto>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}",
-            state.required_auth(
+            required_auth(
                 get_with(get, |op| {
                     op.id("GetEvent")
                         .tag("Events")
@@ -281,11 +284,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<EventResponse>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create, |op| {
                     op.id("CreateEvent")
                         .tag("Events")
@@ -295,11 +299,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<EventDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}",
-            state.required_auth(
+            required_auth(
                 put_with(update, |op| {
                     op.id("UpdateEvent")
                         .tag("Events")
@@ -309,11 +314,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<EventDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}/metadata",
-            state.required_auth(
+            required_auth(
                 get_with(get_event_metadata, |op| {
                     op.id("GetEventMetadata")
                         .tag("Events")
@@ -323,11 +329,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Option<serde_json::Value>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}/metadata",
-            state.required_auth(
+            required_auth(
                 patch_with(patch_event_metadata, |op| {
                     op.id("PatchEventMetadata")
                         .tag("Events")
@@ -340,11 +347,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<EventDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteEvent")
                         .tag("Events")
@@ -354,11 +362,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<EventDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}/auth",
-            state.required_auth(
+            required_auth(
                 get_with(get_jwt, |op| {
                     op.id("GetEventJWT")
                         .tag("Events")
@@ -368,11 +377,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<JwtResponse>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}/breakout",
-            state.required_auth(
+            required_auth(
                 get_with(breakout::get_plan, |op| {
                     op.id("GetEventBreakoutPlan")
                         .tag("Events")
@@ -381,11 +391,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<breakout::BreakoutPlanDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}/breakout",
-            state.required_auth(
+            required_auth(
                 put_with(breakout::save_plan, |op| {
                     op.id("SaveEventBreakoutPlan")
                         .tag("Events")
@@ -394,11 +405,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<breakout::BreakoutPlanDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{event_id}/breakout/seed",
-            state.required_auth(
+            required_auth(
                 post_with(breakout::seed_plan, |op| {
                     op.id("SeedEventBreakoutPlan")
                         .tag("Events")
@@ -407,9 +419,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<breakout::BreakoutPlanDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

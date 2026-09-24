@@ -8,13 +8,17 @@ use axum::{
     extract::{Json, Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::bot_service::{ComhairleChat, UpdateChatRequest};
 use crate::models::conversation;
 use crate::routes::auth::extract::RequiredAdminUser;
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    bot_service::{ComhairleChat, UpdateChatRequest},
+    required_auth,
+};
 
 #[instrument(err(Debug), skip(state))]
 async fn get(
@@ -63,11 +67,11 @@ async fn update(
     Ok((StatusCode::OK, Json(chat)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(get, |op| {
                     op.id("GetChat")
                         .tag("Chats")
@@ -77,11 +81,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<ComhairleChat>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 put_with(update, |op| {
                     op.id("UpdateChat")
                         .tag("Chats")
@@ -91,7 +96,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<ComhairleChat>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }

@@ -9,12 +9,13 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
-    ComhairleState, error::ComhairleError,
+    ComhairleState, error::ComhairleError, required_auth,
     routes::user_conversation_preferences::dto::UserConversationPreferencesDto,
 };
 
@@ -80,11 +81,11 @@ pub async fn update_user_conversation_preferences(
     Ok((StatusCode::OK, Json(preferences)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(get_all_user_conversation_preferences, |op| {
                     op.id("GetAllUserConversationPreferences")
                         .summary("Get all user conversation preferences")
@@ -96,11 +97,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Vec<UserConversationPreferencesDto>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/conversation/{conversation_id}",
-            state.required_auth(
+            required_auth(
                 get_with(get_user_conversation_preferences, |op| {
                     op.id("GetUserPreferenceForConversation")
                         .summary("Get user preferences for a conversation")
@@ -111,11 +113,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<UserConversationPreferencesDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/conversation/{conversation_id}",
-            state.required_auth(
+            required_auth(
                 put_with(update_user_conversation_preferences, |op| {
                     op.id("UpdateUserPreferenceForConversation")
                         .summary("Update user preferences for a conversation")
@@ -124,7 +127,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<UserConversationPreferencesDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }

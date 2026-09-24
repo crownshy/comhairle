@@ -14,6 +14,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -27,6 +28,7 @@ use crate::{
         bot_service_user_session::{self, BotServiceSessionContext},
         workflow_step,
     },
+    required_auth,
     routes::auth::extract::RequiredUser,
     tools::ToolConfig,
 };
@@ -134,11 +136,11 @@ impl ToolImpl for ElicitationBotTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/elicitation_bot/workflow_step/{workflow_step_id}",
-                state.required_auth(
+                required_auth(
                     get_with(get_session_history, |op| {
                         op.id("GetElicitationBotSessionHistory")
                             .tag("Tools")
@@ -151,11 +153,12 @@ impl ToolImpl for ElicitationBotTool {
                             .response::<200, Json<ComhairleAgentSession>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/elicitation_bot/workflow_step/{workflow_step_id}",
-                state.required_auth(
+                required_auth(
                     post_with(converse, |op| {
                         op.tag("Tools")
                             .summary("Converse with an elicitation bot")
@@ -169,9 +172,9 @@ impl ToolImpl for ElicitationBotTool {
                             )
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -282,15 +285,13 @@ mod tests {
     use super::*;
 
     use crate::{
+        App,
         bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService},
         setup_server,
         test_helpers::{UserSession, elicitation_bot_tool_config, test_state},
     };
 
-    use axum::{
-        Router,
-        body::{Bytes, to_bytes},
-    };
+    use axum::body::{Bytes, to_bytes};
     use futures::{Stream, stream};
     use mockall::predicate::always;
     use serde_json::json;
@@ -339,7 +340,7 @@ mod tests {
     async fn setup_test_app_with_workflow_step<F>(
         pool: PgPool,
         configure_bot_service: F,
-    ) -> Result<(Router, UserSession, String), Box<dyn Error>>
+    ) -> Result<(App, UserSession, String), Box<dyn Error>>
     where
         F: FnOnce(&mut MockComhairleBotService),
     {
