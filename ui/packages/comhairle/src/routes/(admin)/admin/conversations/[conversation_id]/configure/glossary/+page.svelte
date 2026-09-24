@@ -119,10 +119,6 @@
 	// Warn before leaving (in-app nav or full refresh) while an edit hasn't been saved yet.
 	guardUnsavedChanges(() => dirty);
 
-	onMount(() => {
-		invalidate(key('admin/conversation'));
-	});
-
 	/** Rows -> a clean translatable glossary, dropping empties and splitting the terms per locale. */
 	function toLocalizedGlossary(): LocalizedGlossary {
 		const glossary: LocalizedGlossary = [];
