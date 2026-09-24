@@ -5,6 +5,7 @@
 	import { format } from 'date-fns';
 	import ArrowUp from 'lucide-svelte/icons/arrow-up';
 	import ReportBody from '$lib/reports/ReportBody.svelte';
+	import Switch from '$lib/components/ui/switch/switch.svelte';
 
 	let { data } = $props();
 	let { conversation, workflowSteps, report } = data;
@@ -12,7 +13,6 @@
 	let polisSteps = $derived(workflowSteps.filter((step) => step.toolConfig.type === 'polis'));
 	let showPolis = $state(false);
 
-	// let pageTitle = $derived(`${conversation.title} Report`);
 	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
 	const reportPills = [
 		{ componentType: 'polis-area-consensus', label: 'Areas of agreement' },
@@ -154,14 +154,14 @@
 				</div>
 			{/each}
 
-			<!-- {#if polisSteps.length > 0}
+			{#if polisSteps.length > 0}
 				<div class="mt-2 flex items-center gap-3 self-start">
 					<Switch id="show-polis" bind:checked={showPolis} />
 					<label for="show-polis" class="text-foreground text-base font-medium">
 						Show Polis iframe
 					</label>
 				</div>
-			{/if} -->
+			{/if}
 		</div>
 	</header>
 
