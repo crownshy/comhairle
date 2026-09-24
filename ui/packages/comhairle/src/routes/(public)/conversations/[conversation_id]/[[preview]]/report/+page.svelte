@@ -11,44 +11,106 @@
 	let { conversation, workflowSteps, report } = data;
 
 	let polisSteps = $derived(workflowSteps.filter((step) => step.toolConfig?.type === 'polis'));
-	let showPolis = $state(false);
+	let showPolisiframe = $state(false);
 
 	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
-	const reportPills = [
-		{ componentType: 'polis-area-consensus', label: 'Areas of agreement' },
-		{ componentType: 'polis-area-disagreement', label: 'Areas of disagreement' },
-		{ componentType: 'polis-opinion-groups', label: 'Opinion groups' }
-	];
-	const embeddedComponentTypes = $derived.by<Set<string>>(() => {
+
+	// const reportPills = [
+	// 	{ componentType: 'polis-area-consensus', label: 'Areas of agreement' },
+	// 	{ componentType: 'polis-area-disagreement', label: 'Areas of disagreement' },
+	// 	{ componentType: 'polis-opinion-groups', label: 'Opinion groups' }
+	// ];
+	// const embeddedComponentTypes = $derived.by<Set<string>>(() => {
+	// 	try {
+	// 		const document: unknown = JSON.parse(report.summary);
+	// 		if (
+	// 			!document ||
+	// 			typeof document !== 'object' ||
+	// 			!Array.isArray((document as { content?: unknown[] }).content)
+	// 		) {
+	// 			return new Set();
+	// 		}
+
+	// 		return new Set(
+	// 			(
+	// 				document as { content: { type?: string; attrs?: Record<string, unknown> }[] }
+	// 			).content
+	// 				.filter((node) => node.type === 'reportComponentEmbed')
+	// 				.map((node) => String(node.attrs?.componentType ?? ''))
+	// 		);
+	// 	} catch {
+	// 		return new Set();
+	// 	}
+	// });
+	// const reportNavItems = $derived([
+	// 	{ id: 'report-overview', label: 'Overview' },
+	// 	...reportPills
+	// 		.filter((pill) => embeddedComponentTypes.has(pill.componentType))
+	// 		.map((pill) => ({ id: `report-${pill.componentType}`, label: pill.label }))
+	// ]);
+	let activeReportSection = $state('report-overview');
+	type SummaryNode = {
+		type?: string;
+		attrs?: {
+			level?: number;
+		};
+		content?: SummaryNode[];
+		text?: string;
+	};
+	/**
+	 * The public report navigation is derived from top-level H2 headings in `report.summary`.
+	 * Each heading receives a unique, predictable ID so the navigation and rendered section
+	 * can link to the same anchor. Overview is always included as the first item.
+	 */
+	const reportNavItems = $derived.by(() => {
+		const items: { id: string; label: string }[] = [
+			{ id: 'report-overview', label: 'Overview' }
+		];
+
 		try {
-			const document: unknown = JSON.parse(report.summary);
+			const summaryDocument: unknown = JSON.parse(report.summary);
+
 			if (
-				!document ||
-				typeof document !== 'object' ||
-				!Array.isArray((document as { content?: unknown[] }).content)
+				!summaryDocument ||
+				typeof summaryDocument !== 'object' ||
+				!Array.isArray((summaryDocument as { content?: unknown[] }).content)
 			) {
-				return new Set();
+				return items;
 			}
 
-			return new Set(
-				(
-					document as { content: { type?: string; attrs?: Record<string, unknown> }[] }
-				).content
-					.filter((node) => node.type === 'reportComponentEmbed')
-					.map((node) => String(node.attrs?.componentType ?? ''))
-			);
-		} catch {
-			return new Set();
-		}
-	});
-	const reportNavItems = $derived([
-		{ id: 'report-overview', label: 'Overview' },
-		...reportPills
-			.filter((pill) => embeddedComponentTypes.has(pill.componentType))
-			.map((pill) => ({ id: `report-${pill.componentType}`, label: pill.label }))
-	]);
-	let activeReportSection = $state('report-overview');
+			const nodes = (summaryDocument as { content: SummaryNode[] }).content;
+			const usedIds: Record<string, number> = {};
 
+			for (const node of nodes) {
+				if (node.type !== 'heading' || node.attrs?.level !== 2) continue;
+
+				const label = (node.content ?? [])
+					.map((child) => child.text ?? '')
+					.join('')
+					.trim();
+
+				if (!label) continue;
+
+				const slug = label
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-|-$/g, '');
+
+				const baseId = `section-${slug || 'untitled'}`;
+				const count = usedIds[baseId] ?? 0;
+				usedIds[baseId] = count + 1;
+
+				items.push({
+					id: count === 0 ? baseId : `${baseId}-${count + 1}`,
+					label
+				});
+			}
+		} catch {
+			return items;
+		}
+
+		return items;
+	});
 	let stats = [
 		{
 			name: 'Participants took part',
@@ -65,7 +127,7 @@
 	];
 
 	$effect(() => {
-		if (showPolis || typeof IntersectionObserver === 'undefined') return;
+		if (showPolisiframe || typeof IntersectionObserver === 'undefined') return;
 		activeReportSection = 'report-overview';
 
 		const observer = new IntersectionObserver(
@@ -77,10 +139,10 @@
 			{ rootMargin: '-20% 0px -70%', threshold: 0 }
 		);
 
-		for (const item of reportNavItems) {
-			const section = document.getElementById(item.id);
-			if (section) observer.observe(section);
-		}
+		// for (const item of reportNavItems) {
+		// 	const section = document.getElementById(item.id);
+		// 	if (section) observer.observe(section);
+		// }
 
 		return () => observer.disconnect();
 	});
@@ -157,7 +219,7 @@
 
 			{#if polisSteps.length > 0}
 				<div class="mt-2 flex items-center gap-3 self-start">
-					<Switch id="show-polis" bind:checked={showPolis} />
+					<Switch id="show-polis" bind:checked={showPolisiframe} />
 					<label for="show-polis" class="text-foreground text-base font-medium">
 						Show Polis iframe
 					</label>
@@ -166,7 +228,7 @@
 		</div>
 	</header>
 
-	{#if !showPolis}
+	{#if !showPolisiframe}
 		<div class="bg-card/95 sticky top-0 z-20 w-full px-5 py-3 shadow-md backdrop-blur md:px-10">
 			<nav
 				class="mx-auto flex max-w-4xl gap-2 overflow-x-auto md:justify-center"
@@ -189,8 +251,8 @@
 		</div>
 	{/if}
 
-	<div class="w-full px-10 font-sans {showPolis ? 'max-w-[1400px]' : 'max-w-4xl'}">
-		{#if showPolis}
+	<div class="w-full px-10 font-sans {showPolisiframe ? 'max-w-[1400px]' : 'max-w-4xl'}">
+		{#if showPolisiframe}
 			{#each polisSteps as step (step.id)}
 				<iframe
 					class="h-[1000vh] w-full border-none"
