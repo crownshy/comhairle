@@ -24,6 +24,8 @@
 		type?: string;
 		attrs?: {
 			level?: number;
+			toolStepId?: unknown;
+			componentType?: unknown;
 		};
 		content?: SummaryNode[];
 		text?: string;
