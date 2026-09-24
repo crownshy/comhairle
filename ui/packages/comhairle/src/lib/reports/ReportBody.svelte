@@ -20,9 +20,17 @@
 		conversationId?: string;
 		availableDocuments?: ComhairleDocument[];
 	} = $props();
-
+	type SummaryNode = {
+		type?: string;
+		attrs?: {
+			level?: number;
+		};
+		content?: SummaryNode[];
+		text?: string;
+	};
 	type Segment =
 		| { kind: 'text'; json: string }
+		| { kind: 'heading'; id: string; json: string }
 		| { kind: 'embed'; toolStepId: string; componentType: string };
 
 	const segments = $derived.by<Segment[]>(() => {
@@ -41,8 +49,9 @@
 			return [{ kind: 'text', json: content }];
 		}
 
-		const nodes = (doc as { content: { type?: string; attrs?: Record<string, unknown> }[] })
-			.content;
+		// const nodes = (doc as { content: { type?: string; attrs?: Record<string, unknown> }[] })
+		// 	.content;
+		const nodes = (doc as { content: SummaryNode[] }).content;
 		const out: Segment[] = [];
 		let run: unknown[] = [];
 		const flush = () => {
@@ -52,7 +61,36 @@
 			}
 		};
 
+		const usedIds: Record<string, number> = {};
+
 		for (const node of nodes) {
+			if (node.type === 'heading' && node.attrs?.level === 2) {
+				flush();
+
+				const label = (node.content ?? [])
+					.map((child) => child.text ?? '')
+					.join('')
+					.trim();
+
+				if (!label) continue;
+
+				const slug = label
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-|-$/g, '');
+
+				const baseId = `section-${slug || 'untitled'}`;
+				const count = usedIds[baseId] ?? 0;
+				usedIds[baseId] = count + 1;
+
+				out.push({
+					kind: 'heading',
+					id: count === 0 ? baseId : `${baseId}-${count + 1}`,
+					json: JSON.stringify({ type: 'doc', content: [node] })
+				});
+
+				continue;
+			}
 			if (node.type === 'reportComponentEmbed') {
 				flush();
 				out.push({
@@ -70,7 +108,11 @@
 </script>
 
 {#each segments as segment, i (i)}
-	{#if segment.kind === 'embed'}
+	{#if segment.kind === 'heading'}
+		<div id={segment.id} class="scroll-mt-8">
+			<ContentRenderer content={segment.json} {conversationId} {availableDocuments} />
+		</div>
+	{:else if segment.kind === 'embed'}
 		{#if segment.toolStepId && segment.componentType}
 			<div id={`report-${segment.componentType}`} class="report-embed my-4 scroll-mt-8">
 				<ReportEmbedLive
