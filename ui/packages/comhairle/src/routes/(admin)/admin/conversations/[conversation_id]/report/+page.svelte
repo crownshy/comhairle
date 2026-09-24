@@ -25,6 +25,8 @@
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { key } from '$lib/utils/invalidationKey.js';
+	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
+	let summaryDraft = $state('');
 
 	let { data } = $props();
 	let report = $derived(data.report);
@@ -79,10 +81,40 @@
 		<Switch name="published" value={report.isPublic} />
 	</div>
 
+	<!-- Backend work required:
+- add Report.body as a translatable TextContent field;
+- migrate each existing report's current summary content into body;
+- create separate summary and body TextContent records for new reports;
+- expose both fields through the report API.
+	Frontend follow-up:
+- Summary editor will use `report.translations.summary`.
+- Report body editor will use `report.translations.body`.
+- Public report header will render Summary.
+- `ReportBody` will render Body. -->
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Summary</Card.Title>
-			<Card.Description>Overall summary of the conversation</Card.Description>
+			<Card.Description
+				>A short introduction shown at the top of the public report.</Card.Description
+			>
+		</Card.Header>
+		<Card.Content
+			><RichTextEditor
+				value={summaryDraft}
+				onChange={(json) => (summaryDraft = json)}
+				placeholder="Write a short introduction to the report"
+				minHeight="100px"
+				conversationId={conversation.id}
+				reportEmbedSteps={data.reportEmbedSteps}
+			/></Card.Content
+		>
+	</Card.Root>
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Report body</Card.Title>
+			<Card.Description
+				>The full report, including sections and embedded report components</Card.Description
+			>
 		</Card.Header>
 		<Card.Content>
 			<TranslatableField
@@ -90,7 +122,7 @@
 				primaryLocale={conversation.primaryLocale as Locale}
 				supportedLanguages={conversation.supportedLanguages as Locale[]}
 				inputType="textarea"
-				placeholder="Summary to be filled out by the facilitator"
+				placeholder="Grab the data components and interpret them in plain langauge."
 				editorType="rich"
 				minHeight="100px"
 				reportEmbedSteps={data.reportEmbedSteps}
