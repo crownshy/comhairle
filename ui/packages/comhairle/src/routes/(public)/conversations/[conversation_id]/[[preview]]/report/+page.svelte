@@ -14,6 +14,7 @@
 	let showPolisiframe = $state(false);
 
 	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
+	let reportNavElement: HTMLElement;
 
 	let activeReportSection = $state('report-overview');
 	type SummaryNode = {
@@ -100,7 +101,10 @@
 		const observer = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
-					if (entry.isIntersecting) activeReportSection = entry.target.id;
+					if (entry.isIntersecting) {
+						activeReportSection = entry.target.id;
+						revealActiveNavItem(entry.target.id);
+					}
 				}
 			},
 			{ rootMargin: '-20% 0px -70%', threshold: 0 }
@@ -129,7 +133,19 @@
 	function scrollToTop() {
 		window.scrollTo({ top: 0, behavior: scrollBehavior() });
 	}
+	function revealActiveNavItem(sectionId: string) {
+		const activeItem = reportNavElement?.querySelector<HTMLElement>(
+			`[data-report-nav-id="${sectionId}"]`
+		);
 
+		if (!activeItem) return;
+
+		reportNavElement.scrollTo({
+			left:
+				activeItem.offsetLeft - (reportNavElement.clientWidth - activeItem.offsetWidth) / 2,
+			behavior: scrollBehavior()
+		});
+	}
 	console.log('data: ', data);
 	console.log('polisSteps : ', polisSteps);
 </script>
@@ -198,6 +214,7 @@
 	{#if !showPolisiframe}
 		<div class="bg-card/95 sticky top-0 z-20 w-full px-5 py-3 shadow-md backdrop-blur md:px-10">
 			<nav
+				bind:this={reportNavElement}
 				class="mx-auto flex max-w-4xl gap-2 overflow-x-auto md:justify-center"
 				aria-label="Report sections"
 			>
@@ -206,6 +223,7 @@
 						href={`#${item.id}`}
 						onclick={(event) => scrollToSection(event, item.id)}
 						aria-current={activeReportSection === item.id ? 'location' : undefined}
+						data-report-nav-id={item.id}
 						class="shrink-0 rounded-full px-4 py-2 text-base font-medium shadow-sm transition-colors {activeReportSection ===
 						item.id
 							? 'bg-primary text-primary-foreground'
