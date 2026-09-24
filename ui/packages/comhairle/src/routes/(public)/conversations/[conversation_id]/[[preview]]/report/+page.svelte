@@ -5,6 +5,7 @@
 	import { format } from 'date-fns';
 	import ArrowUp from 'lucide-svelte/icons/arrow-up';
 	import ReportBody from '$lib/reports/ReportBody.svelte';
+	import { onMount } from 'svelte';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
 
 	let { data } = $props();
@@ -14,9 +15,13 @@
 	let showPolisiframe = $state(false);
 
 	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
+	// The sticky navigation container, used to keep the active pill visible.
 	let reportNavElement: HTMLElement;
+	// The report content container, used to calculate Back to top visibility.
+	let reportElement: HTMLElement;
+	let showBackToTop = $state(false);
 
-	let activeReportSection = $state('report-overview');
+	let activeReportSection = $state('');
 	type SummaryNode = {
 		type?: string;
 		attrs?: {
@@ -28,12 +33,10 @@
 	/**
 	 * The public report navigation is derived from top-level H2 headings in `report.summary`.
 	 * Each heading receives a unique, predictable ID so the navigation and rendered section
-	 * can link to the same anchor. Overview is always included as the first item.
+	 * can link to the same anchor.
 	 */
 	const reportNavItems = $derived.by(() => {
-		const items: { id: string; label: string }[] = [
-			{ id: 'report-overview', label: 'Overview' }
-		];
+		const items: { id: string; label: string }[] = [];
 
 		try {
 			const summaryDocument: unknown = JSON.parse(report.summary);
@@ -96,7 +99,7 @@
 
 	$effect(() => {
 		if (showPolisiframe || typeof IntersectionObserver === 'undefined') return;
-		activeReportSection = 'report-overview';
+		activeReportSection = reportNavItems[0]?.id ?? '';
 
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -133,6 +136,24 @@
 	function scrollToTop() {
 		window.scrollTo({ top: 0, behavior: scrollBehavior() });
 	}
+
+	onMount(() => {
+		function updateBackToTopVisibility() {
+			const reportScrollHeight = reportElement.offsetHeight - window.innerHeight;
+			const reportScrollPosition = window.scrollY - reportElement.offsetTop;
+			showBackToTop =
+				reportScrollHeight > 0 && reportScrollPosition / reportScrollHeight >= 0.3;
+		}
+
+		window.addEventListener('scroll', updateBackToTopVisibility, { passive: true });
+		window.addEventListener('resize', updateBackToTopVisibility);
+		updateBackToTopVisibility();
+
+		return () => {
+			window.removeEventListener('scroll', updateBackToTopVisibility);
+			window.removeEventListener('resize', updateBackToTopVisibility);
+		};
+	});
 	function revealActiveNavItem(sectionId: string) {
 		const activeItem = reportNavElement?.querySelector<HTMLElement>(
 			`[data-report-nav-id="${sectionId}"]`
@@ -154,7 +175,7 @@
 	<title>Report | {conversation.title}</title>
 </svelte:head>
 
-<main class="bg-background flex flex-col items-center pb-20">
+<main bind:this={reportElement} class="bg-background flex flex-col items-center pb-20">
 	<header
 		class="bg-card mb-8 flex w-full flex-col items-center gap-4 rounded-xl px-5 pt-10 pb-8 text-center md:mb-16 md:px-24 md:pt-24 md:pb-12"
 	>
@@ -215,23 +236,25 @@
 		<div class="bg-card/95 sticky top-0 z-20 w-full px-5 py-3 shadow-md backdrop-blur md:px-10">
 			<nav
 				bind:this={reportNavElement}
-				class="mx-auto flex max-w-4xl gap-2 overflow-x-auto md:justify-center"
+				class="mx-auto max-w-4xl scroll-px-2 overflow-x-auto px-2"
 				aria-label="Report sections"
 			>
-				{#each reportNavItems as item (item.id)}
-					<a
-						href={`#${item.id}`}
-						onclick={(event) => scrollToSection(event, item.id)}
-						aria-current={activeReportSection === item.id ? 'location' : undefined}
-						data-report-nav-id={item.id}
-						class="shrink-0 rounded-full px-4 py-2 text-base font-medium shadow-sm transition-colors {activeReportSection ===
-						item.id
-							? 'bg-primary text-primary-foreground'
-							: 'bg-muted text-foreground hover:bg-accent'}"
-					>
-						{item.label}
-					</a>
-				{/each}
+				<div class="flex w-max min-w-full gap-2 md:justify-center">
+					{#each reportNavItems as item (item.id)}
+						<a
+							href={`#${item.id}`}
+							onclick={(event) => scrollToSection(event, item.id)}
+							aria-current={activeReportSection === item.id ? 'location' : undefined}
+							data-report-nav-id={item.id}
+							class="shrink-0 rounded-full px-4 py-2 text-base font-medium shadow-sm transition-colors {activeReportSection ===
+							item.id
+								? 'bg-primary text-primary-foreground'
+								: 'bg-muted text-foreground hover:bg-accent'}"
+						>
+							{item.label}
+						</a>
+					{/each}
+				</div>
 			</nav>
 		</div>
 	{/if}
@@ -248,19 +271,20 @@
 			{/each}
 		{:else}
 			<div
-				id="report-overview"
-				class="mb-4 max-w-4xl scroll-mt-8 text-lg leading-8 [&_.tiptap]:text-lg [&_.tiptap]:leading-8 [&_.tiptap_h1]:text-xl [&_.tiptap_h1]:md:text-3xl [&_.tiptap_h2]:text-2xl [&_.tiptap_h2]:leading-8 [&_.tiptap_h2]:font-semibold [&_.tiptap_h3]:text-xl [&_.tiptap_h3]:leading-7 [&_.tiptap_h3]:font-semibold [&_.tiptap_li]:my-2 [&_.tiptap_p]:my-4 [&_.tiptap_p]:text-lg [&_.tiptap_p]:leading-8"
+				class="mb-4 max-w-4xl text-lg leading-8 [&_.tiptap]:text-lg [&_.tiptap]:leading-8 [&_.tiptap_h1]:text-xl [&_.tiptap_h1]:md:text-3xl [&_.tiptap_h2]:text-2xl [&_.tiptap_h2]:leading-8 [&_.tiptap_h2]:font-semibold [&_.tiptap_h3]:text-xl [&_.tiptap_h3]:leading-7 [&_.tiptap_h3]:font-semibold [&_.tiptap_li]:my-2 [&_.tiptap_p]:my-4 [&_.tiptap_p]:text-lg [&_.tiptap_p]:leading-8"
 			>
 				<ReportBody content={report.summary} conversationId={conversation.id} />
 			</div>
 		{/if}
 	</div>
 
-	<Button
-		class="fixed bottom-5 left-1/2 z-30 -translate-x-1/2 rounded-full shadow-lg md:bottom-8"
-		onclick={scrollToTop}
-	>
-		<ArrowUp class="size-4" />
-		Back to top
-	</Button>
+	{#if showBackToTop}
+		<Button
+			class="fixed bottom-5 left-1/2 z-30 -translate-x-1/2 rounded-full shadow-lg md:bottom-8"
+			onclick={scrollToTop}
+		>
+			<ArrowUp class="size-4" />
+			Back to top
+		</Button>
+	{/if}
 </main>
