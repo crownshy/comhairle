@@ -1,4 +1,4 @@
-use sensemakar_types::thinking_space::QuestionChain;
+use sensemakar_types::{WikiPollData,thinking_space::QuestionChain};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -20,6 +20,15 @@ pub struct ThinkingSpaceSummaryJob {
     pub reading_age_target: Option<String>,
     pub topic: String,
     pub question_chain: QuestionChain,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WikiPollSummaryJob {
+    pub job_id: Uuid,
+    pub context: Option<String>,
+    pub additional_instructions: Option<String>,
+    pub reading_age_target: Option<String>,
+    pub poll_data: WikiPollData 
 }
 
 pub async fn redis_conn() -> apalis_redis::ConnectionManager {
