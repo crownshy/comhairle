@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import TabStripItem from '$lib/components/TabStripItem.svelte';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
-	import { capitalise } from '$lib/utils/casingUtils';
+	import { kebabToSentenceCase } from '$lib/utils/casingUtils';
 	import TabContent from '../TabContent.svelte';
 
 	let { data, children, params } = $props();
@@ -16,7 +16,7 @@
 		href={resolve(`/(admin)/admin/conversations/[conversation_id]/configure/${tab}`, {
 			conversation_id: params.conversation_id
 		})}
-		label={capitalise(tab)}
+		label={kebabToSentenceCase(tab)}
 	/>
 {/snippet}
 
