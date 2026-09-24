@@ -111,12 +111,12 @@
 
 {#each segments as segment, i (i)}
 	{#if segment.kind === 'heading'}
-		<div id={segment.id} class="scroll-mt-8">
+		<div id={segment.id} class="scroll-mt-24">
 			<ContentRenderer content={segment.json} {conversationId} {availableDocuments} />
 		</div>
 	{:else if segment.kind === 'embed'}
 		{#if segment.toolStepId && segment.componentType}
-			<div id={`report-${segment.componentType}`} class="report-embed my-4 scroll-mt-8">
+			<div class="report-embed my-4 scroll-mt-8">
 				<ReportEmbedLive
 					toolStepId={segment.toolStepId}
 					componentType={segment.componentType}
