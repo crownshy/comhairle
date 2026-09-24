@@ -358,12 +358,12 @@ mod tests {
 
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
-    use crate::setup_server;
     use crate::test_helpers::{UserSession, test_config, test_state};
+    use crate::{App, setup_server};
 
     async fn create_random_event(
         session: &mut UserSession,
-        app: &axum::Router,
+        app: &App,
     ) -> Result<EventDto, Box<dyn std::error::Error>> {
         let conversation_response = session.create_random_conversation(app).await?;
         let conversation: ConversationDto = serde_json::from_value(conversation_response.1)?;

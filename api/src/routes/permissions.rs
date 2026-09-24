@@ -8,17 +8,13 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::permissions::{
-    self, Action, GrantRoleRequest, ListPermissionsFilters, PermissionTargetResource,
-    PermissionTriplet, RevokeRoleRequest, SystemResource, UserOrOrganizationId,
-    UserWithPermissionDto, list_permissions,
-};
 use crate::models::{
     pagination::{PageOptions, PaginatedResults},
     users,
@@ -28,6 +24,14 @@ use crate::{
     ComhairleState,
     error::ComhairleError,
     models::permissions::{grant_role, revoke_role},
+};
+use crate::{
+    models::permissions::{
+        self, Action, GrantRoleRequest, ListPermissionsFilters, PermissionTargetResource,
+        PermissionTriplet, RevokeRoleRequest, SystemResource, UserOrOrganizationId,
+        UserWithPermissionDto, list_permissions,
+    },
+    required_auth,
 };
 
 /// Represents the resource type and ID for a permission operation.
@@ -328,11 +332,11 @@ async fn list_users_with_permission(
 }
 
 /// Creates the permissions API router with all the defined routes and their corresponding handlers.
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(list, |op| {
                     op.id("ListPermissions")
                         .tag("Permissions")
@@ -346,11 +350,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<PaginatedResults<permissions::ResourcePermission>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/by-action/{action}",
-            state.required_auth(
+            required_auth(
                 get_with(list_permissions_by_action, |op| {
                     op.id("ListPermissionsByAction")
                         .tag("Permissions")
@@ -364,11 +369,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Vec<permissions::ResourcePermission>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{resource_type}/{resource_id}",
-            state.required_auth(
+            required_auth(
                 get_with(list_for_resource, |op| {
                     op.id("ListResourcePermissions")
                         .tag("Permissions")
@@ -383,11 +389,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<PaginatedResults<permissions::ResourcePermission>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{resource_type}/{resource_id}",
-            state.required_auth(
+            required_auth(
                 post_with(grant, |op| {
                     op.id("GrantPermission")
                         .tag("Permissions")
@@ -400,11 +407,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<permissions::ResourcePermission>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{resource_type}/{resource_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(revoke, |op| {
                     op.id("RevokePermission")
                         .tag("Permissions")
@@ -419,11 +427,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, ()>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{resource_type}/{resource_id}/users",
-            state.required_auth(
+            required_auth(
                 get_with(list_users_with_permission, |op| {
                     op.id("ListUsersWithPermission")
                         .tag("Permissions")
@@ -436,9 +445,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Vec<UserWithPermissionDto>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

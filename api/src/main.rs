@@ -1,13 +1,7 @@
 use aws_config::BehaviorVersion;
-use axum_keycloak_auth::{
-    Url,
-    instance::{KeycloakAuthInstance, KeycloakConfig},
-};
+use axum::ServiceExt;
+use comhairle::auth_service::{AuthService, keycloak::KeycloakClient};
 use comhairle::redis_connection::RedisImpl;
-use comhairle::{
-    AuthBackend,
-    auth_service::{AuthService, keycloak::KeycloakClient},
-};
 use comhairle::{
     ComhairleState,
     bot_service::{ComhairleBotService, ComhairleRagBotService},
@@ -164,20 +158,12 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let video_call_handler = Arc::new(VideoCallMessageHandler::new());
 
-    let keycloak_auth_instance = Arc::new(KeycloakAuthInstance::new(
-        KeycloakConfig::builder()
-            .server(Url::parse(&config.auth_service.clone().url).unwrap())
-            .realm(config.auth_service.clone().realm)
-            .build(),
-    ));
-
     let state = Arc::new(ComhairleState {
         db,
         mailer,
         config,
         websockets,
         video_call_handler,
-        auth_backend: AuthBackend::Keycloak(keycloak_auth_instance),
         auth_service,
         translation_service,
         transcription_service,
@@ -200,7 +186,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         tracing::info!("listening on {}", listener.local_addr().unwrap());
         axum::serve(
             listener,
-            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            ServiceExt::<axum::http::Request<axum::body::Body>>::into_make_service_with_connect_info::<std::net::SocketAddr>(app),
         )
         .await
         .unwrap();

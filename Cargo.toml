@@ -9,6 +9,7 @@ rust-version = "1.95"
 [workspace.dependencies]
 aide = "0.14.0"
 async-trait = "0.1.83"
+axum-keycloak-auth = "0.8.3"
 lettre = "0.11.16"
 minijinja = "2.10.2"
 serde = "1.0.218"
