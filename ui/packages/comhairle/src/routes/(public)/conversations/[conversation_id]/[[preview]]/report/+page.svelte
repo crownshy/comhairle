@@ -15,39 +15,6 @@
 
 	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
 
-	// const reportPills = [
-	// 	{ componentType: 'polis-area-consensus', label: 'Areas of agreement' },
-	// 	{ componentType: 'polis-area-disagreement', label: 'Areas of disagreement' },
-	// 	{ componentType: 'polis-opinion-groups', label: 'Opinion groups' }
-	// ];
-	// const embeddedComponentTypes = $derived.by<Set<string>>(() => {
-	// 	try {
-	// 		const document: unknown = JSON.parse(report.summary);
-	// 		if (
-	// 			!document ||
-	// 			typeof document !== 'object' ||
-	// 			!Array.isArray((document as { content?: unknown[] }).content)
-	// 		) {
-	// 			return new Set();
-	// 		}
-
-	// 		return new Set(
-	// 			(
-	// 				document as { content: { type?: string; attrs?: Record<string, unknown> }[] }
-	// 			).content
-	// 				.filter((node) => node.type === 'reportComponentEmbed')
-	// 				.map((node) => String(node.attrs?.componentType ?? ''))
-	// 		);
-	// 	} catch {
-	// 		return new Set();
-	// 	}
-	// });
-	// const reportNavItems = $derived([
-	// 	{ id: 'report-overview', label: 'Overview' },
-	// 	...reportPills
-	// 		.filter((pill) => embeddedComponentTypes.has(pill.componentType))
-	// 		.map((pill) => ({ id: `report-${pill.componentType}`, label: pill.label }))
-	// ]);
 	let activeReportSection = $state('report-overview');
 	type SummaryNode = {
 		type?: string;
@@ -139,10 +106,10 @@
 			{ rootMargin: '-20% 0px -70%', threshold: 0 }
 		);
 
-		// for (const item of reportNavItems) {
-		// 	const section = document.getElementById(item.id);
-		// 	if (section) observer.observe(section);
-		// }
+		for (const item of reportNavItems) {
+			const section = document.getElementById(item.id);
+			if (section) observer.observe(section);
+		}
 
 		return () => observer.disconnect();
 	});
