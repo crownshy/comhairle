@@ -3,11 +3,11 @@ use std::{ops::Deref, sync::Arc};
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use rig::{client::CompletionClient, completion::CompletionModel, providers::ollama};
-use sensemakar::thinking_space::{
+use sensemakar::{wikipoll_describer::{WikiPollGroupDescriber, WikiPollGroupDescriberError}, thinking_space::{
     FollowUpQuestionGenerator, InterviewSummary, SummaryGenerator, ThinkingSpaceError,
-};
-use sensemakar_jobs::{ThinkingSpaceNextQuestionJob, ThinkingSpaceSummaryJob, redis_conn};
-use sensemakar_types::thinking_space::Question;
+}};
+use sensemakar_jobs::{ThinkingSpaceNextQuestionJob, ThinkingSpaceSummaryJob, redis_conn, WikiPollSummaryJob};
+use sensemakar_types::{WikiPollReportResult,thinking_space::Question};
 
 async fn handle_thinking_space_next_question_generator<M>(
     job: ThinkingSpaceNextQuestionJob,
@@ -51,12 +51,32 @@ where
     Ok(result)
 }
 
+async fn handle_wiki_poll_summary_generator<M>(
+    job: WikiPollSummaryJob,
+    model: Data<M>,
+) -> Result<WikiPollReportResult, WikiPollGroupDescriberError>
+where
+    M: CompletionModel + Clone + 'static,
+{
+    let extractor =WikiPollGroupDescriber {
+        context: job.context,
+        additional_instructions: job.additional_instructions,
+    };
+
+    let result = extractor
+        .run_with_model(&job.poll_data, model.deref().clone())
+        .await?;
+
+    Ok(result)
+}
+
 #[tokio::main]
 async fn main() {
     let conn = redis_conn().await;
     let ts_next_q_storage: RedisStorage<ThinkingSpaceNextQuestionJob> =
         RedisStorage::new(conn.clone());
     let ts_summary_storage: RedisStorage<ThinkingSpaceSummaryJob> = RedisStorage::new(conn.clone());
+    let wiki_poll_summary_storage: RedisStorage<WikiPollSummaryJob> = RedisStorage::new(conn.clone());
 
     let client = ollama::Client::builder()
         .base_url("http://localhost:11434")
@@ -74,9 +94,15 @@ async fn main() {
 
     let ts_summary_worker = WorkerBuilder::new("thinking_space_summary_generator")
         .concurrency(4)
-        .data(model)
+        .data(model.clone())
         .backend(ts_summary_storage)
         .build_fn(handle_thinking_space_summary_generator::<ollama::CompletionModel>);
+
+    let wiki_poll_summary_worker = WorkerBuilder::new("wiki_poll_summary_generator")
+        .concurrency(4)
+        .data(model)
+        .backend(wiki_poll_summary_storage)
+        .build_fn(handle_wiki_poll_summary_generator::<ollama::CompletionModel>);
 
     Monitor::new()
         .register(ts_next_q_worker)

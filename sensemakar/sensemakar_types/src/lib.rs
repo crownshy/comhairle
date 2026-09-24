@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use jiff::Timestamp;
 use language_tags::LanguageTag;
@@ -18,6 +18,62 @@ pub struct Theme {
     pub description: String,
     /// A unique id for the theme
     pub id: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct WikiPollStatementWithGroupVotes {
+    pub statement: String,
+    pub total_votes: Votes,
+    pub group_votes: HashMap<String, Votes>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct Votes {
+    agree: usize,
+    disagree: usize,
+    pass: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct WikiPollData {
+    pub title: String,
+    pub statements: Vec<WikiPollStatement>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct WikiPollStatement {
+    pub statement: String,
+    pub total_votes: WikiPollVoteSummary,
+    pub group_votes: HashMap<String, WikiPollVoteSummary>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct WikiPollVoteSummary {
+    pub agree: u32,
+    pub disagree: u32,
+    pub pass: u32,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+/// A description of a WikiPoll Group
+pub struct WikiPollGroupDescription {
+    /// An appropriate human readable name for the group
+    name: String,
+    /// An longer description of the group and how it
+    /// differs from others
+    description: String,
+    /// What makes this cluster unique
+    unique_statement: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct WikiPollReportResult {
+    /// A description of each group with the keys being the group
+    group_descriptions: HashMap<String, WikiPollGroupDescription>,
+    /// A description of the censensus statements
+    consensus_description: String,
+    /// Disagreement description
+    disagrement_description: String,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
