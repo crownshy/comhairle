@@ -82,6 +82,8 @@ pub struct Report {
     pub conversation_id: Uuid,
     #[partially(omit)]
     pub summary: TextContentId,
+    #[partially(transparent)]
+    pub body: Option<TextContentId>,
     pub section_configs: ReportSectionConfigs,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -89,11 +91,12 @@ pub struct Report {
     updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ReportIden; 7] = [
+const DEFAULT_COLUMNS: [ReportIden; 8] = [
     ReportIden::Id,
     ReportIden::IsPublic,
     ReportIden::ConversationId,
     ReportIden::Summary,
+    ReportIden::Body,
     ReportIden::SectionConfigs,
     ReportIden::CreatedAt,
     ReportIden::UpdatedAt,
@@ -260,9 +263,19 @@ pub async fn create_for_conversation(
         TextFormat::Rich,
     )
     .await?;
+    let body = new_translation(
+        db,
+        locale,
+        "Body to be filled out by facilitator",
+        TextFormat::Rich,
+    )
+    .await?;
 
     columns.push(ReportIden::Summary);
     values.push(summary.id.into());
+
+    columns.push(ReportIden::Body);
+    values.push(body.id.into());
 
     let (sql, values) = Query::insert()
         .into_table(ReportIden::Table)
@@ -361,9 +374,15 @@ mod tests {
 
         let summary_translation =
             get_text_translation_by_content_and_locale(&pool, &report.summary, "en").await?;
+        let body_translation =
+            get_text_translation_by_content_and_locale(&pool, &report.body.unwrap(), "en").await?;
 
         assert_eq!(
             summary_translation.content, "Summary to be filled out by facilitator",
+            "incorrect summary translation text"
+        );
+        assert_eq!(
+            body_translation.content, "Body to be filled out by facilitator",
             "incorrect summary translation text"
         );
 
@@ -394,6 +413,11 @@ mod tests {
         assert_eq!(
             report.summary, "Summary to be filled out by facilitator",
             "incorrect summary translation text"
+        );
+        assert_eq!(
+            report.body,
+            Some("Body to be filled out by facilitator".to_string()),
+            "incorrect body translation text"
         );
 
         Ok(())

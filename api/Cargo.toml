@@ -156,6 +156,7 @@ hex = "0.4.3"
 base64 = "0.22.1"
 hmac = "0.13.0"
 serial_test = "4.0.1"
+axum-prometheus = "0.10.1"
 
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }

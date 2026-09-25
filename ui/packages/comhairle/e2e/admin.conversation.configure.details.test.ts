@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from './utils/testing';
-import { exists, sleep } from './utils';
+import { exists, sleep, testWithRefresh } from './utils';
 import { login } from './utils/auth';
 import { TEST_CONVERSATION_TITLE } from './utils/constants';
 import Conversation from './utils/navigation/Conversation';
@@ -49,28 +49,28 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// 	await page.getByRole('button', { name: 'Remove' }).first().click();
 	// });
 
-	// await testWithRefresh(page, async () => {
-	await textboxes.expect();
+	await testWithRefresh(page, async () => {
+		await textboxes.expect();
 
-	// Wait for data to refresh before checking
-	await sleep(1.5);
+		// Wait for data to refresh before checking
+		await sleep(1.5);
 
-	const header = page.getByRole('heading', {
-		description: textboxes.get('title').value,
-		exact: true
+		const header = page.getByRole('heading', {
+			description: textboxes.get('title').value,
+			exact: true
+		});
+		expect(await exists(header)).toBe(true);
+
+		const conversation = page.getByRole('link', { name: textboxes.get('title').value });
+		expect(await exists(conversation)).toBe(true);
+
+		// Translation stuff
+		// await expect(
+		// 	page.locator('#conversation-title-field').getByRole('button').filter({ hasText: /^$/ })
+		// ).toBeVisible();
+		// await expect(page.getByRole('button', { name: 'English approved' })).toBeVisible();
+		// await expect(page.getByRole('button', { name: 'Welsh draft' })).toBeVisible();
 	});
-	expect(await exists(header)).toBe(true);
-
-	const conversation = page.getByRole('link', { name: textboxes.get('title').value });
-	expect(await exists(conversation)).toBe(true);
-
-	// Translation stuff
-	// await expect(
-	// 	page.locator('#conversation-title-field').getByRole('button').filter({ hasText: /^$/ })
-	// ).toBeVisible();
-	// await expect(page.getByRole('button', { name: 'English approved' })).toBeVisible();
-	// await expect(page.getByRole('button', { name: 'Welsh draft' })).toBeVisible();
-	// });
 
 	// Image stuff
 	// await page.getByLabel('Open media library').click();
