@@ -22,7 +22,8 @@ What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md
 "Block / Layout / Board"). `blocks.ts` holds the vocabulary and the precedence rule;
 `BoardSettings.svelte` is the panel on the display that edits it.
 
-- `?variant=console|marquee|deck` names a board. Console is the default and is the
+- `?variant=console|wall|marquee|lobby|deck|kiosk` names a board. The same list is the
+  "Template" picker at the top of the panel. Console is the default and is the
   direction the team picked below.
 - `?layout=split|console|deck` and `?blocks=a,b,c` say one exactly. Either of them
   present pins the board, so a link reproduces the sender's screen.

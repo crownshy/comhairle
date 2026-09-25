@@ -29,12 +29,15 @@
 	import { nextUnlock, describeUnlock } from '$lib/room-display/revealStage';
 	import { participantCount } from '$lib/room-display/scenario';
 	import {
+		applyPreset,
+		matchingPreset,
 		resolveBoard,
 		serializeBlocks,
 		serializeSizes,
 		setBlockSize,
 		toggleBlock,
 		type BlockSize,
+		type BoardPreset,
 		type LatestStyle,
 		type RoomBlock,
 		type RoomBoard,
@@ -93,9 +96,10 @@
 
 	/**
 	 * The URL is rewritten to spell the board out, so the address bar is always a link
-	 * that reproduces what is on screen. `variant` goes: once a block has been touched
-	 * by hand the preset name is no longer true, and leaving it would make the link
-	 * mean something different from the screen that produced it.
+	 * that reproduces what is on screen. `variant` stays only while the board still is
+	 * that template: once a block has been touched by hand the name is no longer true,
+	 * and leaving it would make the link mean something different from the screen that
+	 * produced it.
 	 */
 	function applyBoard(next: RoomBoard) {
 		board = next;
@@ -103,7 +107,9 @@
 		applyTheme(next.theme);
 
 		const url = new URL(window.location.href);
-		url.searchParams.delete('variant');
+		const preset = matchingPreset(next);
+		if (preset) url.searchParams.set('variant', preset);
+		else url.searchParams.delete('variant');
 		url.searchParams.set('layout', next.layout);
 		url.searchParams.set('blocks', serializeBlocks(next.blocks));
 		url.searchParams.set('latest', next.latest);
@@ -114,6 +120,11 @@
 		// navigating anywhere, so there is no route for `resolve()` to resolve.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		replaceState(url, page.state);
+	}
+
+	/** A template replaces the arrangement; the room keeps its lighting and scale. */
+	function onSetPreset(preset: BoardPreset) {
+		applyBoard(applyPreset(board, preset));
 	}
 
 	function onToggleBlock(block: RoomBlock) {
@@ -203,6 +214,7 @@
 
 <BoardSettings
 	{board}
+	{onSetPreset}
 	{onToggleBlock}
 	{onSetLayout}
 	{onSetLatest}
