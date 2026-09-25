@@ -4,7 +4,7 @@ import { exists, sleep, testWithRefresh } from './utils';
 import { login } from './utils/auth';
 import { TEST_CONVERSATION_TITLE } from './utils/constants';
 import Conversation from './utils/navigation/Conversation';
-import Textboxes from './utils/inputs/Textboxes';
+import { Textboxes } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);

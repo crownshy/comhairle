@@ -3,7 +3,7 @@ import Conversation from './utils/navigation/Conversation';
 import { login } from './utils/auth';
 import { expect } from '@playwright/test';
 import { exists, sleep, testWithRefresh } from './utils';
-import Textboxes from './utils/inputs/Textboxes';
+import { Textboxes } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
