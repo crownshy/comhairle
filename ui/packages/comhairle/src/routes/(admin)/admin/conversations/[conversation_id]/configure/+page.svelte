@@ -11,7 +11,6 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
-	import TeamManager from '$lib/components/TeamManager.svelte';
 	import CohostManager from './CohostManager.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as HoverCard from '$lib/components/ui/hover-card';
@@ -1130,9 +1129,7 @@
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
-			<div class="flex-1">
-				<TeamManager conversationId={conversation.id} {permittedUsers} />
-			</div>
+			<div class="flex-1"></div>
 		</div>
 	{/if}
 </div>
