@@ -45,6 +45,11 @@ What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md
   the wall had been unreadable once; in practice the QR code and counts needed to give
   space back to the map, so the floor went. Too big overflows and too small is
   unreadable, and both are one click back for the person in the room.
+- `?surface=wall|console` opens one half of the "Wall and laptop" layout in its own
+  window; the two stay in step over a `BroadcastChannel` for the step (`surfaces.ts`,
+  ADR-0045). "Open in new window" on the console header sends the console to its own
+  window and leaves the page as the wall. One machine only: a projector is a second
+  screen, not a second computer.
 - Dots are the exception to "everything grows". A plain multiplier turned a 2XL map
   into two blobs, because the dots doubled and their Polis positions did not. So the
   map's dots are sized by how many people share the plot (`baseDotRadius`: constant
@@ -237,9 +242,9 @@ Folded in from the review of the videos:
 - **Phone view.** Scan the QR, vote from the phone, and get a participant-facing live
   view at the end. "Follow presenter" versus "explore on my own" is the switch to
   design. Not started.
-- **Two real surfaces.** Console and wall are one page here. Real use is one laptop
-  driving one projector, so focus and wall view need to travel between two windows
-  (BroadcastChannel is the cheap answer for one machine, a socket for two).
+- **Two machines.** Console and wall pair as two windows on one machine over a
+  BroadcastChannel (ADR-0045). A wall driven from a different computer would need a
+  socket through the API. Not asked for yet.
 - **Per-participant votes endpoint.** Without it the live wall has no cross-highlight
   and no "N more voters" countdown. The raw material (`/api/v3/votes?pid=`, base
   clusters) is already reachable server-side.

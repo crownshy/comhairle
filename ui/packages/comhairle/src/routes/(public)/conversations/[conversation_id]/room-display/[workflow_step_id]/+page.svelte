@@ -44,6 +44,13 @@
 		type RoomTheme
 	} from '$lib/room-display/blocks';
 	import { themeStore } from '$lib/stores/theme.svelte';
+	import {
+		INITIAL_CONSOLE_STATE,
+		openSurfaceLink,
+		surfaceHref,
+		type ConsoleState,
+		type RoomSurface
+	} from '$lib/room-display/surfaces';
 	import { readStoredBoard, writeStoredBoard } from '$lib/room-display/storedBoard';
 	import WarmingScreen from '$lib/room-display/WarmingScreen.svelte';
 	import PrototypeBar from './PrototypeBar.svelte';
@@ -84,6 +91,29 @@
 	// Starts at what the server could work out, which is the URL and nothing else.
 	// svelte-ignore state_referenced_locally
 	let board = $state<RoomBoard>(data.board);
+	// svelte-ignore state_referenced_locally
+	let surface = $state<RoomSurface>(data.surface);
+
+	// What the console has decided and the wall shows: the focused statement and the
+	// wall's main view. Held here rather than in the console layout because it has to
+	// cross windows (surfaces.ts), and the wire is opened once per page.
+	let consoleState = $state<ConsoleState>(INITIAL_CONSOLE_STATE);
+
+	// Everything sent is snapshotted first: what goes over the channel is structured
+	// cloned, and a `$state` proxy cannot be.
+	// svelte-ignore state_referenced_locally
+	const link = openSurfaceLink(data.workflowStepId, {
+		onState: (state) => (consoleState = state),
+		onBoard: (next) => applyBoard(next, { share: false }),
+		onHello: () => {
+			// A wall has nothing to tell a newcomer, and if it answered alongside the
+			// console the two replies would race.
+			if (surface === 'wall') return;
+			link.sendState($state.snapshot(consoleState));
+			link.sendBoard($state.snapshot(board));
+		}
+	});
+	onDestroy(() => link.close());
 
 	onMount(() => {
 		// localStorage is not readable during SSR, so what this display remembered can
@@ -99,11 +129,15 @@
 	 * that template: once a block has been touched by hand the name is no longer true,
 	 * and leaving it would make the link mean something different from the screen that
 	 * produced it.
+	 *
+	 * A board that arrived from the other window is applied but not sent back, or the
+	 * two would echo it at each other forever.
 	 */
-	function applyBoard(next: RoomBoard) {
+	function applyBoard(next: RoomBoard, { share } = { share: true }) {
 		board = next;
 		writeStoredBoard(next);
 		applyTheme(next.theme);
+		if (share) link.sendBoard($state.snapshot(next));
 
 		const url = new URL(window.location.href);
 		const preset = matchingPreset(next);
@@ -167,6 +201,18 @@
 		applyBoard(resolveBoard({ preset: data.boardParams.preset }));
 	}
 
+	function onSetConsole(next: ConsoleState) {
+		consoleState = next;
+		link.sendState($state.snapshot(next));
+	}
+
+	/** This window becomes one half of the pair; the URL says which, so a reload agrees. */
+	function onSetSurface(next: RoomSurface) {
+		surface = next;
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		replaceState(surfaceHref(window.location.href, next), page.state);
+	}
+
 	// Counts voters, which an apportioned matrix cannot tell you: it knows how many
 	// votes a statement got, not how many people cast them.
 	const unlock = $derived(
@@ -207,7 +253,16 @@
 	{:else if board.layout === 'split'}
 		<LayoutSplit {source} {board} question={data.question} joinUrl={data.joinUrl} />
 	{:else}
-		<LayoutConsole {source} {board} question={data.question} joinUrl={data.joinUrl} />
+		<LayoutConsole
+			{source}
+			{board}
+			{surface}
+			console={consoleState}
+			{onSetConsole}
+			{onSetSurface}
+			question={data.question}
+			joinUrl={data.joinUrl}
+		/>
 	{/if}
 </div>
 

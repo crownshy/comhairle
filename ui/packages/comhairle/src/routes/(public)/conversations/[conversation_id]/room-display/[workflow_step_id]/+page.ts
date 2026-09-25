@@ -2,6 +2,7 @@ import type { PageLoad } from './$types';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { conversation_url } from '$lib/urls';
 import { resolveBoard } from '$lib/room-display/blocks';
+import { parseSurface } from '$lib/room-display/surfaces';
 
 export type RoomDisplayMode = 'live' | 'demo';
 
@@ -20,6 +21,8 @@ export type RoomDisplayMode = 'live' | 'demo';
  *   ?theme=<name>      light or dark for the room; auto leaves the app alone
  *   ?scale=<n>         multiplier on the whole wall, 0.5 to 3
  *   ?sizes=a:1.5,b:2   per-block multipliers, 0.25 to 4, on top of that
+ *   ?surface=<name>    wall or console: one half of the "Wall and laptop" layout in
+ *                      its own window; absent, both halves share the page
  *   ?join=<url>        where the QR code points; defaults to the conversation page
  *   ?question=<text>   override the heading (the Polis topic by default)
  *   ?rate=<n>          demo only: playback speed
@@ -82,6 +85,7 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 	return {
 		mode,
 		workflowStepId: workflow_step_id,
+		surface: parseSurface(url.searchParams.get('surface')),
 		question:
 			url.searchParams.get('question') ??
 			topic ??
