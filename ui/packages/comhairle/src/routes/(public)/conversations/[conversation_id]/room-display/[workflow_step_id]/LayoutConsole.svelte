@@ -7,10 +7,11 @@
 	facilitator needs a dense panel they can scan and click from half a metre. Those
 	are opposite requirements and merging them gives you something that is neither.
 
-	So: the wall gets the question, the map with its group labels, one statement and a
-	QR code in the corner. Everything the facilitator drives lives on the console,
-	including the latest statements, which sit under the strip so what has just come
-	in is beside the thing that points the wall at it:
+	So: the wall gets the question, the map with its group labels, one statement, the
+	latest statements along the bottom and a QR code in the corner. Everything the
+	facilitator drives lives on the console. The latest statements are on both: the
+	room reads the wall's band, and the facilitator's copy sits under the strip so what
+	has just come in is beside the thing that points the wall at it:
 
 	- Hovering the strip picks one statement. It appears under the strip, and the wall
 	  shows it under the map. With per-participant votes the map recolours by it; a
@@ -40,7 +41,12 @@
 	import { nextUnlock, describeUnlock } from '$lib/room-display/revealStage';
 	import { presentByGroup, voteBarsFor } from '$lib/room-display/liveVotes';
 	import { groupColor } from '$lib/room-display/opinionMap';
-	import { hasBlock, type RoomBoard, blockScale } from '$lib/room-display/blocks';
+	import {
+		hasBlock,
+		type RoomBoard,
+		blockScale,
+		stillLatestDirection
+	} from '$lib/room-display/blocks';
 	import {
 		SURFACE_WINDOW_NAMES,
 		surfaceHref,
@@ -263,6 +269,29 @@
 				{/if}
 			</div>
 
+			{#if hasBlock(board, 'marquee')}
+				<SizedBlock scale={blockScale(board, 'marquee')}>
+					<!--
+						The room's copy, along the bottom, same as the one-wall layout. Right
+						padding keeps it clear of the QR corner.
+					-->
+					<div
+						class="min-h-0 shrink-0 overflow-hidden {hasBlock(board, 'qr')
+							? 'lg:pr-48'
+							: ''}"
+					>
+						{#if board.latest === 'marquee'}
+							<LatestStatementsMarquee comments={source.state.published} />
+						{:else}
+							<LatestStatements
+								comments={source.state.published}
+								direction={stillLatestDirection(board)}
+							/>
+						{/if}
+					</div>
+				</SizedBlock>
+			{/if}
+
 			{#if hasBlock(board, 'qr')}
 				<SizedBlock scale={blockScale(board, 'qr')}>
 					<!--
@@ -378,9 +407,9 @@
 			{#if hasBlock(board, 'marquee')}
 				<SizedBlock scale={blockScale(board, 'marquee')}>
 					<!--
-						Under the strip, on the laptop: the facilitator watches what has just
-						come in and can point the wall at it. The console is a column, so the
-						still list runs down it whatever `?latest=` says.
+						The facilitator's copy, under the strip: watch what has just come in
+						and point the wall at it. The console is a column, so the still list
+						runs down it whatever `?latest=` says.
 					-->
 					{#if board.latest === 'marquee'}
 						<LatestStatementsMarquee comments={source.state.published} />
