@@ -14,10 +14,12 @@
 <script lang="ts">
 	import { Settings2, Check, Link } from '@lucide/svelte';
 	import {
-		BLOCK_SIZES,
+		BLOCK_SIZE_STEP,
 		BOARD_TEMPLATES,
 		LATEST_STYLES,
+		MAX_BLOCK_SIZE,
 		MAX_SCALE,
+		MIN_BLOCK_SIZE,
 		MIN_SCALE,
 		ROOM_BLOCKS,
 		ROOM_THEMES,
@@ -27,7 +29,6 @@
 		hasBlock,
 		isBoardPreset,
 		matchingPreset,
-		type BlockSize,
 		type BoardPreset,
 		type LatestStyle,
 		type RoomBlock,
@@ -38,9 +39,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Label } from '$lib/components/ui/label';
-	import { Slider } from '$lib/components/ui/slider';
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Select from '$lib/components/ui/select';
+	import SizeStepper from './SizeStepper.svelte';
 
 	type Props = {
 		board: RoomBoard;
@@ -50,7 +51,7 @@
 		onSetLatest: (latest: LatestStyle) => void;
 		onSetTheme: (theme: RoomTheme) => void;
 		onSetScale: (scale: number) => void;
-		onSetBlockSize: (block: RoomBlock, size: BlockSize) => void;
+		onSetBlockSize: (block: RoomBlock, size: number) => void;
 		onReset: () => void;
 	};
 
@@ -90,9 +91,6 @@
 	const latestOptions = $derived(
 		LATEST_STYLES.filter((option) => !option.splitOnly || board.layout === 'split')
 	);
-
-	// Only what is on the wall gets a size row: a block that is off has nothing to grow.
-	const sizedBlocks = $derived(ROOM_BLOCKS.filter((block) => hasBlock(board, block.id)));
 
 	function onkeydown(event: KeyboardEvent) {
 		const target = event.target as HTMLElement | null;
@@ -214,101 +212,83 @@
 				</div>
 			</fieldset>
 
-			<fieldset class="flex flex-col gap-3">
-				<legend class="text-muted-foreground pb-2 text-base font-medium">Size</legend>
-				<div class="flex items-center justify-between gap-3">
-					<span class="text-foreground text-base">Everything</span>
-					<span class="text-muted-foreground text-base tabular-nums">
-						{board.scale.toFixed(2)}&times;
-					</span>
-				</div>
-				<!--
-					Live rather than on release: the wall is the preview, and the question
-					is whether the back row can read it now.
-				-->
-				<Slider
-					type="single"
+			<!--
+				One row per block: whether it is on, and how big. The two used to be separate
+				lists, which meant reading every block name twice to set up one wall.
+				"Everything" comes first because it is what you reach for when the back row
+				cannot read any of it.
+			-->
+			<fieldset class="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-3">
+				<legend class="text-muted-foreground pb-2 text-base font-medium">Blocks</legend>
+				<span class="text-foreground text-base">Everything</span>
+				<SizeStepper
 					value={board.scale}
 					min={MIN_SCALE}
 					max={MAX_SCALE}
 					step={SCALE_STEP}
-					onValueChange={(value) => onSetScale(clampScale(value))}
-					aria-label="Size of everything"
+					label="everything"
+					onchange={(value) => onSetScale(clampScale(value))}
 				/>
-				{#each sizedBlocks as block (block.id)}
-					<div class="flex items-center justify-between gap-3">
-						<span class="text-foreground text-base">{block.label}</span>
-						<div class="flex gap-1" role="group" aria-label="{block.label} size">
-							{#each BLOCK_SIZES as size (size.id)}
-								<button
-									type="button"
-									class="border-border hover:bg-muted min-w-10 rounded-md border px-2 py-1 text-base transition-colors"
-									class:bg-muted={blockSize(board, block.id) === size.id}
-									class:border-primary={blockSize(board, block.id) === size.id}
-									aria-pressed={blockSize(board, block.id) === size.id}
-									title={size.hint}
-									onclick={() => onSetBlockSize(block.id, size.id)}
-								>
-									{size.label}
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/each}
-			</fieldset>
-
-			<fieldset class="flex flex-col gap-3">
-				<legend class="text-muted-foreground pb-2 text-base font-medium">Showing</legend>
+				<!-- Nothing to switch off: the empty cell keeps the steppers in one column. -->
+				<span></span>
 				{#each ROOM_BLOCKS as block (block.id)}
 					{@const id = `board-block-${block.id}`}
-					<div class="flex items-center justify-between gap-3">
-						<Label for={id} class="text-foreground text-base font-normal">
-							{block.label}
-						</Label>
-						<Switch
-							{id}
-							checked={hasBlock(board, block.id)}
-							onCheckedChange={() => onToggleBlock(block.id)}
+					{@const on = hasBlock(board, block.id)}
+					<Label for={id} class="text-foreground min-w-0 text-base font-normal">
+						{block.label}
+					</Label>
+					<!-- A block that is off has nothing to size. The stepper keeps its space so the switches line up. -->
+					<div class:invisible={!on}>
+						<SizeStepper
+							value={blockSize(board, block.id)}
+							min={MIN_BLOCK_SIZE}
+							max={MAX_BLOCK_SIZE}
+							step={BLOCK_SIZE_STEP}
+							label={block.label}
+							onchange={(value) => onSetBlockSize(block.id, value)}
 						/>
 					</div>
-				{/each}
-				{#if hasBlock(board, 'marquee')}
-					<!--
-						Nested under the block it belongs to: it is how that block draws
-						itself, not a fourth thing to switch on.
-					-->
-					<div class="border-border flex flex-col gap-2 border-l pb-1 pl-4">
-						<p class="text-muted-foreground text-base">Latest statements as</p>
-						<div class="flex flex-wrap gap-2">
-							{#each latestOptions as option (option.id)}
-								<button
-									type="button"
-									class="border-border hover:bg-muted min-w-16 flex-1 rounded-md border px-2 py-2 text-base transition-colors"
-									class:bg-muted={board.latest === option.id}
-									class:border-primary={board.latest === option.id}
-									aria-pressed={board.latest === option.id}
-									title={option.hint}
-									onclick={() => onSetLatest(option.id)}
-								>
-									{option.label}
-								</button>
-							{/each}
+					<Switch {id} checked={on} onCheckedChange={() => onToggleBlock(block.id)} />
+					{#if block.id === 'marquee' && on}
+						<!--
+							Nested under the block it belongs to: it is how that block draws
+							itself, not a ninth thing to switch on.
+						-->
+						<div
+							class="border-border col-span-3 flex flex-col gap-2 border-l pb-1 pl-4"
+						>
+							<p class="text-muted-foreground text-base">Latest statements as</p>
+							<div class="flex flex-wrap gap-2">
+								{#each latestOptions as option (option.id)}
+									<button
+										type="button"
+										class="border-border hover:bg-muted min-w-16 flex-1 rounded-md border px-2 py-2 text-base transition-colors"
+										class:bg-muted={board.latest === option.id}
+										class:border-primary={board.latest === option.id}
+										aria-pressed={board.latest === option.id}
+										title={option.hint}
+										onclick={() => onSetLatest(option.id)}
+									>
+										{option.label}
+									</button>
+								{/each}
+							</div>
+							{#if board.latest === 'marquee'}
+								<p class="text-muted-foreground text-base">
+									Scrolling text is hard to read across a room. Kept so you can
+									judge it against the still versions in the room itself.
+								</p>
+							{/if}
 						</div>
-						{#if board.latest === 'marquee'}
-							<p class="text-muted-foreground text-base">
-								Scrolling text is hard to read across a room. Kept so you can judge
-								it against the still versions in the room itself.
-							</p>
-						{/if}
-					</div>
-				{/if}
+					{/if}
+				{/each}
 
 				{#if board.layout === 'deck'}
 					<!--
 						Slides are advanced by hand, so there is nothing for the group buttons
 						to do. Saying so beats a switch that silently does nothing.
 					-->
-					<p class="text-muted-foreground text-base">
+					<p class="text-muted-foreground col-span-3 text-base">
 						Group controls do nothing on slides: you advance them yourself.
 					</p>
 				{/if}

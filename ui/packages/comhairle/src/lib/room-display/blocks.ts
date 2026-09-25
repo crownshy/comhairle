@@ -106,36 +106,37 @@ const ROOM_THEME_IDS: readonly RoomTheme[] = ROOM_THEMES.map((t) => t.id);
  * same board is right on a meeting-room TV and too small on a hall projector, and the
  * room can only tell you once it is up.
  *
- * Two knobs. `scale` grows the whole wall together, for the hall. A per-block size
- * grows one region relative to the rest, for the room where the question is landing
- * but the statement is not. The steps run up from normal only: the wall was already
- * unreadable from two metres once (NOTES.md), so nothing on it shrinks below the
- * sizes that fixed that.
+ * Two knobs. `scale` grows or shrinks the whole wall together, for the hall. A
+ * per-block size grows or shrinks one region relative to the rest, for the room where
+ * the question is landing but the statement is not, or where the QR code is taking
+ * space the map needs. Both are plain multipliers rather than named steps: a
+ * facilitator in a room wants "a bit bigger" and "a bit smaller" until it reads, and
+ * a ladder of four fixed sizes kept running out at both ends. The ranges are wide on
+ * purpose. Too big overflows and too small is unreadable, and both are one click
+ * back, so the panel does not second-guess the person standing in the room.
  *
  * A block's effective multiplier is the two together (`blockScale`). Both are applied
  * as CSS custom properties rather than by picking classes, so every text and spacing
  * utility inside a block moves and none of the markup knows about it.
  */
-export const BLOCK_SIZES = [
-	{ id: 'm', label: 'M', hint: 'Normal', factor: 1 },
-	{ id: 'l', label: 'L', hint: 'A quarter bigger', factor: 1.25 },
-	{ id: 'xl', label: 'XL', hint: 'Half as big again', factor: 1.5 },
-	{ id: 'xxl', label: '2XL', hint: 'Twice the size', factor: 2 }
-] as const satisfies readonly { id: string; label: string; hint: string; factor: number }[];
+export const MIN_SCALE = 0.5;
+export const MAX_SCALE = 3;
+export const SCALE_STEP = 0.1;
+export const DEFAULT_SCALE = 1;
 
-export type BlockSize = (typeof BLOCK_SIZES)[number]['id'];
-
-const BLOCK_SIZE_IDS: readonly BlockSize[] = BLOCK_SIZES.map((s) => s.id);
-
-export const DEFAULT_BLOCK_SIZE: BlockSize = 'm';
+export const MIN_BLOCK_SIZE = 0.25;
+export const MAX_BLOCK_SIZE = 4;
+export const BLOCK_SIZE_STEP = 0.25;
+export const DEFAULT_BLOCK_SIZE = 1;
 
 /** Only the blocks that are not at the default, so a board with nothing set is `{}`. */
-export type BlockSizes = Partial<Record<RoomBlock, BlockSize>>;
+export type BlockSizes = Partial<Record<RoomBlock, number>>;
 
-export const MIN_SCALE = 1;
-export const MAX_SCALE = 2;
-export const SCALE_STEP = 0.05;
-export const DEFAULT_SCALE = 1;
+/**
+ * The size names the panel used to offer, so a link written against them still opens
+ * the same board.
+ */
+const LEGACY_BLOCK_SIZES: Record<string, number> = { m: 1, l: 1.25, xl: 1.5, xxl: 2 };
 
 export interface RoomBoard {
 	layout: RoomLayout;
@@ -147,7 +148,7 @@ export interface RoomBoard {
 	theme: RoomTheme;
 	/** Multiplier on everything, `MIN_SCALE` to `MAX_SCALE`. */
 	scale: number;
-	/** Per-block size steps on top of `scale`; a block that is absent is normal. */
+	/** Per-block multipliers on top of `scale`; a block that is absent is normal. */
 	sizes: BlockSizes;
 }
 
@@ -191,7 +192,7 @@ export const BOARD_PRESETS = {
 		latest: 'row',
 		theme: 'auto',
 		scale: 1,
-		sizes: { question: 'l', qr: 'xxl' }
+		sizes: { question: 1.25, qr: 2 }
 	},
 	deck: {
 		layout: 'deck',
@@ -207,7 +208,7 @@ export const BOARD_PRESETS = {
 		latest: 'column',
 		theme: 'dark',
 		scale: 1,
-		sizes: { map: 'l' }
+		sizes: { map: 1.25 }
 	}
 } as const satisfies Record<string, RoomBoard>;
 
@@ -266,14 +267,10 @@ export function isRoomTheme(value: string): value is RoomTheme {
 	return (ROOM_THEME_IDS as readonly string[]).includes(value);
 }
 
-export function isBlockSize(value: string): value is BlockSize {
-	return (BLOCK_SIZE_IDS as readonly string[]).includes(value);
-}
-
 function isBlockSizes(value: unknown): value is BlockSizes {
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
 	return Object.entries(value).every(
-		([block, size]) => isRoomBlock(block) && typeof size === 'string' && isBlockSize(size)
+		([block, size]) => isRoomBlock(block) && typeof size === 'number' && Number.isFinite(size)
 	);
 }
 
@@ -298,35 +295,52 @@ export function parseScale(raw: string | null | undefined): number | null {
 	return Number.isFinite(value) ? clampScale(value) : null;
 }
 
-export function blockSize(board: RoomBoard, block: RoomBlock): BlockSize {
+/** Same treatment as `clampScale`: snapped to the stepper's step and held in range. */
+export function clampBlockSize(value: number): number {
+	const snapped = Math.round(value / BLOCK_SIZE_STEP) * BLOCK_SIZE_STEP;
+	const held = Math.min(MAX_BLOCK_SIZE, Math.max(MIN_BLOCK_SIZE, snapped));
+	return Number(held.toFixed(2));
+}
+
+/** A multiplier, or one of the old size names; `null` for anything else. */
+export function parseBlockSize(raw: string): number | null {
+	const legacy = LEGACY_BLOCK_SIZES[raw];
+	if (legacy !== undefined) return legacy;
+	if (raw.trim() === '') return null;
+	const value = Number(raw);
+	return Number.isFinite(value) ? clampBlockSize(value) : null;
+}
+
+export function blockSize(board: RoomBoard, block: RoomBlock): number {
 	return board.sizes[block] ?? DEFAULT_BLOCK_SIZE;
 }
 
-/** Sets one block's step, dropping the entry when it is back at normal. */
-export function setBlockSize(board: RoomBoard, block: RoomBlock, size: BlockSize): RoomBoard {
-	const sizes: BlockSizes = { ...board.sizes };
-	if (size === DEFAULT_BLOCK_SIZE) delete sizes[block];
-	else sizes[block] = size;
-	return { ...board, sizes: orderSizes(sizes) };
+/** Sets one block's multiplier, dropping the entry when it is back at normal. */
+export function setBlockSize(board: RoomBoard, block: RoomBlock, size: number): RoomBoard {
+	return { ...board, sizes: orderSizes({ ...board.sizes, [block]: size }) };
 }
 
-/** What one block is actually multiplied by: the wall's scale times its own step. */
+/** What one block is actually multiplied by: the wall's scale times its own size. */
 export function blockScale(board: RoomBoard, block: RoomBlock): number {
-	const step = BLOCK_SIZES.find((s) => s.id === blockSize(board, block));
-	return Number((board.scale * (step?.factor ?? 1)).toFixed(3));
+	return Number((board.scale * blockSize(board, block)).toFixed(3));
 }
 
-/** Keys in `ROOM_BLOCKS` order and defaults dropped, so two equal boards serialise alike. */
+/**
+ * Keys in `ROOM_BLOCKS` order, every value held in range and defaults dropped, so two
+ * equal boards serialise alike and a remembered `map: 40` is a big map, not a broken one.
+ */
 function orderSizes(sizes: BlockSizes): BlockSizes {
 	const ordered: BlockSizes = {};
 	for (const block of BLOCK_ORDER) {
 		const size = sizes[block];
-		if (size !== undefined && size !== DEFAULT_BLOCK_SIZE) ordered[block] = size;
+		if (size === undefined) continue;
+		const held = clampBlockSize(size);
+		if (held !== DEFAULT_BLOCK_SIZE) ordered[block] = held;
 	}
 	return ordered;
 }
 
-/** `question:l,statement:xl`; empty when every block is normal. */
+/** `question:1.25,statement:2`; empty when every block is normal. */
 export function serializeSizes(sizes: BlockSizes): string {
 	return Object.entries(orderSizes(sizes))
 		.map(([block, size]) => `${block}:${size}`)
@@ -341,8 +355,10 @@ export function parseSizes(raw: string | null | undefined): BlockSizes | null {
 	if (raw === null || raw === undefined) return null;
 	const sizes: BlockSizes = {};
 	for (const part of raw.split(',')) {
-		const [block, size] = part.split(':').map((s) => s.trim());
-		if (block && size && isRoomBlock(block) && isBlockSize(size)) sizes[block] = size;
+		const [block, rawSize] = part.split(':').map((s) => s.trim());
+		if (!block || !rawSize || !isRoomBlock(block)) continue;
+		const size = parseBlockSize(rawSize);
+		if (size !== null) sizes[block] = size;
 	}
 	return orderSizes(sizes);
 }

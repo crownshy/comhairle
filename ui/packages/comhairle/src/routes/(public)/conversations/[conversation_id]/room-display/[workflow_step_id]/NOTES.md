@@ -33,15 +33,18 @@ What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md
 - The settings panel rewrites the URL as you toggle, and drops `variant`: once a block
   has been touched by hand the preset name is no longer true.
 
-- `?scale=1.4` grows the whole wall; `?sizes=question:l,statement:xxl` grows one block
-  relative to the rest (steps m, l, xl, xxl at 1, 1.25, 1.5, 2). Both are in the panel
-  under Size, and both apply as CSS custom properties: `SizedBlock.svelte` wraps each
-  block and redefines Tailwind's `--text-*` and `--spacing` from base values captured
-  on the display root, so every text and spacing utility inside a block moves without
-  the markup knowing. The map's dots and labels take the same multiplier as a prop,
-  because the plot fills its box and cannot be grown through it. Steps only go up:
-  the wall was unreadable from two metres once, so nothing shrinks below what fixed
-  that. Too big overflows a small window; that is the facilitator's to dial back.
+- `?scale=1.4` grows the whole wall (0.5 to 3); `?sizes=question:1.25,statement:2`
+  grows or shrinks one block relative to the rest (0.25 to 4, in quarters). The old
+  names `m`, `l`, `xl`, `xxl` still parse. In the panel each block has one row: its
+  switch and a minus/plus stepper beside it, with "Everything" as the first row. Both
+  apply as CSS custom properties: `SizedBlock.svelte` wraps each block and redefines
+  Tailwind's `--text-*` and `--spacing` from base values captured on the display root,
+  so every text and spacing utility inside a block moves without the markup knowing.
+  The map's dots and labels take the same multiplier as a prop, because the plot fills
+  its box and cannot be grown through it. Sizes used to go up only, on the grounds that
+  the wall had been unreadable once; in practice the QR code and counts needed to give
+  space back to the map, so the floor went. Too big overflows and too small is
+  unreadable, and both are one click back for the person in the room.
 - Dots are the exception to "everything grows". A plain multiplier turned a 2XL map
   into two blobs, because the dots doubled and their Polis positions did not. So the
   map's dots are sized by how many people share the plot (`baseDotRadius`: constant
