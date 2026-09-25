@@ -77,6 +77,17 @@ address and its question and counts live inside the join slide rather than being
 separately switchable. The settings panel says so rather than showing a switch that
 does nothing.
 
+Two of its slides draw from several statements: "What we agree on" from the top five
+by consensus, "Where we split" from the top five by divisiveness. Each can _list_ them
+(all five with bars) or _walk_ them (one at a time on the ambient dwell; space or the
+pill under the statement holds and releases, up and down arrows step by hand). The
+choice is one for both slides, on the board (`?slides=walk` or `?slides=list`), and in
+the panel as "Statement slides show". The hold is by statement, so a held one stays
+while the ranking moves underneath, and each slide holds on its own; switching to the
+list drops both holds. Every template walks. On the deck the panel's block rows are the
+five slides by name (`DECK_SLIDES`), and the blocks with no slide are not offered.
+ADR-0044.
+
 The recruitment screen is not the board: before Polis clusters there is nothing to
 arrange, so `WarmingScreen` ignores the block set.
 

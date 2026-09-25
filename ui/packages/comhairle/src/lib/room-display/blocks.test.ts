@@ -37,7 +37,8 @@ const stored: RoomBoard = {
 	latest: 'marquee',
 	theme: 'dark',
 	scale: 1.4,
-	sizes: { map: 1.25 }
+	sizes: { map: 1.25 },
+	slides: 'list'
 };
 
 describe('parseBlocks', () => {
@@ -337,6 +338,37 @@ describe('isRoomBoard', () => {
 		// A board remembered while sizes were still names. Rebuilt rather than translated.
 		expect(isRoomBoard({ ...stored, sizes: { map: 'l' } })).toBe(false);
 		expect(isRoomBoard({ ...stored, sizes: ['map'] })).toBe(false);
+		// A board written before `slides` existed.
+		expect(isRoomBoard({ ...stored, slides: undefined })).toBe(false);
+		expect(isRoomBoard({ ...stored, slides: 'carousel' })).toBe(false);
+		// A board remembered while the style was still per slide.
+		expect(isRoomBoard({ ...stored, slides: { statement: 'list' } })).toBe(false);
+	});
+});
+
+describe('slide style', () => {
+	it('walks by default, on every template', () => {
+		for (const template of BOARD_TEMPLATES) {
+			expect(presetBoard(template.id).slides).toBe('walk');
+		}
+	});
+
+	it('reads the style off the URL, and lets it pin the board', () => {
+		expect(resolveBoard({ preset: 'deck', slides: 'list' }).slides).toBe('list');
+		expect(resolveBoard({ slides: 'walk', stored }).slides).toBe('walk');
+		expect(resolveBoard({ stored }).slides).toBe('list');
+	});
+
+	it('treats a style it does not know as noise', () => {
+		expect(resolveBoard({ slides: 'carousel' }).slides).toBe('walk');
+		expect(resolveBoard({ slides: 'carousel', stored })).toEqual(stored);
+		// The old per-slide form is not translated: the pair is not a style.
+		expect(resolveBoard({ slides: 'statement:list', stored })).toEqual(stored);
+	});
+
+	it('is part of the arrangement, so changing it leaves the template', () => {
+		expect(matchingPreset(presetBoard('deck'))).toBe('deck');
+		expect(matchingPreset({ ...presetBoard('deck'), slides: 'list' })).toBeNull();
 	});
 });
 

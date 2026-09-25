@@ -16,6 +16,7 @@
 	import {
 		BLOCK_SIZE_STEP,
 		BOARD_TEMPLATES,
+		DECK_SLIDES,
 		LATEST_STYLES,
 		MAX_BLOCK_SIZE,
 		MAX_SCALE,
@@ -24,6 +25,7 @@
 		ROOM_BLOCKS,
 		ROOM_THEMES,
 		SCALE_STEP,
+		SLIDE_STYLES,
 		blockSize,
 		clampScale,
 		hasBlock,
@@ -34,7 +36,8 @@
 		type RoomBlock,
 		type RoomBoard,
 		type RoomLayout,
-		type RoomTheme
+		type RoomTheme,
+		type SlideStyle
 	} from '$lib/room-display/blocks';
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
@@ -52,6 +55,7 @@
 		onSetTheme: (theme: RoomTheme) => void;
 		onSetScale: (scale: number) => void;
 		onSetBlockSize: (block: RoomBlock, size: number) => void;
+		onSetSlideStyle: (style: SlideStyle) => void;
 		onReset: () => void;
 	};
 
@@ -64,6 +68,7 @@
 		onSetTheme,
 		onSetScale,
 		onSetBlockSize,
+		onSetSlideStyle,
 		onReset
 	}: Props = $props();
 
@@ -83,6 +88,17 @@
 	const template = $derived(matchingPreset(board));
 	const templateLabel = $derived(
 		BOARD_TEMPLATES.find((option) => option.id === template)?.label ?? 'Custom'
+	);
+
+	// On the deck the panel lists slides, by the name on the wall, rather than blocks:
+	// a facilitator running slides has no "statement strip" to size, they have "Where
+	// we split". Blocks with no slide (question, counts, group controls) are not shown,
+	// because a switch that does nothing is worse than no switch.
+	const onDeck = $derived(board.layout === 'deck');
+	const rows = $derived<{ id: RoomBlock; label: string }[]>(
+		onDeck
+			? DECK_SLIDES.map((slide) => ({ id: slide.block, label: slide.title }))
+			: ROOM_BLOCKS.map((block) => ({ id: block.id, label: block.label }))
 	);
 
 	// "Beside" means the column under the statement strip, which only the one-wall
@@ -212,6 +228,34 @@
 				</div>
 			</fieldset>
 
+			{#if onDeck}
+				<!--
+					One choice for both statement slides, not one each: "walk them through it or
+					show them the result" is a decision about the session. Only the deck has
+					these slides, so only the deck shows the choice.
+				-->
+				<fieldset class="flex flex-col gap-2">
+					<legend class="text-muted-foreground pb-2 text-base font-medium">
+						Statement slides show
+					</legend>
+					<div class="flex gap-2">
+						{#each SLIDE_STYLES as option (option.id)}
+							<button
+								type="button"
+								class="border-border hover:bg-muted flex-1 rounded-md border px-2 py-2 text-base transition-colors"
+								class:bg-muted={board.slides === option.id}
+								class:border-primary={board.slides === option.id}
+								aria-pressed={board.slides === option.id}
+								title={option.hint}
+								onclick={() => onSetSlideStyle(option.id)}
+							>
+								{option.label}
+							</button>
+						{/each}
+					</div>
+				</fieldset>
+			{/if}
+
 			<!--
 				One row per block: whether it is on, and how big. The two used to be separate
 				lists, which meant reading every block name twice to set up one wall.
@@ -219,7 +263,9 @@
 				cannot read any of it.
 			-->
 			<fieldset class="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-3">
-				<legend class="text-muted-foreground pb-2 text-base font-medium">Blocks</legend>
+				<legend class="text-muted-foreground pb-2 text-base font-medium">
+					{onDeck ? 'Slides' : 'Blocks'}
+				</legend>
 				<span class="text-foreground text-base">Everything</span>
 				<SizeStepper
 					value={board.scale}
@@ -231,7 +277,7 @@
 				/>
 				<!-- Nothing to switch off: the empty cell keeps the steppers in one column. -->
 				<span></span>
-				{#each ROOM_BLOCKS as block (block.id)}
+				{#each rows as block (block.id)}
 					{@const id = `board-block-${block.id}`}
 					{@const on = hasBlock(board, block.id)}
 					<Label for={id} class="text-foreground min-w-0 text-base font-normal">
@@ -249,7 +295,7 @@
 						/>
 					</div>
 					<Switch {id} checked={on} onCheckedChange={() => onToggleBlock(block.id)} />
-					{#if block.id === 'marquee' && on}
+					{#if block.id === 'marquee' && on && !onDeck}
 						<!--
 							Nested under the block it belongs to: it is how that block draws
 							itself, not a ninth thing to switch on.
@@ -282,16 +328,6 @@
 						</div>
 					{/if}
 				{/each}
-
-				{#if board.layout === 'deck'}
-					<!--
-						Slides are advanced by hand, so there is nothing for the group buttons
-						to do. Saying so beats a switch that silently does nothing.
-					-->
-					<p class="text-muted-foreground col-span-3 text-base">
-						Group controls do nothing on slides: you advance them yourself.
-					</p>
-				{/if}
 			</fieldset>
 
 			<Button variant="outline" size="sm" onclick={copyLink}>
