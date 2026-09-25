@@ -12,7 +12,8 @@ export type RoomDisplayMode = 'live' | 'demo';
  *
  *   ?mode=demo         scripted scenario with animated joins and votes, for showing
  *                      the thing off; the default polls the real step
- *   ?variant=<name>    a named board: console (default), marquee or deck
+ *   ?variant=<name>    a named board (the panel's templates): console (default), wall,
+ *                      marquee, lobby, deck or kiosk
  *   ?layout=<name>     the arrangement on its own: split, console or deck
  *   ?blocks=a,b,c      exactly which regions are on, overriding the variant's set
  *   ?latest=<style>    how the latest statements draw: row, column or marquee

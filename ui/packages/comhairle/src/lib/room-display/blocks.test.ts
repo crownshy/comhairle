@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	BOARD_PRESETS,
+	BOARD_TEMPLATES,
 	DEFAULT_PRESET,
 	MAX_SCALE,
 	MIN_SCALE,
@@ -8,7 +9,9 @@ import {
 	blockSize,
 	clampScale,
 	hasBlock,
+	applyPreset,
 	isRoomBoard,
+	matchingPreset,
 	parseBlocks,
 	parseScale,
 	parseSizes,
@@ -303,5 +306,52 @@ describe('isRoomBoard', () => {
 		expect(isRoomBoard({ ...stored, sizes: { map: 'huge' } })).toBe(false);
 		expect(isRoomBoard({ ...stored, sizes: { sparkline: 'l' } })).toBe(false);
 		expect(isRoomBoard({ ...stored, sizes: ['map'] })).toBe(false);
+	});
+});
+
+describe('templates', () => {
+	it('lists every preset exactly once, so nothing is reachable by link but not by panel', () => {
+		const listed = BOARD_TEMPLATES.map((t) => t.id).sort();
+		expect(listed).toEqual(Object.keys(BOARD_PRESETS).sort());
+	});
+
+	it('recognises each template from the board it expands to', () => {
+		for (const template of BOARD_TEMPLATES) {
+			expect(matchingPreset(presetBoard(template.id))).toBe(template.id);
+		}
+	});
+
+	it('stops naming a template once the arrangement is touched by hand', () => {
+		expect(matchingPreset(toggleBlock(presetBoard('console'), 'qr'))).toBeNull();
+		expect(matchingPreset({ ...presetBoard('console'), latest: 'marquee' })).toBeNull();
+		expect(matchingPreset(setBlockSize(presetBoard('wall'), 'map', 'xl'))).toBeNull();
+	});
+
+	it('still names the template when only the room has changed', () => {
+		// Lighting and scale are set for the hall, not chosen with the board.
+		expect(matchingPreset({ ...presetBoard('console'), theme: 'light' })).toBe('console');
+		expect(matchingPreset({ ...presetBoard('console'), scale: 1.5 })).toBe('console');
+	});
+
+	it('does not care about block order', () => {
+		const shuffled: RoomBoard = {
+			...presetBoard('wall'),
+			blocks: ['qr', 'statement', 'map', 'question']
+		};
+		expect(matchingPreset(shuffled)).toBe('wall');
+	});
+
+	it('applies a template over the room rather than instead of it', () => {
+		const room: RoomBoard = { ...presetBoard('console'), theme: 'light', scale: 1.5 };
+		const lobby = applyPreset(room, 'lobby');
+		expect(lobby.blocks).toEqual(presetBoard('lobby').blocks);
+		expect(lobby.sizes).toEqual(presetBoard('lobby').sizes);
+		expect(lobby.theme).toBe('light');
+		expect(lobby.scale).toBe(1.5);
+	});
+
+	it('lets a template that names a lighting have it', () => {
+		const room: RoomBoard = { ...presetBoard('console'), theme: 'light' };
+		expect(applyPreset(room, 'kiosk').theme).toBe('dark');
 	});
 });

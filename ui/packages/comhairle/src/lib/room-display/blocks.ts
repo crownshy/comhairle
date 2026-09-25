@@ -152,13 +152,26 @@ export interface RoomBoard {
 }
 
 /**
- * The named boards, still reachable as `?variant=`. Console is the direction the team
- * picked (NOTES.md) and stays the default.
+ * The named boards, reachable as `?variant=` and offered as templates in the panel.
+ * Each one is a whole board for a situation a facilitator recognises, and is only a
+ * starting point: every block stays switchable after picking one. Console is the
+ * direction the team picked (NOTES.md) and stays the default.
+ *
+ * The older names (`console`, `marquee`, `deck`) are kept so links written against
+ * them still open the same board.
  */
 export const BOARD_PRESETS = {
 	console: {
 		layout: 'console',
-		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'groups', 'qr'],
+		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'marquee', 'groups', 'qr'],
+		latest: 'row',
+		theme: 'auto',
+		scale: 1,
+		sizes: {}
+	},
+	wall: {
+		layout: 'split',
+		blocks: ['question', 'map', 'statement', 'qr'],
 		latest: 'row',
 		theme: 'auto',
 		scale: 1,
@@ -172,6 +185,14 @@ export const BOARD_PRESETS = {
 		scale: 1,
 		sizes: {}
 	},
+	lobby: {
+		layout: 'split',
+		blocks: ['question', 'counts', 'marquee', 'qr'],
+		latest: 'row',
+		theme: 'auto',
+		scale: 1,
+		sizes: { question: 'l', qr: 'xxl' }
+	},
 	deck: {
 		layout: 'deck',
 		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'marquee', 'qr'],
@@ -179,12 +200,55 @@ export const BOARD_PRESETS = {
 		theme: 'auto',
 		scale: 1,
 		sizes: {}
+	},
+	kiosk: {
+		layout: 'split',
+		blocks: ['map', 'marquee'],
+		latest: 'column',
+		theme: 'dark',
+		scale: 1,
+		sizes: { map: 'l' }
 	}
 } as const satisfies Record<string, RoomBoard>;
 
 export type BoardPreset = keyof typeof BOARD_PRESETS;
 
 export const DEFAULT_PRESET: BoardPreset = 'console';
+
+/**
+ * The presets as the panel lists them, in the order a facilitator is likely to want
+ * them: the common case first, the unattended screen last. Named for the situation
+ * rather than the layout, because the person choosing knows what room they are in and
+ * not what a "split" is.
+ */
+export const BOARD_TEMPLATES = [
+	{
+		id: 'console',
+		label: 'Facilitated room',
+		hint: 'Wall and laptop; you point the wall from the console'
+	},
+	{
+		id: 'wall',
+		label: 'Wall only',
+		hint: 'One screen and no laptop: question, map, statement, QR code'
+	},
+	{
+		id: 'marquee',
+		label: 'One wall, everything',
+		hint: 'Map, statements and group controls on a single screen'
+	},
+	{
+		id: 'lobby',
+		label: 'Lobby',
+		hint: 'People arriving: question, counts, latest statements, big QR code'
+	},
+	{ id: 'deck', label: 'Slides', hint: 'One idea at a time, you advance it' },
+	{
+		id: 'kiosk',
+		label: 'Kiosk',
+		hint: 'Left running unattended: map and latest statements, dark'
+	}
+] as const satisfies readonly { id: BoardPreset; label: string; hint: string }[];
 
 export function isRoomBlock(value: string): value is RoomBlock {
 	return (BLOCK_ORDER as readonly string[]).includes(value);
@@ -335,6 +399,48 @@ export function parseBlocks(raw: string | null | undefined): RoomBlock[] | null 
 export function presetBoard(preset: BoardPreset): RoomBoard {
 	const { layout, blocks, latest, theme, scale, sizes } = BOARD_PRESETS[preset];
 	return { layout, blocks: [...blocks], latest, theme, scale, sizes: { ...sizes } };
+}
+
+/**
+ * A template is the arrangement: layout, blocks, how the latest statements draw and
+ * the per-block sizes. Lighting and the overall scale belong to the room instead: the
+ * projector is set up once for the hall, and choosing a different template for the
+ * afternoon session should not undo that, nor should having set it make the panel
+ * say the board is no longer the template it plainly is.
+ */
+function arrangementKey(board: RoomBoard): string {
+	return [
+		board.layout,
+		serializeBlocks(board.blocks),
+		board.latest,
+		serializeSizes(board.sizes)
+	].join('|');
+}
+
+/**
+ * Which template the board still is, or `null` once it has been changed by hand. The
+ * panel shows this in its template picker, and the URL carries it as `?variant=` only
+ * while it is true: a link that names a template has to open that template.
+ */
+export function matchingPreset(board: RoomBoard): BoardPreset | null {
+	const key = arrangementKey(board);
+	for (const template of BOARD_TEMPLATES) {
+		if (arrangementKey(presetBoard(template.id)) === key) return template.id;
+	}
+	return null;
+}
+
+/**
+ * The template's arrangement on top of this room's lighting and scale. A template
+ * that names a lighting (kiosk is dark) still gets it; `auto` means it has no opinion.
+ */
+export function applyPreset(board: RoomBoard, preset: BoardPreset): RoomBoard {
+	const next = presetBoard(preset);
+	return {
+		...next,
+		theme: next.theme === 'auto' ? board.theme : next.theme,
+		scale: board.scale
+	};
 }
 
 /** Flips one block, keeping the rest in canonical order. */

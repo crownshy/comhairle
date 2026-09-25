@@ -15,6 +15,7 @@
 	import { Settings2, Check, Link } from '@lucide/svelte';
 	import {
 		BLOCK_SIZES,
+		BOARD_TEMPLATES,
 		LATEST_STYLES,
 		MAX_SCALE,
 		MIN_SCALE,
@@ -24,7 +25,10 @@
 		blockSize,
 		clampScale,
 		hasBlock,
+		isBoardPreset,
+		matchingPreset,
 		type BlockSize,
+		type BoardPreset,
 		type LatestStyle,
 		type RoomBlock,
 		type RoomBoard,
@@ -36,9 +40,11 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Slider } from '$lib/components/ui/slider';
 	import * as Popover from '$lib/components/ui/popover';
+	import * as Select from '$lib/components/ui/select';
 
 	type Props = {
 		board: RoomBoard;
+		onSetPreset: (preset: BoardPreset) => void;
 		onToggleBlock: (block: RoomBlock) => void;
 		onSetLayout: (layout: RoomLayout) => void;
 		onSetLatest: (latest: LatestStyle) => void;
@@ -50,6 +56,7 @@
 
 	let {
 		board,
+		onSetPreset,
 		onToggleBlock,
 		onSetLayout,
 		onSetLatest,
@@ -69,6 +76,13 @@
 
 	let open = $state(false);
 	let copied = $state(false);
+
+	// The template the board still is. Anything touched by hand is "Custom", which is
+	// not an option in the list: there is nothing to pick it back to.
+	const template = $derived(matchingPreset(board));
+	const templateLabel = $derived(
+		BOARD_TEMPLATES.find((option) => option.id === template)?.label ?? 'Custom'
+	);
 
 	// "Beside" means the column under the statement strip, which only the one-wall
 	// layout has. Offering it elsewhere would be a button that silently does something
@@ -119,6 +133,42 @@
 			<div class="flex items-center justify-between">
 				<p class="text-foreground text-base font-semibold">Board</p>
 				<Button variant="ghost" size="sm" onclick={onReset}>Reset</Button>
+			</div>
+
+			<!--
+				A whole board in one pick, for the facilitator who knows what room they are
+				in and does not want to assemble it block by block. Everything below still
+				applies afterwards; the pick is where you start, not a mode.
+			-->
+			<div class="flex flex-col gap-2">
+				<Label for="board-template" class="text-muted-foreground text-base font-medium">
+					Template
+				</Label>
+				<Select.Root
+					type="single"
+					value={template ?? ''}
+					onValueChange={(value) => {
+						if (value && isBoardPreset(value)) onSetPreset(value);
+					}}
+				>
+					<Select.Trigger id="board-template" class="w-full text-base">
+						{templateLabel}
+					</Select.Trigger>
+					<!-- As wide as the trigger and no wider, so the hints wrap instead of the list growing past the panel. -->
+					<Select.Content class="w-(--bits-select-anchor-width)">
+						{#each BOARD_TEMPLATES as option (option.id)}
+							<!-- The item centres its last span by default, which is meant for an icon, not two lines of text. -->
+							<Select.Item value={option.id} label={option.label} class="py-2">
+								<span class="flex min-w-0 flex-col items-start! text-left">
+									<span class="text-foreground text-base">{option.label}</span>
+									<span class="text-muted-foreground text-base"
+										>{option.hint}</span
+									>
+								</span>
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
 			</div>
 
 			<fieldset class="flex flex-col gap-2">
