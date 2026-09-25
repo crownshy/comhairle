@@ -12,12 +12,13 @@
 
 {#snippet Tab(tab: (typeof tabs)[number] | 'team')}
 	<TabStripItem
-		{tab}
 		href={resolve(`/(admin)/admin/conversations/[conversation_id]/configure/${tab}`, {
 			conversation_id: params.conversation_id
 		})}
-		label={kebabToSentenceCase(tab)}
-	/>
+		isActive={(pathname) => pathname.endsWith(tab)}
+	>
+		{kebabToSentenceCase(tab)}
+	</TabStripItem>
 {/snippet}
 
 <TabStripShell ariaLabel="Configure sections">
