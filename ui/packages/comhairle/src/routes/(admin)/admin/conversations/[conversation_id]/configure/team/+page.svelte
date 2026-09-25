@@ -7,7 +7,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils';
+	import { snakeToStartCase } from '$lib/utils/casingUtils';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
@@ -58,7 +58,7 @@
 		);
 
 		if (response.err !== null) {
-			let errorMessage = `Something went wrong granting ${snakeToSentenceCase(role)} permission for this ${snakeToSentenceCase(resourceType)}.`;
+			let errorMessage = `Something went wrong granting ${snakeToStartCase(role)} permission for this ${snakeToStartCase(resourceType)}.`;
 			if (response.err.response?.status === 409) {
 				errorMessage +=
 					' This user / organization may already have this permission granted.';
@@ -78,7 +78,7 @@
 
 		loading = false;
 		notifications.send({
-			message: `Successfully granted ${snakeToSentenceCase(role)} permission`
+			message: `Successfully granted ${snakeToStartCase(role)} permission`
 		});
 		invalidate('conversation:meta');
 	}
@@ -140,8 +140,8 @@
 							<Form.Control>
 								{#snippet children({ props })}
 									<Form.Label
-										>Grant a user "{snakeToSentenceCase(role).toLowerCase()}"
-										access to this {snakeToSentenceCase(
+										>Grant a user "{snakeToStartCase(role).toLowerCase()}"
+										access to this {snakeToStartCase(
 											resourceType
 										).toLowerCase()}</Form.Label
 									>
@@ -168,7 +168,7 @@
 					<Card.Root>
 						<Card.Header>
 							<h1 class="text-xl font-bold">
-								{`${snakeToSentenceCase(resourceType)} ${snakeToSentenceCase(role).toLowerCase()} users`}
+								{`${snakeToStartCase(resourceType)} ${snakeToStartCase(role).toLowerCase()} users`}
 							</h1>
 						</Card.Header>
 						<Card.Content>
@@ -214,7 +214,7 @@
 					<AlertDialog.Content>
 						<AlertDialog.Header>
 							<AlertDialog.Title
-								>Revoke "{snakeToSentenceCase(role).toLowerCase()}" permission?</AlertDialog.Title
+								>Revoke "{snakeToStartCase(role).toLowerCase()}" permission?</AlertDialog.Title
 							>
 							<AlertDialog.Description>
 								This will permanently remove this permission for this user.

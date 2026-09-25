@@ -47,7 +47,7 @@
 	import EventLocationForm from './EventLocationForm.svelte';
 	import EventRecordings from './EventRecordings.svelte';
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
+	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 
 	let url = $derived(page.url);
@@ -546,7 +546,7 @@
 							onValueChange={(value: string) => ($form.format = value)}
 						>
 							<Select.Trigger class="w-45"
-								>Format: {snakeToSentenceCase($form.format)}</Select.Trigger
+								>Format: {snakeToStartCase($form.format)}</Select.Trigger
 							>
 							<Select.Content>
 								<Select.Item value="online">Online</Select.Item>

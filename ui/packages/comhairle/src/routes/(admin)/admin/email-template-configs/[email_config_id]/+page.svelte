@@ -5,7 +5,7 @@
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import { jsonToHtml } from '$lib/utils/rich-text.js';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
+	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto, invalidate } from '$app/navigation';
@@ -134,7 +134,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="text-4xl font-bold">Custom email: {snakeToSentenceCase(emailConfig.emailType)}</h1>
+<h1 class="text-4xl font-bold">Custom email: {snakeToStartCase(emailConfig.emailType)}</h1>
 
 <div class="flex justify-end gap-2">
 	<Button variant="destructive" type="button" onclick={() => (openDeleteModal = true)}

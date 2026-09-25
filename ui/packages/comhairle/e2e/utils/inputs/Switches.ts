@@ -19,6 +19,9 @@ const Switches = async <const T extends string, U extends Switches<T>>(
 		await Promise.all(
 			inputs.map(async (input) => {
 				const locator = refs.page.getByRole('switch', { name: input[1] });
+				if (!locator.isVisible()) {
+					throw new Error(`Can't find locator: "${input[1]}"`);
+				}
 				const isOn = await isSwitchOn(locator);
 				return [
 					input[0],
