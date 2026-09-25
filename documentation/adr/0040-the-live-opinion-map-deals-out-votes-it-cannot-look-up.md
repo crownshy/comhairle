@@ -2,7 +2,6 @@
 
 **Status:** proposed
 **Date:** 2026-09-23
-**Branch:** demo branch
 
 ## Context
 
