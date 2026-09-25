@@ -42,27 +42,40 @@ function scored(comments: ReportComment[]): ReportComment[] {
 	);
 }
 
-function best(comments: ReportComment[], rank: (c: ReportComment) => number): ReportComment | null {
-	if (comments.length === 0) return null;
-	return comments.reduce((a, b) => (rank(b) > rank(a) ? b : a));
+/** Highest rank first. The sort is stable, so ties keep their published order. */
+function ranked(comments: ReportComment[], rank: (c: ReportComment) => number): ReportComment[] {
+	return [...comments].sort((a, b) => rank(b) - rank(a));
+}
+
+/**
+ * The statements an intent points at, best first, at most `limit` of them. The deck
+ * shows a handful at once where the ambient rotation shows one, so both read the same
+ * ranking rather than each keeping its own idea of "most divisive".
+ */
+export function rankIntent(
+	state: DisplayState,
+	intent: FocusIntent,
+	limit: number
+): ReportComment[] {
+	const published = state.published;
+	if (published.length === 0 || limit <= 0) return [];
+
+	switch (intent) {
+		case 'mostDivisive':
+			return ranked(scored(published), (c) => c.divisiveness ?? 0).slice(0, limit);
+		case 'strongestConsensus':
+			return ranked(published, (c) => c.group_informed_consensus ?? 0).slice(0, limit);
+		case 'newest':
+			// `published` is most-recent-first, which is the order the ticker wants too.
+			return published.slice(0, limit);
+		case 'mostVoted':
+			return ranked(published, (c) => state.votesByTid.get(c.tid)?.size ?? 0).slice(0, limit);
+	}
 }
 
 /** Resolves one intent against the statements published so far. */
 export function resolveIntent(state: DisplayState, intent: FocusIntent): number | null {
-	const published = state.published;
-	if (published.length === 0) return null;
-
-	switch (intent) {
-		case 'mostDivisive':
-			return best(scored(published), (c) => c.divisiveness ?? 0)?.tid ?? null;
-		case 'strongestConsensus':
-			return best(published, (c) => c.group_informed_consensus ?? 0)?.tid ?? null;
-		case 'newest':
-			// `published` is most-recent-first, which is the order the ticker wants too.
-			return published[0]?.tid ?? null;
-		case 'mostVoted':
-			return best(published, (c) => state.votesByTid.get(c.tid)?.size ?? 0)?.tid ?? null;
-	}
+	return rankIntent(state, intent, 1)[0]?.tid ?? null;
 }
 
 export interface AmbientFocus {

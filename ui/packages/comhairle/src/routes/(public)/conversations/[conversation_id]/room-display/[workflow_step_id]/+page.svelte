@@ -41,7 +41,8 @@
 		type RoomBlock,
 		type RoomBoard,
 		type RoomLayout,
-		type RoomTheme
+		type RoomTheme,
+		type SlideStyle
 	} from '$lib/room-display/blocks';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import {
@@ -149,6 +150,7 @@
 		url.searchParams.set('theme', next.theme);
 		url.searchParams.set('scale', String(next.scale));
 		url.searchParams.set('sizes', serializeSizes(next.sizes));
+		url.searchParams.set('slides', next.slides);
 		// This rewrites the query string of the page we are already on rather than
 		// navigating anywhere, so there is no route for `resolve()` to resolve.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
@@ -182,6 +184,10 @@
 
 	function onSetBlockSize(block: RoomBlock, size: number) {
 		applyBoard(setBlockSize(board, block, size));
+	}
+
+	function onSetSlideStyle(slides: SlideStyle) {
+		applyBoard({ ...board, slides });
 	}
 
 	/**
@@ -275,6 +281,7 @@
 	{onSetTheme}
 	{onSetScale}
 	{onSetBlockSize}
+	{onSetSlideStyle}
 	{onReset}
 />
 
