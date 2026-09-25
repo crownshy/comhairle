@@ -4,7 +4,8 @@
  * Polls `PolisGetReportData` on an interval; there is no push feed for Polis, and the
  * math behind the report is itself recomputed on a schedule, so polling every few
  * seconds loses nothing. A failed poll keeps the last good payload on screen rather
- * than blanking the wall mid-session.
+ * than blanking the wall mid-session. A hidden tab has nobody looking at it, so it
+ * stops asking; coming back refreshes at once rather than waiting out the interval.
  *
  * The stage ratchets across polls for the reason `revealStage.ts` gives: Polis's group
  * count oscillates with few votes and a wall that re-locks itself reads as broken.
@@ -65,9 +66,26 @@ export function createLiveRoomDisplaySource(options: LiveSourceOptions): LiveRoo
 	}
 
 	let timer: ReturnType<typeof setInterval> | null = null;
-	if (canPoll) {
+
+	function start() {
+		if (timer !== null) return;
 		void refresh();
 		timer = setInterval(() => void refresh(), intervalMs);
+	}
+
+	function stop() {
+		if (timer !== null) clearInterval(timer);
+		timer = null;
+	}
+
+	function onVisibilityChange() {
+		if (document.hidden) stop();
+		else start();
+	}
+
+	if (canPoll) {
+		if (!document.hidden) start();
+		document.addEventListener('visibilitychange', onVisibilityChange);
 	}
 
 	return {
@@ -89,8 +107,8 @@ export function createLiveRoomDisplaySource(options: LiveSourceOptions): LiveRoo
 		},
 		refresh,
 		destroy() {
-			if (timer !== null) clearInterval(timer);
-			timer = null;
+			stop();
+			if (canPoll) document.removeEventListener('visibilitychange', onVisibilityChange);
 		}
 	};
 }
