@@ -21,7 +21,8 @@
 -->
 <script lang="ts">
 	import type { RoomDisplaySource } from '$lib/room-display/source';
-	import { hasBlock, type RoomBoard, type RoomBlock } from '$lib/room-display/blocks';
+	import SizedBlock from './SizedBlock.svelte';
+	import { hasBlock, type RoomBoard, type RoomBlock, blockScale } from '$lib/room-display/blocks';
 	import { resolveIntent } from '$lib/room-display/ambientFocus';
 	import { participantCount } from '$lib/room-display/scenario';
 	import { voteBarsFor } from '$lib/room-display/liveVotes';
@@ -116,112 +117,126 @@
 				</p>
 			</div>
 		{:else if slide.key === 'join'}
-			<WarmingScreen
-				{question}
-				{joinUrl}
-				participants={participantCount(source.state)}
-				votes={source.state.totalVotes}
-			/>
+			<SizedBlock scale={blockScale(board, 'question')}>
+				<WarmingScreen
+					{question}
+					{joinUrl}
+					participants={participantCount(source.state)}
+					votes={source.state.totalVotes}
+				/>
+			</SizedBlock>
 		{:else if slide.key === 'room'}
-			<div class="flex h-full min-h-0 flex-col gap-4">
-				<p class="text-foreground shrink-0 text-3xl font-bold text-balance lg:text-5xl">
-					{participantCount(source.state)} people,
-					{#if clustered}
-						{source.groups.length} ways of seeing it
-					{:else}
-						still finding the shape
-					{/if}
-				</p>
-				<div class="min-h-0 flex-1">
-					<OpinionMap
-						nodes={source.state.nodes}
-						votesByTid={source.state.votesByTid}
-						focusedTid={null}
-						settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
-						{groupIds}
-					/>
-				</div>
-			</div>
-		{:else if slide.key === 'agree'}
-			<div class="flex h-full min-h-0 flex-col justify-center gap-8">
-				{#if consensus && consensusBars}
-					<p
-						class="text-foreground max-w-6xl text-3xl leading-tight font-bold text-balance lg:text-6xl"
-					>
-						{consensus.text}
-					</p>
-					<div
-						class="grid max-w-5xl gap-8"
-						style="grid-template-columns: repeat({1 +
-							consensusBars.groups.length}, minmax(0, 1fr));"
-					>
-						<RoomVoteBar {...consensusBars.overall} />
-						{#each consensusBars.groups as bar (bar.label)}
-							<RoomVoteBar {...bar} />
-						{/each}
-					</div>
-				{:else}
-					<p class="text-muted-foreground text-2xl">Not enough votes to call this yet.</p>
-				{/if}
-			</div>
-		{:else if slide.key === 'split'}
-			<div class="grid h-full min-h-0 gap-8 lg:grid-cols-2">
-				<div class="flex min-h-0 flex-col justify-center gap-6">
-					{#if divisive}
-						<p
-							class="text-foreground text-3xl leading-tight font-bold text-balance lg:text-5xl"
-						>
-							{divisive.text}
-						</p>
-						{#if source.voteMatrix === 'per-participant'}
-							<p class="text-muted-foreground text-xl lg:text-2xl">
-								Every dot is a person, coloured by how they voted on this one.
-							</p>
-						{:else if divisiveBars}
-							<div
-								class="grid gap-6"
-								style="grid-template-columns: repeat({1 +
-									divisiveBars.groups.length}, minmax(0, 1fr));"
-							>
-								<RoomVoteBar {...divisiveBars.overall} />
-								{#each divisiveBars.groups as bar (bar.label)}
-									<RoomVoteBar {...bar} />
-								{/each}
-							</div>
+			<SizedBlock scale={board.scale}>
+				<div class="flex h-full min-h-0 flex-col gap-4">
+					<p class="text-foreground shrink-0 text-3xl font-bold text-balance lg:text-5xl">
+						{participantCount(source.state)} people,
+						{#if clustered}
+							{source.groups.length} ways of seeing it
+						{:else}
+							still finding the shape
 						{/if}
+					</p>
+					<div class="min-h-0 flex-1">
+						<OpinionMap
+							nodes={source.state.nodes}
+							votesByTid={source.state.votesByTid}
+							focusedTid={null}
+							settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
+							dotScale={blockScale(board, 'map')}
+							{groupIds}
+						/>
+					</div>
+				</div>
+			</SizedBlock>
+		{:else if slide.key === 'agree'}
+			<SizedBlock scale={blockScale(board, 'statement')}>
+				<div class="flex h-full min-h-0 flex-col justify-center gap-8">
+					{#if consensus && consensusBars}
+						<p
+							class="text-foreground max-w-6xl text-3xl leading-tight font-bold text-balance lg:text-6xl"
+						>
+							{consensus.text}
+						</p>
+						<div
+							class="grid max-w-5xl gap-8"
+							style="grid-template-columns: repeat({1 +
+								consensusBars.groups.length}, minmax(0, 1fr));"
+						>
+							<RoomVoteBar {...consensusBars.overall} />
+							{#each consensusBars.groups as bar (bar.label)}
+								<RoomVoteBar {...bar} />
+							{/each}
+						</div>
 					{:else}
 						<p class="text-muted-foreground text-2xl">
-							Nothing divides the room enough to show yet.
+							Not enough votes to call this yet.
 						</p>
 					{/if}
 				</div>
-				<div class="min-h-0">
-					<OpinionMap
-						nodes={source.state.nodes}
-						votesByTid={source.state.votesByTid}
-						focusedTid={divisiveTid}
-						settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
-						{groupIds}
-					/>
+			</SizedBlock>
+		{:else if slide.key === 'split'}
+			<SizedBlock scale={blockScale(board, 'strip')}>
+				<div class="grid h-full min-h-0 gap-8 lg:grid-cols-2">
+					<div class="flex min-h-0 flex-col justify-center gap-6">
+						{#if divisive}
+							<p
+								class="text-foreground text-3xl leading-tight font-bold text-balance lg:text-5xl"
+							>
+								{divisive.text}
+							</p>
+							{#if source.voteMatrix === 'per-participant'}
+								<p class="text-muted-foreground text-xl lg:text-2xl">
+									Every dot is a person, coloured by how they voted on this one.
+								</p>
+							{:else if divisiveBars}
+								<div
+									class="grid gap-6"
+									style="grid-template-columns: repeat({1 +
+										divisiveBars.groups.length}, minmax(0, 1fr));"
+								>
+									<RoomVoteBar {...divisiveBars.overall} />
+									{#each divisiveBars.groups as bar (bar.label)}
+										<RoomVoteBar {...bar} />
+									{/each}
+								</div>
+							{/if}
+						{:else}
+							<p class="text-muted-foreground text-2xl">
+								Nothing divides the room enough to show yet.
+							</p>
+						{/if}
+					</div>
+					<div class="min-h-0">
+						<OpinionMap
+							nodes={source.state.nodes}
+							votesByTid={source.state.votesByTid}
+							focusedTid={divisiveTid}
+							settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
+							dotScale={blockScale(board, 'map')}
+							{groupIds}
+						/>
+					</div>
 				</div>
-			</div>
+			</SizedBlock>
 		{:else if slide.key === 'latest'}
-			<!--
+			<SizedBlock scale={blockScale(board, 'marquee')}>
+				<!--
 				The ticker as its own screen. Four statements at headline size is readable
 				from the back of a room; twelve at body size is not, which is the whole
 				argument against the sidebar it replaces.
 			-->
-			<ul class="flex h-full min-h-0 flex-col justify-center gap-6">
-				{#each latest as statement (statement.tid)}
-					<li
-						class="text-foreground border-primary border-l-4 pl-5 text-2xl leading-snug font-medium text-balance lg:text-4xl"
-					>
-						{statement.text}
-					</li>
-				{:else}
-					<li class="text-muted-foreground text-2xl">Nothing said yet.</li>
-				{/each}
-			</ul>
+				<ul class="flex h-full min-h-0 flex-col justify-center gap-6">
+					{#each latest as statement (statement.tid)}
+						<li
+							class="text-foreground border-primary border-l-4 pl-5 text-2xl leading-snug font-medium text-balance lg:text-4xl"
+						>
+							{statement.text}
+						</li>
+					{:else}
+						<li class="text-muted-foreground text-2xl">Nothing said yet.</li>
+					{/each}
+				</ul>
+			</SizedBlock>
 		{/if}
 	</div>
 

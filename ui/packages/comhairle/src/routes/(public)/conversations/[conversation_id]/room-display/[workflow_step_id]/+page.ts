@@ -17,6 +17,8 @@ export type RoomDisplayMode = 'live' | 'demo';
  *   ?blocks=a,b,c      exactly which regions are on, overriding the variant's set
  *   ?latest=<style>    how the latest statements draw: row, column or marquee
  *   ?theme=<name>      light or dark for the room; auto leaves the app alone
+ *   ?scale=<n>         multiplier on the whole wall, 1 to 2
+ *   ?sizes=a:l,b:xl    per-block size steps (m, l, xl, 2xl as xxl) on top of that
  *   ?join=<url>        where the QR code points; defaults to the conversation page
  *   ?question=<text>   override the heading (the Polis topic by default)
  *   ?rate=<n>          demo only: playback speed
@@ -35,7 +37,9 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 		layout: url.searchParams.get('layout'),
 		blocks: url.searchParams.get('blocks'),
 		latest: url.searchParams.get('latest'),
-		theme: url.searchParams.get('theme')
+		theme: url.searchParams.get('theme'),
+		scale: url.searchParams.get('scale'),
+		sizes: url.searchParams.get('sizes')
 	};
 
 	const conversation = await tryCatchAsync(() =>

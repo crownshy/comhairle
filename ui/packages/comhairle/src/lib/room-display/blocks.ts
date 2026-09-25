@@ -101,6 +101,42 @@ export const ROOM_THEMES = [
 
 const ROOM_THEME_IDS: readonly RoomTheme[] = ROOM_THEMES.map((t) => t.id);
 
+/**
+ * How big everything is, which the display cannot work out for itself either: the
+ * same board is right on a meeting-room TV and too small on a hall projector, and the
+ * room can only tell you once it is up.
+ *
+ * Two knobs. `scale` grows the whole wall together, for the hall. A per-block size
+ * grows one region relative to the rest, for the room where the question is landing
+ * but the statement is not. The steps run up from normal only: the wall was already
+ * unreadable from two metres once (NOTES.md), so nothing on it shrinks below the
+ * sizes that fixed that.
+ *
+ * A block's effective multiplier is the two together (`blockScale`). Both are applied
+ * as CSS custom properties rather than by picking classes, so every text and spacing
+ * utility inside a block moves and none of the markup knows about it.
+ */
+export const BLOCK_SIZES = [
+	{ id: 'm', label: 'M', hint: 'Normal', factor: 1 },
+	{ id: 'l', label: 'L', hint: 'A quarter bigger', factor: 1.25 },
+	{ id: 'xl', label: 'XL', hint: 'Half as big again', factor: 1.5 },
+	{ id: 'xxl', label: '2XL', hint: 'Twice the size', factor: 2 }
+] as const satisfies readonly { id: string; label: string; hint: string; factor: number }[];
+
+export type BlockSize = (typeof BLOCK_SIZES)[number]['id'];
+
+const BLOCK_SIZE_IDS: readonly BlockSize[] = BLOCK_SIZES.map((s) => s.id);
+
+export const DEFAULT_BLOCK_SIZE: BlockSize = 'm';
+
+/** Only the blocks that are not at the default, so a board with nothing set is `{}`. */
+export type BlockSizes = Partial<Record<RoomBlock, BlockSize>>;
+
+export const MIN_SCALE = 1;
+export const MAX_SCALE = 2;
+export const SCALE_STEP = 0.05;
+export const DEFAULT_SCALE = 1;
+
 export interface RoomBoard {
 	layout: RoomLayout;
 	/** Blocks that are on, in `ROOM_BLOCKS` order so a serialised board is stable. */
@@ -109,6 +145,10 @@ export interface RoomBoard {
 	latest: LatestStyle;
 	/** Light or dark for the room, or `auto` to leave the app's own setting alone. */
 	theme: RoomTheme;
+	/** Multiplier on everything, `MIN_SCALE` to `MAX_SCALE`. */
+	scale: number;
+	/** Per-block size steps on top of `scale`; a block that is absent is normal. */
+	sizes: BlockSizes;
 }
 
 /**
@@ -120,19 +160,25 @@ export const BOARD_PRESETS = {
 		layout: 'console',
 		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'groups', 'qr'],
 		latest: 'row',
-		theme: 'auto'
+		theme: 'auto',
+		scale: 1,
+		sizes: {}
 	},
 	marquee: {
 		layout: 'split',
 		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'marquee', 'groups', 'qr'],
 		latest: 'row',
-		theme: 'auto'
+		theme: 'auto',
+		scale: 1,
+		sizes: {}
 	},
 	deck: {
 		layout: 'deck',
 		blocks: ['question', 'counts', 'map', 'statement', 'strip', 'marquee', 'qr'],
 		latest: 'row',
-		theme: 'auto'
+		theme: 'auto',
+		scale: 1,
+		sizes: {}
 	}
 } as const satisfies Record<string, RoomBoard>;
 
@@ -154,6 +200,87 @@ export function isLatestStyle(value: string): value is LatestStyle {
 
 export function isRoomTheme(value: string): value is RoomTheme {
 	return (ROOM_THEME_IDS as readonly string[]).includes(value);
+}
+
+export function isBlockSize(value: string): value is BlockSize {
+	return (BLOCK_SIZE_IDS as readonly string[]).includes(value);
+}
+
+function isBlockSizes(value: unknown): value is BlockSizes {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+	return Object.entries(value).every(
+		([block, size]) => isRoomBlock(block) && typeof size === 'string' && isBlockSize(size)
+	);
+}
+
+/**
+ * Snapped to the slider's step and held inside its range, so `1.4000000000000001`
+ * never reaches the URL and `?scale=40` is a big wall rather than a broken one.
+ */
+export function clampScale(value: number): number {
+	const snapped = Math.round(value / SCALE_STEP) * SCALE_STEP;
+	const held = Math.min(MAX_SCALE, Math.max(MIN_SCALE, snapped));
+	return Number(held.toFixed(2));
+}
+
+/**
+ * `null` for anything that is not a number, so a stray `?scale=big` is noise rather
+ * than an instruction and does not pin the board away from what the display
+ * remembered. A number out of range is still a number: it is clamped, not dropped.
+ */
+export function parseScale(raw: string | null | undefined): number | null {
+	if (raw === null || raw === undefined || raw.trim() === '') return null;
+	const value = Number(raw);
+	return Number.isFinite(value) ? clampScale(value) : null;
+}
+
+export function blockSize(board: RoomBoard, block: RoomBlock): BlockSize {
+	return board.sizes[block] ?? DEFAULT_BLOCK_SIZE;
+}
+
+/** Sets one block's step, dropping the entry when it is back at normal. */
+export function setBlockSize(board: RoomBoard, block: RoomBlock, size: BlockSize): RoomBoard {
+	const sizes: BlockSizes = { ...board.sizes };
+	if (size === DEFAULT_BLOCK_SIZE) delete sizes[block];
+	else sizes[block] = size;
+	return { ...board, sizes: orderSizes(sizes) };
+}
+
+/** What one block is actually multiplied by: the wall's scale times its own step. */
+export function blockScale(board: RoomBoard, block: RoomBlock): number {
+	const step = BLOCK_SIZES.find((s) => s.id === blockSize(board, block));
+	return Number((board.scale * (step?.factor ?? 1)).toFixed(3));
+}
+
+/** Keys in `ROOM_BLOCKS` order and defaults dropped, so two equal boards serialise alike. */
+function orderSizes(sizes: BlockSizes): BlockSizes {
+	const ordered: BlockSizes = {};
+	for (const block of BLOCK_ORDER) {
+		const size = sizes[block];
+		if (size !== undefined && size !== DEFAULT_BLOCK_SIZE) ordered[block] = size;
+	}
+	return ordered;
+}
+
+/** `question:l,statement:xl`; empty when every block is normal. */
+export function serializeSizes(sizes: BlockSizes): string {
+	return Object.entries(orderSizes(sizes))
+		.map(([block, size]) => `${block}:${size}`)
+		.join(',');
+}
+
+/**
+ * Same contract as `parseBlocks`: `null` for an absent parameter, an empty map for an
+ * empty one, and pairs it does not recognise dropped rather than rejected.
+ */
+export function parseSizes(raw: string | null | undefined): BlockSizes | null {
+	if (raw === null || raw === undefined) return null;
+	const sizes: BlockSizes = {};
+	for (const part of raw.split(',')) {
+		const [block, size] = part.split(':').map((s) => s.trim());
+		if (block && size && isRoomBlock(block) && isBlockSize(size)) sizes[block] = size;
+	}
+	return orderSizes(sizes);
 }
 
 /**
@@ -206,8 +333,8 @@ export function parseBlocks(raw: string | null | undefined): RoomBlock[] | null 
 }
 
 export function presetBoard(preset: BoardPreset): RoomBoard {
-	const { layout, blocks, latest, theme } = BOARD_PRESETS[preset];
-	return { layout, blocks: [...blocks], latest, theme };
+	const { layout, blocks, latest, theme, scale, sizes } = BOARD_PRESETS[preset];
+	return { layout, blocks: [...blocks], latest, theme, scale, sizes: { ...sizes } };
 }
 
 /** Flips one block, keeping the rest in canonical order. */
@@ -226,10 +353,14 @@ export function isRoomBoard(value: unknown): value is RoomBoard {
 		blocks?: unknown;
 		latest?: unknown;
 		theme?: unknown;
+		scale?: unknown;
+		sizes?: unknown;
 	};
 	if (typeof candidate.layout !== 'string' || !isRoomLayout(candidate.layout)) return false;
 	if (typeof candidate.latest !== 'string' || !isLatestStyle(candidate.latest)) return false;
 	if (typeof candidate.theme !== 'string' || !isRoomTheme(candidate.theme)) return false;
+	if (typeof candidate.scale !== 'number' || !Number.isFinite(candidate.scale)) return false;
+	if (!isBlockSizes(candidate.sizes)) return false;
 	if (!Array.isArray(candidate.blocks)) return false;
 	return candidate.blocks.every((b) => typeof b === 'string' && isRoomBlock(b));
 }
@@ -245,6 +376,10 @@ export interface ResolveBoardInput {
 	latest?: string | null;
 	/** `?theme=`, light or dark for the room. */
 	theme?: string | null;
+	/** `?scale=`, the multiplier on the whole wall. */
+	scale?: string | null;
+	/** `?sizes=`, per-block steps as `block:size` pairs. */
+	sizes?: string | null;
 	/** What this display remembered from last time, if anything. */
 	stored?: RoomBoard | null;
 }
@@ -264,11 +399,15 @@ export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 	const urlLayout = input.layout && isRoomLayout(input.layout) ? input.layout : null;
 	const urlLatest = input.latest && isLatestStyle(input.latest) ? input.latest : null;
 	const urlTheme = input.theme && isRoomTheme(input.theme) ? input.theme : null;
+	const urlScale = parseScale(input.scale);
+	const urlSizes = parseSizes(input.sizes);
 	const pinnedByUrl =
 		urlBlocks !== null ||
 		urlLayout !== null ||
 		urlLatest !== null ||
 		urlTheme !== null ||
+		urlScale !== null ||
+		urlSizes !== null ||
 		input.preset != null;
 
 	const stored = !pinnedByUrl && input.stored ? input.stored : null;
@@ -277,7 +416,9 @@ export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 			layout: stored.layout,
 			blocks: orderBlocks(stored.blocks),
 			latest: stored.latest,
-			theme: stored.theme
+			theme: stored.theme,
+			scale: clampScale(stored.scale),
+			sizes: orderSizes(stored.sizes)
 		};
 	}
 
@@ -285,6 +426,8 @@ export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 		layout: urlLayout ?? base.layout,
 		blocks: urlBlocks ?? base.blocks,
 		latest: urlLatest ?? base.latest,
-		theme: urlTheme ?? base.theme
+		theme: urlTheme ?? base.theme,
+		scale: urlScale ?? base.scale,
+		sizes: urlSizes ?? base.sizes
 	};
 }

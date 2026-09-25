@@ -29,12 +29,18 @@
 <script lang="ts">
 	import JoinQrCode from '$lib/room-display/JoinQrCode.svelte';
 	import type { RoomDisplaySource } from '$lib/room-display/source';
+	import SizedBlock from './SizedBlock.svelte';
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
 	import { participantCount } from '$lib/room-display/scenario';
 	import { nextUnlock, describeUnlock } from '$lib/room-display/revealStage';
 	import { presentByGroup, voteBarsFor } from '$lib/room-display/liveVotes';
 	import { groupColor } from '$lib/room-display/opinionMap';
-	import { stillLatestDirection, hasBlock, type RoomBoard } from '$lib/room-display/blocks';
+	import {
+		stillLatestDirection,
+		hasBlock,
+		type RoomBoard,
+		blockScale
+	} from '$lib/room-display/blocks';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import OpinionMap from '$lib/room-display/OpinionMap.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -120,11 +126,13 @@
 			On the wall
 		</p>
 		{#if hasBlock(board, 'question')}
-			<h1
-				class="text-foreground max-w-5xl shrink-0 text-2xl leading-tight font-bold text-balance sm:text-3xl lg:text-5xl"
-			>
-				{question}
-			</h1>
+			<SizedBlock scale={blockScale(board, 'question')}>
+				<h1
+					class="text-foreground max-w-5xl shrink-0 text-2xl leading-tight font-bold text-balance sm:text-3xl lg:text-5xl"
+				>
+					{question}
+				</h1>
+			</SizedBlock>
 		{/if}
 
 		<!-- Right padding keeps everything clear of the QR corner, whatever the wall shows. -->
@@ -133,97 +141,114 @@
 				<!-- Deliberately empty: every block that could fill this is switched off. -->
 			{:else if wallView.kind === 'map'}
 				<div class="flex min-h-0 flex-col gap-4 lg:h-full">
-					<div class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1">
-						<!--
+					<SizedBlock scale={board.scale}>
+						<div
+							class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1"
+						>
+							<!--
 							An apportioned matrix says nothing about how often one person voted,
 							so a placed participant counts as settled: Polis only gives someone a
 							position once they have voted enough to have one.
 						-->
-						<OpinionMap
-							nodes={source.state.nodes}
-							votesByTid={source.state.votesByTid}
-							{focusedTid}
-							settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
-							{groupIds}
-						/>
-					</div>
-					{#if hasBlock(board, 'statement')}
-						<!-- Fixed minimum height, keyed to replay the fade. -->
-						<div class="flex min-h-32 shrink-0 flex-col justify-center gap-3">
-							{#if focused}
-								{#key focused.tid}
-									<p
-										class="text-foreground fade-in text-xl leading-snug font-medium text-balance sm:text-3xl lg:text-4xl"
-									>
-										{focused.text}
-									</p>
-									<!-- The dots round, so the exact split is spelled out beside them. -->
-									{#if source.voteMatrix === 'apportioned'}
-										{@const bars = voteBarsFor(source, focused)}
-										<div
-											class="fade-in grid max-w-5xl gap-8"
-											style="grid-template-columns: repeat({1 +
-												bars.groups.length}, minmax(0, 1fr));"
-										>
-											<RoomVoteBar {...bars.overall} />
-											{#each bars.groups as bar (bar.label)}
-												<RoomVoteBar {...bar} />
-											{/each}
-										</div>
-									{/if}
-								{/key}
-							{:else}
-								<p class="text-muted-foreground text-base sm:text-2xl lg:text-3xl">
-									Every dot is a person. Pick a statement on the console to see
-									how the room splits on it.
-								</p>
-							{/if}
+							<OpinionMap
+								nodes={source.state.nodes}
+								votesByTid={source.state.votesByTid}
+								{focusedTid}
+								settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
+								dotScale={blockScale(board, 'map')}
+								{groupIds}
+							/>
 						</div>
+					</SizedBlock>
+					{#if hasBlock(board, 'statement')}
+						<SizedBlock scale={blockScale(board, 'statement')}>
+							<!-- Fixed minimum height, keyed to replay the fade. -->
+							<div class="flex min-h-32 shrink-0 flex-col justify-center gap-3">
+								{#if focused}
+									{#key focused.tid}
+										<p
+											class="text-foreground fade-in text-xl leading-snug font-medium text-balance sm:text-3xl lg:text-4xl"
+										>
+											{focused.text}
+										</p>
+										<!-- The dots round, so the exact split is spelled out beside them. -->
+										{#if source.voteMatrix === 'apportioned'}
+											{@const bars = voteBarsFor(source, focused)}
+											<div
+												class="fade-in grid max-w-5xl gap-8"
+												style="grid-template-columns: repeat({1 +
+													bars.groups.length}, minmax(0, 1fr));"
+											>
+												<RoomVoteBar {...bars.overall} />
+												{#each bars.groups as bar (bar.label)}
+													<RoomVoteBar {...bar} />
+												{/each}
+											</div>
+										{/if}
+									{/key}
+								{:else}
+									<p
+										class="text-muted-foreground text-base sm:text-2xl lg:text-3xl"
+									>
+										Every dot is a person. Pick a statement on the console to
+										see how the room splits on it.
+									</p>
+								{/if}
+							</div>
+						</SizedBlock>
 					{/if}
 				</div>
 			{:else if wallView.kind === 'group'}
-				<WallStatements
-					title="What Group {groupLabel(wallView.groupId)} thinks"
-					statements={groupStatements(wallView.groupId)}
-					{source}
-					empty="Nothing sets this group apart yet."
-				/>
+				<SizedBlock scale={blockScale(board, 'statement')}>
+					<WallStatements
+						title="What Group {groupLabel(wallView.groupId)} thinks"
+						statements={groupStatements(wallView.groupId)}
+						{source}
+						empty="Nothing sets this group apart yet."
+					/>
+				</SizedBlock>
 			{:else}
-				<WallStatements
-					title="What the room agrees on"
-					statements={consensusStatements}
-					{source}
-					empty="Not enough votes to call this yet."
-				/>
+				<SizedBlock scale={blockScale(board, 'statement')}>
+					<WallStatements
+						title="What the room agrees on"
+						statements={consensusStatements}
+						{source}
+						empty="Not enough votes to call this yet."
+					/>
+				</SizedBlock>
 			{/if}
 		</div>
 
 		{#if hasBlock(board, 'marquee')}
-			{#if board.latest === 'marquee'}
-				<LatestStatementsMarquee comments={source.state.published} />
-			{:else}
-				<!-- `aside` needs a column under a strip, which this layout has not got. -->
-				<LatestStatements
-					comments={source.state.published}
-					direction={stillLatestDirection(board)}
-				/>
-			{/if}
+			<SizedBlock scale={blockScale(board, 'marquee')}>
+				{#if board.latest === 'marquee'}
+					<LatestStatementsMarquee comments={source.state.published} />
+				{:else}
+					<!-- `aside` needs a column under a strip, which this layout has not got. -->
+					<LatestStatements
+						comments={source.state.published}
+						direction={stillLatestDirection(board)}
+					/>
+				{/if}
+			</SizedBlock>
 		{/if}
 
 		{#if hasBlock(board, 'qr')}
-			<!--
+			<SizedBlock scale={blockScale(board, 'qr')}>
+				<!--
 				The QR code never leaves the wall. Someone arriving late has to be able to
 				join from whatever the screen happens to be showing, not only from the
 				recruitment screen the room saw at the start.
 			-->
-			<div
-				class="flex flex-col items-center gap-1 self-end lg:absolute lg:right-8 lg:bottom-8"
-			>
-				<div class="rounded-xl bg-white p-2">
-					<JoinQrCode value={joinUrl} class="size-20 sm:size-24 lg:size-32" />
+				<div
+					class="flex flex-col items-center gap-1 self-end lg:absolute lg:right-8 lg:bottom-8"
+				>
+					<div class="rounded-xl bg-white p-2">
+						<JoinQrCode value={joinUrl} class="size-20 sm:size-24 lg:size-32" />
+					</div>
+					<span class="text-muted-foreground text-base font-medium">Scan to join</span>
 				</div>
-				<span class="text-muted-foreground text-base font-medium">Scan to join</span>
-			</div>
+			</SizedBlock>
 		{/if}
 	</section>
 
@@ -240,116 +265,128 @@
 			</div>
 
 			{#if hasBlock(board, 'counts')}
-				<dl class="grid shrink-0 grid-cols-3 gap-3">
-					<div>
-						<dt class="text-muted-foreground text-base sm:text-lg">Here</dt>
-						<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
-							{participantCount(source.state)}
-						</dd>
-					</div>
-					<div>
-						<dt class="text-muted-foreground text-base sm:text-lg">Votes</dt>
-						<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
-							{source.state.totalVotes}
-						</dd>
-					</div>
-					<div>
-						<dt class="text-muted-foreground text-base sm:text-lg">Statements</dt>
-						<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
-							{source.state.published.length}
-						</dd>
-					</div>
-				</dl>
+				<SizedBlock scale={blockScale(board, 'counts')}>
+					<dl class="grid shrink-0 grid-cols-3 gap-3">
+						<div>
+							<dt class="text-muted-foreground text-base sm:text-lg">Here</dt>
+							<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
+								{participantCount(source.state)}
+							</dd>
+						</div>
+						<div>
+							<dt class="text-muted-foreground text-base sm:text-lg">Votes</dt>
+							<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
+								{source.state.totalVotes}
+							</dd>
+						</div>
+						<div>
+							<dt class="text-muted-foreground text-base sm:text-lg">Statements</dt>
+							<dd class="text-foreground text-2xl font-bold tabular-nums sm:text-3xl">
+								{source.state.published.length}
+							</dd>
+						</div>
+					</dl>
 
-				{#if unlock}
-					<p class="text-muted-foreground shrink-0 text-lg">
-						{describeUnlock(unlock)} until {unlock.stage}
-					</p>
-				{/if}
+					{#if unlock}
+						<p class="text-muted-foreground shrink-0 text-lg">
+							{describeUnlock(unlock)} until {unlock.stage}
+						</p>
+					{/if}
+				</SizedBlock>
 			{/if}
 
 			{#if hasBlock(board, 'strip')}
-				<div class="h-24 shrink-0 lg:h-28">
-					<StatementStrip
-						comments={source.state.published}
-						{focusedTid}
-						interactive
-						onfocusstatement={(tid) => (focusedTid = tid)}
-					/>
-				</div>
-
-				{#if hasBlock(board, 'statement')}
-					<!-- One statement at a time: whatever the strip is pointing at. -->
-					<div
-						class="bg-background border-border flex min-h-28 shrink-0 items-center rounded-md border px-4 py-3"
-					>
-						{#if focused}
-							{#key focused.tid}
-								<p
-									class="text-foreground fade-in text-base leading-snug font-medium sm:text-xl lg:text-2xl"
-								>
-									{focused.text}
-								</p>
-							{/key}
-						{:else}
-							<p class="text-muted-foreground text-base sm:text-xl">
-								Hover a dot on the strip to see its statement.
-							</p>
-						{/if}
+				<SizedBlock scale={blockScale(board, 'strip')}>
+					<div class="h-24 shrink-0 lg:h-28">
+						<StatementStrip
+							comments={source.state.published}
+							dotScale={blockScale(board, 'strip')}
+							{focusedTid}
+							interactive
+							onfocusstatement={(tid) => (focusedTid = tid)}
+						/>
 					</div>
-				{/if}
+
+					{#if hasBlock(board, 'statement')}
+						<SizedBlock scale={blockScale(board, 'statement')}>
+							<!-- One statement at a time: whatever the strip is pointing at. -->
+							<div
+								class="bg-background border-border flex min-h-28 shrink-0 items-center rounded-md border px-4 py-3"
+							>
+								{#if focused}
+									{#key focused.tid}
+										<p
+											class="text-foreground fade-in text-base leading-snug font-medium sm:text-xl lg:text-2xl"
+										>
+											{focused.text}
+										</p>
+									{/key}
+								{:else}
+									<p class="text-muted-foreground text-base sm:text-xl">
+										Hover a dot on the strip to see its statement.
+									</p>
+								{/if}
+							</div>
+						</SizedBlock>
+					{/if}
+				</SizedBlock>
 			{/if}
 
 			{#if hasBlock(board, 'groups')}
-				<div class="flex min-h-0 flex-col gap-3 overflow-y-auto">
-					<p
-						class="text-muted-foreground shrink-0 text-base font-medium tracking-wide uppercase"
-					>
-						Opinion groups
-					</p>
-					{#if clustered}
-						<!-- Each button puts that group's statements on the wall; pressing it again restores the map. -->
-						{#each source.groups as group (group.group_id)}
-							{@const view: WallView = { kind: 'group', groupId: group.group_id }}
+				<SizedBlock scale={blockScale(board, 'groups')}>
+					<div class="flex min-h-0 flex-col gap-3 overflow-y-auto">
+						<p
+							class="text-muted-foreground shrink-0 text-base font-medium tracking-wide uppercase"
+						>
+							Opinion groups
+						</p>
+						{#if clustered}
+							<!-- Each button puts that group's statements on the wall; pressing it again restores the map. -->
+							{#each source.groups as group (group.group_id)}
+								{@const view: WallView = { kind: 'group', groupId: group.group_id }}
+								<button
+									type="button"
+									class="border-border hover:bg-background flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-base transition-colors sm:text-xl"
+									class:bg-background={isShowing(view)}
+									class:border-primary={isShowing(view)}
+									aria-pressed={isShowing(view)}
+									onclick={() => showOnWall(view)}
+								>
+									<span
+										class="inline-block size-5 shrink-0 rounded-full"
+										style="background: {groupColor(group.group_id)}"
+									></span>
+									<span class="text-foreground font-semibold"
+										>Group {groupLabel(group.group_id)}</span
+									>
+									<span class="text-muted-foreground ml-auto tabular-nums">
+										{present.get(group.group_id) ?? 0} here
+									</span>
+								</button>
+							{/each}
 							<button
 								type="button"
 								class="border-border hover:bg-background flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-base transition-colors sm:text-xl"
-								class:bg-background={isShowing(view)}
-								class:border-primary={isShowing(view)}
-								aria-pressed={isShowing(view)}
-								onclick={() => showOnWall(view)}
+								class:bg-background={isShowing({ kind: 'consensus' })}
+								class:border-primary={isShowing({ kind: 'consensus' })}
+								aria-pressed={isShowing({ kind: 'consensus' })}
+								onclick={() => showOnWall({ kind: 'consensus' })}
 							>
-								<span
-									class="inline-block size-5 shrink-0 rounded-full"
-									style="background: {groupColor(group.group_id)}"
-								></span>
 								<span class="text-foreground font-semibold"
-									>Group {groupLabel(group.group_id)}</span
+									>Consensus statements</span
 								>
-								<span class="text-muted-foreground ml-auto tabular-nums">
-									{present.get(group.group_id) ?? 0} here
-								</span>
+								<span class="text-muted-foreground ml-auto text-lg"
+									>everyone agrees</span
+								>
 							</button>
-						{/each}
-						<button
-							type="button"
-							class="border-border hover:bg-background flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-base transition-colors sm:text-xl"
-							class:bg-background={isShowing({ kind: 'consensus' })}
-							class:border-primary={isShowing({ kind: 'consensus' })}
-							aria-pressed={isShowing({ kind: 'consensus' })}
-							onclick={() => showOnWall({ kind: 'consensus' })}
-						>
-							<span class="text-foreground font-semibold">Consensus statements</span>
-							<span class="text-muted-foreground ml-auto text-lg"
-								>everyone agrees</span
-							>
-						</button>
-					{:else}
-						<p class="text-muted-foreground text-lg">
-							Groups appear once the room has voted enough for Polis to cluster it.
-						</p>
-					{/if}
-				</div>
+						{:else}
+							<p class="text-muted-foreground text-lg">
+								Groups appear once the room has voted enough for Polis to cluster
+								it.
+							</p>
+						{/if}
+					</div>
+				</SizedBlock>
 			{/if}
 		</section>
 	{:else if hasConsoleBlocks}

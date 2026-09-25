@@ -39,8 +39,11 @@
 		settleFactor,
 		nodePosition,
 		dotRadius,
+		baseDotRadius,
+		separateDots,
 		votesCastBy,
-		groupCentroids
+		groupCentroids,
+		type Point
 	} from './opinionMap';
 	import { groupLabel } from '$lib/tools/polis/report';
 
@@ -56,6 +59,14 @@
 		settleVotes?: number;
 		/** Driven mode makes hover live; ambient ignores the pointer entirely. */
 		interactive?: boolean;
+		/**
+		 * Multiplier on the dots and their labels. The plot fills whatever box it is
+		 * given, so the board's size setting cannot reach it through the box; the only
+		 * thing "bigger map" can mean is bigger people on it. A nudge, not a law: the
+		 * dots are sized for how many share the plot first (`baseDotRadius`), and this
+		 * moves them inside that floor and ceiling.
+		 */
+		dotScale?: number;
 		onhovernode?: (nodeId: number | null) => void;
 	};
 
@@ -66,6 +77,7 @@
 		groupIds = [],
 		settleVotes = 6,
 		interactive = false,
+		dotScale = 1,
 		onhovernode
 	}: Props = $props();
 
@@ -75,19 +87,23 @@
 	const EXTENT = 1.65 * SCALE;
 
 	/**
-	 * Radius of a one-member dot, in the same user units. Sized for a room rather than
-	 * for the density of the plot: at roundtable scale a dot is a person, and a person
-	 * has to be visible from the back row. Crowding is the trade, and clusters at 28
-	 * participants have the room for it.
+	 * Radius of a one-member dot, in the same user units, sized for how many people
+	 * share the plot: a dot is a person and has to be visible from the back row, but
+	 * a room of seventy cannot have the dots a room of seven gets.
 	 */
-	const BASE_RADIUS = 17;
+	const baseRadius = $derived(
+		baseDotRadius(
+			nodes.reduce((sum, node) => sum + Math.max(1, node.memberCount), 0),
+			dotScale
+		)
+	);
 
-	/** Gap between a cluster's lowest dot and its label, in user units. */
-	const LABEL_GAP = 30;
+	/** Gap between a cluster's lowest dot and its label, about two dots' worth. */
+	const labelGap = $derived(baseRadius * 1.75);
 
 	let hoveredId = $state<number | null>(null);
 
-	const dots = $derived(
+	const targets = $derived(
 		nodes.map((node) => {
 			const cast = votesCastBy(votesByTid, node.id);
 			const position = nodePosition(node, settleFactor(cast, settleVotes));
@@ -109,13 +125,30 @@
 				node,
 				fill,
 				outlined: needsOutline(fill),
-				radius: dotRadius(node.memberCount, BASE_RADIUS),
+				radius: dotRadius(node.memberCount, baseRadius),
 				x: position.x * SCALE,
 				y: position.y * SCALE,
 				settled: cast >= settleVotes
 			};
 		})
 	);
+
+	// Where each dot was last put, so the next separation starts from there and a
+	// single vote moves one dot rather than reshuffling the cluster. Plain state on
+	// purpose: it is a cache the derivation writes, not something the view reads.
+	let lastPlacement = new Map<number, Point>();
+
+	const dots = $derived.by(() => {
+		const placement = separateDots(
+			targets.map((t) => ({ id: t.node.id, x: t.x, y: t.y, radius: t.radius })),
+			lastPlacement
+		);
+		lastPlacement = placement;
+		return targets.map((t) => {
+			const at = placement.get(t.node.id) ?? t;
+			return { ...t, x: at.x, y: at.y };
+		});
+	});
 
 	const labels = $derived(
 		groupCentroids(
@@ -212,7 +245,8 @@
 		{#each labels as label (label.groupId)}
 			<text
 				class="group-label fill-foreground"
-				style="transform: translate({label.x}px, {label.bottom + LABEL_GAP}px);"
+				style="transform: translate({label.x}px, {label.bottom +
+					labelGap}px); font-size: {22 * dotScale}px;"
 				text-anchor="middle"
 				dominant-baseline="hanging"
 			>
@@ -277,10 +311,9 @@
 
 	/*
 	 * Same easing as the dots so a label rides with its cluster rather than lagging
-	 * it. Sized in user units to match the dots; 22 is about the width of one.
+	 * it. Sized inline, in user units to match the dots: 22 is about the width of one.
 	 */
 	.group-label {
-		font-size: 22px;
 		font-weight: 700;
 		transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 		animation: label-arrive 500ms ease both;

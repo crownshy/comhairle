@@ -7,7 +7,11 @@ import {
 	nodePosition,
 	dotRadius,
 	votesCastBy,
-	groupCentroids
+	groupCentroids,
+	baseDotRadius,
+	separateDots,
+	MIN_DOT_RADIUS,
+	MAX_DOT_RADIUS
 } from './opinionMap';
 import type { MapNode } from './types';
 
@@ -163,5 +167,85 @@ describe('groupCentroids', () => {
 	it('orders labels by group id so A comes before B', () => {
 		const ids = groupCentroids([settled(1, 0, 0), settled(0, 0, 0)]).map((c) => c.groupId);
 		expect(ids).toEqual([0, 1]);
+	});
+});
+
+describe('baseDotRadius', () => {
+	it('gives the tuned room the tuned radius', () => {
+		expect(baseDotRadius(28)).toBe(17);
+	});
+
+	it('shrinks dots as the room fills and grows them as it empties', () => {
+		expect(baseDotRadius(112)).toBeCloseTo(8.5);
+		expect(baseDotRadius(7)).toBe(MAX_DOT_RADIUS);
+		expect(baseDotRadius(5000)).toBe(MIN_DOT_RADIUS);
+	});
+
+	it('lets the size step nudge inside the same bounds', () => {
+		expect(baseDotRadius(28, 1.25)).toBeCloseTo(21.25);
+		// A 2x step on a full room hits the ceiling rather than doubling.
+		expect(baseDotRadius(28, 2)).toBe(MAX_DOT_RADIUS);
+		expect(baseDotRadius(200, 2)).toBeLessThan(MAX_DOT_RADIUS);
+	});
+});
+
+describe('separateDots', () => {
+	const distance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+		Math.hypot(a.x - b.x, a.y - b.y);
+
+	it('leaves dots that do not touch where they are', () => {
+		const placed = separateDots([
+			{ id: 1, x: 0, y: 0, radius: 10 },
+			{ id: 2, x: 100, y: 0, radius: 10 }
+		]);
+		expect(placed.get(1)!.x).toBeCloseTo(0);
+		expect(placed.get(1)!.y).toBeCloseTo(0);
+		expect(placed.get(2)!.x).toBeCloseTo(100);
+		expect(placed.get(2)!.y).toBeCloseTo(0);
+	});
+
+	it('pushes coincident dots apart until they no longer overlap', () => {
+		const targets = [1, 2, 3, 4, 5].map((id) => ({ id, x: 50, y: 50, radius: 10 }));
+		const placed = separateDots(targets);
+		for (const a of targets) {
+			for (const b of targets) {
+				if (a.id >= b.id) continue;
+				expect(distance(placed.get(a.id)!, placed.get(b.id)!)).toBeGreaterThanOrEqual(20);
+			}
+		}
+	});
+
+	it('keeps a separated pile around its target', () => {
+		const targets = [1, 2, 3, 4, 5, 6].map((id) => ({ id, x: 50, y: 50, radius: 10 }));
+		const placed = separateDots(targets);
+		const points = [...placed.values()];
+		const mean = {
+			x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+			y: points.reduce((sum, p) => sum + p.y, 0) / points.length
+		};
+		expect(distance(mean, { x: 50, y: 50 })).toBeLessThan(5);
+	});
+
+	it('is the same every time for the same input', () => {
+		const targets = [1, 2, 3].map((id) => ({ id, x: 10, y: 10, radius: 8 }));
+		expect(separateDots(targets)).toEqual(separateDots(targets));
+	});
+
+	it('holds still when run again from where it settled', () => {
+		const targets = [1, 2, 3, 4].map((id) => ({ id, x: 0, y: 0, radius: 10 }));
+		const settled = separateDots(targets, separateDots(targets));
+		const again = separateDots(targets, settled);
+		for (const id of [1, 2, 3, 4]) {
+			expect(distance(settled.get(id)!, again.get(id)!)).toBeLessThan(0.5);
+		}
+	});
+
+	it('starts from the previous placement so one change does not reshuffle the rest', () => {
+		const targets = [1, 2, 3, 4].map((id) => ({ id, x: 0, y: 0, radius: 10 }));
+		const settled = separateDots(targets, separateDots(targets));
+		const again = separateDots([...targets, { id: 5, x: 200, y: 200, radius: 10 }], settled);
+		for (const id of [1, 2, 3, 4]) {
+			expect(distance(settled.get(id)!, again.get(id)!)).toBeLessThan(0.5);
+		}
 	});
 });
