@@ -1,8 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use cookie::Cookie;
 use hyper::StatusCode;
+use moka::future::Cache;
 use rand::{Rng, distributions::Alphanumeric};
 use reqwest::{
     Client,
@@ -39,6 +42,10 @@ struct PolisCommentWithVoting {
 
 #[derive(Deserialize, Debug)]
 struct PolisMathPca {
+    /// Polis bumps this every time its math worker publishes a new result. Sent back on
+    /// the next fetch so Polis can answer 304 instead of the full blob.
+    #[serde(default)]
+    math_tick: i64,
     tids: Vec<u32>,
     #[serde(rename = "group-votes")]
     group_votes: BTreeMap<String, GroupVoteData>,
@@ -95,6 +102,30 @@ struct BaseClusters {
 pub struct PolisClient {
     client: reqwest::Client,
     base_url: String,
+    /// Raw report inputs per poll id, served for `REPORT_FRESH_FOR` before a refetch.
+    /// Every display and admin page polling the same poll shares one upstream fetch.
+    report_cache: Cache<String, Arc<RawReport>>,
+    /// The last pca2 result per poll id, kept beyond `report_cache`'s TTL so a refresh
+    /// can send its `math_tick` and reuse it when Polis answers 304.
+    math_memo: Cache<String, Arc<PolisMathPca>>,
+}
+
+/// How long a fetched report is served without going back to Polis. The room display
+/// polls every 8 seconds and Polis recomputes on its own schedule, so anything in this
+/// range costs nothing visible.
+const REPORT_FRESH_FOR: Duration = Duration::from_secs(10);
+
+/// Polls that nobody has asked about for this long drop their memoised pca2 result.
+const MATH_MEMO_IDLE: Duration = Duration::from_secs(60 * 60);
+
+/// Upper bound on cached polls; well above anything one deployment hosts.
+const CACHE_CAPACITY: u64 = 1_000;
+
+/// The two Polis responses a report is built from, cached together so the report is
+/// consistent within one cache window.
+struct RawReport {
+    math: Arc<PolisMathPca>,
+    comments: Vec<PolisCommentWithVoting>,
 }
 
 // Report data structures
@@ -217,6 +248,14 @@ impl PolisClient {
         Self {
             client,
             base_url: base_url.to_string(),
+            report_cache: Cache::builder()
+                .max_capacity(CACHE_CAPACITY)
+                .time_to_live(REPORT_FRESH_FOR)
+                .build(),
+            math_memo: Cache::builder()
+                .max_capacity(CACHE_CAPACITY)
+                .time_to_idle(MATH_MEMO_IDLE)
+                .build(),
         }
     }
 
@@ -306,11 +345,19 @@ impl PolisClient {
         Ok(poll)
     }
 
-    async fn get_math_pca(&self, poll_id: &str) -> Result<PolisMathPca, PolisError> {
-        let url = format!(
-            "https://{}/api/v3/math/pca2?conversation_id={}&lastVoteTimestamp=0",
+    /// Fetches pca2, sending the memoised `math_tick` so Polis can answer 304 when its
+    /// math has not moved. Polis keys conditional fetches on `math_tick` (or an
+    /// `If-None-Match` carrying the same value); the older `lastVoteTimestamp` parameter
+    /// is ignored.
+    async fn get_math_pca(&self, poll_id: &str) -> Result<Arc<PolisMathPca>, PolisError> {
+        let previous = self.math_memo.get(poll_id).await;
+        let mut url = format!(
+            "https://{}/api/v3/math/pca2?conversation_id={}",
             self.base_url, poll_id
         );
+        if let Some(previous) = &previous {
+            url.push_str(&format!("&math_tick={}", previous.math_tick));
+        }
 
         let response = self.client.get(&url).send().await.map_err(|e| {
             warn!("Failed to get PCA data: {e}");
@@ -320,6 +367,16 @@ impl PolisClient {
             )
         })?;
 
+        if response.status() == StatusCode::NOT_MODIFIED {
+            return previous.ok_or_else(|| {
+                // Polis also answers 304 for a conversation with no math result yet.
+                PolisError::FailedToGetComments(
+                    StatusCode::NOT_MODIFIED,
+                    "Polis has no PCA data for this conversation yet".to_string(),
+                )
+            });
+        }
+
         let data = response.json::<PolisMathPca>().await.map_err(|e| {
             warn!("Failed to parse PCA data: {e:#?}");
             PolisError::FailedToGetComments(
@@ -328,13 +385,23 @@ impl PolisClient {
             )
         })?;
 
+        let data = Arc::new(data);
+        self.math_memo
+            .insert(poll_id.to_string(), Arc::clone(&data))
+            .await;
         Ok(data)
+    }
+
+    async fn fetch_raw_report(&self, poll_id: &str) -> Result<Arc<RawReport>, PolisError> {
+        let math = self.get_math_pca(poll_id).await?;
+        let comments = self.get_comments_with_voting(poll_id).await?;
+        Ok(Arc::new(RawReport { math, comments }))
     }
 
     fn transform_report_data(
         &self,
-        math_pca: PolisMathPca,
-        comments_data: Vec<PolisCommentWithVoting>,
+        math_pca: &PolisMathPca,
+        comments_data: &[PolisCommentWithVoting],
         include_pending: bool,
     ) -> Result<WikiPollReport, WikiPollServiceError> {
         // Create maps for easy lookup
@@ -797,12 +864,18 @@ impl WikiPollService for PolisClient {
         poll_id: &str,
         include_pending: bool,
     ) -> Result<WikiPollReport, WikiPollServiceError> {
-        // Fetch all the data that powers the report page
-        let math_pca = self.get_math_pca(poll_id).await?;
-        let comments_data = self.get_comments_with_voting(poll_id).await?;
+        // Concurrent misses for the same poll wait on one fetch instead of each going
+        // to Polis; that is what keeps upstream load flat as screens are added.
+        let raw = self
+            .report_cache
+            .try_get_with(poll_id.to_string(), self.fetch_raw_report(poll_id))
+            .await
+            .map_err(|e: Arc<PolisError>| {
+                PolisError::FailedToGetComments(StatusCode::BAD_GATEWAY, e.to_string())
+            })?;
 
-        // Transform the raw data into structured report format
-        self.transform_report_data(math_pca, comments_data, include_pending)
+        // The moderation flag is applied per request so one cache entry serves both.
+        self.transform_report_data(&raw.math, &raw.comments, include_pending)
     }
 
     #[instrument(err(Debug), skip(self, auth_cookies))]
@@ -1025,6 +1098,7 @@ mod tests {
     /// One accepted, one pending, one rejected, all three placed by the math.
     fn math_for(tids: Vec<u32>) -> PolisMathPca {
         PolisMathPca {
+            math_tick: 0,
             tids: tids.clone(),
             group_votes: BTreeMap::new(),
             group_aware_consensus: HashMap::new(),
@@ -1045,8 +1119,8 @@ mod tests {
         let client = PolisClient::new("polis.comhairle.scot");
         let report = client
             .transform_report_data(
-                math_for(vec![1, 2, 3]),
-                vec![comment(1, 1.0), comment(2, 0.0), comment(3, -1.0)],
+                &math_for(vec![1, 2, 3]),
+                &[comment(1, 1.0), comment(2, 0.0), comment(3, -1.0)],
                 include_pending,
             )
             .expect("transform should succeed");
