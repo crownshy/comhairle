@@ -17,7 +17,7 @@
 	);
 </script>
 
-<div class="flex min-h-screen w-full flex-col {isReportPage ? 'bg-primary/10' : ''}">
+<div class="bg-background flex min-h-screen w-full flex-col">
 	{#if !isEmbed && !isAuthPage && !isLivePage}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}

@@ -9,6 +9,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { ReportTranslations } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import * as m from '$lib/paraglide/messages';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -25,9 +26,11 @@
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { key } from '$lib/utils/invalidationKey.js';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	let { data } = $props();
 	let report = $derived(data.report);
+	let translations = $derived(ReportTranslations.parse(report.translations));
 	let conversation = $derived(data.conversation);
 
 	let newImpact = $state({
@@ -45,7 +48,13 @@
 	let feedbackOpen = $state(false);
 
 	const summaryTranslationSource = createTextContentSource({
-		getTranslation: () => report.translations.summary,
+		getTranslation: () => translations.summary,
+		getPrimaryLocale: () => conversation.primaryLocale as Locale,
+		getSupportedLanguages: () => conversation.supportedLanguages as Locale[]
+	});
+
+	const bodyTranslationSource = createTextContentSource({
+		getTranslation: () => translations.body ?? undefined,
 		getPrimaryLocale: () => conversation.primaryLocale as Locale,
 		getSupportedLanguages: () => conversation.supportedLanguages as Locale[]
 	});
@@ -53,17 +62,21 @@
 	async function createFeedback() {}
 
 	async function createImpact() {
-		try {
-			await apiClient.CreateImpact(newImpact, {
+		const result = await tryCatchAsync(() =>
+			apiClient.CreateImpact(newImpact, {
 				params: { report_id: report.id, conversation_id: report.conversationId }
-			});
-			invalidate(key('admin/conversation/report'));
-			impactOpen = false;
-			notifications.send({ message: 'Impact Saved', priority: 'INFO' });
-		} catch (e) {
+			})
+		);
+		if (result.err !== null) {
 			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
+			return;
 		}
+		invalidate(key('admin/conversation/report'));
+		impactOpen = false;
+		notifications.send({ message: 'Impact Saved', priority: 'INFO' });
 	}
+
+	console.log('data: ', data);
 </script>
 
 <svelte:head>
@@ -82,17 +95,41 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Summary</Card.Title>
-			<Card.Description>Overall summary of the conversation</Card.Description>
+			<Card.Description
+				>A short introduction shown at the top of the public report.</Card.Description
+			>
 		</Card.Header>
-		<Card.Content>
-			<TranslatableField
+		<Card.Content
+			><TranslatableField
 				source={summaryTranslationSource}
 				primaryLocale={conversation.primaryLocale as Locale}
 				supportedLanguages={conversation.supportedLanguages as Locale[]}
 				inputType="textarea"
-				placeholder="Summary to be filled out by the facilitator"
+				editorType="rich"
+				placeholder="Write a short introduction to the report"
+				minHeight="100px"
+				conversationId={conversation.id}
+				reportEmbedSteps={data.reportEmbedSteps}
+			/></Card.Content
+		>
+	</Card.Root>
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Report body</Card.Title>
+			<Card.Description
+				>The full report, including sections and embedded report components</Card.Description
+			>
+		</Card.Header>
+		<Card.Content>
+			<TranslatableField
+				source={bodyTranslationSource}
+				primaryLocale={conversation.primaryLocale as Locale}
+				supportedLanguages={conversation.supportedLanguages as Locale[]}
+				inputType="textarea"
+				placeholder="Write the full content of  introduction to the report. Add data visualisations and provide context to help readers understand the findings."
 				editorType="rich"
 				minHeight="100px"
+				conversationId={conversation.id}
 				reportEmbedSteps={data.reportEmbedSteps}
 			/>
 		</Card.Content>
