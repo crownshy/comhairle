@@ -31,7 +31,10 @@
 	import {
 		resolveBoard,
 		serializeBlocks,
+		serializeSizes,
+		setBlockSize,
 		toggleBlock,
+		type BlockSize,
 		type LatestStyle,
 		type RoomBlock,
 		type RoomBoard,
@@ -43,6 +46,7 @@
 	import WarmingScreen from '$lib/room-display/WarmingScreen.svelte';
 	import PrototypeBar from './PrototypeBar.svelte';
 	import BoardSettings from './BoardSettings.svelte';
+	import SizedBlock from './SizedBlock.svelte';
 	import LayoutDeck from './LayoutDeck.svelte';
 	import LayoutConsole from './LayoutConsole.svelte';
 	import LayoutSplit from './LayoutSplit.svelte';
@@ -104,6 +108,8 @@
 		url.searchParams.set('blocks', serializeBlocks(next.blocks));
 		url.searchParams.set('latest', next.latest);
 		url.searchParams.set('theme', next.theme);
+		url.searchParams.set('scale', String(next.scale));
+		url.searchParams.set('sizes', serializeSizes(next.sizes));
 		// This rewrites the query string of the page we are already on rather than
 		// navigating anywhere, so there is no route for `resolve()` to resolve.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
@@ -124,6 +130,14 @@
 
 	function onSetTheme(theme: RoomTheme) {
 		applyBoard({ ...board, theme });
+	}
+
+	function onSetScale(scale: number) {
+		applyBoard({ ...board, scale });
+	}
+
+	function onSetBlockSize(block: RoomBlock, size: BlockSize) {
+		applyBoard(setBlockSize(board, block, size));
 	}
 
 	/**
@@ -160,7 +174,7 @@
 	wall and becomes an ordinary scrolling page.
 -->
 <div
-	class="bg-background text-foreground min-h-screen p-4 pb-24 lg:h-screen lg:overflow-hidden lg:p-8 lg:pb-20"
+	class="room-display bg-background text-foreground min-h-screen p-4 pb-24 lg:h-screen lg:overflow-hidden lg:p-8 lg:pb-20"
 >
 	{#if recruiting && board.layout !== 'deck'}
 		<!--
@@ -169,13 +183,15 @@
 			than the board, so the block set does not apply to it. Deck opts out: its
 			first slide is already this screen.
 		-->
-		<WarmingScreen
-			question={data.question}
-			joinUrl={data.joinUrl}
-			participants={participantCount(source.state)}
-			votes={source.state.totalVotes}
-			unlockLabel={unlock ? describeUnlock(unlock) : null}
-		/>
+		<SizedBlock scale={board.scale}>
+			<WarmingScreen
+				question={data.question}
+				joinUrl={data.joinUrl}
+				participants={participantCount(source.state)}
+				votes={source.state.totalVotes}
+				unlockLabel={unlock ? describeUnlock(unlock) : null}
+			/>
+		</SizedBlock>
 	{:else if board.layout === 'deck'}
 		<LayoutDeck {source} {board} question={data.question} joinUrl={data.joinUrl} />
 	{:else if board.layout === 'split'}
@@ -185,8 +201,38 @@
 	{/if}
 </div>
 
-<BoardSettings {board} {onToggleBlock} {onSetLayout} {onSetLatest} {onSetTheme} {onReset} />
+<BoardSettings
+	{board}
+	{onToggleBlock}
+	{onSetLayout}
+	{onSetLatest}
+	{onSetTheme}
+	{onSetScale}
+	{onSetBlockSize}
+	{onReset}
+/>
 
 {#if dev && driver}
 	<PrototypeBar {driver} />
 {/if}
+
+<style>
+	/*
+	 * The theme's text and spacing sizes, captured once where nothing has scaled them
+	 * yet. Every block (SizedBlock.svelte) multiplies from these rather than from the
+	 * live variables, so a block inside a block does not compound its parent's size.
+	 */
+	.room-display {
+		--room-base-spacing: var(--spacing);
+		--room-base-text-xs: var(--text-xs);
+		--room-base-text-sm: var(--text-sm);
+		--room-base-text-base: var(--text-base);
+		--room-base-text-lg: var(--text-lg);
+		--room-base-text-xl: var(--text-xl);
+		--room-base-text-2xl: var(--text-2xl);
+		--room-base-text-3xl: var(--text-3xl);
+		--room-base-text-4xl: var(--text-4xl);
+		--room-base-text-5xl: var(--text-5xl);
+		--room-base-text-6xl: var(--text-6xl);
+	}
+</style>

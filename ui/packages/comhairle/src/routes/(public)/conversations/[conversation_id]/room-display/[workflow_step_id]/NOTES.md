@@ -32,6 +32,32 @@ What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md
 - The settings panel rewrites the URL as you toggle, and drops `variant`: once a block
   has been touched by hand the preset name is no longer true.
 
+- `?scale=1.4` grows the whole wall; `?sizes=question:l,statement:xxl` grows one block
+  relative to the rest (steps m, l, xl, xxl at 1, 1.25, 1.5, 2). Both are in the panel
+  under Size, and both apply as CSS custom properties: `SizedBlock.svelte` wraps each
+  block and redefines Tailwind's `--text-*` and `--spacing` from base values captured
+  on the display root, so every text and spacing utility inside a block moves without
+  the markup knowing. The map's dots and labels take the same multiplier as a prop,
+  because the plot fills its box and cannot be grown through it. Steps only go up:
+  the wall was unreadable from two metres once, so nothing shrinks below what fixed
+  that. Too big overflows a small window; that is the facilitator's to dial back.
+- Dots are the exception to "everything grows". A plain multiplier turned a 2XL map
+  into two blobs, because the dots doubled and their Polis positions did not. So the
+  map's dots are sized by how many people share the plot (`baseDotRadius`: constant
+  area per person, between a floor the back row can see and a ceiling that keeps a
+  cluster a pile), separated by a relaxation pass (`separateDots`: pull toward target, push overlaps
+  apart, all from one snapshot per pass so a settled layout is a fixed point; seeded
+  from the last placement so a vote moves one dot rather than creeping the cluster
+  round), and the size step only nudges inside those bounds. The
+  legend and caption under the map take the wall's scale, not the map's step: they
+  are chrome. The strip's dots got the same treatment: count-aware radius, and the
+  step raises the ceiling without being allowed to make dots overlap.
+- Latest statements no longer `flip`. A transform slide draws the new statement on
+  top of the old head for the whole slide, which from across a room reads as two
+  statements printed over each other. Now a slot opens by layout (a grid row or a
+  flex share growing from nothing), the neighbours move because the layout moved
+  them, and the statement fades into the open slot. Layout cannot overlap.
+
 Why the panel is on the display rather than in admin: the question "is the map landing
 with this group?" is asked in the room, with the room watching. A round trip through a
 settings page means the answer is always "leave it".
