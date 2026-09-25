@@ -9,6 +9,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { ReportTranslations } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import * as m from '$lib/paraglide/messages';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -25,11 +26,11 @@
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { key } from '$lib/utils/invalidationKey.js';
-	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
-	let summaryDraft = $state('');
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	let { data } = $props();
 	let report = $derived(data.report);
+	let translations = $derived(ReportTranslations.parse(report.translations));
 	let conversation = $derived(data.conversation);
 
 	let newImpact = $state({
@@ -47,7 +48,13 @@
 	let feedbackOpen = $state(false);
 
 	const summaryTranslationSource = createTextContentSource({
-		getTranslation: () => report.translations.summary,
+		getTranslation: () => translations.summary,
+		getPrimaryLocale: () => conversation.primaryLocale as Locale,
+		getSupportedLanguages: () => conversation.supportedLanguages as Locale[]
+	});
+
+	const bodyTranslationSource = createTextContentSource({
+		getTranslation: () => translations.body ?? undefined,
 		getPrimaryLocale: () => conversation.primaryLocale as Locale,
 		getSupportedLanguages: () => conversation.supportedLanguages as Locale[]
 	});
@@ -55,17 +62,21 @@
 	async function createFeedback() {}
 
 	async function createImpact() {
-		try {
-			await apiClient.CreateImpact(newImpact, {
+		const result = await tryCatchAsync(() =>
+			apiClient.CreateImpact(newImpact, {
 				params: { report_id: report.id, conversation_id: report.conversationId }
-			});
-			invalidate(key('admin/conversation/report'));
-			impactOpen = false;
-			notifications.send({ message: 'Impact Saved', priority: 'INFO' });
-		} catch (e) {
+			})
+		);
+		if (result.err !== null) {
 			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
+			return;
 		}
+		invalidate(key('admin/conversation/report'));
+		impactOpen = false;
+		notifications.send({ message: 'Impact Saved', priority: 'INFO' });
 	}
+
+	console.log('data: ', data);
 </script>
 
 <svelte:head>
@@ -81,16 +92,6 @@
 		<Switch name="published" value={report.isPublic} />
 	</div>
 
-	<!-- Backend work required:
-- add Report.body as a translatable TextContent field;
-- migrate each existing report's current summary content into body;
-- create separate summary and body TextContent records for new reports;
-- expose both fields through the report API.
-	Frontend follow-up:
-- Summary editor will use `report.translations.summary`.
-- Report body editor will use `report.translations.body`.
-- Public report header will render Summary.
-- `ReportBody` will render Body. -->
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Summary</Card.Title>
@@ -99,9 +100,12 @@
 			>
 		</Card.Header>
 		<Card.Content
-			><RichTextEditor
-				value={summaryDraft}
-				onChange={(json) => (summaryDraft = json)}
+			><TranslatableField
+				source={summaryTranslationSource}
+				primaryLocale={conversation.primaryLocale as Locale}
+				supportedLanguages={conversation.supportedLanguages as Locale[]}
+				inputType="textarea"
+				editorType="rich"
 				placeholder="Write a short introduction to the report"
 				minHeight="100px"
 				conversationId={conversation.id}
@@ -118,13 +122,14 @@
 		</Card.Header>
 		<Card.Content>
 			<TranslatableField
-				source={summaryTranslationSource}
+				source={bodyTranslationSource}
 				primaryLocale={conversation.primaryLocale as Locale}
 				supportedLanguages={conversation.supportedLanguages as Locale[]}
 				inputType="textarea"
-				placeholder="Grab the data components and interpret them in plain langauge."
+				placeholder="Add data visualisations and provide context to help readers understand the findings."
 				editorType="rich"
 				minHeight="100px"
+				conversationId={conversation.id}
 				reportEmbedSteps={data.reportEmbedSteps}
 			/>
 		</Card.Content>
