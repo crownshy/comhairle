@@ -5,6 +5,7 @@ type InputKey =
 	| 'admin/conversation'
 	| 'admin/conversation/report'
 	| 'admin/conversation/workflow'
+	| 'admin/conversation/design/workflow'
 	| 'admin/conversation/invites'
 	| 'admin/conversation/documents'
 	| 'admin/conversation/events'
