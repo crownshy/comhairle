@@ -14,10 +14,17 @@
 <script lang="ts">
 	import { Settings2, Check, Link } from '@lucide/svelte';
 	import {
+		BLOCK_SIZES,
 		LATEST_STYLES,
+		MAX_SCALE,
+		MIN_SCALE,
 		ROOM_BLOCKS,
 		ROOM_THEMES,
+		SCALE_STEP,
+		blockSize,
+		clampScale,
 		hasBlock,
+		type BlockSize,
 		type LatestStyle,
 		type RoomBlock,
 		type RoomBoard,
@@ -27,6 +34,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Label } from '$lib/components/ui/label';
+	import { Slider } from '$lib/components/ui/slider';
 	import * as Popover from '$lib/components/ui/popover';
 
 	type Props = {
@@ -35,10 +43,21 @@
 		onSetLayout: (layout: RoomLayout) => void;
 		onSetLatest: (latest: LatestStyle) => void;
 		onSetTheme: (theme: RoomTheme) => void;
+		onSetScale: (scale: number) => void;
+		onSetBlockSize: (block: RoomBlock, size: BlockSize) => void;
 		onReset: () => void;
 	};
 
-	let { board, onToggleBlock, onSetLayout, onSetLatest, onSetTheme, onReset }: Props = $props();
+	let {
+		board,
+		onToggleBlock,
+		onSetLayout,
+		onSetLatest,
+		onSetTheme,
+		onSetScale,
+		onSetBlockSize,
+		onReset
+	}: Props = $props();
 
 	// Named for what they do to the room rather than for the component that renders
 	// them, because this list is read by a facilitator, not by us.
@@ -57,6 +76,9 @@
 	const latestOptions = $derived(
 		LATEST_STYLES.filter((option) => !option.splitOnly || board.layout === 'split')
 	);
+
+	// Only what is on the wall gets a size row: a block that is off has nothing to grow.
+	const sizedBlocks = $derived(ROOM_BLOCKS.filter((block) => hasBlock(board, block.id)));
 
 	function onkeydown(event: KeyboardEvent) {
 		const target = event.target as HTMLElement | null;
@@ -92,7 +114,7 @@
 		<Settings2 class="size-6" />
 	</Popover.Trigger>
 
-	<Popover.Content class="w-80" align="end" side="top">
+	<Popover.Content class="max-h-[85vh] w-96 overflow-y-auto" align="end" side="top">
 		<div class="flex flex-col gap-5">
 			<div class="flex items-center justify-between">
 				<p class="text-foreground text-base font-semibold">Board</p>
@@ -140,6 +162,49 @@
 						</button>
 					{/each}
 				</div>
+			</fieldset>
+
+			<fieldset class="flex flex-col gap-3">
+				<legend class="text-muted-foreground pb-2 text-base font-medium">Size</legend>
+				<div class="flex items-center justify-between gap-3">
+					<span class="text-foreground text-base">Everything</span>
+					<span class="text-muted-foreground text-base tabular-nums">
+						{board.scale.toFixed(2)}&times;
+					</span>
+				</div>
+				<!--
+					Live rather than on release: the wall is the preview, and the question
+					is whether the back row can read it now.
+				-->
+				<Slider
+					type="single"
+					value={board.scale}
+					min={MIN_SCALE}
+					max={MAX_SCALE}
+					step={SCALE_STEP}
+					onValueChange={(value) => onSetScale(clampScale(value))}
+					aria-label="Size of everything"
+				/>
+				{#each sizedBlocks as block (block.id)}
+					<div class="flex items-center justify-between gap-3">
+						<span class="text-foreground text-base">{block.label}</span>
+						<div class="flex gap-1" role="group" aria-label="{block.label} size">
+							{#each BLOCK_SIZES as size (size.id)}
+								<button
+									type="button"
+									class="border-border hover:bg-muted min-w-10 rounded-md border px-2 py-1 text-base transition-colors"
+									class:bg-muted={blockSize(board, block.id) === size.id}
+									class:border-primary={blockSize(board, block.id) === size.id}
+									aria-pressed={blockSize(board, block.id) === size.id}
+									title={size.hint}
+									onclick={() => onSetBlockSize(block.id, size.id)}
+								>
+									{size.label}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/each}
 			</fieldset>
 
 			<fieldset class="flex flex-col gap-3">

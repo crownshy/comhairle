@@ -2,15 +2,24 @@ import { describe, expect, it } from 'vitest';
 import {
 	BOARD_PRESETS,
 	DEFAULT_PRESET,
+	MAX_SCALE,
+	MIN_SCALE,
+	blockScale,
+	blockSize,
+	clampScale,
 	hasBlock,
 	isRoomBoard,
 	parseBlocks,
+	parseScale,
+	parseSizes,
 	presetBoard,
 	resolveBoard,
 	ROOM_BLOCKS,
 	stillLatestDirection,
 	latestIsBeside,
 	serializeBlocks,
+	serializeSizes,
+	setBlockSize,
 	toggleBlock,
 	type RoomBoard
 } from './blocks';
@@ -20,7 +29,9 @@ const stored: RoomBoard = {
 	layout: 'split',
 	blocks: ['map', 'qr'],
 	latest: 'marquee',
-	theme: 'dark'
+	theme: 'dark',
+	scale: 1.4,
+	sizes: { map: 'l' }
 };
 
 describe('parseBlocks', () => {
@@ -149,6 +160,96 @@ describe('resolveBoard', () => {
 		const scrambled: RoomBoard = { ...stored, blocks: ['qr', 'map', 'question'] };
 		expect(resolveBoard({ stored: scrambled }).blocks).toEqual(['question', 'map', 'qr']);
 	});
+
+	it('defaults to normal size with nothing set', () => {
+		const board = resolveBoard({});
+		expect(board.scale).toBe(1);
+		expect(board.sizes).toEqual({});
+	});
+
+	it('reads the scale and sizes off the URL', () => {
+		const board = resolveBoard({ scale: '1.5', sizes: 'question:l,statement:xxl' });
+		expect(board.scale).toBe(1.5);
+		expect(board.sizes).toEqual({ question: 'l', statement: 'xxl' });
+	});
+
+	it('lets a scale or a size pin the board away from storage', () => {
+		expect(resolveBoard({ scale: '1.2', stored }).sizes).toEqual({});
+		expect(resolveBoard({ sizes: 'qr:xl', stored }).scale).toBe(1);
+	});
+
+	it('treats a scale that is not a number as noise', () => {
+		expect(resolveBoard({ scale: 'big', stored })).toEqual(stored);
+		expect(resolveBoard({ scale: 'big' }).scale).toBe(1);
+	});
+
+	it('holds a remembered scale inside the range', () => {
+		expect(resolveBoard({ stored: { ...stored, scale: 9 } }).scale).toBe(MAX_SCALE);
+		expect(resolveBoard({ stored: { ...stored, scale: 0.2 } }).scale).toBe(MIN_SCALE);
+	});
+});
+
+describe('scale', () => {
+	it('snaps to the slider step and stays in range', () => {
+		expect(clampScale(1.4000000000000001)).toBe(1.4);
+		expect(clampScale(1.33)).toBe(1.35);
+		expect(clampScale(40)).toBe(MAX_SCALE);
+		expect(clampScale(0)).toBe(MIN_SCALE);
+	});
+
+	it('parses a number and rejects anything else', () => {
+		expect(parseScale(null)).toBeNull();
+		expect(parseScale('')).toBeNull();
+		expect(parseScale('big')).toBeNull();
+		expect(parseScale('1.25')).toBe(1.25);
+		// Out of range is still an instruction, just a clamped one.
+		expect(parseScale('7')).toBe(MAX_SCALE);
+	});
+
+	it('multiplies the wall scale by the block step', () => {
+		const board: RoomBoard = { ...presetBoard('console'), scale: 1.2, sizes: { map: 'xxl' } };
+		expect(blockScale(board, 'map')).toBe(2.4);
+		expect(blockScale(board, 'question')).toBe(1.2);
+	});
+});
+
+describe('block sizes', () => {
+	it('tells an absent parameter apart from an empty map', () => {
+		expect(parseSizes(null)).toBeNull();
+		expect(parseSizes('')).toEqual({});
+	});
+
+	it('drops pairs it does not know rather than rejecting the list', () => {
+		expect(parseSizes('map:l,sparkline:xl,qr:huge,question')).toEqual({ map: 'l' });
+	});
+
+	it('serialises in canonical order without defaults', () => {
+		expect(serializeSizes({ qr: 'xl', question: 'l', map: 'm' })).toBe('question:l,qr:xl');
+		expect(serializeSizes({})).toBe('');
+	});
+
+	it('round-trips through the URL', () => {
+		const sizes = { question: 'l', statement: 'xxl' } as const;
+		expect(parseSizes(serializeSizes(sizes))).toEqual(sizes);
+	});
+
+	it('is normal for any block that is not set', () => {
+		expect(blockSize(presetBoard('console'), 'map')).toBe('m');
+		expect(blockSize(stored, 'map')).toBe('l');
+	});
+
+	it('drops the entry when a block goes back to normal', () => {
+		const grown = setBlockSize(presetBoard('console'), 'strip', 'xl');
+		expect(grown.sizes).toEqual({ strip: 'xl' });
+		expect(setBlockSize(grown, 'strip', 'm').sizes).toEqual({});
+	});
+
+	it('leaves the rest of the board alone', () => {
+		const sized = setBlockSize(stored, 'qr', 'xxl');
+		expect(sized.blocks).toEqual(stored.blocks);
+		expect(sized.scale).toBe(stored.scale);
+		expect(sized.sizes).toEqual({ map: 'l', qr: 'xxl' });
+	});
 });
 
 describe('latest placement', () => {
@@ -194,5 +295,13 @@ describe('isRoomBoard', () => {
 		expect(isRoomBoard({ layout: 'split', blocks: ['map'] })).toBe(false);
 		expect(isRoomBoard({ ...stored, latest: 'ticker' })).toBe(false);
 		expect(isRoomBoard({ ...stored, theme: 'sepia' })).toBe(false);
+		// A board written before `scale` and `sizes` existed.
+		expect(
+			isRoomBoard({ layout: 'split', blocks: ['map'], latest: 'row', theme: 'auto' })
+		).toBe(false);
+		expect(isRoomBoard({ ...stored, scale: 'big' })).toBe(false);
+		expect(isRoomBoard({ ...stored, sizes: { map: 'huge' } })).toBe(false);
+		expect(isRoomBoard({ ...stored, sizes: { sparkline: 'l' } })).toBe(false);
+		expect(isRoomBoard({ ...stored, sizes: ['map'] })).toBe(false);
 	});
 });

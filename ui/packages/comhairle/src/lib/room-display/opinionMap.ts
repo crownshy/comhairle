@@ -99,6 +99,131 @@ export function dotRadius(memberCount: number, base = 9): number {
 	return base * Math.sqrt(Math.max(1, memberCount));
 }
 
+/** The room the base radius was tuned in: 28 people at a roundtable, one dot each. */
+const TUNED_ROOM = 28;
+/** Below this, in viewBox units, a dot stops reading as a person from the back row. */
+export const MIN_DOT_RADIUS = 5;
+/**
+ * Above this a cluster stops being a pile of people and becomes a blob. About a
+ * twentieth of the plot's width.
+ */
+export const MAX_DOT_RADIUS = 24;
+
+/**
+ * Radius of a one-member dot for a room of `people`, in viewBox units.
+ *
+ * The plot is a fixed box, so the only honest way to size a dot is by how many have
+ * to share it: area per person stays roughly constant, which means a room of seven
+ * gets bigger dots than a room of seventy. `scale` is the board's size step and
+ * nudges that inside the same floor and ceiling; it cannot push a busy room's dots
+ * into each other, which is what a plain multiplier did.
+ */
+export function baseDotRadius(people: number, scale = 1, tunedRadius = 17): number {
+	const byDensity = tunedRadius * Math.sqrt(TUNED_ROOM / Math.max(1, people));
+	return Math.min(MAX_DOT_RADIUS, Math.max(MIN_DOT_RADIUS, byDensity * scale));
+}
+
+/** A dot with the position it wants and the room it needs. */
+export interface DotTarget {
+	id: number;
+	x: number;
+	y: number;
+	radius: number;
+}
+
+export interface Point {
+	x: number;
+	y: number;
+}
+
+/** Clear space between two neighbouring dots, in viewBox units. */
+const DOT_GAP = 2;
+/**
+ * How far a dot moves toward its target each pass, as a fraction of the distance.
+ * Small on purpose: at rest the pull is balanced by the push of a slight overlap,
+ * and that overlap is this fraction of how far a dot has been pushed from its
+ * target. A dot at the edge of a full pile sits a hundred units out, so this keeps
+ * the overlap to a touch of a few percent of a dot, never a stack. Weaker would hold
+ * still better but catch up slower when a dot's target moves.
+ */
+const PULL = 0.02;
+/** Passes for the pull and the push to settle from any starting arrangement. */
+const SEPARATION_PASSES = 150;
+
+/**
+ * Nudges dots apart so none draws on top of another, keeping each as close to its
+ * target as its neighbours allow.
+ *
+ * Two people with near-identical opinions land on the same point, and at room scale
+ * a whole cluster can overlap into one shape. Pulling each dot toward its own target
+ * while overlapping pairs push apart turns the cluster into a pile with the same
+ * outline, which is both more readable and more honest: every person stays visible.
+ *
+ * A plain relaxation rather than a force simulation, run to rest synchronously,
+ * because the dots already animate: the component transitions each one to wherever
+ * this says it goes. Every pass works out each dot's pull and every pair's push from
+ * the same snapshot and applies them together. That order-free step is what makes a
+ * settled layout a fixed point: seeded from `previous`, a layout that has settled
+ * stays put when nothing near it changes, so a wall that recomputes on every vote
+ * holds still between votes. (Resolving pairs one after another, the way a
+ * simulation does, leaves a pile creeping round a little on every run.) Coincident
+ * dots are split along a direction taken from their ids, so the same inputs give the
+ * same layout on every machine.
+ */
+export function separateDots(
+	targets: DotTarget[],
+	previous?: Map<number, Point>
+): Map<number, Point> {
+	const dots = targets.map((t) => {
+		const start = previous?.get(t.id) ?? t;
+		return {
+			id: t.id,
+			x: start.x,
+			y: start.y,
+			tx: t.x,
+			ty: t.y,
+			r: t.radius + DOT_GAP / 2,
+			dx: 0,
+			dy: 0
+		};
+	});
+	for (let pass = 0; pass < SEPARATION_PASSES; pass++) {
+		for (const d of dots) {
+			d.dx = (d.tx - d.x) * PULL;
+			d.dy = (d.ty - d.y) * PULL;
+		}
+		for (let i = 0; i < dots.length; i++) {
+			for (let j = i + 1; j < dots.length; j++) {
+				const a = dots[i];
+				const b = dots[j];
+				let ux = b.x - a.x;
+				let uy = b.y - a.y;
+				let distance = Math.hypot(ux, uy);
+				const minimum = a.r + b.r;
+				if (distance >= minimum) continue;
+				if (distance < 1e-6) {
+					const angle = ((a.id + b.id) * 2.399963) % (Math.PI * 2);
+					ux = Math.cos(angle);
+					uy = Math.sin(angle);
+					distance = 1;
+				}
+				const push = (minimum - distance) / 2;
+				ux /= distance;
+				uy /= distance;
+				a.dx -= ux * push;
+				a.dy -= uy * push;
+				b.dx += ux * push;
+				b.dy += uy * push;
+			}
+		}
+		for (const d of dots) {
+			d.x += d.dx;
+			d.y += d.dy;
+		}
+	}
+	return new Map(dots.map((d) => [d.id, { x: d.x, y: d.y }]));
+}
+
 /** How many votes a node has cast so far, across every statement. */
 export function votesCastBy(votesByTid: Map<number, Map<number, unknown>>, nodeId: number): number {
 	let count = 0;

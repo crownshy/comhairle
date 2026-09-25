@@ -21,10 +21,22 @@
 		comments: ReportComment[];
 		focusedTid?: number | null;
 		interactive?: boolean;
+		/**
+		 * The board's size step for this block. Raises how big a dot may get on a wide
+		 * wall; it cannot push dots into each other, because the box and the count
+		 * still have the last word.
+		 */
+		dotScale?: number;
 		onfocusstatement?: (tid: number) => void;
 	};
 
-	let { comments, focusedTid = null, interactive = false, onfocusstatement }: Props = $props();
+	let {
+		comments,
+		focusedTid = null,
+		interactive = false,
+		dotScale = 1,
+		onfocusstatement
+	}: Props = $props();
 
 	// Room scale. The report's continuum uses 5, which disappears on a projector.
 	const MAX_RADIUS = 14;
@@ -40,6 +52,10 @@
 	const HEIGHT_PER_RADIUS = 5;
 	// Clear space between neighbouring dots, and between a dot and the plot edge.
 	const GAP = 2;
+	// Plot area one dot needs to sit in without being stacked against the edges: a
+	// dot's own square plus breathing room. Two hundred statements in a strip that fits
+	// forty at full size get smaller dots, not a pile.
+	const AREA_PER_DOT = 6;
 
 	type SwarmNode = SimulationNodeDatum & { tid: number; text: string; divisiveness: number };
 
@@ -77,15 +93,21 @@
 
 	const scored = $derived(scoredComments(comments));
 
+	// The ceiling and the width proxy scale with the board's step, because both stand
+	// in for "how far away is this screen". The height and the count do not: they say
+	// what fits, and nothing the facilitator dials should make dots overlap.
 	const radius = $derived(
 		plotWidth <= 0 || plotHeight <= 0
-			? MAX_RADIUS
+			? MAX_RADIUS * dotScale
 			: Math.max(
 					MIN_RADIUS,
 					Math.min(
-						MAX_RADIUS,
-						plotWidth / WIDTH_PER_RADIUS,
-						plotHeight / HEIGHT_PER_RADIUS
+						MAX_RADIUS * dotScale,
+						(plotWidth / WIDTH_PER_RADIUS) * dotScale,
+						plotHeight / HEIGHT_PER_RADIUS,
+						Math.sqrt(
+							(plotWidth * plotHeight) / (Math.max(1, scored.length) * AREA_PER_DOT)
+						)
 					)
 				)
 	);
