@@ -3,11 +3,19 @@ type Ok<K extends string, T> = Record<K, T> & { err: null };
 type Err<K extends string, E extends ErrorType> = Record<K, null> & { err: E };
 export type Result<K extends string, T, E extends ErrorType> = Ok<K, T> | Err<K, E>;
 
+function Err(error: ErrorType): void {
+	throw new Error(error.toString());
+}
+
+function Ok<T>(result: T): T {
+	return result;
+}
+
 export async function tryCatchAsync<T, E extends ErrorType>(
-	fn: () => Promise<T>
+	fn: (ok: typeof Ok, err: typeof Err) => Promise<T>
 ): Promise<Result<'ok', T, E>> {
 	try {
-		const result = await fn();
+		const result = await fn(Ok, Err);
 		return { ok: result, err: null };
 	} catch (err) {
 		return { ok: null, err };
