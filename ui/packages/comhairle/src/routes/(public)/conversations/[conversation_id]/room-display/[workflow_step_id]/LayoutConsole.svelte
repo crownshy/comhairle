@@ -8,7 +8,9 @@
 	are opposite requirements and merging them gives you something that is neither.
 
 	So: the wall gets the question, the map with its group labels, one statement and a
-	QR code in the corner. Everything the facilitator drives lives on the console:
+	QR code in the corner. Everything the facilitator drives lives on the console,
+	including the latest statements, which sit under the strip so what has just come
+	in is beside the thing that points the wall at it:
 
 	- Hovering the strip picks one statement. It appears under the strip, and the wall
 	  shows it under the map. With per-participant votes the map recolours by it; a
@@ -35,12 +37,7 @@
 	import { nextUnlock, describeUnlock } from '$lib/room-display/revealStage';
 	import { presentByGroup, voteBarsFor } from '$lib/room-display/liveVotes';
 	import { groupColor } from '$lib/room-display/opinionMap';
-	import {
-		stillLatestDirection,
-		hasBlock,
-		type RoomBoard,
-		blockScale
-	} from '$lib/room-display/blocks';
+	import { hasBlock, type RoomBoard, blockScale } from '$lib/room-display/blocks';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import OpinionMap from '$lib/room-display/OpinionMap.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -110,7 +107,10 @@
 	const showWallMain = $derived(hasBlock(board, 'map') || wallView.kind !== 'map');
 	// Nothing left to drive means no panel: the wall stops sharing the page.
 	const hasConsoleBlocks = $derived(
-		hasBlock(board, 'counts') || hasBlock(board, 'strip') || hasBlock(board, 'groups')
+		hasBlock(board, 'counts') ||
+			hasBlock(board, 'strip') ||
+			hasBlock(board, 'marquee') ||
+			hasBlock(board, 'groups')
 	);
 	const showConsole = $derived(consoleOpen && hasConsoleBlocks);
 </script>
@@ -219,20 +219,6 @@
 			{/if}
 		</div>
 
-		{#if hasBlock(board, 'marquee')}
-			<SizedBlock scale={blockScale(board, 'marquee')}>
-				{#if board.latest === 'marquee'}
-					<LatestStatementsMarquee comments={source.state.published} />
-				{:else}
-					<!-- `aside` needs a column under a strip, which this layout has not got. -->
-					<LatestStatements
-						comments={source.state.published}
-						direction={stillLatestDirection(board)}
-					/>
-				{/if}
-			</SizedBlock>
-		{/if}
-
 		{#if hasBlock(board, 'qr')}
 			<SizedBlock scale={blockScale(board, 'qr')}>
 				<!--
@@ -328,6 +314,25 @@
 								{/if}
 							</div>
 						</SizedBlock>
+					{/if}
+				</SizedBlock>
+			{/if}
+
+			{#if hasBlock(board, 'marquee')}
+				<SizedBlock scale={blockScale(board, 'marquee')}>
+					<!--
+						Under the strip, on the laptop: the facilitator watches what has just
+						come in and can point the wall at it. The console is a column, so the
+						still list runs down it whatever `?latest=` says.
+					-->
+					{#if board.latest === 'marquee'}
+						<LatestStatementsMarquee comments={source.state.published} />
+					{:else}
+						<LatestStatements
+							comments={source.state.published}
+							direction="column"
+							compact
+						/>
 					{/if}
 				</SizedBlock>
 			{/if}
