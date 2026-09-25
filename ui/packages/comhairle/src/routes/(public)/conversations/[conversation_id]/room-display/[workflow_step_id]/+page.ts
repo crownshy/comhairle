@@ -43,7 +43,8 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 		latest: url.searchParams.get('latest'),
 		theme: url.searchParams.get('theme'),
 		scale: url.searchParams.get('scale'),
-		sizes: url.searchParams.get('sizes')
+		sizes: url.searchParams.get('sizes'),
+		slides: url.searchParams.get('slides')
 	};
 
 	const conversation = await tryCatchAsync(() =>

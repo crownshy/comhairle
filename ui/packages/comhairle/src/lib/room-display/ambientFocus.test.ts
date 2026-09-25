@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	ambientFocusAt,
+	rankIntent,
 	resolveIntent,
 	describeIntent,
 	AMBIENT_ROTATION,
@@ -65,6 +66,39 @@ describe('resolveIntent', () => {
 		for (const intent of AMBIENT_ROTATION) {
 			expect(resolveIntent(state([]), intent)).toBeNull();
 		}
+	});
+});
+
+describe('rankIntent', () => {
+	it('ranks the sharpest splits first, up to the limit', () => {
+		expect(rankIntent(state(three), 'mostDivisive', 2).map((c) => c.tid)).toEqual([2, 1]);
+	});
+
+	it('ranks consensus the other way round', () => {
+		expect(rankIntent(state(three), 'strongestConsensus', 5).map((c) => c.tid)).toEqual([
+			3, 1, 2
+		]);
+	});
+
+	it('keeps the newest in published order', () => {
+		expect(rankIntent(state(three), 'newest', 2).map((c) => c.tid)).toEqual([3, 2]);
+	});
+
+	it('leaves unscored statements out of the divisive ranking', () => {
+		const mixed = [comment(9, { divisiveness: null }), comment(8, { divisiveness: 0.3 })];
+		expect(rankIntent(state(mixed), 'mostDivisive', 5).map((c) => c.tid)).toEqual([8]);
+	});
+
+	it('agrees with resolveIntent about first place', () => {
+		for (const intent of AMBIENT_ROTATION) {
+			const s = state(three, { 1: [1, 2, 3, 4], 2: [1] });
+			expect(rankIntent(s, intent, 1)[0]?.tid).toBe(resolveIntent(s, intent));
+		}
+	});
+
+	it('returns nothing for an empty room or a zero limit', () => {
+		expect(rankIntent(state([]), 'mostDivisive', 5)).toEqual([]);
+		expect(rankIntent(state(three), 'mostDivisive', 0)).toEqual([]);
 	});
 });
 

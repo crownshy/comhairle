@@ -44,6 +44,23 @@ const BLOCK_ORDER: readonly RoomBlock[] = ROOM_BLOCKS.map((b) => b.id);
 
 export type RoomLayout = 'split' | 'console' | 'deck';
 
+/**
+ * The deck's slides in order, and the block each one is. Shared with the settings
+ * panel so that, on the deck, the panel can list slides by the name on the wall rather
+ * than blocks by the name of a region the deck does not have. `question`, `counts`
+ * and `groups` have no slide: the first two live inside the join slide, the third has
+ * nothing to drive.
+ */
+export const DECK_SLIDES = [
+	{ key: 'join', title: 'Join in', block: 'qr' },
+	{ key: 'room', title: 'Who is in the room', block: 'map' },
+	{ key: 'agree', title: 'What we agree on', block: 'statement' },
+	{ key: 'split', title: 'Where we split', block: 'strip' },
+	{ key: 'latest', title: 'Just said', block: 'marquee' }
+] as const satisfies readonly { key: string; title: string; block: RoomBlock }[];
+
+export type DeckSlideKey = (typeof DECK_SLIDES)[number]['key'];
+
 const LAYOUTS: readonly RoomLayout[] = ['split', 'console', 'deck'];
 
 /**
@@ -102,6 +119,29 @@ export const ROOM_THEMES = [
 const ROOM_THEME_IDS: readonly RoomTheme[] = ROOM_THEMES.map((t) => t.id);
 
 /**
+ * How the deck's two slides with several statements to show present them. "What we
+ * agree on" and "Where we split" each draw from the top five for their intent.
+ *
+ * `walk` shows one at a time, moving on after the ambient dwell, and the facilitator
+ * can hold the one they are talking about. `list` puts all five on the screen at once.
+ * Both are wanted: the walk is the one that lets the map be coloured by the statement,
+ * the list is the one that reads as a result. It is one choice for both slides rather
+ * than one per slide: a facilitator thinks of it as "am I walking the room through
+ * this or showing them the result", which is a decision about the session, not about
+ * a slide. It lives on the board so a link carries it (ADR-0044).
+ */
+export type SlideStyle = 'walk' | 'list';
+
+export const SLIDE_STYLES = [
+	{ id: 'walk', label: 'One at a time', hint: 'Moves through the top five; space holds one' },
+	{ id: 'list', label: 'Top five', hint: 'All five on one screen' }
+] as const satisfies readonly { id: SlideStyle; label: string; hint: string }[];
+
+const SLIDE_STYLE_IDS: readonly SlideStyle[] = SLIDE_STYLES.map((s) => s.id);
+
+export const DEFAULT_SLIDE_STYLE: SlideStyle = 'walk';
+
+/**
  * How big everything is, which the display cannot work out for itself either: the
  * same board is right on a meeting-room TV and too small on a hall projector, and the
  * room can only tell you once it is up.
@@ -150,6 +190,8 @@ export interface RoomBoard {
 	scale: number;
 	/** Per-block multipliers on top of `scale`; a block that is absent is normal. */
 	sizes: BlockSizes;
+	/** How the deck's two multi-statement slides draw themselves. Ignored elsewhere. */
+	slides: SlideStyle;
 }
 
 /**
@@ -168,7 +210,8 @@ export const BOARD_PRESETS = {
 		latest: 'row',
 		theme: 'auto',
 		scale: 1,
-		sizes: {}
+		sizes: {},
+		slides: 'walk'
 	},
 	wall: {
 		layout: 'split',
@@ -176,7 +219,8 @@ export const BOARD_PRESETS = {
 		latest: 'row',
 		theme: 'auto',
 		scale: 1,
-		sizes: {}
+		sizes: {},
+		slides: 'walk'
 	},
 	marquee: {
 		layout: 'split',
@@ -184,7 +228,8 @@ export const BOARD_PRESETS = {
 		latest: 'row',
 		theme: 'auto',
 		scale: 1,
-		sizes: {}
+		sizes: {},
+		slides: 'walk'
 	},
 	lobby: {
 		layout: 'split',
@@ -192,7 +237,8 @@ export const BOARD_PRESETS = {
 		latest: 'row',
 		theme: 'auto',
 		scale: 1,
-		sizes: { question: 1.25, qr: 2 }
+		sizes: { question: 1.25, qr: 2 },
+		slides: 'walk'
 	},
 	deck: {
 		layout: 'deck',
@@ -200,7 +246,8 @@ export const BOARD_PRESETS = {
 		latest: 'row',
 		theme: 'auto',
 		scale: 1,
-		sizes: {}
+		sizes: {},
+		slides: 'walk'
 	},
 	kiosk: {
 		layout: 'split',
@@ -208,7 +255,8 @@ export const BOARD_PRESETS = {
 		latest: 'column',
 		theme: 'dark',
 		scale: 1,
-		sizes: { map: 1.25 }
+		sizes: { map: 1.25 },
+		slides: 'walk'
 	}
 } as const satisfies Record<string, RoomBoard>;
 
@@ -265,6 +313,10 @@ export function isLatestStyle(value: string): value is LatestStyle {
 
 export function isRoomTheme(value: string): value is RoomTheme {
 	return (ROOM_THEME_IDS as readonly string[]).includes(value);
+}
+
+export function isSlideStyle(value: string): value is SlideStyle {
+	return (SLIDE_STYLE_IDS as readonly string[]).includes(value);
 }
 
 function isBlockSizes(value: unknown): value is BlockSizes {
@@ -413,8 +465,16 @@ export function parseBlocks(raw: string | null | undefined): RoomBlock[] | null 
 }
 
 export function presetBoard(preset: BoardPreset): RoomBoard {
-	const { layout, blocks, latest, theme, scale, sizes } = BOARD_PRESETS[preset];
-	return { layout, blocks: [...blocks], latest, theme, scale, sizes: { ...sizes } };
+	const { layout, blocks, latest, theme, scale, sizes, slides } = BOARD_PRESETS[preset];
+	return {
+		layout,
+		blocks: [...blocks],
+		latest,
+		theme,
+		scale,
+		sizes: { ...sizes },
+		slides
+	};
 }
 
 /**
@@ -429,7 +489,8 @@ function arrangementKey(board: RoomBoard): string {
 		board.layout,
 		serializeBlocks(board.blocks),
 		board.latest,
-		serializeSizes(board.sizes)
+		serializeSizes(board.sizes),
+		board.slides
 	].join('|');
 }
 
@@ -477,12 +538,14 @@ export function isRoomBoard(value: unknown): value is RoomBoard {
 		theme?: unknown;
 		scale?: unknown;
 		sizes?: unknown;
+		slides?: unknown;
 	};
 	if (typeof candidate.layout !== 'string' || !isRoomLayout(candidate.layout)) return false;
 	if (typeof candidate.latest !== 'string' || !isLatestStyle(candidate.latest)) return false;
 	if (typeof candidate.theme !== 'string' || !isRoomTheme(candidate.theme)) return false;
 	if (typeof candidate.scale !== 'number' || !Number.isFinite(candidate.scale)) return false;
 	if (!isBlockSizes(candidate.sizes)) return false;
+	if (typeof candidate.slides !== 'string' || !isSlideStyle(candidate.slides)) return false;
 	if (!Array.isArray(candidate.blocks)) return false;
 	return candidate.blocks.every((b) => typeof b === 'string' && isRoomBlock(b));
 }
@@ -502,6 +565,8 @@ export interface ResolveBoardInput {
 	scale?: string | null;
 	/** `?sizes=`, per-block steps as `block:size` pairs. */
 	sizes?: string | null;
+	/** `?slides=`, `walk` or `list`, how the deck's multi-statement slides draw. */
+	slides?: string | null;
 	/** What this display remembered from last time, if anything. */
 	stored?: RoomBoard | null;
 }
@@ -523,6 +588,7 @@ export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 	const urlTheme = input.theme && isRoomTheme(input.theme) ? input.theme : null;
 	const urlScale = parseScale(input.scale);
 	const urlSizes = parseSizes(input.sizes);
+	const urlSlides = input.slides && isSlideStyle(input.slides) ? input.slides : null;
 	const pinnedByUrl =
 		urlBlocks !== null ||
 		urlLayout !== null ||
@@ -530,6 +596,7 @@ export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 		urlTheme !== null ||
 		urlScale !== null ||
 		urlSizes !== null ||
+		urlSlides !== null ||
 		input.preset != null;
 
 	const stored = !pinnedByUrl && input.stored ? input.stored : null;
@@ -540,7 +607,8 @@ export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 			latest: stored.latest,
 			theme: stored.theme,
 			scale: clampScale(stored.scale),
-			sizes: orderSizes(stored.sizes)
+			sizes: orderSizes(stored.sizes),
+			slides: stored.slides
 		};
 	}
 
@@ -550,6 +618,7 @@ export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 		latest: urlLatest ?? base.latest,
 		theme: urlTheme ?? base.theme,
 		scale: urlScale ?? base.scale,
-		sizes: urlSizes ?? base.sizes
+		sizes: urlSizes ?? base.sizes,
+		slides: urlSlides ?? base.slides
 	};
 }
