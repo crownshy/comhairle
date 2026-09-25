@@ -9,7 +9,10 @@
 	import Switch from '$lib/components/ui/switch/switch.svelte';
 
 	let { data } = $props();
-	let { conversation, workflowSteps, report } = data;
+	let { conversation, workflowSteps, report } = $derived(data);
+	// Previous reports stored the full document in summary and have no body yet.
+	let reportBody = $derived(report.body ?? report.summary);
+	let reportSummary = $derived(report.body == null ? '' : report.summary);
 
 	let polisSteps = $derived(workflowSteps.filter((step) => step.toolConfig?.type === 'polis'));
 	let showPolisiframe = $state(false);
@@ -22,16 +25,16 @@
 	let showBackToTop = $state(false);
 
 	let activeReportSection = $state('');
-	type SummaryNode = {
+	type ReportNode = {
 		type?: string;
 		attrs?: {
 			level?: number;
 		};
-		content?: SummaryNode[];
+		content?: ReportNode[];
 		text?: string;
 	};
 	/**
-	 * The public report navigation is derived from top-level H2 headings in `report.summary`.
+	 * The public report navigation is derived from top-level H2 headings in the report body.
 	 * Each heading receives a unique, predictable ID so the navigation and rendered section
 	 * can link to the same anchor.
 	 */
@@ -39,17 +42,17 @@
 		const items: { id: string; label: string }[] = [];
 
 		try {
-			const summaryDocument: unknown = JSON.parse(report.summary);
+			const bodyDocument: unknown = JSON.parse(reportBody);
 
 			if (
-				!summaryDocument ||
-				typeof summaryDocument !== 'object' ||
-				!Array.isArray((summaryDocument as { content?: unknown[] }).content)
+				!bodyDocument ||
+				typeof bodyDocument !== 'object' ||
+				!Array.isArray((bodyDocument as { content?: unknown[] }).content)
 			) {
 				return items;
 			}
 
-			const nodes = (summaryDocument as { content: SummaryNode[] }).content;
+			const nodes = (bodyDocument as { content: ReportNode[] }).content;
 			const usedIds: Record<string, number> = {};
 
 			for (const node of nodes) {
@@ -82,20 +85,6 @@
 
 		return items;
 	});
-	let stats = [
-		{
-			name: 'Participants took part',
-			amount: 300
-		},
-		{
-			name: 'Statements submitted',
-			amount: 319
-		},
-		{
-			name: 'Opinion groups identified',
-			amount: 3
-		}
-	];
 
 	$effect(() => {
 		if (showPolisiframe || typeof IntersectionObserver === 'undefined') return;
@@ -167,8 +156,6 @@
 			behavior: scrollBehavior()
 		});
 	}
-	console.log('data: ', data);
-	console.log('polisSteps : ', polisSteps);
 </script>
 
 <svelte:head>
@@ -192,35 +179,16 @@
 		<p class="text-muted-foreground max-w-3xl text-lg leading-7">
 			Created on {reportCreatedAt}
 		</p>
-		<!-- We will likely need a space to write a short summary here -->
-		<p class="text-foreground max-w-3xl text-lg leading-7">
-			The consultation was organised by the project team to gather community perspectives and
-			create an inclusive space for people to share their views. It ran over 2.5 weeks in an
-			accessible format, allowing participants to contribute through basic survey and
-			interactive smart discussions where they can vote agree/disagree/neutral on other's
-			views. The consultation brought together <b>300 participants</b>, who submitted a total
-			of <b>319 statements</b>. Analysis of the responses identified<b
-				>three distinct opinion groups</b
-			>, highlighting the different perspectives represented across the participants.
-		</p>
+		{#if reportSummary}
+			<div class="text-foreground w-full max-w-3xl text-lg leading-7">
+				<ReportBody
+					content={reportSummary}
+					conversationId={conversation.id}
+					headingIdPrefix="summary-section"
+				/>
+			</div>
+		{/if}
 		<div class="mt-6 grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
-			{#each stats as stat (stat.name)}
-				<div
-					class="bg-card ring-border content-center items-center rounded-xl p-5 text-center shadow-sm ring-1 md:h-44 md:p-6"
-				>
-					<p
-						class="text-card-foreground text-2xl leading-8 font-semibold tabular-nums md:text-3xl md:leading-9"
-					>
-						{stat.amount}
-					</p>
-					<p
-						class="text-muted-foreground mt-1 text-base leading-6 font-semibold md:mt-1.5 md:text-lg md:leading-7"
-					>
-						{stat.name}
-					</p>
-				</div>
-			{/each}
-
 			{#if polisSteps.length > 0}
 				<div class="mt-2 flex items-center gap-3 self-start">
 					<Switch id="show-polis" bind:checked={showPolisiframe} />
@@ -232,7 +200,7 @@
 		</div>
 	</header>
 
-	{#if !showPolisiframe}
+	{#if !showPolisiframe && reportNavItems.length > 0}
 		<div class="bg-card/95 sticky top-0 z-20 w-full px-5 py-3 shadow-md backdrop-blur md:px-10">
 			<nav
 				bind:this={reportNavElement}
@@ -273,7 +241,7 @@
 			<div
 				class="mb-4 max-w-4xl text-lg leading-8 [&_.tiptap]:text-lg [&_.tiptap]:leading-8 [&_.tiptap_h1]:text-xl [&_.tiptap_h1]:md:text-3xl [&_.tiptap_h2]:text-2xl [&_.tiptap_h2]:leading-8 [&_.tiptap_h2]:font-semibold [&_.tiptap_h3]:text-xl [&_.tiptap_h3]:leading-7 [&_.tiptap_h3]:font-semibold [&_.tiptap_li]:my-2 [&_.tiptap_p]:my-4 [&_.tiptap_p]:text-lg [&_.tiptap_p]:leading-8"
 			>
-				<ReportBody content={report.summary} conversationId={conversation.id} />
+				<ReportBody content={reportBody} conversationId={conversation.id} />
 			</div>
 		{/if}
 	</div>
