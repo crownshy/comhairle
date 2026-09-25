@@ -363,8 +363,9 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
-    use crate::models::model_test_helpers::{
-        get_random_conversation_id, setup_default_app_and_session,
+    use crate::models::{
+        event::SignupMode,
+        model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
     };
 
     use super::*;
@@ -380,7 +381,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             ..Default::default()
         };
@@ -399,7 +400,7 @@ mod tests {
         assert!(status.is_success(), "error response status");
         assert_eq!(
             event.signup_mode,
-            "invite".to_string(),
+            SignupMode::Invite,
             "incorrect signup_mode"
         );
         assert_eq!(event.capacity, Some(10), "incorrect signup_mode");

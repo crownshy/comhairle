@@ -7,7 +7,7 @@ use crate::{
     models::{
         event::{
             Event, EventAgenda, EventFormat, EventLocation, LocalizedEvent,
-            LocalizedEventWithAttendance,
+            LocalizedEventWithAttendance, SignupMode,
         },
         pagination::PaginatedResults,
         translations::TextContentId,
@@ -37,7 +37,7 @@ pub struct EventDto {
     pub conversation_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
-    pub signup_mode: String,
+    pub signup_mode: SignupMode,
     pub video_meeting_id: Option<Uuid>,
     pub agenda: EventAgenda,
     pub location: Option<EventLocation>,
@@ -69,7 +69,7 @@ pub struct LocalizedEventDto {
     pub conversation_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
-    pub signup_mode: String,
+    pub signup_mode: SignupMode,
     pub current_attendance: Option<i64>,
     pub video_meeting_id: Option<Uuid>,
     pub agenda: EventAgenda,
