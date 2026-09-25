@@ -126,7 +126,7 @@
 				primaryLocale={conversation.primaryLocale as Locale}
 				supportedLanguages={conversation.supportedLanguages as Locale[]}
 				inputType="textarea"
-				placeholder="Add data visualisations and provide context to help readers understand the findings."
+				placeholder="Write the full content of  introduction to the report. Add data visualisations and provide context to help readers understand the findings."
 				editorType="rich"
 				minHeight="100px"
 				conversationId={conversation.id}
