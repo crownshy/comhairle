@@ -21,7 +21,7 @@ pub struct ReportDto {
     pub is_public: bool,
     pub conversation_id: Uuid,
     pub summary: TextContentId,
-    pub body: TextContentId,
+    pub body: Option<TextContentId>,
     pub section_configs: ReportSectionConfigs,
     pub created_at: DateTime<Utc>,
 }
@@ -55,7 +55,7 @@ pub struct LocalizedReportDto {
     pub is_public: bool,
     pub conversation_id: Uuid,
     pub summary: String,
-    pub body: String,
+    pub body: Option<String>,
     pub section_configs: ReportSectionConfigs,
     pub created_at: DateTime<Utc>,
 }

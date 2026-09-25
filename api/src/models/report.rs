@@ -82,7 +82,8 @@ pub struct Report {
     pub conversation_id: Uuid,
     #[partially(omit)]
     pub summary: TextContentId,
-    pub body: TextContentId,
+    #[partially(transparent)]
+    pub body: Option<TextContentId>,
     pub section_configs: ReportSectionConfigs,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -374,7 +375,7 @@ mod tests {
         let summary_translation =
             get_text_translation_by_content_and_locale(&pool, &report.summary, "en").await?;
         let body_translation =
-            get_text_translation_by_content_and_locale(&pool, &report.body, "en").await?;
+            get_text_translation_by_content_and_locale(&pool, &report.body.unwrap(), "en").await?;
 
         assert_eq!(
             summary_translation.content, "Summary to be filled out by facilitator",
@@ -414,7 +415,8 @@ mod tests {
             "incorrect summary translation text"
         );
         assert_eq!(
-            report.body, "Body to be filled out by facilitator",
+            report.body,
+            Some("Body to be filled out by facilitator".to_string()),
             "incorrect body translation text"
         );
 
