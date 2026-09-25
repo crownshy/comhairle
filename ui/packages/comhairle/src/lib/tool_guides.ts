@@ -1,3 +1,25 @@
+import learnStepImage from './assets/tools-learnstep.webp';
+import polisImage from './assets/tools-polis.webp';
+import prioritisationImage from './assets/tools-prioritisation.webp';
+import surveyImage from './assets/tools-survey.webp';
+import thinkingSpaceImage from './assets/tools-thinkingspace.webp';
+import videoImage from './assets/tools-video.webp';
+
+type ToolType = 'polis' | 'thinkingspace' | 'learnstep' | 'video' | 'prioritisation' | 'survey';
+
+const guideImages: Record<ToolType, string> = {
+	polis: polisImage,
+	thinkingspace: thinkingSpaceImage,
+	learnstep: learnStepImage,
+	video: videoImage,
+	prioritisation: prioritisationImage,
+	survey: surveyImage
+};
+
+function getImageSrc(toolType: ToolType): string {
+	return guideImages[toolType];
+}
+
 /**
  * Editorial content for the Comhairle Tools Guide (/admin/info/tools/<key>).
  *
@@ -6,72 +28,71 @@
  * scaffold with a "coming soon" stub. Refine copy here — the pages just render it.
  */
 
+const polisTitle = 'Participant-led Poll';
+
 export type GuideSection = {
 	heading?: string;
 	/** Trusted static HTML (rendered with {@html}). */
 	html?: string;
-	/** Show a placeholder media block. */
-	image?: boolean;
+	/** Media displayed alongside the guide content. */
+	image?: {
+		src: string;
+		alt?: string;
+	};
 };
 
 export type ToolGuide = {
 	key: string;
 	navLabel: string;
 	title: string;
+	atAGlance?: {
+		bestFor: string;
+		participantTime: string;
+		setupTime: string;
+	};
 	sections: GuideSection[];
 };
-
-const stub = (title: string, navLabel: string, key: string): ToolGuide => ({
-	key,
-	navLabel,
-	title,
-	sections: [
-		{
-			heading: 'What you need to know',
-			html: '<p>Detailed guidance for this tool is coming soon.</p>'
-		},
-		{ heading: 'How it works', html: '<p>Coming soon.</p>' },
-		{ heading: 'Mostly used in…', html: '<p>Coming soon.</p>' },
-		{ heading: 'Data collection and analysis', html: '<p>Coming soon.</p>' },
-		{ heading: 'A typical participant experience', html: '<p>Coming soon.</p>' },
-		{ heading: 'How to set this up', html: '<p>Coming soon.</p>' }
-	]
-});
 
 export const TOOL_GUIDES: Record<string, ToolGuide> = {
 	polis: {
 		key: 'polis',
-		navLabel: 'Wiki Poll (Pol.is)',
-		title: 'Wiki Poll (Pol.is)',
+		navLabel: polisTitle,
+		title: polisTitle,
+		atAGlance: {
+			bestFor: 'Complex stakeholder views',
+			participantTime: '10 to 15 minutes',
+			setupTime: '15 to 30 minutes'
+		},
 		sections: [
 			{
 				heading: 'What you need to know',
-				html: `<p>Wiki Poll (<u>Pol.is</u>) is a crowd survey tool that lets participants input their views and vote agree/pass/disagree on others' contributions. This enables understanding what opinion groups there are for a given topic, what representative views these groups hold, and importantly, revealing shared common ground across opinion groups.</p>
+				html: `<p>${polisTitle} is a crowd survey tool that lets participants input their views and vote agree/pass/disagree on others' contributions. This enables understanding what opinion groups there are for a given topic, what representative views these groups hold, and importantly, revealing shared common ground across opinion groups.</p>
 <p>It is mostly used when the organiser seeks to discover the starting point of reaching common ground of a controversial topic with complex stakeholder groups. (See case study)</p>
 <p>Its built-in feature of opinion groups discovery was also referred to as very useful for early stage consultations, especially its ability to reveal what views people might have given a topic.</p>`
 			},
-			{ image: true },
+			{
+				image: {
+					src: getImageSrc('polis'),
+					alt: 'Participant-led Poll interface'
+				}
+			},
 			{
 				heading: 'How it works',
-				html: `<p>Wiki Poll (<u>Pol.is</u>) is statement based; it lets participants vote agree/pass/disagree on others' statement contributions. The statements are in text form and limited to no more than 140 words. Participants are presented with statements others made and asked to vote 'Agree' if they agree, 'Disagree' if not fully agreed, and 'Pass/Skip' if neither.</p>
-<p>Participants are able to input their views to this wiki-styled poll (where the statements under polling are crowdsourced). They can do this anytime while interacting with Wiki Poll (<u>Pol.is</u>), including while casting their votes on others' statements.</p>
+				html: `<p>${polisTitle} is statement based; it lets participants vote agree/pass/disagree on others' statement contributions. The statements are in text form and limited to no more than 140 words. Participants are presented with statements others made and asked to vote 'Agree' if they agree, 'Disagree' if not fully agreed, and 'Pass/Skip' if neither.</p>
+<p>Participants are able to input their views to this wiki-styled poll (where the statements under polling are crowdsourced). They can do this anytime while interacting with ${polisTitle}, including while casting their votes on others' statements.</p>
 <p>The data of participant votes on each statement enable discovery of opinion groups (forming participant clusters of who voted similarly), and their respective representative opinion. Importantly, this collective data also reveals what their shared understandings might be across opinion groups (identifying bridging opinions capturing the same votes across participants from different opinion groups).</p>`
 			},
 			{
 				heading: 'Mostly used in…',
-				html: `<p>Wiki Poll is mostly used in topics which contain complex stakeholder groups and are anticipated to have controversial opinions. Being able to find common ground helps identify a starting point for further collaborative and constructive discussion. Therefore, Wiki Poll is often seen used before an in-person discussion, which helps ease the tension between formerly opposing opinion groups.</p>`
-			},
-			{
-				heading: 'Data collection and analysis',
-				html: `<p>When running a Wiki Poll (<u>Pol.is</u>), participants should be informed that their statement and votes data will be captured and used for analysis.</p>`
+				html: `<p>${polisTitle} is mostly used in topics which contain complex stakeholder groups and are anticipated to have controversial opinions. Being able to find common ground helps identify a starting point for further collaborative and constructive discussion. Therefore, ${polisTitle} is often seen used before an in-person discussion, which helps ease the tension between formerly opposing opinion groups.</p>`
 			},
 			{
 				heading: 'A typical participant experience',
-				html: `<p>Participants typically interact with Wiki Poll for about 10 to 15 minutes and in this time they go through about 20 statements and perhaps add one or two of their own statements to the poll. Comhairle provides an option for organisers to configure a minimum number of statements each participant should go through, before they can move on to the next step of the end-to-end engagement process.</p>`
+				html: `<p>Participants typically interact with ${polisTitle} for about 10 to 15 minutes and in this time they go through about 20 statements and perhaps add one or two of their own statements to the poll. Comhairle provides an option for organisers to configure a minimum number of statements each participant should go through, before they can move on to the next step of the end-to-end engagement process.</p>`
 			},
 			{
 				heading: 'How to set this up',
-				html: `<p>Setting up a Wiki Poll is extremely easy. Setting up a Wiki Poll typically takes organisers about 15 to 30 minutes adding content and configuring settings when contents are ready.</p>
+				html: `<p>Setting up a ${polisTitle} is extremely easy. Setting up a ${polisTitle} typically takes organisers about 15 to 30 minutes adding content and configuring settings when contents are ready.</p>
 <p>Organisers will need to prepare the following:</p>
 <ul>
 <li>A short overview description of the topic (about 50 words)</li>
@@ -86,7 +107,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				heading: 'The open source tool we use: Pol.is',
-				html: `<p>Wiki Poll (<u>Pol.is</u>) is powered by an open source civic tech tool named Pol.is. Polis is created and stewarded by the Computational Democracy Project, and is a groundbreaking open-source platform for collective intelligence. It allows groups to contribute statements, vote agree/pass/disagree on others' contributions, and visualise where consensus and differences lie.</p>`
+				html: `<p>${polisTitle} is powered by an open source civic tech tool named Pol.is. Polis is created and stewarded by the Computational Democracy Project, and is a groundbreaking open-source platform for collective intelligence. It allows groups to contribute statements, vote agree/pass/disagree on others' contributions, and visualise where consensus and differences lie.</p>`
 			}
 		]
 	},
@@ -95,6 +116,11 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		key: 'thinking_space',
 		navLabel: 'Thinking space',
 		title: 'Thinking space',
+		atAGlance: {
+			bestFor: 'Private or shared reflection',
+			participantTime: '10 to 15 minutes',
+			setupTime: '10 to 20 minutes'
+		},
 		sections: [
 			{
 				heading: 'What you need to know',
@@ -102,7 +128,12 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 <p>It's useful when a topic touches ethical, value or principle level questions, such as "Lower voting age to 16." It is also helpful when a topic is too distant to some participants who might find it difficult to come up with their own views while navigating a topic they hardly thought of before, such as "Space sector policy".</p>
 <p>It's reported by organisers that it's helpful to be used right after a learning step which onboards participants about a complex topic, or right before an in-person workshop so the participants at least think about the topic to a certain degree. Some organisers prefer to consider this thinking space as a private reflection space for participants; some prefer to keep it as a collective conversation space where a view from one participant could be viewed by others, which sparks discussion.</p>`
 			},
-			{ image: true },
+			{
+				image: {
+					src: getImageSrc('thinkingspace'),
+					alt: 'Thinking space interface'
+				}
+			},
 			{
 				heading: 'How it works',
 				html: `<p>Thinking space is questions-and-responses based. An LLM is prompted to ask coaching questions based on a topic and some questions the organiser sets up; the LLM generates follow-up questions according to the user's response and the intention behind why the organiser set up those questions.</p>
@@ -152,6 +183,11 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		key: 'learn',
 		navLabel: 'Learn step',
 		title: 'Learning step (Rich content page)',
+		atAGlance: {
+			bestFor: 'Topic onboarding',
+			participantTime: '5 to 45 minutes',
+			setupTime: '15 to 30 minutes once content is ready'
+		},
 		sections: [
 			{
 				heading: 'What you need to know',
@@ -161,7 +197,12 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 <p>The Media library that comes with the Learning step is a place where organisers can upload files to support their content. Be cautious that these files are shared across conversations within the organisation. Therefore, when uploading media files, be aware that they can be viewed by other organisers in your organisation.</p>
 <p>The Learn step also comes with an optional feature, Learning Assistant, that the organiser can choose to switch on.</p>`
 			},
-			{ image: true },
+			{
+				image: {
+					src: getImageSrc('learnstep'),
+					alt: 'learn step interface'
+				}
+			},
 			{
 				heading: 'How it works',
 				html: `<p>How the Learn step works is quite straightforward; it works similarly to a blog content builder where editors can create articles with optional visual or other rich media content. Our Learn step's rich media editor is very powerful. It allows editors not only to upload rich media but also to attach supporting documents in between articles if desired.</p>
@@ -210,6 +251,11 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 		key: 'online_group_conversation',
 		navLabel: 'Video call',
 		title: 'Video call',
+		atAGlance: {
+			bestFor: 'Live deliberation',
+			participantTime: '45 to 120 minutes',
+			setupTime: 'Depends on the agenda'
+		},
 		sections: [
 			{
 				heading: 'What you need to know',
@@ -217,7 +263,12 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 <p>It is mostly used when the organiser wants participants to talk to each other directly, work through disagreement in the moment, or build on the common ground surfaced by earlier tools (such as Wiki Poll) through live discussion.</p>
 <p>Its built-in support for breakout rooms, real-time transcription, and upcoming features such as embedded interactive tools (e.g. polling mid-call) also makes it useful for running an entire structured deliberation event within a single session.</p>`
 			},
-			{ image: true },
+			{
+				image: {
+					src: getImageSrc('video'),
+					alt: 'video interface'
+				}
+			},
 			{
 				heading: 'How it works',
 				html: `<p>Video Call is session based. A conversation host sets up a call with a start date/time, end time, and a name and description of what the call is about. Hosts can also assign a facilitator, estimate expected capacity, decide whether to use breakout rooms, and choose whether an agenda is shown to participants during the call.</p>
@@ -261,11 +312,88 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			}
 		]
 	},
+	survey: {
+		key: 'survey',
+		navLabel: 'Survey',
+		title: 'Survey',
+		atAGlance: {
+			bestFor: 'Collecting structured feedback',
+			participantTime: '5 to 15 minutes',
+			setupTime: '15 to 30 minutes once content is ready'
+		},
+		sections: [
+			{
+				heading: 'What you need to know',
+				html: "<p>Survey is a structured data collection tool that lets organisers ask participants a series of questions and collect their responses in a consistent format. Unlike discussion-based tools, where participants respond to and build on each other's contributions, Survey is primarily designed to gather individual views, experiences, preferences, or demographic information. It is mostly used when the organiser wants to collect input from a larger number of participants, understand patterns across a group, or gather information before or after another stage of a Comhairle engagement. Surveys can include a mixture of question types, such as multiple choice, single choice, scales, rankings, and free-text responses. This makes them useful both for collecting structured quantitative data and for giving participants opportunities to explain their views in their own words. Survey can also be used alongside other Comhairle tools. For example, an organiser might use a survey at the beginning of an engagement to understand participants' starting views, use a Participant-led Poll or discussion to explore those views in more depth, and then use a second survey to understand whether participants' views have changed.</p>"
+			},
+			{
+				image: {
+					src: getImageSrc('survey'),
+					alt: 'survey interface'
+				}
+			},
+			{
+				heading: 'How it works',
+				html: '<p>Survey is form based. A conversation host creates a survey by giving it a name and description, then adds the questions they want participants to answer. For each question, hosts can choose the appropriate response format. Depending on the question, this might include selecting one answer, selecting multiple answers, choosing a position on a scale, ranking options, or entering a written response. Hosts can decide which questions are required and which are optional. They can also organise questions into sections where a longer survey needs to be broken into different themes or stages. Once the survey is published, participants can access it through the relevant Comhairle conversation or through an invitation to the entire conversation. They work through the questions at their own pace and submit their responses when they have completed the survey. The survey responses are stored as structured data, allowing organisers to review individual responses as well as analyse patterns across the participant group. Depending on the question type, responses can be summarised through counts, distributions, averages, or other appropriate analysis. Where free-text questions are included, written responses can also be reviewed and analysed for common themes, ideas, or areas of disagreement.</p>'
+			},
+			{
+				heading: 'Mostly used in…',
+				html: "<p>Survey is mostly used when the organiser needs to collect structured information from participants at scale, particularly where responses need to be compared across people or groups. </p> Common uses include: <ul><li> Understanding participants' existing views before a deliberative process </li> <li>Collecting demographic or background information</li> <li>Asking participants to prioritise or choose between options</li><li>Measuring changes in views before and after an engagement</li><li>Collecting ideas or suggestions through open-ended questions</li> </ul> Survey can be particularly useful as part of a wider deliberative process. For example, a survey could establish participants' initial views, followed by a Participant-led Poll or discussion to explore the issue, and then a final survey to capture participants' views after deliberation.</p>"
+			},
 
-	heyform: stub('Survey', 'Survey', 'heyform'),
-	prioritization: stub('Prioritisation tool', 'Prioritisation tool', 'prioritization'),
-	elicitation_bot: stub('Elicitation Bot', 'Elicitation Bot', 'elicitation_bot'),
-	lived_experience: stub('Lived Experience', 'Lived Experience', 'lived_experience')
+			{
+				heading: 'A typical participant experience',
+				html: '<p>Participants typically interact with a Survey for around 5 to 15 minutes, depending on the number and complexity of questions. A short survey might contain around 5 to 10 questions and take only a few minutes to complete. A longer survey may contain 20 or more questions, particularly where demographic information and several different topics are being covered. We suggest the survey to be less than 10 questions. Comhairle provides an option for organisers to configure required questions, meaning participants may need to answer certain questions before they can submit their response. Participants normally access the survey through the relevant Comhairle conversation and commonly a topic learn page would be provided before participants entering a survey step. They work through the questions in sequence, selecting or entering their responses, and submit the survey at the end. Once submitted, participants won’t be able to go back and change their answers. The experience is generally asynchronous, meaning participants do not need to be online at the same time as other participants. This makes Survey suitable for reaching participants who have different schedules or who need more time to consider their answers.</p>'
+			},
+			{
+				heading: 'How to set this up',
+				html: '<p>Conversation hosts will need to prepare the following: <ul><li>Name and description of the survey (required)</li><li>Questions and response options (required)</li><li>Question types, such as multiple choice, scales, rankings, or free text</li><li>Which questions are required and which are optional</li><li>Any sections or grouping of questions</li><li>The introduction or instructions participants should see before starting</li><li>The survey question logic for questions dependent on answer of a previous question </li></ul>Organisers will also need to decide: <ul><li>How the responses will be analysed and reported</li></ul></p>'
+			},
+			{
+				heading: 'The open source tool we use: HeyForm',
+				html: '<p><a target="_new" href="https://heyform.net/">HeyForm (open a new tab)</a> is an open-source form and survey platform that provides the underlying functionality for Comhairle\'s Survey tool. It supports a range of question types and form configurations, allowing organisers to create structured surveys and collect responses through a web-based interface. Using HeyForm as the underlying technology allows Comhairle to provide flexible survey functionality while integrating it into the wider deliberation journey. Rather than treating the survey as a standalone questionnaire, Comhairle can use it alongside other engagement tools to collect information at different stages of a participant\'s journey.The Survey tool is therefore designed not just for collecting responses, but for making those responses useful within a broader process of participation and deliberation.</p>'
+			}
+		]
+	},
+	prioritization: {
+		key: 'prioritization',
+		navLabel: 'Prioritization tool',
+		title: 'Prioritization tool',
+		atAGlance: {
+			bestFor: 'Prioritising a set of proposals',
+			participantTime: '10 to 20 minutes',
+			setupTime: '30 to 60 minutes once content is ready'
+		},
+		sections: [
+			{
+				heading: 'What you need to know',
+				html: '<p>Prioritisation is a structured tool that lets organisers present participants with a set of proposals and ask them to give their views on each one. Rather than asking participants to develop proposals themselves, the tool is designed to help participants review, assess, and prioritise proposals that have already been developed. Organisers can configure the questions participants are asked about each proposal. For example, they might ask participants how strongly they agree or disagree with a proposal, how important the underlying issue is for them, and whether they have any comments or suggested changes. The tool is particularly useful as a second stage of engagement. An organiser might first run a discussion, consultation, or deliberative process, then use what was heard to produce a more concise set of proposals. Participants can then return to review those proposals and indicate which ones they support or consider most important. It can also be used when proposals have come from a wider public discussion and the organiser wants a specific group — such as stakeholders, practitioners, community representatives, or subject experts — to review them and provide feedback.</p>'
+			},
+			{
+				image: {
+					src: getImageSrc('prioritisation'),
+					alt: 'survey interface'
+				}
+			},
+			{
+				heading: 'How it works',
+				html: '<p>The organiser creates a set of proposals and defines the questions participants will answer about them. Each proposal can include a title, description, and supporting information to help participants understand what is being proposed. The organiser can then configure the response format for each question. This might include an agreement scale, a rating, a choice between options, or a free-text comment. Participants work through the proposals and provide their views. Depending on the configuration, they may be able to comment on individual proposals as well as provide a structured response. Responses are collected across all proposals, allowing organisers to compare how participants responded to different proposals and identify areas of support, disagreement, or uncertainty.</p>'
+			},
+			{
+				heading: 'Mostly used in…',
+				html: '<p>Prioritisation is mostly used after an initial stage of engagement, when an organiser has enough information to turn discussion and feedback into a defined set of proposals. Typical uses include: <br><ul><li>Reviewing proposals developed through a deliberative process</li><li>Asking participants to respond to recommendations that have been developed from earlier discussions</li><li>Prioritising ideas generated through a public consultation</li><li>Testing whether participants agree with a proposed set of actions</li><li>Asking stakeholders or experts to review proposals</li><li>Giving participants an opportunity to comment on how earlier feedback has been translated into proposals</li><li>Comparing levels of support across a defined set of options</li></ul>The tool can therefore help create a clear link between what participants said earlier and what happens next. Organisers can explain how earlier contributions have informed the proposals, and then give participants an opportunity to respond to the resulting set.</p>'
+			},
+
+			{
+				heading: 'A typical participant experience',
+				html: '<p>Participants typically spend around 10–20 minutes working through a set of proposals.</p> <br><p>A typical activity might contain 5-7 proposals, with participants asked one or two questions about each. For example, they might indicate how strongly they agree with each proposal and then optionally provide a comment explaining their response. </p><br> <p> Participants can work through the proposals at their own pace and submit their responses once they have completed the activity. </p><br> <p> For a second-round engagement, organisers may provide participants with a summary of the earlier discussion or an explanation of how the proposals were developed before asking them to provide their views.</p>'
+			},
+			{
+				heading: 'How to set this up',
+				html: '<p>Conversation hosts will need to prepare: <ul><li>Name and description of the activity (required)</li><li>The set of proposals participants will review (required)</li><li>Questions for each proposal (required)</li><li>Response formats, including agreement scales, choices, or free text</li><li>Supporting information or context participants need to understand each proposal</li></ul>Hosts will also need to decide:<ul><li>Whether the proposals are displayed in order or at random for participants</li><li>Which questions are required and which are optional</li><li>How the results will be analysed and presented alongside earlier engagement</li></ul> Before launching the activity, organisers should make sure that proposals are clearly worded, distinct from one another, and sufficiently developed for participants to give a meaningful response.</p>'
+			}
+		]
+	}
 };
 
 /** Order of tools in the guide's left navigation. */
@@ -273,10 +401,9 @@ export const GUIDE_NAV_ORDER = [
 	'polis',
 	'thinking_space',
 	'learn',
-	'heyform',
+	'survey',
 	'prioritization',
-	'elicitation_bot',
-	'lived_experience',
+
 	'online_group_conversation'
 ];
 
