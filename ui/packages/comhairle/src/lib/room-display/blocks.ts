@@ -18,7 +18,7 @@
  *   map         left column          wall centre          "Who is in the room"
  *   statement   right column         wall and console     "What we agree on"
  *   strip       under the statement  console picker       "Where we split"
- *   marquee     along the bottom     along the bottom     "Just said"
+ *   marquee     along the bottom     wall bottom, console "Just said"
  *   groups      bottom bar           console list         not applicable
  *   qr          top corner           wall corner          "Join in"
  *
