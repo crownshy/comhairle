@@ -30,7 +30,7 @@ _Status_: Not backed yet — displayed from a hardcoded per-tool default for now
 The admin reference pages at `/admin/info/tools/<key>`, one long-form editorial page per tool (sections: What you need to know, How it works, Mostly used in, Data collection and analysis, A typical participant experience, How to set this up, The open source tool we use). Opened in a new tab from a tool's "Learn more" link.
 
 **Workflow template**:
-A named, pre-defined set of Steps used to seed a new Conversation's Workflow at creation time. Applied once at creation; the resulting Workflow is then freely editable. A template has *display* content (name, description, badges, preview, step list shown on its card) that is distinct from its *creation* steps (the real `tool_setup` configs instantiated on "Get started"). Display content may reference steps whose backing tool does not yet exist (e.g. "Online video conference"); such steps are shown but not instantiated. Template content is provisional pending product decisions.
+A named, pre-defined set of Steps used to seed a new Conversation's Workflow at creation time. Applied once at creation; the resulting Workflow is then freely editable. A template has _display_ content (name, description, badges, preview, step list shown on its card) that is distinct from its _creation_ steps (the real `tool_setup` configs instantiated on "Get started"). Display content may reference steps whose backing tool does not yet exist (e.g. "Online video conference"); such steps are shown but not instantiated. Template content is provisional pending product decisions.
 _Avoid_: Preset
 _Note_: Templates are no longer create-time-only. The design board's "Template" dropdown re-applies a template to an existing Workflow: it **destructively replaces** the whole Workflow (deletes every Step + its data, then creates the template's Steps) behind an "are you sure" confirmation. This reverses ADR-0002's create-time-only stance (see the amendment there). The Workflow still does not persist which template was applied, so the chip label is session-local (resets to "Blank" on reload).
 
@@ -64,7 +64,7 @@ A participant who has [[#finished-a-participant-is-finished]] in a Conversation 
 _Avoid_: Locked, closed (closed reads as the Conversation being closed).
 
 **Revisit after finishing**:
-The per-Conversation setting (`allow_revisit_after_finishing`, default `true`) governing whether a participant may return to Steps once they are [[#finished-a-participant-is-finished]]. Off means sealed. Orthogonal to the per-Step [[#revisitable-step]] flag, which governs navigation *before* they finish; the Conversation setting overrides it afterwards.
+The per-Conversation setting (`allow_revisit_after_finishing`, default `true`) governing whether a participant may return to Steps once they are [[#finished-a-participant-is-finished]]. Off means sealed. Orthogonal to the per-Step [[#revisitable-step]] flag, which governs navigation _before_ they finish; the Conversation setting overrides it afterwards.
 
 **Revisitable step**:
 The per-Step `can_revisit` flag (default `false`), controlling whether a participant may navigate back to that Step once they have completed it. Governs mid-flow navigation only. Once a participant is [[#finished-a-participant-is-finished]] it is subordinate to [[#revisit-after-finishing]].
@@ -116,16 +116,16 @@ The Polis statement-review subtab — sync statements from Polis, add/seed state
 _Avoid_: Statements (design label), Moderate (old dead tab).
 
 **Insights**:
-A **per-Step report** — the read-only analytics surface for a single Step, shown as a subtab in that Step's editor. For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, HeyForm, …; not Learn) gets its own Insights subtab.
-_Avoid_: Report (that's the conversation-level tab — a different, global concept).
+A **per-Step report** — the read-only analytics surface for a single Step, shown as a subtab in that Step's editor. For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic*os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, HeyForm, …; not Learn) gets its own Insights subtab.
+\_Avoid*: Report (that's the conversation-level tab — a different, global concept).
 
 **Report**:
 The **conversation-level, global** reporting tab in the top nav (`Configure · Workflow · Knowledge base · Events · Recruit · Monitor · Notify · Report`). Aggregates across the whole Conversation. Distinct from a Step's **Insights** subtab.
 _Avoid_: Insights (that's per-Step).
 
 **Participants** (Polis admin):
-_Out of scope / deferred._ civic_os has a Participants tab (demographics + recruitment goals, tied to its "questions attached" model), but comhairle has no equivalent concept and no top-level Participants tab. Not built as part of the Polis admin; revisited later as a separate effort (possibly HeyForm-adjacent) once its home is decided.
-_Avoid_: reusing civic_os's demographics Participants inside a Polis subtab.
+_Out of scope / deferred._ civic*os has a Participants tab (demographics + recruitment goals, tied to its "questions attached" model), but comhairle has no equivalent concept and no top-level Participants tab. Not built as part of the Polis admin; revisited later as a separate effort (possibly HeyForm-adjacent) once its home is decided.
+\_Avoid*: reusing civic_os's demographics Participants inside a Polis subtab.
 
 **Setup**:
 The Polis-step subtab replacing the old admin **iframe**: native controls for the Polis conversation config plus comhairle display flags. Two write paths — (1) **Polis-proxied** config (`is_active` = "conversation is open", `topic`, `description`, `strict_moderation` = "no comments without approval") goes through the `PolisUpdateConfig` route (widened `UpdatePollRequest` + server-side admin `login()` + `update_poll()`); (2) **comhairle `tool_config`** display flags (`required_votes`, `show_remaining_statements`, `label_seeds_as_conversation_starter`) via `UpdateConversationWorkflowStep`. No client-side Polis auth. The Polis-proxied fields are **also mirrored into `tool_config`** (they are fields on `PolisToolConfig`) so the form can pre-fill — Polis has no read path (see ADR-0003 amendment). Saving a config field writes Polis first, then the mirror. Seed authoring lives in the **Moderation** subtab, not Setup.
@@ -142,7 +142,7 @@ _Avoid_: Seeded status (it's a boolean flag, not a moderation status).
 
 **Derived statement**:
 A statement an admin authors while moderating, as a split or reword of an existing participant statement (see [[#split]]). Posted to Polis as `is_seed: false` (a real, votable, non-seed statement, not a host seed) and carries `original_statement_id` pointing at the aux row it was derived from. The discriminator: `is_seed: false` **and** `original_statement_id` set = derived; `is_seed: true` = seed; neither = raw participant statement. Never rendered as a host seed.
-_Avoid_: calling it a seed; "edited statement" (Polis has no in-place edit — a derived statement is always a *new* statement).
+_Avoid_: calling it a seed; "edited statement" (Polis has no in-place edit — a derived statement is always a _new_ statement).
 
 **Split**:
 The moderation act of replacing one participant statement with one or more clean, separately-votable [[#derived-statement]]s. A single-replacement split is a **reword** (disambiguating one statement); a multi-replacement split breaks a composite statement into parts. One operation either way: post each replacement `is_seed: false`, auto-accept it (`mod: 1`), reject the original (`mod: -1`), and record lineage. No automatic text-splitting: the admin types every replacement by hand.
@@ -169,10 +169,10 @@ A cluster of participants who voted similarly, discovered by Polis's math (PCA +
 _Avoid_: Group (bare — collides with invitee groupings), cluster, faction.
 
 **Representative comment**:
-A statement that most distinguishes an Opinion group from the others (Polis's "representative comments", per `GroupReportData.representative_comments`). Used in the report's Groups section to characterise what each group believes. Distinct from an [[#area-of-consensus]] statement, which is one *every* group agrees on.
+A statement that most distinguishes an Opinion group from the others (Polis's "representative comments", per `GroupReportData.representative_comments`). Used in the report's Groups section to characterise what each group believes. Distinct from an [[#area-of-consensus]] statement, which is one _every_ group agrees on.
 
 **Area of Consensus** (shown as "Area of consensus" in Insights):
-A statement all opinion groups agree on, ranked by Polis's `group_informed_consensus` (the product of each group's smoothed agree%, `(agrees+1)/(total+2)`, so it scores high only when *every* group agrees). The section lists all statements by this score, highest first, read straight off `report_data` (not recomputed). It is agree-oriented: it surfaces "all groups agree", not "all groups disagree".
+A statement all opinion groups agree on, ranked by Polis's `group_informed_consensus` (the product of each group's smoothed agree%, `(agrees+1)/(total+2)`, so it scores high only when _every_ group agrees). The section lists all statements by this score, highest first, read straight off `report_data` (not recomputed). It is agree-oriented: it surfaces "all groups agree", not "all groups disagree".
 
 **Area of Difference** (shown as "Area of disagreement" in Insights):
 A statement the opinion groups split hardest on, ranked by Polis's `divisiveness`, highest first, read straight off `report_data` (not recomputed).
@@ -185,7 +185,7 @@ _Avoid_: widget, block, card (too generic).
 _Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components — the Insights set in `lib/reports/polis/**` (`VoteBar`, `StatementVoteBlock`, `AreaOfConsensus`) backed by `tools/polis/report.ts`. A separate set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
 
 **Embeddable section block**:
-The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*) — **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list.
+The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: _Key stats_, _Areas of consensus_, _Areas of disagreement_, _Consensus continuum_, _Opinion groups_) — **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list.
 _Avoid_: report piece (use "section block" for the embeddable unit).
 
 **Report component embed**:
@@ -193,9 +193,55 @@ A TipTap node in the report's `summary` document that carries an embedded [[#emb
 
 **Report view**:
 A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:
+
 1. **Insights** — admin, live, per-tool/Step. A "summary of raw data": current responses + realtime insights; helps spot missing voices. (Already exists for Polis.)
 2. **In-progress feedback** — participant, live, per-tool/Step; appears **as a Step in the participant journey**. The only view that shows **individual** data (the participant's own response) alongside the aggregate from others.
 3. **Presentation mode** — public room screen, live, per-tool; a looping, simplified, low-interaction "highlights" display for a live audience. Either cycles all tools or shows one picked tool.
 4. **End of engagement report** — participant + public, final (frozen snapshot), conversation-level cross-tool; **human-authored**: auto-generated insights that an editor curates in a rich-text (TipTap) document, pulling component blocks in.
-_Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate concern, not one of the four).
-_Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
+   _Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate concern, not one of the four).
+   _Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
+
+### Room display
+
+**Room display**:
+The Polis Step's live face on a shared screen: a large-format, per-Step surface a facilitator projects in a room while a Polis conversation is running. Sits alongside [[#insights]] as a per-Step view (not conversation-level like [[#report]]), fed by the same `report_data` plus a live event feed.
+_Avoid_: "live event page" and "live view" (taken: `events/[event_id]/live` is the Jitsi meeting room with breakouts and an agenda). Avoid "presentation mode" for the surface as a whole; that names one [[#room-display-direction]].
+
+**Demo mode / Live mode**:
+The two sources a Room display can render from, chosen by `?mode=`. **Live** polls the Step's real `report_data`. **Demo** replays a scripted scenario with animated joins and votes, for showing the display without a room; it is the only source that carries per-participant votes, so only a demo can colour the [[#opinion-map]] by a single statement ([[#cross-highlight]]).
+
+**Block / Layout / Board**:
+What a Room display is showing, and how it is arranged.
+
+A **block** is one switchable region of the display: question, counts, [[#opinion-map]], selected statement, statement strip, [[#statement-ticker|latest statements]], group controls, QR code. A block that is off is off wherever you are.
+
+A **layout** is how the space is spent, distinguished by _who does the interpreting_: **Split** (one full-width wall, facilitator controls along the bottom, the room interprets), **Console** (a calm wall beside a dense facilitator panel, interpretation split between the two), **Deck** (one idea per screen in sequence, advanced by hand, the facilitator interprets). Layouts are [[#report-view]]s, not separate products, and share one component set.
+
+A **board** is a layout, the set of blocks that are on, how the latest-statements block draws itself, and the room's lighting. It is spelled out by `?layout=`, `?blocks=`, `?latest=` and `?theme=`, named by `?variant=`, and edited live from the settings panel on the display itself, so any arrangement is a link you can send. A board a facilitator builds is remembered per display, but an explicit URL always wins over what the machine remembers.
+
+_Avoid_: "direction" (the earlier word for a layout, when there were three: Board, Deck and **Narrator**, a templated rolling commentary the machine interpreted; Narrator was cut and the one-screen Board became Split with every block on). Avoid "variant" for anything but a named board.
+
+**Room lighting**:
+Whether the display renders light or dark, set per display by `?theme=light|dark`; `auto` leaves the app's own setting alone. A property of the room rather than of the viewer: the same projector is unreadable dark in a bright hall and glaring light in a dim one. Drives the app-wide theme, because dark is a class on `<html>` and branded deployments key off it there, so it cannot be scoped to one page.
+
+**Ambient mode / Driven mode**:
+The Room display's two operating modes. **Ambient** is the default and has no pointer: it autoplays and must be legible across a room with no tooltips. **Driven** starts when the facilitator touches anything, making hover and click live, and lapses back to ambient after an idle period. Every Room display component needs both behaviours.
+
+**Accent / Moment**:
+The two classes of live event on the Room display. An **accent** is in-place and non-blocking (a vote lands, the statement ticker scrolls) and must never take the screen; these fire constantly. A **moment** briefly takes the screen and is rare: people joining (anonymous, and burst-merged so a rush is one moment), a [[#reveal-stage]] unlocking, a new [[#opinion-group]] forming. Moments are rate-limited, and structural ones are stability-gated so Polis's oscillating cluster count cannot cry wolf. Vote-count milestones are deliberately not moments.
+
+**Reveal stage**:
+How much of the Room display is unlocked, gated on what Polis's math can actually support: **Empty** (no votes), **Warming** (votes arriving, no clusters yet, so only `overall_votes` bars plus the QR recruitment screen), **Shaped** (Polis has produced opinion groups, so [[#opinion-map]] and [[#consensus-continuum]] unlock), **Rich** (enough scored statements for consensus and divisiveness rankings to mean something). Stages **ratchet**: once reached, never re-locked, because Polis's group count genuinely oscillates. The current threshold is shown to the room as a countdown.
+
+**Opinion map**:
+One dot per **participant**, positioned by `ParticipantReportData.pca_position` and coloured by [[#opinion-group]]. The "who is in the room and where do they sit" view. Distinct from the [[#consensus-continuum]], where one dot is one **statement**.
+_Avoid_: "user clusters", "the beeswarm" (that is the continuum).
+
+**Statement ticker**:
+The Room display's running list of the most recently published statements, ordered by `polis_statement_aux.created_at` (the report payload carries no timestamp). A [[#block--layout--board|block]], and its own slide on a deck. Drawn four ways (`?latest=`): **row**, **column** and **aside** are still, moving only when a statement arrives, which is the default because moving text cannot be read across a room; **marquee** scrolls continuously and is kept only so the two can be judged in an actual room. **aside** says where rather than how, moving the block into the column under the statement strip in the one-wall layout, which is otherwise dead space. Deliberately **inert**: not clickable, not highlighted, not linked to anything else on the display. It is something the room watches. The only relationship on a Room display is [[#consensus-continuum]] dot to [[#opinion-map]] dot, and the continuum is the one surface a facilitator touches, so focus has a single origin.
+
+**Cross-highlight**:
+Hovering or selecting a statement on the [[#consensus-continuum]] recolours the dots on the [[#opinion-map]] by how the room voted on that statement. The continuum drives the map, which is why it takes an optional controlled `focusedTid`: in [[#ambient-mode--driven-mode|ambient mode]] nobody hovers, so something else has to decide what the swarm is pointing at. No live endpoint returns a per-participant vote matrix, so a live display deals each group's real counts across that group's dots ([[#apportioned-colouring]]): the proportions are exact and the dot-to-person mapping is not. A scripted scenario carries the real votes and colours each dot by its owner's.
+
+**Apportioned colouring**:
+How a live [[#room-display]] colours its [[#opinion-map]] for a [[#cross-highlight]]. `report_data` gives vote counts per statement per opinion group and no per-participant matrix, so each group's counts are dealt across that group's dots by largest remainder: 9 agrees in Group B colour 9 of Group B's dots. Exact within a group, between groups and overall; arbitrary only in which dot took which colour, and deliberately not stable from one statement to the next so no dot reads as a person who always agrees. Vote bars are read off the report rather than off the dots, so quotable numbers never round. See ADR-0040.

@@ -1,0 +1,105 @@
+import type { PageLoad } from './$types';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { conversation_url } from '$lib/urls';
+import { resolveBoard } from '$lib/room-display/blocks';
+import { parseSurface } from '$lib/room-display/surfaces';
+
+export type RoomDisplayMode = 'live' | 'demo';
+
+/**
+ * The Room display for one Polis step (CONTEXT.md, "Room display").
+ *
+ * Configuration is URL parameters, so any variation is a link you can send someone:
+ *
+ *   ?mode=demo         scripted scenario with animated joins and votes, for showing
+ *                      the thing off; the default polls the real step
+ *   ?variant=<name>    a named board (the panel's templates): console (default), wall,
+ *                      marquee, lobby, deck or kiosk
+ *   ?layout=<name>     the arrangement on its own: split, console or deck
+ *   ?blocks=a,b,c      exactly which regions are on, overriding the variant's set
+ *   ?latest=<style>    how the latest statements draw: row, column or marquee
+ *   ?theme=<name>      light or dark for the room; auto leaves the app alone
+ *   ?scale=<n>         multiplier on the whole wall, 0.5 to 3
+ *   ?sizes=a:1.5,b:2   per-block multipliers, 0.25 to 4, on top of that
+ *   ?surface=<name>    wall or console: one half of the "Wall and laptop" layout in
+ *                      its own window; absent, both halves share the page
+ *   ?join=<url>        where the QR code points; defaults to the conversation page
+ *   ?question=<text>   override the heading (the Polis topic by default)
+ *   ?rate=<n>          demo only: playback speed
+ *
+ * Public, like `PolisGetReportData` itself: a projector or booth screen should not
+ * need a login session. The conversation and step are fetched to find the Polis topic
+ * and are optional in demo mode, so the demo also runs against ids that do not exist.
+ */
+export const load: PageLoad = async ({ parent, params, url, depends }) => {
+	depends('app:room-display');
+	const { api } = await parent();
+	const { conversation_id, workflow_step_id } = params;
+	const mode: RoomDisplayMode = url.searchParams.get('mode') === 'demo' ? 'demo' : 'live';
+	const boardParams = {
+		preset: url.searchParams.get('variant'),
+		layout: url.searchParams.get('layout'),
+		blocks: url.searchParams.get('blocks'),
+		latest: url.searchParams.get('latest'),
+		theme: url.searchParams.get('theme'),
+		scale: url.searchParams.get('scale'),
+		sizes: url.searchParams.get('sizes'),
+		slides: url.searchParams.get('slides')
+	};
+
+	const conversation = await tryCatchAsync(() =>
+		api.GetConversation({ params: { conversation_id } })
+	);
+	const workflows =
+		conversation.err === null
+			? await tryCatchAsync(() =>
+					api.ListConversationWorkflows({ params: { conversation_id } })
+				)
+			: null;
+	// Steps hang off workflows, so every workflow is listed and the step found by id. A
+	// conversation has one workflow in every case shipped today; this stays correct if
+	// it ever has two.
+	const steps =
+		workflows && workflows.err === null
+			? await tryCatchAsync(() =>
+					Promise.all(
+						workflows.ok.map((w) =>
+							api.ListConversationWorkflowSteps({
+								params: { conversation_id, workflow_id: w.id }
+							})
+						)
+					)
+				)
+			: null;
+	const step =
+		steps && steps.err === null
+			? steps.ok.flat().find((s) => s.id === workflow_step_id)
+			: undefined;
+
+	// A live conversation reads its published config; a draft one its preview config,
+	// so a rehearsal before launch shows the topic the room will see.
+	const toolConfig =
+		step && (conversation.err === null && conversation.ok.isLive ? step.toolConfig : null);
+	const config = toolConfig ?? step?.previewToolConfig ?? null;
+	const topic = config?.type === 'polis' ? config.topic : null;
+
+	return {
+		mode,
+		workflowStepId: workflow_step_id,
+		surface: parseSurface(url.searchParams.get('surface')),
+		question:
+			url.searchParams.get('question') ??
+			topic ??
+			step?.name ??
+			(mode === 'demo' ? 'What has to change for the Arctic over the next decade?' : 'Polis'),
+		joinUrl:
+			url.searchParams.get('join') ?? `${url.origin}${conversation_url(conversation_id)}`,
+		// The board is resolved twice: here without what the display remembered, which
+		// is what the server can know, and again on the client where localStorage is
+		// readable. The raw parameters travel so the second pass can tell an explicit
+		// URL from an absent one.
+		boardParams,
+		board: resolveBoard(boardParams),
+		rate: Number(url.searchParams.get('rate')) || 90
+	};
+};
