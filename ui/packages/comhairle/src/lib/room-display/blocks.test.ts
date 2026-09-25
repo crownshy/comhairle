@@ -3,10 +3,13 @@ import {
 	BOARD_PRESETS,
 	BOARD_TEMPLATES,
 	DEFAULT_PRESET,
+	MAX_BLOCK_SIZE,
 	MAX_SCALE,
+	MIN_BLOCK_SIZE,
 	MIN_SCALE,
 	blockScale,
 	blockSize,
+	clampBlockSize,
 	clampScale,
 	hasBlock,
 	applyPreset,
@@ -34,7 +37,7 @@ const stored: RoomBoard = {
 	latest: 'marquee',
 	theme: 'dark',
 	scale: 1.4,
-	sizes: { map: 'l' }
+	sizes: { map: 1.25 }
 };
 
 describe('parseBlocks', () => {
@@ -171,14 +174,19 @@ describe('resolveBoard', () => {
 	});
 
 	it('reads the scale and sizes off the URL', () => {
-		const board = resolveBoard({ scale: '1.5', sizes: 'question:l,statement:xxl' });
+		const board = resolveBoard({ scale: '1.5', sizes: 'question:1.25,statement:2' });
 		expect(board.scale).toBe(1.5);
-		expect(board.sizes).toEqual({ question: 'l', statement: 'xxl' });
+		expect(board.sizes).toEqual({ question: 1.25, statement: 2 });
+	});
+
+	it('still opens a link written against the old size names', () => {
+		const board = resolveBoard({ sizes: 'question:l,statement:xxl,qr:m' });
+		expect(board.sizes).toEqual({ question: 1.25, statement: 2 });
 	});
 
 	it('lets a scale or a size pin the board away from storage', () => {
 		expect(resolveBoard({ scale: '1.2', stored }).sizes).toEqual({});
-		expect(resolveBoard({ sizes: 'qr:xl', stored }).scale).toBe(1);
+		expect(resolveBoard({ sizes: 'qr:1.5', stored }).scale).toBe(1);
 	});
 
 	it('treats a scale that is not a number as noise', () => {
@@ -186,16 +194,19 @@ describe('resolveBoard', () => {
 		expect(resolveBoard({ scale: 'big' }).scale).toBe(1);
 	});
 
-	it('holds a remembered scale inside the range', () => {
+	it('holds a remembered scale and size inside the range', () => {
 		expect(resolveBoard({ stored: { ...stored, scale: 9 } }).scale).toBe(MAX_SCALE);
 		expect(resolveBoard({ stored: { ...stored, scale: 0.2 } }).scale).toBe(MIN_SCALE);
+		expect(resolveBoard({ stored: { ...stored, sizes: { map: 40 } } }).sizes).toEqual({
+			map: MAX_BLOCK_SIZE
+		});
 	});
 });
 
 describe('scale', () => {
 	it('snaps to the slider step and stays in range', () => {
 		expect(clampScale(1.4000000000000001)).toBe(1.4);
-		expect(clampScale(1.33)).toBe(1.35);
+		expect(clampScale(1.33)).toBe(1.3);
 		expect(clampScale(40)).toBe(MAX_SCALE);
 		expect(clampScale(0)).toBe(MIN_SCALE);
 	});
@@ -204,15 +215,20 @@ describe('scale', () => {
 		expect(parseScale(null)).toBeNull();
 		expect(parseScale('')).toBeNull();
 		expect(parseScale('big')).toBeNull();
-		expect(parseScale('1.25')).toBe(1.25);
+		expect(parseScale('1.2')).toBe(1.2);
 		// Out of range is still an instruction, just a clamped one.
 		expect(parseScale('7')).toBe(MAX_SCALE);
 	});
 
 	it('multiplies the wall scale by the block step', () => {
-		const board: RoomBoard = { ...presetBoard('console'), scale: 1.2, sizes: { map: 'xxl' } };
+		const board: RoomBoard = { ...presetBoard('console'), scale: 1.2, sizes: { map: 2 } };
 		expect(blockScale(board, 'map')).toBe(2.4);
 		expect(blockScale(board, 'question')).toBe(1.2);
+	});
+
+	it('lets a block shrink below normal', () => {
+		const board: RoomBoard = { ...presetBoard('console'), scale: 2, sizes: { qr: 0.5 } };
+		expect(blockScale(board, 'qr')).toBe(1);
 	});
 });
 
@@ -223,35 +239,48 @@ describe('block sizes', () => {
 	});
 
 	it('drops pairs it does not know rather than rejecting the list', () => {
-		expect(parseSizes('map:l,sparkline:xl,qr:huge,question')).toEqual({ map: 'l' });
+		expect(parseSizes('map:1.25,sparkline:2,qr:huge,question,strip:')).toEqual({
+			map: 1.25
+		});
 	});
 
 	it('serialises in canonical order without defaults', () => {
-		expect(serializeSizes({ qr: 'xl', question: 'l', map: 'm' })).toBe('question:l,qr:xl');
+		expect(serializeSizes({ qr: 1.5, question: 1.25, map: 1 })).toBe('question:1.25,qr:1.5');
 		expect(serializeSizes({})).toBe('');
 	});
 
 	it('round-trips through the URL', () => {
-		const sizes = { question: 'l', statement: 'xxl' } as const;
+		const sizes = { question: 1.25, statement: 2, qr: 0.5 };
 		expect(parseSizes(serializeSizes(sizes))).toEqual(sizes);
 	});
 
+	it('snaps to the stepper and stays in range', () => {
+		expect(clampBlockSize(1.3)).toBe(1.25);
+		expect(clampBlockSize(0.1)).toBe(MIN_BLOCK_SIZE);
+		expect(clampBlockSize(40)).toBe(MAX_BLOCK_SIZE);
+		expect(parseSizes('map:0')).toEqual({ map: MIN_BLOCK_SIZE });
+	});
+
 	it('is normal for any block that is not set', () => {
-		expect(blockSize(presetBoard('console'), 'map')).toBe('m');
-		expect(blockSize(stored, 'map')).toBe('l');
+		expect(blockSize(presetBoard('console'), 'map')).toBe(1);
+		expect(blockSize(stored, 'map')).toBe(1.25);
 	});
 
 	it('drops the entry when a block goes back to normal', () => {
-		const grown = setBlockSize(presetBoard('console'), 'strip', 'xl');
-		expect(grown.sizes).toEqual({ strip: 'xl' });
-		expect(setBlockSize(grown, 'strip', 'm').sizes).toEqual({});
+		const grown = setBlockSize(presetBoard('console'), 'strip', 1.5);
+		expect(grown.sizes).toEqual({ strip: 1.5 });
+		expect(setBlockSize(grown, 'strip', 1).sizes).toEqual({});
+	});
+
+	it('goes below normal as well as above', () => {
+		expect(setBlockSize(presetBoard('console'), 'qr', 0.5).sizes).toEqual({ qr: 0.5 });
 	});
 
 	it('leaves the rest of the board alone', () => {
-		const sized = setBlockSize(stored, 'qr', 'xxl');
+		const sized = setBlockSize(stored, 'qr', 2);
 		expect(sized.blocks).toEqual(stored.blocks);
 		expect(sized.scale).toBe(stored.scale);
-		expect(sized.sizes).toEqual({ map: 'l', qr: 'xxl' });
+		expect(sized.sizes).toEqual({ map: 1.25, qr: 2 });
 	});
 });
 
@@ -304,7 +333,9 @@ describe('isRoomBoard', () => {
 		).toBe(false);
 		expect(isRoomBoard({ ...stored, scale: 'big' })).toBe(false);
 		expect(isRoomBoard({ ...stored, sizes: { map: 'huge' } })).toBe(false);
-		expect(isRoomBoard({ ...stored, sizes: { sparkline: 'l' } })).toBe(false);
+		expect(isRoomBoard({ ...stored, sizes: { sparkline: 1.25 } })).toBe(false);
+		// A board remembered while sizes were still names. Rebuilt rather than translated.
+		expect(isRoomBoard({ ...stored, sizes: { map: 'l' } })).toBe(false);
 		expect(isRoomBoard({ ...stored, sizes: ['map'] })).toBe(false);
 	});
 });
@@ -324,7 +355,7 @@ describe('templates', () => {
 	it('stops naming a template once the arrangement is touched by hand', () => {
 		expect(matchingPreset(toggleBlock(presetBoard('console'), 'qr'))).toBeNull();
 		expect(matchingPreset({ ...presetBoard('console'), latest: 'marquee' })).toBeNull();
-		expect(matchingPreset(setBlockSize(presetBoard('wall'), 'map', 'xl'))).toBeNull();
+		expect(matchingPreset(setBlockSize(presetBoard('wall'), 'map', 1.5))).toBeNull();
 	});
 
 	it('still names the template when only the room has changed', () => {

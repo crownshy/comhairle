@@ -36,7 +36,6 @@
 		serializeSizes,
 		setBlockSize,
 		toggleBlock,
-		type BlockSize,
 		type BoardPreset,
 		type LatestStyle,
 		type RoomBlock,
@@ -147,7 +146,7 @@
 		applyBoard({ ...board, scale });
 	}
 
-	function onSetBlockSize(block: RoomBlock, size: BlockSize) {
+	function onSetBlockSize(block: RoomBlock, size: number) {
 		applyBoard(setBlockSize(board, block, size));
 	}
 
