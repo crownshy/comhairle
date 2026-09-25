@@ -19,10 +19,13 @@
 	- Picking an opinion group (or "Consensus statements") swaps the map out for that
 	  group's key statements with vote bars. Picking it again brings the map back.
 
-	The console collapses, because on a real big screen it is not there at all: the two
-	surfaces are one page here so the pair can be judged in one screenshot. Two real
-	windows would need to share focus state, which is a build question, not a design
-	one.
+	The two surfaces are one page by default so the pair can be judged in one
+	screenshot, and the console collapses so the wall can be judged on its own. For a
+	real room each half opens in its own window (`?surface=wall` on the projector,
+	`?surface=console` on the laptop) and the two stay in step over a channel
+	(surfaces.ts): what the console focuses, the wall shows, and a block or size
+	changed in either lands on both. The state itself lives in +page.svelte, which
+	owns the wire; this component only reads it and asks for changes.
 
 	Every region is a block that can be switched off (`blocks.ts`). With every console
 	block off the panel goes away by itself, which is the closest this layout gets to
@@ -38,6 +41,14 @@
 	import { presentByGroup, voteBarsFor } from '$lib/room-display/liveVotes';
 	import { groupColor } from '$lib/room-display/opinionMap';
 	import { hasBlock, type RoomBoard, blockScale } from '$lib/room-display/blocks';
+	import {
+		SURFACE_WINDOW_NAMES,
+		surfaceHref,
+		type ConsoleState,
+		type RoomSurface,
+		type WallView
+	} from '$lib/room-display/surfaces';
+	import { PanelRight } from '@lucide/svelte';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import OpinionMap from '$lib/room-display/OpinionMap.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -52,16 +63,39 @@
 		question: string;
 		joinUrl: string;
 		board: RoomBoard;
+		/** Which half this window is. `both` is the one-page prototype. */
+		surface: RoomSurface;
+		console: ConsoleState;
+		onSetConsole: (next: ConsoleState) => void;
+		onSetSurface: (next: RoomSurface) => void;
 	};
 
-	let { source, question, joinUrl, board }: Props = $props();
+	let { source, question, joinUrl, board, surface, console, onSetConsole, onSetSurface }: Props =
+		$props();
 
-	/** What the wall's main area shows. The map unless the facilitator asks for a list. */
-	type WallView = { kind: 'map' } | { kind: 'group'; groupId: number } | { kind: 'consensus' };
-
-	let focusedTid = $state<number | null>(null);
-	let wallView = $state<WallView>({ kind: 'map' });
+	const focusedTid = $derived(console.focusedTid);
+	const wallView = $derived(console.wallView);
 	let consoleOpen = $state(true);
+
+	function focusStatement(tid: number | null) {
+		onSetConsole({ ...console, focusedTid: tid });
+	}
+
+	/**
+	 * The other half, in its own window. Named, so asking twice fronts the window that
+	 * is already open instead of stacking another. The browser may refuse to open one
+	 * (a kiosk profile, a popup blocker); then nothing happens and this page stays as
+	 * it was, which is the right outcome for a blocked popup.
+	 */
+	function openSurface(target: 'wall' | 'console') {
+		window.open(surfaceHref(window.location.href, target), SURFACE_WINDOW_NAMES[target]);
+	}
+
+	/** Send the console to its own window and let this one be the wall. */
+	function detachConsole() {
+		openSurface('console');
+		onSetSurface('wall');
+	}
 
 	const groupIds = $derived(source.groups.map((g) => g.group_id));
 	const clustered = $derived(source.stage === 'shaped' || source.stage === 'rich');
@@ -99,7 +133,7 @@
 
 	/** Toggles: picking what is already on the wall puts the map back. */
 	function showOnWall(view: WallView) {
-		wallView = isShowing(view) ? { kind: 'map' } : view;
+		onSetConsole({ ...console, wallView: isShowing(view) ? { kind: 'map' } : view });
 	}
 
 	// The wall's main area, same rule as the split layout: the map, or whatever the
@@ -112,142 +146,165 @@
 			hasBlock(board, 'marquee') ||
 			hasBlock(board, 'groups')
 	);
-	const showConsole = $derived(consoleOpen && hasConsoleBlocks);
+	const showWall = $derived(surface !== 'console');
+	const showConsole = $derived(surface !== 'wall' && consoleOpen && hasConsoleBlocks);
 </script>
 
 <div
-	class="grid min-h-0 gap-6 lg:h-full {showConsole ? 'lg:grid-cols-[1.6fr_1fr]' : 'grid-cols-1'}"
+	class="grid min-h-0 gap-6 lg:h-full {showWall && showConsole
+		? 'lg:grid-cols-[1.6fr_1fr]'
+		: 'grid-cols-1'}"
 >
-	<!-- Wall -->
-	<section
-		class="border-border relative flex min-h-0 flex-col gap-4 rounded-lg border p-6 lg:p-8"
-	>
-		<p class="text-muted-foreground shrink-0 text-base font-medium tracking-wide uppercase">
-			On the wall
-		</p>
-		{#if hasBlock(board, 'question')}
-			<SizedBlock scale={blockScale(board, 'question')}>
-				<h1
-					class="text-foreground max-w-5xl shrink-0 text-2xl leading-tight font-bold text-balance sm:text-3xl lg:text-5xl"
+	{#if showWall}
+		<!-- Wall. On its own window it is the whole screen, so no frame and no caption. -->
+		<section
+			class="relative flex min-h-0 flex-col gap-4 {surface === 'both'
+				? 'border-border rounded-lg border p-6 lg:p-8'
+				: 'p-2 lg:p-4'}"
+		>
+			{#if surface === 'both'}
+				<p
+					class="text-muted-foreground shrink-0 text-base font-medium tracking-wide uppercase"
 				>
-					{question}
-				</h1>
-			</SizedBlock>
-		{/if}
+					On the wall
+				</p>
+			{/if}
+			{#if hasBlock(board, 'question')}
+				<SizedBlock scale={blockScale(board, 'question')}>
+					<h1
+						class="text-foreground max-w-5xl shrink-0 text-2xl leading-tight font-bold text-balance sm:text-3xl lg:text-5xl"
+					>
+						{question}
+					</h1>
+				</SizedBlock>
+			{/if}
 
-		<!-- Right padding keeps everything clear of the QR corner, whatever the wall shows. -->
-		<div class="min-h-0 flex-1 pb-4 {hasBlock(board, 'qr') ? 'lg:pr-48' : ''}">
-			{#if !showWallMain}
-				<!-- Deliberately empty: every block that could fill this is switched off. -->
-			{:else if wallView.kind === 'map'}
-				<div class="flex min-h-0 flex-col gap-4 lg:h-full">
-					<SizedBlock scale={board.scale}>
-						<div
-							class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1"
-						>
-							<!--
+			<!-- Right padding keeps everything clear of the QR corner, whatever the wall shows. -->
+			<div class="min-h-0 flex-1 pb-4 {hasBlock(board, 'qr') ? 'lg:pr-48' : ''}">
+				{#if !showWallMain}
+					<!-- Deliberately empty: every block that could fill this is switched off. -->
+				{:else if wallView.kind === 'map'}
+					<div class="flex min-h-0 flex-col gap-4 lg:h-full">
+						<SizedBlock scale={board.scale}>
+							<div
+								class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1"
+							>
+								<!--
 							An apportioned matrix says nothing about how often one person voted,
 							so a placed participant counts as settled: Polis only gives someone a
 							position once they have voted enough to have one.
 						-->
-							<OpinionMap
-								nodes={source.state.nodes}
-								votesByTid={source.state.votesByTid}
-								{focusedTid}
-								settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
-								dotScale={blockScale(board, 'map')}
-								{groupIds}
-							/>
-						</div>
-					</SizedBlock>
-					{#if hasBlock(board, 'statement')}
-						<SizedBlock scale={blockScale(board, 'statement')}>
-							<!-- Fixed minimum height, keyed to replay the fade. -->
-							<div class="flex min-h-32 shrink-0 flex-col justify-center gap-3">
-								{#if focused}
-									{#key focused.tid}
-										<p
-											class="text-foreground fade-in text-xl leading-snug font-medium text-balance sm:text-3xl lg:text-4xl"
-										>
-											{focused.text}
-										</p>
-										<!-- The dots round, so the exact split is spelled out beside them. -->
-										{#if source.voteMatrix === 'apportioned'}
-											{@const bars = voteBarsFor(source, focused)}
-											<div
-												class="fade-in grid max-w-5xl gap-8"
-												style="grid-template-columns: repeat({1 +
-													bars.groups.length}, minmax(0, 1fr));"
-											>
-												<RoomVoteBar {...bars.overall} />
-												{#each bars.groups as bar (bar.label)}
-													<RoomVoteBar {...bar} />
-												{/each}
-											</div>
-										{/if}
-									{/key}
-								{:else}
-									<p
-										class="text-muted-foreground text-base sm:text-2xl lg:text-3xl"
-									>
-										Every dot is a person. Pick a statement on the console to
-										see how the room splits on it.
-									</p>
-								{/if}
+								<OpinionMap
+									nodes={source.state.nodes}
+									votesByTid={source.state.votesByTid}
+									{focusedTid}
+									settleVotes={source.voteMatrix === 'per-participant' ? 6 : 0}
+									dotScale={blockScale(board, 'map')}
+									{groupIds}
+								/>
 							</div>
 						</SizedBlock>
-					{/if}
-				</div>
-			{:else if wallView.kind === 'group'}
-				<SizedBlock scale={blockScale(board, 'statement')}>
-					<WallStatements
-						title="What Group {groupLabel(wallView.groupId)} thinks"
-						statements={groupStatements(wallView.groupId)}
-						{source}
-						empty="Nothing sets this group apart yet."
-					/>
-				</SizedBlock>
-			{:else}
-				<SizedBlock scale={blockScale(board, 'statement')}>
-					<WallStatements
-						title="What the room agrees on"
-						statements={consensusStatements}
-						{source}
-						empty="Not enough votes to call this yet."
-					/>
-				</SizedBlock>
-			{/if}
-		</div>
+						{#if hasBlock(board, 'statement')}
+							<SizedBlock scale={blockScale(board, 'statement')}>
+								<!-- Fixed minimum height, keyed to replay the fade. -->
+								<div class="flex min-h-32 shrink-0 flex-col justify-center gap-3">
+									{#if focused}
+										{#key focused.tid}
+											<p
+												class="text-foreground fade-in text-xl leading-snug font-medium text-balance sm:text-3xl lg:text-4xl"
+											>
+												{focused.text}
+											</p>
+											<!-- The dots round, so the exact split is spelled out beside them. -->
+											{#if source.voteMatrix === 'apportioned'}
+												{@const bars = voteBarsFor(source, focused)}
+												<div
+													class="fade-in grid max-w-5xl gap-8"
+													style="grid-template-columns: repeat({1 +
+														bars.groups.length}, minmax(0, 1fr));"
+												>
+													<RoomVoteBar {...bars.overall} />
+													{#each bars.groups as bar (bar.label)}
+														<RoomVoteBar {...bar} />
+													{/each}
+												</div>
+											{/if}
+										{/key}
+									{:else}
+										<p
+											class="text-muted-foreground text-base sm:text-2xl lg:text-3xl"
+										>
+											Every dot is a person. Pick a statement on the console
+											to see how the room splits on it.
+										</p>
+									{/if}
+								</div>
+							</SizedBlock>
+						{/if}
+					</div>
+				{:else if wallView.kind === 'group'}
+					<SizedBlock scale={blockScale(board, 'statement')}>
+						<WallStatements
+							title="What Group {groupLabel(wallView.groupId)} thinks"
+							statements={groupStatements(wallView.groupId)}
+							{source}
+							empty="Nothing sets this group apart yet."
+						/>
+					</SizedBlock>
+				{:else}
+					<SizedBlock scale={blockScale(board, 'statement')}>
+						<WallStatements
+							title="What the room agrees on"
+							statements={consensusStatements}
+							{source}
+							empty="Not enough votes to call this yet."
+						/>
+					</SizedBlock>
+				{/if}
+			</div>
 
-		{#if hasBlock(board, 'qr')}
-			<SizedBlock scale={blockScale(board, 'qr')}>
-				<!--
+			{#if hasBlock(board, 'qr')}
+				<SizedBlock scale={blockScale(board, 'qr')}>
+					<!--
 				The QR code never leaves the wall. Someone arriving late has to be able to
 				join from whatever the screen happens to be showing, not only from the
 				recruitment screen the room saw at the start.
 			-->
-				<div
-					class="flex flex-col items-center gap-1 self-end lg:absolute lg:right-8 lg:bottom-8"
-				>
-					<div class="rounded-xl bg-white p-2">
-						<JoinQrCode value={joinUrl} class="size-20 sm:size-24 lg:size-32" />
+					<div
+						class="flex flex-col items-center gap-1 self-end lg:absolute lg:right-8 lg:bottom-8"
+					>
+						<div class="rounded-xl bg-white p-2">
+							<JoinQrCode value={joinUrl} class="size-20 sm:size-24 lg:size-32" />
+						</div>
+						<span class="text-muted-foreground text-base font-medium">Scan to join</span
+						>
 					</div>
-					<span class="text-muted-foreground text-base font-medium">Scan to join</span>
-				</div>
-			</SizedBlock>
-		{/if}
-	</section>
+				</SizedBlock>
+			{/if}
+		</section>
+	{/if}
 
 	<!-- Console -->
 	{#if showConsole}
 		<section class="bg-muted flex min-h-0 flex-col gap-5 rounded-lg p-5">
-			<div class="flex shrink-0 items-center justify-between">
+			<div class="flex shrink-0 flex-wrap items-center justify-between gap-2">
 				<p class="text-muted-foreground text-base font-medium tracking-wide uppercase">
 					On your laptop
 				</p>
-				<Button variant="ghost" size="sm" onclick={() => (consoleOpen = false)}>
-					Hide console
-				</Button>
+				<div class="flex gap-1">
+					{#if surface === 'both'}
+						<Button variant="ghost" size="sm" onclick={() => (consoleOpen = false)}>
+							Hide console
+						</Button>
+						<Button variant="ghost" size="sm" onclick={detachConsole}>
+							Open in new window
+						</Button>
+					{:else}
+						<Button variant="ghost" size="sm" onclick={() => openSurface('wall')}>
+							Open wall in new window
+						</Button>
+					{/if}
+				</div>
 			</div>
 
 			{#if hasBlock(board, 'counts')}
@@ -289,7 +346,7 @@
 							dotScale={blockScale(board, 'strip')}
 							{focusedTid}
 							interactive
-							onfocusstatement={(tid) => (focusedTid = tid)}
+							onfocusstatement={focusStatement}
 						/>
 					</div>
 
@@ -394,6 +451,21 @@
 				</SizedBlock>
 			{/if}
 		</section>
+	{:else if surface === 'wall'}
+		<!--
+			The projector's only control: front the laptop's console window, or open it if
+			it is not there. Faint for the same reason the settings gear is: it is not part
+			of what the room reads.
+		-->
+		<button
+			type="button"
+			class="text-muted-foreground hover:text-foreground focus-visible:text-foreground fixed top-4 right-4 z-40 rounded-full p-2 opacity-30 transition-opacity hover:opacity-100 focus-visible:opacity-100"
+			aria-label="Open the console"
+			title="Open the console in its own window"
+			onclick={() => openSurface('console')}
+		>
+			<PanelRight class="size-6" />
+		</button>
 	{:else if hasConsoleBlocks}
 		<Button
 			variant="outline"
