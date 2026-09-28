@@ -7,6 +7,8 @@ export type CsvParseResult = {
 	 * the rest of the file into a single cell without otherwise looking wrong.
 	 */
 	problems: string[];
+	/** The delimiter the parser settled on, so a caller can put a split row back together. */
+	delimiter: string;
 };
 
 /**
@@ -36,7 +38,8 @@ export async function parseCsvRows(text: string): Promise<CsvParseResult> {
 			.filter((error) => error.code !== 'UndetectableDelimiter')
 			.map((error) =>
 				error.row === undefined ? error.message : `${error.message} (row ${error.row + 1})`
-			)
+			),
+		delimiter: parsed.meta.delimiter
 	};
 }
 

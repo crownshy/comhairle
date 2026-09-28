@@ -41,18 +41,37 @@ function isStatementHeading(value: string): boolean {
 }
 
 /**
+ * Rejoins the cells from the first to the last with content, trimmed. The untrimmed cells are
+ * joined so the space after a comma survives.
+ */
+function joinContent(cells: string[], delimiter: string): string {
+	const first = cells.findIndex((cell) => cell.trim());
+	if (first === -1) return '';
+	const last = cells.findLastIndex((cell) => cell.trim());
+	return cells
+		.slice(first, last + 1)
+		.join(delimiter)
+		.trim();
+}
+
+/**
  * Reads the statements out of a seed statement CSV.
  *
- * A one-column file gives one statement per row, taken from the first cell that has anything
- * in it. A file exported from a spreadsheet arrives padded: every row carries the column count
- * of the widest row, so a one-column file reads `text,,,,,,` and a blank line reads `,,,,,,`.
- * Excel hides that, which is why the padding reaches us at all. parseCsvRows drops the rows
- * that are all padding; taking the first cell with content in it drops the rest.
+ * A one-column file gives one statement per row. A file exported from a spreadsheet arrives
+ * padded: every row carries the column count of the widest row, so a one-column file reads
+ * `text,,,,,,` and a blank line reads `,,,,,,`. Excel hides that, which is why the padding
+ * reaches us at all. parseCsvRows drops the rows that are all padding, and the empty cells
+ * around the statement are dropped here. Whatever sits between the first and last cell with
+ * content is put back together, so a hand-written line with an unquoted comma in it stays
+ * one statement.
  *
- * A file with content in more than one column is read as having a header row, and the
- * statements come from one column: `column` when given, otherwise the first whose heading
- * names statements, otherwise the first with content. A multi-column file with no header row
- * loses its first row to the headings, which the preview shows.
+ * A file is read as multi-column only when it is rectangular (every row has the same number
+ * of cells, which a spreadsheet export always is) and more than one column has content.
+ * A hand-written file with a comma on some lines is ragged, so it stays one-column. A
+ * multi-column file is read as having a header row, and the statements come from one column:
+ * `column` when given, otherwise the first whose heading names statements, otherwise the
+ * first with content. A multi-column file with no header row loses its first row to the
+ * headings, which the preview shows.
  *
  * @param text the raw file contents, byte order mark and all
  * @param column index of the column to read, from a previous parse's `columns`
@@ -66,8 +85,9 @@ export async function parseSeedCsv(text: string, column?: number): Promise<Parse
 	const populated = Array.from({ length: width }, (_, index) => index).filter((index) =>
 		rows.some((cells) => Boolean(cells[index]))
 	);
+	const rectangular = rows.every((cells) => cells.length === width);
 
-	if (populated.length > 1) {
+	if (rows.length > 1 && rectangular && populated.length > 1) {
 		const headings = rows[0];
 		const columns = populated.map((index) => ({
 			index,
@@ -91,7 +111,7 @@ export async function parseSeedCsv(text: string, column?: number): Promise<Parse
 		};
 	}
 
-	const values = rows.map((cells) => cells.find(Boolean) ?? '').filter(Boolean);
+	const values = parsed.rows.map((cells) => joinContent(cells, parsed.delimiter)).filter(Boolean);
 	const first = values[0] ?? '';
 	const header = isStatementHeading(first) ? first : null;
 

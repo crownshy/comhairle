@@ -74,6 +74,41 @@ describe('parseSeedCsv', () => {
 		expect(parsed.statements).toEqual(['A statement']);
 	});
 
+	// A hand-written file: one statement per line, commas unquoted. The comma lines split
+	// into more cells than their neighbours, which must not read as a multi-column file.
+	it('keeps an unquoted comma inside a hand-written statement', async () => {
+		const file = [
+			'We should act now, not later',
+			'Cycling is safe enough',
+			'Buses, trains and trams need money'
+		].join('\n');
+		const parsed = await parseSeedCsv(file);
+
+		expect(parsed.statements).toEqual([
+			'We should act now, not later',
+			'Cycling is safe enough',
+			'Buses, trains and trams need money'
+		]);
+		expect(parsed.columns).toEqual([]);
+		expect(parsed.header).toBeNull();
+	});
+
+	it('keeps an unquoted comma in a statement padded with trailing columns', async () => {
+		const parsed = await parseSeedCsv(
+			'Buses, trains and trams need money,,,,\nCycling is fine'
+		);
+		expect(parsed.statements).toEqual([
+			'Buses, trains and trams need money',
+			'Cycling is fine'
+		]);
+	});
+
+	it('reads a one-line file with a comma as one statement', async () => {
+		const parsed = await parseSeedCsv('We should act now, not later');
+		expect(parsed.statements).toEqual(['We should act now, not later']);
+		expect(parsed.columns).toEqual([]);
+	});
+
 	it('reads a file with no statements as empty', async () => {
 		expect((await parseSeedCsv(',,,,,,\n\n,,')).statements).toEqual([]);
 
