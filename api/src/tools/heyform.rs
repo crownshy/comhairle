@@ -21,10 +21,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models;
 use crate::routes::auth::extract::RequiredAdminUser;
+use crate::{ComhairleState, required_auth};
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
@@ -295,53 +295,76 @@ impl ToolImpl for HeyFormTool {
         Ok(())
     }
 
-    fn routes(
-        _keycloak_auth_instance: Arc<KeycloakAuthInstance>,
-    ) -> ApiRouter<Arc<ComhairleState>> {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/form",
-                get_with(form, |op| {
-                    op.id("HeyFormGetForm")
-                        .tag("Tools")
-                        .summary("Get HeyForm form for a workflow step")
-                        .description("Fetches the form for the HeyForm tool attached to a workflow step")
-                        .response::<200, Json<Form>>()
-                }),
+                required_auth(
+                    get_with(form, |op| {
+                        op.id("HeyFormGetForm")
+                            .tag("Tools")
+                            .summary("Get HeyForm form for a workflow step")
+                            .description(
+                                "Fetches the form for the HeyForm tool attached \
+                                to a workflow step",
+                            )
+                            .response::<200, Json<Form>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/form_report",
-                get_with(form_report, |op| {
-                    op.id("HeyFormGetFormReport")
-                        .tag("Tools")
-                        .summary("Get HeyForm report for a workflow step")
-                        .description("Fetches the form report for the HeyForm tool attached to a workflow step")
-                        .response::<200, Json<FormReport>>()
-                }),
+                required_auth(
+                    get_with(form_report, |op| {
+                        op.id("HeyFormGetFormReport")
+                            .tag("Tools")
+                            .summary("Get HeyForm report for a workflow step")
+                            .description(
+                                "Fetches the form report for the HeyForm tool \
+                            attached to a workflow step",
+                            )
+                            .response::<200, Json<FormReport>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/submissions",
-                get_with(submissions, |op| {
-                    op.id("HeyFormGetSubmissions")
-                        .tag("Tools")
-                        .summary("Get HeyForm submissions for a workflow step")
-                        .description("Fetches the form submissions for the HeyForm tool attached to a workflow step")
-                        .response::<200, Json<Submissions>>()
-                }),
+                required_auth(
+                    get_with(submissions, |op| {
+                        op.id("HeyFormGetSubmissions")
+                            .tag("Tools")
+                            .summary("Get HeyForm submissions for a workflow step")
+                            .description(
+                                "Fetches the form submissions for the HeyForm tool \
+                            attached to a workflow step",
+                            )
+                            .response::<200, Json<Submissions>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/insights",
-                get_with(insights, |op| {
-                    op.id("HeyFormGetInsights")
-                        .tag("Tools")
-                        .summary("Get labelled survey insights for a workflow step")
-                        .description(
-                            "Combines the HeyForm form definition with its aggregate report to \
+                required_auth(
+                    get_with(insights, |op| {
+                        op.id("HeyFormGetInsights")
+                            .tag("Tools")
+                            .summary("Get labelled survey insights for a workflow step")
+                            .description(
+                                "Combines the HeyForm form definition with its aggregate report to \
                              produce a per-question breakdown with human-readable question titles \
                              and choice labels resolved from the form schema.",
-                        )
-                        .response::<200, Json<SurveyInsights>>()
-                }),
+                            )
+                            .response::<200, Json<SurveyInsights>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
     }
 }

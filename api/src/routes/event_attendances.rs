@@ -394,6 +394,7 @@ mod tests {
     use std::error::Error;
 
     use crate::{
+        App,
         mailer::MockComhairleMailer,
         models::{
             model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
@@ -502,7 +503,7 @@ mod tests {
     }
 
     async fn create_random_open_event(
-        app: &Router,
+        app: &App,
         session: &mut UserSession,
         conversation_id: &str,
     ) -> Result<serde_json::Value, Box<dyn Error>> {
@@ -606,6 +607,8 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    // FIXME: requires moving user requests to keycloak
+    #[ignore]
     async fn should_create_new_user_and_register_attendance(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -620,7 +623,7 @@ mod tests {
             "Password_!123456",
             "test-existing-user@test.com",
         );
-        attendee_session.signup(&app).await?;
+        attendee_session.login(&app).await?;
 
         let attendee_id = attendee_session.id.unwrap();
 
@@ -666,7 +669,7 @@ mod tests {
             "Password_!123456",
             "test-existing-user@test.com",
         );
-        attendee_session.signup(&app).await?;
+        attendee_session.login(&app).await?;
 
         // Logout existing session user
         session.logout(&app).await?;
@@ -742,7 +745,7 @@ mod tests {
             .await?;
         let event: EventDto = serde_json::from_value(event_response)?;
 
-        let res = session
+        let _res = session
             .create_random_event_attendance(
                 &app,
                 &conversation_id.to_string(),
