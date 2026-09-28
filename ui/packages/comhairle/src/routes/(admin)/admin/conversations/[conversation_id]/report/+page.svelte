@@ -63,8 +63,46 @@
 		getTranslation: () => translations.body ?? undefined,
 		getPrimaryLocale: () => conversation.primaryLocale as Locale,
 		getSupportedLanguages: () => conversation.supportedLanguages as Locale[],
-		refresh: () => invalidate(key('admin/conversation/report'))
+		refresh: () => invalidate(key('admin/conversation/report')),
+		ensureTextContentId: upsertBodyTranslation
 	});
+
+	async function upsertBodyTranslation(content: string): Promise<string | undefined> {
+		const textContentRes = await tryCatchAsync(() =>
+			apiClient.CreateTextContent({
+				content,
+				format: 'rich',
+				primary_locale: conversation.primaryLocale
+			})
+		);
+
+		if (textContentRes.err !== null) {
+			notifications.send({
+				message: 'Failed to create translatable content',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		const updateReportRes = await tryCatchAsync(() =>
+			apiClient.UpdateReport(
+				{
+					body: textContentRes.ok.id
+				},
+				{ params: { conversation_id: conversation.id } }
+			)
+		);
+
+		if (updateReportRes.err !== null) {
+			notifications.send({
+				message: 'Failed to update report',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		return textContentRes.ok.id;
+	}
 
 	async function createFeedback() {}
 
@@ -84,7 +122,6 @@
 		notifications.send({ message: 'Impact Saved', priority: 'INFO' });
 	}
 
-	console.log('data: ', data);
 </script>
 
 <svelte:head>
