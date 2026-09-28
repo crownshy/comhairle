@@ -3,8 +3,8 @@
 ## Where it lives
 
 `/conversations/<conversation_id>/room-display/<workflow_step_id>`, public and
-chrome-free (the `(public)` layout drops the nav and footer for any `room-display`
-path). Linked from the step's admin Insights tab. Two sources behind one display:
+chrome-free (the `(public)` layout drops the nav and footer for this route).
+Linked from the step's admin Insights tab. Two sources behind one display:
 
 - default: **live**. Polls the step's `PolisGetReportData` every few seconds
   (`liveSource.svelte.ts`). Participants come with a PCA position and a group id, so

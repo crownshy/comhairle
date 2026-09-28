@@ -13,7 +13,10 @@
 	// A Room display is projected in a room, so it renders no site chrome at all and
 	// fills the viewport: a NavBar and Footer would both steal space from an eight-metre
 	// read and shift the layout as the page settles. See CONTEXT.md, "Room display".
-	const isRoomDisplay = $derived(page.url.pathname.includes('room-display'));
+	const isRoomDisplay = $derived(
+		page.route.id ===
+			'/(public)/conversations/[conversation_id]/room-display/[workflow_step_id]'
+	);
 
 	let isAdmin = $derived(
 		data.userRoles
