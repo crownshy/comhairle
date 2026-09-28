@@ -217,7 +217,7 @@
 									{#if focused}
 										{#key focused.tid}
 											<p
-												class="text-foreground fade-in text-xl leading-snug font-medium text-balance sm:text-3xl lg:text-4xl"
+												class="text-foreground animate-in fade-in-0 text-xl leading-snug font-medium text-balance duration-400 motion-reduce:animate-none sm:text-3xl lg:text-4xl"
 											>
 												{focused.text}
 											</p>
@@ -225,7 +225,7 @@
 											{#if source.voteMatrix === 'apportioned'}
 												{@const bars = voteBarsFor(source, focused)}
 												<div
-													class="fade-in grid max-w-5xl gap-8"
+													class="animate-in fade-in-0 grid max-w-5xl gap-8 duration-400 motion-reduce:animate-none"
 													style="grid-template-columns: repeat({1 +
 														bars.groups.length}, minmax(0, 1fr));"
 												>
@@ -388,7 +388,7 @@
 								{#if focused}
 									{#key focused.tid}
 										<p
-											class="text-foreground fade-in text-base leading-snug font-medium sm:text-xl lg:text-2xl"
+											class="text-foreground animate-in fade-in-0 text-base leading-snug font-medium duration-400 motion-reduce:animate-none sm:text-xl lg:text-2xl"
 										>
 											{focused.text}
 										</p>
@@ -506,21 +506,3 @@
 		</Button>
 	{/if}
 </div>
-
-<style>
-	.fade-in {
-		animation: fade-in 400ms ease both;
-	}
-
-	@keyframes fade-in {
-		from {
-			opacity: 0;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.fade-in {
-			animation: none;
-		}
-	}
-</style>

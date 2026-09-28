@@ -91,10 +91,8 @@
 	onDestroy(() => source.destroy());
 
 	// Starts at what the server could work out, which is the URL and nothing else.
-	// svelte-ignore state_referenced_locally
-	let board = $state<RoomBoard>(data.board);
-	// svelte-ignore state_referenced_locally
-	let surface = $state<RoomSurface>(data.surface);
+	let board = $derived<RoomBoard>(data.board);
+	let surface = $derived<RoomSurface>(data.surface);
 
 	// What the console has decided and the wall shows: the focused statement and the
 	// wall's main view. Held here rather than in the console layout because it has to

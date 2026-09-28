@@ -290,7 +290,7 @@
 								{#if focused}
 									{#key focused.tid}
 										<p
-											class="text-card-foreground fade-in text-xl leading-snug font-medium text-balance sm:text-2xl lg:text-3xl"
+											class="text-card-foreground animate-in fade-in-0 text-xl leading-snug font-medium text-balance duration-400 motion-reduce:animate-none sm:text-2xl lg:text-3xl"
 										>
 											{focused.text}
 										</p>
@@ -298,7 +298,7 @@
 										{#if source.voteMatrix === 'apportioned'}
 											{@const bars = voteBarsFor(source, focused)}
 											<div
-												class="fade-in grid gap-x-6 gap-y-3"
+												class="animate-in fade-in-0 grid gap-x-6 gap-y-3 duration-400 motion-reduce:animate-none"
 												style="grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));"
 											>
 												<RoomVoteBar {...bars.overall} />
@@ -426,21 +426,3 @@
 		</SizedBlock>
 	{/if}
 </div>
-
-<style>
-	.fade-in {
-		animation: fade-in 400ms ease both;
-	}
-
-	@keyframes fade-in {
-		from {
-			opacity: 0;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.fade-in {
-			animation: none;
-		}
-	}
-</style>

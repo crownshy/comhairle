@@ -1,6 +1,7 @@
 import type { PageLoad } from './$types';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { conversation_url } from '$lib/urls';
+import { key } from '$lib/utils/invalidationKey';
 import { resolveBoard } from '$lib/room-display/blocks';
 import { parseSurface } from '$lib/room-display/surfaces';
 
@@ -32,7 +33,7 @@ export type RoomDisplayMode = 'live' | 'demo';
  * and are optional in demo mode, so the demo also runs against ids that do not exist.
  */
 export const load: PageLoad = async ({ parent, params, url, depends }) => {
-	depends('app:room-display');
+	depends(key('public/conversation'), key('public/workflow-steps'));
 	const { api } = await parent();
 	const { conversation_id, workflow_step_id } = params;
 	const mode: RoomDisplayMode = url.searchParams.get('mode') === 'demo' ? 'demo' : 'live';
