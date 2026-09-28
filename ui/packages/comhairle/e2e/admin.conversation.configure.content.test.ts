@@ -3,6 +3,7 @@ import Conversation from './utils/navigation/Conversation';
 import Textboxes from './utils/inputs/Textboxes';
 import { login } from './utils/auth';
 import CollapisbleRichFields from './utils/inputs/CollapsibleRichField';
+import { testWithRefresh } from './utils';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -31,6 +32,8 @@ test('Configure/Content page', async ({ page, cleanup }) => {
 	const textboxes = Textboxes.new([['cta', 'Call to action']], { page, cleanup });
 	await textboxes.write('cta', '');
 
-	await collapsibleRichFields.expect();
-	await textboxes.expect();
+	await testWithRefresh(page, async () => {
+		await collapsibleRichFields.expect();
+		await textboxes.expect();
+	});
 });

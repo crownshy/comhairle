@@ -9,9 +9,10 @@
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import { passwordResetUpdateFormSchema } from '$lib/profile/schema';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { data }: PageProps = $props();
 
@@ -36,7 +37,9 @@
 						confirm_password: confirmPassword,
 						token: data.token
 					});
-					await goto(resolve('/auth/password-reset/success'), { invalidateAll: true });
+					await goto(resolve('/auth/password-reset/success'), {
+						invalidate: [key('user')]
+					});
 				} catch (e) {
 					responseMessage = e.response?.data?.err || m.something_went_wrong();
 				}

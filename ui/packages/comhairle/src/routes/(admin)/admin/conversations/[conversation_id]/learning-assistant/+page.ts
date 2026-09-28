@@ -2,15 +2,18 @@ import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type { LoadEvent } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import type { ChatInstructionsDto } from '@crownshy/api-client/api';
+import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ depends, params, parent }: LoadEvent) => {
-	const { api } = await parent();
+	depends(key('admin/knowledge-base/documents'));
 	depends('knowledge-base:documents');
 
 	const { conversation_id } = params;
 	if (!conversation_id) {
 		return;
 	}
+
+	const { api } = await parent();
 
 	const docsResponse = await tryCatchAsync(() =>
 		api.ListDocuments({

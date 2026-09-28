@@ -62,7 +62,7 @@ const Conversation = {
 		switch (tab) {
 			case 'Configure':
 			case 'Recruit':
-				await page.getByRole('link', { name: subtab as string }).click();
+				await page.getByRole('tab', { name: subtab }).click();
 				return;
 			case 'Process Design':
 				// TODO:Add if statements here

@@ -2114,11 +2114,15 @@ export const Translation5 = z
   .passthrough();
 export type Translation5 = z.infer<typeof Translation5>;
 export const ReportTranslations = z
-  .object({ summary: Translation5 })
+  .object({
+    body: z.union([Translation5, z.null()]).optional(),
+    summary: Translation5,
+  })
   .passthrough();
 export type ReportTranslations = z.infer<typeof ReportTranslations>;
 export const ReportWithTranslations = z
   .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -2132,6 +2136,7 @@ export const ReportWithTranslations = z
 export type ReportWithTranslations = z.infer<typeof ReportWithTranslations>;
 export const LocalizedReportDto = z
   .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -2148,6 +2153,7 @@ export const FullReportDto = z.union([
 export type FullReportDto = z.infer<typeof FullReportDto>;
 export const PartialReport = z
   .object({
+    body: z.union([z.string(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     section_configs: z.union([ReportSectionConfigs, z.null()]),
@@ -2157,6 +2163,7 @@ export const PartialReport = z
 export type PartialReport = z.infer<typeof PartialReport>;
 export const ReportDto = z
   .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),

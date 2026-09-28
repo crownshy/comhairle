@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import { page } from '$app/state';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
@@ -41,7 +42,7 @@
 	}
 
 	async function handleLabelSaved() {
-		await invalidateAll();
+		await invalidate(key('admin/conversation/invites'));
 	}
 
 	let openInvites = $derived(invites.filter((invite) => invite.inviteType == 'open'));
@@ -55,7 +56,7 @@
 	);
 
 	function emailInvitesSubmitted() {
-		invalidateAll();
+		invalidate(key('admin/conversation/invites'));
 	}
 </script>
 

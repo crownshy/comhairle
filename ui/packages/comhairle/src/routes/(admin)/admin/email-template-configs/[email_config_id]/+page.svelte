@@ -5,14 +5,15 @@
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import { jsonToHtml } from '$lib/utils/rich-text.js';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
+	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
 	import { LoaderCircle } from 'lucide-svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	const { data } = $props();
 	const { emailConfig, schema } = data;
@@ -76,7 +77,7 @@
 				message: 'Successfully updated custom email'
 			});
 
-			await invalidateAll();
+			await invalidate(key('admin/email-template-config'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -92,7 +93,9 @@
 				params: { email_config_id: emailConfig.id }
 			});
 
-			goto('/admin/email-template-configs', { invalidateAll: true });
+			goto('/admin/email-template-configs', {
+				invalidate: [key('admin/email-template-config')]
+			});
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -131,7 +134,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="text-4xl font-bold">Custom email: {snakeToSentenceCase(emailConfig.emailType)}</h1>
+<h1 class="text-4xl font-bold">Custom email: {snakeToStartCase(emailConfig.emailType)}</h1>
 
 <div class="flex justify-end gap-2">
 	<Button variant="destructive" type="button" onclick={() => (openDeleteModal = true)}
