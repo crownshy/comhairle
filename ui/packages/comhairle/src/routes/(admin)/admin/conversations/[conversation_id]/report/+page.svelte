@@ -56,8 +56,48 @@
 	const bodyTranslationSource = createTextContentSource({
 		getTranslation: () => translations.body ?? undefined,
 		getPrimaryLocale: () => conversation.primaryLocale as Locale,
-		getSupportedLanguages: () => conversation.supportedLanguages as Locale[]
+		getSupportedLanguages: () => conversation.supportedLanguages as Locale[],
+		ensureTextContentId: upsertBodyTranslation
 	});
+
+	async function upsertBodyTranslation(content: string) {
+		const textContentRes = await tryCatchAsync(() =>
+			apiClient.CreateTextContent({
+				content,
+				format: 'rich',
+				primary_locale: conversation.primaryLocale
+			})
+		);
+
+		if (textContentRes.err !== null) {
+			console.error(textContentRes.err);
+			notifications.send({
+				message: 'Failed to create translatable content',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		const updateReportRes = await tryCatchAsync(() =>
+			apiClient.UpdateReport(
+				{
+					body: textContentRes.ok.id
+				},
+				{ params: { conversation_id: conversation.id } }
+			)
+		);
+
+		if (updateReportRes.err !== null) {
+			console.error(updateReportRes.err);
+			notifications.send({
+				message: 'Failed to update conversation',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		await invalidate(key('admin/conversation/report'));
+	}
 
 	async function createFeedback() {}
 
