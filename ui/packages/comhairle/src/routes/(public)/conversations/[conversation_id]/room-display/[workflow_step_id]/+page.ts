@@ -2,8 +2,8 @@ import type { PageLoad } from './$types';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { conversation_url } from '$lib/urls';
 import { key } from '$lib/utils/invalidationKey';
-import { resolveBoard } from '$lib/room-display/blocks';
-import { parseSurface } from '$lib/room-display/surfaces';
+import { resolveBoard } from './blocks';
+import { parseSurface } from './surfaces';
 
 export type RoomDisplayMode = 'live' | 'demo';
 

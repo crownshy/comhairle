@@ -6,7 +6,7 @@
 	Does not bind the arrow keys: the Deck is driven by them, and a clicker sends them.
 -->
 <script lang="ts">
-	import type { RoomDisplayDriver } from '$lib/room-display/driver.svelte';
+	import type { RoomDisplayDriver } from './driver.svelte';
 	import { Button } from '$lib/components/ui/button';
 
 	type Props = {

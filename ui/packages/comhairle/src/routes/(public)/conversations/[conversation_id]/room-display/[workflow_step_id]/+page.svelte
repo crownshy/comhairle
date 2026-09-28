@@ -21,14 +21,14 @@
 	import { dev } from '$app/environment';
 	import { replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';
-	import type { RoomDisplaySource } from '$lib/room-display/source';
-	import { createRoomDisplayDriver } from '$lib/room-display/driver.svelte';
-	import { createLiveRoomDisplaySource } from '$lib/room-display/liveSource.svelte';
-	import { buildScenario } from '$lib/room-display/buildScenario';
-	import { PLACEHOLDER_STATEMENTS } from '$lib/room-display/placeholderStatements';
-	import { buildPlaceholderComments } from '$lib/room-display/placeholderReport';
-	import { nextUnlock, describeUnlock } from '$lib/room-display/revealStage';
-	import { participantCount } from '$lib/room-display/scenario';
+	import type { RoomDisplaySource } from './source';
+	import { createRoomDisplayDriver } from './driver.svelte';
+	import { createLiveRoomDisplaySource } from './liveSource.svelte';
+	import { buildScenario } from './buildScenario';
+	import { PLACEHOLDER_STATEMENTS } from './placeholderStatements';
+	import { buildPlaceholderComments } from './placeholderReport';
+	import { nextUnlock, describeUnlock } from './revealStage';
+	import { participantCount } from './scenario';
 	import {
 		applyPreset,
 		matchingPreset,
@@ -44,7 +44,7 @@
 		type RoomLayout,
 		type RoomTheme,
 		type SlideStyle
-	} from '$lib/room-display/blocks';
+	} from './blocks';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import {
 		INITIAL_CONSOLE_STATE,
@@ -52,9 +52,9 @@
 		surfaceHref,
 		type ConsoleState,
 		type RoomSurface
-	} from '$lib/room-display/surfaces';
-	import { readStoredBoard, writeStoredBoard } from '$lib/room-display/storedBoard';
-	import WarmingScreen from '$lib/room-display/WarmingScreen.svelte';
+	} from './surfaces';
+	import { readStoredBoard, writeStoredBoard } from './storedBoard';
+	import WarmingScreen from './WarmingScreen.svelte';
 	import PrototypeBar from './PrototypeBar.svelte';
 	import BoardSettings from './BoardSettings.svelte';
 	import SizedBlock from './SizedBlock.svelte';

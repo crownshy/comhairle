@@ -33,30 +33,25 @@
 	being the wall on its own.
 -->
 <script lang="ts">
-	import JoinQrCode from '$lib/room-display/JoinQrCode.svelte';
-	import type { RoomDisplaySource } from '$lib/room-display/source';
+	import JoinQrCode from './JoinQrCode.svelte';
+	import type { RoomDisplaySource } from './source';
 	import SizedBlock from './SizedBlock.svelte';
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
-	import { participantCount } from '$lib/room-display/scenario';
-	import { nextUnlock, describeUnlock } from '$lib/room-display/revealStage';
-	import { presentByGroup, voteBarsFor } from '$lib/room-display/liveVotes';
-	import { groupColor } from '$lib/room-display/opinionMap';
-	import {
-		hasBlock,
-		type RoomBoard,
-		blockScale,
-		stillLatestDirection
-	} from '$lib/room-display/blocks';
+	import { participantCount } from './scenario';
+	import { nextUnlock, describeUnlock } from './revealStage';
+	import { presentByGroup, voteBarsFor } from './liveVotes';
+	import { groupColor } from './opinionMap';
+	import { hasBlock, type RoomBoard, blockScale, stillLatestDirection } from './blocks';
 	import {
 		SURFACE_WINDOW_NAMES,
 		surfaceHref,
 		type ConsoleState,
 		type RoomSurface,
 		type WallView
-	} from '$lib/room-display/surfaces';
+	} from './surfaces';
 	import { PanelRight } from '@lucide/svelte';
 	import { groupLabel } from '$lib/tools/polis/report';
-	import OpinionMap from '$lib/room-display/OpinionMap.svelte';
+	import OpinionMap from './OpinionMap.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import StatementStrip from './StatementStrip.svelte';
 	import WallStatements from './WallStatements.svelte';

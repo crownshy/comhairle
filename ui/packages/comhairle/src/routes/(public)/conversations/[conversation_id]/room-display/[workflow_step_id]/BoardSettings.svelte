@@ -38,7 +38,7 @@
 		type RoomLayout,
 		type RoomTheme,
 		type SlideStyle
-	} from '$lib/room-display/blocks';
+	} from './blocks';
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Label } from '$lib/components/ui/label';

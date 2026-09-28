@@ -29,15 +29,15 @@
 	keeps its own place and hold, so holding on one does not freeze the other.
 -->
 <script lang="ts">
-	import type { RoomDisplaySource } from '$lib/room-display/source';
+	import type { RoomDisplaySource } from './source';
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
 	import SizedBlock from './SizedBlock.svelte';
-	import { DECK_SLIDES, hasBlock, type RoomBoard, blockScale } from '$lib/room-display/blocks';
-	import { rankIntent, DEFAULT_DWELL_MS } from '$lib/room-display/ambientFocus';
-	import { participantCount } from '$lib/room-display/scenario';
-	import { voteBarsFor } from '$lib/room-display/liveVotes';
-	import OpinionMap from '$lib/room-display/OpinionMap.svelte';
-	import WarmingScreen from '$lib/room-display/WarmingScreen.svelte';
+	import { DECK_SLIDES, hasBlock, type RoomBoard, blockScale } from './blocks';
+	import { rankIntent, DEFAULT_DWELL_MS } from './ambientFocus';
+	import { participantCount } from './scenario';
+	import { voteBarsFor } from './liveVotes';
+	import OpinionMap from './OpinionMap.svelte';
+	import WarmingScreen from './WarmingScreen.svelte';
 	import RoomVoteBar from './RoomVoteBar.svelte';
 
 	type Props = {
