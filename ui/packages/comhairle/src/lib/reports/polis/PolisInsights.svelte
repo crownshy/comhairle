@@ -15,14 +15,18 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
+	import type { Snippet } from 'svelte';
 
 	let {
 		reportData,
-		statementAux
+		statementAux,
+		actions
 	}: {
 		workflowStepId: string;
 		reportData: PolisReportData | null;
 		statementAux: PolisStatementAux[];
+		/** Extra page actions, shown beside Download CSV. */
+		actions?: Snippet;
 	} = $props();
 
 	// "aux" = PolisStatementAux: our supplementary per-statement record (themes,
@@ -153,6 +157,9 @@
 </script>
 
 {#if !report || !stats}
+	{#if actions}
+		<div class="flex justify-end pb-4">{@render actions()}</div>
+	{/if}
 	<div
 		class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 	>
@@ -185,10 +192,13 @@
 					subText="{avgVotesPerVoter.toFixed(1)} avg per voter"
 				/>
 			</div>
-			<Button size="sm" onclick={handleDownloadCsv}>
-				<Download class="size-4" />
-				Download CSV
-			</Button>
+			<div class="flex flex-wrap gap-2">
+				{@render actions?.()}
+				<Button size="sm" onclick={handleDownloadCsv}>
+					<Download class="size-4" />
+					Download CSV
+				</Button>
+			</div>
 		</div>
 
 		<!-- ===== Consensus continuum ===== -->
