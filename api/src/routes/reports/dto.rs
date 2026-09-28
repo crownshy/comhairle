@@ -21,6 +21,7 @@ pub struct ReportDto {
     pub is_public: bool,
     pub conversation_id: Uuid,
     pub summary: TextContentId,
+    pub body: Option<TextContentId>,
     pub section_configs: ReportSectionConfigs,
     pub created_at: DateTime<Utc>,
 }
@@ -32,6 +33,7 @@ impl From<Report> for ReportDto {
             is_public: r.is_public,
             conversation_id: r.conversation_id,
             summary: r.summary,
+            body: r.body,
             section_configs: r.section_configs,
             created_at: r.created_at,
         }
@@ -53,6 +55,7 @@ pub struct LocalizedReportDto {
     pub is_public: bool,
     pub conversation_id: Uuid,
     pub summary: String,
+    pub body: Option<String>,
     pub section_configs: ReportSectionConfigs,
     pub created_at: DateTime<Utc>,
 }
@@ -64,6 +67,7 @@ impl From<LocalizedReport> for LocalizedReportDto {
             is_public: r.is_public,
             conversation_id: r.conversation_id,
             summary: r.summary,
+            body: r.body,
             section_configs: r.section_configs,
             created_at: r.created_at,
         }

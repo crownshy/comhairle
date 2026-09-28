@@ -2125,11 +2125,15 @@ export const Translation5 = z
   .passthrough();
 export type Translation5 = z.infer<typeof Translation5>;
 export const ReportTranslations = z
-  .object({ summary: Translation5 })
+  .object({
+    body: z.union([Translation5, z.null()]).optional(),
+    summary: Translation5,
+  })
   .passthrough();
 export type ReportTranslations = z.infer<typeof ReportTranslations>;
 export const ReportWithTranslations = z
   .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -2143,6 +2147,7 @@ export const ReportWithTranslations = z
 export type ReportWithTranslations = z.infer<typeof ReportWithTranslations>;
 export const LocalizedReportDto = z
   .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -2159,6 +2164,7 @@ export const FullReportDto = z.union([
 export type FullReportDto = z.infer<typeof FullReportDto>;
 export const PartialReport = z
   .object({
+    body: z.union([z.string(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     section_configs: z.union([ReportSectionConfigs, z.null()]),
@@ -2168,6 +2174,7 @@ export const PartialReport = z
 export type PartialReport = z.infer<typeof PartialReport>;
 export const ReportDto = z
   .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -2455,6 +2462,8 @@ export const EventLocation = z
   })
   .passthrough();
 export type EventLocation = z.infer<typeof EventLocation>;
+export const SignupMode = z.enum(["invite", "open"]);
+export type SignupMode = z.infer<typeof SignupMode>;
 export const LocalizedEventDto = z
   .object({
     agenda: z.array(EventAgendaItem),
@@ -2470,7 +2479,7 @@ export const LocalizedEventDto = z
     location: z.union([EventLocation, z.null()]).optional(),
     metadata: z.unknown().optional(),
     name: z.string(),
-    signupMode: z.string(),
+    signupMode: SignupMode,
     startTime: z.string().datetime({ offset: true }),
     videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
@@ -2492,7 +2501,7 @@ export const CreateEvent = z
     end_time: z.string().datetime({ offset: true }),
     location: z.union([EventLocation, z.null()]).optional(),
     name: z.string(),
-    signup_mode: z.string(),
+    signup_mode: SignupMode,
     start_time: z.string().datetime({ offset: true }),
   })
   .passthrough();
@@ -2511,7 +2520,7 @@ export const EventDto = z
     location: z.union([EventLocation, z.null()]).optional(),
     metadata: z.unknown().optional(),
     name: z.string().uuid(),
-    signupMode: z.string(),
+    signupMode: SignupMode,
     startTime: z.string().datetime({ offset: true }),
     videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
@@ -2558,7 +2567,7 @@ export const EventWithTranslations = z
     location: z.union([EventLocation, z.null()]).optional(),
     metadata: z.unknown().optional(),
     name: z.string(),
-    signupMode: z.string(),
+    signupMode: SignupMode,
     startTime: z.string().datetime({ offset: true }),
     translations: EventTranslations,
     updatedAt: z.string().datetime({ offset: true }),
@@ -2583,7 +2592,7 @@ export const PartialEvent = z
     location: z.union([EventLocation, z.null()]),
     metadata: z.unknown(),
     name: z.union([z.string(), z.null()]),
-    signup_mode: z.union([z.string(), z.null()]),
+    signup_mode: z.union([SignupMode, z.null()]),
     start_time: z.union([z.string(), z.null()]),
   })
   .partial()
@@ -3533,6 +3542,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventAgendaItem,
   EventFormat,
   EventLocation,
+  SignupMode,
   LocalizedEventDto,
   PaginatedResults_for_LocalizedEventDto,
   CreateEvent,

@@ -21,7 +21,7 @@ use sea_query::{
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 /// Defines the type of authentication has been used to create
@@ -301,6 +301,40 @@ pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<Use
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
+}
+
+/// Gets a user by email if they exist or creates a new otp user from email if
+/// none found
+#[instrument(err(Debug), skip(db))]
+pub async fn get_or_create_user_by_email(
+    db: &PgPool,
+    email: &str,
+    client_ip: &str,
+    user_agent: Option<&str>,
+) -> Result<User, ComhairleError> {
+    if let Ok(existing) = get_user_by_email(email, db).await {
+        return Ok(existing);
+    }
+
+    let new_user = create_otp_user(
+        &OtpSignupRequest {
+            email: email.to_string(),
+            username: None,
+        },
+        db,
+    )
+    .await?;
+
+    // Best-effort: record the signup IP and browser signature for the
+    // freshly created account.
+    if let Err(error) = set_signup_metadata(&new_user.id, client_ip, user_agent, db).await {
+        warn!(
+            "Failed to record signup metadata for user {}: {error}",
+            new_user.id
+        );
+    }
+
+    Ok(new_user)
 }
 
 fn organization_admin_username(email: &str) -> String {

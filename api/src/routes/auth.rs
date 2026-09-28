@@ -38,7 +38,6 @@ use sha2::Sha256;
 use time::Duration;
 use tower::layer::util::Identity;
 use tower::util::Either;
-use tower::util::option_layer;
 use tower_governor::GovernorLayer;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::{instrument, warn};
@@ -46,7 +45,6 @@ use uuid::Uuid;
 
 use crate::auth_service::GetAuthorizationTokensResponse;
 use crate::error::ComhairleError;
-use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
     Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,

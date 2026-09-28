@@ -254,6 +254,9 @@ pub async fn build_router_and_spec(
     let credential_limit_layer =
         option_layer(auth_rate_limiter_if_enabled(enable_auth_rate_limiting));
 
+    #[cfg(not(test))]
+    let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
+
     let router = ApiRouter::<Arc<ComhairleState>>::new()
         .route("/health", axum::routing::get(health_check))
         .nest(
@@ -414,6 +417,14 @@ pub async fn build_router_and_spec(
             routes::demographics::router(keycloak_auth_instance.clone()),
         )
         .finish_api_with(&mut api, api_docs);
+
+    #[cfg(not(test))]
+    let router = router
+        .route(
+            "/metrics",
+            axum::routing::get(move || async move { metric_handle.render() }),
+        )
+        .layer(prometheus_layer);
 
     (router, api)
 }
