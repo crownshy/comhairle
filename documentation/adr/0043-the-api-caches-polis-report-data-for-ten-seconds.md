@@ -36,8 +36,9 @@ deployment but adds a hop and a serialisation step for no gain at this scale.
   `math_tick`, dropped after an hour idle. A refresh sends that tick; on 304 the memo is
   reused and only the comments list is refetched.
 
-The room display's poller also stops while its tab is hidden and refreshes on return, so
-an abandoned browser tab does not keep a poll warm.
+The room display (a separate change that builds on this one) also stops its poller while
+its tab is hidden and refreshes on return, so an abandoned browser tab does not keep a
+poll warm.
 
 ## Consequences
 
@@ -46,11 +47,12 @@ an abandoned browser tab does not keep a poll warm.
 - Report data can be up to ten seconds behind what Polis has, plus Polis's own math
   recompute lag. Admin Insights inherits that. Nothing on those pages is a live control,
   so nobody is acting on the staleness.
-- A Polis failure during a refresh is not cached. The next request retries. The room
+- A Polis failure during a refresh is not cached. The next request retries, and the
+  caller gets the status the failed fetch would have returned without the cache. The room
   display separately keeps its last good frame on a failed poll, as before.
 - The cache is per API process. If the API ever runs more than one replica, each holds
   its own copy and Polis sees one fetch per replica per window, which is still flat in
   screen count. Moving it to Redis is the change if that ever matters.
 - `math_tick` is Polis's public conditional-fetch mechanism, but a 304 before any memo
-  exists (a conversation with no math result yet) surfaces as an error, exactly as the
+  exists (a conversation with no math result yet) surfaces as a 500, exactly as the
   empty-body parse failure did before.

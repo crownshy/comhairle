@@ -97,16 +97,11 @@ pub trait WikiPollService: Send + Sync {
         auth_cookies: &str,
     ) -> Result<u32, WikiPollServiceError>;
 
-    /// Report data for a poll.
-    ///
-    /// `include_pending` mirrors the conversation's `strict_moderation` setting inverted:
-    /// with strict moderation off, Polis shows participants everything that has not been
-    /// rejected, so the report has to carry pending statements or the display and the
-    /// participant interface disagree about what is in the conversation.
+    /// Report data for a poll, limited to the statements `scope` admits.
     async fn get_report_data(
         &self,
         poll_id: &str,
-        include_pending: bool,
+        scope: ReportScope,
     ) -> Result<WikiPollReport, WikiPollServiceError>;
 
     async fn moderate_comment(
@@ -142,6 +137,27 @@ impl ModerationStatus {
 
     pub fn active(self) -> bool {
         matches!(self, ModerationStatus::Accepted)
+    }
+}
+
+/// Which statements a report covers. It should match what participants are shown, or the
+/// report and the voting interface disagree about what is in the conversation. Rejected
+/// statements are always left out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReportScope {
+    /// For polls that only show participants statements a moderator has accepted.
+    AcceptedOnly,
+    /// For polls that show participants everything a moderator has not rejected.
+    AcceptedAndPending,
+}
+
+impl ReportScope {
+    pub fn includes(self, status: ModerationStatus) -> bool {
+        match status {
+            ModerationStatus::Accepted => true,
+            ModerationStatus::Pending => self == ReportScope::AcceptedAndPending,
+            ModerationStatus::Rejected => false,
+        }
     }
 }
 

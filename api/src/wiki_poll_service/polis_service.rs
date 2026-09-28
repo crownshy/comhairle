@@ -19,14 +19,15 @@ use tracing::{info, instrument, warn};
 use crate::tools::polis::PolisError;
 use crate::wiki_poll_service::error::WikiPollServiceError;
 use crate::wiki_poll_service::{
-    ModerationStatus, PostedStatement, WikiPoll, WikiPollComment, WikiPollConfigUpdate,
-    WikiPollLogin, WikiPollService, WikiPollXid,
+    ModerationStatus, PostedStatement, ReportScope, WikiPoll, WikiPollComment,
+    WikiPollConfigUpdate, WikiPollLogin, WikiPollService, WikiPollXid,
 };
 
 // Raw Polis API response structures
 
 #[derive(Deserialize, Debug)]
 struct PolisCommentWithVoting {
+    /// Polis statement id (Polis calls statements comments; `tid` is its name for their id).
     tid: u32,
     txt: String,
     #[serde(default)]
@@ -40,6 +41,8 @@ struct PolisCommentWithVoting {
     moderation: f64,
 }
 
+/// The `math/pca2` response: Polis's opinion-group analysis (principal component analysis
+/// of the vote matrix, groups, consensus, and each group's representative statements).
 #[derive(Deserialize, Debug)]
 struct PolisMathPca {
     /// Polis bumps this every time its math worker publishes a new result. Sent back on
@@ -361,7 +364,7 @@ impl PolisClient {
 
         let response = self.client.get(&url).send().await.map_err(|e| {
             warn!("Failed to get PCA data: {e}");
-            PolisError::FailedToGetComments(
+            PolisError::FailedToGetReport(
                 e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
                 format!("Failed to get PCA data: {e}"),
             )
@@ -369,9 +372,10 @@ impl PolisClient {
 
         if response.status() == StatusCode::NOT_MODIFIED {
             return previous.ok_or_else(|| {
-                // Polis also answers 304 for a conversation with no math result yet.
-                PolisError::FailedToGetComments(
-                    StatusCode::NOT_MODIFIED,
+                // Polis also answers 304 for a conversation with no math result yet. This
+                // used to fail parsing the empty body, so it keeps that status.
+                PolisError::FailedToGetReport(
+                    StatusCode::INTERNAL_SERVER_ERROR,
                     "Polis has no PCA data for this conversation yet".to_string(),
                 )
             });
@@ -379,7 +383,7 @@ impl PolisClient {
 
         let data = response.json::<PolisMathPca>().await.map_err(|e| {
             warn!("Failed to parse PCA data: {e:#?}");
-            PolisError::FailedToGetComments(
+            PolisError::FailedToGetReport(
                 e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
                 format!("Failed to parse PCA data: {e}"),
             )
@@ -402,22 +406,16 @@ impl PolisClient {
         &self,
         math_pca: &PolisMathPca,
         comments_data: &[PolisCommentWithVoting],
-        include_pending: bool,
+        scope: ReportScope,
     ) -> Result<WikiPollReport, WikiPollServiceError> {
         // Create maps for easy lookup
         let mut comment_texts = HashMap::new();
         let mut comment_votes = HashMap::new();
         let mut comment_is_seed = HashMap::new();
 
-        // Polis `mod`: 1 accepted, 0 pending, -1 rejected. Rejected is out either way;
-        // pending follows the conversation's moderation setting so the report shows what
-        // participants are actually being asked to vote on.
+        // Polis sends `mod` as a float holding -1, 0 or 1.
         let is_visible = |moderation: f64| {
-            if include_pending {
-                moderation >= 0.0
-            } else {
-                moderation > 0.0
-            }
+            ModerationStatus::try_from(moderation as i32).is_ok_and(|status| scope.includes(status))
         };
 
         for comment in comments_data.iter() {
@@ -862,7 +860,7 @@ impl WikiPollService for PolisClient {
     async fn get_report_data(
         &self,
         poll_id: &str,
-        include_pending: bool,
+        scope: ReportScope,
     ) -> Result<WikiPollReport, WikiPollServiceError> {
         // Concurrent misses for the same poll wait on one fetch instead of each going
         // to Polis; that is what keeps upstream load flat as screens are added.
@@ -871,11 +869,13 @@ impl WikiPollService for PolisClient {
             .try_get_with(poll_id.to_string(), self.fetch_raw_report(poll_id))
             .await
             .map_err(|e: Arc<PolisError>| {
-                PolisError::FailedToGetComments(StatusCode::BAD_GATEWAY, e.to_string())
+                // The error is shared between waiting callers, so it is copied, keeping
+                // the status the failed fetch would have returned on its own.
+                PolisError::FailedToGetReport(e.as_ref().into(), e.to_string())
             })?;
 
-        // The moderation flag is applied per request so one cache entry serves both.
-        self.transform_report_data(&raw.math, &raw.comments, include_pending)
+        // The scope is applied per request so one cache entry serves both scopes.
+        self.transform_report_data(&raw.math, &raw.comments, scope)
     }
 
     #[instrument(err(Debug), skip(self, auth_cookies))]
@@ -1095,7 +1095,6 @@ mod tests {
         }
     }
 
-    /// One accepted, one pending, one rejected, all three placed by the math.
     fn math_for(tids: Vec<u32>) -> PolisMathPca {
         PolisMathPca {
             math_tick: 0,
@@ -1115,13 +1114,14 @@ mod tests {
         }
     }
 
-    fn reported_tids(include_pending: bool) -> Vec<u32> {
+    /// One accepted, one pending, one rejected, all three placed by the math.
+    fn reported_tids(scope: ReportScope) -> Vec<u32> {
         let client = PolisClient::new("polis.comhairle.scot");
         let report = client
             .transform_report_data(
                 &math_for(vec![1, 2, 3]),
                 &[comment(1, 1.0), comment(2, 0.0), comment(3, -1.0)],
-                include_pending,
+                scope,
             )
             .expect("transform should succeed");
         report.comments.iter().map(|c| c.tid).collect()
@@ -1129,11 +1129,11 @@ mod tests {
 
     #[test]
     fn strict_moderation_reports_accepted_statements_only() {
-        assert_eq!(reported_tids(false), vec![1]);
+        assert_eq!(reported_tids(ReportScope::AcceptedOnly), vec![1]);
     }
 
     #[test]
     fn open_moderation_reports_pending_statements_too() {
-        assert_eq!(reported_tids(true), vec![1, 2]);
+        assert_eq!(reported_tids(ReportScope::AcceptedAndPending), vec![1, 2]);
     }
 }
