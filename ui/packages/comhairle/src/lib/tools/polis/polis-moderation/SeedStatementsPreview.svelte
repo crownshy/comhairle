@@ -30,7 +30,7 @@
 		/** Every statement already in the step, rejected ones included, for duplicate flags. */
 		existingStatements: string[];
 		/** Posting is in flight: freeze the list so it matches what is being posted. */
-		busy: boolean;
+		posting: boolean;
 	};
 
 	let {
@@ -41,7 +41,7 @@
 		column,
 		onColumnChange,
 		existingStatements,
-		busy
+		posting
 	}: Props = $props();
 
 	const columnHeading = $derived(columns.find((option) => option.index === column)?.heading);
@@ -74,7 +74,7 @@
 				type="single"
 				value={column === null ? undefined : String(column)}
 				onValueChange={(value) => value && onColumnChange(Number(value))}
-				disabled={busy}
+				disabled={posting}
 			>
 				<Select.Trigger class="min-w-48">{columnHeading}</Select.Trigger>
 				<Select.Content>
@@ -128,7 +128,7 @@
 						<Textarea
 							bind:value={draft.text}
 							rows={2}
-							disabled={busy}
+							disabled={posting}
 							aria-label={`Statement ${index + 1}`}
 						/>
 						{#if issue}
@@ -141,7 +141,7 @@
 					<Button
 						variant="ghost"
 						size="icon"
-						disabled={busy}
+						disabled={posting}
 						onclick={() => removeDraft(draft.id)}
 						title={`Remove statement ${index + 1}`}
 					>

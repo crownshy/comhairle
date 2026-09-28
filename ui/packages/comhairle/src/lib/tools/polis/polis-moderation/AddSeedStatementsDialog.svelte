@@ -99,8 +99,13 @@
 		await onSeeded();
 	}
 
-	function truncate(text: string): string {
-		return text.length > 60 ? `${text.slice(0, 60)}…` : text;
+	/** Longest a statement is quoted in a notification before it is cut short. */
+	const NOTICE_STATEMENT_LENGTH = 60;
+
+	function shortenForNotice(text: string): string {
+		return text.length > NOTICE_STATEMENT_LENGTH
+			? `${text.slice(0, NOTICE_STATEMENT_LENGTH)}…`
+			: text;
 	}
 
 	async function addSeed() {
@@ -203,7 +208,7 @@
 			// exactly where the batch stopped to pick it up by hand.
 			notifications.send({
 				priority: 'ERROR',
-				message: `Posted ${outcome.posted} of ${texts.length}, then "${truncate(
+				message: `Posted ${outcome.posted} of ${texts.length}, then "${shortenForNotice(
 					outcome.failedText
 				)}" failed. The rest were not posted.`
 			});
@@ -286,7 +291,7 @@
 					{column}
 					onColumnChange={pickColumn}
 					{existingStatements}
-					{busy}
+					posting={busy}
 				/>
 			{:else}
 				<label class="text-muted-foreground text-sm font-medium" for="seed-text">
