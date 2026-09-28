@@ -12,6 +12,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Trash2, TriangleAlert } from '@lucide/svelte';
+	import { pluralise } from '$lib/utils/pluralise';
 	import { findSeedIssues, type SeedColumn, type SeedStatementIssue } from '$lib/utils/seedCsv';
 
 	type Props = {
@@ -91,7 +92,8 @@
 
 	<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
 		<p class="font-medium">
-			{drafts.length} statement{drafts.length === 1 ? '' : 's'} read from the file
+			{drafts.length}
+			{pluralise(drafts.length, 'statement')} read from the file
 		</p>
 		{#if flaggedCount > 0}
 			<p class="text-muted-foreground text-sm">

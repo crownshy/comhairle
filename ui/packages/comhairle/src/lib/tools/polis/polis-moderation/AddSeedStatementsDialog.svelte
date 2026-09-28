@@ -5,6 +5,7 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { pluralise } from '$lib/utils/pluralise';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Plus, Upload } from '@lucide/svelte';
 	import SeedStatementsPreview, { type SeedDraft } from './SeedStatementsPreview.svelte';
@@ -229,7 +230,7 @@
 		open = false;
 		notifications.send({
 			priority: 'INFO',
-			message: `Imported ${texts.length} statement${texts.length === 1 ? '' : 's'}`
+			message: `Imported ${texts.length} ${pluralise(texts.length, 'statement')}`
 		});
 	}
 
@@ -335,7 +336,7 @@
 				<Button onclick={confirmImport} disabled={postable.length === 0 || busy}>
 					{importing
 						? 'Posting…'
-						: `Post ${postable.length} statement${postable.length === 1 ? '' : 's'}`}
+						: `Post ${postable.length} ${pluralise(postable.length, 'statement')}`}
 				</Button>
 			{:else}
 				<Button onclick={addSeed} disabled={!draftText.trim() || busy}>
