@@ -140,7 +140,6 @@
 			return { text, parsed: await parseSeedCsv(text) };
 		});
 		if (result.err !== null) {
-			console.error('Reading the seed CSV failed', result.err);
 			notifications.send({ priority: 'ERROR', message: 'Could not read that CSV' });
 			return;
 		}
@@ -174,7 +173,6 @@
 		if (index === column || busy) return;
 		const result = await tryCatchAsync(() => parseSeedCsv(fileText, index));
 		if (result.err !== null) {
-			console.error('Re-reading the seed CSV failed', result.err);
 			notifications.send({ priority: 'ERROR', message: 'Could not read that column' });
 			return;
 		}
