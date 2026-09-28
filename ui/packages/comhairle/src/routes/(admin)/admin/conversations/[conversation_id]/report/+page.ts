@@ -2,10 +2,7 @@ import { FullReportDto } from '@crownshy/api-client/api';
 import type { PageLoad } from './$types';
 import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 import { key } from '$lib/utils/invalidationKey';
-
-// Tools that have embeddable report components today. Grows as more tools get a
-// component set (Thinking Space is next); HeyForm has none yet.
-const REPORT_CAPABLE_TOOLS = new Set(['polis']);
+import { hasReportWidgets } from '$lib/reports/embeds';
 
 export const load: PageLoad = async ({ parent, depends }) => {
 	depends(key('admin/conversation/report'));
@@ -25,14 +22,14 @@ export const load: PageLoad = async ({ parent, depends }) => {
 
 	// Steps offered by the "Embed report component" control, resolved to the shape it needs.
 	const reportEmbedSteps: EmbeddableStep[] = (workflowSteps ?? [])
-		.filter((step) => {
-			const toolType = step.toolConfig?.type;
-			return toolType != null && REPORT_CAPABLE_TOOLS.has(toolType);
-		})
+		.filter((step) => hasReportWidgets(step.toolConfig?.type))
 		.map((step) => ({
 			id: step.id,
+			conversationId: conversation.id,
+			workflowId: step.workflowId,
 			name: step.name,
-			toolType: step.toolConfig!.type
+			toolType: step.toolConfig!.type,
+			reportDataPublic: step.reportDataPublic
 		}));
 
 	return { report, conversation, reportEmbedSteps };
