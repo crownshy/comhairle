@@ -48,7 +48,7 @@
 	}
 </script>
 
-<div class="flex flex-col gap-3">
+<div class="flex min-h-0 flex-1 flex-col gap-3">
 	<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
 		<p class="font-medium">
 			{drafts.length} statement{drafts.length === 1 ? '' : 's'} read from the file
@@ -79,8 +79,8 @@
 			Nothing left to post. Cancel and pick another file.
 		</p>
 	{:else}
-		<!-- Capped so a long import scrolls inside the dialog rather than off the screen. -->
-		<ul class="flex max-h-72 flex-col gap-3 overflow-y-auto pr-1">
+		<!-- Fills the dialog's fixed height so a long import scrolls inside it rather than off the screen. -->
+		<ul class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
 			{#each drafts as draft, index (draft.id)}
 				{@const issue = issues[index]}
 				<li class="flex items-start gap-2">

@@ -214,7 +214,7 @@
 <!-- onOpenChange covers the close button and Escape; Cancel discards on its own. -->
 <Dialog.Root bind:open onOpenChange={(value) => !value && discardImport()}>
 	<Dialog.Content
-		class="sm:max-w-xl"
+		class={previewing ? 'flex h-[80vh] flex-col sm:max-w-7xl' : 'sm:max-w-xl'}
 		showCloseButton={!busy}
 		onInteractOutside={(e) => busy && e.preventDefault()}
 		onEscapeKeydown={(e) => busy && e.preventDefault()}
@@ -233,7 +233,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="relative flex flex-col gap-3">
+		<div class="relative flex min-h-0 flex-1 flex-col gap-3">
 			<!-- Dim + block the body while a post is in flight. -->
 			{#if busy}
 				<div
