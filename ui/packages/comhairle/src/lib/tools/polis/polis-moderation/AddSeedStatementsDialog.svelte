@@ -9,7 +9,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Plus, Upload } from '@lucide/svelte';
 	import SeedStatementsPreview, { type SeedDraft } from './SeedStatementsPreview.svelte';
-	import { parseSeedCsv, type ParsedSeedCsv, type SeedColumn } from '$lib/utils/seedCsv';
+	import { parseSeedCsv, type ParsedSeedCsv } from '$lib/utils/seedCsv';
 
 	type Props = {
 		workflowStepId: string;
@@ -28,14 +28,13 @@
 
 	// The parsed file waiting on the admin's confirmation. Nothing is posted while this is
 	// on screen, which is the point of #1218: the old importer posted straight from the file.
+	let parsed = $state.raw<ParsedSeedCsv | null>(null);
+	// The parsed statements as the admin edits them. Its own state rather than derived from
+	// `parsed`, so edits in the preview are deeply reactive.
 	let drafts = $state<SeedDraft[]>([]);
-	let skippedHeader = $state<string | null>(null);
-	let parseProblems = $state<string[]>([]);
 	// Kept so picking another column can re-read the file without asking for it again.
 	let fileText = '';
-	let columns = $state<SeedColumn[]>([]);
-	let column = $state<number | null>(null);
-	let previewing = $state(false);
+	const previewing = $derived(parsed !== null);
 	let importing = $state(false);
 	let nextDraftId = 0;
 	const postable = $derived(
@@ -150,10 +149,9 @@
 			return;
 		}
 
-		const { text, parsed } = result.ok;
 		// A multi-column file can have an empty default column and statements in another, so
 		// only give up when there is no column to switch to.
-		if (parsed.statements.length === 0 && parsed.columns.length === 0) {
+		if (result.ok.parsed.statements.length === 0 && result.ok.parsed.columns.length === 0) {
 			notifications.send({
 				priority: 'ERROR',
 				message: 'No statements found in that file'
@@ -161,22 +159,18 @@
 			return;
 		}
 
-		fileText = text;
-		showParsed(parsed);
-		previewing = true;
+		fileText = result.ok.text;
+		showParsed(result.ok.parsed);
 	}
 
-	function showParsed(parsed: ParsedSeedCsv) {
-		drafts = parsed.statements.map((text) => ({ id: nextDraftId++, text }));
-		skippedHeader = parsed.header;
-		parseProblems = parsed.problems;
-		columns = parsed.columns;
-		column = parsed.column;
+	function showParsed(next: ParsedSeedCsv) {
+		parsed = next;
+		drafts = next.statements.map((text) => ({ id: nextDraftId++, text }));
 	}
 
 	/** Re-reads the file from another column. Replaces the list, edits and removals included. */
 	async function pickColumn(index: number) {
-		if (index === column || busy) return;
+		if (index === parsed?.column || busy) return;
 		const result = await tryCatchAsync(() => parseSeedCsv(fileText, index));
 		if (result.err !== null) {
 			notifications.send({ priority: 'ERROR', message: 'Could not read that column' });
@@ -186,13 +180,9 @@
 	}
 
 	function discardImport() {
+		parsed = null;
 		drafts = [];
-		skippedHeader = null;
-		parseProblems = [];
 		fileText = '';
-		columns = [];
-		column = null;
-		previewing = false;
 	}
 
 	async function confirmImport() {
@@ -283,13 +273,10 @@
 				</div>
 			{/if}
 
-			{#if previewing}
+			{#if parsed}
 				<SeedStatementsPreview
 					bind:drafts
-					header={skippedHeader}
-					problems={parseProblems}
-					{columns}
-					{column}
+					{parsed}
 					onColumnChange={pickColumn}
 					{existingStatements}
 					posting={busy}

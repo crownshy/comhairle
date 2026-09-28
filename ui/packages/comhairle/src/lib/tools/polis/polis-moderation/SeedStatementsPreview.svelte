@@ -13,19 +13,17 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Trash2, TriangleAlert } from '@lucide/svelte';
 	import { pluralise } from '$lib/utils/pluralise';
-	import { findSeedIssues, type SeedColumn, type SeedStatementIssue } from '$lib/utils/seedCsv';
+	import {
+		findSeedIssues,
+		type ParsedSeedCsv,
+		type SeedStatementIssue
+	} from '$lib/utils/seedCsv';
 
 	type Props = {
 		/** The parsed statements. Bound so edits and removals reach the posting dialog. */
 		drafts: SeedDraft[];
-		/** The heading row that was skipped, or null when the file had none. */
-		header: string | null;
-		/** What the parser objected to in the file, if anything. */
-		problems: string[];
-		/** The file's columns when it has more than one to choose from. Empty otherwise. */
-		columns: SeedColumn[];
-		/** Index of the column the statements were read from, or null for a one-column file. */
-		column: number | null;
+		/** The parse the drafts came from: skipped heading, parser problems, columns. */
+		parsed: ParsedSeedCsv;
 		/** The admin picked another column to read the statements from. */
 		onColumnChange: (index: number) => void;
 		/** Every statement already in the step, rejected ones included, for duplicate flags. */
@@ -36,15 +34,13 @@
 
 	let {
 		drafts = $bindable(),
-		header,
-		problems,
-		columns,
-		column,
+		parsed,
 		onColumnChange,
 		existingStatements,
 		posting
 	}: Props = $props();
 
+	const { header, problems, columns, column } = $derived(parsed);
 	const columnHeading = $derived(columns.find((option) => option.index === column)?.heading);
 
 	const issues = $derived(
