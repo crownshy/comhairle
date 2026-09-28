@@ -12,7 +12,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Trash2, TriangleAlert } from '@lucide/svelte';
-	import { findSeedIssues, type SeedColumn, type SeedStatementIssue } from './seedCsv';
+	import { findSeedIssues, type SeedColumn, type SeedStatementIssue } from '$lib/utils/seedCsv';
 
 	type Props = {
 		/** The parsed statements. Bound so edits and removals reach the posting dialog. */

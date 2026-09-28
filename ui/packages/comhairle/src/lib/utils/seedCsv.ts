@@ -1,4 +1,4 @@
-import { parseCsvRows } from '$lib/utils/csv';
+import { parseCsvRows } from './csv';
 
 /**
  * Headings that name the statement column, lowercased. Used to spot a header row in a

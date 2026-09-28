@@ -8,7 +8,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Plus, Upload } from '@lucide/svelte';
 	import SeedStatementsPreview, { type SeedDraft } from './SeedStatementsPreview.svelte';
-	import { parseSeedCsv, type ParsedSeedCsv, type SeedColumn } from './seedCsv';
+	import { parseSeedCsv, type ParsedSeedCsv, type SeedColumn } from '$lib/utils/seedCsv';
 
 	type Props = {
 		workflowStepId: string;
