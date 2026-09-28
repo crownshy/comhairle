@@ -250,6 +250,9 @@ const VIDEO_CONFERENCE: EventPaletteMeta = {
  * order (Topic onboarding, Participant-led poll, Survey, Online video conference,
  * Individual view exploration), with the remaining working-but-Figma-omitted tools
  * appended so nothing regresses (see CONTEXT.md / grilling notes).
+ *
+ * The Elicitation Bot is left out on purpose: it is superseded by Thinking Space and
+ * can no longer be added, but existing steps still render and stay editable (#1017).
  */
 export const PALETTE_TOOLS: PaletteItem[] = [
 	TOOL_META.learn,
@@ -258,7 +261,6 @@ export const PALETTE_TOOLS: PaletteItem[] = [
 	// VIDEO_CONFERENCE, // commenting this out until we decide the behaviour we want
 	TOOL_META.thinkingspace,
 	TOOL_META.prioritization,
-	TOOL_META.elicitationbot,
 	TOOL_META.stories
 ];
 
