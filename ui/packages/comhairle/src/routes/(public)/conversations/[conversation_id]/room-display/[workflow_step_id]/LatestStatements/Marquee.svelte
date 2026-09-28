@@ -1,6 +1,6 @@
 <!--
 	@component The newest statements, scrolling along the bottom of the wall. The
-	alternative presentation of the `marquee` block; `LatestStatements.svelte` is the
+	alternative presentation of the `marquee` block; `Default.svelte` is the
 	still one, and the default.
 
 	Kept rather than deleted because the claim against it ("moving text cannot be read

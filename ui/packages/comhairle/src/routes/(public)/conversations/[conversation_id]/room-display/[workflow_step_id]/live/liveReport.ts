@@ -18,8 +18,8 @@
 import type { PolisReportData } from '$lib/tools/polis/reportTypes';
 import { apportionVotes } from './apportionedVotes';
 import { totalVotes } from '$lib/tools/polis/report';
-import { DEFAULT_THRESHOLDS, scoredCount } from './revealStage';
-import type { DisplayState, MapNode, RevealStage } from './types';
+import { DEFAULT_THRESHOLDS, scoredCount } from '../revealStage';
+import type { DisplayState, MapNode, RevealStage } from '../types';
 
 /**
  * Fraction of the map's unit extent the outermost participant sits at. Under 1 so a

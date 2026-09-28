@@ -13,7 +13,7 @@ import {
 	MIN_DOT_RADIUS,
 	MAX_DOT_RADIUS
 } from './opinionMap';
-import type { MapNode } from './types';
+import type { MapNode } from '../types';
 
 function dist(agrees = 0, disagrees = 0, passes = 0, notVoted = 0) {
 	return { agrees, disagrees, passes, notVoted };

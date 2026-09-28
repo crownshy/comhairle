@@ -22,13 +22,13 @@
 	import { replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';
 	import type { RoomDisplaySource } from './source';
-	import { createRoomDisplayDriver } from './driver.svelte';
-	import { createLiveRoomDisplaySource } from './liveSource.svelte';
-	import { buildScenario } from './buildScenario';
-	import { PLACEHOLDER_STATEMENTS } from './placeholderStatements';
-	import { buildPlaceholderComments } from './placeholderReport';
+	import { createRoomDisplayDriver } from './demo/driver.svelte';
+	import { createLiveRoomDisplaySource } from './live/liveSource.svelte';
+	import { buildScenario } from './demo/buildScenario';
+	import { PLACEHOLDER_STATEMENTS } from './demo/placeholderStatements';
+	import { buildPlaceholderComments } from './demo/placeholderReport';
 	import { nextUnlock, describeUnlock } from './revealStage';
-	import { participantCount } from './scenario';
+	import { participantCount } from './demo/scenario';
 	import {
 		applyPreset,
 		matchingPreset,
@@ -44,7 +44,7 @@
 		type RoomLayout,
 		type RoomTheme,
 		type SlideStyle
-	} from './blocks';
+	} from './board/blocks';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import {
 		INITIAL_CONSOLE_STATE,
@@ -52,15 +52,13 @@
 		surfaceHref,
 		type ConsoleState,
 		type RoomSurface
-	} from './surfaces';
-	import { readStoredBoard, writeStoredBoard } from './storedBoard';
+	} from './board/surfaces';
+	import { readStoredBoard, writeStoredBoard } from './board/storedBoard';
 	import WarmingScreen from './WarmingScreen.svelte';
-	import PrototypeBar from './PrototypeBar.svelte';
-	import BoardSettings from './BoardSettings.svelte';
-	import SizedBlock from './SizedBlock.svelte';
-	import LayoutDeck from './LayoutDeck.svelte';
-	import LayoutConsole from './LayoutConsole.svelte';
-	import LayoutSplit from './LayoutSplit.svelte';
+	import PrototypeBar from './demo/PrototypeBar.svelte';
+	import BoardSettings from './board/BoardSettings.svelte';
+	import SizedBlock from './board/SizedBlock.svelte';
+	import * as Layout from './Layout';
 
 	let { data }: PageProps = $props();
 
@@ -254,11 +252,11 @@
 			/>
 		</SizedBlock>
 	{:else if board.layout === 'deck'}
-		<LayoutDeck {source} {board} question={data.question} joinUrl={data.joinUrl} />
+		<Layout.Deck {source} {board} question={data.question} joinUrl={data.joinUrl} />
 	{:else if board.layout === 'split'}
-		<LayoutSplit {source} {board} question={data.question} joinUrl={data.joinUrl} />
+		<Layout.Split {source} {board} question={data.question} joinUrl={data.joinUrl} />
 	{:else}
-		<LayoutConsole
+		<Layout.Console
 			{source}
 			{board}
 			{surface}

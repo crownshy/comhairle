@@ -3,9 +3,9 @@ import { buildScenario, type BuildScenarioOptions } from './buildScenario';
 import { stateAt, stageTimeline } from './scenario';
 import { PLACEHOLDER_STATEMENTS } from './placeholderStatements';
 import { buildPlaceholderComments } from './placeholderReport';
-import { computeStage, ratchet, STAGE_ORDER } from './revealStage';
+import { computeStage, ratchet, STAGE_ORDER } from '../revealStage';
 import type { ReportComment } from '$lib/tools/polis/reportTypes';
-import type { RevealStage } from './types';
+import type { RevealStage } from '../types';
 
 function source(tid: number): ReportComment {
 	return {

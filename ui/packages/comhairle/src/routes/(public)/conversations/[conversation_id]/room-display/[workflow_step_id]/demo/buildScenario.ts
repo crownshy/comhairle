@@ -14,7 +14,7 @@
 
 import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
 import { orderEvents } from './scenario';
-import type { MapNode, Scenario, ScenarioEvent, Vote } from './types';
+import type { MapNode, Scenario, ScenarioEvent, Vote } from '../types';
 
 export interface BuildScenarioOptions {
 	/** Statement text, in order. Usually PLACEHOLDER_STATEMENTS. */

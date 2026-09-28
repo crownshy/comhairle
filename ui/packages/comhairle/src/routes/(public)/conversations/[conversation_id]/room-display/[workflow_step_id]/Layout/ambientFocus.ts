@@ -16,7 +16,7 @@
  * scrubbing lands on the same focus every time.
  */
 
-import type { DisplayState } from './types';
+import type { DisplayState } from '../types';
 import type { ReportComment } from '$lib/tools/polis/reportTypes';
 
 export type FocusIntent = 'mostDivisive' | 'strongestConsensus' | 'newest' | 'mostVoted';

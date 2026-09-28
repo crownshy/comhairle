@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { liveVoteBars, presentByGroup, reportVoteBars } from './liveVotes';
-import type { DisplayState, MapNode, Vote } from './types';
+import type { DisplayState, MapNode, Vote } from '../types';
 import type { ReportGroup } from '$lib/tools/polis/reportTypes';
 
 const nodes: MapNode[] = [

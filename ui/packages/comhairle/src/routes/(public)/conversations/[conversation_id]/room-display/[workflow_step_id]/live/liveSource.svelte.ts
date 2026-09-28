@@ -15,9 +15,9 @@ import type { createApiClient } from '@crownshy/api-client/client';
 import type { PolisReportData } from '$lib/tools/polis/reportTypes';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { displayStateFromReport, stageFromReport } from './liveReport';
-import { ratchet } from './revealStage';
-import type { RoomDisplaySource } from './source';
-import type { RevealStage } from './types';
+import { ratchet } from '../revealStage';
+import type { RoomDisplaySource } from '../source';
+import type { RevealStage } from '../types';
 
 export interface LiveSourceOptions {
 	api: ReturnType<typeof createApiClient>;

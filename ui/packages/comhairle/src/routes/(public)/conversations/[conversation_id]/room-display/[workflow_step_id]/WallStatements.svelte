@@ -13,7 +13,7 @@
 <script lang="ts">
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
 	import type { RoomDisplaySource } from './source';
-	import { voteBarsFor } from './liveVotes';
+	import { voteBarsFor } from './live/liveVotes';
 	import RoomVoteBar from './RoomVoteBar.svelte';
 
 	type Props = {

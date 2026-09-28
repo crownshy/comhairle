@@ -1,6 +1,6 @@
 <!--
 	@component The newest statements, still. The default presentation of the `marquee`
-	block; `LatestStatementsMarquee.svelte` is the scrolling alternative.
+	block; `Marquee.svelte` is the scrolling alternative.
 
 	Why this exists: a continuously scrolling ticker cannot be read from across a room.
 	The eye has to acquire a moving target and then track it, and at eight metres it

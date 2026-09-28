@@ -12,8 +12,8 @@
 
 import { computeMemberVoteBars, groupLabel } from '$lib/tools/polis/report';
 import type { MemberVotePercent, ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
-import type { RoomDisplaySource } from './source';
-import type { DisplayState, MapNode } from './types';
+import type { RoomDisplaySource } from '../source';
+import type { DisplayState, MapNode } from '../types';
 
 function bar(label: string, nodes: MapNode[], state: DisplayState, tid: number): MemberVotePercent {
 	const byNode = state.votesByTid.get(tid);

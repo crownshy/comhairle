@@ -7,7 +7,7 @@ chrome-free (the `(public)` layout drops the nav and footer for this route).
 Linked from the step's admin Insights tab. Two sources behind one display:
 
 - default: **live**. Polls the step's `PolisGetReportData` every few seconds
-  (`liveSource.svelte.ts`). Participants come with a PCA position and a group id, so
+  (`live/liveSource.svelte.ts`). Participants come with a PCA position and a group id, so
   the map, group labels, counts, strip and group statements all work. What the report
   does _not_ carry is a per-participant vote matrix, so a live wall deals each
   group's counts for the focused statement across that group's dots (ADR-0040,
@@ -19,8 +19,8 @@ Linked from the step's admin Insights tab. Two sources behind one display:
 ## The board
 
 What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md,
-"Block / Layout / Board"). `blocks.ts` holds the vocabulary and the precedence rule;
-`BoardSettings.svelte` is the panel on the display that edits it.
+"Block / Layout / Board"). `board/blocks.ts` holds the vocabulary and the precedence rule;
+`board/BoardSettings.svelte` is the panel on the display that edits it.
 
 - `?variant=console|wall|marquee|lobby|deck|kiosk` names a board. The same list is the
   "Template" picker at the top of the panel. Console is the default and is the
@@ -28,7 +28,7 @@ What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md
 - `?layout=split|console|deck` and `?blocks=a,b,c` say one exactly. Either of them
   present pins the board, so a link reproduces the sender's screen.
 - With no board parameter at all, the display comes back to whatever this machine was
-  last left showing (`storedBoard.ts`). A projector that reboots ten minutes before
+  last left showing (`board/storedBoard.ts`). A projector that reboots ten minutes before
   the room arrives should not come back to the factory default.
 - The settings panel rewrites the URL as you toggle, and drops `variant`: once a block
   has been touched by hand the preset name is no longer true.
@@ -37,7 +37,7 @@ What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md
   grows or shrinks one block relative to the rest (0.25 to 4, in quarters). The old
   names `m`, `l`, `xl`, `xxl` still parse. In the panel each block has one row: its
   switch and a minus/plus stepper beside it, with "Everything" as the first row. Both
-  apply as CSS custom properties: `SizedBlock.svelte` wraps each block and redefines
+  apply as CSS custom properties: `board/SizedBlock.svelte` wraps each block and redefines
   Tailwind's `--text-*` and `--spacing` from base values captured on the display root,
   so every text and spacing utility inside a block moves without the markup knowing.
   The map's dots and labels take the same multiplier as a prop, because the plot fills
@@ -46,7 +46,7 @@ What the display shows is a **board**: a layout plus a set of blocks (CONTEXT.md
   space back to the map, so the floor went. Too big overflows and too small is
   unreadable, and both are one click back for the person in the room.
 - `?surface=wall|console` opens one half of the "Wall and laptop" layout in its own
-  window; the two stay in step over a `BroadcastChannel` for the step (`surfaces.ts`,
+  window; the two stay in step over a `BroadcastChannel` for the step (`board/surfaces.ts`,
   ADR-0045). "Open in new window" on the console header sends the console to its own
   window and leaves the page as the wall. One machine only: a projector is a second
   screen, not a second computer.
@@ -136,7 +136,7 @@ more". That is the one place the display measures the viewport.
 The marquee is kept rather than deleted so the claim above can lose in an actual room
 instead of winning in a review. It is slowed right down, which is the most generous
 version of the idea. If it still loses in front of an audience, delete
-`LatestStatementsMarquee.svelte`.
+`LatestStatements/Marquee.svelte`.
 
 **Known cost of `column`:** in the `split` layout it competes with the opinion map for
 height, and three statements is enough to squash the map noticeably. `row` is the right
@@ -205,7 +205,7 @@ and splits it into a calm wall and a dense facilitator panel.
   cross-highlight as the one thing a facilitator touches.
 - **deck** loses ambient operation entirely. Nothing moves unless someone advances it,
   which is a real cost when the facilitator is talking rather than clicking.
-- **narrator** loses facilitator control. The rotation is `ambientFocus.ts`, which was
+- **narrator** loses facilitator control. The rotation is `Layout/ambientFocus.ts`, which was
   already written and tested but unused.
 - **console** loses the single-surface property. Two surfaces means the wall and the
   laptop have to share focus state, which is a build problem the prototype ducks by
@@ -216,7 +216,7 @@ and splits it into a calm wall and a dense facilitator panel.
 - The report's `ConsensusContinuum` is a desk component: card, heading, subtitle, 5px
   dots, 12px axis labels. `StatementStrip.svelte` here is the room-scale answer. Does
   the real continuum grow a room mode, or does the Room display own a separate strip?
-- Moments (`moments.ts`) are still computed and still not rendered anywhere. Deck and
+- Moments (`demo/moments.ts`) are still computed and still not rendered anywhere. Deck and
   Narrator both have an obvious slot for them; Board does not.
 - The Deck's arrow keys are the affordance under test (a presentation clicker sends
   them), which is why the prototype bar cycles variants on `[` and `]` instead.
@@ -233,7 +233,7 @@ Folded in from the review of the videos:
   on the console, and the wall recolours the map by it.
 - Opinion groups are listed on the console with live head counts. Picking one swaps
   the wall's map for that group's key statements with live vote bars
-  (`liveVotes.ts`, folded from the vote stream, not read off the report comment).
+  (`live/liveVotes.ts`, folded from the vote stream, not read off the report comment).
   Picking it again brings the map back. "Consensus statements" does the same with the
   statements ranked by `group_informed_consensus`.
 - Group labels sit under each cluster on the map and follow it (`groupCentroids`).
@@ -263,5 +263,5 @@ Folded in from the review of the videos:
   invite URL until the display can look one up itself.
 - **Events product.** Whether this is a separate Slido-style product is a positioning
   question, not a build one. Build the basic version first.
-- `moments.ts` is still computed and rendered nowhere. The console has a slot for it
+- `demo/moments.ts` is still computed and rendered nowhere. The console has a slot for it
   (the statement box); the wall does not, deliberately. It is the obvious next block.

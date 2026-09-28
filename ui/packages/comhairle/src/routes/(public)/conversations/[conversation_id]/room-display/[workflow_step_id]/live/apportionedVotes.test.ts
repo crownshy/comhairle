@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { apportion, apportionVotes } from './apportionedVotes';
 import type { PolisReportData, ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
-import type { Vote } from './types';
+import type { Vote } from '../types';
 
 function comment(overrides: Partial<ReportComment> = {}): ReportComment {
 	return {

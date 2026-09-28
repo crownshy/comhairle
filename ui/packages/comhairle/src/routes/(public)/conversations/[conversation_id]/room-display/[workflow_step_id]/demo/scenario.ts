@@ -12,7 +12,7 @@
  * fold can stop at the first event past `atMs`.
  */
 
-import { computeStage, ratchet, DEFAULT_THRESHOLDS, type RevealThresholds } from './revealStage';
+import { computeStage, ratchet, DEFAULT_THRESHOLDS, type RevealThresholds } from '../revealStage';
 import type {
 	DisplayState,
 	MapNode,
@@ -21,7 +21,7 @@ import type {
 	ScenarioEvent,
 	Vote,
 	VoteDistribution
-} from './types';
+} from '../types';
 
 /** Sorts events by time so `stateAt` can early-exit. Stable for equal timestamps. */
 export function orderEvents(events: ScenarioEvent[]): ScenarioEvent[] {

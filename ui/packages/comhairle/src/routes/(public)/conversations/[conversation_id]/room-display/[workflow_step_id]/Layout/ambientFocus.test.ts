@@ -7,7 +7,7 @@ import {
 	AMBIENT_ROTATION,
 	DEFAULT_DWELL_MS
 } from './ambientFocus';
-import type { DisplayState, Vote } from './types';
+import type { DisplayState, Vote } from '../types';
 import type { ReportComment } from '$lib/tools/polis/reportTypes';
 
 function comment(

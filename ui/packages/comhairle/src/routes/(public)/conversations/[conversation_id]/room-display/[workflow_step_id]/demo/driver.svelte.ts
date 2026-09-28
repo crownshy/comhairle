@@ -15,7 +15,7 @@
  */
 
 import { stateAt, stageAt, stageTimeline } from './scenario';
-import { STAGE_ORDER } from './revealStage';
+import { STAGE_ORDER } from '../revealStage';
 import {
 	advance,
 	initialMomentState,
@@ -24,8 +24,14 @@ import {
 	type MomentConfig,
 	type MomentState
 } from './moments';
-import type { RoomDisplaySource } from './source';
-import type { DisplayMode, DisplayState, RevealStage, Scenario, StagedDisplayState } from './types';
+import type { RoomDisplaySource } from '../source';
+import type {
+	DisplayMode,
+	DisplayState,
+	RevealStage,
+	Scenario,
+	StagedDisplayState
+} from '../types';
 
 /** How long a moment holds the screen before the display returns to what it was showing. */
 const MOMENT_DURATION_MS = 4500;

@@ -28,7 +28,7 @@ page as before, and the console header gains "Open in new window", which opens t
 and turns the current page into the wall.
 
 The two windows stay in step over a `BroadcastChannel` named for the workflow step
-(`surfaces.ts` in the room display route). What travels is the console state (focused statement,
+(`board/surfaces.ts` in the room display route). What travels is the console state (focused statement,
 what the wall's main area shows) and the board itself, so a size or block changed on the
 laptop lands on the wall. A window that opens says hello; any window holding a console
 answers with its state and board, so the wall can be opened after the console is set up.

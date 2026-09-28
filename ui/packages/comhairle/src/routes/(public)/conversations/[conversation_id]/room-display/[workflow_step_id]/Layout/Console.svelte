@@ -33,31 +33,30 @@
 	being the wall on its own.
 -->
 <script lang="ts">
-	import JoinQrCode from './JoinQrCode.svelte';
-	import type { RoomDisplaySource } from './source';
-	import SizedBlock from './SizedBlock.svelte';
+	import JoinQrCode from '../JoinQrCode.svelte';
+	import type { RoomDisplaySource } from '../source';
+	import SizedBlock from '../board/SizedBlock.svelte';
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
-	import { participantCount } from './scenario';
-	import { nextUnlock, describeUnlock } from './revealStage';
-	import { presentByGroup, voteBarsFor } from './liveVotes';
-	import { groupColor } from './opinionMap';
-	import { hasBlock, type RoomBoard, blockScale, stillLatestDirection } from './blocks';
+	import { participantCount } from '../demo/scenario';
+	import { nextUnlock, describeUnlock } from '../revealStage';
+	import { presentByGroup, voteBarsFor } from '../live/liveVotes';
+	import { groupColor } from '../OpinionMap/opinionMap';
+	import { hasBlock, type RoomBoard, blockScale, stillLatestDirection } from '../board/blocks';
 	import {
 		SURFACE_WINDOW_NAMES,
 		surfaceHref,
 		type ConsoleState,
 		type RoomSurface,
 		type WallView
-	} from './surfaces';
+	} from '../board/surfaces';
 	import { PanelRight } from '@lucide/svelte';
 	import { groupLabel } from '$lib/tools/polis/report';
-	import OpinionMap from './OpinionMap.svelte';
+	import OpinionMap from '../OpinionMap/OpinionMap.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import StatementStrip from './StatementStrip.svelte';
-	import WallStatements from './WallStatements.svelte';
-	import RoomVoteBar from './RoomVoteBar.svelte';
-	import LatestStatements from './LatestStatements.svelte';
-	import LatestStatementsMarquee from './LatestStatementsMarquee.svelte';
+	import StatementStrip from '../StatementStrip.svelte';
+	import WallStatements from '../WallStatements.svelte';
+	import RoomVoteBar from '../RoomVoteBar.svelte';
+	import * as LatestStatements from '../LatestStatements';
 
 	type Props = {
 		source: RoomDisplaySource;
@@ -276,9 +275,9 @@
 							: ''}"
 					>
 						{#if board.latest === 'marquee'}
-							<LatestStatementsMarquee comments={source.state.published} />
+							<LatestStatements.Marquee comments={source.state.published} />
 						{:else}
-							<LatestStatements
+							<LatestStatements.Default
 								comments={source.state.published}
 								direction={stillLatestDirection(board)}
 							/>
@@ -407,9 +406,9 @@
 						runs down it whatever `?latest=` says.
 					-->
 					{#if board.latest === 'marquee'}
-						<LatestStatementsMarquee comments={source.state.published} />
+						<LatestStatements.Marquee comments={source.state.published} />
 					{:else}
-						<LatestStatements
+						<LatestStatements.Default
 							comments={source.state.published}
 							direction="column"
 							compact

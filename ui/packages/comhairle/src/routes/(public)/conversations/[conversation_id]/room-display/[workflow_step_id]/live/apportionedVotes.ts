@@ -37,7 +37,7 @@
  */
 
 import type { PolisReportData, ReportComment } from '$lib/tools/polis/reportTypes';
-import type { Vote } from './types';
+import type { Vote } from '../types';
 
 /** One cohort of dots that shares a set of vote counts. */
 interface Cohort {

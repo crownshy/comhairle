@@ -22,7 +22,7 @@
  * a clock.
  */
 
-import type { RevealStage } from './types';
+import type { RevealStage } from '../types';
 
 export type Moment =
 	| { kind: 'peopleJoined'; count: number }

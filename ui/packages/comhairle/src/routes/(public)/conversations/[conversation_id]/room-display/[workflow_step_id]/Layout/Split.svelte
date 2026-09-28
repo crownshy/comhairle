@@ -17,27 +17,26 @@
 	wall, and with the statement and strip both off the map does.
 -->
 <script lang="ts">
-	import JoinQrCode from './JoinQrCode.svelte';
-	import type { RoomDisplaySource } from './source';
-	import SizedBlock from './SizedBlock.svelte';
+	import JoinQrCode from '../JoinQrCode.svelte';
+	import type { RoomDisplaySource } from '../source';
+	import SizedBlock from '../board/SizedBlock.svelte';
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
-	import { participantCount } from './scenario';
-	import { presentByGroup, voteBarsFor } from './liveVotes';
-	import { groupColor } from './opinionMap';
+	import { participantCount } from '../demo/scenario';
+	import { presentByGroup, voteBarsFor } from '../live/liveVotes';
+	import { groupColor } from '../OpinionMap/opinionMap';
 	import {
 		stillLatestDirection,
 		hasBlock,
 		latestIsBeside,
 		type RoomBoard,
 		blockScale
-	} from './blocks';
+	} from '../board/blocks';
 	import { groupLabel } from '$lib/tools/polis/report';
-	import OpinionMap from './OpinionMap.svelte';
-	import StatementStrip from './StatementStrip.svelte';
-	import WallStatements from './WallStatements.svelte';
-	import RoomVoteBar from './RoomVoteBar.svelte';
-	import LatestStatements from './LatestStatements.svelte';
-	import LatestStatementsMarquee from './LatestStatementsMarquee.svelte';
+	import OpinionMap from '../OpinionMap/OpinionMap.svelte';
+	import StatementStrip from '../StatementStrip.svelte';
+	import WallStatements from '../WallStatements.svelte';
+	import RoomVoteBar from '../RoomVoteBar.svelte';
+	import * as LatestStatements from '../LatestStatements';
 
 	/** What the focus column shows. The map unless the bottom bar asks for a list. */
 	type WallView = { kind: 'map' } | { kind: 'group'; groupId: number } | { kind: 'consensus' };
@@ -345,7 +344,7 @@
 					{#if latestBeside}
 						<SizedBlock scale={blockScale(board, 'marquee')}>
 							<div class="min-h-0 flex-1 overflow-hidden">
-								<LatestStatements
+								<LatestStatements.Default
 									comments={source.state.published}
 									direction="column"
 									max={asideLatestMax}
@@ -362,9 +361,9 @@
 		<SizedBlock scale={blockScale(board, 'marquee')}>
 			<div class="min-h-0 shrink-0 overflow-hidden">
 				{#if board.latest === 'marquee'}
-					<LatestStatementsMarquee comments={source.state.published} />
+					<LatestStatements.Marquee comments={source.state.published} />
 				{:else}
-					<LatestStatements
+					<LatestStatements.Default
 						comments={source.state.published}
 						direction={stillLatestDirection(board)}
 						compact={compactWall}

@@ -8,7 +8,7 @@
  * legend.
  */
 
-import type { MapNode, VoteDistribution } from './types';
+import type { MapNode, VoteDistribution } from '../types';
 
 /**
  * Categorical palette for opinion groups.

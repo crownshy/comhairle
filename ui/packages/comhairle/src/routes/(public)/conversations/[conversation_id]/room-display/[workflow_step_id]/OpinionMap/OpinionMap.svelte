@@ -31,7 +31,7 @@
 	decides what is focused and what a hover means.
 -->
 <script lang="ts">
-	import type { MapNode, Vote } from './types';
+	import type { MapNode, Vote } from '../types';
 	import {
 		groupColor,
 		voteColor,

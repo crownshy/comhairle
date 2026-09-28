@@ -8,8 +8,8 @@ import {
 	stageAt
 } from './scenario';
 import { buildScenario } from './buildScenario';
-import { STAGE_ORDER } from './revealStage';
-import type { MapNode, Scenario, ScenarioEvent } from './types';
+import { STAGE_ORDER } from '../revealStage';
+import type { MapNode, Scenario, ScenarioEvent } from '../types';
 import type { ReportComment } from '$lib/tools/polis/reportTypes';
 
 function node(id: number, memberCount = 1): MapNode {
