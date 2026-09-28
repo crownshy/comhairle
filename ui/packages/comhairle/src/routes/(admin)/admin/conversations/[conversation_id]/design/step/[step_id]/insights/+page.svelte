@@ -25,20 +25,24 @@
 
 <!-- Polis -->
 {#if data.polis && step && roomDisplayUrl}
-	<div class="flex flex-wrap items-center gap-2 pb-4">
-		<Button href={roomDisplayUrl} target="_blank" rel="noopener" variant="outline">
-			<MonitorPlay />
-			Open room display
-		</Button>
-		<Button href="{roomDisplayUrl}?mode=demo" target="_blank" rel="noopener" variant="ghost">
-			Demo run
-		</Button>
-	</div>
 	<PolisInsights
 		workflowStepId={step.id}
 		reportData={data.polis.reportData ?? null}
 		statementAux={data.polis.statementAux ?? []}
-	/>
+	>
+		{#snippet actions()}
+			<Button
+				href={roomDisplayUrl}
+				target="_blank"
+				rel="noopener"
+				size="sm"
+				variant="outline"
+			>
+				<MonitorPlay class="size-4" />
+				Open room display
+			</Button>
+		{/snippet}
+	</PolisInsights>
 {/if}
 
 <!-- Prioritization -->
