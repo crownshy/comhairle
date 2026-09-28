@@ -29,6 +29,7 @@
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 	import type { Locale } from '$lib/paraglide/runtime';
 	import { permissions } from '$lib/permissions.svelte';
+	import { hasReportWidgets } from '$lib/reports/embeds';
 
 	type Props = {
 		conversation_id: string;
@@ -132,8 +133,9 @@
 	let required = $derived(step?.required ?? false);
 	let revisitable = $derived(step?.canRevisit ?? false);
 	let requestUserSharePermission = $derived(step?.requestUserSharePermission ?? false);
+	let reportDataPublic = $derived(step?.reportDataPublic ?? false);
 
-	type StepFlag = 'required' | 'canRevisit' | 'requestUserSharePermission';
+	type StepFlag = 'required' | 'canRevisit' | 'requestUserSharePermission' | 'reportDataPublic';
 
 	function debouncedFlagUpdate(field: StepFlag) {
 		return useDebounce(async (checked: boolean) => {
@@ -163,7 +165,8 @@
 	const flagUpdates: Record<StepFlag, ReturnType<typeof debouncedFlagUpdate>> = {
 		required: debouncedFlagUpdate('required'),
 		canRevisit: debouncedFlagUpdate('canRevisit'),
-		requestUserSharePermission: debouncedFlagUpdate('requestUserSharePermission')
+		requestUserSharePermission: debouncedFlagUpdate('requestUserSharePermission'),
+		reportDataPublic: debouncedFlagUpdate('reportDataPublic')
 	};
 
 	function handleSwitchChange(checked: boolean, field: StepFlag) {
@@ -320,6 +323,20 @@
 			<Label class="text-base">Ask before sharing summaries</Label>
 			<span class="text-muted-foreground ml-2 text-sm">
 				(Participants choose whether organisers see their summary)
+			</span>
+		</div>
+	{/if}
+	{#if hasReportWidgets(toolType)}
+		<div class="flex items-center gap-2">
+			<Switch
+				id="report-data-public"
+				checked={reportDataPublic}
+				disabled={!canEdit}
+				onCheckedChange={(value) => handleSwitchChange(value, 'reportDataPublic')}
+			/>
+			<Label for="report-data-public" class="text-base">Public results</Label>
+			<span class="text-muted-foreground ml-2 text-sm">
+				(Can the published report show this step's anonymised results?)
 			</span>
 		</div>
 	{/if}

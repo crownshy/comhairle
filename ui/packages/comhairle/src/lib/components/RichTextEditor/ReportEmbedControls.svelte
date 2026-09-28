@@ -4,23 +4,66 @@
 	import { Button } from '$lib/components/ui/button';
 	import ChartNoAxesColumn from 'lucide-svelte/icons/chart-no-axes-column';
 	import ChevronRight from 'lucide-svelte/icons/chevron-right';
-	import {
-		POLIS_EMBEDDABLE_COMPONENTS,
-		type EmbeddableComponentMeta
-	} from '$lib/reports/polis/embeddableComponents';
+	import Globe from 'lucide-svelte/icons/globe';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { notifications } from '$lib/notifications.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { reportWidgetsForTool, type ReportWidgetMeta } from '$lib/reports/embeds';
 
 	/** A report-capable Step offered in stage 1 of the picker. */
-	export type EmbeddableStep = { id: string; name: string; toolType: string };
+	export type EmbeddableStep = {
+		id: string;
+		conversationId: string;
+		workflowId: string;
+		name: string;
+		toolType: string;
+		reportDataPublic: boolean;
+	};
 
 	let { editor, steps }: { editor: Editor | undefined; steps: EmbeddableStep[] } = $props();
 
 	let open = $state(false);
 	let selectedStep = $state<EmbeddableStep | null>(null);
 
-	// MVP: Polis only. When more tools land, switch the allow-list on selectedStep.toolType.
-	const componentsForStep = $derived<EmbeddableComponentMeta[]>(
-		selectedStep?.toolType === 'polis' ? POLIS_EMBEDDABLE_COMPONENTS : []
+	const componentsForStep = $derived<ReportWidgetMeta[]>(
+		reportWidgetsForTool(selectedStep?.toolType)
 	);
+
+	// Steps made public from this dialog. Tracked locally rather than invalidating the workflow
+	// key, which would rerun the report page load under an in-progress edit.
+	let madePublic = $state<Set<string>>(new Set());
+	let makingPublic = $state(false);
+	const selectedStepPublic = $derived(
+		!!selectedStep && (selectedStep.reportDataPublic || madePublic.has(selectedStep.id))
+	);
+
+	// Opting in is always an explicit admin action (ADR-0046): embedding never flips it.
+	async function makeSelectedStepPublic() {
+		if (!selectedStep) return;
+		const step = selectedStep;
+		makingPublic = true;
+		const result = await tryCatchAsync(() =>
+			apiClient.UpdateConversationWorkflowStep(
+				{ report_data_public: true },
+				{
+					params: {
+						conversation_id: step.conversationId,
+						workflow_id: step.workflowId,
+						workflow_step_id: step.id
+					}
+				}
+			)
+		);
+		makingPublic = false;
+		if (result.err !== null) {
+			notifications.send({
+				message: "Couldn't make this step's results public",
+				priority: 'ERROR'
+			});
+			return;
+		}
+		madePublic = new Set([...madePublic, step.id]);
+	}
 
 	function reset() {
 		selectedStep = null;
@@ -32,7 +75,7 @@
 
 	// Insert stores only the reference (ADR-0012); the embedded component loads its own data
 	// live, so this is instant — no freeze step.
-	function pickComponent(meta: EmbeddableComponentMeta) {
+	function pickComponent(meta: ReportWidgetMeta) {
 		if (!editor || !selectedStep) return;
 		editor
 			.chain()
@@ -98,6 +141,29 @@
 			</div>
 		{:else}
 			<!-- Stage 2: pick the component -->
+			{#if !selectedStepPublic}
+				<div class="bg-muted flex flex-col gap-3 rounded-lg p-4">
+					<p class="text-base">
+						Only admins can see these results. People reading the published report will
+						see a placeholder until you make this step's results public.
+					</p>
+					<p class="text-muted-foreground text-sm">
+						Public results are anonymised totals and moderated content only. You can
+						turn this off again in the step's settings.
+					</p>
+					<div>
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={makingPublic}
+							onclick={makeSelectedStepPublic}
+						>
+							<Globe class="size-4" />
+							Make results public
+						</Button>
+					</div>
+				</div>
+			{/if}
 			<div class="flex flex-col gap-2">
 				{#each componentsForStep as meta (meta.type)}
 					<button

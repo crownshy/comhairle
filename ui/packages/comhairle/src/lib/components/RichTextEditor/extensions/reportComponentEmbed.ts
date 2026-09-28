@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { mount, unmount } from 'svelte';
-import ReportEmbedLive from '$lib/reports/polis/ReportEmbedLive.svelte';
+import ReportEmbedLive from '$lib/reports/ReportEmbedLive.svelte';
 
 /**
  * A report component embedded into the report's `summary` document.
