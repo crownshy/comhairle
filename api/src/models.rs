@@ -30,6 +30,7 @@ pub mod proposal;
 pub mod proposal_response;
 pub mod proposal_section;
 pub mod recruitment_target;
+pub mod refresh_token;
 pub mod region;
 pub mod region_area;
 pub mod report;

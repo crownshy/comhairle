@@ -1,17 +1,18 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils';
+	import { snakeToStartCase } from '$lib/utils/casingUtils';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { jsonToHtml } from '$lib/utils/rich-text.js';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type FormState = {
 		subject?: string;
@@ -77,7 +78,9 @@
 				message: 'Successfully create new custom email'
 			});
 
-			goto(`/admin/email-template-configs/${emailConfig.id}`, { invalidateAll: true });
+			goto(`/admin/email-template-configs/${emailConfig.id}`, {
+				invalidate: [key('admin/email-template-config')]
+			});
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -127,13 +130,11 @@
 			value={selectedSchema.email_type}
 			onValueChange={handleSelectSchema}
 		>
-			<Select.Trigger class=""
-				>{snakeToSentenceCase(selectedSchema.email_type)}</Select.Trigger
-			>
+			<Select.Trigger class="">{snakeToStartCase(selectedSchema.email_type)}</Select.Trigger>
 			<Select.Content>
 				{#each schemas as schema (schema.email_type)}
 					<Select.Item value={schema.email_type}
-						>{snakeToSentenceCase(schema.email_type)}</Select.Item
+						>{snakeToStartCase(schema.email_type)}</Select.Item
 					>
 				{/each}
 			</Select.Content>

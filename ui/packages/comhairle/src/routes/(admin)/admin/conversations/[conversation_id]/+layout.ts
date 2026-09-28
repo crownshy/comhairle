@@ -7,8 +7,8 @@ import type {
 	WorkflowStats,
 	WorkflowStepsListResponse
 } from '@crownshy/api-client/api';
-import type {} from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
+import { key } from '$lib/utils/invalidationKey';
 
 /**
  * Invalidation keys for this load. Each re-runs this fetch; the names let callers
@@ -24,6 +24,8 @@ import type { LayoutLoad } from './$types';
  * fetch, so it adds no extra latency to a page load.
  */
 export const load: LayoutLoad = async ({ params, parent, depends }) => {
+	depends(key('admin/conversation'));
+	depends(key('admin/conversation/workflow'));
 	depends('conversation:meta');
 	depends('conversation:workflow');
 	depends('conversation:events');

@@ -17,8 +17,10 @@
 	const umamiWebsiteID = env.PUBLIC_UMAMI_WEBSITE_ID;
 	const umamiSrcURL = env.PUBLIC_UMAMI_SRC;
 	const umamiRecorderSrcURL = env.PUBLIC_UMAMI_RECORDER_SRC;
+	const robotsNoindex = env.PUBLIC_META_NOINDEX;
 	const umamiEnabled = $derived(browser && !!umamiWebsiteID && !!umamiSrcURL);
 	const umamiRecordingEnabled = $derived(umamiEnabled && !!umamiRecorderSrcURL);
+	const noindexEnabled = $derived(robotsNoindex === 'true');
 
 	// Send the logged-in user's id to Umami once the script has loaded, and
 	// re-run whenever the user (login/logout) or script status changes.
@@ -49,6 +51,10 @@
 		href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
 		rel="stylesheet"
 	/>
+
+	{#if noindexEnabled}
+		<meta name="robots" content="noindex" />
+	{/if}
 
 	{#if umamiRecordingEnabled}
 		<script async defer src={umamiRecorderSrcURL} data-website-id={umamiWebsiteID}></script>

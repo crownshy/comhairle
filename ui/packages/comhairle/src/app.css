@@ -88,11 +88,34 @@ a {
 	}
 }
 
-[data-sonner-toast] [data-close-button] {
-	position: absolute !important;
-	top: 0.5rem !important;
-	right: 0.5rem !important;
-	left: auto !important;
+/* sonner's default close button is a bordered circle translated over the toast corner */
+[data-sonner-toaster] [data-sonner-toast][data-styled='true'] {
+	padding-right: 3rem;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled='true'] [data-close-button] {
+	position: absolute;
+	top: 50%;
+	right: 0.75rem;
+	left: auto;
+	width: 1.75rem;
+	height: 1.75rem;
+	transform: translateY(-50%);
+	border: none;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--color-muted-foreground);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled='true']:hover [data-close-button]:hover {
+	background: var(--color-accent);
+	border: none;
+	color: var(--color-accent-foreground);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled='true'] [data-close-button] svg {
+	width: 1rem;
+	height: 1rem;
 }
 
 /* Report page utilities */

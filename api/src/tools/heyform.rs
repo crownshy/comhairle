@@ -23,6 +23,7 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models;
+use crate::routes::auth::RequiredAdminUser;
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
@@ -360,6 +361,7 @@ async fn get_heyform_config_for_workflow_step(
 pub async fn form(
     State(state): State<Arc<ComhairleState>>,
     Path(workflow_step_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Form>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
@@ -380,6 +382,7 @@ pub async fn form(
 pub async fn form_report(
     State(state): State<Arc<ComhairleState>>,
     Path(workflow_step_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<FormReport>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
@@ -428,6 +431,7 @@ pub async fn fetch_all_submissions(
 pub async fn submissions(
     State(state): State<Arc<ComhairleState>>,
     Path(workflow_step_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Query(query): Query<SubmissionsQuery>,
 ) -> Result<(StatusCode, Json<Submissions>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
@@ -823,6 +827,7 @@ pub fn build_survey_insights(
 pub async fn insights(
     State(state): State<Arc<ComhairleState>>,
     Path(workflow_step_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<SurveyInsights>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;

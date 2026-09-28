@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { PageProps } from '../$types.js';
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
@@ -9,10 +8,11 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { page } from '$app/state';
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
-	import { loginRedirect, signupRedirect } from '$lib/urls.js';
+	import { loginRedirectClient, signupRedirect } from '$lib/urls.js';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
+	import { key } from '$lib/utils/invalidationKey.js';
 
-	let { data }: PageProps = $props();
+	let { data } = $props();
 	let { conversation, workflows, participation, preview } = data;
 	let user = $derived(data.user);
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
@@ -65,7 +65,7 @@
 	async function redirectToLogin() {
 		if (isSubmitting) return;
 		isSubmitting = true;
-		loginRedirect(url.pathname, 'Login to join the conversation');
+		loginRedirectClient(url.pathname, 'Login to join the conversation');
 	}
 
 	// Register a new guest user, sign them up for
@@ -77,7 +77,7 @@
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 
-		goto(firstWorkflowPath, { invalidateAll: true });
+		goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
 	}
 
 	async function redirectToSignIn() {

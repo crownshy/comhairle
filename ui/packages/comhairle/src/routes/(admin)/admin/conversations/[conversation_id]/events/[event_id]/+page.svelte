@@ -31,7 +31,8 @@
 	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import FacilitatorRoleList from './FacilitatorRoleList.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
@@ -46,7 +47,7 @@
 	import EventLocationForm from './EventLocationForm.svelte';
 	import EventRecordings from './EventRecordings.svelte';
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
+	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 
 	let url = $derived(page.url);
@@ -194,7 +195,7 @@
 				}
 			});
 
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
@@ -290,7 +291,7 @@
 					}
 				}
 			);
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 			agendaDirty = false;
 			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
 		} catch (e) {
@@ -319,7 +320,7 @@
 				message: 'Role updated'
 			});
 
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -330,7 +331,7 @@
 	}
 
 	async function emailInvitesSubmitted() {
-		await invalidateAll();
+		await invalidate(key('admin/event'));
 	}
 </script>
 
@@ -545,7 +546,7 @@
 							onValueChange={(value: string) => ($form.format = value)}
 						>
 							<Select.Trigger class="w-45"
-								>Format: {snakeToSentenceCase($form.format)}</Select.Trigger
+								>Format: {snakeToStartCase($form.format)}</Select.Trigger
 							>
 							<Select.Content>
 								<Select.Item value="online">Online</Select.Item>

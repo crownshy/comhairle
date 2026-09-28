@@ -2,10 +2,6 @@
 	import { onDestroy, tick } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
-	import type {
-		ModerationPolicyDto,
-		WorkflowStepWithTranslations
-	} from '@crownshy/api-client/api';
 	import { Button } from '$lib/components/ui/button';
 	import { Plus, RotateCcw, Trash2 } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
@@ -15,48 +11,40 @@
 		policyStepUpdates,
 		rejectReasonLabelProblems,
 		rejectReasonsFromPolicy,
-		withSavedReasonIds,
-		type RejectReason
+		withSavedReasonIds
 	} from '$lib/moderation/moderationPolicy';
 	import { Autosave } from './autosave.svelte';
 	import SaveStatusPill from './SaveStatusPill.svelte';
+	import { notifications } from '$lib/notifications.svelte';
+	import type { UpdateModerationPolicyReason } from '@crownshy/api-client/api';
 
-	type Props = {
-		conversationId: string;
-		/** Undefined while the conversation has no workflow, so there are no steps to point. */
-		workflowId: string | undefined;
-		/** The conversation's policies, oldest first. The editor works on the first (ADR-0038). */
-		policies: ModerationPolicyDto[];
-		/** The API's default reasons, shown until the first edit creates a policy. */
-		defaultReasons: RejectReason[];
-		/** The workflow's steps. Saving points every Polis step at the policy. */
-		steps: WorkflowStepWithTranslations[];
-	};
-
-	let { conversationId, workflowId, policies, defaultReasons, steps }: Props = $props();
-
-	const NEW_POLICY_NAME = 'Moderation policy';
+	let { data, params } = $props();
 
 	// `key` is a stable {#each} key: labels can be blank or repeated while editing, and a new
 	// reason has no id until its first save lands.
-	type Row = RejectReason & { key: number; description: string };
+	type Row = {
+		key: number;
+		label: string;
+		description: string;
+	};
 
-	let nextKey = 0;
-	const toRows = (reasons: RejectReason[]): Row[] =>
-		reasons.map((reason) => ({
+	const toRows = (reasons: UpdateModerationPolicyReason[]): Row[] =>
+		reasons.map((reason, index) => ({
 			...reason,
-			key: nextKey++,
+			key: index + 1,
 			description: reason.description ?? ''
 		}));
 
-	let policyId = $derived<string | null>(policies[0]?.id ?? null);
-	let policyName = $derived(policies[0]?.name ?? NEW_POLICY_NAME);
-	let rows = $derived<Row[]>(
-		toRows(policies[0] ? rejectReasonsFromPolicy(policies[0]) : defaultReasons)
+	let policyId = $derived<string | null>(data.policies[0]?.id ?? null);
+
+	// $state needed for deep reactivity, should be ok since we're only using the initial value, derived isn't necessary
+	let rows = $state<Row[]>(
+		toRows(data.policies[0] ? rejectReasonsFromPolicy(data.policies[0]) : data.defaultReasons)
 	);
+
 	// While true the conversation has no policy and uses the default reasons, so a later change
 	// to the defaults reaches it. Any edit creates the conversation's own policy.
-	let usingDefault = $derived(policies.length === 0);
+	let usingDefault = $derived(data.policies.length === 0);
 
 	// Why each row's label won't be saved, by position. Blank rows are still being typed, so
 	// they aren't flagged.
@@ -71,12 +59,26 @@
 	const pointedSteps = new Map<string, string | null>();
 
 	async function pointStepsAt(targetPolicyId: string | null) {
-		if (!workflowId) return;
-		for (const { stepId, body } of policyStepUpdates(steps, targetPolicyId, pointedSteps)) {
+		const workflow = await data.streamedWorkflow;
+		if (workflow.err !== null) {
+			console.error(workflow.err);
+			notifications.addFlash({
+				message:
+					"Unable to update the conversation because the workflow data wasn't able to load. Please try reloading the page",
+				priority: 'ERROR'
+			});
+			return;
+		}
+		if (!workflow.ok.id) return;
+		for (const { stepId, body } of policyStepUpdates(
+			workflow.ok.steps,
+			targetPolicyId,
+			pointedSteps
+		)) {
 			await apiClient.UpdateConversationWorkflowStep(body, {
 				params: {
-					conversation_id: conversationId,
-					workflow_id: workflowId,
+					conversation_id: params.conversation_id,
+					workflow_id: workflow.ok.id,
 					workflow_step_id: stepId
 				}
 			});
@@ -91,11 +93,14 @@
 			if (policyId === null) return;
 			await pointStepsAt(null);
 			await apiClient.DeleteConversationModerationPolicy(undefined, {
-				params: { conversation_id: conversationId, moderation_policy_id: policyId }
+				params: { conversation_id: params.conversation_id, moderation_policy_id: policyId }
 			});
 			policyId = null;
 			return;
 		}
+
+		const NEW_POLICY_NAME = 'Moderation policy';
+		const policyName = data.policies[0]?.name ?? NEW_POLICY_NAME;
 
 		const reasons = cleanRejectReasons(rows);
 		const saved =
@@ -108,13 +113,13 @@
 								description
 							}))
 						},
-						{ params: { conversation_id: conversationId } }
+						{ params: { conversation_id: params.conversation_id } }
 					)
 				: await apiClient.UpdateConversationModerationPolicy(
 						{ name: policyName, reasons },
 						{
 							params: {
-								conversation_id: conversationId,
+								conversation_id: params.conversation_id,
 								moderation_policy_id: policyId
 							}
 						}
@@ -145,20 +150,24 @@
 	}
 
 	async function addRow() {
-		const row: Row = { key: nextKey++, label: '', description: '' };
-		rows = [...rows, row];
+		const row: Row = { key: rows[rows.length - 1].key + 1, label: '', description: '' };
+		rows.push(row);
 		await tick();
 		document.querySelector<HTMLInputElement>(`#reject-reason-label-${row.key}`)?.focus();
 	}
 
 	function removeRow(key: number) {
-		rows = rows.filter((row) => row.key !== key);
+		const index = rows.findIndex((row) => row.key === key);
+		if (index < 0) {
+			return;
+		}
+		rows.splice(index, 1);
 		usingDefault = false;
 		autosave.schedule();
 	}
 
 	function resetToDefault() {
-		rows = toRows(defaultReasons);
+		rows = toRows(data.defaultReasons);
 		usingDefault = true;
 		autosave.schedule();
 	}

@@ -4,11 +4,12 @@
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	import { loginRedirect, signupRedirect, signupGuestRedirect } from '$lib/urls.js';
+	import { loginRedirectClient, signupRedirect, signupGuestRedirect } from '$lib/urls.js';
 
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import { env } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
 
@@ -34,7 +35,7 @@
 	);
 
 	function login() {
-		loginRedirect(url.toString(), 'Login to accept invite');
+		loginRedirectClient(url.toString(), 'Login to accept invite');
 	}
 
 	function create_account() {
@@ -60,11 +61,13 @@
 				await apiClient.SignupGuestUser(undefined, {});
 				await acceptInvite();
 				await goto(firstWorkflowPath + url.search, {
-					invalidate: ['user', 'app:participation']
+					invalidate: [key('user'), key('public/participation')]
 				});
 			} else {
 				await acceptInvite();
-				await goto(firstWorkflowPath + url.search, { invalidate: ['app:participation'] });
+				await goto(firstWorkflowPath + url.search, {
+					invalidate: [key('public/participation')]
+				});
 			}
 		} catch (e) {
 			console.error(e);
@@ -86,7 +89,7 @@
 
 	onMount(() => {
 		if (!user && eventId) {
-			invalidateAll();
+			invalidate(key('public/participation'));
 		}
 	});
 </script>

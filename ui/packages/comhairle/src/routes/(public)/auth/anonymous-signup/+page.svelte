@@ -17,7 +17,7 @@
 			await goto(
 				`/auth/anonymous-signup/code?backTo=${encodeURIComponent(data.backTo ?? '/')}`,
 				{
-					invalidateAll: true
+					invalidate: ['user']
 				}
 			);
 		} catch (e) {

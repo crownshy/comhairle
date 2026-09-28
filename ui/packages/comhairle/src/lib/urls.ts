@@ -51,13 +51,32 @@ export function report_url(
 	return conversation_url(conversation_id, isPreview) + '/report';
 }
 
-// Redirect to the login page with a link back to the current
-// context.
-export function loginRedirect(backTo: string, message?: string) {
+/**
+ * Redirect to the login page with a link back to the current context.
+ *
+ * Should only be used on call sites assured to be run on the client as `goto`
+ * will fail if run on the server. See `loginRedirectServer` for server call
+ * sites.
+ */
+export function loginRedirectClient(backTo: string, message?: string) {
 	if (message) {
 		notifications.addFlash({ message, priority: 'INFO' });
 	}
 	goto(`/auth/login?backTo=${encodeURIComponent(backTo)}`);
+}
+
+/**
+ * Redirect to the login page with a link back to the current context.
+ *
+ * Should only be used on call sites assured to be run on the server as `redirect`
+ * will fail if run on the client. See `loginRedirectClient` for client call
+ * sites.
+ */
+export function loginRedirectServer(backTo: string, message?: string) {
+	if (message) {
+		notifications.addFlash({ message, priority: 'INFO' });
+	}
+	redirect(302, `/auth/login?backTo=${encodeURIComponent(backTo)}`);
 }
 
 // Redirect to the signup page with a link back to the current

@@ -210,7 +210,7 @@ async fn get_conversation(
                 return Err(ComhairleError::UserNotAuthorized);
             }
         } else {
-            return Err(ComhairleError::UserNotAuthorized);
+            return Err(ComhairleError::NoLoggedInUser);
         }
     }
 
@@ -851,26 +851,31 @@ async fn export_conversation_demographics(
                     .demographics
                     .get("ethnicity")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("age")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("gender")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("zipcode")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("political_party")
                     .map(|d| d.value.clone())
+                    .flatten()
                     .unwrap_or_default(),
                 profile.created_at.to_rfc3339(),
             ])?;
@@ -2168,7 +2173,7 @@ mod tests {
         let url = format!("/conversation/{}/demographics/export", conversation.id);
         let mut request = Request::builder().uri(&url).method("GET");
 
-        if let Some(cookie) = &admin_session.cookie {
+        if let Some(cookie) = &admin_session.cookie_header() {
             request = request.header("Cookie", cookie);
         }
 

@@ -6,7 +6,7 @@
 	import { clampWidth, DEFAULT_WIDTH } from '$lib/components/sidebarWidth.js';
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
-	import { loginRedirect } from '$lib/urls';
+	import { loginRedirectServer } from '$lib/urls';
 
 	let { children, data }: LayoutProps = $props();
 	let ownedConversations = $derived(data.ownedConversations);
@@ -14,7 +14,7 @@
 	let userOrganizations = $derived(data.userOrganizations);
 
 	if (!data.user) {
-		loginRedirect(page.url.toString(), 'You need to be logged in to access this');
+		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
 	}
 
 	// Writable derived seeded from the server-read cookie: SSR and the live value are one

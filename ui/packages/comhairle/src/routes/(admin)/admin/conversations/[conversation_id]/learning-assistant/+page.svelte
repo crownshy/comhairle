@@ -16,7 +16,6 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import { TriangleAlert, RefreshCw } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
-	import { invalidateAll } from '$app/navigation';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import Media from '$lib/interfaces/Media';
 	import { MB } from '$lib/utils/units';
@@ -34,6 +33,7 @@
 	import { getLanguageName } from '$lib/config/languages';
 	import { Input } from '$lib/components/ui/input';
 	import { useDebounce } from 'runed';
+	import { key } from '$lib/utils/invalidationKey';
 
 	const MAX_SIZE = 50 * MB;
 
@@ -95,7 +95,7 @@
 			return;
 		}
 		notifications.send({ message: 'Setting updated', priority: 'INFO' });
-		await invalidate('conversation:meta');
+		await invalidate(key('admin/conversation'));
 	}
 
 	let isSyncing = $state(false);
@@ -205,7 +205,7 @@
 			message: 'Learn content sync started. It will be ready once parsing finishes.',
 			priority: 'INFO'
 		});
-		await invalidateAll();
+		await invalidate(key('admin/knowledge-base/documents'));
 	}
 
 	async function uploadFile(file: File) {
@@ -231,7 +231,7 @@
 			message: 'File uploaded successfully',
 			priority: 'INFO'
 		});
-		await invalidate('knowledge-base:documents');
+		await invalidate(key('admin/knowledge-base/documents'));
 	}
 
 	let allLanguageOptions = $derived<Option[]>(
@@ -269,7 +269,7 @@
 			priority: 'INFO',
 			message: 'Successfully updated learning assistant cross languages'
 		});
-		invalidate('knowledge-base:documents');
+		invalidate(key('admin/knowledge-base/documents'));
 	}
 
 	// FIX: Upload from Url functionality
