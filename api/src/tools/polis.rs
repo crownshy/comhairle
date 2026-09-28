@@ -29,8 +29,8 @@ use crate::{
     },
     routes::auth::{RequiredAdminUser, RequiredUser},
     wiki_poll_service::{
-        ModerationStatus, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
-        polis_service::WikiPollReport,
+        ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin,
+        WikiPollService, polis_service::WikiPollReport,
     },
 };
 
@@ -381,6 +381,9 @@ pub enum PolisError {
     #[error("Failed to get comments {0}")]
     FailedToGetComments(StatusCode, String),
 
+    #[error("Failed to get report data {1}")]
+    FailedToGetReport(StatusCode, String),
+
     #[error("Failed to get xids {0}")]
     FailedToGetXIDs(StatusCode, String),
 
@@ -414,6 +417,7 @@ impl Into<StatusCode> for &PolisError {
             PolisError::FailedToLogin(status) => *status,
             PolisError::FailedToCreateNewPoll(status) => *status,
             PolisError::FailedToGetComments(status, _) => *status,
+            PolisError::FailedToGetReport(status, _) => *status,
             PolisError::FailedToGetXIDs(status, _) => *status,
             PolisError::FailedPollUpdate(status, _) => *status,
             PolisError::FailedToPostSeedComment(status, _) => *status,
@@ -500,10 +504,18 @@ async fn get_report_data(
         _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
     };
 
+    // With strict_moderation off, Polis shows participants every statement a moderator has
+    // not rejected. Polis defaults a new conversation to off, so an unset flag counts as off.
+    let scope = if config.strict_moderation.unwrap_or(false) {
+        ReportScope::AcceptedOnly
+    } else {
+        ReportScope::AcceptedAndPending
+    };
+
     // Get the report data
     let data = state
         .wiki_poll_service
-        .get_report_data(&config.poll_id)
+        .get_report_data(&config.poll_id, scope)
         .await?;
 
     Ok((StatusCode::OK, Json(data)))
