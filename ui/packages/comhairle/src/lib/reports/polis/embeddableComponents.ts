@@ -1,3 +1,5 @@
+import type { ReportWidgetMeta } from '../embeds';
+
 /**
  * The allow-list of Polis report components a facilitator can embed into the report
  * (see ADR-0012 and the "Embeddable section block" glossary entry). Section-level and
@@ -11,13 +13,7 @@ export type PolisEmbeddableComponentType =
 	| 'polis-consensus-continuum'
 	| 'polis-opinion-groups';
 
-export interface EmbeddableComponentMeta {
-	type: PolisEmbeddableComponentType;
-	label: string;
-	description: string;
-}
-
-export const POLIS_EMBEDDABLE_COMPONENTS: EmbeddableComponentMeta[] = [
+export const POLIS_EMBEDDABLE_COMPONENTS: ReportWidgetMeta<PolisEmbeddableComponentType>[] = [
 	{
 		type: 'polis-key-stats',
 		label: 'Key stats',
