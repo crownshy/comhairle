@@ -47,6 +47,7 @@ pub struct WorkflowStep {
     pub request_user_share_permission: bool,
     #[partially(transparent)]
     pub data_protocol: Option<TextContentId>,
+    pub report_data_public: bool,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -110,6 +111,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 15] = [
     WorkflowStepIden::Required,
     WorkflowStepIden::RequestUserSharePermission,
     WorkflowStepIden::DataProtocol,
+    WorkflowStepIden::ReportDataPublic,
     WorkflowStepIden::CreatedAt,
     WorkflowStepIden::UpdatedAt,
 ];
@@ -282,6 +284,9 @@ impl PartialWorkflowStep {
         };
         if let Some(value) = &self.data_protocol {
             values.push((WorkflowStepIden::DataProtocol, (*value).into()))
+        };
+        if let Some(value) = self.report_data_public {
+            values.push((WorkflowStepIden::ReportDataPublic, value.into()))
         };
         values
     }
