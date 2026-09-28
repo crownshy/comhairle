@@ -10,8 +10,8 @@
 	  of a session, so the legend is always on screen and every state is readable from
 	  across a room.
 	- Dots migrate rather than appear. Each one enters on a ring and travels to its
-	  clustered position as its owner votes, which is the client's "clusters moving
-	  with voting". It is honest rather than decorative: Polis does not know where
+	  clustered position as its owner votes, so the clusters visibly form as the room
+	  votes. It is honest rather than decorative: Polis does not know where
 	  someone belongs until they have voted a few times, so an unsettled dot is one
 	  whose position is not yet earned.
 

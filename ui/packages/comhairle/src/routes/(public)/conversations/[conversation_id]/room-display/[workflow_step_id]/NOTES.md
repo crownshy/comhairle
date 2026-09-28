@@ -9,10 +9,10 @@ path). Linked from the step's admin Insights tab. Two sources behind one display
 - default: **live**. Polls the step's `PolisGetReportData` every few seconds
   (`liveSource.svelte.ts`). Participants come with a PCA position and a group id, so
   the map, group labels, counts, strip and group statements all work. What the report
-  does _not_ carry is a per-participant vote matrix, so a live wall cannot colour
-  individual dots by one statement; it shows that statement's group bars instead.
-  That endpoint is the one piece of backend work this needs (CONTEXT.md,
-  "Cross-highlight").
+  does _not_ carry is a per-participant vote matrix, so a live wall deals each
+  group's counts for the focused statement across that group's dots (ADR-0040,
+  CONTEXT.md "Apportioned colouring"): the proportions are exact, which dot took
+  which colour is not.
 - `?mode=demo`: the scripted scenario with animated joins and votes, for showing the
   thing off without a room. Transport controls appear in dev builds.
 
@@ -256,8 +256,8 @@ Folded in from the review of the videos:
 - **Two machines.** Console and wall pair as two windows on one machine over a
   BroadcastChannel (ADR-0045). A wall driven from a different computer would need a
   socket through the API. Not asked for yet.
-- **Per-participant votes endpoint.** Without it the live wall has no cross-highlight
-  and no "N more voters" countdown. The raw material (`/api/v3/votes?pid=`, base
+- **Per-participant votes endpoint.** Without it the live wall's cross-highlight is
+  apportioned rather than exact, and there is no "N more voters" countdown. The raw material (`/api/v3/votes?pid=`, base
   clusters) is already reachable server-side.
 - **Join URL.** The QR defaults to the conversation page; pass `?join=` with an open
   invite URL until the display can look one up itself.

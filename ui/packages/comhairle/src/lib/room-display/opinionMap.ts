@@ -62,10 +62,9 @@ export function needsOutline(fill: string): boolean {
 /**
  * How settled a dot is, from 0 (just arrived, out on the ring) to 1 (in its cluster).
  *
- * This is what makes the map appear to move as people vote, which is the client's
- * first ask. It is honest rather than decorative: Polis genuinely does not know where
- * someone belongs until they have voted a few times, so an unsettled dot is a dot
- * whose position is not yet earned.
+ * This is what makes the map appear to move as people vote. It is honest rather than
+ * decorative: Polis genuinely does not know where someone belongs until they have
+ * voted a few times, so an unsettled dot is a dot whose position is not yet earned.
  */
 export function settleFactor(votesCast: number, settleVotes = 6): number {
 	if (settleVotes <= 0) return 1;
@@ -257,8 +256,8 @@ export interface GroupCentroid {
  * Only settled dots count. A dot still travelling in from the entry ring is not in
  * its cluster yet, and averaging it in would drag the label out toward the ring. The
  * upshot is that a label appears once the first member arrives and follows the
- * cluster as it fills, which is the "labels that move with the dots" the client asked
- * for. A group with no settled dot has no label.
+ * cluster as it fills, so the labels move with the dots. A group with no settled dot
+ * has no label.
  */
 export function groupCentroids(dots: PlacedDot[]): GroupCentroid[] {
 	const byGroup = new Map<number, GroupCentroid>();

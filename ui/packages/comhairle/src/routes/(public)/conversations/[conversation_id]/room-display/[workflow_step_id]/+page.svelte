@@ -7,7 +7,8 @@
 	  live  - polls the step's real report data. What a room actually sees.
 	  demo  - a scripted 4.5 hour run compressed to a few minutes, with animated joins
 	          and votes, so the thing can be shown off without a room. Only the demo
-	          carries per-participant votes, so only the demo colours dots by a vote.
+	          carries per-participant votes; live deals each group's counts across its
+	          dots instead (ADR-0040).
 
 	What the display shows is a board: a layout plus a set of blocks (`blocks.ts`).
 	`?variant=` names a familiar one, `?layout=` and `?blocks=` say it exactly, and the
