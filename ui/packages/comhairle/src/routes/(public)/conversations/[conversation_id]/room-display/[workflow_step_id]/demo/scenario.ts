@@ -1,15 +1,6 @@
 /**
- * Folds a scripted scenario into the state the Room display renders.
- *
- * `stateAt` is pure and fully determined by `(scenario, atMs)`, which is what makes
- * scrubbing work: jumping backwards is the same operation as playing forwards, so the
- * facilitator can rewind to "twenty minutes in" mid-pitch and get exactly the frame
- * they had. At roundtable scale a run is a few hundred events, so folding from scratch
- * on every frame is cheaper than maintaining an incremental cursor and its
- * invalidation rules.
- *
- * Events are assumed sorted by `at`; `buildScenario` sorts once at construction so the
- * fold can stop at the first event past `atMs`.
+ * Replays a scripted scenario up to a point in time. Recomputed from scratch each
+ * frame, which is cheap at a few hundred events and makes seeking backwards trivial.
  */
 
 import { computeStage, ratchet, DEFAULT_THRESHOLDS, type RevealThresholds } from '../revealStage';
@@ -23,12 +14,12 @@ import type {
 	VoteDistribution
 } from '../types';
 
-/** Sorts events by time so `stateAt` can early-exit. Stable for equal timestamps. */
+/** Sorts events by time, which `stateAt` relies on. Stable for equal timestamps. */
 export function orderEvents(events: ScenarioEvent[]): ScenarioEvent[] {
 	return [...events].sort((a, b) => a.at - b.at);
 }
 
-/** Folds the scenario up to and including `atMs`. */
+/** The display state after every event up to and including `atMs`. */
 export function stateAt(scenario: Scenario, atMs: number): DisplayState {
 	const joined: MapNode[] = [];
 	const seenNodes = new Set<number>();
@@ -58,7 +49,7 @@ export function stateAt(scenario: Scenario, atMs: number): DisplayState {
 					byNode = new Map();
 					votesByTid.set(event.tid, byNode);
 				}
-				// A node revoting the same statement replaces rather than double-counts.
+				// A second vote on the same statement replaces the first.
 				if (!byNode.has(event.nodeId)) totalVotes += 1;
 				byNode.set(event.nodeId, event.vote);
 				break;
@@ -67,7 +58,7 @@ export function stateAt(scenario: Scenario, atMs: number): DisplayState {
 	}
 
 	const byTid = new Map(scenario.comments.map((c) => [c.tid, c]));
-	// Most recently published first, which is the order the statement ticker wants.
+	// Newest first.
 	const published = publishedTids
 		.map((tid) => byTid.get(tid))
 		.filter((c) => c !== undefined)
@@ -77,12 +68,8 @@ export function stateAt(scenario: Scenario, atMs: number): DisplayState {
 }
 
 /**
- * How one map node split on one statement, for the cross-highlight.
- *
- * At roundtable scale every node holds one member, so exactly one count is 1 and the
- * dot renders as a single person's vote. Above Polis's 100-cluster cap a node holds
- * several and the same shape describes a split, which is why this returns counts
- * rather than a single `Vote`.
+ * How one map node voted on one statement. Returns counts rather than a single `Vote`
+ * because above 100 participants Polis groups several people into one node.
  */
 export function nodeVoteDistribution(
 	state: DisplayState,
@@ -92,9 +79,7 @@ export function nodeVoteDistribution(
 	const byNode = state.votesByTid.get(tid);
 	const vote = byNode?.get(node.id);
 
-	// The scenario records one vote per node, so a multi-member node is represented by
-	// its single recorded answer standing for all its members. Real data will carry a
-	// per-member breakdown here instead; the shape does not change.
+	// The scenario has one vote per node, so it stands for every member of the node.
 	const agrees = vote === 'agree' ? node.memberCount : 0;
 	const disagrees = vote === 'disagree' ? node.memberCount : 0;
 	const passes = vote === 'pass' ? node.memberCount : 0;
@@ -103,20 +88,14 @@ export function nodeVoteDistribution(
 	return { agrees, disagrees, passes, notVoted };
 }
 
-/** Total participants represented by the joined nodes, not the node count. */
+/** Total members across joined nodes, which can exceed the node count. */
 export function participantCount(state: DisplayState): number {
 	return state.nodes.reduce((sum, n) => sum + n.memberCount, 0);
 }
 
 /**
- * The reveal stage at each sample point across a whole scenario, ratcheted forward.
- *
- * Precomputed once per scenario rather than folded per frame for two reasons. It is
- * far cheaper: a 4.5 hour run sampled every 30 seconds is 540 folds, which is fine
- * once and ruinous at 60fps. And it makes scrubbing correct: the stage at a playhead
- * is a property of the timeline up to that point, not of what the facilitator has
- * happened to watch, so rewinding to minute two shows the minute-two screen rather
- * than keeping an unlock the room has not seen yet.
+ * The reveal stage sampled across the whole scenario, computed once rather than per
+ * frame. Stages only move forward, so seeking backwards shows the earlier stage.
  */
 export function stageTimeline(
 	scenario: Scenario,
@@ -132,7 +111,6 @@ export function stageTimeline(
 	return samples;
 }
 
-/** The stage at `atMs`, from a timeline built by `stageTimeline`. */
 export function stageAt(
 	timeline: { atMs: number; stage: RevealStage }[],
 	atMs: number

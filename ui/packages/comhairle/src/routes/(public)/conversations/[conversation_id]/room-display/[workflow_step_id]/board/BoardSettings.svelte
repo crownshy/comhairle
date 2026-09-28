@@ -1,15 +1,7 @@
 <!--
-	@component The board's controls: which blocks are on, and how they are arranged.
-
-	Lives on the display itself rather than in admin, because the question it answers
-	is asked in the room. A facilitator finds the map is not landing with this
-	particular group, turns it off, and the statement gets the whole wall. Making that
-	a round trip through a settings page means it never happens.
-
-	The trigger is deliberately faint and in the corner: it is not part of what the
-	room is meant to read, and it should not survive into a photo of the wall. It
-	comes up to full strength on hover or keyboard focus, and Cmd/Ctrl+K opens the
-	panel without having to find it.
+	@component The board settings panel. It sits on the display rather than in admin because
+	board changes are made in the room. The trigger stays faint so it does not show in
+	photos of the wall; Cmd/Ctrl+K opens the panel.
 -->
 <script lang="ts">
 	import { Settings2, Check, Link } from '@lucide/svelte';
@@ -72,8 +64,7 @@
 		onReset
 	}: Props = $props();
 
-	// Named for what they do to the room rather than for the component that renders
-	// them, because this list is read by a facilitator, not by us.
+	// Labels describe the effect on the room, because a facilitator reads this list.
 	const LAYOUTS: { id: RoomLayout; label: string; hint: string }[] = [
 		{ id: 'split', label: 'One wall', hint: 'Everything on a single surface' },
 		{ id: 'console', label: 'Wall and laptop', hint: 'Controls on a second surface' },
@@ -83,17 +74,14 @@
 	let open = $state(false);
 	let copied = $state(false);
 
-	// The template the board still is. Anything touched by hand is "Custom", which is
-	// not an option in the list: there is nothing to pick it back to.
+	// "Custom" is shown once the board no longer matches a template. It is not selectable.
 	const template = $derived(matchingPreset(board));
 	const templateLabel = $derived(
 		BOARD_TEMPLATES.find((option) => option.id === template)?.label ?? 'Custom'
 	);
 
-	// On the deck the panel lists slides, by the name on the wall, rather than blocks:
-	// a facilitator running slides has no "statement strip" to size, they have "Where
-	// we split". Blocks with no slide (question, counts, group controls) are not shown,
-	// because a switch that does nothing is worse than no switch.
+	// On the deck, rows are the slides by their titles on the wall. Blocks with no slide
+	// are hidden, because a switch that does nothing is worse than no switch.
 	const onDeck = $derived(board.layout === 'deck');
 	const rows = $derived<{ id: RoomBlock; label: string }[]>(
 		onDeck
@@ -101,9 +89,7 @@
 			: ROOM_BLOCKS.map((block) => ({ id: block.id, label: block.label }))
 	);
 
-	// "Beside" means the column under the statement strip, which only the one-wall
-	// layout has. Offering it elsewhere would be a button that silently does something
-	// else.
+	// "Beside" needs the column under the statement strip, which only the split layout has.
 	const latestOptions = $derived(
 		LATEST_STYLES.filter((option) => !option.splitOnly || board.layout === 'split')
 	);
@@ -112,8 +98,7 @@
 		const target = event.target as HTMLElement | null;
 		if (target?.closest('input, textarea, [contenteditable]')) return;
 		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-			// Chrome would otherwise take this to the address bar, which on a projector
-			// in fullscreen is not even visible.
+			// Otherwise Chrome focuses the address bar, which is hidden in fullscreen.
 			event.preventDefault();
 			open = !open;
 		}
@@ -125,9 +110,8 @@
 			copied = true;
 			setTimeout(() => (copied = false), 2000);
 		} catch {
-			// Clipboard access is refused outside a secure context and in some kiosk
-			// setups. The URL is already in the address bar, so there is nothing to
-			// recover: swallow it rather than putting an error on the wall.
+			// Clipboard access fails outside secure contexts and in some kiosks. The URL is
+			// still in the address bar, so ignore it rather than show an error on the wall.
 		}
 	}
 </script>
@@ -149,11 +133,6 @@
 				<Button variant="ghost" size="sm" onclick={onReset}>Reset</Button>
 			</div>
 
-			<!--
-				A whole board in one pick, for the facilitator who knows what room they are
-				in and does not want to assemble it block by block. Everything below still
-				applies afterwards; the pick is where you start, not a mode.
-			-->
 			<div class="flex flex-col gap-2">
 				<Label for="board-template" class="text-muted-foreground text-base font-medium">
 					Template
@@ -229,11 +208,6 @@
 			</fieldset>
 
 			{#if onDeck}
-				<!--
-					One choice for both statement slides, not one each: "walk them through it or
-					show them the result" is a decision about the session. Only the deck has
-					these slides, so only the deck shows the choice.
-				-->
 				<fieldset class="flex flex-col gap-2">
 					<legend class="text-muted-foreground pb-2 text-base font-medium">
 						Statement slides show
@@ -256,12 +230,6 @@
 				</fieldset>
 			{/if}
 
-			<!--
-				One row per block: whether it is on, and how big. The two used to be separate
-				lists, which meant reading every block name twice to set up one wall.
-				"Everything" comes first because it is what you reach for when the back row
-				cannot read any of it.
-			-->
 			<fieldset class="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-3">
 				<legend class="text-muted-foreground pb-2 text-base font-medium">
 					{onDeck ? 'Slides' : 'Blocks'}
@@ -296,10 +264,6 @@
 					</div>
 					<Switch {id} checked={on} onCheckedChange={() => onToggleBlock(block.id)} />
 					{#if block.id === 'marquee' && on && !onDeck}
-						<!--
-							Nested under the block it belongs to: it is how that block draws
-							itself, not a ninth thing to switch on.
-						-->
 						<div
 							class="border-border col-span-3 flex flex-col gap-2 border-l pb-1 pl-4"
 						>

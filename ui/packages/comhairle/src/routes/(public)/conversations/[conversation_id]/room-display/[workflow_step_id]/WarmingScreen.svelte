@@ -1,26 +1,13 @@
 <!--
-	@component What the room sees before Polis has clustered: the question, a QR code,
-	and a live count.
-
-	This is not a loading state. For the first stretch of a session the honest state of
-	the data is "nothing yet", and the most useful thing the screen can do is recruit.
-	It is also what the room stares at for the first half hour, so it gets the whole
-	display rather than a spinner in the corner of the real one.
-
-	The countdown is the incentive: the threshold is real (Polis genuinely cannot
-	cluster yet), so telling the room how far off it is turns waiting into a shared
-	goal rather than dead air.
-
-	Dumb: takes the copy, the join URL and the numbers. It does not know about stages
-	or drivers.
+	@component Shown before Polis has formed opinion groups: the question, a join QR code,
+	live counts and how many more voters are needed.
 -->
 <script lang="ts">
 	import JoinQrCode from './JoinQrCode.svelte';
 
 	type Props = {
-		/** The Polis question the room is answering. */
 		question: string;
-		/** Where the QR code points. An open invite, so scanning hits no signup wall. */
+		/** Should be an open invite link, so scanning does not hit a sign-up page. */
 		joinUrl: string;
 		participants: number;
 		votes: number;
@@ -31,11 +18,7 @@
 	let { question, joinUrl, participants, votes, unlockLabel = null }: Props = $props();
 </script>
 
-<!--
-	Clipped, not overflowing: a centred flex column that outgrows its box spills in both
-	directions and prints over whatever sits above it. Sizes step up with the viewport so
-	the same screen works on a preview pane and a projector.
--->
+<!-- overflow-hidden: a centred flex column that outgrows its box spills up over the content above. -->
 <div
 	class="flex min-h-[85vh] flex-col items-center justify-center gap-6 overflow-hidden text-center lg:h-full lg:min-h-0 lg:gap-10"
 >
@@ -50,19 +33,12 @@
 		</h1>
 	</div>
 
-	<!--
-		Sized for a room, not a desk. The QR is the one thing on this screen someone has
-		to act on from eight metres away, so it gets the most pixels.
-	-->
 	<div class="shrink-0 rounded-2xl bg-white p-3 lg:p-6">
 		<JoinQrCode value={joinUrl} resolution={1024} class="size-36 sm:size-48 lg:size-64" />
 	</div>
 
 	<div class="flex flex-wrap items-baseline justify-center gap-x-6 gap-y-2 lg:gap-x-10">
-		<!--
-			No expected total: a denominator implies a fixed roster, which stops being true
-			the moment the QR code leaves the room.
-		-->
+		<!-- No "of N" total: anyone with the link can join, so there is no fixed roster. -->
 		<p class="text-foreground text-2xl font-bold tabular-nums lg:text-4xl">
 			{participants}
 			<span class="text-muted-foreground text-base font-medium lg:text-2xl">here</span>

@@ -1,14 +1,6 @@
 /**
- * A Room display source fed by a real Polis step.
- *
- * Polls `PolisGetReportData` on an interval; there is no push feed for Polis, and the
- * math behind the report is itself recomputed on a schedule, so polling every few
- * seconds loses nothing. A failed poll keeps the last good payload on screen rather
- * than blanking the wall mid-session. A hidden tab has nobody looking at it, so it
- * stops asking; coming back refreshes at once rather than waiting out the interval.
- *
- * The stage ratchets across polls for the reason `revealStage.ts` gives: Polis's group
- * count oscillates with few votes and a wall that re-locks itself reads as broken.
+ * Room display source that polls a live Polis step. A failed poll keeps the last good
+ * data on screen, and polling pauses while the tab is hidden.
  */
 
 import type { createApiClient } from '@crownshy/api-client/client';
@@ -26,7 +18,7 @@ export interface LiveSourceOptions {
 }
 
 export interface LiveRoomDisplaySource extends RoomDisplaySource {
-	/** Wall-clock time (epoch ms) of the last successful poll, or null before the first. */
+	/** Epoch ms of the last successful poll, or null before the first. */
 	readonly updatedAtMs: number | null;
 	/** Whether the most recent poll failed. The wall keeps showing the last good data. */
 	readonly stale: boolean;
@@ -35,7 +27,7 @@ export interface LiveRoomDisplaySource extends RoomDisplaySource {
 
 const EMPTY: PolisReportData = { comments: [], groups: [], participants: [] };
 
-/** Timers only exist in the browser; on the server the source renders its empty frame. */
+/** On the server the source stays empty and never polls. */
 const canPoll = typeof window !== 'undefined';
 
 export function createLiveRoomDisplaySource(options: LiveSourceOptions): LiveRoomDisplaySource {
@@ -58,7 +50,7 @@ export function createLiveRoomDisplaySource(options: LiveSourceOptions): LiveRoo
 			stale = true;
 			return;
 		}
-		// WikiPollReport is PolisReportData minus the client-only theme overlay.
+		// The API's WikiPollReport type is PolisReportData without the client-only theme fields.
 		report = result.ok;
 		reached = ratchet(reached, stageFromReport(result.ok));
 		updatedAtMs = Date.now();

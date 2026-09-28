@@ -1,30 +1,11 @@
 /**
- * The Room display's reveal-stage machine.
- *
- * Polis's clustering produces no opinion groups until enough participants have voted
- * on enough statements, so for the first stretch of a session the honest state of the
- * data is "nothing yet". The display has stages whether we design them or not; these
- * make them explicit and turn the wait into a countdown the room can see.
- *
- * Two rules carry most of the value:
- *
- *  - **Stages ratchet.** Polis recomputes continuously and its group count genuinely
- *    oscillates (two groups, then three, then two again) with few votes. A display
- *    that unlocked and then re-locked itself would read as broken, so a stage once
- *    reached is never given back.
- *  - **Warming is not a spinner.** It is the recruitment screen. The caller renders
- *    the question and the QR code there, which is the most useful thing the screen
- *    can do at minute five anyway.
- *
- * The thresholds below are the *display's* approximation, used to drive a scripted
- * scenario. The live display should prefer the real signal where it exists: once
- * `report_data` returns two or more groups, Polis has genuinely clustered and the
- * stage is at least `shaped` regardless of what these counts say.
+ * Decides how much of the Room display is unlocked. A stage once reached is never given
+ * back. The thresholds approximate when Polis will cluster. See CONTEXT.md, "Reveal stage".
  */
 
 import type { DisplayState, RevealStage } from './types';
 
-/** Weakest to strongest. Index doubles as the ratchet's ordinal. */
+/** Weakest to strongest. The index is used to compare stages. */
 export const STAGE_ORDER: readonly RevealStage[] = ['empty', 'warming', 'shaped', 'rich'];
 
 export interface RevealThresholds {
@@ -39,10 +20,8 @@ export interface RevealThresholds {
 }
 
 /**
- * Defaults tuned for a room of roughly 28. `shapedVoters` sits below half the room
- * because waiting for a majority means the map stays locked through most of the first
- * hour, and a display that unlocks late is worse than one that unlocks on partial
- * data and says so.
+ * Tuned for a room of about 28. `shapedVoters` is under half the room so the map unlocks
+ * early on partial data rather than staying hidden for most of the first hour.
  */
 export const DEFAULT_THRESHOLDS: RevealThresholds = {
 	warmingVoters: 1,
@@ -60,17 +39,14 @@ export function voterCount(state: DisplayState): number {
 	return voters.size;
 }
 
-/** Published statements Polis has scored, so the continuum can place them. */
+/** Published statements Polis has given a divisiveness score. */
 export function scoredCount(state: DisplayState): number {
 	return state.published.filter(
 		(c) => typeof c.divisiveness === 'number' && Number.isFinite(c.divisiveness)
 	).length;
 }
 
-/**
- * The stage the current data supports, ignoring history. Callers almost always want
- * `ratchet` over this rather than this alone.
- */
+/** The stage the current data supports, ignoring history. Most callers want `ratchet` too. */
 export function computeStage(
 	state: DisplayState,
 	thresholds: RevealThresholds = DEFAULT_THRESHOLDS
@@ -86,17 +62,14 @@ export function computeStage(
 	return scoredCount(state) >= thresholds.richScoredStatements ? 'rich' : 'shaped';
 }
 
-/** The stronger of two stages. Never gives a reached stage back. */
+/** The stronger of two stages, so a stage once reached is never lost. */
 export function ratchet(reached: RevealStage, computed: RevealStage): RevealStage {
 	return STAGE_ORDER.indexOf(computed) > STAGE_ORDER.indexOf(reached) ? computed : reached;
 }
 
 /**
- * What the room is waiting for, for the countdown. `null` once `rich` is reached.
- *
- * `remaining` is deliberately a count of *people* or *statements* rather than a
- * percentage: "4 more voters" is a thing the room can act on, and a progress bar is
- * not.
+ * What the room is waiting for, shown as a countdown. `remaining` counts people or
+ * statements, not a percentage, because "4 more voters" is something a room can act on.
  */
 export interface NextUnlock {
 	stage: RevealStage;
@@ -104,6 +77,7 @@ export interface NextUnlock {
 	remaining: number;
 }
 
+/** `null` once `rich` is reached. */
 export function nextUnlock(
 	state: DisplayState,
 	reached: RevealStage,
@@ -120,8 +94,8 @@ export function nextUnlock(
 	}
 
 	if (reached === 'warming') {
-		// Two conditions gate `shaped`; report whichever is further away, so the
-		// countdown never hits zero without the stage changing.
+		// `shaped` needs enough voters and enough votes. Report whichever is further away,
+		// so the countdown never reaches zero without the stage changing.
 		const votersShort = Math.max(0, thresholds.shapedVoters - voters);
 		const votesNeeded = thresholds.shapedVoters * thresholds.shapedVotesPerVoter;
 		const votesShort = Math.max(0, votesNeeded - state.totalVotes);

@@ -1,30 +1,6 @@
 /**
- * What the Room display is showing, and how it is arranged.
- *
- * The display used to be three hand-built variants. It is now one vocabulary of
- * blocks plus three layouts, and a variant is a named pairing of the two. That makes
- * any arrangement a link you can send someone, which is the property this route has
- * had for `?mode=` and `?question=` since the start, extended to the board itself.
- *
- * "Board" here means the arrangement. It is not the deleted `?variant=board`
- * direction, whose name this reuses now that it is free.
- *
- * Every layout reads the same block names, so a block that is off is off wherever you
- * are. What differs is how a layout spends the space:
- *
- *   block       split                console              deck
- *   question    heading              wall heading         (on the join slide)
- *   counts      line under it        console figures      (on the join slide)
- *   map         left column          wall centre          "Who is in the room"
- *   statement   right column         wall and console     "What we agree on"
- *   strip       under the statement  console picker       "Where we split"
- *   marquee     along the bottom     wall bottom, console "Just said"
- *   groups      bottom bar           console list         not applicable
- *   qr          top corner           wall corner          "Join in"
- *
- * The deck is the loosest fit. It has no facilitator controls, so `groups` does
- * nothing there, and its question and counts live inside the join slide rather than
- * being separately switchable. Its other four blocks each remove a slide.
+ * The board: which blocks are on, the layout, and the named presets, all read from and
+ * written back to the URL. See CONTEXT.md, "Block / Layout / Board".
  */
 
 export const ROOM_BLOCKS = [
@@ -45,11 +21,8 @@ const BLOCK_ORDER: readonly RoomBlock[] = ROOM_BLOCKS.map((b) => b.id);
 export type RoomLayout = 'split' | 'console' | 'deck';
 
 /**
- * The deck's slides in order, and the block each one is. Shared with the settings
- * panel so that, on the deck, the panel can list slides by the name on the wall rather
- * than blocks by the name of a region the deck does not have. `question`, `counts`
- * and `groups` have no slide: the first two live inside the join slide, the third has
- * nothing to drive.
+ * The deck's slides in order, and the block each one stands for. `question`, `counts`
+ * and `groups` have no slide of their own.
  */
 export const DECK_SLIDES = [
 	{ key: 'join', title: 'Join in', block: 'qr' },
@@ -64,20 +37,8 @@ export type DeckSlideKey = (typeof DECK_SLIDES)[number]['key'];
 const LAYOUTS: readonly RoomLayout[] = ['split', 'console', 'deck'];
 
 /**
- * How the `marquee` block presents itself, and where it sits.
- *
- * One setting rather than a style and a placement, because only a few of the
- * combinations are worth having: a row is only readable in a wide slot, and a narrow
- * column beside the strip can only be a column.
- *
- * `row`, `column` and `aside` are still: they move only when a statement arrives.
- * `marquee` scrolls continuously, which reads badly at room distance and is kept so
- * the two can be judged against each other in an actual room rather than argued about.
- *
- * `aside` moves the block out of the band along the bottom and into the column under
- * the statement strip, which is otherwise dead space in the `split` layout. It needs
- * that column to exist, so only `split` offers it; elsewhere it falls back to a
- * column along the bottom.
+ * How the latest-statements block draws. `row`, `column` and `aside` stay still until a
+ * statement arrives; `marquee` scrolls. `aside` needs the `split` layout. See NOTES.md.
  */
 export type LatestStyle = 'row' | 'column' | 'marquee' | 'aside';
 
@@ -97,17 +58,7 @@ const LATEST_STYLE_IDS: readonly LatestStyle[] = LATEST_STYLES.map((s) => s.id);
 
 export const DEFAULT_LATEST_STYLE: LatestStyle = 'row';
 
-/**
- * What the room is lit like, which the display cannot work out for itself: the same
- * projector is unreadable dark in a bright hall and glaring light in a dim one.
- *
- * `auto` means "do not touch", leaving whatever the app resolved from the viewer's
- * preference. Picking light or dark drives the app-wide `themeStore`, because dark is
- * a `.dark` class on `<html>` and themed deployments key off `[data-theme=x].dark` on
- * that same element, so there is no way to scope it to this page without breaking the
- * theme. On a projector that is the right trade; on a laptop it does mean the rest of
- * the app follows, which is the same thing the site's own mode toggle does.
- */
+/** Room lighting. `auto` leaves the app's own theme alone. See NOTES.md, "Lighting". */
 export type RoomTheme = 'auto' | 'light' | 'dark';
 
 export const ROOM_THEMES = [
@@ -119,16 +70,8 @@ export const ROOM_THEMES = [
 const ROOM_THEME_IDS: readonly RoomTheme[] = ROOM_THEMES.map((t) => t.id);
 
 /**
- * How the deck's two slides with several statements to show present them. "What we
- * agree on" and "Where we split" each draw from the top five for their intent.
- *
- * `walk` shows one at a time, moving on after the ambient dwell, and the facilitator
- * can hold the one they are talking about. `list` puts all five on the screen at once.
- * Both are wanted: the walk is the one that lets the map be coloured by the statement,
- * the list is the one that reads as a result. It is one choice for both slides rather
- * than one per slide: a facilitator thinks of it as "am I walking the room through
- * this or showing them the result", which is a decision about the session, not about
- * a slide. It lives on the board so a link carries it (ADR-0044).
+ * How the deck's "What we agree on" and "Where we split" slides show their top five:
+ * one at a time, or all together. One setting covers both slides (ADR-0044).
  */
 export type SlideStyle = 'walk' | 'list';
 
@@ -142,22 +85,8 @@ const SLIDE_STYLE_IDS: readonly SlideStyle[] = SLIDE_STYLES.map((s) => s.id);
 export const DEFAULT_SLIDE_STYLE: SlideStyle = 'walk';
 
 /**
- * How big everything is, which the display cannot work out for itself either: the
- * same board is right on a meeting-room TV and too small on a hall projector, and the
- * room can only tell you once it is up.
- *
- * Two knobs. `scale` grows or shrinks the whole wall together, for the hall. A
- * per-block size grows or shrinks one region relative to the rest, for the room where
- * the question is landing but the statement is not, or where the QR code is taking
- * space the map needs. Both are plain multipliers rather than named steps: a
- * facilitator in a room wants "a bit bigger" and "a bit smaller" until it reads, and
- * a ladder of four fixed sizes kept running out at both ends. The ranges are wide on
- * purpose. Too big overflows and too small is unreadable, and both are one click
- * back, so the panel does not second-guess the person standing in the room.
- *
- * A block's effective multiplier is the two together (`blockScale`). Both are applied
- * as CSS custom properties rather than by picking classes, so every text and spacing
- * utility inside a block moves and none of the markup knows about it.
+ * Size multipliers. `scale` grows the whole wall and a block size grows one block on top
+ * of it (`blockScale`). SizedBlock.svelte applies them. See NOTES.md, "The board".
  */
 export const MIN_SCALE = 0.5;
 export const MAX_SCALE = 3;
@@ -172,10 +101,7 @@ export const DEFAULT_BLOCK_SIZE = 1;
 /** Only the blocks that are not at the default, so a board with nothing set is `{}`. */
 export type BlockSizes = Partial<Record<RoomBlock, number>>;
 
-/**
- * The size names the panel used to offer, so a link written against them still opens
- * the same board.
- */
+/** Size names from an older panel, so links that use them still open the same board. */
 const LEGACY_BLOCK_SIZES: Record<string, number> = { m: 1, l: 1.25, xl: 1.5, xxl: 2 };
 
 export interface RoomBoard {
@@ -195,13 +121,8 @@ export interface RoomBoard {
 }
 
 /**
- * The named boards, reachable as `?variant=` and offered as templates in the panel.
- * Each one is a whole board for a situation a facilitator recognises, and is only a
- * starting point: every block stays switchable after picking one. Console is the
- * direction the team picked (NOTES.md) and stays the default.
- *
- * The older names (`console`, `marquee`, `deck`) are kept so links written against
- * them still open the same board.
+ * Named boards, reachable as `?variant=` and offered as templates in the panel. Every
+ * block stays switchable after picking one.
  */
 export const BOARD_PRESETS = {
 	console: {
@@ -264,12 +185,7 @@ export type BoardPreset = keyof typeof BOARD_PRESETS;
 
 export const DEFAULT_PRESET: BoardPreset = 'console';
 
-/**
- * The presets as the panel lists them, in the order a facilitator is likely to want
- * them: the common case first, the unattended screen last. Named for the situation
- * rather than the layout, because the person choosing knows what room they are in and
- * not what a "split" is.
- */
+/** The presets in panel order, named for the situation rather than the layout. */
 export const BOARD_TEMPLATES = [
 	{
 		id: 'console',
@@ -326,10 +242,7 @@ function isBlockSizes(value: unknown): value is BlockSizes {
 	);
 }
 
-/**
- * Snapped to the slider's step and held inside its range, so `1.4000000000000001`
- * never reaches the URL and `?scale=40` is a big wall rather than a broken one.
- */
+/** Snaps to the step and holds within range, so float noise never reaches the URL. */
 export function clampScale(value: number): number {
 	const snapped = Math.round(value / SCALE_STEP) * SCALE_STEP;
 	const held = Math.min(MAX_SCALE, Math.max(MIN_SCALE, snapped));
@@ -337,9 +250,8 @@ export function clampScale(value: number): number {
 }
 
 /**
- * `null` for anything that is not a number, so a stray `?scale=big` is noise rather
- * than an instruction and does not pin the board away from what the display
- * remembered. A number out of range is still a number: it is clamped, not dropped.
+ * `null` for anything that is not a number, so junk in the URL does not override the
+ * remembered board. Out-of-range numbers are clamped, not dropped.
  */
 export function parseScale(raw: string | null | undefined): number | null {
 	if (raw === null || raw === undefined || raw.trim() === '') return null;
@@ -377,10 +289,7 @@ export function blockScale(board: RoomBoard, block: RoomBlock): number {
 	return Number((board.scale * blockSize(board, block)).toFixed(3));
 }
 
-/**
- * Keys in `ROOM_BLOCKS` order, every value held in range and defaults dropped, so two
- * equal boards serialise alike and a remembered `map: 40` is a big map, not a broken one.
- */
+/** Orders keys, clamps values and drops defaults, so two equal boards serialise alike. */
 function orderSizes(sizes: BlockSizes): BlockSizes {
 	const ordered: BlockSizes = {};
 	for (const block of BLOCK_ORDER) {
@@ -415,12 +324,7 @@ export function parseSizes(raw: string | null | undefined): BlockSizes | null {
 	return orderSizes(sizes);
 }
 
-/**
- * Which way the still list runs, for the layouts that have already decided they are
- * not drawing the marquee. `aside` says where the block goes rather than how it looks,
- * and what goes there is a column: a row of four in a third of the wall's width would
- * be four slivers.
- */
+/** Row or column for the still list. `aside` is always a column because its slot is narrow. */
 export function stillLatestDirection(board: RoomBoard): 'row' | 'column' {
 	return board.latest === 'row' ? 'row' : 'column';
 }
@@ -449,10 +353,8 @@ export function serializeBlocks(blocks: readonly RoomBlock[]): string {
 }
 
 /**
- * `null` means the parameter was absent, which is different from an empty board: a
- * facilitator who has turned every block off has said something, and a reload should
- * not quietly hand them the preset back. Unrecognised names are dropped rather than
- * rejected, so a link written against a later version of this list still works.
+ * `null` when the parameter is absent, which differs from an empty list: turning every
+ * block off is a real choice. Unknown names are dropped so links from newer builds open.
  */
 export function parseBlocks(raw: string | null | undefined): RoomBlock[] | null {
 	if (raw === null || raw === undefined) return null;
@@ -478,11 +380,8 @@ export function presetBoard(preset: BoardPreset): RoomBoard {
 }
 
 /**
- * A template is the arrangement: layout, blocks, how the latest statements draw and
- * the per-block sizes. Lighting and the overall scale belong to the room instead: the
- * projector is set up once for the hall, and choosing a different template for the
- * afternoon session should not undo that, nor should having set it make the panel
- * say the board is no longer the template it plainly is.
+ * What a template fixes: layout, blocks, latest style, sizes and slides. Lighting and
+ * overall scale belong to the room, so they do not affect whether a template matches.
  */
 function arrangementKey(board: RoomBoard): string {
 	return [
@@ -495,9 +394,8 @@ function arrangementKey(board: RoomBoard): string {
 }
 
 /**
- * Which template the board still is, or `null` once it has been changed by hand. The
- * panel shows this in its template picker, and the URL carries it as `?variant=` only
- * while it is true: a link that names a template has to open that template.
+ * The template the board still matches, or `null` once changed by hand. The URL only
+ * carries `?variant=` while this holds.
  */
 export function matchingPreset(board: RoomBoard): BoardPreset | null {
 	const key = arrangementKey(board);
@@ -507,10 +405,7 @@ export function matchingPreset(board: RoomBoard): BoardPreset | null {
 	return null;
 }
 
-/**
- * The template's arrangement on top of this room's lighting and scale. A template
- * that names a lighting (kiosk is dark) still gets it; `auto` means it has no opinion.
- */
+/** Applies a template but keeps the room's scale, and its lighting unless the template sets one. */
 export function applyPreset(board: RoomBoard, preset: BoardPreset): RoomBoard {
 	const next = presetBoard(preset);
 	return {
@@ -528,7 +423,7 @@ export function toggleBlock(board: RoomBoard, block: RoomBlock): RoomBoard {
 	return { ...board, blocks: orderBlocks(on) };
 }
 
-/** Anything that is not one of the three shapes we can render is not a board. */
+/** Validates a board read from storage or sent by another window. */
 export function isRoomBoard(value: unknown): value is RoomBoard {
 	if (typeof value !== 'object' || value === null) return false;
 	const candidate = value as {
@@ -572,11 +467,8 @@ export interface ResolveBoardInput {
 }
 
 /**
- * Precedence: an explicit URL beats what the display remembered, which beats the
- * preset. A link has to show the sender's board rather than whatever the machine at
- * the other end was last left on, or sending one is not worth doing; but a projector
- * that reboots with no parameters should come back to the setup the facilitator
- * built, not to the factory default.
+ * Precedence: explicit URL parameters, then the board this display remembered, then the
+ * preset. A shared link must show the sender's board; a rebooted projector should not reset.
  */
 export function resolveBoard(input: ResolveBoardInput): RoomBoard {
 	const preset = input.preset && isBoardPreset(input.preset) ? input.preset : DEFAULT_PRESET;

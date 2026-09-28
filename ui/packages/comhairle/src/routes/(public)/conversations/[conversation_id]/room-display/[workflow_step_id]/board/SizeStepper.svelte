@@ -1,11 +1,4 @@
-<!--
-	@component Minus, the current multiplier, plus.
-
-	One control for every size on the panel, so "a bit bigger" is the same gesture
-	whether it is the whole wall or one block. Buttons rather than a slider because a
-	wall is judged one change at a time from the back of the room, and a click is one
-	change.
--->
+<!-- @component Minus and plus buttons around a size multiplier. -->
 <script lang="ts">
 	import { Minus, Plus } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -22,8 +15,7 @@
 
 	let { value, min, max, step, label, onchange }: Props = $props();
 
-	// Held to two decimals here as well as in the model, so a click never lands on
-	// 1.1500000000000001 between the two.
+	// Rounded to two decimals so float noise like 1.1500000000000001 never reaches the board.
 	function nudge(direction: 1 | -1) {
 		const next = Math.min(max, Math.max(min, value + direction * step));
 		onchange(Number(next.toFixed(2)));

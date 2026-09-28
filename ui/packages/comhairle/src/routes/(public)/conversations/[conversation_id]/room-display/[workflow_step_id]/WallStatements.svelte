@@ -1,14 +1,6 @@
 <!--
-	@component A handful of statements with vote bars, at room scale, for the wall.
-	Takes the map's place when the facilitator picks an opinion group or asks for the
-	consensus statements on the console.
-
-	Three at most. Three statements at headline size, each with its bars in one row,
-	is what fits on a projector; a longer list would have to shrink to body copy, which
-	is the failure the whole display exists to avoid.
-
-	Bars come from the source: folded from the vote stream when it carries real votes,
-	read off the report comment when its matrix is apportioned (`voteBarsFor`).
+	@component Up to three statements with vote bars, shown on the wall in place of the map
+	when the facilitator picks a group or the consensus view. More would not fit at this size.
 -->
 <script lang="ts">
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
@@ -20,7 +12,7 @@
 		title: string;
 		statements: ReportComment[];
 		source: RoomDisplaySource;
-		/** What to say when there is nothing to show yet. */
+		/** Message shown when there are no statements yet. */
 		empty: string;
 	};
 
@@ -47,7 +39,6 @@
 					>
 						{statement.text}
 					</p>
-					<!-- One column per bar, so a statement is two lines tall however many groups there are. -->
 					<div
 						class="grid max-w-5xl gap-8"
 						style="grid-template-columns: repeat({1 +

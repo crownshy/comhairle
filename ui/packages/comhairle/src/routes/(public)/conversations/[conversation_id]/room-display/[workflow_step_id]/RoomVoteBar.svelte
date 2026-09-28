@@ -1,15 +1,6 @@
 <!--
-	@component PROTOTYPE. One vote bar at room scale: the label and the agree share as a
-	big number on one line, a fat segmented bar underneath. Built to sit in a row of
-	columns (Overall, Group A, Group B) so one statement takes two lines of height, not
-	four.
-
-	The report's `VoteBar` is a desk component (10px tall, 12px label, a tooltip that
-	follows the cursor). None of that survives a projector, and a tooltip is exactly
-	what an ambient display must not rely on, so the number the room most wants is
-	printed instead of hidden behind a hover.
-
-	Dumb leaf: four percentages over members present, same tokens as the report bars.
+	@component One statement's vote bar at room scale, with the agree percentage printed
+	instead of hidden in a tooltip. Values are percentages.
 -->
 <script lang="ts">
 	type Props = {

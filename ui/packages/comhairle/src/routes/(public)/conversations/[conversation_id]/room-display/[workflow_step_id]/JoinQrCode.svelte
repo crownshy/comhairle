@@ -1,17 +1,6 @@
 <!--
-	@component The join QR code, with a placeholder that holds its place until it draws.
-
-	`svelte-qrcode` builds the code in its own `onMount` and renders `<img src="">`
-	until then, which is what the server sends and what the browser paints on the first
-	frame. An empty `src` is a broken image, and this one's `alt` is the join URL, so
-	the wall showed a line of raw URL text that then snapped into a QR code, resizing
-	whatever sat around it on the way. On the recruitment screen that is the first
-	thing the room ever sees.
-
-	So the box is sized here rather than by the image, which removes the reflow, and a
-	skeleton fills it until the code is actually drawn. The skeleton renders
-	server-side too: that is the part that covers the first frame, and the reason this
-	is a component rather than a class on each call site.
+	@component The join QR code. Until `svelte-qrcode` draws, it renders an empty <img> whose alt
+	text (the URL) flashes on screen, so this sizes the box itself and shows a skeleton instead.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -19,14 +8,9 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	type Props = {
-		/** Where the code points. */
 		value: string;
-		/**
-		 * Bitmap size in px. Deliberately larger than the box it is drawn into, so the
-		 * code stays crisp when a projector scales it up.
-		 */
+		/** Bitmap size in px. Larger than the box so the code stays sharp when projected. */
 		resolution?: number;
-		/** Tailwind sizing for the box, e.g. `size-24 lg:size-32`. */
 		class?: string;
 	};
 
@@ -38,9 +22,8 @@
 	onMount(() => {
 		const image = host?.querySelector('img');
 		if (!image) return;
-		// Svelte runs a child's onMount before its parent's, so the library has usually
-		// filled the src in by now and there is no load event left to wait for. The
-		// listener is for the case where it has not.
+		// A child's onMount runs before its parent's, so the library has usually set src
+		// already and the load event has passed. The listener covers the case where it has not.
 		if (image.getAttribute('src')) {
 			ready = true;
 			return;
@@ -53,11 +36,7 @@
 
 <div bind:this={host} class="relative {className}">
 	{#if !ready}
-		<!--
-			Tinted rather than the default `bg-accent`: this always sits on the white
-			card the code needs to stay scannable, so it has to read against white in
-			both themes.
-		-->
+		<!-- Tinted black, not `bg-accent`: the QR code always sits on white, in both themes. -->
 		<Skeleton
 			class="absolute inset-0 size-full rounded-md bg-black/10 motion-reduce:animate-none"
 		/>

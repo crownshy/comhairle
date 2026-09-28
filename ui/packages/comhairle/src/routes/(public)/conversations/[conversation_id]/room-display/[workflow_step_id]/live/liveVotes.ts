@@ -1,13 +1,6 @@
 /**
- * Vote bars computed from the live vote stream rather than the report payload.
- *
- * The report's `computeMemberVoteBars` reads `overall_votes` and `group_votes` off a
- * comment, which in the prototype are the scenario's *end* state. A wall that shows
- * the end-of-session split ten minutes in would contradict the map beside it, so the
- * Room display folds its bars from `votesByTid` and the nodes present so far.
- *
- * Shares are over members present, not over voters, so the not-voted remainder is
- * real: a bar that is mostly empty means most of that group has not answered yet.
+ * Vote bars for the Room display. The demo counts votes cast so far, because its
+ * report comments hold end-of-run totals. Shares are of members present, not voters.
  */
 
 import { computeMemberVoteBars, groupLabel } from '$lib/tools/polis/report';
@@ -68,11 +61,8 @@ export function presentByGroup(state: DisplayState, groups: ReportGroup[]): Map<
 }
 
 /**
- * The same bars read off the report comment instead of the vote stream, for a source
- * whose matrix is apportioned. The bars are where the exact numbers live, so they
- * come from the payload rather than from dots that round. Shares are over each group's total
- * membership, which is what the Insights tab shows too; only the labels differ, so
- * the wall reads the same whichever source is behind it.
+ * The same bars read from the report comment, for the live source. Exact numbers come
+ * from the report, not from the apportioned dots (ADR-0040).
  */
 export function reportVoteBars(
 	comment: ReportComment,
@@ -88,7 +78,6 @@ export function reportVoteBars(
 	};
 }
 
-/** Picks the bar computation a source supports. */
 export function voteBarsFor(
 	source: Pick<RoomDisplaySource, 'state' | 'groups' | 'voteMatrix'>,
 	comment: ReportComment

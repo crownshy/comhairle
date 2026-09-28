@@ -1,32 +1,7 @@
 <!--
-	@component The Room display's Deck direction. Kept beside the console as the
-	alternative for a facilitator who would rather present than drive.
-
-	One idea per screen in sequence, the facilitator interprets. Arrow keys,
-	PageUp/PageDown or a click advance, so a presentation clicker works without any
-	extra wiring.
-
-	The slides are fixed and the *content* is live. A facilitator learns five screens
-	once and can then run any session with them, which is not true of a deck rebuilt per
-	event. Each slide resolves against the current state at the moment it is shown, so
-	"where the room splits" is whatever splits the room now.
-
-	A slide with nothing to say yet keeps its place and says so, rather than vanishing:
-	a deck whose length changes under the facilitator is one they cannot rehearse.
-
-	Each slide is one of the blocks in `blocks.ts`, so switching a block off anywhere
-	removes that slide here. That is a deliberate exception to the paragraph above:
-	turning a block off is the facilitator changing the deck on purpose, not the data
-	changing it under them.
-
-	Two slides draw from several statements, the top five by consensus and the top
-	five by divisiveness, and both are shown one way or the other (`slides` on the
-	board, ADR-0044). A *list* puts all five on screen. A *walk* shows one at a time, moving
-	on after the ambient dwell, with its bars beside it and the map coloured by it on
-	the right; the facilitator can hold the one they are talking about (space, or the
-	pill under the statement) and step through by hand (up and down arrows). The hold is by statement, not by position, so a held statement stays
-	put while the ranking under it keeps moving with the votes. Each walking slide
-	keeps its own place and hold, so holding on one does not freeze the other.
+	@component Five fixed slides with live content, advanced by hand (arrow keys, a
+	presentation clicker, or a click). How the agree and split slides walk or list their
+	statements is in ADR-0044.
 -->
 <script lang="ts">
 	import type { RoomDisplaySource } from '../source';
@@ -49,17 +24,13 @@
 
 	let { source, question, joinUrl, board }: Props = $props();
 
-	/**
-	 * How many statements the agree and split slides each draw from. Five rows of
-	 * headline text with a bar beside each is the most that still reads from the back
-	 * of a room; a walk goes through the same number one at a time.
-	 */
+	/** Five rows with bars is the most that still reads from the back of a room. */
 	const STATEMENTS_PER_SLIDE = 5;
 
 	const slides = $derived(DECK_SLIDES.filter((s) => hasBlock(board, s.block)));
 
-	// Wrapped on read rather than clamped on write, so a slide switched off while the
-	// deck sits on it lands somewhere valid without an effect mirroring the length.
+	// Wrapped on read, so switching off the current slide still lands on a valid one
+	// without an $effect copying the slide count into state.
 	let index = $state(0);
 	const position = $derived(slides.length > 0 ? index % slides.length : 0);
 	const slide = $derived(slides[position] ?? null);
@@ -67,8 +38,7 @@
 	const groupIds = $derived(source.groups.map((g) => g.group_id));
 	const clustered = $derived(source.stage === 'shaped' || source.stage === 'rich');
 
-	// A zero score is "nothing to say", not a statement worth a headline: the ranking
-	// pads its list with unvoted statements, and those are left out here.
+	// The ranking includes unvoted statements with a zero score; leave those out.
 	const agreeCandidates = $derived(
 		rankIntent(source.state, 'strongestConsensus', STATEMENTS_PER_SLIDE).filter(
 			(c) => (c.group_informed_consensus ?? 0) > 0
@@ -84,8 +54,7 @@
 
 	type WalkKey = 'agree' | 'split';
 
-	// One place and hold per walking slide. Cursor wraps on read, like the slide
-	// index, so the walk survives its candidate list shrinking or reordering.
+	// The cursor wraps on read, like the slide index, so it survives the list shrinking.
 	let walks = $state<Record<WalkKey, { cursor: number; heldTid: number | null }>>({
 		agree: { cursor: 0, heldTid: null },
 		split: { cursor: 0, heldTid: null }
@@ -102,7 +71,6 @@
 	const walkPosition = $derived(
 		walk && candidates.length > 0 ? walk.cursor % candidates.length : 0
 	);
-	/** The statement a walking slide shows: the held one, or where the walk has got to. */
 	const shown = $derived<ReportComment | null>(
 		walk === null
 			? null
@@ -110,10 +78,8 @@
 				? (source.state.published.find((c) => c.tid === walk.heldTid) ?? null)
 				: (candidates[walkPosition] ?? null)
 	);
-	// Bars only: the statement is the headline, so a vote block that repeats it above
-	// the bars would be the same sentence twice.
 	const shownBars = $derived(shown ? voteBarsFor(source, shown) : null);
-	/** Where the shown statement sits in the walk, or -1 for a held one that fell out. */
+	/** -1 when a held statement has dropped out of the top five. */
 	const shownAt = $derived(candidates.findIndex((c) => c.tid === shown?.tid));
 	const walking = $derived(style === 'walk' && walk !== null);
 	const cycling = $derived(walking && walk?.heldTid === null && candidates.length > 1);
@@ -124,17 +90,13 @@
 			: []
 	);
 
-	// Switching to the list drops both holds. A hold is "stay on this one while I
-	// talk", and once the slides have been changed out from under it, that sentence is
-	// over; a walk that came back still held would look like a walk that had stopped.
+	// Switching to the list drops both holds, otherwise a walk would come back stuck (ADR-0044).
 	$effect(() => {
 		if (board.slides !== 'list') return;
 		walks.agree.heldTid = null;
 		walks.split.heldTid = null;
 	});
 
-	// The one thing on the deck that moves without a hand on it. Statements swap on
-	// arrival and sit still in between, which is the motion the room display allows.
 	$effect(() => {
 		if (!cycling || walkKey === null) return;
 		const key = walkKey;
@@ -149,7 +111,6 @@
 		index = (position + delta + slides.length) % slides.length;
 	}
 
-	/** Holds the statement on screen, or lets the walk go on from where it is. */
 	function toggleHold() {
 		if (walkKey === null || walk === null) return;
 		if (walk.heldTid !== null) {
@@ -160,7 +121,7 @@
 		}
 	}
 
-	/** Moves to the next or previous statement by hand, and holds there. */
+	/** Stepping by hand also holds, so the walk does not move on straight away. */
 	function stepWithin(delta: number) {
 		if (walkKey === null) return;
 		const count = candidates.length;
@@ -191,11 +152,7 @@
 	}
 </script>
 
-<!--
-	The walk's own position and its hold toggle. A button rather than the footer hint
-	alone so a facilitator with only a mouse can hold one too; it stops the click so
-	the slide does not advance under it.
--->
+<!-- The hold button stops the click so the slide does not advance under it. -->
 {#snippet walkControls(noun: string)}
 	{#if walk && candidates.length > 1}
 		<div class="flex flex-wrap items-center gap-4">
@@ -226,7 +183,6 @@
 	{/if}
 {/snippet}
 
-<!-- The bars for one statement in a row: overall first, then each group. -->
 {#snippet bars(set: VoteBars, gap: string)}
 	<div
 		class="grid {gap}"
@@ -239,27 +195,12 @@
 	</div>
 {/snippet}
 
-<!--
-	Strongest first, top to bottom. Every row gets the same size: the order already says
-	which is strongest, and a headline row over four small ones would be the
-	single-statement slide with footnotes.
--->
 {#snippet list(empty: string)}
 	{#if listRows.length > 0}
-		<!--
-			Every other row sits on a band, so five statements read as five things rather
-			than one block of text with bars beside it. Rows touch, which is what makes the
-			bands read as rows; the padding inside them is the spacing the gap used to be.
-		-->
+		<!-- Alternate rows get a background band; rows touch so the bands read as rows. -->
 		<ul class="flex h-full min-h-0 flex-col justify-center overflow-hidden">
 			{#each listRows as row (row.comment.tid)}
-				<!--
-					The text takes what the bars leave. Each bar column has a floor wide
-					enough for "Overall 33% agree" on one line, so a 768px projector
-					shortens the statement column rather than truncating the labels. The rows
-					sit closer together below 1536px wide for the same reason: five rows
-					with a three-line statement or two have to fit 768px high.
-				-->
+				<!-- Bar columns have a minimum width so their labels never wrap; the statement shrinks instead. -->
 				<li
 					class="odd:bg-muted/60 flex flex-col gap-3 rounded-xl px-4 py-2 lg:grid lg:items-center lg:gap-x-6 2xl:px-6 2xl:py-4"
 					style="grid-template-columns: minmax(0, 4fr) repeat({1 +
@@ -284,12 +225,6 @@
 	{/if}
 {/snippet}
 
-<!--
-	One statement at a time, the same shape on both slides: the statement and its bars
-	on the left, the map coloured by it on the right. The bars say how the room split
-	on it; the map says who. Together they are the whole picture of one statement,
-	which is what a walk is for.
--->
 {#snippet walkSlide(noun: string, empty: string)}
 	<div class="grid h-full min-h-0 gap-8 lg:grid-cols-2">
 		<div class="flex min-h-0 flex-col justify-center gap-6">
@@ -327,11 +262,7 @@
 
 <svelte:window {onkeydown} />
 
-<!--
-	The whole slide is the advance target, which is how a facilitator standing at a
-	laptop actually drives one. The map inside is not interactive on the deck: a click
-	means "next", nothing else.
--->
+<!-- Clicking anywhere on the slide advances it; the map is not interactive on the deck. -->
 <div
 	class="flex min-h-[85vh] flex-col gap-6 lg:h-full lg:min-h-0"
 	role="button"
@@ -361,7 +292,7 @@
 				</p>
 			</div>
 		{:else if slide.key === 'join'}
-			<!-- Sized by its own slide's block, which is what the panel's "Join in" row sets. -->
+			<!-- The panel's "Join in" row sets this size. -->
 			<SizedBlock scale={blockScale(board, 'qr')}>
 				<WarmingScreen
 					{question}
@@ -407,10 +338,6 @@
 		{:else if slide.key === 'split'}
 			<SizedBlock scale={blockScale(board, 'strip')}>
 				{#if style === 'list'}
-					<!--
-						No map here: it can only be coloured by one statement, and five rows of
-						per-group bars already show where each one splits.
-					-->
 					{@render list('Nothing divides the room enough to show yet.')}
 				{:else}
 					{@render walkSlide(
@@ -421,11 +348,7 @@
 			</SizedBlock>
 		{:else if slide.key === 'latest'}
 			<SizedBlock scale={blockScale(board, 'marquee')}>
-				<!--
-				The ticker as its own screen. Four statements at headline size is readable
-				from the back of a room; twelve at body size is not, which is the whole
-				argument against the sidebar it replaces.
-			-->
+				<!-- Four statements at headline size is what reads from the back of a room. -->
 				<ul class="flex h-full min-h-0 flex-col justify-center gap-6">
 					{#each rankIntent(source.state, 'newest', 4) as statement (statement.tid)}
 						<li

@@ -1,16 +1,7 @@
 <!--
-	@component One block of the board, at the size the board says.
-
-	Sets `--room-scale` and, from it, redefines the Tailwind text and spacing variables
-	for everything inside, so every `text-*`, `gap-*`, `p-*` and `size-*` utility in the
-	block grows together and none of the markup knows about it. `display: contents`
-	keeps the wrapper out of the layout: the block's own element stays a direct flex or
-	grid child of whatever it was in before.
-
-	The base values are `--room-base-*`, captured once on the display root from the
-	theme (+page.svelte). Reading those rather than the live variables means a block
-	inside a block scales from the theme, not from its parent, and a variable that
-	referred to itself would be a cycle anyway.
+	@component Scales Tailwind's text and spacing variables inside one block by `scale`.
+	It reads the `--room-base-*` values set on the display root (+page.svelte), so nested
+	blocks do not compound. `display: contents` keeps the wrapper out of the layout.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';

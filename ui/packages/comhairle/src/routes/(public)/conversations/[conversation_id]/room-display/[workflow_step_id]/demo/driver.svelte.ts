@@ -1,17 +1,7 @@
 /**
- * The Room display driver: a clock over a scripted scenario.
- *
- * Autoplays so the display can loop unattended on a booth screen, and exposes pause,
- * scrub, rate and jump-to-stage so a facilitator can stop mid-pitch and talk over a
- * frozen frame. Everything it renders is `stateAt(scenario, playheadMs)`, which is
- * pure, so scrubbing backwards is the same operation as playing forwards.
- *
- * A factory rather than a class: Svelte evaluates class-field `$derived` initialisers
- * before the constructor body runs, so a class would read its own scenario field
- * before anything had assigned it.
- *
- * This is the prototype's substitute for a live Polis. When real endpoints arrive the
- * components do not change: something else fills `state`, `stage` and `moment`.
+ * Plays a scripted scenario as a Room display source, for the demo mode.
+ * A factory rather than a class, because Svelte runs class-field `$derived`
+ * initialisers before the constructor has assigned the scenario.
  */
 
 import { stateAt, stageAt, stageTimeline } from './scenario';
@@ -39,28 +29,17 @@ const MOMENT_DURATION_MS = 4500;
 /** How often the moments reducer is asked whether anything should fire. */
 const OBSERVATION_INTERVAL_MS = 2000;
 
-/**
- * Whether a frame loop can run at all. False during SSR, where the page renders the
- * scenario's opening frame and the client picks up the clock on hydration. Feature
- * detection rather than `$app/environment` keeps this module runnable under plain
- * node, which is how its callers are unit-tested.
- */
+// False during SSR. Feature detection rather than `$app/environment` keeps this
+// module runnable in plain Node for unit tests.
 const canAnimate = typeof requestAnimationFrame === 'function';
 
-/**
- * Largest scenario time a single frame may advance, before the playback rate.
- *
- * Browsers stop firing `requestAnimationFrame` while a page is hidden, so the first
- * frame after the facilitator switches back carries a gap of however long they were
- * away. Uncapped, that lurches the display minutes forward in one frame, skipping
- * every moment in between. Clamping makes the display resume where it paused rather
- * than teleport.
- */
+// Browsers pause `requestAnimationFrame` in hidden tabs, so the first frame back can
+// carry a gap of minutes. Capping it resumes playback where it stopped instead of jumping.
 const MAX_FRAME_MS = 250;
 
 export interface DriverOptions {
 	scenario: Scenario;
-	/** Playback speed. A 4.5 hour run is unwatchable at 1x, so demos run compressed. */
+	/** Playback speed multiplier. */
 	rate?: number;
 	autoplay?: boolean;
 	mode?: DisplayMode;
@@ -126,8 +105,7 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 		const joined = Math.max(0, now.nodes.length - lastNodeCount);
 		lastNodeCount = now.nodes.length;
 
-		// Group count is what the display would read off `report_data`. Below `shaped`
-		// Polis has not clustered, so it reports none.
+		// Polis reports no groups before the `shaped` stage.
 		const currentStage = stageAt(timeline, playheadMs);
 		const groupCount =
 			currentStage === 'shaped' || currentStage === 'rich' ? scenario.groups.length : 0;
@@ -146,8 +124,7 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 
 	function seek(atMs: number) {
 		playheadMs = Math.max(0, Math.min(scenario.durationMs, atMs));
-		// The moments reducer records what the room has been shown, and that record is
-		// meaningless once the playhead jumps somewhere else in the timeline.
+		// What the room has already been shown no longer applies after a jump.
 		momentState = initialMomentState();
 		lastObservedAtMs = -Infinity;
 		lastNodeCount = stateAt(scenario, playheadMs).nodes.length;
@@ -161,9 +138,8 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 		if (lastTickMs !== null) {
 			const frameMs = Math.min(now - lastTickMs, MAX_FRAME_MS);
 			const next = playheadMs + frameMs * rate;
-			// Looping keeps an unattended booth screen alive. `seek` resets the moments
-			// reducer, so the second pass replays the beats rather than treating every
-			// stage as already announced.
+			// Loop so an unattended screen keeps running. `seek` resets the moments, so
+			// the next pass announces each stage again.
 			if (next >= scenario.durationMs) seek(0);
 			else playheadMs = next;
 		}
@@ -191,7 +167,6 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 	return {
 		scenario,
 		groups: scenario.groups,
-		// The scenario scripts every vote, so the map can be coloured per person.
 		voteMatrix: 'per-participant',
 		get playheadMs() {
 			return playheadMs;
@@ -231,24 +206,20 @@ export function createRoomDisplayDriver(options: DriverOptions): RoomDisplayDriv
 		toggle: () => (playing ? pause() : play()),
 		seek,
 		/**
-		 * Jumps to the first instant the display is at least the given stage.
-		 *
-		 * Matched by rank, not equality: a run can skip a stage outright (a heavily
-		 * seeded conversation is `rich` the moment it clusters, never passing through
-		 * `shaped`), and an exact match would find nothing and silently rewind to the
-		 * start.
+		 * Jumps to the first point the display reaches at least `target`. Matched by
+		 * rank, not equality, because a run can skip a stage entirely.
 		 */
 		seekToStage(target: RevealStage) {
 			const wanted = STAGE_ORDER.indexOf(target);
 			const sample = timeline.find((s) => STAGE_ORDER.indexOf(s.stage) >= wanted);
 			seek(sample ? sample.atMs : scenario.durationMs);
 		},
-		/** Puts a moment on screen on cue, for rehearsal and for showing one beat. */
+		/** Shows a moment immediately, for rehearsal. */
 		forceMoment(next: Moment) {
 			moment = next;
 			momentShownAtMs = playheadMs;
 		},
-		/** The facilitator touched something, so hover and click go live. */
+		/** Switches to `driven` mode, where hover and click respond. */
 		takeControl: () => {
 			mode = 'driven';
 		},

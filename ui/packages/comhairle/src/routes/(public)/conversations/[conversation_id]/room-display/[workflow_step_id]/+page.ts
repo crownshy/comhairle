@@ -8,29 +8,8 @@ import { parseSurface } from './board/surfaces';
 export type RoomDisplayMode = 'live' | 'demo';
 
 /**
- * The Room display for one Polis step (CONTEXT.md, "Room display").
- *
- * Configuration is URL parameters, so any variation is a link you can send someone:
- *
- *   ?mode=demo         scripted scenario with animated joins and votes, for showing
- *                      the thing off; the default polls the real step
- *   ?variant=<name>    a named board (the panel's templates): console (default), wall,
- *                      marquee, lobby, deck or kiosk
- *   ?layout=<name>     the arrangement on its own: split, console or deck
- *   ?blocks=a,b,c      exactly which regions are on, overriding the variant's set
- *   ?latest=<style>    how the latest statements draw: row, column or marquee
- *   ?theme=<name>      light or dark for the room; auto leaves the app alone
- *   ?scale=<n>         multiplier on the whole wall, 0.5 to 3
- *   ?sizes=a:1.5,b:2   per-block multipliers, 0.25 to 4, on top of that
- *   ?surface=<name>    wall or console: one half of the "Wall and laptop" layout in
- *                      its own window; absent, both halves share the page
- *   ?join=<url>        where the QR code points; defaults to the conversation page
- *   ?question=<text>   override the heading (the Polis topic by default)
- *   ?rate=<n>          demo only: playback speed
- *
- * Public, like `PolisGetReportData` itself: a projector or booth screen should not
- * need a login session. The conversation and step are fetched to find the Polis topic
- * and are optional in demo mode, so the demo also runs against ids that do not exist.
+ * Loads the Room display for one Polis step. All settings are URL parameters (see NOTES.md).
+ * The conversation and step are optional in demo mode, so the demo runs against any ids.
  */
 export const load: PageLoad = async ({ parent, params, url, depends }) => {
 	depends(key('public/conversation'), key('public/workflow-steps'));
@@ -57,9 +36,7 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 					api.ListConversationWorkflows({ params: { conversation_id } })
 				)
 			: null;
-	// Steps hang off workflows, so every workflow is listed and the step found by id. A
-	// conversation has one workflow in every case shipped today; this stays correct if
-	// it ever has two.
+	// Steps belong to workflows, so search every workflow's steps for this id.
 	const steps =
 		workflows && workflows.err === null
 			? await tryCatchAsync(() =>
@@ -77,8 +54,7 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 			? steps.ok.flat().find((s) => s.id === workflow_step_id)
 			: undefined;
 
-	// A live conversation reads its published config; a draft one its preview config,
-	// so a rehearsal before launch shows the topic the room will see.
+	// A draft conversation uses the preview config, so a rehearsal shows the real topic.
 	const toolConfig =
 		step && (conversation.err === null && conversation.ok.isLive ? step.toolConfig : null);
 	const config = toolConfig ?? step?.previewToolConfig ?? null;
@@ -95,10 +71,8 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 			(mode === 'demo' ? 'What has to change for the Arctic over the next decade?' : 'Polis'),
 		joinUrl:
 			url.searchParams.get('join') ?? `${url.origin}${conversation_url(conversation_id)}`,
-		// The board is resolved twice: here without what the display remembered, which
-		// is what the server can know, and again on the client where localStorage is
-		// readable. The raw parameters travel so the second pass can tell an explicit
-		// URL from an absent one.
+		// Resolved again on the client once localStorage is readable. The raw parameters are
+		// passed along so that pass can tell a parameter set in the URL from a missing one.
 		boardParams,
 		board: resolveBoard(boardParams),
 		rate: Number(url.searchParams.get('rate')) || 90

@@ -1,20 +1,6 @@
 <!--
-	@component One full-width wall, no second surface. Reached as `?variant=marquee`,
-	or as `layout=split` with any set of blocks.
-
-	Console splits the display across two surfaces because the wall and the facilitator
-	want opposite things. This layout takes the other bet: there is only one surface,
-	and the facilitator's controls are a bar along the bottom of it, close enough to a
-	presenter's hand and far enough from the map to stay out of the room's way.
-
-	What that buys is width. The map and the selected statement sit side by side at
-	full wall width rather than squeezed into two thirds of it, and the space the
-	console used to occupy becomes the marquee: the newest statements scrolling along
-	the bottom, which is the room seeing its own words go past.
-
-	Every region is a block that can be switched off (`blocks.ts`), so the columns
-	collapse rather than leaving a hole: with the map off the statement takes the whole
-	wall, and with the statement and strip both off the map does.
+	@component One full-width wall with the facilitator's controls along the bottom, no
+	second surface. See NOTES.md, "Which direction?".
 -->
 <script lang="ts">
 	import JoinQrCode from '../JoinQrCode.svelte';
@@ -38,7 +24,6 @@
 	import RoomVoteBar from '../RoomVoteBar.svelte';
 	import * as LatestStatements from '../LatestStatements';
 
-	/** What the focus column shows. The map unless the bottom bar asks for a list. */
 	type WallView = { kind: 'map' } | { kind: 'group'; groupId: number } | { kind: 'consensus' };
 
 	type Props = {
@@ -54,7 +39,6 @@
 	let wallView = $state<WallView>({ kind: 'map' });
 	let viewportHeight = $state(0);
 	let viewportWidth = $state(0);
-	/** Measured height of the map's slot, which is what decides how wide the map can be. */
 	let mapSlotHeight = $state(0);
 
 	const groupIds = $derived(source.groups.map((g) => g.group_id));
@@ -64,7 +48,7 @@
 
 	const publishedByTid = $derived(new Map(source.state.published.map((c) => [c.tid, c])));
 
-	/** A group's representative statements, limited to what has been published so far. */
+	/** Only statements already published, so the wall never shows one ahead of the room. */
 	function groupStatements(groupId: number): ReportComment[] {
 		const group = source.groups.find((g) => g.group_id === groupId);
 		if (!group) return [];
@@ -86,33 +70,20 @@
 		);
 	}
 
-	/** Toggles: picking what is already up puts the map back. */
+	/** Picking what is already up puts the map back. */
 	function showOnWall(view: WallView) {
 		wallView = isShowing(view) ? { kind: 'map' } : view;
 	}
 
-	// The strip is a fixed-height plot, so in a full-height column it leaves dead space
-	// underneath. `aside` spends that space on the latest statements instead.
 	const showLatest = $derived(hasBlock(board, 'marquee'));
 	const latestBeside = $derived(showLatest && latestIsBeside(board));
 	const latestBelow = $derived(showLatest && !latestBeside);
-	/**
-	 * What fits under the strip. A projector has room for two; a laptop window is short
-	 * enough that the second would be cut off halfway down its box, which reads as
-	 * broken rather than as "there is more".
-	 */
+	/** On a short laptop window a second statement would be cut off halfway, so show one. */
 	const asideLatestMax = $derived(viewportHeight >= 1000 ? 2 : 1);
 
-	/**
-	 * A wall short enough that room-scale type and spacing stop fitting. A projector at
-	 * 1080p is not this; a laptop window with every block switched on is. Without the
-	 * step down the header and the latest row eat the height the map and the strip need,
-	 * and the blocks that lose are clipped rather than shrunk.
-	 */
+	/** A laptop window rather than a projector: type and spacing step down so nothing is clipped. */
 	const compactWall = $derived(viewportHeight > 0 && viewportHeight < 900);
 
-	// The focus column earns its space either because the map is on, or because the
-	// bottom bar has put a list of statements in it. With neither, it is a hole.
 	const showFocus = $derived(hasBlock(board, 'map') || wallView.kind !== 'map');
 	const showAside = $derived(
 		hasBlock(board, 'statement') || hasBlock(board, 'strip') || latestBeside
@@ -120,15 +91,8 @@
 	const columns = $derived(showFocus && showAside ? 'lg:grid-cols-[1.1fr_1fr]' : 'grid-cols-1');
 
 	/**
-	 * The opinion map is a square plot: its SVG keeps a 1:1 viewBox, so in a column wider
-	 * than it is tall it draws a small square in the middle and leaves the rest of the
-	 * column empty. That dead space is most of what makes a short wall look broken.
-	 *
-	 * So the map's column is sized to the map rather than to a fraction of the wall: as
-	 * wide as its slot is tall, which is exactly what the square can use. A CSS `auto`
-	 * column cannot do this (it resolves to the legend's intrinsic width, not the
-	 * square's), and `aspect-square` on the slot only moves the empty space inside it.
-	 * The width the map was wasting goes to the statement and the strip.
+	 * The map is square, so its column is sized to the slot's height and the spare width
+	 * goes to the other column. CSS `auto` would size to the legend instead of the map.
 	 */
 	const wallColumns = $derived(
 		viewportWidth >= 1024 &&
@@ -165,10 +129,6 @@
 				{/if}
 				{#if hasBlock(board, 'counts')}
 					<SizedBlock scale={blockScale(board, 'counts')}>
-						<!--
-						The console carried these; without it the room would have no running
-						count of itself at all, so they come along under the question.
-					-->
 						<dl
 							class="text-muted-foreground flex flex-wrap items-baseline gap-x-6 text-base sm:gap-x-8 sm:text-xl"
 						>
@@ -203,7 +163,6 @@
 
 			{#if hasBlock(board, 'qr')}
 				<SizedBlock scale={blockScale(board, 'qr')}>
-					<!-- Latecomers have to be able to join from whatever the wall happens to show. -->
 					<div class="flex shrink-0 flex-col items-center gap-1">
 						<div class="rounded-xl bg-white p-2">
 							<JoinQrCode value={joinUrl} class="size-20 sm:size-24 lg:size-28" />
@@ -234,12 +193,7 @@
 								class="aspect-square min-h-0 w-full self-center lg:aspect-auto lg:h-auto lg:w-full lg:flex-1 lg:self-stretch"
 								bind:clientHeight={mapSlotHeight}
 							>
-								<!--
-								An apportioned matrix says nothing about how often one person
-								voted, so a placed participant counts as settled: Polis only
-								gives someone a position once they have voted enough to have
-								one.
-							-->
+								<!-- Live data has no per-person vote counts, and Polis only places someone who has voted enough, so every dot counts as settled. -->
 								<OpinionMap
 									nodes={source.state.nodes}
 									votesByTid={source.state.votesByTid}
@@ -293,7 +247,7 @@
 										>
 											{focused.text}
 										</p>
-										<!-- The dots round, so the exact split is spelled out beside them. -->
+										<!-- Live dots only approximate the split, so the exact numbers are shown as bars. -->
 										{#if source.voteMatrix === 'apportioned'}
 											{@const bars = voteBarsFor(source, focused)}
 											<div
@@ -375,10 +329,6 @@
 
 	{#if hasBlock(board, 'groups')}
 		<SizedBlock scale={blockScale(board, 'groups')}>
-			<!--
-			The facilitator's controls, along the bottom. Each button puts that group's
-			statements in the focus column; pressing it again restores the map.
-		-->
 			<nav
 				class="flex shrink-0 flex-wrap items-center gap-3"
 				aria-label="Room display controls"

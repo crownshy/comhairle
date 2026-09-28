@@ -1,15 +1,6 @@
 /**
- * PLACEHOLDER statement text for the Room display prototype.
- *
- * These are stand-ins, not the seeds the event will run. They exist so the prototype
- * has something plausible on screen while the real assumptions are being written, and
- * they live alone in this file so the swap is a one-file change: replace the array,
- * keep the order, and every scenario keeps working.
- *
- * Deliberately written as contestable assertions rather than questions, because that
- * is what a Polis seed is: something a participant agrees or disagrees with. Kept
- * even-handed rather than pointed, since a placeholder that reads as taking a side
- * will be quoted back as if it did.
+ * Placeholder statements for the demo, not real event seeds. Written as neutral
+ * statements to agree or disagree with, as Polis seeds are.
  */
 export const PLACEHOLDER_STATEMENTS: readonly string[] = [
 	'Shipping routes opening in the region need common safety standards before traffic grows.',

@@ -1,9 +1,6 @@
 <!--
-	@component Transport controls for the demo's scripted run, pulled out of the
-	display itself so no variant has to carry them in its layout. Dev builds only.
-
-	Deliberately ugly against the page so nobody mistakes it for part of the display.
-	Does not bind the arrow keys: the Deck is driven by them, and a clicker sends them.
+	@component Play, pause and seek controls for the demo run. Dev builds only.
+	It does not bind the arrow keys, because the Deck layout and presentation clickers use them.
 -->
 <script lang="ts">
 	import type { RoomDisplayDriver } from './driver.svelte';

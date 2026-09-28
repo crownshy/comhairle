@@ -15,6 +15,8 @@ Linked from the step's admin Insights tab. Two sources behind one display:
   which colour is not.
 - `?mode=demo`: the scripted scenario with animated joins and votes, for showing the
   thing off without a room. Transport controls appear in dev builds.
+- Other parameters: `?question=` overrides the heading (the Polis topic by default),
+  `?join=` sets where the QR code points, `?rate=` sets demo playback speed.
 
 ## The board
 

@@ -1,36 +1,7 @@
 <!--
-	@component Two surfaces: a calm wall and a dense facilitator panel. The direction
-	the team picked; see NOTES.md for what was folded in from the review.
-
-	The argument: a board is busy because one screen is being asked to do two jobs.
-	The room needs a wall it can read from eight metres with no pointer; the
-	facilitator needs a dense panel they can scan and click from half a metre. Those
-	are opposite requirements and merging them gives you something that is neither.
-
-	So: the wall gets the question, the map with its group labels, one statement, the
-	latest statements along the bottom and a QR code in the corner. Everything the
-	facilitator drives lives on the console. The latest statements are on both: the
-	room reads the wall's band, and the facilitator's copy sits under the strip so what
-	has just come in is beside the thing that points the wall at it:
-
-	- Hovering the strip picks one statement. It appears under the strip, and the wall
-	  shows it under the map. With per-participant votes the map recolours by it; a
-	  live source has none (CONTEXT.md, "Cross-highlight"), so the wall shows the
-	  group bars for it instead.
-	- Picking an opinion group (or "Consensus statements") swaps the map out for that
-	  group's key statements with vote bars. Picking it again brings the map back.
-
-	The two surfaces are one page by default so the pair can be judged in one
-	screenshot, and the console collapses so the wall can be judged on its own. For a
-	real room each half opens in its own window (`?surface=wall` on the projector,
-	`?surface=console` on the laptop) and the two stay in step over a channel
-	(surfaces.ts): what the console focuses, the wall shows, and a block or size
-	changed in either lands on both. The state itself lives in +page.svelte, which
-	owns the wire; this component only reads it and asks for changes.
-
-	Every region is a block that can be switched off (`blocks.ts`). With every console
-	block off the panel goes away by itself, which is the closest this layout gets to
-	being the wall on its own.
+	@component Two surfaces: a calm wall for the room and a dense panel for the facilitator.
+	They share one page by default, or open as separate windows kept in sync. See NOTES.md
+	and ADR-0045.
 -->
 <script lang="ts">
 	import JoinQrCode from '../JoinQrCode.svelte';
@@ -81,17 +52,11 @@
 		onSetConsole({ ...console, focusedTid: tid });
 	}
 
-	/**
-	 * The other half, in its own window. Named, so asking twice fronts the window that
-	 * is already open instead of stacking another. The browser may refuse to open one
-	 * (a kiosk profile, a popup blocker); then nothing happens and this page stays as
-	 * it was, which is the right outcome for a blocked popup.
-	 */
+	/** The window is named, so asking twice brings the open one forward instead of opening another. */
 	function openSurface(target: 'wall' | 'console') {
 		window.open(surfaceHref(window.location.href, target), SURFACE_WINDOW_NAMES[target]);
 	}
 
-	/** Send the console to its own window and let this one be the wall. */
 	function detachConsole() {
 		openSurface('console');
 		onSetSurface('wall');
@@ -100,8 +65,7 @@
 	const groupIds = $derived(source.groups.map((g) => g.group_id));
 	const clustered = $derived(source.stage === 'shaped' || source.stage === 'rich');
 	const focused = $derived(source.state.published.find((c) => c.tid === focusedTid) ?? null);
-	// The countdown counts voters, which an apportioned matrix cannot tell you: it
-	// knows how many votes a statement got, not how many people cast them.
+	// The countdown counts voters. Live data only knows vote totals, not who cast them.
 	const unlock = $derived(
 		source.voteMatrix === 'per-participant' ? nextUnlock(source.state, source.stage) : null
 	);
@@ -109,7 +73,7 @@
 
 	const publishedByTid = $derived(new Map(source.state.published.map((c) => [c.tid, c])));
 
-	/** A group's representative statements, limited to what has been published so far. */
+	/** Only statements already published, so the wall never shows one ahead of the room. */
 	function groupStatements(groupId: number): ReportComment[] {
 		const group = source.groups.find((g) => g.group_id === groupId);
 		if (!group) return [];
@@ -131,15 +95,12 @@
 		);
 	}
 
-	/** Toggles: picking what is already on the wall puts the map back. */
+	/** Picking what is already on the wall puts the map back. */
 	function showOnWall(view: WallView) {
 		onSetConsole({ ...console, wallView: isShowing(view) ? { kind: 'map' } : view });
 	}
 
-	// The wall's main area, same rule as the split layout: the map, or whatever the
-	// console has put there instead. With neither it is a hole, so it goes.
 	const showWallMain = $derived(hasBlock(board, 'map') || wallView.kind !== 'map');
-	// Nothing left to drive means no panel: the wall stops sharing the page.
 	const hasConsoleBlocks = $derived(
 		hasBlock(board, 'counts') ||
 			hasBlock(board, 'strip') ||
@@ -156,7 +117,7 @@
 		: 'grid-cols-1'}"
 >
 	{#if showWall}
-		<!-- Wall. On its own window it is the whole screen, so no frame and no caption. -->
+		<!-- In its own window the wall is the whole screen, so it drops the frame and caption. -->
 		<section
 			class="relative flex min-h-0 flex-col gap-4 {surface === 'both'
 				? 'border-border rounded-lg border p-6 lg:p-8'
@@ -179,21 +140,17 @@
 				</SizedBlock>
 			{/if}
 
-			<!-- Right padding keeps everything clear of the QR corner, whatever the wall shows. -->
+			<!-- Right padding keeps content clear of the QR code in the corner. -->
 			<div class="min-h-0 flex-1 pb-4 {hasBlock(board, 'qr') ? 'lg:pr-48' : ''}">
 				{#if !showWallMain}
-					<!-- Deliberately empty: every block that could fill this is switched off. -->
+					<!-- Empty on purpose: every block that could fill this is switched off. -->
 				{:else if wallView.kind === 'map'}
 					<div class="flex min-h-0 flex-col gap-4 lg:h-full">
 						<SizedBlock scale={board.scale}>
 							<div
 								class="aspect-square min-h-0 w-full lg:aspect-auto lg:h-auto lg:flex-1"
 							>
-								<!--
-							An apportioned matrix says nothing about how often one person voted,
-							so a placed participant counts as settled: Polis only gives someone a
-							position once they have voted enough to have one.
-						-->
+								<!-- Live data has no per-person vote counts, and Polis only places someone who has voted enough, so every dot counts as settled. -->
 								<OpinionMap
 									nodes={source.state.nodes}
 									votesByTid={source.state.votesByTid}
@@ -206,7 +163,7 @@
 						</SizedBlock>
 						{#if hasBlock(board, 'statement')}
 							<SizedBlock scale={blockScale(board, 'statement')}>
-								<!-- Fixed minimum height, keyed to replay the fade. -->
+								<!-- Minimum height stops the layout jumping; the key replays the fade on each new statement. -->
 								<div class="flex min-h-32 shrink-0 flex-col justify-center gap-3">
 									{#if focused}
 										{#key focused.tid}
@@ -215,7 +172,7 @@
 											>
 												{focused.text}
 											</p>
-											<!-- The dots round, so the exact split is spelled out beside them. -->
+											<!-- Live dots only approximate the split, so the exact numbers are shown as bars. -->
 											{#if source.voteMatrix === 'apportioned'}
 												{@const bars = voteBarsFor(source, focused)}
 												<div
@@ -265,10 +222,6 @@
 
 			{#if hasBlock(board, 'marquee')}
 				<SizedBlock scale={blockScale(board, 'marquee')}>
-					<!--
-						The room's copy, along the bottom, same as the one-wall layout. Right
-						padding keeps it clear of the QR corner.
-					-->
 					<div
 						class="min-h-0 shrink-0 overflow-hidden {hasBlock(board, 'qr')
 							? 'lg:pr-48'
@@ -288,11 +241,7 @@
 
 			{#if hasBlock(board, 'qr')}
 				<SizedBlock scale={blockScale(board, 'qr')}>
-					<!--
-				The QR code never leaves the wall. Someone arriving late has to be able to
-				join from whatever the screen happens to be showing, not only from the
-				recruitment screen the room saw at the start.
-			-->
+					<!-- The QR code stays on the wall all session so latecomers can join. -->
 					<div
 						class="flex flex-col items-center gap-1 self-end lg:absolute lg:right-8 lg:bottom-8"
 					>
@@ -307,7 +256,6 @@
 		</section>
 	{/if}
 
-	<!-- Console -->
 	{#if showConsole}
 		<section class="bg-muted flex min-h-0 flex-col gap-5 rounded-lg p-5">
 			<div class="flex shrink-0 flex-wrap items-center justify-between gap-2">
@@ -375,7 +323,6 @@
 
 					{#if hasBlock(board, 'statement')}
 						<SizedBlock scale={blockScale(board, 'statement')}>
-							<!-- One statement at a time: whatever the strip is pointing at. -->
 							<div
 								class="bg-background border-border flex min-h-28 shrink-0 items-center rounded-md border px-4 py-3"
 							>
@@ -400,11 +347,7 @@
 
 			{#if hasBlock(board, 'marquee')}
 				<SizedBlock scale={blockScale(board, 'marquee')}>
-					<!--
-						The facilitator's copy, under the strip: watch what has just come in
-						and point the wall at it. The console is a column, so the still list
-						runs down it whatever `?latest=` says.
-					-->
+					<!-- The console is a narrow column, so the list always runs vertically here. -->
 					{#if board.latest === 'marquee'}
 						<LatestStatements.Marquee comments={source.state.published} />
 					{:else}
@@ -426,7 +369,6 @@
 							Opinion groups
 						</p>
 						{#if clustered}
-							<!-- Each button puts that group's statements on the wall; pressing it again restores the map. -->
 							{#each source.groups as group (group.group_id)}
 								{@const view: WallView = { kind: 'group', groupId: group.group_id }}
 								<button
@@ -475,11 +417,7 @@
 			{/if}
 		</section>
 	{:else if surface === 'wall'}
-		<!--
-			The projector's only control: front the laptop's console window, or open it if
-			it is not there. Faint for the same reason the settings gear is: it is not part
-			of what the room reads.
-		-->
+		<!-- Faint because it is not part of what the room reads, like the settings gear. -->
 		<button
 			type="button"
 			class="text-muted-foreground hover:text-foreground focus-visible:text-foreground fixed top-4 right-4 z-40 rounded-full p-2 opacity-30 transition-opacity hover:opacity-100 focus-visible:opacity-100"

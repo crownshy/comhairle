@@ -1,14 +1,6 @@
 <!--
-	@component PROTOTYPE. The consensus continuum stripped to a bare strip: no card, no
-	heading, no subtitle, no vote block underneath.
-
-	Exists because the report's `ConsensusContinuum` is a desk component. On a projector
-	its card chrome, 5px dots and 12px axis labels are most of what makes the board feel
-	busy, while the only thing the room can actually read from eight metres is the
-	swarm. Same d3-force layout, larger dots, two words of axis, nothing else.
-
-	Whether the real continuum should grow a room-scale mode or the Room display should
-	own a separate strip is the question this variant is asking.
+	@component The consensus continuum at room scale: statements as dots from agreed on to
+	divisive, with bigger dots and none of the report card's chrome.
 -->
 <script lang="ts">
 	import type { ReportComment } from '$lib/tools/polis/reportTypes';
@@ -21,11 +13,7 @@
 		comments: ReportComment[];
 		focusedTid?: number | null;
 		interactive?: boolean;
-		/**
-		 * The board's size step for this block. Raises how big a dot may get on a wide
-		 * wall; it cannot push dots into each other, because the box and the count
-		 * still have the last word.
-		 */
+		/** The board's size setting. Raises the maximum dot size but never makes dots overlap. */
 		dotScale?: number;
 		onfocusstatement?: (tid: number) => void;
 	};
@@ -38,33 +26,20 @@
 		onfocusstatement
 	}: Props = $props();
 
-	// Room scale. The report's continuum uses 5, which disappears on a projector.
+	// The report's continuum uses radius 5, which is too small to see on a projector.
 	const MAX_RADIUS = 14;
-	// Below this a dot stops reading as a dot at any distance.
 	const MIN_RADIUS = 6;
-	// Plot width that earns a full-size dot. A dot is sized for how far away the screen
-	// is, and width is the only proxy for that we have: a wall is wide and eight metres
-	// off, a phone is narrow and held at arm's length. Room scale on a phone just means
-	// four dots fill the strip.
+	// Width stands in for viewing distance: a wide wall is far away, a narrow phone is close.
 	const WIDTH_PER_RADIUS = 50;
-	// Plot height that earns one, so a strip squeezed by a short wall shrinks its dots
-	// rather than packing them into a band they do not fit.
 	const HEIGHT_PER_RADIUS = 5;
-	// Clear space between neighbouring dots, and between a dot and the plot edge.
 	const GAP = 2;
-	// Plot area one dot needs to sit in without being stacked against the edges: a
-	// dot's own square plus breathing room. Two hundred statements in a strip that fits
-	// forty at full size get smaller dots, not a pile.
+	// Plot area per dot, in radius-squared units. Many statements get smaller dots instead of a pile.
 	const AREA_PER_DOT = 6;
 
 	type SwarmNode = SimulationNodeDatum & { tid: number; text: string; divisiveness: number };
 
-	/**
-	 * Keeps every dot inside the plot box. forceX/forceY only pull towards a target, so a
-	 * cluster of statements with the same divisiveness gets stacked past the top and left
-	 * edges by forceCollide and clipped. Clamping after each tick makes the box a wall that
-	 * collision resolves against instead.
-	 */
+	// Clamps dots inside the plot. Without it, forceCollide pushes a pile of equal scores
+	// past the edges, because forceX and forceY only pull toward a target.
 	function forceBounds(
 		width: number,
 		height: number,
@@ -85,17 +60,14 @@
 		return force;
 	}
 
-	// The plot takes the box it is given rather than declaring a height of its own: the
-	// board is a fixed screen divided between blocks, and a block that insists on a pixel
-	// height is the thing that pushes its neighbours off the wall.
+	// Measured from the parent box, not a fixed height, so the strip never pushes blocks off screen.
 	let plotWidth = $state(0);
 	let plotHeight = $state(0);
 
 	const scored = $derived(scoredComments(comments));
 
-	// The ceiling and the width proxy scale with the board's step, because both stand
-	// in for "how far away is this screen". The height and the count do not: they say
-	// what fits, and nothing the facilitator dials should make dots overlap.
+	// dotScale only applies to the distance-based limits. The height and count limits are
+	// about what fits, so the size setting cannot make dots overlap.
 	const radius = $derived(
 		plotWidth <= 0 || plotHeight <= 0
 			? MAX_RADIUS * dotScale
@@ -132,9 +104,7 @@
 		}))
 	);
 
-	// x is deliberately weaker than the report's 1: against the bounds the only way a pile of
-	// same-score statements can resolve is sideways, and a strip this short has no room to
-	// resolve it vertically.
+	// Weaker x pull than the report's 1, so equal scores can spread sideways in a short strip.
 	const forces = $derived<Record<string, Force<SwarmNode, undefined>>>({
 		x: forceX<SwarmNode>((d) => xScale(d.divisiveness)).strength(0.5),
 		y: forceY<SwarmNode>(plotHeight / 2).strength(0.15),
@@ -156,14 +126,8 @@
 				<ForceSimulation {forces} data={simData} cloneNodes>
 					{#snippet children({ nodes: placed })}
 						{#each placed as n (n.tid)}
-							<!--
-								`outline-none` rather than `focus-visible:outline-none`: Chrome
-								draws a focus ring on an SVG shape as its bounding box, so a
-								focused dot gets a square around a circle, and a click counts as
-								`:focus` without counting as `:focus-visible`. Nothing is lost by
-								removing it because focus already moves the selection: `onfocus`
-								sets the focused statement, and the dot grows and turns primary.
-							-->
+							<!-- Plain outline-none: Chrome draws a square focus ring on SVG shapes on click.
+								Focus still shows, because a focused dot grows and turns primary. See NOTES.md. -->
 							{@const isActive = n.tid === focusedTid}
 							<circle
 								role="button"

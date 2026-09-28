@@ -1,15 +1,7 @@
 /**
- * Builds a scripted scenario for the Room display prototype.
- *
- * Vote *shapes* are borrowed from a real Polis export rather than invented: the
- * proportion agreeing, the per-group split, and Polis's own `divisiveness` and
- * `group_informed_consensus` scores all come from statements that real people really
- * voted on. What is synthesised is the arrival order and the assignment of votes to
- * individual nodes, neither of which the report payload carries.
- *
- * Deterministic given a seed, so a rehearsed run replays exactly. That matters more
- * than it sounds: the point of the driver is that you can practise the same five
- * minutes until it lands.
+ * Builds the scripted demo scenario. Vote splits and scores come from real report
+ * comments; arrival times and which person cast which vote are generated from `seed`,
+ * so the same seed always replays the same run.
  */
 
 import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
@@ -17,43 +9,26 @@ import { orderEvents } from './scenario';
 import type { MapNode, Scenario, ScenarioEvent, Vote } from '../types';
 
 export interface BuildScenarioOptions {
-	/** Statement text, in order. Usually PLACEHOLDER_STATEMENTS. */
 	statements: readonly string[];
-	/** Real comments whose vote shapes and scores are borrowed, index for index. */
+	/** Real comments whose vote splits and scores are copied, index for index. */
 	sourceComments: ReportComment[];
-	/** People in the room. 28 for the roundtable. */
 	participantCount: number;
 	durationMs: number;
 	seed: number;
-	/** Opinion groups to split the room into. */
 	groupCount?: number;
 	/**
-	 * Statements present from the start as moderator seeds.
-	 *
-	 * Matters more than it looks: clustering is reached on vote volume, which a small
-	 * room burns through quickly, so with only a few seeds the display unlocks the
-	 * continuum before any participant statement exists and the swarm is empty at the
-	 * moment it becomes the centrepiece. A seeded conversation really does open with a
-	 * dozen or so, which is also how the roundtable will run.
+	 * Statements published at the start as moderator seeds. With too few, the display
+	 * unlocks the consensus strip while it still has almost nothing to plot.
 	 */
 	seedCount?: number;
 	/**
-	 * Median delay between a statement becoming votable to someone and them voting on
-	 * it. People answer in bursts soon after arriving, so spreading votes uniformly
-	 * across a 4.5 hour run leaves the display stuck on `empty` for an hour, which is
-	 * neither realistic nor watchable.
-	 *
-	 * Defaults to a share of `durationMs` rather than an absolute figure, so a short
-	 * scenario (a test, or a two-minute demo loop) is paced like a compressed session
-	 * instead of one where almost nobody gets round to voting.
+	 * Median delay between someone being able to vote on a statement and voting on it.
+	 * Defaults to a share of `durationMs` so short scenarios are paced the same way.
 	 */
 	medianResponseMs?: number;
 }
 
-/**
- * Mulberry32. A seeded PRNG is the whole point here, so `Math.random` is not an
- * option: an unrepeatable demo cannot be rehearsed.
- */
+/** Seeded random number generator (Mulberry32), so a demo run can be replayed exactly. */
 function makeRandom(seed: number): () => number {
 	let a = seed >>> 0;
 	return () => {
@@ -81,12 +56,9 @@ export function buildScenario(options: BuildScenarioOptions): Scenario {
 	const seedCount = options.seedCount ?? Math.ceil(statements.length * 0.48);
 	const random = makeRandom(seed);
 
-	// Nodes are base clusters holding one member each, which is what Polis produces
-	// below its 100-cluster cap and therefore what a 28-person room looks like.
+	// One member per node matches what Polis produces for a room under 100 people.
 	const nodes: MapNode[] = Array.from({ length: participantCount }, (_, i) => {
 		const groupId = i % groupCount;
-		// Group centres spread along x, with jitter, so the map has visible clusters
-		// without pretending to be a real PCA projection.
 		const centreX = groupCount === 1 ? 0 : -1 + (2 * groupId) / (groupCount - 1);
 		return {
 			id: i,
@@ -121,8 +93,7 @@ export function buildScenario(options: BuildScenarioOptions): Scenario {
 
 	const events: ScenarioEvent[] = [];
 
-	// Joins cluster in the opening stretch, the way a room scanning a QR code does,
-	// with a thin tail for latecomers.
+	// Most people join early, as a room scanning a QR code does, with a few latecomers.
 	const joinWindow = durationMs * 0.18;
 	const joinTimes = nodes.map((node, i) => {
 		const early = i < participantCount * 0.8;
@@ -131,7 +102,6 @@ export function buildScenario(options: BuildScenarioOptions): Scenario {
 		return at;
 	});
 
-	// Seeds are published at the start; participant statements arrive across the run.
 	const publishTimes = comments.map((comment, i) => {
 		const at = comment.is_seed
 			? 0
@@ -144,12 +114,10 @@ export function buildScenario(options: BuildScenarioOptions): Scenario {
 		const publishedAt = publishTimes[comment.tid];
 		for (const node of nodes) {
 			const joinedAt = joinTimes[node.id];
-			// A node can only vote on a statement that exists, and only after it has
-			// arrived. Anything else would let the fold produce votes from nobody.
+			// A vote can only happen after both the statement and the person exist.
 			const earliest = Math.max(publishedAt, joinedAt);
 			if (earliest >= durationMs) continue;
-			// Not everyone votes on everything, which is what makes `notVoted` a real
-			// state on the map rather than a theoretical one.
+			// Skip some votes so the map shows people who have not voted yet.
 			if (random() < 0.22) continue;
 
 			const groupVote = comment.group_votes.find((g) => g.group_id === node.groupId);
@@ -162,9 +130,7 @@ export function buildScenario(options: BuildScenarioOptions): Scenario {
 						comment.overall_votes.passes
 					);
 
-			// Exponential response delay: most votes land within a few minutes of the
-			// statement becoming votable, with a long thin tail for people who come
-			// back to it later.
+			// Exponential delay: most votes land soon, a few much later.
 			const delay = -Math.log(1 - random()) * (medianResponseMs / Math.LN2);
 			const at = earliest + delay;
 			if (at >= durationMs) continue;

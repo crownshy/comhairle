@@ -1,25 +1,15 @@
 /**
- * Stand-in Polis report comments for the prototype, until a real export is wired in.
- *
- * Lives here rather than inline in the route so the tests exercise the same data the
- * screen does. The scores matter more than they look:
- *
- *  - `divisiveness` is the consensus continuum's x axis. It has to vary per statement.
- *    Repeating a couple of values stacks every dot on two columns and the swarm reads
- *    as broken, which is exactly how the first version of this looked. Real Polis
- *    extremity is a magnitude roughly in 0..5, spread unevenly with most statements
- *    nearer consensus, so the distribution is curved rather than evenly spaced.
- *  - The per-group vote split tracks `divisiveness`, because a statement scored as
- *    divisive that the groups happen to agree on would make the map contradict the
- *    plot sitting under it.
+ * Placeholder report comments for the demo. Each statement gets its own
+ * `divisiveness` (the strip's x axis) so the dots spread out, and the group vote
+ * split follows that score so the map agrees with the strip.
  */
 
 import type { ReportComment } from '$lib/tools/polis/reportTypes';
 
-/** Largest extremity the spread reaches, near the top of Polis's usual range. */
+/** Near the top of Polis's usual 0 to 5 range. */
 const MAX_DIVISIVENESS = 4.6;
 
-/** Deterministic jitter in 0..1, so the swarm is uneven but identical every render. */
+/** Deterministic jitter in 0..1, so every render is identical. */
 function jitter(i: number): number {
 	const x = Math.sin(i * 12.9898) * 43758.5453;
 	return Math.abs(x - Math.floor(x));

@@ -1,30 +1,11 @@
 /**
- * The two surfaces of the console layout, and how they stay in step when they are two
- * browser windows rather than two halves of one page.
- *
- * Real use is one laptop driving one projector. The facilitator hovers a statement on
- * the laptop and the wall shows it; picks a group and the wall lists what that group
- * thinks. On one page that is one component's state. In two windows it has to travel,
- * and this module is the wire.
- *
- * The wire is a `BroadcastChannel` named for the step, which reaches every window of
- * this origin on the same machine and nothing else. That is the whole of the two-window
- * case (a projector is a second screen on the laptop, not a second computer), and it
- * costs no server. Two machines would need a socket and are not this module's problem.
- *
- * What travels: the console state (which statement is focused, what the wall's main
- * area shows) and the board itself, so a size or a block flipped on the laptop lands on
- * the wall. A window that opens late says hello and whoever holds a console answers
- * with both, so the wall can be opened after the console has been set up.
+ * Keeps the wall and console windows in step over a `BroadcastChannel` per step, on one
+ * machine. A window that opens late says hello to get the current state. See ADR-0045.
  */
 
 import { isRoomBoard, type RoomBoard } from './blocks';
 
-/**
- * Which half of the console layout a window is. `both` is the one-page prototype,
- * where the pair can be judged in one screenshot; `wall` and `console` are the two
- * windows of a real room.
- */
+/** Which half of the console layout this window shows. `both` shows the two on one page. */
 export type RoomSurface = 'both' | 'wall' | 'console';
 
 export function parseSurface(raw: string | null | undefined): RoomSurface {
@@ -39,10 +20,7 @@ export function surfaceHref(current: string | URL, surface: RoomSurface): string
 	return url.href;
 }
 
-/**
- * Window names, so opening the console twice focuses the window that is already
- * there rather than stacking a second one.
- */
+/** Fixed window names, so opening a surface twice focuses the existing window. */
 export const SURFACE_WINDOW_NAMES: Record<Exclude<RoomSurface, 'both'>, string> = {
 	wall: 'comhairle-room-wall',
 	console: 'comhairle-room-console'
@@ -81,11 +59,7 @@ type Message =
 export interface SurfaceLinkHandlers {
 	onState: (state: ConsoleState) => void;
 	onBoard: (board: RoomBoard) => void;
-	/**
-	 * A window has just opened and wants the current state and board. Answer by
-	 * sending both, or do nothing if this window holds no console: a wall has nothing
-	 * to say, and two answers would race.
-	 */
+	/** A new window wants the current state. Only the console window answers, so replies do not race. */
 	onHello: () => void;
 }
 
@@ -100,9 +74,8 @@ export function surfaceChannelName(workflowStepId: string): string {
 }
 
 /**
- * Opens the wire and says hello. Without `BroadcastChannel` (server render, an old
- * kiosk browser) this is a link to nowhere: sends are dropped and nothing arrives,
- * which leaves the one-page layout working exactly as it did.
+ * Opens the channel and says hello. Without `BroadcastChannel` (server render, old kiosk
+ * browsers) sends are dropped and the one-page layout still works.
  */
 export function openSurfaceLink(
 	workflowStepId: string,
@@ -117,8 +90,7 @@ export function openSurfaceLink(
 	channel.onmessage = (event: MessageEvent<unknown>) => {
 		const message = event.data as Partial<Message> | null;
 		if (typeof message !== 'object' || message === null) return;
-		// Same origin only, but a stale tab on an older build could still send a shape
-		// this one does not know. Dropped, not applied.
+		// A stale tab on an older build can send shapes this one does not know, so validate.
 		if (message.type === 'hello') handlers.onHello();
 		else if (message.type === 'state' && isConsoleState(message.state)) {
 			handlers.onState(message.state);

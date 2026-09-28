@@ -1,19 +1,4 @@
-/**
- * Maps a real `report_data` payload onto the shapes the Room display renders, kept
- * pure so it can be unit-tested away from the poller.
- *
- * What the report gives us and what it does not:
- *
- *  - Participants carry a PCA position and a group id, which is exactly a map node.
- *  - Comments carry aggregate and per-group vote counts plus Polis's scores, which is
- *    everything the strip and the vote bars need.
- *  - There is no per-participant vote matrix. Rather than leave the map uncoloured,
- *    `votesByTid` is dealt out from each group's real counts (`apportionedVotes.ts`):
- *    the proportions are exact, the dot-to-person mapping is not. The source flags
- *    which kind of matrix it carries so the display can say so.
- *  - There is no publish timestamp. Polis assigns `tid` in creation order, so newest
- *    first is highest `tid` first.
- */
+/** Converts a Polis `report_data` payload into Room display state. */
 
 import type { PolisReportData } from '$lib/tools/polis/reportTypes';
 import { apportionVotes } from './apportionedVotes';
@@ -21,19 +6,12 @@ import { totalVotes } from '$lib/tools/polis/report';
 import { DEFAULT_THRESHOLDS, scoredCount } from '../revealStage';
 import type { DisplayState, MapNode, RevealStage } from '../types';
 
-/**
- * Fraction of the map's unit extent the outermost participant sits at. Under 1 so a
- * dot on the edge of the PCA cloud is not on the edge of the plot.
- */
+/** Keeps the outermost dot slightly inside the edge of the plot. */
 const PLOT_FILL = 0.9;
 
 /**
- * Participants as map nodes, scaled so the cloud fills the map.
- *
- * Polis PCA coordinates are in arbitrary units that vary per conversation, so they
- * are normalised by the largest magnitude present rather than by a fixed range. A
- * participant without a position has not been placed by the math yet and is left off
- * the map rather than dropped on the origin.
+ * Participants as map nodes, scaled to fill the map, since Polis position units vary
+ * per conversation. Participants without a position yet are left off.
  */
 export function nodesFromReport(report: PolisReportData): MapNode[] {
 	const placed = report.participants.filter((p) => p.pca_position != null);
@@ -55,6 +33,7 @@ export function displayStateFromReport(report: PolisReportData, atMs = 0): Displ
 	return {
 		atMs,
 		nodes: nodesFromReport(report),
+		// The report has no publish time, but Polis assigns tids in creation order.
 		published: [...report.comments].sort((a, b) => b.tid - a.tid),
 		votesByTid: apportionVotes(report),
 		totalVotes: report.comments.reduce((sum, c) => sum + totalVotes(c), 0)
@@ -62,10 +41,8 @@ export function displayStateFromReport(report: PolisReportData, atMs = 0): Displ
 }
 
 /**
- * The stage the report supports on its own evidence. Two or more groups means Polis
- * has genuinely clustered, which beats any voter-count heuristic (see
- * `revealStage.ts`). A single group is what Polis reports before it has found a
- * split, so it does not count.
+ * The reveal stage this report supports. Needs at least two groups for `shaped`,
+ * because Polis reports one group before it has found a split.
  */
 export function stageFromReport(report: PolisReportData): RevealStage {
 	const state = displayStateFromReport(report);
