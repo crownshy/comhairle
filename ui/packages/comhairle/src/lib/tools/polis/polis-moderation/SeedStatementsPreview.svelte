@@ -9,9 +9,10 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import * as Select from '$lib/components/ui/select';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Trash2, TriangleAlert } from '@lucide/svelte';
-	import { findSeedIssues, type SeedStatementIssue } from './seedCsv';
+	import { findSeedIssues, type SeedColumn, type SeedStatementIssue } from './seedCsv';
 
 	type Props = {
 		/** The parsed statements. Bound so edits and removals reach the posting dialog. */
@@ -20,13 +21,30 @@
 		header: string | null;
 		/** What the parser objected to in the file, if anything. */
 		problems: string[];
+		/** The file's columns when it has more than one to choose from. Empty otherwise. */
+		columns: SeedColumn[];
+		/** Index of the column the statements were read from, or null for a one-column file. */
+		column: number | null;
+		/** The admin picked another column to read the statements from. */
+		onColumnChange: (index: number) => void;
 		/** Every statement already in the step, rejected ones included, for duplicate flags. */
 		existingStatements: string[];
 		/** Posting is in flight: freeze the list so it matches what is being posted. */
 		busy: boolean;
 	};
 
-	let { drafts = $bindable(), header, problems, existingStatements, busy }: Props = $props();
+	let {
+		drafts = $bindable(),
+		header,
+		problems,
+		columns,
+		column,
+		onColumnChange,
+		existingStatements,
+		busy
+	}: Props = $props();
+
+	const columnHeading = $derived(columns.find((option) => option.index === column)?.heading);
 
 	const issues = $derived(
 		findSeedIssues(
@@ -49,6 +67,28 @@
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col gap-3">
+	{#if columns.length > 0}
+		<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+			<span class="font-medium">Take statements from</span>
+			<Select.Root
+				type="single"
+				value={column === null ? undefined : String(column)}
+				onValueChange={(value) => value && onColumnChange(Number(value))}
+				disabled={busy}
+			>
+				<Select.Trigger class="min-w-48">{columnHeading}</Select.Trigger>
+				<Select.Content>
+					{#each columns as option (option.index)}
+						<Select.Item value={String(option.index)}>{option.heading}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+			<p class="text-muted-foreground text-sm">
+				The file has {columns.length} columns. Switching reads the list again and drops your edits.
+			</p>
+		</div>
+	{/if}
+
 	<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
 		<p class="font-medium">
 			{drafts.length} statement{drafts.length === 1 ? '' : 's'} read from the file
@@ -60,7 +100,7 @@
 		{/if}
 	</div>
 
-	{#if header !== null}
+	{#if header !== null && columns.length === 0}
 		<p class="text-muted-foreground text-sm">
 			Skipped the heading row "{header}".
 		</p>

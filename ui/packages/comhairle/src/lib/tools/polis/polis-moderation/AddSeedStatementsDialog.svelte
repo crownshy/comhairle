@@ -8,7 +8,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Plus, Upload } from '@lucide/svelte';
 	import SeedStatementsPreview, { type SeedDraft } from './SeedStatementsPreview.svelte';
-	import { parseSeedCsv } from './seedCsv';
+	import { parseSeedCsv, type ParsedSeedCsv, type SeedColumn } from './seedCsv';
 
 	type Props = {
 		workflowStepId: string;
@@ -30,6 +30,10 @@
 	let drafts = $state<SeedDraft[]>([]);
 	let skippedHeader = $state<string | null>(null);
 	let parseProblems = $state<string[]>([]);
+	// Kept so picking another column can re-read the file without asking for it again.
+	let fileText = '';
+	let columns = $state<SeedColumn[]>([]);
+	let column = $state<number | null>(null);
 	let previewing = $state(false);
 	let importing = $state(false);
 	let nextDraftId = 0;
@@ -131,15 +135,20 @@
 			return;
 		}
 
-		const result = await tryCatchAsync(async () => parseSeedCsv(await file.text()));
+		const result = await tryCatchAsync(async () => {
+			const text = await file.text();
+			return { text, parsed: await parseSeedCsv(text) };
+		});
 		if (result.err !== null) {
 			console.error('Reading the seed CSV failed', result.err);
 			notifications.send({ priority: 'ERROR', message: 'Could not read that CSV' });
 			return;
 		}
 
-		const parsed = result.ok;
-		if (parsed.statements.length === 0) {
+		const { text, parsed } = result.ok;
+		// A multi-column file can have an empty default column and statements in another, so
+		// only give up when there is no column to switch to.
+		if (parsed.statements.length === 0 && parsed.columns.length === 0) {
 			notifications.send({
 				priority: 'ERROR',
 				message: 'No statements found in that file'
@@ -147,16 +156,38 @@
 			return;
 		}
 
+		fileText = text;
+		showParsed(parsed);
+		previewing = true;
+	}
+
+	function showParsed(parsed: ParsedSeedCsv) {
 		drafts = parsed.statements.map((text) => ({ id: nextDraftId++, text }));
 		skippedHeader = parsed.header;
 		parseProblems = parsed.problems;
-		previewing = true;
+		columns = parsed.columns;
+		column = parsed.column;
+	}
+
+	/** Re-reads the file from another column. Replaces the list, edits and removals included. */
+	async function pickColumn(index: number) {
+		if (index === column || busy) return;
+		const result = await tryCatchAsync(() => parseSeedCsv(fileText, index));
+		if (result.err !== null) {
+			console.error('Re-reading the seed CSV failed', result.err);
+			notifications.send({ priority: 'ERROR', message: 'Could not read that column' });
+			return;
+		}
+		showParsed(result.ok);
 	}
 
 	function discardImport() {
 		drafts = [];
 		skippedHeader = null;
 		parseProblems = [];
+		fileText = '';
+		columns = [];
+		column = null;
 		previewing = false;
 	}
 
@@ -253,6 +284,9 @@
 					bind:drafts
 					header={skippedHeader}
 					problems={parseProblems}
+					{columns}
+					{column}
+					onColumnChange={pickColumn}
 					{existingStatements}
 					{busy}
 				/>

@@ -6,7 +6,9 @@ describe('parseSeedCsv', () => {
 		expect(await parseSeedCsv('First statement\nSecond statement')).toEqual({
 			statements: ['First statement', 'Second statement'],
 			header: null,
-			problems: []
+			problems: [],
+			columns: [],
+			column: null
 		});
 	});
 
@@ -24,7 +26,9 @@ describe('parseSeedCsv', () => {
 				'I would feel more confident if I knew how often checks happened'
 			],
 			header: null,
-			problems: []
+			problems: [],
+			columns: [],
+			column: null
 		});
 	});
 
@@ -105,6 +109,64 @@ describe('parseSeedCsv', () => {
 			'Cycling is fine',
 			'We need more routes'
 		]);
+	});
+
+	// Our own statements export: the statement sits in the sixth column, not the first.
+	it('reads the statement column of a multi-column export by its heading', async () => {
+		const file = [
+			'user_id,agrees,statement_text,moderation_status',
+			'f64cd7f3,2,seed 1,accepted',
+			'f64cd7f3,1,seed 2,accepted'
+		].join('\n');
+		const parsed = await parseSeedCsv(file);
+
+		expect(parsed.statements).toEqual(['seed 1', 'seed 2']);
+		expect(parsed.header).toBe('statement_text');
+		expect(parsed.column).toBe(2);
+		expect(parsed.columns.map((column) => column.heading)).toEqual([
+			'user_id',
+			'agrees',
+			'statement_text',
+			'moderation_status'
+		]);
+	});
+
+	it('reads the column it is asked for', async () => {
+		const file = 'user_id,statement_text,note\na,seed 1,first\nb,seed 2,second';
+		const parsed = await parseSeedCsv(file, 2);
+
+		expect(parsed.statements).toEqual(['first', 'second']);
+		expect(parsed.header).toBe('note');
+	});
+
+	it('falls back to the first column when no heading names statements', async () => {
+		const parsed = await parseSeedCsv('idea,theme\nBuses are late,transport');
+
+		expect(parsed.column).toBe(0);
+		expect(parsed.statements).toEqual(['Buses are late']);
+	});
+
+	it('ignores a column asked for that has nothing in it', async () => {
+		const parsed = await parseSeedCsv('statement,,theme,,\nBuses are late,,transport,,', 1);
+
+		expect(parsed.column).toBe(0);
+		expect(parsed.columns.map((column) => column.index)).toEqual([0, 2]);
+	});
+
+	it('names a column with a blank heading by its position', async () => {
+		const parsed = await parseSeedCsv('statement,\nBuses are late,transport');
+		expect(parsed.columns[1].heading).toBe('Column 2');
+	});
+
+	it('skips a row with nothing in the chosen column', async () => {
+		const parsed = await parseSeedCsv('id,statement\n1,Buses are late\n2,\n3,Trains too');
+		expect(parsed.statements).toEqual(['Buses are late', 'Trains too']);
+	});
+
+	it('offers no columns for a one-column file', async () => {
+		const parsed = await parseSeedCsv('statement,,,\nA statement,,,');
+		expect(parsed.columns).toEqual([]);
+		expect(parsed.column).toBeNull();
 	});
 
 	it('reports a file the parser could not read cleanly', async () => {
