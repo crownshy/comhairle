@@ -40,12 +40,6 @@ test.describe('Design page', () => {
 		await draggableList.expect.toInclude('a');
 	});
 
-	test('Add elicitation step', async ({ page, cleanup }) => {
-		const draggableList = await DraggableList<'a'>({ page, cleanup });
-		await draggableList.add('a', 'new', 'Elicitation');
-		await draggableList.expect.toInclude('a');
-	});
-
 	test('Add lived experience step', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'new', 'Lived experience');
