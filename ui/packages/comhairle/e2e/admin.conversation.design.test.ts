@@ -51,4 +51,11 @@ test.describe('Design page', () => {
 		await draggableList.add('a', 'tab', 'Lived experience');
 		await draggableList.expect.toInclude('a');
 	});
+
+	test('Delete a step', async ({ page, cleanup }) => {
+		const draggableList = await DraggableList<'a'>({ page, cleanup });
+		await draggableList.add('a', 'tab', 'Lived experience');
+		await (await draggableList.get('a')).menu().delete();
+		await draggableList.expect.toBeEmpty();
+	});
 });
