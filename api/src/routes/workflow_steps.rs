@@ -16,14 +16,17 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::error::ConversationError;
+use crate::models::error::ValidationError;
 use crate::models::translations::{
     CollectTextContentIds, TextContentId, get_text_content_with_translations, localize_translations,
 };
 use crate::models::workflow_step::WithToolConfig;
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
-    LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
-    WorkflowStepWithTranslationsDto,
+    LocalizedWorkflowStepDto, LocalizedWorkflowStepExt, LocalizedWorkflowStepWithProgressDto,
+    LocalizedWorkflowStepWithProgressExt, WorkflowStepDto, WorkflowStepWithTranslationsDto,
+    WorkflowStepWithTranslationsExt,
 };
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
 use crate::{
@@ -65,7 +68,7 @@ pub mod dto;
 ///
 /// # Errors
 ///
-/// Returns [`ComhairleError::BadRequest`] if `workflow_id` or `workflow_stpe_id` are absent from the
+/// Returns [`ValidationError::BadRequest`] if `workflow_id` or `workflow_stpe_id` are absent from the
 /// path, which should only occur if this extractor is used on a route that does
 /// not include the `:workflow_id` segment.
 #[derive(Debug, Clone, OperationIo)]
@@ -86,11 +89,11 @@ impl FromRequestParts<Arc<ComhairleState>> for WorkflowStepPathCtx {
         let workflow_id = params
             .get("workflow_id")
             .cloned()
-            .ok_or_else(|| ComhairleError::BadRequest("Missing workflow_id".into()))?;
+            .ok_or_else(|| ValidationError::BadRequest("Missing workflow_id".into()))?;
         let workflow_step_id = params
             .get("workflow_step_id")
             .cloned()
-            .ok_or_else(|| ComhairleError::BadRequest("Missing workflow_step_id".into()))?;
+            .ok_or_else(|| ValidationError::BadRequest("Missing workflow_step_id".into()))?;
 
         Ok(Self {
             workflow_id,
@@ -113,7 +116,7 @@ async fn create_workflow_step(
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    let workflow = workflow_step::create(
+    let workflow = crate::services::workflow_step::create(
         &state,
         &new_workflow,
         workflow_id,
@@ -176,7 +179,7 @@ async fn list_workflows_step(
 
     user_participation::get(&state.db, &user.id, &workflow_id)
         .await
-        .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
+        .map_err(|_| ConversationError::UserIsNotParticipatingInTheConversation)?;
 
     let should_return_with_translations =
         query.with_translations && is_user_admin(&state, &user).await;
@@ -312,7 +315,7 @@ async fn delete_workflow_step(
         workflow_step_id,
     }: WorkflowStepPathCtx,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
-    let workflow = workflow_step::delete(&state, &workflow_step_id)
+    let workflow = crate::services::workflow_step::delete(&state, &workflow_step_id)
         .await?
         .into();
     Ok((StatusCode::OK, Json(workflow)))

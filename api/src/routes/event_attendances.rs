@@ -17,6 +17,7 @@ use uuid::Uuid;
 
 use crate::middleware::rate_limit::standard_rate_limiter;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
+use crate::models::error::{EventError, PermissionError, ValidationError};
 use crate::models::event::{self, SignupMode};
 use crate::models::event_attendance::{
     self, CreateEventAttendance, EventAttendanceEtx, EventAttendanceFilterOptions,
@@ -73,7 +74,7 @@ pub async fn get(
 ///
 /// - **Anonymous caller** (`opt_user` is `None`):
 ///   - If the event's `signup_mode` is not [`SignupMode::Open`], the request
-///     is rejected with [`ComhairleError::EventInvalidSignupMode`].
+///     is rejected with [`EventError::EventInvalidSignupMode`].
 ///   - Otherwise, `request_email` is required. An existing user with that
 ///     email is returned, or a new account is created on the fly via
 ///     [`get_or_create_user_by_email`].
@@ -84,18 +85,18 @@ pub async fn get(
 /// - **Authenticated caller with `request_email`**: the caller is
 ///   registering *someone else*. This is only permitted when the caller is
 ///   the conversation owner (`conversation.owner_id == user.id`); otherwise
-///   the request is rejected with [`ComhairleError::UserIsNotConversationOwner`].
+///   the request is rejected with [`PermissionError::UserIsNotConversationOwner`].
 ///   If permitted, the target user is looked up by email.
 ///
 /// # Errors
 ///
 /// Returns an error if:
 /// - the event does not have open signup and no user is logged in
-///   ([`ComhairleError::EventInvalidSignupMode`]),
+///   ([`EventError::EventInvalidSignupMode`]),
 /// - an anonymous request is missing an email
-///   ([`ComhairleError::BadRequest`]),
+///   ([`ValidationError::BadRequest`]),
 /// - a non-owner attempts to register another user
-///   ([`ComhairleError::UserIsNotConversationOwner`]),
+///   ([`PermissionError::UserIsNotConversationOwner`]),
 /// - the target user cannot be found or created (propagated from
 ///   [`get_or_create_user_by_email`] or [`users::get_user_by_email`]).
 async fn resolve_event_attendee(
@@ -110,13 +111,13 @@ async fn resolve_event_attendee(
     let Some(user) = opt_user else {
         // When no logged in user, only allow event registration for open events
         if *signup_mode != SignupMode::Open {
-            return Err(ComhairleError::EventInvalidSignupMode);
+            return Err(EventError::EventInvalidSignupMode.into());
         }
 
-        let email =
-            request_email.ok_or_else(|| ComhairleError::BadRequest("Missing email".to_string()))?;
+        let email = request_email
+            .ok_or_else(|| ValidationError::BadRequest("Missing email".to_string()))?;
 
-        return get_or_create_user_by_email(db, &email, client_ip, user_agent).await;
+        return Ok(get_or_create_user_by_email(db, &email, client_ip, user_agent).await?);
     };
 
     // Logged-in user request with no target email -> register logged in user
@@ -125,10 +126,10 @@ async fn resolve_event_attendee(
     };
 
     if owner_id != user.id {
-        return Err(ComhairleError::UserIsNotConversationOwner);
+        return Err(PermissionError::UserIsNotConversationOwner.into());
     }
 
-    users::get_user_by_email(&email, db).await
+    Ok(users::get_user_by_email(&email, db).await?)
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]

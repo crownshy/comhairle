@@ -1,0 +1,358 @@
+//! Tests for [`crate::models::audio_recording`], kept in the api crate because they
+//! boot the HTTP app and build fixtures through the API.
+
+mod tests {
+    use crate::models::audio_recording::*;
+    #[allow(unused_imports)]
+    use crate::models::error::{
+        AuthError, ConversationError, DataError, EventError, InviteError, ModelError,
+        PermissionError, ReportError, UserError, ValidationError, WorkflowError,
+    };
+    #[allow(unused_imports)]
+    use crate::models::moderation_status::ModerationStatus;
+    #[allow(unused_imports)]
+    use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+    #[allow(unused_imports)]
+    use crate::models::request_context::{ClientIp, ClientUserAgent};
+    #[allow(unused_imports)]
+    use crate::models::user_progress::ProgressStatus;
+    #[allow(unused_imports)]
+    use crate::models::users::User;
+    #[allow(unused_imports)]
+    use crate::models::{proposal_section, user_progress, users};
+    #[allow(unused_imports)]
+    use ::std::collections::{HashMap, HashSet};
+    #[allow(unused_imports)]
+    use chrono::{DateTime, Utc};
+    #[allow(unused_imports)]
+    use schemars::JsonSchema;
+    #[allow(unused_imports)]
+    use sqlx::PgPool;
+    #[allow(unused_imports)]
+    use uuid::Uuid;
+
+    use std::sync::Arc;
+
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::routes::events::dto::EventDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_config, test_state};
+
+    async fn create_random_event(
+        session: &mut UserSession,
+        app: &axum::Router,
+    ) -> Result<EventDto, Box<dyn std::error::Error>> {
+        let conversation_response = session.create_random_conversation(app).await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation_response.1)?;
+        let conversation_id: String = conversation.id.to_string();
+
+        let event_response = session.create_random_event(app, &conversation_id).await?;
+        let event: EventDto = serde_json::from_value(event_response.1)?;
+
+        Ok(event)
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_create_audio_recording(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let create_req = CreateAudioRecording {
+            id: Uuid::new_v4(),
+            event_id: event.id,
+            name: "Main Room".to_string(),
+            s3_key_prefix: "test/prefix".to_string(),
+            file_extension: AudioFormat::Wav,
+        };
+
+        let recording = create(&pool, &create_req).await?;
+        assert_eq!(recording.id, create_req.id);
+        assert_eq!(recording.event_id, create_req.event_id);
+        assert_eq!(recording.name, create_req.name);
+        assert_eq!(recording.s3_key_prefix, create_req.s3_key_prefix);
+        assert_eq!(recording.status, AudioRecordingStatus::AwaitingUpload);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_create_duplicate_name_for_event_conflicts(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let create_req = CreateAudioRecording {
+            id: Uuid::new_v4(),
+            event_id: event.id,
+            name: "Room A".to_string(),
+            s3_key_prefix: "test/prefix".to_string(),
+            file_extension: AudioFormat::Wav,
+        };
+
+        // First create with this name succeeds.
+        create(&pool, &create_req).await?;
+
+        // A second room (distinct id) with the same name in the same event conflicts.
+        let err = create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                ..create_req.clone()
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            ModelError::Event(EventError::DuplicateRecordingName(_))
+        ));
+
+        // A second room with a different name in the same event is allowed.
+        create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                name: "Room B".to_string(),
+                ..create_req.clone()
+            },
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_get_by_id(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let create_req = CreateAudioRecording {
+            id: Uuid::new_v4(),
+            event_id: event.id,
+            name: "Room 1".to_string(),
+            s3_key_prefix: "test/prefix".to_string(),
+            file_extension: AudioFormat::Wav,
+        };
+
+        let created = create(&pool, &create_req).await?;
+        let fetched = get_by_id(&pool, &created.id).await?;
+
+        assert_eq!(fetched.id, created.id);
+        assert_eq!(fetched.event_id, created.event_id);
+        assert_eq!(fetched.s3_key_prefix, created.s3_key_prefix);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_get_by_id_and_event(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let created = create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Room 1".to_string(),
+                s3_key_prefix: "test/prefix".to_string(),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        // Matching event scopes the lookup successfully.
+        let fetched = get_by_id_and_event(&pool, &created.id, &event.id).await?;
+        assert_eq!(fetched.id, created.id);
+
+        // A mismatched event id yields ResourceNotFound, not the row.
+        let other_event = create_random_event(&mut session, &app).await?;
+        let result = get_by_id_and_event(&pool, &created.id, &other_event.id).await;
+        assert!(matches!(
+            result,
+            Err(ModelError::Data(DataError::ResourceNotFound(_)))
+        ));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_list_by_event(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let room_a = create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Room A".to_string(),
+                s3_key_prefix: "test/prefix/a".to_string(),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+        let room_b = create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Room B".to_string(),
+                s3_key_prefix: "test/prefix/b".to_string(),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        let rooms = list_by_event(&pool, &event.id).await?;
+        assert_eq!(rooms.len(), 2);
+        // Ordered oldest first.
+        assert_eq!(rooms[0].id, room_a.id);
+        assert_eq!(rooms[1].id, room_b.id);
+
+        // An event with no rooms returns an empty list (not an error).
+        let other_event = create_random_event(&mut session, &app).await?;
+        assert!(list_by_event(&pool, &other_event.id).await?.is_empty());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_update_status(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let create_req = CreateAudioRecording {
+            id: Uuid::new_v4(),
+            event_id: event.id,
+            name: "Room 1".to_string(),
+            s3_key_prefix: "test/prefix".to_string(),
+            file_extension: AudioFormat::Wav,
+        };
+
+        let created = create(&pool, &create_req).await?;
+        assert_eq!(created.status, AudioRecordingStatus::AwaitingUpload);
+
+        let updated = update_status(&pool, &created.id, AudioRecordingStatus::Complete).await?;
+        assert_eq!(updated.status, AudioRecordingStatus::Complete);
+        assert!(updated.updated_at > created.updated_at);
+        assert!(updated.created_at == created.created_at);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_delete_scopes_to_event(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let created = create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Room 1".to_string(),
+                s3_key_prefix: "test/prefix".to_string(),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        // A mismatched event id refuses to delete and yields ResourceNotFound.
+        let other_event = create_random_event(&mut session, &app).await?;
+        let result = delete(&pool, &created.id, &other_event.id).await;
+        assert!(matches!(
+            result,
+            Err(ModelError::Data(DataError::ResourceNotFound(_)))
+        ));
+        // The row still exists.
+        assert!(get_by_id(&pool, &created.id).await.is_ok());
+
+        // The matching event id deletes the row.
+        let deleted = delete(&pool, &created.id, &event.id).await?;
+        assert_eq!(deleted.id, created.id);
+        assert!(get_by_id(&pool, &created.id).await.is_err());
+
+        // A second delete of the same row is a not-found.
+        let result = delete(&pool, &created.id, &event.id).await;
+        assert!(matches!(
+            result,
+            Err(ModelError::Data(DataError::ResourceNotFound(_)))
+        ));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_get_by_id_not_found(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let _event = create_random_event(&mut session, &app).await?;
+
+        let nonexistent_id = uuid::Uuid::new_v4();
+        let result = get_by_id(&pool, &nonexistent_id).await;
+        assert!(result.is_err());
+        Ok(())
+    }
+}

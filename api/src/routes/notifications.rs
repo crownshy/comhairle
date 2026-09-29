@@ -1,3 +1,4 @@
+use crate::extract::OrderParams;
 use std::sync::Arc;
 
 use aide::axum::{
@@ -15,16 +16,17 @@ use serde::Serialize;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::error::PermissionError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
     models::{
-        notification_delivery::{
-            self, NotificationDelivery, NotificationDeliveryOrderOptions, NotificationWithDelivery,
-        },
-        pagination::{OrderParams, PageOptions, PaginatedResults},
+        notification_delivery::{self, NotificationDelivery, NotificationDeliveryOrderOptions},
+        pagination::{PageOptions, PaginatedResults},
     },
 };
+
+use self::dto::NotificationWithDelivery;
 
 use super::auth::RequiredUser;
 
@@ -45,7 +47,13 @@ pub async fn get_unread_notifications(
     )
     .await?;
 
-    Ok((StatusCode::OK, Json(deliveries)))
+    Ok((
+        StatusCode::OK,
+        Json(PaginatedResults {
+            records: deliveries.records.into_iter().map(Into::into).collect(),
+            total: deliveries.total,
+        }),
+    ))
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -77,7 +85,7 @@ pub async fn mark_notification_as_read(
     let delivery = notification_delivery::get_by_id(&state.db, &delivery_id).await?;
 
     if delivery.user_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     // Mark as read with current timestamp
@@ -144,7 +152,13 @@ pub async fn get_all_notifications(
     )
     .await?;
 
-    Ok((StatusCode::OK, Json(deliveries)))
+    Ok((
+        StatusCode::OK,
+        Json(PaginatedResults {
+            records: deliveries.records.into_iter().map(Into::into).collect(),
+            total: deliveries.total,
+        }),
+    ))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {

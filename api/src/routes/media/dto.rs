@@ -3,10 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::{
-    media::{Media, MediaContentType},
-    pagination::PaginatedResults,
-};
+use crate::models::media::{Media, MediaContentType, MediaResolver};
 
 /// Data transfer object (public API representation) for a Media record.
 ///
@@ -48,11 +45,19 @@ impl From<Media> for MediaDto {
     }
 }
 
-impl From<PaginatedResults<Media>> for PaginatedResults<MediaDto> {
-    fn from(r: PaginatedResults<Media>) -> Self {
-        Self {
-            total: r.total,
-            records: r.records.into_iter().map(Into::into).collect(),
-        }
-    }
+/// Converts a value into `Self` using a [`MediaResolver`] to resolve any
+/// media references (e.g. `Uuid` fields) into their corresponding URLs.
+///
+/// This mirrors [`From`], but for conversions that need previously-resolved
+/// media data rather than performing async DB lookups inline. Callers are
+/// expected to batch-load a [`MediaResolver`] for all relevant IDs up front
+/// (e.g. via [`MediaResolver::load`]) before calling `from_with_media`.
+pub trait FromWithMedia<T> {
+    /// Performs the conversion from `model` to `Self`, resolving media
+    /// references via `media`.
+    ///
+    /// If a media reference is absent (e.g. an optional field with no
+    /// associated media) or its ID could not be resolved by `media`,
+    /// `fallback` is used in its place instead.
+    fn from_with_media(model: T, media: &MediaResolver, fallback: &str) -> Self;
 }

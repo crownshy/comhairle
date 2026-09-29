@@ -1,0 +1,1329 @@
+use crate::models::error::ModelError;
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::str::FromStr;
+
+use crate::models::SqlxResultExt;
+use crate::models::error::DataError;
+use crate::models::error::ValidationError;
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
+use sea_query::{Alias, Expr, Func, JoinType, PostgresQueryBuilder, Query, enum_def};
+use sea_query_binder::SqlxBinder;
+use serde::{Deserialize, Serialize};
+use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use tracing::instrument;
+use uuid::Uuid;
+
+/// A type-safe wrapper around Uuid for referencing text content.
+///
+/// This wrapper provides type safety when referencing TextContent records from other models.
+/// It ensures that only text content IDs are used where translatable content is expected,
+/// preventing accidental confusion with other UUID fields.
+///
+/// # Examples
+///
+/// ```rust
+/// use uuid::Uuid;
+/// use comhairle_model::models::translations::TextContentId;
+///
+/// // Create from a UUID
+/// let uuid = Uuid::new_v4();
+/// let content_id = TextContentId::from(uuid);
+///
+/// // Convert back to UUID when needed
+/// let uuid_back: Uuid = content_id.into();
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+pub struct TextContentId(pub Uuid);
+
+impl TextContentId {
+    /// Creates a new TextContentId with a random UUID.
+    ///
+    /// # Returns
+    ///
+    /// A new TextContentId with a randomly generated UUID.
+    pub fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+
+    /// Creates a TextContentId from a UUID.
+    ///
+    /// # Arguments
+    ///
+    /// * `uuid` - The UUID to wrap
+    ///
+    /// # Returns
+    ///
+    /// A new TextContentId wrapping the provided UUID.
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    /// Returns the inner UUID value.
+    ///
+    /// # Returns
+    ///
+    /// The UUID wrapped by this TextContentId.
+    pub fn as_uuid(&self) -> &Uuid {
+        &self.0
+    }
+
+    /// Consumes the TextContentId and returns the inner UUID.
+    ///
+    /// # Returns
+    ///
+    /// The UUID that was wrapped by this TextContentId.
+    pub fn into_uuid(self) -> Uuid {
+        self.0
+    }
+}
+
+impl Default for TextContentId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<Uuid> for TextContentId {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
+
+impl From<TextContentId> for Uuid {
+    fn from(content_id: TextContentId) -> Self {
+        content_id.0
+    }
+}
+
+impl From<TextContentId> for sea_query::Value {
+    fn from(val: TextContentId) -> Self {
+        val.0.into()
+    }
+}
+
+impl From<&TextContentId> for sea_query::Value {
+    fn from(val: &TextContentId) -> Self {
+        val.0.into()
+    }
+}
+
+impl fmt::Display for TextContentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for TextContentId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Uuid::from_str(s)?))
+    }
+}
+
+impl sqlx::Type<sqlx::Postgres> for TextContentId {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        <Uuid as sqlx::Type<sqlx::Postgres>>::type_info()
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for TextContentId {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'r>,
+    ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+        let uuid = <Uuid as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        Ok(Self(uuid))
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for TextContentId {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        <Uuid as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&self.0, buf)
+    }
+}
+
+// ======================================
+//
+// * JSON TRANSLATIONS *
+//
+// Traits and helper functions for resolving translations in nested JSON
+// structures (i.e. JSONB columns on database rows.)
+//
+// ======================================
+
+/// Implemented by types that may contain [`TextContentId`] references,
+/// allowing every id nested within a value to be gathered into a single
+/// batch before hitting the database.
+///
+/// This is the read-side counterpart to [`LocalizeTranslations`]: before a
+/// value can be resolved to its localized text, every [`TextContentId`] it
+/// contains — however deeply nested inside structs, enums, `Vec`s, or
+/// `Option`s — needs to be collected so [`localize_translations`] can fetch
+/// them all in one query, rather than one query per id.
+///
+/// Implemented directly for [`TextContentId`] (the base case, which inserts
+/// itself into the output set), with blanket implementations for
+/// `Option<T>` and `Vec<T>` so composite types automatically support
+/// collection through those wrappers. Structs and enums generated by
+/// `#[derive(TranslatableJson)]` implement this by recursing into each
+/// `#[translatable]` field.
+///
+/// Fields not marked `#[translatable]` are not visited, since they cannot
+/// contain [`TextContentId`]s that need resolving.
+pub trait CollectTextContentIds {
+    /// Walks `self`, inserting every [`TextContentId`] found (at any depth)
+    /// into `out`.
+    ///
+    /// # Arguments
+    ///
+    /// * `out` - Accumulator set that ids are inserted into. Typically
+    ///   shared across many values (e.g. every row in a response) so a
+    ///   single deduplicated set can be passed to [`localize_translations`].
+    fn collect_text_content_ids(&self, out: &mut HashSet<TextContentId>);
+}
+
+/// Implemented by types that contain [`TextContentId`] references and can
+/// be converted into a "localized" mirror type with those references
+/// replaced by their localized `String` content.
+///
+/// Implemented directly for [`TextContentId`] (the base case, which looks
+/// itself up in `map`), with blanket implementations for `Option<T>` and
+/// `Vec<T>` so composite types resolve automatically through those
+/// wrappers. Structs and enums generated by `#[derive(TranslatableJson)]`
+/// implement this by recursing into each `#[translatable]` field and
+/// passing non-translatable fields through unchanged.
+///
+/// Resolution is intentionally infallible: a [`TextContentId`] missing from
+/// `map` (see [`localize_translations`] for when this can happen) resolves
+/// to an empty string rather than propagating an error, so a single missing
+/// translation can't fail an entire response.
+pub trait LocalizeTranslations {
+    /// The resolved mirror of `Self`, with every [`TextContentId`] replaced
+    /// by its resolved `String`. For [`TextContentId`] itself this is
+    /// `String`; for a derived struct/enum, this is its generated
+    /// `*Localized` counterpart; for `Option<T>`/`Vec<T>`, this is
+    /// `Option<T::Localized>`/`Vec<T::Localized>`.
+    type Localized;
+
+    /// Consumes `self`, replacing every contained [`TextContentId`] with
+    /// its resolved text from `map`.
+    ///
+    /// # Arguments
+    ///
+    /// * `map` - Pre-fetched translations, as returned by
+    ///   [`localize_translations`]. Must have been built from a superset of
+    ///   the ids [`CollectTextContentIds::collect_text_content_ids`] would
+    ///   gather from `self`, or missing ids can silently resolve to an
+    ///   empty string.
+    fn localize(self, map: &HashMap<TextContentId, String>) -> Self::Localized;
+}
+
+/// The resolved display text for a specific locale, alongside the full
+/// multi-locale translation record it was resolved from.
+///
+/// This is the admin-facing counterpart to the plain `String` produced by
+/// [`LocalizeTranslations`]. Where that path is for read-only display (a single
+/// localized string), this shape can be consumed with the existing translation
+/// admin UI.
+///
+/// Serialized with `camelCase` field names for frontend consumption.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct JsonFieldWithTranslations {
+    /// The resolved text for the locale requested when this value was
+    /// built (see [`ResolveWithTranslations::resolve_with_translations`]),
+    /// falling back to the content's primary locale per [`pick_localized`].
+    pub localized: String,
+    /// The full translation record (`text_content` row plus every
+    /// `text_translation` row) this value was resolved from.
+    pub translations: TranslationDto,
+}
+
+/// Implemented by types that contain [`TextContentId`] references and can
+/// be converted into a mirror type where those references are replaced by
+/// [`JsonFieldWithTranslations`] — the resolved text *plus* its full
+/// translation record — rather than a bare resolved `String`.
+///
+/// This is a sibling to [`LocalizeTranslations`], not a replacement: use
+/// `LocalizeTranslations` for ordinary read-only display and
+/// `ResolveWithTranslations` for admin/editing contexts.
+///
+/// Implemented directly for [`TextContentId`] with blanket implementations
+/// expected for `Option<T>`/`Vec<T>` so composite types resolve through those
+/// wrappers.
+pub trait ResolveWithTranslations {
+    /// The mirror of `Self` with every [`TextContentId`] replaced by
+    /// [`JsonFieldWithTranslations`]. For [`TextContentId`] itself this is
+    /// `JsonFieldWithTranslations`; for a derived struct/enum, this is the
+    /// analogous "with translations" generated counterpart.
+    type WithTranslations;
+
+    /// Consumes `self`, replacing every contained [`TextContentId`] with a
+    /// [`JsonFieldWithTranslations`] built from `translations` and `locale`.
+    fn resolve_with_translations(
+        self,
+        translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> Self::WithTranslations;
+}
+
+impl ResolveWithTranslations for TextContentId {
+    type WithTranslations = JsonFieldWithTranslations;
+
+    fn resolve_with_translations(
+        self,
+        translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> Self::WithTranslations {
+        match translations.get(&self) {
+            Some(trans_dto) => {
+                let localized = pick_localized(trans_dto, locale);
+
+                JsonFieldWithTranslations {
+                    localized,
+                    translations: trans_dto.clone(),
+                }
+            }
+            None => {
+                // Genuinely missing: the id was collected but resolve_translations
+                // found no text_content row for it. This indicates a data
+                // integrity issue (orphaned reference), not a normal empty state.
+                tracing::warn!(text_content_id = %self, "missing text_content for translatable field");
+                JsonFieldWithTranslations {
+                    localized: String::new(),
+                    translations: TranslationDto {
+                        text_content: crate::models::dto::translations::TextContentDto {
+                            id: self,
+                            primary_locale: locale.to_string(),
+                            format: TextFormat::Plain,
+                        },
+                        text_translations: vec![],
+                    },
+                }
+            }
+        }
+    }
+}
+
+fn pick_localized(dto: &TranslationDto, locale: &str) -> String {
+    dto.text_translations
+        .iter()
+        .find(|t| t.locale == locale)
+        .or_else(|| {
+            dto.text_translations
+                .iter()
+                .find(|t| t.locale == dto.text_content.primary_locale)
+        })
+        .map(|t| t.content.clone())
+        .unwrap_or_default()
+}
+
+/// Implemented by types that represent "raw" setup input which needs to be
+/// persisted as translatable text, converting them into their "built" form
+/// backed by a [`TextContentId`].
+///
+/// This is the write-side counterpart to [`LocalizeTranslations`]: where
+/// resolving turns a [`TextContentId`] into a `String` for display, building
+/// turns a `String` (from setup/creation input) into a [`TextContentId`] by
+/// inserting a new `text_content`/`text_translation` row pair.
+#[async_trait]
+pub trait BuildTextTranslation {
+    /// The built form of `Self`. For `String` this is [`TextContentId`];
+    /// for `Option<T>` this is `Option<T::Built>`.
+    type Built;
+
+    /// Persists `self` as translatable text and returns its built form.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::models::error::ModelError`] if the underlying insert fails.
+    async fn build_text_translation(
+        self,
+        db: &PgPool,
+        locale: &str,
+        format: TextFormat,
+    ) -> Result<Self::Built, ModelError>;
+}
+
+#[async_trait]
+impl BuildTextTranslation for String {
+    type Built = TextContentId;
+
+    async fn build_text_translation(
+        self,
+        db: &PgPool,
+        locale: &str,
+        format: TextFormat,
+    ) -> Result<Self::Built, ModelError> {
+        let translation = new_translation(db, locale, &self, format).await?;
+        Ok(translation.id)
+    }
+}
+
+#[async_trait]
+impl<T: BuildTextTranslation + Send> BuildTextTranslation for Option<T> {
+    type Built = Option<T::Built>;
+
+    async fn build_text_translation(
+        self,
+        db: &PgPool,
+        locale: &str,
+        format: TextFormat,
+    ) -> Result<Self::Built, ModelError> {
+        match self {
+            Some(v) => Ok(Some(v.build_text_translation(db, locale, format).await?)),
+            None => Ok(None),
+        }
+    }
+}
+
+// =============================================
+//
+// Blanket implementations for [`TextContentId`]
+//
+// =============================================
+
+impl CollectTextContentIds for TextContentId {
+    fn collect_text_content_ids(&self, out: &mut HashSet<TextContentId>) {
+        out.insert(*self);
+    }
+}
+
+impl<T: CollectTextContentIds> CollectTextContentIds for Option<T> {
+    fn collect_text_content_ids(&self, out: &mut HashSet<TextContentId>) {
+        if let Some(v) = self {
+            v.collect_text_content_ids(out);
+        }
+    }
+}
+
+impl<T: CollectTextContentIds> CollectTextContentIds for Vec<T> {
+    fn collect_text_content_ids(&self, out: &mut HashSet<TextContentId>) {
+        for item in self {
+            item.collect_text_content_ids(out);
+        }
+    }
+}
+
+impl LocalizeTranslations for TextContentId {
+    type Localized = String;
+
+    fn localize(self, map: &HashMap<TextContentId, String>) -> Self::Localized {
+        map.get(&self).cloned().unwrap_or_default()
+    }
+}
+
+impl<T: LocalizeTranslations> LocalizeTranslations for Option<T> {
+    type Localized = Option<T::Localized>;
+
+    fn localize(self, map: &HashMap<TextContentId, String>) -> Self::Localized {
+        self.map(|v| v.localize(map))
+    }
+}
+
+impl<T: LocalizeTranslations> LocalizeTranslations for Vec<T> {
+    type Localized = Vec<T::Localized>;
+
+    fn localize(self, map: &HashMap<TextContentId, String>) -> Self::Localized {
+        self.into_iter().map(|v| v.localize(map)).collect()
+    }
+}
+
+impl<T: ResolveWithTranslations> ResolveWithTranslations for Option<T> {
+    type WithTranslations = Option<T::WithTranslations>;
+
+    fn resolve_with_translations(
+        self,
+        translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> Self::WithTranslations {
+        self.map(|v| v.resolve_with_translations(translations, locale))
+    }
+}
+
+impl<T: ResolveWithTranslations> ResolveWithTranslations for Vec<T> {
+    type WithTranslations = Vec<T::WithTranslations>;
+
+    fn resolve_with_translations(
+        self,
+        translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> Self::WithTranslations {
+        self.into_iter()
+            .map(|v| v.resolve_with_translations(translations, locale))
+            .collect()
+    }
+}
+
+/// Resolves a batch of [`TextContentId`]s to their localized text content.
+///
+/// For each id, looks up the translation matching `locale`. If no translation
+/// exists for that locale, falls back to the `text_content` row's
+/// `primary_locale` translation instead — mirroring the fallback behavior of
+/// [`TextContentId::query_to_localisation`] used for flat table columns.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool.
+/// * `ids` - The set of content ids to resolve. Typically gathered via
+///   [`CollectTextContentIds::collect_text_content_ids`] across every
+///   translatable field/row in a response, then deduplicated, so that a
+///   single query resolves all translations needed for that response.
+/// * `locale` - The requested locale (e.g. `"fr"`) to resolve text into.
+///
+/// # Returns
+///
+/// A map from each resolvable [`TextContentId`] to its localized text.
+///
+/// Ids that have neither a `locale` translation nor a `primary_locale`
+/// fallback translation (e.g. a `text_content` row with no associated
+/// `text_translation` rows at all — normally a data integrity issue) are
+/// silently omitted from the returned map. Callers resolving via
+/// [`LocalizeTranslations::localize`] will fall back to an empty string for
+/// any id missing from the map; callers needing to detect this case
+/// explicitly should diff the returned map's keys against `ids`.
+///
+/// Ids in `ids` that don't correspond to any `text_content` row at all are
+/// also simply absent from the result, rather than causing an error.
+///
+/// # Errors
+///
+/// Returns [`crate::models::error::ModelError`] if the query fails to execute.
+pub async fn localize_translations(
+    db: &PgPool,
+    ids: &[TextContentId],
+    locale: &str,
+) -> Result<HashMap<TextContentId, String>, ModelError> {
+    let tt = Alias::new("tt");
+    let tt_primary = Alias::new("tt_primary");
+
+    let (sql, values) = Query::select()
+        .column((TextContentIden::Table, TextContentIden::Id))
+        .expr_as(
+            Func::coalesce([
+                Expr::col((tt.clone(), TextTranslationIden::Content)).into(),
+                Expr::col((tt_primary.clone(), TextTranslationIden::Content)).into(),
+            ]),
+            Alias::new("content"),
+        )
+        .from(TextContentIden::Table)
+        .join_as(
+            JoinType::LeftJoin,
+            TextTranslationIden::Table,
+            tt.clone(),
+            Expr::col((tt.clone(), TextTranslationIden::ContentId))
+                .equals((TextContentIden::Table, TextContentIden::Id))
+                .and(Expr::col((tt.clone(), TextTranslationIden::Locale)).eq(locale)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextTranslationIden::Table,
+            tt_primary.clone(),
+            Expr::col((tt_primary.clone(), TextTranslationIden::ContentId))
+                .equals((TextContentIden::Table, TextContentIden::Id))
+                .and(
+                    Expr::col((tt_primary.clone(), TextTranslationIden::Locale))
+                        .equals((TextContentIden::Table, TextContentIden::PrimaryLocale)),
+                ),
+        )
+        .and_where(
+            Expr::col((TextContentIden::Table, TextContentIden::Id))
+                .is_in(ids.iter().map(|id| id.into_uuid())),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let rows: Vec<(Uuid, Option<String>)> = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|(id, content)| content.map(|c| (id.into(), c)))
+        .collect())
+}
+
+/// Represents the format of text content that can be stored in the system.
+///
+/// This enum defines the supported text formats for content storage and rendering.
+/// Each format determines how the content should be processed and displayed.
+#[derive(PartialEq, Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, sqlx::Type)]
+#[sqlx(type_name = "TEXT")]
+#[serde(rename_all = "camelCase")]
+pub enum TextFormat {
+    /// Plain text format - no special formatting or markup
+    #[sqlx(rename = "plain")]
+    Plain,
+    /// Markdown format - supports Markdown syntax for formatting
+    #[sqlx(rename = "markdown")]
+    Markdown,
+    /// Rich text format - supports advanced formatting and styling
+    #[sqlx(rename = "rich")]
+    Rich,
+}
+
+impl From<TextFormat> for sea_query::Value {
+    fn from(val: TextFormat) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
+    }
+}
+
+impl fmt::Display for TextFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            TextFormat::Plain => "plain",
+            TextFormat::Markdown => "markdown",
+            TextFormat::Rich => "rich",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+/// Represents text content that can be translated into multiple languages.
+///
+/// TextContent serves as the main container for content that needs to be available
+/// in multiple locales. It defines the primary locale and format.
+/// Individual translations are stored separately in TextTranslation records that reference this content.
+#[derive(Serialize, Deserialize, JsonSchema, FromRow, Debug, PartialEq, Clone)]
+#[enum_def(table_name = "text_content")]
+pub struct TextContent {
+    /// Unique identifier for this text content
+    pub id: TextContentId,
+    /// The primary locale/language code for this content (e.g., "en", "es", "fr")
+    pub primary_locale: String,
+    /// The format of the text content (plain, markdown, or rich)
+    pub format: TextFormat,
+    /// Timestamp when this content was created
+    pub created_at: DateTime<Utc>,
+    /// Timestamp when this content was last updated
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Represents a translation of text content in a specific locale.
+///
+/// TextTranslation stores the actual translated content for a specific language.
+/// Each translation references a TextContent record and provides the translated
+/// text in the specified locale. It also tracks whether the translation was
+/// AI-generated and if it requires human validation.
+#[derive(Serialize, Deserialize, JsonSchema, FromRow, Debug, PartialEq, Clone)]
+#[enum_def(table_name = "text_translation")]
+pub struct TextTranslation {
+    /// Unique identifier for this translation
+    pub id: Uuid,
+    /// Reference to the TextContent this translation belongs to
+    pub content_id: TextContentId,
+    /// The locale/language code for this translation (e.g., "en", "es", "fr")
+    pub locale: String,
+    /// The actual translated text content
+    pub content: String,
+    /// Whether this translation was generated by AI
+    pub ai_generated: bool,
+    /// Whether this translation requires human validation
+    pub requires_validation: bool,
+    /// Timestamp when this translation was created
+    pub created_at: DateTime<Utc>,
+    /// Timestamp when this translation was last updated
+    pub updated_at: DateTime<Utc>,
+}
+
+const TEXT_CONTENT_DEFAULT_COLUMNS: [TextContentIden; 5] = [
+    TextContentIden::Id,
+    TextContentIden::PrimaryLocale,
+    TextContentIden::Format,
+    TextContentIden::CreatedAt,
+    TextContentIden::UpdatedAt,
+];
+
+const TEXT_TRANSLATION_DEFAULT_COLUMNS: [TextTranslationIden; 8] = [
+    TextTranslationIden::Id,
+    TextTranslationIden::ContentId,
+    TextTranslationIden::Locale,
+    TextTranslationIden::Content,
+    TextTranslationIden::AiGenerated,
+    TextTranslationIden::RequiresValidation,
+    TextTranslationIden::CreatedAt,
+    TextTranslationIden::UpdatedAt,
+];
+
+/// Data transfer object for creating new text content.
+///
+/// This struct contains all the required fields for creating a new TextContent
+/// record in the database. The ID and timestamps will be automatically generated.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct CreateTextContent {
+    /// The primary locale/language code for this content
+    pub primary_locale: String,
+    /// The format of the text content
+    pub format: TextFormat,
+}
+
+impl CreateTextContent {
+    /// Returns the database columns that will be inserted for this content.
+    ///
+    /// # Returns
+    ///
+    /// A vector of TextContentIden enum values representing the database columns.
+    pub fn columns(&self) -> Vec<TextContentIden> {
+        vec![TextContentIden::PrimaryLocale, TextContentIden::Format]
+    }
+
+    /// Returns the values to be inserted into the database columns.
+    ///
+    /// # Returns
+    ///
+    /// A vector of sea_query::SimpleExpr values corresponding to the columns.
+    pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
+        vec![
+            self.primary_locale.clone().into(),
+            self.format.to_string().into(),
+        ]
+    }
+}
+
+/// Data transfer object for creating new text translations.
+///
+/// This struct contains all the required fields for creating a new TextTranslation
+/// record in the database. The ID and timestamps will be automatically generated.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct CreateTextTranslation {
+    /// Reference to the TextContent this translation belongs to
+    pub content_id: TextContentId,
+    /// The locale/language code for this translation
+    pub locale: String,
+    /// The actual translated text content
+    pub content: String,
+    /// Whether this translation was generated by AI (defaults to false)
+    pub ai_generated: Option<bool>,
+    /// Whether this translation requires human validation (defaults to false)
+    pub requires_validation: Option<bool>,
+}
+
+impl CreateTextTranslation {
+    /// Returns the database columns that will be inserted for this translation.
+    ///
+    /// # Returns
+    ///
+    /// A vector of TextTranslationIden enum values representing the database columns.
+    pub fn columns(&self) -> Vec<TextTranslationIden> {
+        vec![
+            TextTranslationIden::ContentId,
+            TextTranslationIden::Locale,
+            TextTranslationIden::Content,
+            TextTranslationIden::AiGenerated,
+            TextTranslationIden::RequiresValidation,
+        ]
+    }
+
+    /// Returns the values to be inserted into the database columns.
+    ///
+    /// # Returns
+    ///
+    /// A vector of sea_query::SimpleExpr values corresponding to the columns.
+    /// Defaults ai_generated and requires_validation to false if not provided.
+    pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
+        let ai_generated = self.ai_generated.unwrap_or(false);
+        let requires_validation = self.requires_validation.unwrap_or(false);
+
+        vec![
+            self.content_id.into(),
+            self.locale.clone().into(),
+            self.content.clone().into(),
+            ai_generated.into(),
+            requires_validation.into(),
+        ]
+    }
+}
+
+/// Data transfer object for updating existing text content.
+///
+/// This struct contains optional fields that can be updated on a TextContent record.
+/// Only the provided (Some) fields will be updated in the database.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct UpdateTextContent {
+    /// The new primary locale/language code for this content
+    pub primary_locale: Option<String>,
+    /// The new format of the text content
+    pub format: Option<TextFormat>,
+}
+
+impl UpdateTextContent {
+    /// Converts the update struct to database column-value pairs.
+    ///
+    /// Only fields that are Some(..) will be included in the update.
+    ///
+    /// # Returns
+    ///
+    /// A vector of tuples containing the column identifier and the new value.
+    pub fn to_values(&self) -> Vec<(TextContentIden, sea_query::SimpleExpr)> {
+        let mut values = vec![];
+        if let Some(value) = &self.primary_locale {
+            values.push((TextContentIden::PrimaryLocale, value.into()));
+        }
+        if let Some(value) = &self.format {
+            values.push((TextContentIden::Format, value.to_string().into()));
+        }
+        values
+    }
+}
+
+/// Data transfer object for updating existing text translations.
+///
+/// This struct contains optional fields that can be updated on a TextTranslation record.
+/// Only the provided (Some) fields will be updated in the database.
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
+pub struct UpdateTextTranslation {
+    /// The new locale/language code for this translation
+    pub locale: Option<String>,
+    /// The new translated text content
+    pub content: Option<String>,
+    /// Whether this translation was generated by AI
+    pub ai_generated: Option<bool>,
+    /// Whether this translation requires human validation
+    pub requires_validation: Option<bool>,
+}
+
+impl UpdateTextTranslation {
+    /// Converts the update struct to database column-value pairs.
+    ///
+    /// Only fields that are Some(..) will be included in the update.
+    ///
+    /// # Returns
+    ///
+    /// A vector of tuples containing the column identifier and the new value.
+    pub fn to_values(&self) -> Vec<(TextTranslationIden, sea_query::SimpleExpr)> {
+        let mut values = vec![];
+        if let Some(value) = &self.locale {
+            values.push((TextTranslationIden::Locale, value.into()));
+        }
+        if let Some(value) = &self.content {
+            values.push((TextTranslationIden::Content, value.into()));
+        }
+        if let Some(value) = self.ai_generated {
+            values.push((TextTranslationIden::AiGenerated, value.into()));
+        }
+        if let Some(value) = self.requires_validation {
+            values.push((TextTranslationIden::RequiresValidation, value.into()));
+        }
+        values
+    }
+}
+
+// TextContent CRUD operations
+
+/// Creates a new text content record in the database.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `text_content` - The text content data to create
+///
+/// # Returns
+///
+/// Returns a `Result` containing the created `TextContent` on success,
+/// or a `ModelError` on failure.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The database operation fails
+#[instrument(err(Debug), skip(db))]
+pub async fn create_text_content(
+    db: &PgPool,
+    text_content: &CreateTextContent,
+) -> Result<TextContent, ModelError> {
+    let columns = text_content.columns();
+    let values = text_content.values();
+
+    let (sql, values) = Query::insert()
+        .into_table(TextContentIden::Table)
+        .columns(columns)
+        .values(values)
+        .unwrap()
+        .returning(Query::returning().columns(TEXT_CONTENT_DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(text_content)
+}
+
+/// Retrieves a text content record by its ID.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - The unique identifier of the text content to retrieve
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `TextContent` if found,
+/// or a `DataError::ResourceNotFound` if not found.
+
+#[instrument(err(Debug), skip(db))]
+pub async fn get_text_content_by_id(
+    db: &PgPool,
+    id: &TextContentId,
+) -> Result<TextContent, ModelError> {
+    let (sql, values) = Query::select()
+        .columns(TEXT_CONTENT_DEFAULT_COLUMNS)
+        .from(TextContentIden::Table)
+        .and_where(Expr::col(TextContentIden::Id).eq(id.as_uuid().to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Text Content")?;
+
+    Ok(text_content)
+}
+
+/// Updates an existing text content record.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - The unique identifier of the text content to update
+/// * `update` - The fields to update (only non-None fields will be updated)
+///
+/// # Returns
+///
+/// Returns a `Result` containing the updated `TextContent` on success,
+/// or a `ModelError` on failure.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * No valid updates are provided (all fields are None)
+/// * The text content with the given ID does not exist
+/// * The database operation fails
+#[instrument(err(Debug), skip(db))]
+pub async fn update_text_content(
+    db: &PgPool,
+    id: &TextContentId,
+    update: &UpdateTextContent,
+) -> Result<TextContent, ModelError> {
+    let mut values = update.to_values();
+
+    if values.is_empty() {
+        return Err(ValidationError::NoValidUpdates.into());
+    }
+
+    values.push((TextContentIden::CreatedAt, Utc::now().into()));
+
+    let (sql, values) = Query::update()
+        .table(TextContentIden::Table)
+        .values(values)
+        .and_where(Expr::col(TextContentIden::Id).eq(id.as_uuid().to_owned()))
+        .returning(Query::returning().columns(TEXT_CONTENT_DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Text Content")?;
+
+    Ok(text_content)
+}
+
+/// Deletes a text content record from the database.
+///
+/// This will also cascade delete all associated translations due to
+/// the foreign key constraint in the database.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - The unique identifier of the text content to delete
+///
+/// # Returns
+///
+/// Returns a `Result` containing the deleted `TextContent` on success,
+/// or a `DataError::ResourceNotFound` if the content doesn't exist.
+#[instrument(err(Debug), skip(db))]
+pub async fn delete_text_content(
+    db: &PgPool,
+    id: &TextContentId,
+) -> Result<TextContent, ModelError> {
+    let (sql, values) = Query::delete()
+        .from_table(TextContentIden::Table)
+        .and_where(Expr::col(TextContentIden::Id).eq(id.as_uuid().to_owned()))
+        .returning(Query::returning().columns(TEXT_CONTENT_DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Text Content")?;
+
+    Ok(text_content)
+}
+
+// TextTranslation CRUD operations
+
+/// Creates a new text translation record in the database.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `text_translation` - The text translation data to create
+///
+/// # Returns
+///
+/// Returns a `Result` containing the created `TextTranslation` on success,
+/// or a `ModelError` on failure.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The database operation fails
+/// * The content_id references a non-existent text content
+/// * A translation for the same content_id and locale already exists
+#[instrument(err(Debug), skip(db))]
+pub async fn create_text_translation(
+    db: &PgPool,
+    text_translation: &CreateTextTranslation,
+) -> Result<TextTranslation, ModelError> {
+    let columns = text_translation.columns();
+    let values = text_translation.values();
+
+    let (sql, values) = Query::insert()
+        .into_table(TextTranslationIden::Table)
+        .columns(columns)
+        .values(values)
+        .unwrap()
+        .returning(Query::returning().columns(TEXT_TRANSLATION_DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(text_translation)
+}
+
+/// Retrieves a text translation record by its ID.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - The unique identifier of the text translation to retrieve
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `TextTranslation` if found,
+/// or a `DataError::ResourceNotFound` if not found.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_text_translation_by_id(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<TextTranslation, ModelError> {
+    let (sql, values) = Query::select()
+        .columns(TEXT_TRANSLATION_DEFAULT_COLUMNS)
+        .from(TextTranslationIden::Table)
+        .and_where(Expr::col(TextTranslationIden::Id).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Text Translation")?;
+
+    Ok(text_translation)
+}
+
+/// Retrieves all text translation records for a specific text content.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `content_id` - The unique identifier of the text content
+///
+/// # Returns
+///
+/// Returns a `Result` containing a vector of `TextTranslation` records,
+/// or a `ModelError` on database failure. Returns an empty vector
+/// if no translations are found for the content.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_text_translations_by_content_id(
+    db: &PgPool,
+    content_id: &TextContentId,
+) -> Result<Vec<TextTranslation>, ModelError> {
+    let (sql, values) = Query::select()
+        .columns(TEXT_TRANSLATION_DEFAULT_COLUMNS)
+        .from(TextTranslationIden::Table)
+        .and_where(Expr::col(TextTranslationIden::ContentId).eq(content_id.as_uuid().to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_translations = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    Ok(text_translations)
+}
+
+/// Retrieves a specific text translation by content ID and locale.
+///
+/// This is useful for finding a translation in a specific language
+/// for a given piece of content.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `content_id` - The unique identifier of the text content
+/// * `locale` - The locale/language code of the desired translation
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `TextTranslation` if found,
+/// or a `DataError::ResourceNotFound` if no translation exists
+/// for the given content and locale combination.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_text_translation_by_content_and_locale(
+    db: &PgPool,
+    content_id: &TextContentId,
+    locale: &str,
+) -> Result<TextTranslation, ModelError> {
+    let (sql, values) = Query::select()
+        .columns(TEXT_TRANSLATION_DEFAULT_COLUMNS)
+        .from(TextTranslationIden::Table)
+        .and_where(Expr::col(TextTranslationIden::ContentId).eq(content_id.as_uuid().to_owned()))
+        .and_where(Expr::col(TextTranslationIden::Locale).eq(locale))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Text Translation")?;
+
+    Ok(text_translation)
+}
+
+/// Updates an existing text translation record.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - The unique identifier of the text translation to update
+/// * `update` - The fields to update (only non-None fields will be updated)
+///
+/// # Returns
+///
+/// Returns a `Result` containing the updated `TextTranslation` on success,
+/// or a `ModelError` on failure.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * No valid updates are provided (all fields are None)
+/// * The text translation with the given ID does not exist
+/// * The database operation fails
+/// * The updated locale would create a duplicate (content_id, locale) pair
+#[instrument(err(Debug), skip(db))]
+pub async fn update_text_translation(
+    db: &PgPool,
+    id: &Uuid,
+    update: &UpdateTextTranslation,
+) -> Result<TextTranslation, ModelError> {
+    let values = update.to_values();
+
+    if values.is_empty() {
+        return Err(ValidationError::NoValidUpdates.into());
+    }
+
+    let (sql, values) = Query::update()
+        .table(TextTranslationIden::Table)
+        .values(values)
+        .and_where(Expr::col(TextTranslationIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(TEXT_TRANSLATION_DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(text_translation)
+}
+
+/// Deletes a text translation record from the database.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - The unique identifier of the text translation to delete
+///
+/// # Returns
+///
+/// Returns a `Result` containing the deleted `TextTranslation` on success,
+/// or a `DataError::ResourceNotFound` if the translation doesn't exist.
+#[instrument(err(Debug), skip(db))]
+pub async fn delete_text_translation(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<TextTranslation, ModelError> {
+    let (sql, values) = Query::delete()
+        .from_table(TextTranslationIden::Table)
+        .and_where(Expr::col(TextTranslationIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(TEXT_TRANSLATION_DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Text Translation")?;
+
+    Ok(text_translation)
+}
+
+// Convenience functions for working with TextContentId
+
+/// Creates a new text content and returns its ID for linking from other models.
+///
+/// This is a convenience function that creates text content and returns just the ID,
+/// which can be used to link translatable content from other models like Conversation.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `text_content` - The text content data to create
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `TextContentId` of the created content,
+/// or a `ModelError` on failure.
+#[instrument(err(Debug), skip(db))]
+pub async fn create_text_content_and_get_id(
+    db: &PgPool,
+    text_content: &CreateTextContent,
+) -> Result<TextContentId, ModelError> {
+    let content = create_text_content(db, text_content).await?;
+    Ok(content.id)
+}
+
+/// Retrieves the translation for a specific text content and locale, if it exists.
+///
+/// This is a convenience function that returns an Option instead of an error
+/// when no translation is found, making it easier to handle optional translations.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `content_id` - The unique identifier of the text content
+/// * `locale` - The locale/language code of the desired translation
+///
+/// # Returns
+///
+/// Returns a `Result` containing `Some(TextTranslation)` if found,
+/// `None` if no translation exists, or a `ModelError` on database failure.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_text_translation_optional(
+    db: &PgPool,
+    content_id: &TextContentId,
+    locale: &str,
+) -> Result<Option<TextTranslation>, ModelError> {
+    match get_text_translation_by_content_and_locale(db, content_id, locale).await {
+        Ok(translation) => Ok(Some(translation)),
+        Err(ModelError::Data(DataError::ResourceNotFound(_))) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Translate all languages that exist for this
+
+#[instrument(err(Debug), skip(db))]
+pub async fn new_translation(
+    db: &PgPool,
+    locale: &str,
+    content: &str,
+    format: TextFormat,
+) -> Result<TextContent, ModelError> {
+    let translation = create_text_content(
+        db,
+        &CreateTextContent {
+            primary_locale: locale.to_owned(),
+            format,
+        },
+    )
+    .await?;
+
+    create_text_translation(
+        db,
+        &CreateTextTranslation {
+            content_id: translation.id,
+            locale: locale.to_owned(),
+            content: content.to_owned(),
+            ai_generated: Some(false),
+            requires_validation: Some(false),
+        },
+    )
+    .await?;
+    Ok(translation)
+}
+
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TranslationDto {
+    pub text_content: crate::models::dto::translations::TextContentDto,
+    pub text_translations: Vec<crate::models::dto::translations::TextTranslationDto>,
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn get_text_content_with_translations(
+    db: &PgPool,
+    text_content_ids: Vec<TextContentId>,
+) -> Result<HashMap<TextContentId, TranslationDto>, ModelError> {
+    let (sql, values) = Query::select()
+        .from(TextContentIden::Table)
+        .columns(TEXT_CONTENT_DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col(TextContentIden::Id).is_in(text_content_ids.iter().map(|id| id.into_uuid())),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_contents: Vec<TextContent> = query_as_with(&sql, values).fetch_all(db).await?;
+
+    let (sql, values) = Query::select()
+        .from(TextTranslationIden::Table)
+        .columns(TEXT_TRANSLATION_DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col(TextTranslationIden::ContentId)
+                .is_in(text_content_ids.iter().map(|id| id.into_uuid())),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let text_translations: Vec<TextTranslation> = query_as_with(&sql, values).fetch_all(db).await?;
+
+    let mut tts_by_tc_id: HashMap<TextContentId, Vec<TextTranslation>> = HashMap::new();
+    for translation in text_translations {
+        tts_by_tc_id
+            .entry(translation.content_id)
+            .or_default()
+            .push(translation);
+    }
+
+    Ok(text_contents
+        .into_iter()
+        .map(|tc| {
+            let text_translations = tts_by_tc_id
+                .remove(&tc.id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect();
+
+            (
+                tc.id,
+                TranslationDto {
+                    text_content: tc.into(),
+                    text_translations,
+                },
+            )
+        })
+        .collect())
+}

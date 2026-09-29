@@ -7,41 +7,7 @@ use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, sqlx::Type, Clone, JsonSchema, Default)]
-#[sqlx(type_name = "TEXT")]
-#[serde(rename_all = "snake_case")]
-pub enum ModerationStatus {
-    #[sqlx(rename = "accepted")]
-    Accepted,
-    #[sqlx(rename = "rejected")]
-    Rejected,
-    #[sqlx(rename = "pending")]
-    #[default]
-    Pending,
-}
-
-impl std::fmt::Display for ModerationStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let value = match self {
-            ModerationStatus::Accepted => "accepted",
-            ModerationStatus::Rejected => "rejected",
-            ModerationStatus::Pending => "pending",
-        };
-        write!(f, "{}", value)
-    }
-}
-
-impl TryFrom<i32> for ModerationStatus {
-    type Error = WikiPollServiceError;
-    fn try_from(value: i32) -> Result<Self, WikiPollServiceError> {
-        match value {
-            -1 => Ok(ModerationStatus::Rejected),
-            1 => Ok(ModerationStatus::Accepted),
-            0 => Ok(ModerationStatus::Pending),
-            _ => Err(WikiPollServiceError::UnknownModerationStatus),
-        }
-    }
-}
+pub use crate::models::moderation_status::ModerationStatus;
 
 #[cfg(test)]
 use mockall::automock;
@@ -126,20 +92,6 @@ pub trait WikiPollService: Send + Sync {
     ) -> Result<WikiPoll, WikiPollServiceError>;
 }
 
-impl ModerationStatus {
-    pub fn mod_value(self) -> i32 {
-        match self {
-            ModerationStatus::Accepted => 1,
-            ModerationStatus::Rejected => -1,
-            ModerationStatus::Pending => 0,
-        }
-    }
-
-    pub fn active(self) -> bool {
-        matches!(self, ModerationStatus::Accepted)
-    }
-}
-
 /// Which statements a report covers. It should match what participants are shown, or the
 /// report and the voting interface disagree about what is in the conversation. Rejected
 /// statements are always left out.
@@ -160,7 +112,6 @@ impl ReportScope {
         }
     }
 }
-
 #[derive(Deserialize, Serialize)]
 pub struct WikiPollLogin {
     pub email: String,

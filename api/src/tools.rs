@@ -2,33 +2,24 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use async_trait::async_trait;
-use comhairle_macros::{DbJsonBEnum, TranslatableJson};
-use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
-use crate::models::translations::TextContentId;
-use crate::tools::thinking_space::{
-    ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup,
-};
 use crate::{ComhairleState, error::ComhairleError};
 
 pub mod elicitation_bot;
 pub mod heyform;
-pub mod id;
+pub use crate::models::id;
 pub mod learn;
 pub mod polis;
 pub mod prioritization;
 pub mod stories;
 pub mod thinking_space;
 
-use elicitation_bot::{ElicitationBotReport, ElicitationBotToolConfig, ElicitationBotToolSetup};
-use heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
-use learn::{LearnReport, LearnToolConfig, LearnToolSetup};
-use polis::{PolisReport, PolisToolConfig, PolisToolSetup};
-use prioritization::{PrioritizationReport, PrioritizationToolConfig, PrioritizationToolSetup};
-use stories::{StoriesReport, StoriesToolConfig, StoriesToolSetup};
+pub use crate::models::tools::{
+    LocalizedToolConfig, ToolConfig, ToolConfigSanitize, ToolConfigWithTranslations, ToolSetup,
+};
 
 /// Core trait that all tools must implement.
 ///
@@ -52,7 +43,9 @@ pub trait ToolImpl: Send + Sync + 'static {
         locale: &str,
     ) -> Result<Self::Config, ComhairleError>;
 
-    /// Sync data from tool to common data pool
+    /// Sync data from tool to common data pool. Not wired up to a caller yet;
+    /// part of the tool contract so the allow keeps it until it is.
+    #[allow(dead_code)]
     async fn sync_data(
         config: &Self::Config,
         state: &Arc<ComhairleState>,
@@ -86,7 +79,8 @@ pub trait ToolImpl: Send + Sync + 'static {
         ApiRouter::new()
     }
 
-    /// Register background workers/tasks
+    /// Register background workers/tasks. Not wired up to a caller yet either.
+    #[allow(dead_code)]
     async fn register_workers(
         config: &Self::Config,
         state: &Arc<ComhairleState>,
@@ -100,40 +94,37 @@ pub trait ToolImpl: Send + Sync + 'static {
     fn sanitize(config: Self::Config) -> Self::Config;
 }
 
-/// Trait for sync operations that can be dispatched via enum_dispatch
-#[enum_dispatch]
-pub trait ToolConfigSanitize {
-    fn sanitize(&self) -> Self;
+/// State-taking operations on [`ToolConfig`].
+///
+/// An extension trait rather than an inherent impl because `ToolConfig` is model
+/// data: once the model layer becomes its own crate, an inherent impl here would
+/// be on a foreign type, which Rust does not allow.
+#[async_trait]
+pub trait ToolConfigExt: Sized {
+    /// Sync data from tool to common data pool. No caller yet; kept as part of
+    /// the tool contract.
+    #[allow(dead_code)]
+    async fn sync_data(&self, state: &Arc<ComhairleState>) -> Result<(), ComhairleError>;
+
+    /// Clone tool to create new instance (used for launch)
+    async fn clone_tool(&self, state: &Arc<ComhairleState>) -> Result<Self, ComhairleError>;
+
+    /// Delete tool and clean up resources
+    async fn delete(
+        &self,
+        state: &Arc<ComhairleState>,
+        workflow_step_id: &Uuid,
+    ) -> Result<(), ComhairleError>;
+
+    /// Register background workers for this tool config. No caller yet; kept as
+    /// part of the tool contract.
+    #[allow(dead_code)]
+    async fn register_workers(&self, state: &Arc<ComhairleState>) -> Result<(), ComhairleError>;
 }
 
-#[derive(
-    Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum, PartialEq, TranslatableJson,
-)]
-#[serde(rename_all = "lowercase", tag = "type")]
-#[enum_dispatch(ToolConfigSanitize)]
-pub enum ToolConfig {
-    Polis(PolisToolConfig),
-    Learn(LearnToolConfig),
-    HeyForm(HeyFormToolConfig),
-    Stories(StoriesToolConfig),
-    ElicitationBot(ElicitationBotToolConfig),
-    #[translatable]
-    Prioritization(PrioritizationToolConfig),
-    #[translatable]
-    ThinkingSpace(ThinkingSpaceToolConfig),
-}
-
-impl ToolConfig {
-    /// The moderation policy the step points at. Only Polis moderates statements today.
-    pub fn moderation_policy_id(&self) -> Option<Uuid> {
-        match self {
-            ToolConfig::Polis(config) => config.moderation_policy_id,
-            _ => None,
-        }
-    }
-
-    /// Sync data from tool to common data pool
-    pub async fn sync_data(&self, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
+#[async_trait]
+impl ToolConfigExt for ToolConfig {
+    async fn sync_data(&self, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
         match self {
             ToolConfig::Polis(config) => polis::PolisTool::sync_data(config, state).await,
             ToolConfig::Learn(config) => learn::LearnTool::sync_data(config, state).await,
@@ -151,8 +142,7 @@ impl ToolConfig {
         }
     }
 
-    /// Clone tool to create new instance (used for launch)
-    pub async fn clone_tool(&self, state: &Arc<ComhairleState>) -> Result<Self, ComhairleError> {
+    async fn clone_tool(&self, state: &Arc<ComhairleState>) -> Result<Self, ComhairleError> {
         match self {
             ToolConfig::Polis(config) => Ok(ToolConfig::Polis(
                 polis::PolisTool::clone_tool(config, state).await?,
@@ -178,8 +168,7 @@ impl ToolConfig {
         }
     }
 
-    /// Delete tool and clean up resources
-    pub async fn delete(
+    async fn delete(
         &self,
         state: &Arc<ComhairleState>,
         workflow_step_id: &Uuid,
@@ -209,11 +198,7 @@ impl ToolConfig {
         }
     }
 
-    /// Register background workers for this tool config
-    pub async fn register_workers(
-        &self,
-        state: &Arc<ComhairleState>,
-    ) -> Result<(), ComhairleError> {
+    async fn register_workers(&self, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
         match self {
             ToolConfig::Polis(config) => polis::PolisTool::register_workers(config, state).await,
             ToolConfig::Learn(config) => learn::LearnTool::register_workers(config, state).await,
@@ -236,21 +221,21 @@ impl ToolConfig {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
-#[serde(rename_all = "lowercase", tag = "type")]
-pub enum ToolSetup {
-    Polis(PolisToolSetup),
-    Learn(LearnToolSetup),
-    HeyForm(HeyFormToolSetup),
-    Stories(StoriesToolSetup),
-    ElicitationBot(ElicitationBotToolSetup),
-    Prioritization(PrioritizationToolSetup),
-    ThinkingSpace(ThinkingSpaceToolSetup),
+/// State-taking operations on [`ToolSetup`]; extension trait for the same
+/// foreign-type reason as [`ToolConfigExt`].
+#[async_trait]
+pub trait ToolSetupExt {
+    /// Setup a new tool from setup configuration
+    async fn setup(
+        &self,
+        state: &Arc<ComhairleState>,
+        locale: &str,
+    ) -> Result<ToolConfig, ComhairleError>;
 }
 
-impl ToolSetup {
-    /// Setup a new tool from setup configuration
-    pub async fn setup(
+#[async_trait]
+impl ToolSetupExt for ToolSetup {
+    async fn setup(
         &self,
         state: &Arc<ComhairleState>,
         locale: &str,
@@ -291,15 +276,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .merge(elicitation_bot::ElicitationBotTool::routes(&state))
         .merge(prioritization::PrioritizationTool::routes(&state))
         .merge(thinking_space::ThinkingSpaceTool::routes(&state))
-}
-
-#[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]
-pub enum ReportConfig {
-    Polis(PolisReport),
-    HeyForm(HeyFormReport),
-    Learn(LearnReport),
-    Stories(StoriesReport),
-    ElicitationBot(ElicitationBotReport),
-    Prioritization(PrioritizationReport),
-    ThinkingSpace(ThinkingSpaceReport),
 }

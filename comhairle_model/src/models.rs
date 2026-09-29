@@ -1,0 +1,112 @@
+use sqlx::error::ErrorKind;
+
+use crate::models::error::DataError;
+
+pub mod api_key;
+pub mod audio_recording;
+pub mod bot_service_user_session;
+pub mod breakout_plan;
+pub mod chat_instructions;
+pub mod conversation;
+pub mod conversation_email_notification_recipients;
+pub mod demographics;
+pub mod dto;
+pub mod email_template_config;
+pub mod error;
+pub mod event;
+pub mod event_attendance;
+pub mod feedback;
+pub mod id;
+pub mod invite_response;
+pub mod invites;
+pub mod job;
+pub mod media;
+pub mod moderation_policy;
+pub mod moderation_status;
+pub mod notification;
+pub mod notification_delivery;
+pub mod organization;
+pub mod otp;
+pub mod pagination;
+pub mod password;
+pub mod permissions;
+pub mod polis_statement_aux;
+pub mod proposal;
+pub mod proposal_response;
+pub mod proposal_section;
+pub mod recruitment_target;
+pub mod refresh_token;
+pub mod region;
+pub mod region_area;
+pub mod report;
+pub mod report_impact;
+pub mod request_context;
+pub mod resource;
+pub mod scheduled_email;
+pub mod thinking_space_answer;
+pub mod thinking_space_follow_up_question;
+pub mod thinking_space_summary;
+pub mod tools;
+pub mod translations;
+pub mod user_conversation_preferences;
+pub mod user_participation;
+pub mod user_profile;
+pub mod user_progress;
+pub mod users;
+pub mod workflow;
+pub mod workflow_step;
+
+/// Extension trait for converting `sqlx` query results into [`DataError`]s.
+///
+/// This centralizes the mapping from low-level database errors to the
+/// persistence-level error variants used throughout the model layer, so call
+/// sites don't need to pattern-match on `sqlx::Error` themselves. Callers
+/// returning a wider error type get the promotion for free via `?`.
+pub trait SqlxResultExt<T> {
+    /// Resolves a `sqlx` query result into a [`DataError`], classifying
+    /// the underlying database error where possible.
+    ///
+    /// - `sqlx::Error::RowNotFound` is mapped to
+    ///   [`DataError::ResourceNotFound`] (HTTP 404), using `resource` as a
+    ///   human-readable description of what was being looked up (e.g.
+    ///   `"User"`, `"Workflow Step"`).
+    /// - Foreign key and unique constraint violations are mapped to
+    ///   [`DataError::Conflict`] (HTTP 409), since the request is
+    ///   well-formed but conflicts with the current state of the database
+    ///   (e.g. referencing a row that doesn't exist, or duplicating a
+    ///   unique value).
+    /// - All other database errors fall through to
+    ///   [`DataError::DatabaseError`], preserving the original
+    ///   `sqlx::Error` for logging/debugging.
+    ///
+    /// # Arguments
+    ///
+    /// * `resource` - A short, human-readable name for the resource being
+    ///   queried. Used in the `ResourceNotFound` and `Conflict` error
+    ///   messages.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let user = sqlx::query_as_with(&sql, values)
+    ///     .fetch_one(&pool)
+    ///     .await
+    ///     .resolve_db_err("User")?;
+    /// ```
+    fn resolve_db_err(self, resource: &str) -> Result<T, DataError>;
+}
+
+impl<T> SqlxResultExt<T> for Result<T, sqlx::Error> {
+    fn resolve_db_err(self, resource: &str) -> Result<T, DataError> {
+        self.map_err(|e| match e {
+            sqlx::Error::RowNotFound => DataError::ResourceNotFound(resource.into()),
+            sqlx::Error::Database(ref db_err) => match db_err.kind() {
+                ErrorKind::ForeignKeyViolation | ErrorKind::UniqueViolation => {
+                    DataError::Conflict(format!("{resource} conflicts with an existing record"))
+                }
+                _ => DataError::DatabaseError(e),
+            },
+            _ => DataError::DatabaseError(e),
+        })
+    }
+}

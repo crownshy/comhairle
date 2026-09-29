@@ -15,6 +15,9 @@ use serde::Serialize;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::error::DataError;
+use crate::models::error::PermissionError;
+use crate::models::error::ValidationError;
 use crate::{
     ComhairleState,
     bot_service::{ComhairleDocument, GetQueryParams, UploadFileRequest},
@@ -58,7 +61,7 @@ async fn require_conversation_document_access(
     }
 
     let Some(ref user) = user.0 else {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     };
 
     if is_user_admin(&state, user).await {
@@ -77,7 +80,7 @@ async fn require_conversation_document_access(
         return Ok(());
     }
 
-    Err(ComhairleError::UserNotAuthorized)
+    Err(PermissionError::UserNotAuthorized.into())
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -197,9 +200,10 @@ async fn download_document(
         .is_some_and(|value| value.starts_with("application/json"));
 
     if !status.is_success() || is_json_error {
-        return Err(ComhairleError::ResourceNotFound(format!(
+        return Err(DataError::ResourceNotFound(format!(
             "Document {document_id} is no longer available"
-        )));
+        ))
+        .into());
     }
 
     let mut response = Response::new(Body::from_stream(download_stream.bytes_stream()));
@@ -236,12 +240,12 @@ pub async fn upload(
             let bytes = field.bytes().await?.to_vec();
             (filename, bytes)
         }
-        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
+        None => return Err(ValidationError::BadRequest("Missing form field".to_string()).into()),
     };
     if form_data.next_field().await?.is_some() {
-        return Err(ComhairleError::BadRequest(
-            "Only one document upload allowed".to_string(),
-        ));
+        return Err(
+            ValidationError::BadRequest("Only one document upload allowed".to_string()).into(),
+        );
     }
     let file = UploadFileRequest { filename, bytes };
     let (_, document) = bot_service
@@ -278,10 +282,11 @@ async fn get_knowledge_base_id(
     let knowledge_base_id = match conversation.knowledge_base_id {
         Some(id) => id,
         None => {
-            return Err(ComhairleError::CorruptedData(format!(
+            return Err(DataError::CorruptedData(format!(
                 "Missing knowledge_base_id on conversation {}",
                 conversation.id
-            )));
+            ))
+            .into());
         }
     };
 
@@ -356,12 +361,12 @@ async fn sync_learning_content(
     // existing doc.
     let bytes = match form_data.next_field().await? {
         Some(field) => field.bytes().await?.to_vec(),
-        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
+        None => return Err(ValidationError::BadRequest("Missing form field".to_string()).into()),
     };
     if form_data.next_field().await?.is_some() {
-        return Err(ComhairleError::BadRequest(
-            "Only one document upload allowed".to_string(),
-        ));
+        return Err(
+            ValidationError::BadRequest("Only one document upload allowed".to_string()).into(),
+        );
     }
 
     // Drop any previously-synced learn-content document so retrieval never

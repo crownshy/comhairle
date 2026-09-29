@@ -47,7 +47,7 @@ async fn list(
         &locale,
     )
     .await?
-    .into();
+    .map(Into::into);
 
     Ok((StatusCode::OK, Json(regions)))
 }

@@ -12,6 +12,8 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::ComhairleState;
+use crate::models::error::PermissionError;
+use crate::models::error::ValidationError;
 use crate::{
     error::ComhairleError,
     models::user_progress::{self, UpdateUserProgress},
@@ -59,9 +61,10 @@ pub async fn update_user_progress(
     // workflow they have not finished and have the gate wave the write through.
     let step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
     if step.workflow_id != workflow_id {
-        return Err(ComhairleError::BadRequest(format!(
+        return Err(ValidationError::BadRequest(format!(
             "workflow step {workflow_step_id} does not belong to workflow {workflow_id}"
-        )));
+        ))
+        .into());
     }
 
     if user_progress::is_sealed(&state.db, &user.id, &workflow_id).await? {
@@ -73,7 +76,7 @@ pub async fn update_user_progress(
 
         return match existing {
             Some(row) if payload.is_noop_for(&row) => Ok((StatusCode::OK, Json(row.into()))),
-            _ => Err(ComhairleError::ParticipantSealed),
+            _ => Err(PermissionError::ParticipantSealed.into()),
         };
     }
 

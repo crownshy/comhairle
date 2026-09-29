@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::{event_attendance::EventAttendance, pagination::PaginatedResults};
+use crate::models::event_attendance::EventAttendance;
 
 /// Data transfer object (public API representation) for an EventAttendance.
 ///
@@ -31,15 +31,6 @@ impl From<EventAttendance> for EventAttendanceDto {
             event_id: e.event_id,
             role: e.role,
             created_at: e.created_at,
-        }
-    }
-}
-
-impl From<PaginatedResults<EventAttendance>> for PaginatedResults<EventAttendanceDto> {
-    fn from(r: PaginatedResults<EventAttendance>) -> Self {
-        Self {
-            total: r.total,
-            records: r.records.into_iter().map(Into::into).collect(),
         }
     }
 }

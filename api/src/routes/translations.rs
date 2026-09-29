@@ -18,6 +18,8 @@ use tracing::instrument;
 
 use axum_extra::extract::cookie::CookieJar;
 
+use crate::error::ServiceError;
+use crate::error::TransportError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -46,7 +48,7 @@ impl FromRequestParts<Arc<ComhairleState>> for LocaleExtractor {
         let jar = parts
             .extract::<CookieJar>()
             .await
-            .map_err(|e| ComhairleError::LocaleError(e.to_string()))?;
+            .map_err(|e| TransportError::LocaleError(e.to_string()))?;
 
         let locale = jar
             .get("COMHAIRLE_LOCALE")
@@ -250,7 +252,7 @@ async fn auto_translate(
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     if let Some(translation_service) = &state.translation_service {
-        let new_translation = translations::auto_generate_translation(
+        let new_translation = crate::services::translations::auto_generate_translation(
             &state.db,
             translation_service,
             &text_content_id,
@@ -260,7 +262,7 @@ async fn auto_translate(
         .into();
         Ok((StatusCode::OK, Json(new_translation)))
     } else {
-        Err(ComhairleError::NoTranslationServiceConfigured)
+        Err(ServiceError::NoTranslationServiceConfigured.into())
     }
 }
 
@@ -275,7 +277,7 @@ async fn auto_translate_all(
         let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
             .await?
             .into();
-        let translations = translations::auto_generate_all_translations(
+        let translations = crate::services::translations::auto_generate_all_translations(
             &state.db,
             translation_service,
             &text_content_id,
@@ -290,7 +292,7 @@ async fn auto_translate_all(
         };
         Ok((StatusCode::OK, Json(result)))
     } else {
-        Err(ComhairleError::NoTranslationServiceConfigured)
+        Err(ServiceError::NoTranslationServiceConfigured.into())
     }
 }
 

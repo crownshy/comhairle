@@ -12,6 +12,7 @@ use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::error::PermissionError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -61,7 +62,7 @@ async fn list_feedback_for_conversation(
 ) -> Result<(StatusCode, Json<Vec<FeedbackDto>>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserIsNotConversationOwner);
+        return Err(PermissionError::UserIsNotConversationOwner.into());
     }
 
     let feedback = (models::feedback::list_for_conversation(&state.db, &conversation_id).await?)

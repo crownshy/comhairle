@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::bot_service::{ComhairleChat, UpdateChatRequest};
 use crate::models::conversation;
+use crate::models::error::DataError;
 use crate::routes::auth::RequiredAdminUser;
 use crate::{ComhairleError, ComhairleState};
 
@@ -28,9 +29,10 @@ async fn get(
     let chat_bot_id = match conversation.chat_bot_id {
         Some(id) => id,
         None => {
-            return Err(ComhairleError::CorruptedData(
+            return Err(DataError::CorruptedData(
                 "Missing chat_bot_id on conversation: {conversation_id}".to_string(),
-            ));
+            )
+            .into());
         }
     };
 
@@ -52,9 +54,10 @@ async fn update(
     let chat_bot_id = match conversation.chat_bot_id {
         Some(id) => id,
         None => {
-            return Err(ComhairleError::CorruptedData(
+            return Err(DataError::CorruptedData(
                 "Missing chat_bot_id on conversation: {conversation_id}".to_string(),
-            ));
+            )
+            .into());
         }
     };
 

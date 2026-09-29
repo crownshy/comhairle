@@ -1,3 +1,4 @@
+pub mod authz;
 pub mod bot_service;
 pub mod bulk_storage_service;
 pub mod categorization_service;
@@ -5,12 +6,14 @@ pub mod config;
 pub mod db;
 mod docs;
 pub mod error;
+pub mod extract;
 pub mod mailer;
 mod middleware;
 pub mod models;
 pub mod redis_connection;
 mod routes;
 pub mod schema_helpers;
+pub mod services;
 #[cfg(test)]
 mod test_helpers;
 mod tools;
@@ -45,6 +48,7 @@ use websockets::handlers::video_call::VideoCallMessageHandler;
 
 use crate::bulk_storage_service::BulkStorageService;
 use crate::categorization_service::CategorizationService;
+use crate::error::ServiceError;
 use crate::redis_connection::RedisConnection;
 use crate::routes::workflows::WorkflowRouterContext;
 use crate::transcription_service::Transcriber;
@@ -54,8 +58,12 @@ use crate::worker_service::WorkerService;
 #[cfg(test)]
 // sqlx::test expands every migration into the test binary for every invocation.
 // So, it massively bloats both the binary size and compile time.
-// Using a common migrator for all tests avoids this issue.
-const SQLX_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
+// Using a common migrator for all tests avoids this issue. The migrations now
+// live in (and are embedded by) the model crate.
+pub(crate) use comhairle_model::SQLX_MIGRATOR;
+
+#[cfg(test)]
+mod model_tests;
 
 #[derive(Clone)]
 pub struct ComhairleState {
@@ -78,21 +86,23 @@ pub struct ComhairleState {
 
 impl ComhairleState {
     fn required_bot_service(&self) -> Result<&Arc<dyn ComhairleBotService>, ComhairleError> {
-        self.bot_service
-            .as_ref()
-            .ok_or(ComhairleError::NoBotServiceConfigured)
+        self.bot_service.as_ref().ok_or(ComhairleError::Service(
+            ServiceError::NoBotServiceConfigured,
+        ))
     }
 
     fn required_transcription_service(&self) -> Result<&Arc<dyn Transcriber>, ComhairleError> {
         self.transcription_service
             .as_ref()
-            .ok_or(ComhairleError::NoTranscriptionServiceConfigured)
+            .ok_or(ComhairleError::Service(
+                ServiceError::NoTranscriptionServiceConfigured,
+            ))
     }
 
     fn required_worker_service(&self) -> Result<&Arc<dyn WorkerService>, ComhairleError> {
-        self.worker_service
-            .as_ref()
-            .ok_or(ComhairleError::NoWorkerServiceConfigured)
+        self.worker_service.as_ref().ok_or(ComhairleError::Service(
+            ServiceError::NoWorkerServiceConfigured,
+        ))
     }
 
     fn required_categorization_service(
@@ -100,7 +110,9 @@ impl ComhairleState {
     ) -> Result<&Arc<dyn CategorizationService>, ComhairleError> {
         self.categorization_service
             .as_ref()
-            .ok_or(ComhairleError::NoCategorizationServiceConfigured)
+            .ok_or(ComhairleError::Service(
+                ServiceError::NoCategorizationServiceConfigured,
+            ))
     }
 
     fn required_bulk_storage_service(
@@ -108,7 +120,9 @@ impl ComhairleState {
     ) -> Result<&Arc<dyn BulkStorageService>, ComhairleError> {
         self.bulk_storage_service
             .as_ref()
-            .ok_or(ComhairleError::NoBulkStorageServiceConfigured)
+            .ok_or(ComhairleError::Service(
+                ServiceError::NoBulkStorageServiceConfigured,
+            ))
     }
 }
 

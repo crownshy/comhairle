@@ -1,110 +1,11 @@
-use sqlx::error::ErrorKind;
+//! Shim over [`comhairle_model`].
+//!
+//! The model layer lives in its own crate; this module re-exports it so the
+//! `crate::models::` paths used throughout the api keep working. The only
+//! module physically left here is the test-fixture helper, which builds its
+//! fixtures through the HTTP API and so cannot move down.
 
-use crate::error::ComhairleError;
-
-pub mod api_key;
-pub mod audio_recording;
-pub mod bot_service_user_session;
-pub mod breakout_plan;
-pub mod chat_instructions;
-pub mod conversation;
-pub mod conversation_email_notification_recipients;
-pub mod demographics;
-pub mod email_template_config;
-pub mod event;
-pub mod event_attendance;
-pub mod feedback;
-pub mod invite_response;
-pub mod invites;
-pub mod job;
-pub mod media;
-pub mod moderation_policy;
-pub mod notification;
-pub mod notification_delivery;
-pub mod organization;
-pub mod otp;
-pub mod pagination;
-pub mod permissions;
-pub mod polis_statement_aux;
-pub mod proposal;
-pub mod proposal_response;
-pub mod proposal_section;
-pub mod recruitment_target;
-pub mod refresh_token;
-pub mod region;
-pub mod region_area;
-pub mod report;
-pub mod report_impact;
-pub mod resource;
-pub mod scheduled_email;
-pub mod thinking_space_answer;
-pub mod thinking_space_follow_up_question;
-pub mod thinking_space_summary;
-pub mod translations;
-pub mod user_conversation_preferences;
-pub mod user_participation;
-pub mod user_profile;
-pub mod user_progress;
-pub mod users;
-pub mod workflow;
-pub mod workflow_step;
+pub use comhairle_model::models::*;
 
 #[cfg(test)]
 pub mod model_test_helpers;
-
-/// Extension trait for converting `sqlx` query results into domain-level
-/// [`ComhairleError`]s.
-///
-/// This centralizes the mapping from low-level database errors to the
-/// HTTP-facing error variants used throughout the API, so call sites don't
-/// need to pattern-match on `sqlx::Error` themselves.
-pub trait SqlxResultExt<T> {
-    /// Resolves a `sqlx` query result into a [`ComhairleError`], classifying
-    /// the underlying database error where possible.
-    ///
-    /// - `sqlx::Error::RowNotFound` is mapped to
-    ///   [`ComhairleError::ResourceNotFound`] (HTTP 404), using `resource` as a
-    ///   human-readable description of what was being looked up (e.g.
-    ///   `"User"`, `"Workflow Step"`).
-    /// - Foreign key and unique constraint violations are mapped to
-    ///   [`ComhairleError::Conflict`] (HTTP 409), since the request is
-    ///   well-formed but conflicts with the current state of the database
-    ///   (e.g. referencing a row that doesn't exist, or duplicating a
-    ///   unique value).
-    /// - All other database errors fall through to
-    ///   [`ComhairleError::DatabaseError`], preserving the original
-    ///   `sqlx::Error` for logging/debugging.
-    ///
-    /// # Arguments
-    ///
-    /// * `resource` - A short, human-readable name for the resource being
-    ///   queried. Used in the `ResourceNotFound` and `Conflict` error
-    ///   messages.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,ignore
-    /// let user = sqlx::query_as_with(&sql, values)
-    ///     .fetch_one(&pool)
-    ///     .await
-    ///     .resolve_db_err("User")?;
-    /// ```
-    fn resolve_db_err(self, resource: &str) -> Result<T, ComhairleError>;
-}
-
-impl<T> SqlxResultExt<T> for Result<T, sqlx::Error> {
-    fn resolve_db_err(self, resource: &str) -> Result<T, ComhairleError> {
-        self.map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound(resource.into()),
-            sqlx::Error::Database(ref db_err) => match db_err.kind() {
-                ErrorKind::ForeignKeyViolation | ErrorKind::UniqueViolation => {
-                    ComhairleError::Conflict(format!(
-                        "{resource} conflicts with an existing record"
-                    ))
-                }
-                _ => ComhairleError::DatabaseError(e),
-            },
-            _ => ComhairleError::DatabaseError(e),
-        })
-    }
-}

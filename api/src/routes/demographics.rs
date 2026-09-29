@@ -17,10 +17,12 @@ use crate::models::demographics::{
     DemographicsQuestion, DemographicsQuestionsFilterOptions, DemographicsResponse,
     DemographicsResponsesFilterOptions, PartialDemographicsQuestion, PartialDemographicsResponse,
 };
+use crate::models::error::PermissionError;
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::{Action, can_perform_resource_action};
+use crate::models::permissions::Action;
 use crate::models::users::User;
 use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::services::permissions::can_perform_resource_action;
 
 /// Whether `user` is allowed to view `conversation_id`: admins, the owner, anyone
 /// with `ConversationRead`, or anyone at all once the conversation is live.
@@ -44,7 +46,7 @@ async fn can_view_conversation(
     }
 
     can_perform_resource_action(
-        state,
+        &state,
         &conversation.id,
         Action::ConversationRead,
         &user.id,
@@ -52,6 +54,7 @@ async fn can_view_conversation(
         Some(&conversation.owner_id),
     )
     .await
+    .map_err(Into::into)
 }
 
 // ============================================================================
@@ -75,16 +78,17 @@ pub async fn get_conversation_demographics(
     if !is_admin {
         let conversation_id = filters
             .conversation_id
-            .ok_or(ComhairleError::UserNotAuthorized)?;
+            .ok_or(PermissionError::UserNotAuthorized)?;
 
         if !can_view_conversation(&state, user.as_ref(), conversation_id).await? {
-            return Err(ComhairleError::UserNotAuthorized);
+            return Err(PermissionError::UserNotAuthorized.into());
         }
     }
 
     demographics::get_conversation_demographics(&state.db, filters, page_options)
         .await
         .map(|results| (StatusCode::OK, Json(results)))
+        .map_err(Into::into)
 }
 
 /// Create a new association between a conversation and a demographics question.
@@ -97,6 +101,7 @@ pub async fn create_conversation_demographics(
     demographics::create_conversation_demographics(&state.db, payload)
         .await
         .map(|result| (StatusCode::CREATED, Json(result)))
+        .map_err(Into::into)
 }
 
 /// Remove an association between a conversation and a demographics question.
@@ -109,6 +114,7 @@ pub async fn delete_conversation_demographics(
     demographics::delete_conversation_demographics(&state.db, conversation_id, question_slug)
         .await
         .map(|result| (StatusCode::OK, Json(result)))
+        .map_err(Into::into)
 }
 
 // ============================================================================
@@ -125,6 +131,7 @@ pub async fn get_demographics_questions(
     demographics::get_demographics_questions(&state.db, filters, page_options)
         .await
         .map(|result| (StatusCode::OK, Json(result)))
+        .map_err(Into::into)
 }
 
 /// Create a new demographics question. Admin-only.
@@ -137,6 +144,7 @@ pub async fn create_demographics_question(
     demographics::create_demographics_question(&state.db, payload)
         .await
         .map(|result| (StatusCode::CREATED, Json(result)))
+        .map_err(Into::into)
 }
 
 /// Update a demographics question. Admin-only.
@@ -150,6 +158,7 @@ pub async fn update_demographics_question(
     demographics::update_demographics_question(&state.db, question_slug, payload)
         .await
         .map(|result| (StatusCode::OK, Json(result)))
+        .map_err(Into::into)
 }
 
 /// Delete a demographics question. Admin-only.
@@ -162,6 +171,7 @@ pub async fn delete_demographics_question(
     demographics::delete_demographics_question(&state.db, question_slug)
         .await
         .map(|result| (StatusCode::OK, Json(result)))
+        .map_err(Into::into)
 }
 
 // ============================================================================
@@ -181,7 +191,7 @@ pub async fn get_demographics_responses(
 ) -> Result<(StatusCode, Json<PaginatedResults<DemographicsResponse>>), ComhairleError> {
     if !is_user_admin(&state, &user).await {
         if filters.user_id.is_some_and(|user_id| user_id != user.id) {
-            return Err(ComhairleError::UserNotAuthorized);
+            return Err(PermissionError::UserNotAuthorized.into());
         }
         filters.user_id = Some(user.id);
     }
@@ -189,6 +199,7 @@ pub async fn get_demographics_responses(
     demographics::get_demographics_responses(&state.db, filters, page_options)
         .await
         .map(|result| (StatusCode::OK, Json(result)))
+        .map_err(Into::into)
 }
 
 /// Add a new response for a specific demographics question and user.
@@ -199,12 +210,13 @@ pub async fn create_demographics_response(
     Json(payload): Json<CreateDemographicsResponse>,
 ) -> Result<(StatusCode, Json<DemographicsResponse>), ComhairleError> {
     if payload.user_id != user.id && !is_user_admin(&state, &user).await {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     demographics::create_demographics_response(&state.db, payload)
         .await
         .map(|result| (StatusCode::CREATED, Json(result)))
+        .map_err(Into::into)
 }
 
 /// Update a response for a specific demographics question and user.
@@ -216,12 +228,13 @@ pub async fn update_demographics_response(
     Json(payload): Json<PartialDemographicsResponse>,
 ) -> Result<(StatusCode, Json<DemographicsResponse>), ComhairleError> {
     if user_id != user.id && !is_user_admin(&state, &user).await {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     demographics::update_demographics_response(&state.db, question_slug, user_id, payload)
         .await
         .map(|result| (StatusCode::OK, Json(result)))
+        .map_err(Into::into)
 }
 
 /// Delete a response for a specific demographics question and user.
@@ -232,12 +245,13 @@ pub async fn delete_demographics_response(
     Path((question_slug, user_id)): Path<(String, Uuid)>,
 ) -> Result<(StatusCode, Json<Option<DemographicsResponse>>), ComhairleError> {
     if user_id != user.id && !is_user_admin(&state, &user).await {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     demographics::delete_demographics_response(&state.db, question_slug, user_id)
         .await
         .map(|result| (StatusCode::OK, Json(result)))
+        .map_err(Into::into)
 }
 
 // ============================================================================

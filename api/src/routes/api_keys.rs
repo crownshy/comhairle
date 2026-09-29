@@ -8,6 +8,7 @@ use axum::{
 use schemars::JsonSchema;
 use serde::Serialize;
 
+use crate::models::error::PermissionError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -27,7 +28,7 @@ async fn create(
     Json(payload): Json<CreateApiKeyRequest>,
 ) -> Result<(StatusCode, Json<CreateResponse>), ComhairleError> {
     if !is_user_admin(&state, &user).await {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     let key = api_key::create(&state.db, user.id, payload).await?;

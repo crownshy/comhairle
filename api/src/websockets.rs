@@ -33,6 +33,8 @@ use async_trait::async_trait;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::error::ServiceError;
+use crate::error::TransportError;
 use crate::models::users::User;
 use crate::routes::auth::RequiredUser;
 use crate::websockets::config::WebsocketConfig;
@@ -180,23 +182,23 @@ impl WebSocketConnection {
 
     pub async fn send_message(&self, message: &WebSocketMessage) -> Result<(), ComhairleError> {
         let text = serde_json::to_string(message)
-            .map_err(|e| ComhairleError::SerializationError(e.to_string()))?;
+            .map_err(|e| TransportError::SerializationError(e.to_string()))?;
 
         self.sender
             .send(Message::Text(text.into()))
-            .map_err(|_| ComhairleError::WebSocketSendError("Connection closed".to_string()))
+            .map_err(|_| ServiceError::WebSocketSendError("Connection closed".to_string()).into())
     }
 
     pub async fn send_text(&self, text: String) -> Result<(), ComhairleError> {
         self.sender
             .send(Message::Text(text.into()))
-            .map_err(|_| ComhairleError::WebSocketSendError("Connection closed".to_string()))
+            .map_err(|_| ServiceError::WebSocketSendError("Connection closed".to_string()).into())
     }
 
     pub async fn send_binary(&self, data: Vec<u8>) -> Result<(), ComhairleError> {
         self.sender
             .send(Message::Binary(data.into()))
-            .map_err(|_| ComhairleError::WebSocketSendError("Connection closed".to_string()))
+            .map_err(|_| ServiceError::WebSocketSendError("Connection closed".to_string()).into())
     }
 }
 
@@ -256,7 +258,7 @@ impl WebsocketPubSubMessage {
             WebsocketPubSubMessage::SendToRoom { message, .. } => message.clone(),
         };
         serde_json::from_value(message)
-            .map_err(|e| ComhairleError::DeserializationError(e.to_string()))
+            .map_err(|e| TransportError::DeserializationError(e.to_string()).into())
     }
 }
 
@@ -351,13 +353,13 @@ impl ComhairleWebSocketService {
     pub async fn new(config: Option<&WebsocketConfig>) -> Result<Self, ComhairleError> {
         let redis_service = if let Some(config) = &config {
             let client = redis::Client::open(config.redis_pubsub_url.as_str())
-                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+                .map_err(|e| ServiceError::RedisError(e.to_string()))?;
 
             // Get a multiplexed connection for PUBLISHING
             let redis_publisher = client
                 .get_multiplexed_async_connection()
                 .await
-                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+                .map_err(|e| ServiceError::RedisError(e.to_string()))?;
 
             Some(ComhairleWebSocketServiceRedis {
                 redis_publisher,
@@ -380,23 +382,23 @@ impl ComhairleWebSocketService {
         &self,
     ) -> Result<tokio::task::JoinHandle<()>, ComhairleError> {
         if self.redis_service.is_none() {
-            return Err(ComhairleError::RedisError(
-                "Redis pub/sub is not configured".to_string(),
-            ));
+            return Err(
+                ServiceError::RedisError("Redis pub/sub is not configured".to_string()).into(),
+            );
         }
         let redis_service = self.redis_service.as_ref().unwrap();
         // Create a DEDICATED connection just for listening
         let client = redis::Client::open(redis_service.redis_url.as_str())
-            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+            .map_err(|e| ServiceError::RedisError(e.to_string()))?;
         let mut pubsub = client
             .get_async_pubsub()
             .await
-            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+            .map_err(|e| ServiceError::RedisError(e.to_string()))?;
 
         pubsub
             .subscribe("comhairle_api_websocket_messages")
             .await
-            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+            .map_err(|e| ServiceError::RedisError(e.to_string()))?;
 
         let self_clone = self.clone();
 
@@ -494,9 +496,9 @@ impl ComhairleWebSocketService {
         message: &WebsocketPubSubMessage,
     ) -> Result<(), ComhairleError> {
         if self.redis_service.is_none() {
-            return Err(ComhairleError::RedisError(
-                "Redis pub/sub is not configured".to_string(),
-            ));
+            return Err(
+                ServiceError::RedisError("Redis pub/sub is not configured".to_string()).into(),
+            );
         }
         let redis_service = self.redis_service.as_ref().unwrap();
         let mut conn = redis_service.redis_publisher.clone();
@@ -504,7 +506,7 @@ impl ComhairleWebSocketService {
             use redis::AsyncCommands;
             conn.publish::<_, _, ()>("comhairle_api_websocket_messages", payload)
                 .await
-                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+                .map_err(|e| ServiceError::RedisError(e.to_string()))?;
         }
         Ok(())
     }
@@ -669,7 +671,7 @@ impl WebSocketService for ComhairleWebSocketService {
             let pubsub_message = WebsocketPubSubMessage::Broadcast {
                 sender_id: redis_service.instance_id,
                 message: serde_json::to_value(message)
-                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+                    .map_err(|e| TransportError::SerializationError(e.to_string()))?,
                 authenticated_only: false,
             };
 
@@ -689,7 +691,7 @@ impl WebSocketService for ComhairleWebSocketService {
             let pubsub_message = WebsocketPubSubMessage::Broadcast {
                 sender_id: redis_service.instance_id,
                 message: serde_json::to_value(message)
-                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+                    .map_err(|e| TransportError::SerializationError(e.to_string()))?,
                 authenticated_only: true,
             };
 
@@ -711,7 +713,7 @@ impl WebSocketService for ComhairleWebSocketService {
                 sender_id: redis_service.instance_id,
                 user_id: user_id.to_string(),
                 message: serde_json::to_value(message)
-                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+                    .map_err(|e| TransportError::SerializationError(e.to_string()))?,
             };
 
             self.publish_to_redis(&pubsub_message).await?;
@@ -734,7 +736,7 @@ impl WebSocketService for ComhairleWebSocketService {
                 sender_id: redis_service.instance_id,
                 connection_ids: connection_ids.iter().map(|id| id.0).collect(),
                 message: serde_json::to_value(message)
-                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+                    .map_err(|e| TransportError::SerializationError(e.to_string()))?,
             };
 
             self.publish_to_redis(&pubsub_message).await?;
@@ -762,7 +764,7 @@ impl WebSocketService for ComhairleWebSocketService {
                     domain: domain.to_string(),
                     room_id: room_id.to_string(),
                     message: serde_json::to_value(message)
-                        .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+                        .map_err(|e| TransportError::SerializationError(e.to_string()))?,
                 };
 
                 self.publish_to_redis(&pubsub_message).await?;
@@ -968,9 +970,10 @@ async fn handle_websocket_message(
             );
         }
         Message::Ping(data) => {
-            connection.sender.send(Message::Pong(data)).map_err(|_| {
-                ComhairleError::WebSocketSendError("Failed to send pong".to_string())
-            })?;
+            connection
+                .sender
+                .send(Message::Pong(data))
+                .map_err(|_| ServiceError::WebSocketSendError("Failed to send pong".to_string()))?;
         }
         Message::Pong(_) => {
             // Handle pong if needed
@@ -1020,7 +1023,7 @@ async fn route_to_handler(
         handler
             .handle_message(message, connection, state)
             .await
-            .map_err(|e| ComhairleError::WebSocketHandlerError(Box::new(e)))?;
+            .map_err(|e| ServiceError::WebSocketHandlerError(Box::new(e)))?;
         return Ok(true);
     }
 

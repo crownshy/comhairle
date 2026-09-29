@@ -17,9 +17,10 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::bot_service::{ChatConversationRequest, ComhairleChatSession};
-use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
+use crate::models::bot_service_user_session::BotServiceSessionContext;
 use crate::models::chat_instructions::{self, ChatInstructionsExt};
 use crate::models::conversation;
+use crate::models::error::DataError;
 use crate::routes::auth::RequiredUser;
 use crate::{ComhairleError, ComhairleState};
 
@@ -32,7 +33,7 @@ pub async fn get_session(
     let bot_service = state.required_bot_service()?;
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    let session = bot_service_user_session::get_or_create(
+    let session = crate::services::bot_session::get_or_create(
         &state,
         BotServiceSessionContext::QaBot,
         &user.id,
@@ -44,9 +45,10 @@ pub async fn get_session(
     let chat_bot_id = match conversation.chat_bot_id {
         Some(id) => id,
         None => {
-            return Err(ComhairleError::CorruptedData(
+            return Err(DataError::CorruptedData(
                 "Missing chat_bot_id on conversation: {conversation_id}".to_string(),
-            ));
+            )
+            .into());
         }
     };
 
@@ -84,7 +86,7 @@ async fn converse(
 
     payload.variables = Some(chat_instructions.to_prompt_variables());
 
-    let session = bot_service_user_session::get_or_create(
+    let session = crate::services::bot_session::get_or_create(
         &state,
         BotServiceSessionContext::QaBot,
         &user.id,
@@ -96,9 +98,10 @@ async fn converse(
     let chat_bot_id = match conversation.chat_bot_id {
         Some(id) => id,
         None => {
-            return Err(ComhairleError::CorruptedData(
+            return Err(DataError::CorruptedData(
                 "Missing chat_bot_id on conversation: {conversation_id}".to_string(),
-            ));
+            )
+            .into());
         }
     };
 

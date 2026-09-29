@@ -2,7 +2,7 @@ use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
 
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::{
     Extension, RequestPartsExt,
     extract::{FromRequestParts, Json, Path, State},
@@ -19,7 +19,6 @@ use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
 use hmac::{Hmac, KeyInit, Mac};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
-use rand_core::OsRng;
 use regex::Regex;
 use sha2::Sha256;
 use time::Duration;
@@ -28,7 +27,7 @@ use time::Duration;
 pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
-        state,
+        &state,
         PermissionRole::Admin.system_triplet(),
         &user.id,
         user.organization_id.as_ref(),
@@ -58,12 +57,16 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
+use crate::authz::{ConversationPath, ExtractResourceId};
 use crate::error::ComhairleError;
 use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
+use crate::models::error::AuthError;
+use crate::models::error::DataError;
+use crate::models::error::PermissionError;
+use crate::models::error::UserError;
 use crate::models::permissions::{
-    Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
-    UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
+    Action, GrantRoleRequest, Role as PermissionRole, UserOrOrganizationId,
 };
 use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
 use crate::models::users::{
@@ -73,121 +76,15 @@ use crate::models::users::{
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
-
-#[cfg(test)]
-use fake::Dummy;
+use crate::services::permissions::{
+    can_perform_resource_action, grant_role, has_resource_permission,
+};
 
 /// This is the key that we use in the cookie for the JWT
 pub const AUTH_KEY: &str = "auth-token";
 const REFRESH_KEY: &str = "refresh-token";
 
-/// Validate password strength according to security requirements
-///
-/// Requirements:
-/// - Minimum 16 characters
-/// - Must include characters from at least 3 of 4 categories:
-///   - Uppercase letters (A-Z)
-///   - Lowercase letters (a-z)
-///   - Numbers (0-9)
-///   - Special characters
-/// - Uses zxcvbn for additional complexity checking
-pub fn validate_password_strength(password: &str) -> Result<(), ComhairleError> {
-    let mut errors = Vec::new();
-
-    // Check minimum length
-    if password.len() < 16 {
-        errors.push(format!(
-            "Password must be at least 16 characters long (current length: {})",
-            password.len()
-        ));
-    }
-
-    // Check character categories
-    let has_uppercase = password.chars().any(|c| c.is_uppercase());
-    let has_lowercase = password.chars().any(|c| c.is_lowercase());
-    let has_digit = password.chars().any(|c| c.is_ascii_digit());
-    let has_special = password
-        .chars()
-        .any(|c| !c.is_alphanumeric() && !c.is_whitespace());
-
-    let category_count = [has_uppercase, has_lowercase, has_digit, has_special]
-        .iter()
-        .filter(|&&x| x)
-        .count();
-
-    if category_count < 3 {
-        let mut missing_categories = Vec::new();
-        if !has_uppercase {
-            missing_categories.push("uppercase letters (A-Z)");
-        }
-        if !has_lowercase {
-            missing_categories.push("lowercase letters (a-z)");
-        }
-        if !has_digit {
-            missing_categories.push("numbers (0-9)");
-        }
-        if !has_special {
-            missing_categories.push("special characters (e.g., !@#$%^&*)");
-        }
-
-        errors.push(format!(
-            "Password must include characters from at least 3 of 4 categories. Consider adding: {}",
-            missing_categories.join(", ")
-        ));
-    }
-
-    // Use zxcvbn for additional complexity checking
-    let entropy = zxcvbn::zxcvbn(password, &[]);
-
-    // zxcvbn scores range from 0 (weak) to 4 (strong)
-    // We require a score of at least 3
-    use zxcvbn::Score;
-    if matches!(entropy.score(), Score::Zero | Score::One | Score::Two) {
-        let feedback = entropy.feedback();
-        let warning = feedback
-            .and_then(|f| f.warning())
-            .map(|w| format!("{:?}", w))
-            .unwrap_or_else(|| "Password is too predictable or common".to_string());
-
-        let suggestions = feedback.and_then(|f| {
-            let suggs = f.suggestions();
-            if suggs.is_empty() {
-                None
-            } else {
-                Some(
-                    suggs
-                        .iter()
-                        .map(|s| format!("{:?}", s))
-                        .collect::<Vec<String>>()
-                        .join("; "),
-                )
-            }
-        });
-
-        let mut complexity_msg = format!("Password complexity is too low. {}", warning);
-        if let Some(suggs) = suggestions {
-            complexity_msg.push_str(&format!(" Suggestions: {}", suggs));
-        }
-        errors.push(complexity_msg);
-    }
-
-    if !errors.is_empty() {
-        return Err(ComhairleError::WeakPassword(errors.join(". ")));
-    }
-
-    Ok(())
-}
-
-/// Generate a hashed password
-pub fn hash_pw(password: &str) -> Result<String, ComhairleError> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    let hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map_err(|_| ComhairleError::PasswordHash)?;
-
-    Ok(hash.to_string())
-}
+pub use crate::models::password::{hash_pw, validate_password_strength};
 
 /// Expected payload for a login request
 #[derive(Deserialize, JsonSchema)]
@@ -289,15 +186,7 @@ pub fn generate_jwt<T: Serialize>(
     .unwrap()
 }
 
-/// Expected payload for a signin request  
-#[derive(Deserialize, Debug, JsonSchema)]
-#[cfg_attr(test, derive(Dummy))]
-pub struct SignupRequest {
-    pub username: String,
-    pub password: String,
-    pub avatar_url: Option<String>,
-    pub email: String,
-}
+pub use crate::models::users::SignupRequest;
 
 /// Best-effort recording of the client IP and browser signature on a newly
 /// created user. Failures are logged but never surfaced to the caller, so
@@ -386,12 +275,7 @@ async fn signup_guest(
     Ok((jar, (StatusCode::CREATED, Json(user))))
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
-#[cfg_attr(test, derive(Dummy))]
-pub struct OtpSignupRequest {
-    pub email: String,
-    pub username: Option<String>,
-}
+pub use crate::models::users::OtpSignupRequest;
 
 #[instrument(err(Debug), skip(state, client_ip, user_agent, payload))]
 async fn signup_otp(
@@ -433,15 +317,15 @@ async fn login(
     let password = user
         .password
         .as_ref()
-        .ok_or_else(|| ComhairleError::WrongUserType)?;
+        .ok_or_else(|| ComhairleError::from(UserError::WrongUserType))?;
 
-    let hash = PasswordHash::new(password).map_err(|_| ComhairleError::PasswordHash)?;
+    let hash = PasswordHash::new(password).map_err(|_| AuthError::PasswordHash)?;
 
     if Argon2::default()
         .verify_password(&payload.password.into_bytes(), &hash)
         .is_err()
     {
-        return Err(ComhairleError::WrongPassword);
+        return Err(AuthError::WrongPassword.into());
     }
 
     let session_cookie = create_session_cookie(&user, &state);
@@ -468,7 +352,7 @@ async fn login_guest(
 
     if user.auth_type != UserAuthType::Guest {
         // return not found to avoid revealing that a correct username has been used.
-        return Err(ComhairleError::NoUserFound);
+        return Err(UserError::NoUserFound.into());
     }
 
     let claims = SessionClaims {
@@ -517,7 +401,7 @@ async fn login_otp(
     let now = Utc::now();
 
     if user.auth_type != UserAuthType::EmailPassword && user.auth_type != UserAuthType::Otp {
-        return Err(ComhairleError::WrongUserType);
+        return Err(UserError::WrongUserType.into());
     }
 
     let _otp = otp::accept(&state.db, &user.id, &payload.code, now).await?;
@@ -553,13 +437,13 @@ async fn create_otp(
     let user = get_user_by_email(&payload.email, &state.db).await?;
 
     if user.auth_type != UserAuthType::EmailPassword && user.auth_type != UserAuthType::Otp {
-        return Err(ComhairleError::WrongUserType);
+        return Err(UserError::WrongUserType.into());
     }
 
     let email = user
         .email
         .clone()
-        .ok_or_else(|| ComhairleError::WrongUserType)?;
+        .ok_or_else(|| ComhairleError::from(UserError::WrongUserType))?;
 
     let otp = otp::create(&state.db, &user.id, payload.redirect_url, None).await?;
 
@@ -603,9 +487,7 @@ async fn login_otp_token(
         Ok(data) => data,
         Err(e) => {
             warn!("unable to decode {e}");
-            return Err(ComhairleError::AuthJWTError(
-                "Unable to decode token".to_string(),
-            ));
+            return Err(AuthError::AuthJWTError("Unable to decode token".to_string()).into());
         }
     };
 
@@ -613,7 +495,7 @@ async fn login_otp_token(
     let now = Utc::now();
 
     if user.auth_type == UserAuthType::Guest {
-        return Err(ComhairleError::WrongUserType);
+        return Err(UserError::WrongUserType.into());
     }
 
     let _otp = otp::accept(&state.db, &user.id, &token_data.claims.details.otp, now).await?;
@@ -628,7 +510,8 @@ async fn resend_verification_email(
     State(state): State<Arc<ComhairleState>>,
     Json(payload): Json<ResendVerificationEmailRequest>,
 ) -> Result<StatusCode, ComhairleError> {
-    let id = Uuid::parse_str(&payload.id).map_err(|_| ComhairleError::InvalidUserId)?;
+    let id =
+        Uuid::parse_str(&payload.id).map_err(|_| ComhairleError::from(UserError::InvalidUserId))?;
     let user = get_user_by_id(&id, &state.db).await?;
     let claims = EmailLinkClaims {
         email: user.email.clone(),
@@ -655,11 +538,11 @@ async fn verify_email_token(
     let current_user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
     if current_user.auth_type == UserAuthType::Guest {
-        return Err(ComhairleError::WrongUserType);
+        return Err(UserError::WrongUserType.into());
     }
 
     if current_user.email_verified {
-        return Err(ComhairleError::EmailAlreadyVerified);
+        return Err(UserError::EmailAlreadyVerified.into());
     }
 
     let updated_verified_status = UpdateUserRequest {
@@ -726,11 +609,11 @@ async fn password_reset_update(
     let user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
     if user.auth_type == UserAuthType::Guest {
-        return Err(ComhairleError::WrongUserType);
+        return Err(UserError::WrongUserType.into());
     }
 
     if payload.password != payload.confirm_password {
-        return Err(ComhairleError::PasswordConfirmationMismatch);
+        return Err(AuthError::PasswordConfirmationMismatch.into());
     }
 
     // Validate password strength
@@ -755,15 +638,15 @@ async fn refresh_session(
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let refresh_cookie = jar
         .get(REFRESH_KEY)
-        .ok_or_else(|| ComhairleError::SessionRefreshFailure(RefreshFailure::Missing))?;
+        .ok_or_else(|| AuthError::SessionRefreshFailure(RefreshFailure::Missing))?;
 
     let token_data =
         decode_jwt::<RefreshClaims>(refresh_cookie.value(), &state.config.refresh_jwt_secret)
             .ok()
-            .ok_or_else(|| ComhairleError::AuthJWTError("Unable to decode JWT".to_string()))?;
+            .ok_or_else(|| AuthError::AuthJWTError("Unable to decode JWT".to_string()))?;
 
     let user_id = Uuid::parse_str(&token_data.claims.sub)
-        .map_err(|_| ComhairleError::SessionRefreshFailure(RefreshFailure::InvalidClaim))?;
+        .map_err(|_| AuthError::SessionRefreshFailure(RefreshFailure::InvalidClaim))?;
     let user = users::get_user_by_id(&user_id, &state.db).await?;
     let jti = token_data.claims.details.jti;
 
@@ -832,7 +715,7 @@ impl<Resource: RequiredRoleResource, Roles: RequiredRoleRoleTuple>
             .extract::<Path<ConversationPath>>()
             .await
             .map_err(|_| {
-                ComhairleError::ResourceNotFound("Path must contain a conversation_id".to_string())
+                DataError::ResourceNotFound("Path must contain a conversation_id".to_string())
             })?;
 
         let roles = get_user_resource_roles(
@@ -846,7 +729,7 @@ impl<Resource: RequiredRoleResource, Roles: RequiredRoleRoleTuple>
 
         match roles.first() {
             Some(role) => Ok(RequiredRole::new(role.clone())),
-            None => Err(ComhairleError::UserNotAuthorized),
+            None => Err(PermissionError::UserNotAuthorized.into()),
         }
     }
 }
@@ -943,10 +826,10 @@ impl RequiredRoleResource for Conversation {
 ///
 /// # Errors
 ///
-/// Returns [`ComhairleError::InvalidApiKey`] if a bearer token is present but
+/// Returns [`AuthError::InvalidApiKey`] if a bearer token is present but
 /// does not match any active API key in the database.
 ///
-/// Returns [`ComhairleError::UserRequired`] if no bearer token is present and
+/// Returns [`AuthError::UserRequired`] if no bearer token is present and
 /// no valid session cookie is found.
 async fn resolve_user_from_request(
     parts: &mut Parts,
@@ -956,13 +839,15 @@ async fn resolve_user_from_request(
         TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await
     {
         let user_id = api_key::get_matching_user_id(&state.db, bearer.token()).await?;
-        users::get_user_by_id(&user_id, &state.db).await
+        users::get_user_by_id(&user_id, &state.db)
+            .await
+            .map_err(Into::into)
     } else {
         parts
             .extract_with_state::<OptionalUser, _>(state)
             .await?
             .0
-            .ok_or(ComhairleError::UserRequired)
+            .ok_or(ComhairleError::from(AuthError::UserRequired))
     }
 }
 /// Authorizes `user` to perform `action` on `resource`.
@@ -973,7 +858,7 @@ async fn resolve_user_from_request(
 ///
 /// # Errors
 ///
-/// * Returns [`ComhairleError::UserNotAuthorized`] if the user is not permitted.
+/// * Returns [`PermissionError::UserNotAuthorized`] if the user is not permitted.
 /// * Propagates [`ComhairleError`] from the underlying permission lookup.
 pub async fn authorize<R: ExtractResourceId>(
     state: &Arc<ComhairleState>,
@@ -982,7 +867,7 @@ pub async fn authorize<R: ExtractResourceId>(
     resource: &R,
 ) -> Result<(), ComhairleError> {
     if can_perform_resource_action(
-        state,
+        &state,
         &resource.resource_id(),
         action,
         &user.id,
@@ -993,7 +878,7 @@ pub async fn authorize<R: ExtractResourceId>(
     {
         Ok(())
     } else {
-        Err(ComhairleError::UserNotAuthorized)
+        Err(PermissionError::UserNotAuthorized.into())
     }
 }
 
@@ -1015,7 +900,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
         if is_user_admin(&state, &user).await {
             Ok(RequiredAdminUser(user.clone()))
         } else {
-            Err(ComhairleError::RequiresAuthUser)
+            Err(AuthError::RequiresAuthUser.into())
         }
     }
 }
@@ -1055,7 +940,7 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         let jar = parts
             .extract::<CookieJar>()
             .await
-            .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
+            .map_err(|e| AuthError::AuthJWTError(e.to_string()))?;
 
         if let Some(token_cookie) = jar.get(AUTH_KEY) {
             let token_str = token_cookie.value();
@@ -1073,7 +958,7 @@ pub fn build_webhook_signature(
     secret: &str,
 ) -> Result<String, ComhairleError> {
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
-        .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
+        .map_err(|e| AuthError::AuthWebhookSignatureError(e.to_string()))?;
 
     let signed_payload = format!("{}.{}", timestamp, body);
 
@@ -1105,9 +990,7 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
         Ok(data) => data,
         Err(e) => {
             warn!("unable to decode {e}");
-            return Err(ComhairleError::AuthJWTError(
-                "Unable to decode token".to_string(),
-            ));
+            return Err(AuthError::AuthJWTError("Unable to decode token".to_string()).into());
         }
     };
 
@@ -1116,7 +999,7 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     let current_user = match get_user_by_id(&uuid, &state.db).await {
         Ok(user) => user,
         Err(e) => {
-            return Err(e);
+            return Err(e.into());
         }
     };
 
@@ -1152,7 +1035,7 @@ pub async fn logout(
 pub async fn current_user(
     OptionalUser(user): OptionalUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLoggedInUser)?).into();
+    let user: UserDto = (user.ok_or_else(|| AuthError::NoLoggedInUser)?).into();
 
     Ok((StatusCode::OK, Json(user)))
 }
@@ -2988,7 +2871,7 @@ mod tests {
         assert_eq!(status, StatusCode::UNAUTHORIZED, "incorrect status code");
         assert_eq!(
             res.get("err").and_then(|v| v.as_str()).unwrap(),
-            ComhairleError::SessionRefreshFailure(RefreshFailure::Missing).to_string(),
+            AuthError::SessionRefreshFailure(RefreshFailure::Missing).to_string(),
             "incorrect error message"
         );
 

@@ -11,6 +11,7 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::error::DataError;
 use crate::{ComhairleError, ComhairleState};
 use crate::{
     bot_service::{ComhairlePrompt, UpdateChatRequest, Variable},
@@ -44,7 +45,7 @@ async fn upsert_for_conversation(
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let chat_bot_id = conversation.chat_bot_id.ok_or_else(|| {
-        ComhairleError::CorruptedData(format!(
+        DataError::CorruptedData(format!(
             "Missing chat_bot_id on conversation {conversation_id}"
         ))
     })?;

@@ -1,8 +1,10 @@
+use crate::error::EmailError;
 use crate::models::conversation;
 use crate::models::email_template_config::{
     self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
     SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
+use crate::models::error::UserError;
 use crate::models::event::{self, ResolveTimeZone};
 use crate::models::otp;
 use crate::models::permissions::ResourcePermission;
@@ -357,7 +359,7 @@ impl ComhairleMailer for Mailer {
                 None,
             )
         } else {
-            Err(ComhairleError::WrongUserType)
+            Err(UserError::WrongUserType.into())
         }
     }
 
@@ -376,7 +378,7 @@ impl ComhairleMailer for Mailer {
                 None,
             )
         } else {
-            Err(ComhairleError::WrongUserType)
+            Err(UserError::WrongUserType.into())
         }
     }
 
@@ -396,7 +398,7 @@ impl ComhairleMailer for Mailer {
                 None,
             )
         } else {
-            Err(ComhairleError::WrongUserType)
+            Err(UserError::WrongUserType.into())
         }
     }
 
@@ -415,7 +417,7 @@ impl ComhairleMailer for Mailer {
                 None,
             )
         } else {
-            Err(ComhairleError::WrongUserType)
+            Err(UserError::WrongUserType.into())
         }
     }
 
@@ -434,7 +436,7 @@ impl ComhairleMailer for Mailer {
                 None,
             )
         } else {
-            Err(ComhairleError::WrongUserType)
+            Err(UserError::WrongUserType.into())
         }
     }
 
@@ -700,7 +702,7 @@ impl ComhairleMailer for Mailer {
     /// # Errors
     ///
     /// Returns a [`ComhairleError`] if:
-    /// - The named template does not exist ([`ComhairleError::MissingEmailTemplate`])
+    /// - The named template does not exist ([`EmailError::MissingEmailTemplate`])
     /// - The template fails to render (e.g. missing required variables or invalid syntax)
     /// - CSS inlining fails
     fn preview_email(
@@ -722,7 +724,7 @@ impl ComhairleMailer for Mailer {
         let template = self
             .template_engine
             .get_template(template)
-            .map_err(|_| ComhairleError::MissingEmailTemplate(template.to_string()))?;
+            .map_err(|_| EmailError::MissingEmailTemplate(template.to_string()))?;
 
         let html = template.render(context)?;
         let html_inline_styles = css_inline::inline(&html)?;

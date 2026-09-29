@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::error::ServiceError;
+use crate::models::error::EventError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -53,7 +55,7 @@ async fn list(
         Some(locale),
     )
     .await?
-    .into();
+    .map(Into::into);
 
     Ok((StatusCode::OK, Json(events)))
 }
@@ -212,14 +214,12 @@ async fn get_jwt(
         event_attendance::get_by_event_and_user(&state.db, &event_id, &user.id).await?;
 
     let event = event::get_by_id(&state.db, &event_id).await?;
-    let _video_meeting_id = event
-        .video_meeting_id
-        .ok_or(ComhairleError::NoVideoMeetingId)?;
+    let _video_meeting_id = event.video_meeting_id.ok_or(EventError::NoVideoMeetingId)?;
     let video_call_config = &state
         .config
         .video_call_service
         .as_ref()
-        .ok_or(ComhairleError::NoVideoServiceConfigured)?;
+        .ok_or(ServiceError::NoVideoServiceConfigured)?;
 
     let is_moderator = attendance.role == "facilitator" || attendance.role == "moderator";
 

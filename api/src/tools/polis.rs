@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::models::polis_statement_aux;
+use crate::models::error::PermissionError;
+use crate::models::error::ValidationError;
+use crate::models::error::WorkflowError;
 use aide::axum::{
     ApiRouter,
     routing::{delete_with, get_with, post_with, put_with},
@@ -36,70 +38,7 @@ use crate::{
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
-pub struct PolisToolConfig {
-    pub server_url: String,
-    pub poll_id: String,
-    pub admin_user: String,
-    pub admin_password: String,
-    pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
-    pub show_remaining_statements: bool,
-    // Mirror of the Polis conversation config. These are written through to
-    // Polis via PolisUpdateConfig AND stored here so the Setup tab can pre-fill
-    // them (Polis exposes no read path for topic/description/is_active/
-    // strict_moderation).
-    #[serde(default)]
-    pub topic: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub is_active: Option<bool>,
-    #[serde(default)]
-    pub strict_moderation: Option<bool>,
-    // comhairle-only display flag (not sent to Polis): style seed statements
-    // with a "conversation starter" label in the participant embed.
-    #[serde(default)]
-    pub label_seeds_as_conversation_starter: bool,
-    // Reasons offered when rejecting a statement. None means the built-in
-    // defaults in models::moderation_policy::DEFAULT_REASONS.
-    #[serde(default)]
-    pub moderation_policy_id: Option<Uuid>,
-}
-
-fn default_show_remaining_statements() -> bool {
-    true
-}
-
-impl ToolConfigSanitize for PolisToolConfig {
-    fn sanitize(&self) -> Self {
-        Self {
-            admin_user: "".into(),
-            admin_password: "".into(),
-            server_url: self.server_url.clone(),
-            poll_id: self.poll_id.clone(),
-            required_votes: self.required_votes,
-            show_remaining_statements: self.show_remaining_statements,
-            topic: self.topic.clone(),
-            description: self.description.clone(),
-            is_active: self.is_active,
-            strict_moderation: self.strict_moderation,
-            label_seeds_as_conversation_starter: self.label_seeds_as_conversation_starter,
-            moderation_policy_id: self.moderation_policy_id,
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
-pub struct PolisToolSetup {
-    pub topic: String,
-    pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
-    pub show_remaining_statements: bool,
-}
-
-#[derive(PartialEq, Clone, Serialize, Deserialize, Debug, JsonSchema)]
-pub struct PolisReport;
+pub use crate::models::tools::polis::{PolisReport, PolisToolConfig, PolisToolSetup};
 
 /// Zero-sized marker type for Polis tool implementation
 pub struct PolisTool;
@@ -501,7 +440,7 @@ async fn get_report_data(
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
     };
 
     // With strict_moderation off, Polis shows participants every statement a moderator has
@@ -545,7 +484,7 @@ async fn get_user_vote_count(
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
     };
 
     let client = &state.wiki_poll_service;
@@ -598,12 +537,14 @@ async fn update_polis_config(
 ) -> Result<(StatusCode, Json<WikiPoll>), ComhairleError> {
     let workflow_step =
         models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
-    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+    if !models::workflow::is_user_owner(&state.db, &workflow_step.workflow_id, &user.id).await? {
+        return Err(PermissionError::UserNotAuthorized.into());
+    }
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
     };
 
     let client = &state.wiki_poll_service;
@@ -653,12 +594,14 @@ async fn post_seed(
 ) -> Result<(StatusCode, Json<PostSeedResponse>), ComhairleError> {
     let workflow_step =
         models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
-    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+    if !models::workflow::is_user_owner(&state.db, &workflow_step.workflow_id, &user.id).await? {
+        return Err(PermissionError::UserNotAuthorized.into());
+    }
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
     };
 
     let client = &state.wiki_poll_service;
@@ -706,7 +649,9 @@ async fn update_statement_aux(
     Path(id): Path<Uuid>,
     Json(update_request): Json<UpdatePolisStatementAux>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
-    models::polis_statement_aux::check_is_commentor(&state.db, &id, &user.id).await?;
+    if !models::polis_statement_aux::is_commentor(&state.db, &id, &user.id).await? {
+        return Err(PermissionError::UserNotAuthorized.into());
+    }
     let aux = models::polis_statement_aux::update(&state.db, id, &update_request).await?;
     Ok((StatusCode::OK, Json(aux)))
 }
@@ -724,9 +669,10 @@ async fn list_statement_aux(
     Query(filter): Query<StatementAuxFilterQuery>,
 ) -> Result<(StatusCode, Json<Vec<PolisStatementAux>>), ComhairleError> {
     if filter.workflow_step_id.is_none() && filter.polis_conversation_id.is_none() {
-        return Err(ComhairleError::BadRequest(
+        return Err(ValidationError::BadRequest(
             "workflow_step_id or polis_conversation_id is required".into(),
-        ));
+        )
+        .into());
     }
     let aux = models::polis_statement_aux::list(
         &state.db,
@@ -757,7 +703,9 @@ async fn sync_statement_aux(
     Json(SyncStatementAuxRequest { workflow_step_id }): Json<SyncStatementAuxRequest>,
 ) -> Result<(StatusCode, Json<SyncStatementAuxResponse>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
-    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+    if !models::workflow::is_user_owner(&state.db, &workflow_step.workflow_id, &user.id).await? {
+        return Err(PermissionError::UserNotAuthorized.into());
+    }
 
     // Fetch from the live poll when the conversation is live, otherwise from
     // the preview poll. We key off the conversation's live status rather than
@@ -776,12 +724,12 @@ async fn sync_statement_aux(
     let config = if is_live {
         match workflow_step.tool_config {
             Some(ToolConfig::Polis(config)) => config,
-            _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+            _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
         }
     } else {
         match workflow_step.preview_tool_config {
             ToolConfig::Polis(config) => config,
-            _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+            _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
         }
     };
 
@@ -894,14 +842,15 @@ async fn moderate_statement_aux(
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
 
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+    crate::services::polis_moderation::check_can_moderate(&state, &user, &aux.workflow_step_id)
+        .await?;
 
     let workflow_step = models::workflow_step::get_by_id(&state.db, &aux.workflow_step_id).await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
     };
 
     let client = &state.wiki_poll_service;
@@ -963,7 +912,12 @@ async fn split_statement(
 ) -> Result<(StatusCode, Json<SplitStatementResponse>), ComhairleError> {
     let original = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
 
-    polis_statement_aux::check_can_moderate(&state, &user, &original.workflow_step_id).await?;
+    crate::services::polis_moderation::check_can_moderate(
+        &state,
+        &user,
+        &original.workflow_step_id,
+    )
+    .await?;
 
     let replacements: Vec<String> = request
         .replacements
@@ -973,9 +927,10 @@ async fn split_statement(
         .collect();
 
     if replacements.is_empty() {
-        return Err(ComhairleError::BadRequest(
+        return Err(ValidationError::BadRequest(
             "a split needs at least one non-empty replacement statement".into(),
-        ));
+        )
+        .into());
     }
 
     let workflow_step =
@@ -984,7 +939,7 @@ async fn split_statement(
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
     };
 
     let client = &state.wiki_poll_service;
@@ -1079,7 +1034,7 @@ async fn moderate_statement_aux_batch(
     Json(request): Json<ModerateStatementAuxBatchRequest>,
 ) -> Result<(StatusCode, Json<ModerateStatementAuxBatchResponse>), ComhairleError> {
     if request.ids.is_empty() {
-        return Err(ComhairleError::BadRequest("ids must not be empty".into()));
+        return Err(ValidationError::BadRequest("ids must not be empty".into()).into());
     }
 
     // Load every target row up front: this validates the ids and gives us the
@@ -1092,27 +1047,28 @@ async fn moderate_statement_aux_batch(
     )
     .await?;
     if rows.len() != request.ids.len() {
-        return Err(ComhairleError::BadRequest(
-            "one or more statement ids do not exist".into(),
-        ));
+        return Err(
+            ValidationError::BadRequest("one or more statement ids do not exist".into()).into(),
+        );
     }
 
     // A selection always comes from a single moderation view (one workflow step,
     // one poll), so we authorize and log in to Polis exactly once for the batch.
     let workflow_step_id = rows[0].workflow_step_id;
     if rows.iter().any(|r| r.workflow_step_id != workflow_step_id) {
-        return Err(ComhairleError::BadRequest(
+        return Err(ValidationError::BadRequest(
             "all statements must belong to the same workflow step".into(),
-        ));
+        )
+        .into());
     }
 
-    polis_statement_aux::check_can_moderate(&state, &user, &workflow_step_id).await?;
+    crate::services::polis_moderation::check_can_moderate(&state, &user, &workflow_step_id).await?;
 
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
-        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+        _ => return Err(WorkflowError::WorkflowStepHasWrongType("Polis".into()).into()),
     };
 
     let client = &state.wiki_poll_service;
@@ -1176,7 +1132,8 @@ async fn add_statement_aux_theme(
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+    crate::services::polis_moderation::check_can_moderate(&state, &user, &aux.workflow_step_id)
+        .await?;
 
     let updated =
         models::polis_statement_aux::add_theme(&state.db, statement_id, &request.theme).await?;
@@ -1191,7 +1148,8 @@ async fn remove_statement_aux_theme(
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
     let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+    crate::services::polis_moderation::check_can_moderate(&state, &user, &aux.workflow_step_id)
+        .await?;
 
     let updated =
         models::polis_statement_aux::remove_theme(&state.db, statement_id, &request.theme).await?;
@@ -1205,9 +1163,10 @@ async fn theme_stats(
     Query(filter): Query<StatementAuxFilterQuery>,
 ) -> Result<(StatusCode, Json<Vec<ThemeStatistic>>), ComhairleError> {
     if filter.workflow_step_id.is_none() && filter.polis_conversation_id.is_none() {
-        return Err(ComhairleError::BadRequest(
+        return Err(ValidationError::BadRequest(
             "workflow_step_id or polis_conversation_id is required".into(),
-        ));
+        )
+        .into());
     }
     let stats = models::polis_statement_aux::theme_stats(
         &state.db,
