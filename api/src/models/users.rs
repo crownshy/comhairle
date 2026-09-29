@@ -61,6 +61,22 @@ impl fmt::Display for UserAuthType {
     }
 }
 
+impl TryFrom<&str> for UserAuthType {
+    type Error = ComhairleError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "guest" => Ok(UserAuthType::Guest),
+            "email_password" => Ok(UserAuthType::EmailPassword),
+            "one_time_passcode" => Ok(UserAuthType::Otp),
+            "scot_account" => Ok(UserAuthType::ScotAccount),
+            _ => Err(ComhairleError::CorruptedData(format!(
+                "Invalid auth_type: {value}"
+            ))),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone)]
 #[sqlx(type_name = "text")]
 #[serde(rename_all = "snake_case")]
