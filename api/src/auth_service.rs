@@ -112,20 +112,9 @@ impl MockAuthService {
                 })
             })
         });
-        auth_service.expect_update_user_details().returning(|_, _| {
-            Box::pin(async move {
-                Ok(UserDto {
-                    id: Uuid::new_v4(),
-                    username: Some("admin".to_string()),
-                    email: Some("admin@crown-shy.com".to_string()),
-                    auth_type: UserAuthType::EmailPassword,
-                    guest_code: None,
-                    avatar_url: None,
-                    email_verified: false,
-                    organization_id: None,
-                })
-            })
-        });
+        auth_service
+            .expect_update_user_details()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
         auth_service
             .expect_get_authorization_tokens()
             .returning(|_, _| {
