@@ -322,6 +322,7 @@
 			</LoadingButton>
 			<AddSeedStatementsDialog
 				{workflowStepId}
+				existingStatements={statements.map((s) => s.statement_text)}
 				onSeeded={() => invalidate('polis:statement-aux')}
 			/>
 		</div>
