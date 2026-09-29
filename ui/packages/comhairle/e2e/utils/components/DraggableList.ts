@@ -126,17 +126,17 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 		list.push({ id, name: stepName, position: list.length + 1 });
 	}
 
-	async function get(index: number): Promise<DraggableListItemComponent<T>> {
-		const listItem = list[index];
+	async function get(id: T): Promise<DraggableListItemComponent<T>> {
+		const listItem = list.find((l) => l.id === id);
 		if (!listItem) {
-			throw new Error(`Out of bounds index! List: ${list}, index: ${index}`);
+			throw new Error(`Cannot find item! List: ${list}, id: ${id}`);
 		}
 
 		const locator = refs.page.getByRole('listitem').filter({
-			hasText: `${index + 1} ${listItem.name}`
+			hasText: `${listItem.position} ${listItem.name}`
 		});
 		if (!(await locator.isVisible())) {
-			throw new Error(`Locator not found: "${index + 1} ${listItem.name}"`);
+			throw new Error(`Locator not found: "${listItem.position} ${listItem.name}"`);
 		}
 
 		return {
@@ -156,7 +156,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 				}
 			},
 			menu: () => {
-				const MenuBtn = Menu(refs.page).nth(index);
+				const MenuBtn = Menu(refs.page).nth(listItem.position - 1);
 
 				return {
 					rename: async (newName = generateValue()) => {
@@ -196,10 +196,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 	}
 
 	const expected = {
-		toBeEmpty: async () => {
-			const count = await refs.page.getByRole('listitem').count();
-			expect(count).toBe(0);
-		},
+		toBeEmpty: () => expect(refs.page.getByText('No steps yet. Add your first')).toBeVisible(),
 		toHaveLength: async (length: number) => {
 			const count = await refs.page.getByRole('listitem').count();
 			expect(count).toBe(length);
