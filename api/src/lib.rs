@@ -477,7 +477,7 @@ pub async fn build_app(
     let keycloak_auth_instance = Arc::new(KeycloakAuthInstance::new(
         KeycloakConfig::builder()
             .server(Url::parse(&state.config.auth_service.clone().url).unwrap())
-            .realm(state.config.auth_service.clone().realm)
+            .realm(state.config.auth_service.clone().public_realm)
             .build(),
     ));
 

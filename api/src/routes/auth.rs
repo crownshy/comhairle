@@ -1225,9 +1225,9 @@ async fn logout(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, Co
     let logout_url = format!(
         "{}/realms/{}/protocol/openid-connect/logout?post_logout_redirect_uri={}/&client_id={}",
         state.config.auth_service.url,
-        state.config.auth_service.realm,
+        state.config.auth_service.public_realm,
         state.config.domain,
-        state.config.auth_service.client_id
+        state.config.auth_service.public_client_id
     );
 
     Ok(Redirect::to(&logout_url))
@@ -1255,14 +1255,27 @@ pub async fn current_user(
     }
 }
 
+#[derive(Deserialize, JsonSchema, Debug)]
+struct LoginParams {
+    is_admin: Option<bool>,
+}
+
 #[instrument(err(Debug), skip(state))]
-async fn login(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, ComhairleError> {
+async fn login(
+    State(state): State<Arc<ComhairleState>>,
+    Query(params): Query<LoginParams>,
+) -> Result<Redirect, ComhairleError> {
     let auth_config = &state.config.auth_service;
+
+    let (client_id, realm) = match params.is_admin {
+        Some(true) => (&auth_config.admin_client_id, &auth_config.admin_realm),
+        _ => (&auth_config.public_client_id, &auth_config.public_realm),
+    };
 
     let redirect_url = format!("{}/api/auth/callback", state.config.domain);
     let authentication_url = format!(
         "{}/realms/{}/protocol/openid-connect/auth?client_id={}&response_type=code&scope=openid&redirect_uri={}",
-        auth_config.url, auth_config.realm, auth_config.client_id, redirect_url
+        auth_config.url, realm, client_id, redirect_url
     );
 
     Ok(Redirect::to(&authentication_url))
@@ -1271,6 +1284,7 @@ async fn login(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, Com
 #[derive(Deserialize, Debug, JsonSchema)]
 struct KeycloakCallbackQuery {
     code: String,
+    iss: String,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -1281,9 +1295,14 @@ async fn authentication_callback(
 ) -> Result<(CookieJar, Redirect), ComhairleError> {
     let redirect_url = format!("{}/api/auth/callback", state.config.domain);
 
+    let is_admin = query.iss.as_str().contains(&format!(
+        "/realms/{}",
+        state.config.auth_service.admin_realm
+    ));
+
     let token_result = state
         .auth_service
-        .get_authorization_tokens(&query.code, &redirect_url)
+        .get_authorization_tokens(&query.code, &redirect_url, is_admin)
         .await?;
 
     let jar = build_auth_service_token_cookies(jar, token_result);

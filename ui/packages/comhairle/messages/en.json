@@ -29,6 +29,7 @@
 	"id": "id",
 	"keey_this_pseudonymous_id_safe": "Keep this pseudonymous id in a safe place!",
 	"login": "Log In",
+	"login_admin": "Log In to admin",
 	"login_with_anonymous_id": "Log in with Guest ID",
 	"login_with_password": "Log in with password",
 	"login_with_otp": "Log in with one-time-passcode",

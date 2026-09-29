@@ -19,6 +19,7 @@ pub trait AuthService: Send + Sync {
     async fn import_user(
         &self,
         comhairle_user: &User,
+        is_admin: bool,
     ) -> Result<serde_json::Value, AuthServiceError>;
 
     async fn get_user(&self, token: &str) -> Result<GetUserResponse, AuthServiceError>;
@@ -27,6 +28,7 @@ pub trait AuthService: Send + Sync {
         &self,
         code: &str,
         redirect_uri: &str,
+        is_admin: bool,
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError>;
 
     async fn refresh_session(
@@ -68,13 +70,13 @@ impl MockAuthService {
 
         auth_service
             .expect_import_user()
-            .returning(|_| Box::pin(async move { Ok(serde_json::json!({})) }));
+            .returning(|_, _| Box::pin(async move { Ok(serde_json::json!({})) }));
         auth_service
             .expect_get_user()
             .returning(|_| Box::pin(async move { Ok(GetUserResponse::default()) }));
         auth_service
             .expect_get_authorization_tokens()
-            .returning(|_, _| {
+            .returning(|_, _, _| {
                 Box::pin(async move { Ok(GetAuthorizationTokensResponse::default()) })
             });
         auth_service

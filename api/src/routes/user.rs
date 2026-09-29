@@ -312,6 +312,7 @@ pub async fn upgrade_account(
 #[derive(Deserialize, Debug, JsonSchema)]
 struct SyncKcUsersRequest {
     user_ids: Vec<Uuid>,
+    is_admin: Option<bool>,
 }
 
 #[derive(Serialize, Debug, JsonSchema)]
@@ -330,7 +331,7 @@ struct SyncKcUserResponse {
 async fn sync_kc_users(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_): RequiredAdminUser,
-    Json(SyncKcUsersRequest { user_ids }): Json<SyncKcUsersRequest>,
+    Json(SyncKcUsersRequest { user_ids, is_admin }): Json<SyncKcUsersRequest>,
 ) -> Result<(StatusCode, Json<SyncKcUserResponse>), ComhairleError> {
     if user_ids.is_empty() {
         return Err(ComhairleError::BadRequest(
@@ -344,7 +345,10 @@ async fn sync_kc_users(
     for user_id in user_ids {
         let user = models::users::get_user_by_id(&user_id, &state.db).await?;
 
-        let result = state.auth_service.import_user(&user).await;
+        let result = state
+            .auth_service
+            .import_user(&user, is_admin.unwrap_or_default())
+            .await;
 
         match result {
             Ok(_) => synced_users.push(user.id),

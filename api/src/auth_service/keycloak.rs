@@ -23,13 +23,16 @@ use tracing::warn;
 #[allow(dead_code)]
 pub struct KeycloakClient {
     domain: String,
-    admin_client: KeycloakAdmin,
-    realm_name: String,
     auth_client: reqwest::Client,
-    admin_user: String,
-    admin_password: String,
-    client_id: String,
-    client_secret: String,
+    kc_admin_client: KeycloakAdmin,
+    kc_admin_root_user: String,
+    kc_admin_root_password: String,
+    admin_realm_name: String,
+    admin_client_id: String,
+    admin_client_secret: String,
+    public_realm_name: String,
+    public_client_id: String,
+    public_client_secret: String,
 }
 
 impl KeycloakClient {
@@ -37,8 +40,8 @@ impl KeycloakClient {
         let client = reqwest::Client::new();
         let admin_token = KeycloakAdminToken::acquire(
             &config.url,
-            &config.admin_user,
-            &config.admin_password,
+            &config.root_user,
+            &config.root_password,
             &client,
         )
         .await?;
@@ -49,18 +52,21 @@ impl KeycloakClient {
 
         Ok(Self {
             domain: config.url.to_owned(),
-            admin_client: admin,
-            realm_name: config.realm.to_string(),
             auth_client,
-            admin_user: config.admin_user.to_owned(),
-            admin_password: config.admin_password.to_owned(),
-            client_id: config.client_id.to_owned(),
-            client_secret: config.client_secret.to_owned(),
+            kc_admin_client: admin,
+            kc_admin_root_user: config.root_user.to_owned(),
+            kc_admin_root_password: config.root_password.to_owned(),
+            public_realm_name: config.public_realm.to_string(),
+            public_client_id: config.public_client_id.to_owned(),
+            public_client_secret: config.public_client_secret.to_owned(),
+            admin_realm_name: config.admin_realm.to_string(),
+            admin_client_id: config.admin_client_id.to_owned(),
+            admin_client_secret: config.admin_client_secret.to_owned(),
         })
     }
 
     fn realm(&self) -> KeycloakRealmAdmin<'_, KeycloakAdminToken> {
-        self.admin_client.realm(&self.realm_name)
+        self.kc_admin_client.realm(&self.public_realm_name)
     }
 
     /// Custom helper to authenticate with Keycloak Admin Rest API. Required to
@@ -75,8 +81,8 @@ impl KeycloakClient {
         );
 
         let body = json!({
-            "username": &self.admin_user,
-            "password": &self.admin_password,
+            "username": &self.kc_admin_root_user,
+            "password": &self.kc_admin_root_password,
             // TODO: see if there is a better way of authenticating as
             // this grant_type is no longer recommended
             "grant_type": "password",
@@ -113,10 +119,17 @@ impl KeycloakClient {
     async fn auth_tokens<T: Serialize>(
         &self,
         form_body: &T,
+        is_admin: bool,
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
+        let realm = if is_admin {
+            &self.admin_realm_name
+        } else {
+            &self.public_realm_name
+        };
+
         let url = format!(
             "{}/realms/{}/protocol/openid-connect/token",
-            self.domain, self.realm_name
+            self.domain, realm
         );
 
         let response = self
@@ -174,18 +187,22 @@ impl AuthService for KeycloakClient {
     async fn import_user(
         &self,
         comhairle_user: &User,
+        is_admin: bool,
     ) -> Result<serde_json::Value, AuthServiceError> {
         let token_res = self.custom_authenticate().await?;
+
+        let realm_name = if is_admin {
+            &self.admin_realm_name
+        } else {
+            &self.public_realm_name
+        };
 
         // Use custom request instead of [`keycloak::KeycloakAdmin`] as crate
         // doesn't support this endpoint.
         //
         // Needs to use realm `partialImport` endpoint instead of `users_post`
         // endpoint as former maintains comhairle user ids, the latter does not.
-        let url = format!(
-            "{}/admin/realms/{}/partialImport",
-            self.domain, self.realm_name,
-        );
+        let url = format!("{}/admin/realms/{}/partialImport", self.domain, realm_name);
 
         let mut additional_attributes = HashMap::from([(
             "comhairle_auth_type".to_string(),
@@ -214,7 +231,7 @@ impl AuthService for KeycloakClient {
                     UserRepresentation {
                         id: Some(comhairle_user.id.to_string()),
                         email: comhairle_user.email.clone(),
-                        email_verified: Some(comhairle_user.email_verified),
+                        email_verified: Some(true),
                         username: comhairle_user.username.clone(),
                         enabled: Some(true),
                         attributes: Some(additional_attributes),
@@ -247,7 +264,7 @@ impl AuthService for KeycloakClient {
     async fn get_user(&self, token: &str) -> Result<GetUserResponse, AuthServiceError> {
         let url = format!(
             "{}/realms/{}/protocol/openid-connect/userinfo",
-            self.domain, self.realm_name
+            self.domain, self.public_realm_name
         );
 
         let result = self
@@ -266,16 +283,23 @@ impl AuthService for KeycloakClient {
         &self,
         code: &str,
         redirect_uri: &str,
+        is_admin: bool,
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
+        let (client_id, client_secret) = if is_admin {
+            (&self.admin_client_id, &self.admin_client_secret)
+        } else {
+            (&self.public_client_id, &self.public_client_secret)
+        };
+
         let form_body = OpenidTokenRequest {
             grant_type: "authorization_code",
-            client_id: &self.client_id,
-            client_secret: &self.client_secret,
+            client_id,
+            client_secret,
             redirect_uri,
             code,
         };
 
-        self.auth_tokens(&form_body).await
+        self.auth_tokens(&form_body, is_admin).await
     }
 
     async fn refresh_session(
@@ -285,11 +309,12 @@ impl AuthService for KeycloakClient {
         let form_body = OpenidRefreshRequest {
             grant_type: "refresh_token",
             refresh_token,
-            client_id: &self.client_id,
-            client_secret: &self.client_secret,
+            client_id: &self.public_client_id,
+            client_secret: &self.public_client_secret,
         };
 
-        self.auth_tokens(&form_body).await
+        // TODO: fix
+        self.auth_tokens(&form_body, false).await
     }
 }
 

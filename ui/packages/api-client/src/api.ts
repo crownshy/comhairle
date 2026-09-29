@@ -88,6 +88,8 @@ export const PasswordResetUpdateRequest = z
 export type PasswordResetUpdateRequest = z.infer<
   typeof PasswordResetUpdateRequest
 >;
+export const is_admin = z.union([z.boolean(), z.null()]).optional();
+export type is_admin = z.infer<typeof is_admin>;
 export const ResourceType = z.union([
   z.literal("Site"),
   z.object({ Conversation: z.string().uuid() }),
@@ -134,8 +136,6 @@ export const LocalizedConversationDto = z
 export type LocalizedConversationDto = z.infer<typeof LocalizedConversationDto>;
 export const created_after = z.union([z.string(), z.null()]).optional();
 export type created_after = z.infer<typeof created_after>;
-export const is_complete = z.union([z.boolean(), z.null()]).optional();
-export type is_complete = z.infer<typeof is_complete>;
 export const limit = z.union([z.number(), z.null()]).optional();
 export type limit = z.infer<typeof limit>;
 export const PaginatedResults_for_LocalizedConversationDto = z
@@ -198,7 +198,10 @@ export const UpgradeAccountRequest = z
   .passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
 export const SyncKcUsersRequest = z
-  .object({ user_ids: z.array(z.string().uuid()) })
+  .object({
+    is_admin: z.union([z.boolean(), z.null()]).optional(),
+    user_ids: z.array(z.string().uuid()),
+  })
   .passthrough();
 export type SyncKcUsersRequest = z.infer<typeof SyncKcUsersRequest>;
 export const SkippedUser = z
@@ -3292,12 +3295,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
   PasswordResetUpdateRequest,
+  is_admin,
   ResourceType,
   ResourceRole,
   UserRoles,
   LocalizedConversationDto,
   created_after,
-  is_complete,
   limit,
   PaginatedResults_for_LocalizedConversationDto,
   OrganizationType,
@@ -3671,6 +3674,11 @@ const endpoints = makeApi([
         type: "Query",
         schema: z.string(),
       },
+      {
+        name: "iss",
+        type: "Query",
+        schema: z.string(),
+      },
     ],
     response: z.void(),
   },
@@ -3701,6 +3709,13 @@ const endpoints = makeApi([
     alias: "Login",
     description: `Login via auth_service authorization code flow`,
     requestFormat: "json",
+    parameters: [
+      {
+        name: "is_admin",
+        type: "Query",
+        schema: is_admin,
+      },
+    ],
     response: z.void(),
   },
   {
@@ -3888,22 +3903,22 @@ const endpoints = makeApi([
       {
         name: "is_complete",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_invite_only",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_live",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_public",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "keyword",
@@ -6905,12 +6920,12 @@ Use a raw HTTP request and process the response body incrementally.
       {
         name: "is_ai_generated",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_shared_with_organizer",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "workflow_step_id",
@@ -7130,22 +7145,22 @@ This struct contains optional fields that can be updated on a TextTranslation re
       {
         name: "is_complete",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_invite_only",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_live",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_public",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "keyword",
@@ -7195,22 +7210,22 @@ This struct contains optional fields that can be updated on a TextTranslation re
       {
         name: "is_complete",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_invite_only",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_live",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "is_public",
         type: "Query",
-        schema: is_complete,
+        schema: is_admin,
       },
       {
         name: "keyword",
