@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils';
+	import { snakeToStartCase } from '$lib/utils/casingUtils';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import { notifications } from '$lib/notifications.svelte';
@@ -130,13 +130,11 @@
 			value={selectedSchema.email_type}
 			onValueChange={handleSelectSchema}
 		>
-			<Select.Trigger class=""
-				>{snakeToSentenceCase(selectedSchema.email_type)}</Select.Trigger
-			>
+			<Select.Trigger class="">{snakeToStartCase(selectedSchema.email_type)}</Select.Trigger>
 			<Select.Content>
 				{#each schemas as schema (schema.email_type)}
 					<Select.Item value={schema.email_type}
-						>{snakeToSentenceCase(schema.email_type)}</Select.Item
+						>{snakeToStartCase(schema.email_type)}</Select.Item
 					>
 				{/each}
 			</Select.Content>

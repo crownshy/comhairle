@@ -63,7 +63,7 @@ async fn upload_request(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/resource/{id}",

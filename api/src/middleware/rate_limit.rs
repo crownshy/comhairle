@@ -1,4 +1,3 @@
-use crate::config::ComhairleConfig;
 use axum::body::Body;
 use governor::middleware::StateInformationMiddleware;
 use std::sync::Arc;
@@ -83,9 +82,9 @@ pub fn auth_rate_limiter() -> GovernorLayer<SmartIpKeyExtractor, StateInformatio
 /// Config-aware rate limiter that only applies if enabled in config
 /// Returns Some(layer) if rate limiting is enabled, None otherwise
 pub fn auth_rate_limiter_if_enabled(
-    config: &ComhairleConfig,
+    enable_rate_limiting: bool,
 ) -> Option<GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body>> {
-    if config.enable_rate_limiting {
+    if enable_rate_limiting {
         Some(auth_rate_limiter())
     } else {
         None

@@ -8,6 +8,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
@@ -19,6 +20,7 @@ use crate::{
         self,
         feedback::{CreateFeedbackDTO, PartialFeedback},
     },
+    required_auth,
     routes::feedback::dto::FeedbackDto,
 };
 
@@ -71,40 +73,42 @@ async fn list_feedback_for_conversation(
     Ok((StatusCode::OK, Json(feedback)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create_feedback, |op| {
                     op.id("CreateFeedback")
                         .summary("Create a feedback statement on the conversation")
                         .response::<201, Json<FeedbackDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{feedback_id}",
-            state.required_auth(
+            required_auth(
                 put_with(update_feedback, |op| {
                     op.id("UpdateFeedback")
                         .summary("Update an ")
                         .response::<201, Json<FeedbackDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(list_feedback_for_conversation, |op| {
                     op.id("ListFeedbackForConversation")
                         .summary("Return a list of feedback statements for a conversation")
                         .response::<200, Json<FeedbackDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }

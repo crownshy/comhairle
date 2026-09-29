@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use heyform_sdk::client::HeyFormClient;
 use heyform_sdk::{
     CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, Form, FormField, FormKind,
@@ -20,9 +21,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models;
+use crate::routes::auth::extract::RequiredAdminUser;
+use crate::{ComhairleState, required_auth};
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
@@ -293,53 +295,77 @@ impl ToolImpl for HeyFormTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/form",
-                get_with(form, |op| {
-                    op.id("HeyFormGetForm")
-                        .tag("Tools")
-                        .summary("Get HeyForm form for a workflow step")
-                        .description("Fetches the form for the HeyForm tool attached to a workflow step")
-                        .response::<200, Json<Form>>()
-                }),
+                required_auth(
+                    get_with(form, |op| {
+                        op.id("HeyFormGetForm")
+                            .tag("Tools")
+                            .summary("Get HeyForm form for a workflow step")
+                            .description(
+                                "Fetches the form for the HeyForm tool attached \
+                                to a workflow step",
+                            )
+                            .response::<200, Json<Form>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/form_report",
-                get_with(form_report, |op| {
-                    op.id("HeyFormGetFormReport")
-                        .tag("Tools")
-                        .summary("Get HeyForm report for a workflow step")
-                        .description("Fetches the form report for the HeyForm tool attached to a workflow step")
-                        .response::<200, Json<FormReport>>()
-                }),
+                required_auth(
+                    get_with(form_report, |op| {
+                        op.id("HeyFormGetFormReport")
+                            .tag("Tools")
+                            .summary("Get HeyForm report for a workflow step")
+                            .description(
+                                "Fetches the form report for the HeyForm tool \
+                            attached to a workflow step",
+                            )
+                            .response::<200, Json<FormReport>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/submissions",
-                get_with(submissions, |op| {
-                    op.id("HeyFormGetSubmissions")
-                        .tag("Tools")
-                        .summary("Get HeyForm submissions for a workflow step")
-                        .description("Fetches the form submissions for the HeyForm tool attached to a workflow step")
-                        .response::<200, Json<Submissions>>()
-                }),
+                required_auth(
+                    get_with(submissions, |op| {
+                        op.id("HeyFormGetSubmissions")
+                            .tag("Tools")
+                            .summary("Get HeyForm submissions for a workflow step")
+                            .description(
+                                "Fetches the form submissions for the HeyForm tool \
+                            attached to a workflow step",
+                            )
+                            .response::<200, Json<Submissions>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/insights",
-                get_with(insights, |op| {
-                    op.id("HeyFormGetInsights")
-                        .tag("Tools")
-                        .summary("Get labelled survey insights for a workflow step")
-                        .description(
-                            "Combines the HeyForm form definition with its aggregate report to \
+                required_auth(
+                    get_with(insights, |op| {
+                        op.id("HeyFormGetInsights")
+                            .tag("Tools")
+                            .summary("Get labelled survey insights for a workflow step")
+                            .description(
+                                "Combines the HeyForm form definition with its aggregate report to \
                              produce a per-question breakdown with human-readable question titles \
                              and choice labels resolved from the form schema.",
-                        )
-                        .response::<200, Json<SurveyInsights>>()
-                }),
+                            )
+                            .response::<200, Json<SurveyInsights>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -360,6 +386,7 @@ async fn get_heyform_config_for_workflow_step(
 pub async fn form(
     State(state): State<Arc<ComhairleState>>,
     Path(workflow_step_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Form>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
@@ -380,6 +407,7 @@ pub async fn form(
 pub async fn form_report(
     State(state): State<Arc<ComhairleState>>,
     Path(workflow_step_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<FormReport>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
@@ -428,6 +456,7 @@ pub async fn fetch_all_submissions(
 pub async fn submissions(
     State(state): State<Arc<ComhairleState>>,
     Path(workflow_step_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Query(query): Query<SubmissionsQuery>,
 ) -> Result<(StatusCode, Json<Submissions>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
@@ -823,6 +852,7 @@ pub fn build_survey_insights(
 pub async fn insights(
     State(state): State<Arc<ComhairleState>>,
     Path(workflow_step_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<SurveyInsights>), ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
@@ -861,6 +891,7 @@ mod tests {
     use sqlx::PgPool;
     use tokio::net::TcpListener;
 
+    use crate::App;
     use crate::{
         models::model_test_helpers::{
             get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
@@ -1147,7 +1178,7 @@ mod tests {
     }
 
     async fn create_heyform_workflow_step(
-        app: &axum::Router,
+        app: &App,
         session: &mut crate::test_helpers::UserSession,
         server_url: &str,
     ) -> Result<WorkflowStepDto, Box<dyn Error>> {

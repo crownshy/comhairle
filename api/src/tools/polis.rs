@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::polis_statement_aux;
+use crate::{models::polis_statement_aux, required_auth};
 use aide::axum::{
     ApiRouter,
     routing::{delete_with, get_with, post_with, put_with},
@@ -10,6 +10,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -152,7 +153,7 @@ impl ToolImpl for PolisTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/polis/report_data",
@@ -166,7 +167,7 @@ impl ToolImpl for PolisTool {
             )
             .api_route(
                 "/polis/vote_count",
-                state.required_auth(
+                required_auth(
                     get_with(get_user_vote_count, |op| {
                         op.id("PolisGetUserVoteCount")
                             .tag("Tools")
@@ -180,11 +181,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<VoteCountResponse>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/config",
-                state.required_auth(
+                required_auth(
                     put_with(update_polis_config, |op| {
                         op.id("PolisUpdateConfig")
                         .tag("Tools")
@@ -197,11 +199,12 @@ impl ToolImpl for PolisTool {
                         .response::<200, Json<WikiPoll>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/seed",
-                state.required_auth(
+                required_auth(
                     post_with(post_seed, |op| {
                         op.id("PolisPostSeed")
                             .tag("Tools")
@@ -214,11 +217,12 @@ impl ToolImpl for PolisTool {
                             .response::<201, Json<PostSeedResponse>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux",
-                state.required_auth(
+                required_auth(
                     post_with(create_statement_aux, |op| {
                         op.id("PolisCreateStatementAux")
                             .tag("Tools")
@@ -231,11 +235,12 @@ impl ToolImpl for PolisTool {
                             .response::<201, Json<PolisStatementAux>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux/{id}",
-                state.required_auth(
+                required_auth(
                     put_with(update_statement_aux, |op| {
                         op.id("PolisUpdateStatementAux")
                             .tag("Tools")
@@ -247,11 +252,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<PolisStatementAux>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux",
-                state.required_auth(
+                required_auth(
                     get_with(list_statement_aux, |op| {
                         op.id("PolisListStatementAux")
                             .tag("Tools")
@@ -263,11 +269,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<Vec<PolisStatementAux>>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux/sync",
-                state.required_auth(
+                required_auth(
                     post_with(sync_statement_aux, |op| {
                         op.id("PolisSyncStatementAux")
                             .tag("Tools")
@@ -281,11 +288,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<SyncStatementAuxResponse>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux/theme_stats",
-                state.required_auth(
+                required_auth(
                     get_with(theme_stats, |op| {
                         op.id("PolisStatementAuxThemeStats")
                             .tag("Tools")
@@ -298,11 +306,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<Vec<ThemeStatistic>>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux/{id}/themes",
-                state.required_auth(
+                required_auth(
                     post_with(add_statement_aux_theme, |op| {
                         op.id("PolisAddStatementAuxTheme")
                             .tag("Tools")
@@ -315,11 +324,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<PolisStatementAux>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux/{id}/themes",
-                state.required_auth(
+                required_auth(
                     delete_with(remove_statement_aux_theme, |op| {
                         op.id("PolisRemoveStatementAuxTheme")
                             .tag("Tools")
@@ -332,11 +342,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<PolisStatementAux>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux/{id}/moderate",
-                state.required_auth(
+                required_auth(
                     post_with(moderate_statement_aux, |op| {
                         op.id("PolisModerateStatementAux")
                             .tag("Tools")
@@ -350,11 +361,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<PolisStatementAux>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux/moderate_batch",
-                state.required_auth(
+                required_auth(
                     post_with(moderate_statement_aux_batch, |op| {
                         op.id("PolisModerateStatementAuxBatch")
                             .tag("Tools")
@@ -368,11 +380,12 @@ impl ToolImpl for PolisTool {
                             .response::<200, Json<ModerateStatementAuxBatchResponse>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/polis/statement_aux/{id}/split",
-                state.required_auth(
+                required_auth(
                     post_with(split_statement, |op| {
                         op.id("PolisSplitStatement")
                             .tag("Tools")
@@ -388,9 +401,9 @@ impl ToolImpl for PolisTool {
                             .response::<201, Json<SplitStatementResponse>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -1325,24 +1338,20 @@ mod tests {
     use std::error::Error;
     use std::sync::Arc;
 
-    use axum::Router;
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            polis_statement_aux::{self, CreatePolisStatementAux},
-        },
-        setup_server,
-        test_helpers::{TestAuthUser, UserSession, extract, polis_tool_config, test_state},
-        wiki_poll_service::{MockWikiPollService, WikiPollService, error::WikiPollServiceError},
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::polis_statement_aux::{self, CreatePolisStatementAux};
+    use crate::test_helpers::{UserSession, extract, polis_tool_config, test_state};
+    use crate::wiki_poll_service::error::WikiPollServiceError;
+    use crate::wiki_poll_service::{MockWikiPollService, WikiPollService};
+    use crate::{App, setup_server};
 
     use super::*;
 
     async fn setup_polis_aux(
-        app: &Router,
+        app: &App,
         pool: &PgPool,
         session: &mut UserSession,
         themes: Vec<String>,
@@ -1545,7 +1554,7 @@ mod tests {
 
     /// Create a conversation + workflow + Polis workflow step, returning the step id.
     async fn setup_polis_step(
-        app: &Router,
+        app: &App,
         session: &mut UserSession,
     ) -> Result<Uuid, Box<dyn Error>> {
         let (_, conversation, _) = session.create_random_conversation(app).await?;

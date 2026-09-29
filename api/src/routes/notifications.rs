@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -24,6 +25,7 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
+    required_auth,
 };
 
 use super::auth::extract::RequiredUser;
@@ -147,11 +149,11 @@ pub async fn get_all_notifications(
     Ok((StatusCode::OK, Json(deliveries)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/unread",
-            state.required_auth(
+            required_auth(
                 get_with(get_unread_notifications, |op| {
                     op.summary("Get unread notifications for current user")
                         .id("GetUnreadNotifications")
@@ -163,11 +165,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<PaginatedResults<NotificationWithDelivery>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/unread/count",
-            state.required_auth(
+            required_auth(
                 get_with(get_unread_count, |op| {
                     op.summary("Get unread notification count")
                         .id("GetUnreadNotificationsCount")
@@ -179,11 +182,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<UnreadCount>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(get_all_notifications, |op| {
                     op.summary("Get all notifications for current user")
                         .id("GetAllNotifications")
@@ -195,11 +199,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<PaginatedResults<NotificationWithDelivery>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/delivery/{delivery_id}/read",
-            state.required_auth(
+            required_auth(
                 put_with(mark_notification_as_read, |op| {
                     op.id("MarkNotificationAsRead")
                         .summary("Mark a notification as read")
@@ -210,11 +215,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<NotificationDelivery>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/read-all",
-            state.required_auth(
+            required_auth(
                 put_with(mark_all_notifications_as_read, |op| {
                     op.id("MarkAllNotificationsAsRead")
                         .summary("Mark all notifications as read")
@@ -225,7 +231,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<serde_json::Value>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }

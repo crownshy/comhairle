@@ -8,13 +8,13 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use hyper::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models;
 use crate::models::report::{FullReportDto, PartialReport, ReportWithTranslations};
 use crate::routes::auth::{
     extract::{OptionalUser, RequiredAdminUser},
@@ -23,6 +23,7 @@ use crate::routes::auth::{
 use crate::routes::reports::dto::{LocalizedReportDto, ReportDto};
 use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleState, error::ComhairleError};
+use crate::{models, optional_auth, required_auth};
 
 pub mod dto;
 
@@ -108,37 +109,41 @@ async fn create_report(
     Ok((StatusCode::CREATED, Json(full_report)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create_report, |op| {
                     op.id("GenerateReportForConversation")
                         .summary("Generates a report for this conversation")
                         .response::<201, Json<FullReportDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 put_with(update_report, |op| {
                     op.id("UpdateReport")
                         .summary("Update a report")
                         .response::<201, Json<ReportDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.optional_auth(get_with(get_report, |op| {
-                op.id("GetReportForConversation")
-                    .summary("Return the report of a given conversation")
-                    .response::<200, Json<FullReportDto>>()
-            })),
+            optional_auth(
+                get_with(get_report, |op| {
+                    op.id("GetReportForConversation")
+                        .summary("Return the report of a given conversation")
+                        .response::<200, Json<FullReportDto>>()
+                }),
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }

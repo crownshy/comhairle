@@ -12,6 +12,7 @@ use axum::{
     extract::{FromRequestParts, Json, Path, State},
     http::{StatusCode, request::Parts},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -24,6 +25,7 @@ use crate::{
     models::translations::{
         self, CreateTextTranslation, TextContentId, UpdateTextContent, UpdateTextTranslation,
     },
+    required_auth,
     routes::translations::dto::{TextContentDto, TextTranslationDto},
 };
 
@@ -317,12 +319,12 @@ async fn delete_text_translation(
     Ok((StatusCode::OK, Json(deleted_translation)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         // TextContent routes
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create_text_content, |op| {
                     op.id("CreateTextContent")
                         .tag("Translations")
@@ -331,11 +333,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<TextContentDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{text_content_id}",
-            state.required_auth(
+            required_auth(
                 get_with(get_text_content_with_translations, |op| {
                     op.id("GetTextContentWithTranslations")
                         .tag("Translations")
@@ -344,11 +347,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<TextContentWithTranslations>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{text_content_id}",
-            state.required_auth(
+            required_auth(
                 put_with(update_text_content, |op| {
                     op.id("UpdateTextContent")
                         .tag("Translations")
@@ -357,11 +361,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<TextContentDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{text_content_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete_text_content, |op| {
                     op.id("DeleteTextContent")
                         .tag("Translations")
@@ -370,12 +375,13 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<TextContentDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         // TextTranslation routes
         .api_route(
             "/{text_content_id}/{locale}",
-            state.required_auth(
+            required_auth(
                 get_with(get_text_translation, |op| {
                     op.id("GetTextTranslation")
                         .tag("Translations")
@@ -384,11 +390,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<TextTranslationDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            state.required_auth(
+            required_auth(
                 post_with(create_or_update_text_translation, |op| {
                     op.id("CreateOrUpdateTextTranslation")
                         .tag("Translations")
@@ -400,11 +407,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<TextTranslationDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            state.required_auth(
+            required_auth(
                 put_with(update_text_translation, |op| {
                     op.id("UpdateTextTranslation")
                         .tag("Translations")
@@ -413,11 +421,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<TextTranslationDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{text_content_id}/{locale}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete_text_translation, |op| {
                     op.id("DeleteTextTranslation")
                         .tag("Translations")
@@ -426,11 +435,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<TextTranslationDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{text_content_id}/translate",
-            state.required_auth(
+            required_auth(
                 post_with(auto_translate_all, |op| {
                     op.id("GenerateAllTranslations")
                         .tag("Translations")
@@ -442,11 +452,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<TextContentWithTranslations>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{text_content_id}/{locale}/translate",
-            state.required_auth(
+            required_auth(
                 post_with(auto_translate, |op| {
                     op.id("AutomaticallyGenerateTranslation")
                         .tag("Translations")
@@ -458,9 +469,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<TextTranslationDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

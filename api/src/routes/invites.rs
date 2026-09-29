@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, State},
 };
 use axum_extra::extract::CookieJar;
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use hyper::StatusCode;
 use tracing::{instrument, warn};
 use uuid::Uuid;
@@ -21,13 +22,11 @@ use crate::{
         self, breakout_plan, conversation, event,
         event_attendance::{self, CreateEventAttendance},
         invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite},
-        users, workflow,
+        users::{self, get_or_create_user_by_email},
+        workflow,
     },
-    routes::{
-        auth::{OtpSignupRequest, create_session_cookie},
-        invites::dto::InviteDto,
-        user::dto::UserDto,
-    },
+    required_auth,
+    routes::{auth::create_session_cookie, invites::dto::InviteDto, user::dto::UserDto},
 };
 
 use super::auth::extract::{OptionalUser, RequiredAdminUser, RequiredUser};
@@ -304,37 +303,8 @@ async fn auto_register_event_attendance(
         _ => return Err(ComhairleError::InvalidInviteType),
     };
 
-    let user = match users::get_user_by_email(email, &state.db).await.ok() {
-        Some(existing) => existing,
-        None => {
-            let new_user = users::create_otp_user(
-                &OtpSignupRequest {
-                    email: email.to_string(),
-                    username: None,
-                },
-                &state.db,
-            )
-            .await?;
-
-            // Best-effort: record the signup IP and browser signature for the
-            // freshly created account.
-            if let Err(error) = users::set_signup_metadata(
-                &new_user.id,
-                &client_ip.0,
-                user_agent.0.as_deref(),
-                &state.db,
-            )
-            .await
-            {
-                warn!(
-                    "Failed to record signup metadata for user {}: {error}",
-                    new_user.id
-                );
-            }
-
-            new_user
-        }
-    };
+    let user = get_or_create_user_by_email(&state.db, email, &client_ip.0, user_agent.0.as_deref())
+        .await?;
 
     // Register for event — existing users may already be registered, so treat
     // as a soft failure and log error rather than a hard failure
@@ -397,11 +367,11 @@ async fn auto_register_event_attendance(
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create_conversation_invite, |op| {
                     op.id("CreateInvite")
                         .summary("Create an invite")
@@ -410,22 +380,24 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<InviteDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{invite_id}",
-            state.required_auth(
+            required_auth(
                 get_with(get_invite, |op| {
                     op.id("GetInvite")
                         .summary("Get a specific invite")
                         .response::<200, Json<InviteDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{invite_id}/stats",
-            state.required_auth(
+            required_auth(
                 get_with(get_invite_stats, |op| {
                     op.id("GetInviteStats")
                         .summary("Get the daily stats for a specific invite")
@@ -434,11 +406,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Vec<DailyResponseStats>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{invite_id}/accept",
-            state.required_auth(
+            required_auth(
                 post_with(accept_invite, |op| {
                     op.id("AcceptInvite")
                         .summary("Accept the invite if you are able")
@@ -447,11 +420,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<InviteDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{invite_id}/reject",
-            state.required_auth(
+            required_auth(
                 post_with(reject_invite, |op| {
                     op.id("RejectInvite")
                         .summary("Reject the invite if you are able")
@@ -460,11 +434,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<InviteDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{invite_id}",
-            state.required_auth(
+            required_auth(
                 patch_with(update_invite, |op| {
                     op.id("UpdateInvite")
                         .summary("Update an invite")
@@ -473,11 +448,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<InviteDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{invite_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete_invite, |op| {
                     op.id("DeleteInvite")
                         .summary("Destroy and invite")
@@ -486,11 +462,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<InviteDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(list_invites_for_conversation, |op| {
                     op.id("ListInvitesForConversation")
                         .summary("Return a list of invites statements for a conversation")
@@ -499,11 +476,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Vec<InviteDto>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/events",
-            state.required_auth(
+            required_auth(
                 post_with(create_event_invite, |op| {
                     op.id("CreateEventInvite")
                         .summary("Create an event invite")
@@ -513,11 +491,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<201, Json<InviteDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/events/{event_id}",
-            state.required_auth(
+            required_auth(
                 get_with(list_invites_for_event, |op| {
                     op.id("ListInvitesForEvent")
                         .summary("Return a list of invite for an event")
@@ -526,6 +505,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Vec<InviteDto>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
@@ -537,7 +517,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<InviteDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

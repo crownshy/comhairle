@@ -12,6 +12,7 @@ use axum::{
     extract::{FromRequestParts, Path, State},
     http::{StatusCode, request::Parts},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -26,6 +27,7 @@ use crate::{
         workflow::{self, CreateWorkflow, PartialWorkflow, WorkflowStats},
         workflow_step::{self, WorkflowStep},
     },
+    required_auth,
     routes::{
         auth::extract::{RequiredAdminUser, RequiredUser},
         workflows::dto::{UserParticipationDto, WorkflowDto},
@@ -299,11 +301,14 @@ impl Display for WorkflowRouterContext {
     }
 }
 
-pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
+pub fn router(
+    keycloak_auth_instance: Arc<KeycloakAuthInstance>,
+    ctx: WorkflowRouterContext,
+) -> ApiRouter<Arc<ComhairleState>> {
     let router = ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create_workflow, |op| {
                     op.id(&format!("Create{ctx}Workflow"))
                         .tag("Workflow")
@@ -312,6 +317,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                         .response::<201, Json<WorkflowDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
@@ -334,7 +340,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
         )
         .api_route(
             "/{workflow_id}",
-            state.required_auth(
+            required_auth(
                 put_with(update_workflow, |op| {
                     op.id(&format!("Update{ctx}Workflow"))
                         .tag("Workflow")
@@ -343,11 +349,12 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                         .response::<201, Json<WorkflowDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{workflow_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete_workflow, |op| {
                     op.id(&format!("Delete{ctx}Workflow"))
                         .tag("Workflow")
@@ -356,6 +363,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                         .response::<201, Json<WorkflowDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         );
 
@@ -363,7 +371,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
         WorkflowRouterContext::Conversation => router
             .api_route(
                 "/{workflow_id}/next",
-                state.required_auth(
+                required_auth(
                     get_with(active_step_for_user, |op| {
                         op.id(&format!("Next{ctx}WorkflowStepForUser"))
                             .tag("Workflow")
@@ -372,6 +380,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                             .response::<201, Json<Option<WorkflowStep>>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
@@ -394,7 +403,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
             )
             .api_route(
                 "/{workflow_id}/register",
-                state.required_auth(
+                required_auth(
                     post_with(register_user_for_workflow, |op| {
                         op.id(&format!("RegisterUserFor{ctx}Workflow"))
                             .tag("Workflow")
@@ -403,11 +412,12 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                             .response::<201, Json<UserParticipation>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/{workflow_id}/leave",
-                state.required_auth(
+                required_auth(
                     delete_with(deregister_user_on_workflow, |op| {
                         op.id(&format!("UnregisterUserFor{ctx}Workflow"))
                             .tag("Workflow")
@@ -416,11 +426,12 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                             .response::<200, Json<UserParticipation>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/{workflow_id}/participation",
-                state.required_auth(
+                required_auth(
                     get_with(get_user_participation, |op| {
                         op.id(&format!("GetUser{ctx}Participation"))
                             .tag("Workflow")
@@ -429,12 +440,13 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                             .response::<200, Json<Option<UserParticipationDto>>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             ),
         _ => router,
     };
 
-    router.with_state(state)
+    router
 }
 
 #[cfg(test)]

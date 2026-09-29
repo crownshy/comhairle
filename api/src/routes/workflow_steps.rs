@@ -11,6 +11,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -20,6 +21,7 @@ use crate::models::translations::{
     CollectTextContentIds, TextContentId, get_text_content_with_translations, localize_translations,
 };
 use crate::models::workflow_step::WithToolConfig;
+use crate::required_auth;
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
     LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
@@ -321,11 +323,14 @@ async fn delete_workflow_step(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
-pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
+pub fn router(
+    keycloak_auth_instance: Arc<KeycloakAuthInstance>,
+    ctx: WorkflowRouterContext,
+) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create_workflow_step, |op| {
                     op.id(&format!("Create{ctx}WorkflowStep"))
                         .tag("Workflow step")
@@ -334,11 +339,12 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                         .response::<201, Json<WorkflowStepDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(list_workflows_step, |op| {
                     op.id(&format!("List{ctx}WorkflowSteps"))
                         .tag("Workflow step")
@@ -353,11 +359,12 @@ Use query param withUserProgress=true to get the active user's progress status f
                         .response::<200, Json<WorkflowStepsListResponse>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{workflow_step_id}",
-            state.required_auth(
+            required_auth(
                 get_with(get_workflow_step, |op| {
                     op.id(&format!("Get{ctx}WorkflowStep"))
                         .tag("Workflow step")
@@ -366,11 +373,12 @@ Use query param withUserProgress=true to get the active user's progress status f
                         .response::<200, Json<LocalizedWorkflowStepDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{workflow_step_id}",
-            state.required_auth(
+            required_auth(
                 put_with(update_workflow_step, |op| {
                     op.id(&format!("Update{ctx}WorkflowStep"))
                         .tag("Workflow step")
@@ -379,11 +387,12 @@ Use query param withUserProgress=true to get the active user's progress status f
                         .response::<200, Json<WorkflowStepDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{workflow_step_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete_workflow_step, |op| {
                     op.id(&format!("Delete{ctx}WorkflowStep"))
                         .tag("Workflow step")
@@ -392,9 +401,9 @@ Use query param withUserProgress=true to get the active user's progress status f
                         .response::<200, Json<WorkflowStepDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

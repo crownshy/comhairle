@@ -5,6 +5,7 @@ use axum::{
     extract::{Json, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -12,6 +13,7 @@ use crate::{
     ComhairleState,
     error::ComhairleError,
     models::api_key::{self, CreateApiKeyRequest},
+    required_auth,
     routes::auth::{extract::RequiredAdminUser, is_user_admin},
 };
 
@@ -35,17 +37,16 @@ async fn create(
     Ok((StatusCode::CREATED, Json(CreateResponse { key })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    ApiRouter::new()
-        .api_route(
-            "/",
-            state.required_auth(
-                post_with(create, |op| {
-                    op.summary("Generate api key")
-                        .response::<201, Json<CreateResponse>>()
-                }),
-                None,
-            ),
-        )
-        .with_state(state)
+pub fn router(auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
+    ApiRouter::new().api_route(
+        "/",
+        required_auth(
+            post_with(create, |op| {
+                op.summary("Generate api key")
+                    .response::<201, Json<CreateResponse>>()
+            }),
+            None,
+            auth_instance.clone(),
+        ),
+    )
 }

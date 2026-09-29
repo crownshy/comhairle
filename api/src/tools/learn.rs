@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use async_trait::async_trait;
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -102,7 +103,9 @@ impl ToolImpl for LearnTool {
         config.sanitize()
     }
 
-    fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(
+        _keycloak_auth_instance: Arc<KeycloakAuthInstance>,
+    ) -> ApiRouter<Arc<ComhairleState>> {
         // Learn tool has no routes
         ApiRouter::new()
     }

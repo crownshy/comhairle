@@ -10,6 +10,7 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
@@ -24,6 +25,7 @@ use crate::{
         job::{self, CreateJob},
         translations, user_participation, workflow, workflow_step,
     },
+    optional_auth, required_auth,
     routes::auth::{
         extract::{OptionalUser, RequiredAdminUser},
         is_user_admin,
@@ -492,21 +494,24 @@ async fn learn_content(
     Ok((StatusCode::OK, Json(LearnContentResponse { sections })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.optional_auth(get_with(list, |op| {
-                op.id("ListDocuments")
-                    .tag("Documents")
-                    .summary("Get a list of documents from a conversation's knowledge base")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<ComhairleDocument>>>()
-            })),
+            optional_auth(
+                get_with(list, |op| {
+                    op.id("ListDocuments")
+                        .tag("Documents")
+                        .summary("Get a list of documents from a conversation's knowledge base")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<ComhairleDocument>>>()
+                }),
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{document_id}",
-            state.required_auth(
+            required_auth(
                 get_with(get, |op| {
                     op.id("GetDocument")
                         .tag("Documents")
@@ -515,11 +520,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<ComhairleDocument>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{document_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteDocument")
                         .tag("Documents")
@@ -528,11 +534,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<204, ()>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{document_id}/parse",
-            state.required_auth(
+            required_auth(
                 post_with(parse_document, |op| {
                     op.id("ParseDocument")
                         .tag("Documents")
@@ -541,11 +548,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<204, ()>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{document_id}/stop_parse",
-            state.required_auth(
+            required_auth(
                 post_with(stop_parsing_document, |op| {
                     op.id("StopParsingDocument")
                         .tag("Documents")
@@ -554,21 +562,25 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<204, ()>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{document_id}/download",
-            state.optional_auth(get_with(download_document, |op| {
-                op.id("DownloadDocument")
-                    .tag("Documents")
-                    .summary("Download a document")
-                    .security_requirement("JWT")
-                    .response::<204, Response<Body>>()
-            })),
+            optional_auth(
+                get_with(download_document, |op| {
+                    op.id("DownloadDocument")
+                        .tag("Documents")
+                        .summary("Download a document")
+                        .security_requirement("JWT")
+                        .response::<204, Response<Body>>()
+                }),
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/sync_learning_content",
-            state.required_auth(
+            required_auth(
                 post_with(sync_learning_content, |op| {
                     op.id("SyncLearningContent")
                         .tag("Documents")
@@ -579,6 +591,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<SyncLearningContentResponse>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
@@ -593,7 +606,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(upload, |op| {
                     op.id("PostDocuments")
                     .tag("Documents")
@@ -617,19 +630,20 @@ curl -X POST \\
                     .response::<200, Json<UploadFileResponse>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use crate::App;
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::test_helpers::{MultipartBodyBuilder, test_state};
     use crate::{setup_server, test_helpers::UserSession};
-    use axum::{Router, body::Body, http::StatusCode};
+    use axum::{body::Body, http::StatusCode};
     use mockall::predicate::eq;
     use serde_json::json;
     use sqlx::PgPool;
@@ -680,7 +694,7 @@ mod tests {
         pool: PgPool,
         kb_id: String,
         configure_bot_service: F,
-    ) -> Result<(Router, UserSession, String), Box<dyn Error>>
+    ) -> Result<(App, UserSession, String), Box<dyn Error>>
     where
         F: FnOnce(&mut MockComhairleBotService),
     {

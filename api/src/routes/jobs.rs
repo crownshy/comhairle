@@ -8,6 +8,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -18,6 +19,7 @@ use crate::{
         job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
+    required_auth,
     routes::auth::extract::RequiredAdminUser,
 };
 
@@ -67,11 +69,11 @@ async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(list, |op| {
                     op.id("ListJobs")
                         .tag("Jobs")
@@ -80,11 +82,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<PaginatedResults<Job>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{job_id}",
-            state.required_auth(
+            required_auth(
                 get_with(get, |op| {
                     op.id("GetJob")
                         .tag("Jobs")
@@ -93,11 +96,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Job>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create, |op| {
                     op.id("CreateJob")
                         .tag("Jobs")
@@ -106,11 +110,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<Job>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/{job_id}",
-            state.required_auth(
+            required_auth(
                 delete_with(delete, |op| {
                     op.id("DeleteJob")
                         .tag("Jobs")
@@ -119,9 +124,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<204, ()>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

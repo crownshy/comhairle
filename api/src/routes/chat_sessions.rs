@@ -13,15 +13,19 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::bot_service::{ChatConversationRequest, ComhairleChatSession};
 use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::chat_instructions::{self, ChatInstructionsExt};
 use crate::models::conversation;
 use crate::routes::auth::extract::RequiredUser;
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    bot_service::{ChatConversationRequest, ComhairleChatSession},
+    required_auth,
+};
 
 #[instrument(err(Debug), skip(state))]
 pub async fn get_session(
@@ -110,11 +114,11 @@ async fn converse(
     Ok(StreamBody(body))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(get_session, |op| {
                     op.id("GetChatSessionHistory")
                         .tag("Chats")
@@ -126,11 +130,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .response::<200, Json<ComhairleChatSession>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(converse, |op| {
                     op.tag("Chats")
                         .summary("Converse with a conversation's QA chat bot")
@@ -143,9 +148,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         )
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

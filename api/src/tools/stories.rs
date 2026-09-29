@@ -10,6 +10,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -80,14 +81,16 @@ impl ToolImpl for StoriesTool {
         config.sanitize()
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
-        routes(state.clone())
+    fn routes(
+        _keycloak_auth_instance: Arc<KeycloakAuthInstance>,
+    ) -> ApiRouter<Arc<ComhairleState>> {
+        routes()
     }
 }
 
 /// Helper function to create routes (kept for backwards compatibility)
-pub fn routes(state: Arc<ComhairleState>) -> ApiRouter {
-    stories_routes(state)
+pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
+    stories_routes()
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
@@ -120,7 +123,7 @@ async fn get_story(
     Ok((StatusCode::OK, Json(vec![])))
 }
 
-fn stories_routes(state: Arc<ComhairleState>) -> ApiRouter {
+fn stories_routes() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/stories/workflow_step/{workflow_step_id}",
@@ -155,5 +158,4 @@ fn stories_routes(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<Story>>()
             }),
         )
-        .with_state(state)
 }

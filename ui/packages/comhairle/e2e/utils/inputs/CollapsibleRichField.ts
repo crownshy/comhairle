@@ -38,9 +38,9 @@ const CollapisbleRichFields = <const T extends string, U extends CollapsibleRich
 				.nth(collapisbleRichField.fallbackIndex)
 				.click();
 		},
-		async update(collapisbleRichField, value) {
-			await refs.page.locator('.tiptap').nth(collapisbleRichField.fallbackIndex).click();
-			await refs.page.locator('.tiptap').nth(collapisbleRichField.fallbackIndex).fill(value);
+		async update(_, value) {
+			await refs.page.locator('.tiptap.ProseMirror').click();
+			await refs.page.locator('.tiptap.ProseMirror').fill(value);
 			await refs.page.getByRole('button', { name: 'Done' }).click();
 		},
 		async expector(collapisbleRichField) {

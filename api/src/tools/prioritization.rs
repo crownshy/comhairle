@@ -9,6 +9,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -16,9 +17,6 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::proposal::{
-    self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations,
-};
 use crate::models::proposal_response::{
     self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
     ProposalResponseOrderOptions, QuestionResponses, ResponseValue,
@@ -37,6 +35,12 @@ use crate::routes::translations::LocaleExtractor;
 use crate::schema_helpers::{example_localized_text, example_uuid};
 use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    models::proposal::{
+        self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations,
+    },
+    required_auth,
+};
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct PrioritizationToolConfig {
@@ -256,11 +260,11 @@ impl ToolImpl for PrioritizationTool {
         config.sanitize()
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/prioritization/proposals",
-                state.required_auth(
+                required_auth(
                     post_with(create_proposal, |op| {
                         op.id("CreateProposal")
                             .tag("Tools")
@@ -274,11 +278,12 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                             .response::<201, Json<ProposalDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/prioritization/proposals",
-                state.required_auth(
+                required_auth(
                     get_with(list_proposals, |op| {
                         op.id("ListProposals")
                             .tag("Tools")
@@ -293,11 +298,12 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                             .response::<200, Json<ProposalsListResponse>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}",
-                state.required_auth(
+                required_auth(
                     delete_with(delete_proposal, |op| {
                         op.id("DeleteProposal")
                             .tag("Tools")
@@ -307,11 +313,12 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                             .response::<200, Json<ProposalDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/sections",
-                state.required_auth(
+                required_auth(
                     post_with(create_proposal_section, |op| {
                         op.id("CreateProposalSection")
                             .tag("Tools")
@@ -321,11 +328,12 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                             .response::<201, Json<ProposalSectionDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/sections/{section_id}",
-                state.required_auth(
+                required_auth(
                     delete_with(delete_proposal_section, |op| {
                         op.id("DeleteProposalSection")
                             .tag("Tools")
@@ -335,11 +343,12 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                             .response::<200, Json<ProposalSectionDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/responses",
-                state.required_auth(
+                required_auth(
                     post_with(create_proposal_response, |op| {
                         op.id("CreateProposalResponse")
                             .tag("Tools")
@@ -353,11 +362,12 @@ Create a response for prioritization tool proposal
                             .response::<201, Json<ProposalResponseDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/responses",
-                state.required_auth(
+                required_auth(
                     get_with(list_proposal_responses, |op| {
                         op.id("ListProposalResponses")
                             .tag("Tools")
@@ -367,11 +377,12 @@ Create a response for prioritization tool proposal
                             .response::<200, Json<Vec<ProposalResponseDto>>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/prioritization/insights",
-                state.required_auth(
+                required_auth(
                     get_with(get_prioritization_insights, |op| {
                         op.id("GetPrioritizationInsights")
                             .tag("Tools")
@@ -381,9 +392,9 @@ Create a response for prioritization tool proposal
                             .response::<200, Json<PrioritizationInsightsResponse>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
-            .with_state(state.clone())
     }
 }
 

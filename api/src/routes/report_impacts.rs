@@ -8,6 +8,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
@@ -19,6 +20,7 @@ use crate::{
         self,
         report_impact::{CreateImpactDTO, PartialReportImpact},
     },
+    required_auth,
     routes::report_impacts::dto::ReportImpactDto,
 };
 
@@ -77,40 +79,42 @@ async fn list_impacts_for_conversation(
     Ok((StatusCode::OK, Json(impacts)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 post_with(create_impact, |op| {
                     op.id("CreateImpact")
                         .summary("Create an impact on a report")
                         .response::<201, Json<ReportImpactDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 put_with(update_impact, |op| {
                     op.id("UpdateImpact")
                         .summary("Update an impact")
                         .response::<201, Json<ReportImpactDto>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
         .api_route(
             "/",
-            state.required_auth(
+            required_auth(
                 get_with(list_impacts_for_conversation, |op| {
                     op.id("ListImpactsForReport")
                         .summary("Return a list of impacts for a report")
                         .response::<200, Json<Vec<ReportImpactDto>>>()
                 }),
                 None,
+                keycloak_auth_instance.clone(),
             ),
         )
-        .with_state(state)
 }

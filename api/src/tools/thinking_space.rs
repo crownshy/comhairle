@@ -14,6 +14,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -21,10 +22,6 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::thinking_space_follow_up_question::{
-    self, CreateFollowUpQuestions, ThinkingSpaceFollowUpQuestion,
-    ThinkingSpaceFollowUpQuestionFilterOptions, UpdateFollowUpQuestions,
-};
 use crate::models::thinking_space_summary::{
     self, CreateSummary, ThinkingSpaceSummary, ThinkingSpaceSummaryFilterOptions, UpdateSummary,
 };
@@ -43,6 +40,13 @@ use crate::{bot_service::AgentConversationRequest, models::translations::TextFor
 use crate::{
     models::bot_service_user_session::{self, BotServiceSessionContext},
     routes::translations::LocaleExtractor,
+};
+use crate::{
+    models::thinking_space_follow_up_question::{
+        self, CreateFollowUpQuestions, ThinkingSpaceFollowUpQuestion,
+        ThinkingSpaceFollowUpQuestionFilterOptions, UpdateFollowUpQuestions,
+    },
+    required_auth,
 };
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
@@ -234,11 +238,11 @@ impl ToolImpl for ThinkingSpaceTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/thinking_space",
-                state.required_auth(
+                required_auth(
                     post_with(converse, |op| {
                         op.tag("Tools")
                             .summary("Converse with thinking space")
@@ -253,11 +257,12 @@ Use a raw HTTP request and process the response body incrementally.
                             )
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/answers",
-                state.required_auth(
+                required_auth(
                     post_with(create_thinking_space_answer, |op| {
                         op.id("CreateThinkingSpaceAnswer")
                             .summary("Create thinking space answer")
@@ -268,11 +273,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<201, Json<ThinkingSpaceAnswerDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/answers",
-                state.required_auth(
+                required_auth(
                     get_with(list_thinking_space_answers, |op| {
                         op.id("ListThinkingSpaceAnswers")
                             .summary("List thinking space answers")
@@ -281,11 +287,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<200, Json<Vec<ThinkingSpaceAnswerDto>>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/answers/{answer_id}",
-                state.required_auth(
+                required_auth(
                     put_with(update_thinking_space_answer, |op| {
                         op.id("UpdateThinkingSpaceAnswer")
                             .summary("Update thinking space answer")
@@ -296,11 +303,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<200, Json<ThinkingSpaceAnswerDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/summaries/generate",
-                state.required_auth(
+                required_auth(
                     post_with(generate_thinking_space_summary, |op| {
                         op.id("GenerateThinkingSpaceSummary")
                             .summary("Generate thinking space summary")
@@ -309,11 +317,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<201, Json<ThinkingSpaceSummaryDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/summaries",
-                state.required_auth(
+                required_auth(
                     post_with(update_or_create_thinking_space_summary, |op| {
                         op.id("UpdateOrCreateThinkingSpaceSummary")
                             .summary("Update or create thinking space summary")
@@ -325,11 +334,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<201, Json<ThinkingSpaceSummaryDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/summaries/{summary_id}",
-                state.required_auth(
+                required_auth(
                     get_with(get_thinkin_space_summary, |op| {
                         op.id("GetThinkingSpaceSummary")
                             .summary("Get thinking space summary")
@@ -338,11 +348,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<200, Json<ThinkingSpaceSummaryDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/summaries",
-                state.required_auth(
+                required_auth(
                     get_with(list_thinking_space_summaries, |op| {
                         op.id("ListThinkingSpaceSummaries")
                             .summary("List thinking space summaries")
@@ -351,11 +362,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<200, Json<Vec<ThinkingSpaceSummaryDto>>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/follow_ups",
-                state.required_auth(
+                required_auth(
                     post_with(create_thinking_space_follow_up_questions, |op| {
                         op.id("CreateThinkingSpaceFollowUpQuestions")
                             .summary("Create thinking space follow up questions")
@@ -364,11 +376,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<201, Json<ThinkingSpaceFollowUpQuestionDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/follow_ups/{follow_up_id}",
-                state.required_auth(
+                required_auth(
                     put_with(update_thinking_space_follow_up_questions, |op| {
                         op.id("UpdateThinkingSpaceFollowUpQuestions")
                             .summary("Update thinking space follow up questions")
@@ -377,11 +390,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<200, Json<ThinkingSpaceFollowUpQuestionDto>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/follow_ups",
-                state.required_auth(
+                required_auth(
                     get_with(list_thinking_space_follow_up_questions, |op| {
                         op.id("ListThinkingSpaceFollowUpQuestions")
                             .summary("List thinking space follow up questions")
@@ -390,11 +404,12 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<200, Json<Vec<ThinkingSpaceFollowUpQuestionDto>>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
             .api_route(
                 "/thinking_space/insights",
-                state.required_auth(
+                required_auth(
                     get_with(get_thinking_space_insights, |op| {
                         op.id("GetThinkingSpaceInsights")
                             .summary("Get thinking space insights data")
@@ -403,9 +418,9 @@ Use a raw HTTP request and process the response body incrementally.
                             .response::<200, Json<ThinkingSpaceInsightsResponse>>()
                     }),
                     None,
+                    keycloak_auth_instance.clone(),
                 ),
             )
-            .with_state(state.clone())
     }
 }
 
