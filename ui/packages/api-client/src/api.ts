@@ -14,7 +14,7 @@ export type GuestLoginRequest = z.infer<typeof GuestLoginRequest>;
 export const UserAuthType = z.enum([
   "guest",
   "email_password",
-  "otp",
+  "one_time_passcode",
   "scot_account",
 ]);
 export type UserAuthType = z.infer<typeof UserAuthType>;

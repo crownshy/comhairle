@@ -214,7 +214,7 @@ impl AuthService for KeycloakClient {
                     UserRepresentation {
                         id: Some(comhairle_user.id.to_string()),
                         email: comhairle_user.email.clone(),
-                        email_verified: Some(comhairle_user.email_verified),
+                        email_verified: Some(true), // Requires true for OTP signup to work
                         username: comhairle_user.username.clone(),
                         enabled: Some(true),
                         attributes: Some(additional_attributes),

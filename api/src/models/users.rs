@@ -38,6 +38,7 @@ pub enum UserAuthType {
     #[default]
     EmailPassword,
     #[sqlx(rename = "one_time_passcode")]
+    #[serde(rename = "one_time_passcode")]
     Otp,
     #[sqlx(rename = "scot_account")]
     ScotAccount,

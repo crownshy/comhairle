@@ -1246,7 +1246,10 @@ pub async fn current_user(
                 .get_user(&token)
                 .await
                 // Token exists but is invalid
-                .map_err(|_| ComhairleError::NoLoggedInUser)?;
+                .map_err(|e| {
+                    warn!("Invalid token: {e:#?}");
+                    ComhairleError::NoLoggedInUser
+                })?;
 
             let user: UserDto = user.into();
             Ok((StatusCode::OK, Json(user)))
