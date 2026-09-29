@@ -2,6 +2,7 @@ import { generateValue, sleep } from '..';
 import type { Page } from '../types';
 import { expect, type Locator } from '@playwright/test';
 import { Refs } from './types';
+import { eventually } from '../testing';
 
 const MoveUpBtn = (locator: Locator) => locator.getByLabel('Move step up');
 const MoveDownBtn = (locator: Locator) => locator.getByLabel('Move step down');
@@ -36,9 +37,18 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 	const list: DraggableListItem<T>[] = [];
 
 	refs.cleanup(async () => {
-		for (let i = 0; i < (await Menu(refs.page).count()); i++) {
-			await Menu(refs.page).first().click();
-			await MenuItem(refs.page, 'Delete').click();
+		const count = await Menu(refs.page).count();
+		for (let i = 0; i < count; i++) {
+			const MenuBtn = Menu(refs.page).first();
+			if (!(await MenuBtn.isVisible())) {
+				continue;
+			}
+			await MenuBtn.click();
+			const DeleteBtn = MenuItem(refs.page, 'Delete');
+			if (!(await DeleteBtn.isVisible())) {
+				continue;
+			}
+			await DeleteBtn.click();
 			await sleep(0.5);
 		}
 	});
@@ -59,27 +69,35 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 			| 'Lived experience'
 	) {
 		let name;
+		let stepName;
 		switch (type) {
 			case 'Learn':
 				name = 'Topic onboarding Present';
+				stepName = 'New Learn Step';
 				break;
 			case 'Poll':
 				name = 'Participant-led poll Show';
+				stepName = 'New Polis Step';
 				break;
 			case 'Survey':
 				name = 'Survey Ask participants a';
+				stepName = 'New Survey Step';
 				break;
 			case 'Individual view exploration':
 				name = 'Individual view exploration';
+				stepName = 'Thinking Space';
 				break;
 			case 'Prioritisation':
 				name = 'Proposal prioritisation';
+				stepName = 'Rate the proposals';
 				break;
 			case 'Elicitation':
 				name = 'Elicitation Bot Help';
+				stepName = 'What do you think?';
 				break;
 			case 'Lived experience':
 				name = 'Lived Experience Let users';
+				stepName = 'New Lived Experience Step';
 				break;
 			default:
 				throw new Error(`Incorrect type: ${type}`);
@@ -103,26 +121,22 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 		await AddBtn.click();
 		await refs.page.getByRole('button', { name }).click();
 		await refs.page.getByRole('button', { name: '+ Add this step' }).click();
-		await sleep(1);
+		await sleep(1.5);
 
-		// list.push({ id, name: generateValue(), position: list.length + 1 });
-		//
-		// const item = get(list.length - 1);
-		//
-		// await item.menu().rename(item.name);
+		list.push({ id, name: stepName, position: list.length + 1 });
 	}
 
-	function get(index: number): DraggableListItemComponent<T> {
+	async function get(index: number): Promise<DraggableListItemComponent<T>> {
 		const listItem = list[index];
 		if (!listItem) {
 			throw new Error(`Out of bounds index! List: ${list}, index: ${index}`);
 		}
 
 		const locator = refs.page.getByRole('listitem').filter({
-			hasText: `${index} ${listItem.name}`
+			hasText: `${index + 1} ${listItem.name}`
 		});
-		if (!locator.isVisible()) {
-			throw new Error(`Locator not found: "${index} ${listItem.name}"`);
+		if (!(await locator.isVisible())) {
+			throw new Error(`Locator not found: "${index + 1} ${listItem.name}"`);
 		}
 
 		return {
@@ -154,6 +168,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 						await NewNameTextbox.click();
 						await NewNameTextbox.fill(newName);
 						await NewNameTextbox.press('Enter');
+						await sleep(1);
 					},
 					delete: async () => {
 						await MenuBtn.click();
@@ -194,7 +209,9 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 				.getByRole('listitem')
 				.filter({ hasText: list.find((l) => l.id === id)?.name })
 				.count();
-			expect(count).toBe(2);
+			await eventually(async () => {
+				expect(count).toBe(2);
+			});
 		}
 	} as const;
 
