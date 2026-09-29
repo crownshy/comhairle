@@ -3,6 +3,7 @@ pub mod error;
 pub mod keycloak;
 
 use async_trait::async_trait;
+use hyper::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -11,7 +12,8 @@ use uuid::Uuid;
 use mockall::automock;
 
 use crate::auth_service::error::AuthServiceError;
-use crate::models::users::{User, UserAuthType};
+use crate::models::users::{UpdateUserRequest, User, UserAuthType};
+use crate::routes::user::dto::UserDto;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -21,7 +23,17 @@ pub trait AuthService: Send + Sync {
         comhairle_user: &User,
     ) -> Result<serde_json::Value, AuthServiceError>;
 
-    async fn get_user(&self, token: &str) -> Result<GetUserResponse, AuthServiceError>;
+    async fn get_user_info(&self, token: &str) -> Result<GetUserInfoResponse, AuthServiceError>;
+
+    async fn get_user_by_id(&self, id: Uuid) -> Result<UserDto, AuthServiceError>;
+
+    async fn get_user_by_email(&self, email: &str) -> Result<UserDto, AuthServiceError>;
+
+    async fn update_user_details(
+        &self,
+        id: Uuid,
+        payload: &UpdateUserRequest,
+    ) -> Result<StatusCode, AuthServiceError>;
 
     async fn get_authorization_tokens(
         &self,
@@ -36,7 +48,7 @@ pub trait AuthService: Send + Sync {
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
-pub struct GetUserResponse {
+pub struct GetUserInfoResponse {
     pub sub: Uuid,
     pub email_verified: bool,
     pub preferred_username: String,
@@ -70,8 +82,39 @@ impl MockAuthService {
             .expect_import_user()
             .returning(|_| Box::pin(async move { Ok(serde_json::json!({})) }));
         auth_service
-            .expect_get_user()
-            .returning(|_| Box::pin(async move { Ok(GetUserResponse::default()) }));
+            .expect_get_user_info()
+            .returning(|_| Box::pin(async move { Ok(GetUserInfoResponse::default()) }));
+        auth_service.expect_get_user_by_id().returning(|_| {
+            Box::pin(async move {
+                Ok(UserDto {
+                    id: Uuid::new_v4(),
+                    username: Some("admin".to_string()),
+                    email: Some("admin@crown-shy.com".to_string()),
+                    auth_type: UserAuthType::EmailPassword,
+                    guest_code: None,
+                    avatar_url: None,
+                    email_verified: false,
+                    organization_id: None,
+                })
+            })
+        });
+        auth_service.expect_get_user_by_email().returning(|_| {
+            Box::pin(async move {
+                Ok(UserDto {
+                    id: Uuid::new_v4(),
+                    username: Some("admin".to_string()),
+                    email: Some("admin@crown-shy.com".to_string()),
+                    auth_type: UserAuthType::EmailPassword,
+                    guest_code: None,
+                    avatar_url: None,
+                    email_verified: false,
+                    organization_id: None,
+                })
+            })
+        });
+        auth_service
+            .expect_update_user_details()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
         auth_service
             .expect_get_authorization_tokens()
             .returning(|_, _| {
