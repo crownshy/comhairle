@@ -1,6 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
+import { test } from './utils/testing';
+import { DraggableList } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -8,7 +10,9 @@ test.beforeEach(async ({ page }) => {
 	await Conversation.openTab(page, 'Process Design', undefined);
 });
 
-test('has title', async ({ page }) => {
-	await page.pause();
+test('Design page - Add learn', async ({ page, cleanup }) => {
+	const draggableList = await DraggableList<'a'>({ page, cleanup });
+	await draggableList.add('a', 'new', 'Learn');
+	await draggableList.expect.toInclude('a');
 	expect(true).toBe(true);
 });
