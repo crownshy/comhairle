@@ -2,6 +2,7 @@ import { generateValue, sleep, testWithRefresh } from '..';
 import type { Page } from '../types';
 import type { Refs } from './types';
 import { expect, type Locator } from '@playwright/test';
+import Textboxes from './inputs/Textboxes';
 
 const MoveUpBtn = (locator: Locator) => locator.getByLabel('Move step up');
 const MoveDownBtn = (locator: Locator) => locator.getByLabel('Move step down');
@@ -200,8 +201,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 						const NewNameTextbox = refs.page.getByRole('textbox');
 						listItem.name = newName;
 
-						await NewNameTextbox.click();
-						await NewNameTextbox.fill(newName);
+						await Textboxes.write(NewNameTextbox, newName);
 						await NewNameTextbox.press('Enter');
 						await sleep(1);
 					},
