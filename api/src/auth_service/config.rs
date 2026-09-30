@@ -8,4 +8,6 @@ pub struct AuthServiceConfig {
     pub realm: String,
     pub client_id: String,
     pub client_secret: String,
+    pub guest_client_id: String,
+    pub guest_client_secret: String,
 }

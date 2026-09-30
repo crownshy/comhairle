@@ -4,6 +4,7 @@ use crate::auth_service::{GetAuthorizationTokensResponse, GetUserInfoResponse};
 use crate::config::AuthServiceConfig;
 use crate::models::users::{UpdateUserRequest, User};
 use crate::routes::user::dto::UserDto;
+use crate::tools::id::gen_id;
 
 use super::{AuthService, error::AuthServiceError};
 
@@ -31,6 +32,8 @@ pub struct KeycloakClient {
     admin_password: String,
     client_id: String,
     client_secret: String,
+    guest_client_id: String,
+    guest_client_secret: String,
 }
 
 impl KeycloakClient {
@@ -57,6 +60,8 @@ impl KeycloakClient {
             admin_password: config.admin_password.to_owned(),
             client_id: config.client_id.to_owned(),
             client_secret: config.client_secret.to_owned(),
+            guest_client_id: config.guest_client_id.to_owned(),
+            guest_client_secret: config.guest_client_secret.to_owned(),
         })
     }
 
@@ -170,6 +175,16 @@ struct OpenidRefreshRequest<'a> {
     client_secret: &'a str,
 }
 
+#[derive(Serialize, Debug)]
+struct RopcRequest<'a> {
+    grant_type: &'a str,
+    username: &'a str,
+    password: &'a str,
+    client_id: &'a str,
+    client_secret: &'a str,
+    scope: &'a str,
+}
+
 #[async_trait]
 impl AuthService for KeycloakClient {
     async fn import_user(
@@ -202,6 +217,12 @@ impl AuthService for KeycloakClient {
             );
         }
 
+        let username = comhairle_user
+            .guest_code
+            .as_ref()
+            .or(comhairle_user.username.as_ref())
+            .cloned();
+
         let response = self
             .auth_client
             .post(&url)
@@ -216,7 +237,7 @@ impl AuthService for KeycloakClient {
                         id: Some(comhairle_user.id.to_string()),
                         email: comhairle_user.email.clone(),
                         email_verified: Some(true), // Requires true for OTP signup to work
-                        username: comhairle_user.username.clone(),
+                        username,
                         enabled: Some(true),
                         attributes: Some(additional_attributes),
                         credentials: comhairle_user
@@ -243,6 +264,53 @@ impl AuthService for KeycloakClient {
         }
 
         Ok(serde_json::json!({ "status": status.to_string() }))
+    }
+
+    async fn create_guest_user(&self) -> Result<String, AuthServiceError> {
+        let realm = self.realm();
+
+        let rand_id = gen_id();
+
+        let username = format!("guest-{rand_id}");
+
+        let attributes = HashMap::from([
+            ("guest_code".to_string(), vec![rand_id.clone()]),
+            ("comhairle_auth_type".to_string(), vec!["guest".to_string()]),
+        ]);
+
+        let new_user = UserRepresentation {
+            enabled: Some(true),
+            username: Some(username),
+            email_verified: Some(true),
+            credentials: Some(vec![CredentialRepresentation {
+                type_: Some("password".to_string()),
+                temporary: Some(false),
+                value: Some(rand_id.clone()),
+                ..Default::default()
+            }]),
+            attributes: Some(attributes),
+            ..Default::default()
+        };
+
+        let _result = realm.users_post(new_user).await?;
+
+        Ok(rand_id)
+    }
+
+    async fn authenticate_guest_user(
+        &self,
+        guest_code: &str,
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
+        let form_body = RopcRequest {
+            grant_type: "password",
+            username: &format!("guest-{guest_code}"),
+            password: guest_code,
+            client_id: &self.guest_client_id,
+            client_secret: &self.guest_client_secret,
+            scope: "openid",
+        };
+
+        self.auth_tokens(&form_body).await
     }
 
     async fn get_user_info(&self, token: &str) -> Result<GetUserInfoResponse, AuthServiceError> {

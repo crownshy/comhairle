@@ -23,6 +23,13 @@ pub trait AuthService: Send + Sync {
         comhairle_user: &User,
     ) -> Result<serde_json::Value, AuthServiceError>;
 
+    async fn create_guest_user(&self) -> Result<String, AuthServiceError>;
+
+    async fn authenticate_guest_user(
+        &self,
+        guest_code: &str,
+    ) -> Result<GetAuthorizationTokensResponse, AuthServiceError>;
+
     async fn get_user_info(&self, token: &str) -> Result<GetUserInfoResponse, AuthServiceError>;
 
     async fn get_user_by_id(&self, id: Uuid) -> Result<UserDto, AuthServiceError>;
@@ -65,7 +72,7 @@ pub struct GetUserInfoResponse {
 pub struct GetAuthorizationTokensResponse {
     pub access_token: String,
     pub expires_in: i64,
-    pub id_token: String,
+    pub id_token: Option<String>,
     pub refresh_expires_in: i64,
     pub refresh_token: String,
     pub scope: String,
@@ -81,6 +88,12 @@ impl MockAuthService {
         auth_service
             .expect_import_user()
             .returning(|_| Box::pin(async move { Ok(serde_json::json!({})) }));
+        auth_service
+            .expect_create_guest_user()
+            .returning(|| Box::pin(async move { Ok("12345".to_string()) }));
+        auth_service
+            .expect_authenticate_guest_user()
+            .returning(|_| Box::pin(async move { Ok(GetAuthorizationTokensResponse::default()) }));
         auth_service
             .expect_get_user_info()
             .returning(|_| Box::pin(async move { Ok(GetUserInfoResponse::default()) }));

@@ -380,7 +380,8 @@ async fn signup(
 
 /// Signup handler for guest
 #[instrument(err(Debug), skip(state, client_ip, user_agent))]
-async fn signup_guest(
+#[deprecated]
+async fn legacy_signup_guest(
     State(state): State<Arc<ComhairleState>>,
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
@@ -400,6 +401,27 @@ async fn signup_guest(
     }
 
     Ok((jar, (StatusCode::CREATED, Json(user))))
+}
+
+/// Signup handler for guest
+#[instrument(err(Debug), skip(state, client_ip, user_agent))]
+async fn signup_guest(
+    State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
+    jar: CookieJar,
+) -> Result<(CookieJar, Redirect), ComhairleError> {
+    let guest_code = state.auth_service.create_guest_user().await?;
+
+    let token_result = state
+        .auth_service
+        .authenticate_guest_user(&guest_code)
+        .await?;
+
+    let jar = build_auth_service_token_cookies(jar, token_result);
+
+    // TODO: handle backTo paths, maybe via redis
+    Ok((jar, Redirect::to(&state.config.domain)))
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
@@ -829,12 +851,14 @@ fn build_auth_service_token_cookies(
         .http_only(true)
         .same_site(SameSite::None)
         .max_age(Duration::seconds(token_result.expires_in));
-    let identity_cookie = Cookie::build((KC_IDENTITY_KEY, token_result.id_token))
-        .path("/")
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::None)
-        .max_age(Duration::seconds(token_result.expires_in));
+    let identity_cookie = token_result.id_token.map(|token| {
+        Cookie::build((KC_IDENTITY_KEY, token))
+            .path("/")
+            .secure(true)
+            .http_only(true)
+            .same_site(SameSite::None)
+            .max_age(Duration::seconds(token_result.expires_in))
+    });
     let refresh_cookie = Cookie::build((KC_REFRESH_KEY, token_result.refresh_token))
         .path("/")
         .secure(true)
@@ -842,9 +866,12 @@ fn build_auth_service_token_cookies(
         .same_site(SameSite::Strict)
         .max_age(Duration::seconds(token_result.refresh_expires_in));
 
-    jar.add(access_cookie)
-        .add(identity_cookie)
-        .add(refresh_cookie)
+    let mut jar = jar.add(access_cookie).add(refresh_cookie);
+    if let Some(identity_cookie) = identity_cookie {
+        jar = jar.add(identity_cookie);
+    }
+
+    jar
 }
 
 /// Decode a JWT
