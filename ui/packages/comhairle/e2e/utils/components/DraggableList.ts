@@ -160,7 +160,8 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 	}
 
 	async function get(id: T): Promise<DraggableListItemComponent<T>> {
-		const listItem = list.find((l) => l.id === id);
+		const itemIndex = list.findIndex((l) => l.id === id);
+		const listItem = list[itemIndex];
 		if (!listItem) {
 			throw new Error(`Cannot find item! List: ${list}, id: ${id}`);
 		}
@@ -207,6 +208,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 					delete: async () => {
 						await MenuBtn.click();
 						await MenuItem(refs.page, 'Delete').click();
+						list.splice(itemIndex, 1);
 					},
 					reorder: (movement) => reorder(locator, listItem, movement),
 					expect: {
