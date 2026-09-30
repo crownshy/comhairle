@@ -18,7 +18,7 @@ use uuid::Uuid;
 use super::KC_ACCESS_KEY;
 
 use crate::models::users::UserAuthType;
-use crate::routes::auth::is_user_admin;
+use crate::routes::auth::{AUTH_KEY, SessionClaims, is_user_admin, validate_jwt};
 use crate::routes::user::dto::UserDto;
 use crate::{ComhairleError, ComhairleState};
 
@@ -79,24 +79,32 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
         parts: &mut Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
-        let Extension(access_token) =
-            Extension::<KeycloakToken<String, ComhairleExtAttrs>>::from_request_parts(parts, state)
-                .await
-                .map_err(|e| {
-                    tracing::warn!("{e}");
-                    ComhairleError::NoLoggedInUser
+        let Extension(auth_status) =
+            Extension::<KeycloakAuthStatus<String, ComhairleExtAttrs>>::from_request_parts(
+                parts, state,
+            )
+            .await
+            .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
+
+        // TODO: dry up code
+        match auth_status {
+            KeycloakAuthStatus::Success(token) => {
+                let user = UserDto::try_from(token).map_err(|e| {
+                    ComhairleError::CorruptedData(format!(
+                        "Valid AuthService token had unparsable subject: {e}"
+                    ))
                 })?;
 
-        let user = UserDto::try_from(access_token).map_err(|e| {
-            ComhairleError::CorruptedData(format!(
-                "Valid AuthService token had unparsable subject: {e}"
-            ))
-        })?;
-
-        if is_user_admin(state, &user).await {
-            Ok(RequiredAdminUser(user))
-        } else {
-            Err(ComhairleError::RequiresAuthUser)
+                if is_user_admin(state, &user).await {
+                    Ok(RequiredAdminUser(user))
+                } else {
+                    Err(ComhairleError::RequiresAuthUser)
+                }
+            }
+            KeycloakAuthStatus::Failure(e) => {
+                tracing::debug!("{e}");
+                Err(ComhairleError::RequiresAuthUser)
+            }
         }
     }
 }
@@ -117,21 +125,40 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
     ) -> Result<Self, Self::Rejection> {
         // TODO: handle API key authorization, see resolve_user_from_request
 
-        let Extension(access_token) =
-            Extension::<KeycloakToken<String, ComhairleExtAttrs>>::from_request_parts(parts, state)
-                .await
-                .map_err(|e| {
-                    tracing::warn!("{e}");
-                    ComhairleError::NoLoggedInUser
+        let Extension(auth_status) =
+            Extension::<KeycloakAuthStatus<String, ComhairleExtAttrs>>::from_request_parts(
+                parts, state,
+            )
+            .await
+            .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
+
+        match auth_status {
+            KeycloakAuthStatus::Success(token) => {
+                let user = UserDto::try_from(token).map_err(|e| {
+                    ComhairleError::CorruptedData(format!(
+                        "Valid AuthService token had unparsable subject: {e}"
+                    ))
                 })?;
+                return Ok(RequiredUser(user));
+            }
+            KeycloakAuthStatus::Failure(e) => {
+                tracing::debug!("{e}");
+            }
+        }
 
-        let user = UserDto::try_from(access_token).map_err(|e| {
-            ComhairleError::CorruptedData(format!(
-                "Valid AuthService token had unparsable subject: {e}"
-            ))
-        })?;
+        // If keycloak auth fails, check for guest user in Comhairle DB
+        let jar = parts
+            .extract::<CookieJar>()
+            .await
+            .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
 
-        Ok(RequiredUser(user))
+        if let Some(token_cookie) = jar.get(AUTH_KEY) {
+            let token_str = token_cookie.value();
+            let user = validate_jwt::<SessionClaims>(state, token_str).await?;
+            Ok(RequiredUser(user))
+        } else {
+            Err(ComhairleError::UserRequired)
+        }
     }
 }
 
@@ -149,26 +176,37 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         parts: &mut Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
-        let auth_status =
+        let Extension(auth_status) =
             Extension::<KeycloakAuthStatus<String, ComhairleExtAttrs>>::from_request_parts(
                 parts, state,
             )
             .await
-            .map(|Extension(status)| status)
-            .inspect_err(|e| tracing::error!("{e}"))
-            .ok();
+            .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
 
-        let user = auth_status.and_then(|status| match status {
-            KeycloakAuthStatus::Success(token) => UserDto::try_from(token)
-                .inspect_err(|e| tracing::error!("{e}"))
-                .ok(),
+        match auth_status {
+            KeycloakAuthStatus::Success(token) => {
+                let user = UserDto::try_from(token)?;
+                return Ok(OptionalUser(Some(user)));
+            }
             KeycloakAuthStatus::Failure(e) => {
                 tracing::debug!("{e}");
-                None
             }
-        });
+        }
 
-        Ok(OptionalUser(user))
+        // TODO: extract into common functionality that can be used in different extractors
+        // If keycloak auth fails, check for guest user in Comhairle DB
+        let jar = parts
+            .extract::<CookieJar>()
+            .await
+            .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
+
+        if let Some(token_cookie) = jar.get(AUTH_KEY) {
+            let token_str = token_cookie.value();
+            let poss_user = validate_jwt::<SessionClaims>(state, token_str).await.ok();
+            Ok(OptionalUser(poss_user))
+        } else {
+            Ok(OptionalUser(None))
+        }
     }
 }
 

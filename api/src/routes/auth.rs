@@ -998,42 +998,6 @@ impl RequiredRoleResource for Conversation {
     }
 }
 
-/// Resolves a [`User`] from an incoming request by checking two authentication
-/// methods in order:
-///
-/// 1. **API key** - if an `Authorization: Bearer <token>` header is present,
-///    the token is treated as an API key. It is hashed and looked up in the
-///    database. If a matching, valid key is found the associated user is
-///    returned.
-///
-/// 2. **Session cookie** - if no bearer token is present, the request falls
-///    back to the [`LegacyOptionalUser`] extractor, which checks for a valid session
-///    cookie. If a session is found the associated user is returned.
-///
-/// # Errors
-///
-/// Returns [`ComhairleError::InvalidApiKey`] if a bearer token is present but
-/// does not match any active API key in the database.
-///
-/// Returns [`ComhairleError::UserRequired`] if no bearer token is present and
-/// no valid session cookie is found.
-async fn resolve_user_from_request(
-    parts: &mut Parts,
-    state: &Arc<ComhairleState>,
-) -> Result<User, ComhairleError> {
-    if let Ok(TypedHeader(Authorization(bearer))) =
-        TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await
-    {
-        let user_id = api_key::get_matching_user_id(&state.db, bearer.token()).await?;
-        users::get_user_by_id(&user_id, &state.db).await
-    } else {
-        parts
-            .extract_with_state::<LegacyOptionalUser, _>(state)
-            .await?
-            .0
-            .ok_or(ComhairleError::UserRequired)
-    }
-}
 /// Authorizes `user` to perform `action` on `resource`.
 ///
 /// Access is granted if the user owns the resource, or if the user (or their
@@ -1063,79 +1027,6 @@ pub async fn authorize<R: ExtractResourceId>(
         Ok(())
     } else {
         Err(ComhairleError::UserNotAuthorized)
-    }
-}
-
-/// An extractor to get a required current user.
-/// If no user is logged in then this will fail and
-/// Return a Not Found response
-#[derive(OperationIo)]
-#[deprecated]
-pub struct LegacyRequiredAdminUser(pub User);
-
-impl FromRequestParts<Arc<ComhairleState>> for LegacyRequiredAdminUser {
-    type Rejection = ComhairleError;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        let user = resolve_user_from_request(parts, state).await?;
-
-        if is_user_admin(&state, &user.clone().into()).await {
-            Ok(LegacyRequiredAdminUser(user))
-        } else {
-            Err(ComhairleError::RequiresAuthUser)
-        }
-    }
-}
-
-/// An extractor to get a required current user.
-/// If no user is logged in then this will fail and
-/// Return a Not Found response
-#[derive(OperationIo)]
-#[deprecated]
-pub struct LegacyRequiredUser(pub User);
-
-/// An extractor to get the current user if they exist
-/// If a user is not logged in, this will still run
-/// but produce a None value in the extractor
-#[derive(OperationIo, Debug)]
-#[deprecated]
-pub struct LegacyOptionalUser(pub Option<User>);
-
-impl FromRequestParts<Arc<ComhairleState>> for LegacyRequiredUser {
-    type Rejection = ComhairleError;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        resolve_user_from_request(parts, state)
-            .await
-            .map(LegacyRequiredUser)
-    }
-}
-
-impl FromRequestParts<Arc<ComhairleState>> for LegacyOptionalUser {
-    type Rejection = ComhairleError;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        let jar = parts
-            .extract::<CookieJar>()
-            .await
-            .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
-
-        if let Some(token_cookie) = jar.get(AUTH_KEY) {
-            let token_str = token_cookie.value();
-            let poss_user = validate_jwt::<SessionClaims>(state, token_str).await.ok();
-            Ok(LegacyOptionalUser(poss_user))
-        } else {
-            Ok(LegacyOptionalUser(None))
-        }
     }
 }
 
@@ -1172,7 +1063,7 @@ pub fn verify_webhook_signature(
 pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     state: &Arc<ComhairleState>,
     token: &str,
-) -> Result<User, ComhairleError> {
+) -> Result<UserDto, ComhairleError> {
     let token_data = match decode_jwt::<T>(token, &state.config.jwt_secret) {
         Ok(data) => data,
         Err(e) => {
@@ -1185,6 +1076,7 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
 
     // Fetch the user details from the database
     let uuid = Uuid::parse_str(&token_data.claims.id).unwrap();
+    // TODO: should probably scope this to only guest_users
     let current_user = match get_user_by_id(&uuid, &state.db).await {
         Ok(user) => user,
         Err(e) => {
@@ -1192,7 +1084,7 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
         }
     };
 
-    Ok(current_user)
+    Ok(current_user.into())
 }
 
 /// Deprecated. Keeping for documentation and reference temporarily.

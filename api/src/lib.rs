@@ -174,7 +174,7 @@ pub fn required_auth(
     {
         method_router.layer(keycloak_layer(
             instance.clone(),
-            PassthroughMode::Block,
+            PassthroughMode::Pass, // TODO: if works, have a single applicator function
             audiences,
         ))
     }
