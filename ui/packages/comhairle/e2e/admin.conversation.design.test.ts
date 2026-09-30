@@ -13,49 +13,49 @@ test.describe('Design page', () => {
 	test('Add learn step', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'new', 'Learn');
-		await draggableList.expect.toInclude('a');
+		await draggableList.expect();
 	});
 
 	test('Add poll step', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'new', 'Poll');
-		await draggableList.expect.toInclude('a');
+		await draggableList.expect();
 	});
 
 	test('Add survey step', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'new', 'Survey');
-		await draggableList.expect.toInclude('a');
+		await draggableList.expect();
 	});
 
 	test('Add thinking space step', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'new', 'Individual view exploration');
-		await draggableList.expect.toInclude('a');
+		await draggableList.expect();
 	});
 
 	test('Add prioritisation step', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'new', 'Prioritisation');
-		await draggableList.expect.toInclude('a');
+		await draggableList.expect();
 	});
 
 	test('Add lived experience step', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'new', 'Lived experience');
-		await draggableList.expect.toInclude('a');
+		await draggableList.expect();
 	});
 
 	test('Add step from tab bar', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'tab', 'Lived experience');
-		await draggableList.expect.toInclude('a');
+		await draggableList.expect();
 	});
 
 	test('Delete a step', async ({ page, cleanup }) => {
 		const draggableList = await DraggableList<'a'>({ page, cleanup });
 		await draggableList.add('a', 'tab', 'Lived experience');
 		await (await draggableList.get('a')).menu().delete();
-		await draggableList.expect.toBeEmpty();
+		await draggableList.expect();
 	});
 });

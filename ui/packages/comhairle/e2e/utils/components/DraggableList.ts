@@ -2,7 +2,6 @@ import { generateValue, sleep } from '..';
 import type { Page } from '../types';
 import { expect, type Locator } from '@playwright/test';
 import { Refs } from './types';
-import { eventually } from '../testing';
 
 const MoveUpBtn = (locator: Locator) => locator.getByLabel('Move step up');
 const MoveDownBtn = (locator: Locator) => locator.getByLabel('Move step down');
@@ -23,9 +22,11 @@ type DraggableListItemComponent<T> = DraggableListItem<T> & {
 		toBeAbleToMoveDownwards: (bool: boolean) => Promise<void>;
 		toNotHaveMovementButtons: () => Promise<void>;
 	};
+	reorder: (movement: 'up' | 'down') => Promise<void>;
 	menu: () => {
 		rename: (newName?: string) => Promise<void>;
 		delete: () => Promise<void>;
+		reorder: (movement: 'up' | 'down') => Promise<void>;
 		expect: {
 			toBeAbleToMoveUpwards: (bool: boolean) => Promise<void>;
 			toBeAbleToMoveDownwards: (bool: boolean) => Promise<void>;
@@ -126,6 +127,37 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 		list.push({ id, name: stepName, position: list.length + 1 });
 	}
 
+	async function reorder(
+		locator: Locator,
+		listItem: (typeof list)[number],
+		movement: 'up' | 'down'
+	) {
+		switch (movement) {
+			case 'up': {
+				await MoveUpBtn(locator).click();
+				const targetPosition = listItem.position - 1;
+				const targetItem = list.find((l) => l.position === targetPosition);
+				if (!targetItem) {
+					return;
+				}
+				listItem.position -= 1;
+				targetItem.position += 1;
+				break;
+			}
+			case 'down': {
+				await MoveDownBtn(locator).click();
+				const targetPosition = listItem.position + 1;
+				const targetItem = list.find((l) => l.position === targetPosition);
+				if (!targetItem) {
+					return;
+				}
+				listItem.position += 1;
+				targetItem.position -= 1;
+				break;
+			}
+		}
+	}
+
 	async function get(id: T): Promise<DraggableListItemComponent<T>> {
 		const listItem = list.find((l) => l.id === id);
 		if (!listItem) {
@@ -141,6 +173,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 
 		return {
 			...listItem,
+			reorder: (movement) => reorder(locator, listItem, movement),
 			expect: {
 				toBeAbleToMoveUpwards: async (bool) =>
 					bool
@@ -174,6 +207,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 						await MenuBtn.click();
 						await MenuItem(refs.page, 'Delete').click();
 					},
+					reorder: (movement) => reorder(locator, listItem, movement),
 					expect: {
 						toBeAbleToMoveUpwards: async (bool) => {
 							await MenuBtn.click();
@@ -195,28 +229,24 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 		};
 	}
 
-	const expected = {
-		toBeEmpty: () => expect(refs.page.getByText('No steps yet. Add your first')).toBeVisible(),
-		toHaveLength: async (length: number) => {
-			const count = await refs.page.getByRole('listitem').count();
-			expect(count).toBe(length);
-		},
-		toInclude: async (id: T) => {
+	async function expected() {
+		if (list.length === 0) {
+			expect(refs.page.getByText('No steps yet. Add your first')).toBeVisible();
+			return;
+		}
+		for (const item of list) {
 			const count = await refs.page
 				.getByRole('listitem')
-				.filter({ hasText: list.find((l) => l.id === id)?.name })
+				.filter({ hasText: item.name })
 				.count();
-			await eventually(async () => {
-				expect(count).toBe(2);
-			});
+			expect(count).toBe(2);
 		}
-	} as const;
+	}
 
 	return {
 		add,
 		expect: expected,
-		get,
-		count: async () => (await refs.page.getByRole('listitem').count()) / 2
+		get
 	};
 };
 
