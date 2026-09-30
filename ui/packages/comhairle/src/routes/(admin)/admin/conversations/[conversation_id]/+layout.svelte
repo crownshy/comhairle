@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
+	import TabContent from './TabContent.svelte';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -46,6 +47,13 @@
 			.replace(/\/+$/, '')
 			.startsWith(`/admin/conversations/${conversation.id}/design/step/`)
 	);
+
+	// Configure renders its own sub-tab strip above a TabContent, so it skips the padded wrapper.
+	let isConfigureSection = $derived.by(() => {
+		const base = `/admin/conversations/${conversation.id}/configure`;
+		const path = page.url.pathname.replace(/\/+$/, '');
+		return path === base || path.startsWith(`${base}/`);
+	});
 
 	// Recruit (invites) is the same shape as Configure: a static `?subtab=` strip over one page,
 	// so we server-render it here from INVITE_SUBTABS instead of a client `$effect`.
@@ -321,7 +329,17 @@
 {:else}
 	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
 		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-admin-background">
-		{@render children()}
+	<div class="bg-admin-background grow">
+		{#if showSwitchingSkeleton.current}
+			<TabContent>
+				<TabContentSkeleton />
+			</TabContent>
+		{:else if isConfigureSection}
+			{@render children()}
+		{:else}
+			<TabContent>
+				{@render children()}
+			</TabContent>
+		{/if}
 	</div>
 {/if}
