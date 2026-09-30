@@ -1,15 +1,16 @@
-import { exists } from '..';
-import UserInputs, { Refs, UserInputsInput } from './UserInputs';
+import { exists } from '../..';
+import UserInputs from './UserInputs';
+import type { Locators, Refs } from '../types';
 
-type CollapsibleRichField<T> = {
+type CollapsibleRichFields<T> = {
 	id: T;
 	name: string;
 	fallbackIndex: number;
 	value: string;
 };
 
-const CollapisbleRichFields = <const T extends string, U extends CollapsibleRichField<T>>(
-	inputs: UserInputsInput<T>,
+const CollapisbleRichFields = <const T extends string, U extends CollapsibleRichFields<T>>(
+	inputs: Locators<T>,
 	refs: Refs
 ) =>
 	UserInputs<T, U>({

@@ -1,6 +1,7 @@
 import { expect, type Locator } from '@playwright/test';
-import UserInputs, { Refs, UserInputsInput } from './UserInputs';
-import { generateValue } from '..';
+import UserInputs from './UserInputs';
+import { generateValue } from '../..';
+import type { Locators, Refs } from '../types';
 
 type Textbox<T extends string> = {
 	id: T;
@@ -11,10 +12,7 @@ type Textbox<T extends string> = {
 const IsValid = (locator: Locator): Promise<boolean> =>
 	locator.evaluate((element) => (element as HTMLInputElement).validity.valid);
 
-const New = <const T extends string, U extends Textbox<T>>(
-	inputs: UserInputsInput<T>,
-	refs: Refs
-) => {
+const New = <const T extends string, U extends Textbox<T>>(inputs: Locators<T>, refs: Refs) => {
 	const userInputs = UserInputs<T, U>({
 		inputs,
 		mutator: (name) =>

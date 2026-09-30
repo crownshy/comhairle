@@ -1,5 +1,5 @@
 import { expect, type Locator } from '@playwright/test';
-import { type Refs, type UserInputsInput } from './UserInputs';
+import type { Locators, Refs } from './types';
 
 type Switches<T extends string> = {
 	id: T;
@@ -12,7 +12,7 @@ const isSwitchOn = async (_switch: Locator): Promise<boolean> =>
 	_switch.getAttribute('data-state').then((state) => state === 'checked');
 
 const Switches = async <const T extends string, U extends Switches<T>>(
-	inputs: UserInputsInput<T>,
+	inputs: Locators<T>,
 	refs: Refs
 ) => {
 	const switches: Record<T, U> = Object.fromEntries(
