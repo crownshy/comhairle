@@ -18,20 +18,11 @@ type DraggableListItem<T> = {
 };
 
 type DraggableListItemComponent<T> = DraggableListItem<T> & {
-	expect: {
-		toBeAbleToMoveUpwards: (bool: boolean) => Promise<void>;
-		toBeAbleToMoveDownwards: (bool: boolean) => Promise<void>;
-		toNotHaveMovementButtons: () => Promise<void>;
-	};
 	reorder: (movement: 'up' | 'down') => Promise<void>;
 	menu: () => {
 		rename: (newName?: string) => Promise<void>;
 		delete: () => Promise<void>;
 		reorder: (movement: 'up' | 'down') => Promise<void>;
-		expect: {
-			toBeAbleToMoveUpwards: (bool: boolean) => Promise<void>;
-			toBeAbleToMoveDownwards: (bool: boolean) => Promise<void>;
-		};
 	};
 };
 
@@ -177,20 +168,6 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 		return {
 			...listItem,
 			reorder: (movement) => reorder(locator, listItem, movement),
-			expect: {
-				toBeAbleToMoveUpwards: async (bool) =>
-					bool
-						? await expect(MoveUpBtn(locator)).not.toBeDisabled()
-						: await expect(MoveUpBtn(locator)).toBeDisabled(),
-				toBeAbleToMoveDownwards: async (bool) =>
-					bool
-						? await expect(MoveDownBtn(locator)).not.toBeDisabled()
-						: await expect(MoveDownBtn(locator)).toBeDisabled(),
-				toNotHaveMovementButtons: async () => {
-					await expect(MoveUpBtn(locator)).not.toBeVisible();
-					await expect(MoveDownBtn(locator)).toBeVisible();
-				}
-			},
 			menu: () => {
 				const MenuBtn = Menu(refs.page).nth(listItem.position - 1);
 
@@ -210,23 +187,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 						await MenuItem(refs.page, 'Delete').click();
 						list.splice(itemIndex, 1);
 					},
-					reorder: (movement) => reorder(locator, listItem, movement),
-					expect: {
-						toBeAbleToMoveUpwards: async (bool) => {
-							await MenuBtn.click();
-							const MoveUpOption = MenuItem(refs.page, 'Move up');
-							return bool
-								? await expect(MoveUpOption).not.toBeDisabled()
-								: await expect(MoveUpOption).toBeDisabled();
-						},
-						toBeAbleToMoveDownwards: async (bool) => {
-							await MenuBtn.click();
-							const MoveDownOption = MenuItem(refs.page, 'Move down');
-							return bool
-								? await expect(MoveDownOption).not.toBeDisabled()
-								: await expect(MoveDownOption).toBeDisabled();
-						}
-					}
+					reorder: (movement) => reorder(locator, listItem, movement)
 				};
 			}
 		};
