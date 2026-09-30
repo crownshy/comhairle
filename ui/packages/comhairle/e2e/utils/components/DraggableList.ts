@@ -1,7 +1,7 @@
 import { generateValue, sleep, testWithRefresh } from '..';
 import type { Page } from '../types';
+import type { Refs } from './types';
 import { expect, type Locator } from '@playwright/test';
-import { Refs } from './types';
 
 const MoveUpBtn = (locator: Locator) => locator.getByLabel('Move step up');
 const MoveDownBtn = (locator: Locator) => locator.getByLabel('Move step down');
