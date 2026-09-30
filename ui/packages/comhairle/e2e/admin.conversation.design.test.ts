@@ -65,4 +65,20 @@ test.describe('Design page', () => {
 		await (await draggableList.get('a')).menu().rename();
 		await draggableList.expect();
 	});
+
+	test('Move a step upwards', async ({ page, cleanup }) => {
+		const draggableList = await DraggableList<'a' | 'b'>({ page, cleanup });
+		await draggableList.add('a', 'new', 'Learn');
+		await draggableList.add('b', 'new', 'Poll');
+		await (await draggableList.get('b')).reorder('up');
+		await draggableList.expect();
+	});
+
+	test('Move a step downwards', async ({ page, cleanup }) => {
+		const draggableList = await DraggableList<'a' | 'b'>({ page, cleanup });
+		await draggableList.add('a', 'new', 'Learn');
+		await draggableList.add('b', 'new', 'Poll');
+		await (await draggableList.get('a')).reorder('down');
+		await draggableList.expect();
+	});
 });
