@@ -1,11 +1,19 @@
 use crate::bulk_storage_service::error::BulkStorageError;
-use crate::models::refresh_token::RefreshFailure;
 use crate::tools::polis::PolisError;
 use crate::transcription_service::error::TranscriptionServiceError;
 use crate::translation_service::error::TranslationError;
-use crate::websockets::error::WebsocketError;
 use crate::wiki_poll_service::error::WikiPollServiceError;
 use crate::worker_service::error::WorkerServiceError;
+
+pub mod email;
+pub mod service;
+pub mod transport;
+
+pub use email::EmailError;
+pub use service::ServiceError;
+pub use transport::TransportError;
+
+use crate::models::error::{DomainError, ErrorKind, ModelError};
 
 use aide::OperationIo;
 use axum::{
@@ -20,354 +28,180 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::json;
 use thiserror::Error;
-use uuid::Uuid;
 
+/// Translates a domain error's transport-agnostic [`ErrorKind`] into the HTTP
+/// status code we answer with. This is the only place in the codebase that makes
+/// that decision, which is what keeps the model layer free of `axum`.
+fn status_for(kind: ErrorKind) -> StatusCode {
+    match kind {
+        ErrorKind::NotFound => StatusCode::NOT_FOUND,
+        ErrorKind::Conflict => StatusCode::CONFLICT,
+        ErrorKind::Unauthorized => StatusCode::UNAUTHORIZED,
+        ErrorKind::Forbidden => StatusCode::FORBIDDEN,
+        ErrorKind::Invalid => StatusCode::BAD_REQUEST,
+        ErrorKind::Unprocessable => StatusCode::UNPROCESSABLE_ENTITY,
+        ErrorKind::Internal => StatusCode::INTERNAL_SERVER_ERROR,
+        ErrorKind::Status(raw) => {
+            StatusCode::from_u16(raw).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+/// The error type crossing the HTTP boundary.
+///
+/// This is a pure wrapper: one variant per bounded context, no failure modes of
+/// its own. `Data` through `Report` wrap the model layer's own error types from
+/// [`crate::models::error`]; `Service`, `Email` and `Transport` wrap the api-side
+/// ones defined alongside this module.
+///
+/// Construct the domain error, not this. `?` promotes it, and every domain reports
+/// its own [`ErrorKind`], so the status mapping in `status_for` stays the single
+/// place a failure turns into an HTTP code.
 #[derive(Error, Debug, OperationIo)]
 #[aide(output)]
 pub enum ComhairleError {
-    #[error("Database Failed to connect: {0}")]
-    DbError(String),
-
-    #[error("Database query error: {0}")]
-    DbQueryError(#[from] sea_query::error::Error),
-
-    #[error("Failed to load config: {0}")]
-    ConfigError(#[from] config::ConfigError),
-
-    #[error("Database error: {0}")]
-    DatabaseError(#[from] sqlx::Error),
-
-    #[error("Polis error: {0}")]
-    PolisError(#[from] PolisError),
-
-    #[error("Wiki poll service error: {0}")]
-    WikiPollServiceError(#[from] WikiPollServiceError),
-
-    #[error("Translation error: {0}")]
-    TranslationError(#[from] TranslationError),
-
-    #[error("Bulk storage error: {0}")]
-    BulkStorageError(#[from] BulkStorageError),
-
-    #[error("Transcription error: {0}")]
-    TranscriptionError(#[from] TranscriptionServiceError),
-
-    #[error("Worker error: {0}")]
-    WorkerError(#[from] WorkerServiceError),
-
-    #[error("Email builder error: {0}")]
-    EmailBuilderError(#[from] lettre::error::Error),
-
-    #[error("Email address error: {0}")]
-    EmailAddressError(#[from] lettre::address::AddressError),
-
-    #[error("Email content type error: {0}")]
-    EmailContentTypeError(#[from] lettre::message::header::ContentTypeErr),
-
-    #[error("No translation service configured")]
-    NoTranslationServiceConfigured,
-
-    #[error("No bot service configured")]
-    NoBotServiceConfigured,
-
-    #[error("No bulk storage service configured")]
-    NoBulkStorageServiceConfigured,
-
-    #[error("No video service configured")]
-    NoVideoServiceConfigured,
-
-    #[error("No transcription service configured")]
-    NoTranscriptionServiceConfigured,
-
-    #[error("No worker service configured")]
-    NoWorkerServiceConfigured,
-
-    #[error("No categorization service configured")]
-    NoCategorizationServiceConfigured,
-
-    #[error("HeyForm error: {0}")]
-    HeyFormError(#[from] HeyFormError),
-
-    #[error("Ragflow error: {0}")]
-    RagflowError(#[from] RagflowError),
-
-    #[error("Multipart form parse error: {0}")]
-    MultipartParseForm(#[from] MultipartError),
-
-    #[error("Path rejection: {0}")]
-    PathRejection(#[from] PathRejection),
-
-    #[error("Template error: {0}")]
-    TemplateError(#[from] minijinja::Error),
-
-    #[error("Serde json error: {0}")]
-    SerdeJsonError(#[from] serde_json::Error),
-
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
-
-    #[error("CSS inliner error: {0}")]
-    CssInlinerError(#[from] css_inline::error::InlineError),
-
-    #[error("Guest code {0} already taken")]
-    DuplicateGuestCode(String),
-
-    #[error("Email {0} already taken")]
-    DuplicateEmail(String),
-
-    #[error("Slug {0} already taken")]
-    DuplicateSlug(String),
-
-    #[error("A recording named {0} already exists for this event")]
-    DuplicateRecordingName(String),
-
-    #[error("Failed to hash password")]
-    PasswordHash,
-
-    #[error("The password and email don't match")]
-    WrongPassword,
-
-    #[error("The password and password confirmation don't match")]
-    PasswordConfirmationMismatch,
-
-    #[error("Password does not meet security requirements: {0}")]
-    WeakPassword(String),
-
-    #[error("User required for this route")]
-    UserRequired,
-
-    #[error("Auth Error {0}")]
-    AuthJWTError(String),
-
-    #[error("Auth Error {0}")]
-    AuthWebhookSignatureError(String),
-
-    #[error("Locale Error {0}")]
-    LocaleError(String),
-
-    #[error("No user with email {0}")]
-    NoUserFoundForEmail(String),
-
-    #[error("No user with id {0}")]
-    NoUserFoundForId(Uuid),
-
-    #[error("No user found")]
-    NoUserFound,
-
-    #[error("{0} not found")]
-    ResourceNotFound(String),
-
-    #[error("Failed to create {resource_type}")]
-    FailedToCreateResource {
-        resource_type: String,
-        error: sqlx::Error,
-    },
-
-    #[error("Fai;ed to parse order params: {0}")]
-    FailedToParseOrderParams(String),
-
-    #[error("User is already participating in workflow: {0}")]
-    UserAlreadyParticipatingInWorkflow(String),
-
-    #[error("Update request contained no valid parameters")]
-    NoValidUpdates,
-
-    #[error("Failed to create guest user")]
-    FailedToCreateGuestUser,
-
-    #[error("Cant log this type of user in with this flow")]
-    WrongUserType,
-
-    #[error("User's email address is already verified")]
-    EmailAlreadyVerified,
-
-    #[error("An invite response has already been created for this invite by this user")]
-    InviteResponseAlreadyCreated,
-
-    #[error("No user logged in")]
-    NoLoggedInUser,
-
-    #[error("User is not signed up to participate in the conversation")]
-    UserIsNotParticipatingInTheConversation,
-
-    #[error("Failed to get a presigned upload url {0}")]
-    FailedToGetUploadPresign(String),
-
-    #[error("Failed to get a presigned download url {0}")]
-    FailedToGetDownloadPresign(String),
-
-    #[error("Failed to get resource {0}")]
-    NoResourceFoundForId(Uuid),
-
-    #[error("Workflow Step has wrong type expected {0}")]
-    WorkflowStepHasWrongType(String),
-
-    #[error("Conversation not live")]
-    ConversationNotLive,
-
-    #[error("Requires Auth User")]
-    RequiresAuthUser,
-
-    #[error("Invalid api key")]
-    InvalidApiKey,
-
-    #[error("Only the owner of the conversation can perform this action")]
-    UserIsNotConversationOwner,
-
-    #[error("Failed to create report")]
-    FailedToCreateReport(sqlx::Error),
-
-    #[error("Failed to update report")]
-    FailedToUpdateReport,
-
-    #[error("Failed to create feedback")]
-    FailedToCreateFeedback,
-
-    #[error("Failed to create invite")]
-    FailedToCreateInvite(sqlx::Error),
-
-    #[error("Failed to create invite response")]
-    FailedToCreateInviteResponse(sqlx::Error),
-
-    #[error("Invite does not match logged in user")]
-    InviteDoesNotMatchUser,
-
-    #[error("This invite has expired")]
-    InviteExpired,
-
-    #[error("This invite is has an invalid type")]
-    InvalidInviteType,
-
-    #[error("This invite has an invalid resource: {0}")]
-    InvalidInviteResource(String),
-
-    #[error("Failed to update feedback")]
-    FailedToUpdateFeedback,
-
-    #[error("Failed to create impact")]
-    FailedToCreateImpact,
-
-    #[error("Failed to update impact")]
-    FailedToUpdateImpact(sqlx::Error),
-
-    #[error("Failed to send email")]
-    FailedToSendEmail(#[from] lettre::transport::smtp::Error),
-
-    #[error("User id must be a valid uuid")]
-    InvalidUserId,
-
-    #[error("User is not authorized to perform this action")]
-    UserNotAuthorized,
-
-    #[error("Session refresh failure: {0}")]
-    SessionRefreshFailure(RefreshFailure),
-
-    /// The participant has already finished and the conversation does not allow revisits
-    /// afterwards. Distinct from `UserNotAuthorized` so the frontend can send
-    /// them to the thank-you page rather than surfacing a generic permission error.
-    #[error("Participant has already finished this conversation")]
-    ParticipantSealed,
-
-    #[error("Failed to generate stats for invite {0}")]
-    InviteStatsAggregationError(sqlx::Error),
-
-    #[error("Failed to generate stats for Workflow {0}")]
-    WorkflowStatsAggregationError(sqlx::Error),
-
-    #[error("WebSocket send error: {0}")]
-    WebSocketSendError(String),
-
-    #[error("WebSocket handler error: {0}")]
-    WebSocketHandlerError(Box<WebsocketError>),
-
-    #[error("Serialization error: {0}")]
-    SerializationError(String),
-
-    #[error("No workflow specified or default workflow found")]
-    NoWorkflowFoundForInvite,
-
-    #[error("No chat session was found for this bot on this conversation")]
-    NoBotUserSession,
-
-    #[error("No bot_id was found for this conversation")]
-    NoConversationBotId,
-
-    #[error("Background worker job failed: {0}")]
-    BackgroundJobFailed(String),
-
-    #[error("Failed to queue background worker job")]
-    BackgroundJobFailedToQueue,
-
-    #[error("Corrupted data: {0}")]
-    CorruptedData(String),
-
-    #[error("Download error: {0}")]
-    DownloadError(String),
-
-    #[error("Preview tool and live tool config dont match type")]
-    ToolConfigMismatch,
-
-    #[error("Bad request: {0}")]
-    BadRequest(String),
-
-    #[error("Conflict: {0}")]
-    Conflict(String),
-
-    #[error("Unprocessable: {0}")]
-    Unprocessable(String),
-
-    #[error("Tool config error: {0}")]
-    ToolConfigError(String),
-
-    #[error("Event at max capacity")]
-    EventAtCapacity,
-
-    #[error("Event has past")]
-    EventHasPast,
-
-    #[error("Event has incorrect signup mode for this action")]
-    EventInvalidSignupMode,
-
-    #[error("User is already registered for event: {0}")]
-    UserAlreadyRegisteredForEvent(String),
-
-    #[error("Conversation already live")]
-    ConversationAlreadyLive,
-
-    #[error("Event missing video_meeting_id")]
-    NoVideoMeetingId,
-
-    #[error("Missing email template schema")]
-    MissingEmailTemplateSchema(String),
-
-    #[error("Missing email template")]
-    MissingEmailTemplate(String),
-
-    #[error("CSV error: {0}")]
-    CsvError(#[from] csv::Error),
-
-    #[error("UTF-8 conversion error: {0}")]
-    Utf8Error(#[from] std::string::FromUtf8Error),
-
-    #[error("Unsupported Content-Type: {0}")]
-    UnsupportedContentType(String),
-
-    #[error("Redis error: {0}")]
-    RedisError(String),
-
-    #[error("Deserialization error: {0}")]
-    DeserializationError(String),
-    #[error("Role '{0}' is already granted on this resource")]
-    RoleAlreadyGranted(String),
-
-    #[error("Role '{0}' is not granted on this resource")]
-    RoleNotFound(String),
-
-    #[error("Cannot revoke the last system admin role")]
-    CannotRevokeLastSuperAdmin,
-
-    #[error("Stream chunk error: {0}")]
-    StreamChunkError(String),
+    #[error(transparent)]
+    Data(crate::models::error::DataError),
+
+    #[error(transparent)]
+    Validation(crate::models::error::ValidationError),
+
+    #[error(transparent)]
+    User(crate::models::error::UserError),
+
+    #[error(transparent)]
+    Auth(crate::models::error::AuthError),
+
+    #[error(transparent)]
+    Permission(crate::models::error::PermissionError),
+
+    #[error(transparent)]
+    Workflow(crate::models::error::WorkflowError),
+
+    #[error(transparent)]
+    Invite(crate::models::error::InviteError),
+
+    #[error(transparent)]
+    Event(crate::models::error::EventError),
+
+    #[error(transparent)]
+    Conversation(crate::models::error::ConversationError),
+
+    #[error(transparent)]
+    Report(crate::models::error::ReportError),
+
+    #[error(transparent)]
+    Service(#[from] ServiceError),
+
+    #[error(transparent)]
+    Email(#[from] EmailError),
+
+    #[error(transparent)]
+    Transport(#[from] TransportError),
+}
+
+/// `?` only applies a single `From`, so a domain error reached via [`ModelError`]
+/// would otherwise need two hops. These impls collapse that, and `From<ModelError>`
+/// below fans the union back out to the same variants.
+macro_rules! promote_model_domain {
+    ($($variant:ident => $domain:ty),* $(,)?) => {
+        $(
+            impl From<$domain> for ComhairleError {
+                fn from(err: $domain) -> Self {
+                    ComhairleError::$variant(err)
+                }
+            }
+        )*
+    };
+}
+
+promote_model_domain!(
+    Data => crate::models::error::DataError,
+    Validation => crate::models::error::ValidationError,
+    User => crate::models::error::UserError,
+    Auth => crate::models::error::AuthError,
+    Permission => crate::models::error::PermissionError,
+    Workflow => crate::models::error::WorkflowError,
+    Invite => crate::models::error::InviteError,
+    Event => crate::models::error::EventError,
+    Conversation => crate::models::error::ConversationError,
+    Report => crate::models::error::ReportError,
+);
+
+/// Third-party error types reach the boundary through whichever domain owns them,
+/// so a bare `?` still works on a `reqwest`, `lettre`, `serde_json` (etc.) result
+/// inside a handler returning [`ComhairleError`].
+///
+/// Each domain enum already declares `#[from]` for these, but `?` only applies one
+/// `From`, so the two-hop path needs collapsing here.
+macro_rules! promote_source {
+    ($($variant:ident($domain:ident) => $source:ty),* $(,)?) => {
+        $(
+            impl From<$source> for ComhairleError {
+                fn from(err: $source) -> Self {
+                    ComhairleError::$variant($domain::from(err))
+                }
+            }
+        )*
+    };
+}
+
+promote_source!(
+    // Services and the tools we integrate.
+    Service(ServiceError) => PolisError,
+    Service(ServiceError) => WikiPollServiceError,
+    Service(ServiceError) => TranslationError,
+    Service(ServiceError) => BulkStorageError,
+    Service(ServiceError) => TranscriptionServiceError,
+    Service(ServiceError) => WorkerServiceError,
+    Service(ServiceError) => HeyFormError,
+    Service(ServiceError) => RagflowError,
+    // Composing and sending mail.
+    Email(EmailError) => lettre::error::Error,
+    Email(EmailError) => lettre::address::AddressError,
+    Email(EmailError) => lettre::message::header::ContentTypeErr,
+    Email(EmailError) => lettre::transport::smtp::Error,
+    Email(EmailError) => minijinja::Error,
+    Email(EmailError) => css_inline::error::InlineError,
+    // Request extraction, encoding, process config.
+    Transport(TransportError) => MultipartError,
+    Transport(TransportError) => PathRejection,
+    Transport(TransportError) => serde_json::Error,
+    Transport(TransportError) => std::io::Error,
+    Transport(TransportError) => csv::Error,
+    Transport(TransportError) => std::string::FromUtf8Error,
+    Transport(TransportError) => config::ConfigError,
+);
+
+/// Raw database errors reach the HTTP boundary as `Data`, so `?` still works on a
+/// bare `sqlx` or `sea-query` result inside a handler returning [`ComhairleError`].
+impl From<sqlx::Error> for ComhairleError {
+    fn from(err: sqlx::Error) -> Self {
+        ComhairleError::Data(crate::models::error::DataError::DatabaseError(err))
+    }
+}
+
+impl From<sea_query::error::Error> for ComhairleError {
+    fn from(err: sea_query::error::Error) -> Self {
+        ComhairleError::Data(crate::models::error::DataError::DbQueryError(err))
+    }
+}
+
+impl From<ModelError> for ComhairleError {
+    fn from(err: ModelError) -> Self {
+        match err {
+            ModelError::Data(e) => e.into(),
+            ModelError::Validation(e) => e.into(),
+            ModelError::User(e) => e.into(),
+            ModelError::Auth(e) => e.into(),
+            ModelError::Permission(e) => e.into(),
+            ModelError::Workflow(e) => e.into(),
+            ModelError::Invite(e) => e.into(),
+            ModelError::Event(e) => e.into(),
+            ModelError::Conversation(e) => e.into(),
+            ModelError::Report(e) => e.into(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -379,54 +213,23 @@ pub struct ComhairleErrorResponse {
 /// status code
 impl IntoResponse for ComhairleError {
     fn into_response(self) -> axum::response::Response {
+        // Exhaustive by design: every variant is a domain error that classifies
+        // itself via `kind()`. Adding a domain without a status mapping is a
+        // compile error rather than a silent 500.
         let status_code = match self {
-            ComhairleError::DuplicateGuestCode(_)
-            | ComhairleError::DuplicateEmail(_)
-            | ComhairleError::ConversationAlreadyLive
-            | ComhairleError::EmailAlreadyVerified
-            | ComhairleError::EventAtCapacity
-            | ComhairleError::InviteResponseAlreadyCreated
-            | ComhairleError::DuplicateSlug(_)
-            | ComhairleError::DuplicateRecordingName(_)
-            | ComhairleError::UserAlreadyRegisteredForEvent(_)
-            | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
-            | ComhairleError::Conflict(_)
-            | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
-            ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,
-            ComhairleError::ResourceNotFound(_)
-            | ComhairleError::NoUserFound
-            | ComhairleError::NoUserFoundForEmail(_)
-            | ComhairleError::NoUserFoundForId(_) => StatusCode::NOT_FOUND,
-            ComhairleError::UserRequired
-            | ComhairleError::WrongPassword
-            | ComhairleError::InvalidApiKey
-            | ComhairleError::RequiresAuthUser
-            | ComhairleError::SessionRefreshFailure(_)
-            | ComhairleError::InviteDoesNotMatchUser
-            | ComhairleError::NoLoggedInUser => StatusCode::UNAUTHORIZED,
-            ComhairleError::NoValidUpdates
-            | ComhairleError::EventHasPast
-            | ComhairleError::ConversationNotLive
-            | ComhairleError::Unprocessable(_)
-            | ComhairleError::WorkflowStepHasWrongType(_) => StatusCode::UNPROCESSABLE_ENTITY,
-            ComhairleError::UserIsNotConversationOwner
-            | ComhairleError::UserNotAuthorized
-            | ComhairleError::ParticipantSealed
-            | ComhairleError::CannotRevokeLastSuperAdmin
-            | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
-            ComhairleError::PasswordConfirmationMismatch
-            | ComhairleError::WeakPassword(_)
-            | ComhairleError::UnsupportedContentType(_)
-            | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            ComhairleError::PolisError(ref err) => Into::<StatusCode>::into(err),
-            ComhairleError::WikiPollServiceError(ref err) => Into::<StatusCode>::into(err),
-            ComhairleError::TranslationError(ref err) => Into::<StatusCode>::into(err),
-            ComhairleError::BulkStorageError(ref err) => Into::<StatusCode>::into(err),
-            ComhairleError::TranscriptionError(ref err) => Into::<StatusCode>::into(err),
-            ComhairleError::WorkerError(ref err) => Into::<StatusCode>::into(err),
-            ComhairleError::HeyFormError(ref err) => Into::<StatusCode>::into(err),
-            ComhairleError::RagflowError(ref err) => Into::<StatusCode>::into(err),
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
+            ComhairleError::Data(ref err) => status_for(err.kind()),
+            ComhairleError::Validation(ref err) => status_for(err.kind()),
+            ComhairleError::User(ref err) => status_for(err.kind()),
+            ComhairleError::Auth(ref err) => status_for(err.kind()),
+            ComhairleError::Permission(ref err) => status_for(err.kind()),
+            ComhairleError::Workflow(ref err) => status_for(err.kind()),
+            ComhairleError::Invite(ref err) => status_for(err.kind()),
+            ComhairleError::Event(ref err) => status_for(err.kind()),
+            ComhairleError::Conversation(ref err) => status_for(err.kind()),
+            ComhairleError::Report(ref err) => status_for(err.kind()),
+            ComhairleError::Service(ref err) => status_for(err.kind()),
+            ComhairleError::Email(ref err) => status_for(err.kind()),
+            ComhairleError::Transport(ref err) => status_for(err.kind()),
         };
 
         (status_code, Json(json!({"err":self.to_string()}))).into_response()

@@ -1,0 +1,66 @@
+[package]
+name = "comhairle_model"
+version = "0.1.0"
+edition = "2024"
+rust-version = { "workspace" = true }
+
+[features]
+# Exposes test-only fixtures (Dummy derives, the Test resource type / Tester
+# role) to downstream crates' test builds. Enabled by comhairle_api's
+# dev-dependencies; never enable it in production code.
+test-util = ["dep:fake"]
+
+[dependencies]
+argon2 = "0.5.3"
+async-trait = { workspace = true }
+base64 = "0.22.1"
+chrono = { version = "0.4.39", features = ["serde"] }
+chrono-tz = "0.10.4"
+enum_dispatch = "0.3.13"
+hex = "0.4.3"
+fake = { version = "4", features = ["chrono", "derive", "uuid"], optional = true }
+partially = { version = "0.2.1", features = ["derive"] }
+rand = "0.8"
+rand_core = { version = "0.6", features = ["std"] }
+schemars = { version = "0.8.10", features = ["uuid1", "chrono"] }
+sea-query = { version = "0.32.3", features = [
+    "attr",
+    "postgres-array",
+    "chrono",
+] }
+sea-query-binder = { version = "0.7.0", features = [
+    "sqlx-postgres",
+    "with-chrono",
+    "with-json",
+    "with-rust_decimal",
+    "with-bigdecimal",
+    "postgres-array",
+    "with-uuid",
+    "with-time",
+    "with-ipnetwork",
+    "with-mac_address",
+    "runtime-async-std-native-tls",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = "0.11.0"
+sqlx = { workspace = true, features = [
+    "runtime-tokio-native-tls",
+    "macros",
+    "postgres",
+    "chrono",
+] }
+sqlx-postgres = { version = "0.8.3", features = ["chrono", "json", "time", "uuid"] }
+strum = "0.28"
+strum_macros = "0.28"
+thiserror = "2.0.11"
+tracing = "0.1.41"
+uuid = { workspace = true, features = ["serde", "v4"] }
+zxcvbn = "3.1.0"
+
+# Macros
+comhairle-macros = { path = "../comhairle_macros" }
+
+[dev-dependencies]
+# cfg(test) builds of this crate need the fixtures too, without the feature.
+fake = { version = "4", features = ["chrono", "derive", "uuid"] }

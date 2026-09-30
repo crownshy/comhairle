@@ -23,25 +23,13 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models;
+use crate::models::error::ValidationError;
+use crate::models::error::WorkflowError;
 use crate::routes::auth::RequiredAdminUser;
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct HeyFormToolConfig {
-    pub survey_id: String,
-    pub survey_url: String,
-    pub admin_user: String,
-    pub admin_password: String,
-    pub workspace_id: String,
-    pub project_id: String,
-    #[serde(default = "default_server_url")]
-    pub server_url: String,
-}
-
-fn default_server_url() -> String {
-    "forms.comhairle.scot".to_string()
-}
+pub use crate::models::tools::heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
 
 #[inline(always)]
 fn heyform_base_url(server_url: &str) -> String {
@@ -55,28 +43,6 @@ fn heyform_base_url(server_url: &str) -> String {
         format!("http://{}", server_url)
     }
 }
-
-impl ToolConfigSanitize for HeyFormToolConfig {
-    fn sanitize(&self) -> Self {
-        Self {
-            survey_id: self.survey_id.clone(),
-            survey_url: self.survey_url.clone(),
-            admin_user: "".into(),
-            admin_password: "".into(),
-            workspace_id: self.workspace_id.clone(),
-            project_id: self.project_id.clone(),
-            server_url: self.server_url.clone(),
-        }
-    }
-}
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
-pub struct HeyFormToolSetup {
-    #[serde(default = "default_server_url")]
-    pub server_url: String,
-}
-
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, JsonSchema)]
-pub struct HeyFormReport;
 
 fn generate_password() -> String {
     let mut rng = thread_rng();
@@ -353,7 +319,7 @@ async fn get_heyform_config_for_workflow_step(
     match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::HeyForm(config)), _) => Ok(config),
         (None, ToolConfig::HeyForm(config)) => Ok(config),
-        _ => Err(ComhairleError::WorkflowStepHasWrongType("HeyForm".into())),
+        _ => Err(WorkflowError::WorkflowStepHasWrongType("HeyForm".into()).into()),
     }
 }
 
@@ -449,7 +415,7 @@ pub async fn submissions(
             cat.to_string()
         }
         None => "inbox".to_string(), // Default to inbox if no category is provided
-        _ => return Err(ComhairleError::BadRequest("Invalid category".into())),
+        _ => return Err(ValidationError::BadRequest("Invalid category".into()).into()),
     };
 
     let submissions = fetch_all_submissions(&client, &config.survey_id, &category).await?;

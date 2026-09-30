@@ -15,10 +15,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::error::ServiceError;
+use crate::models::error::WorkflowError;
 use crate::{
     ComhairleState,
     bot_service::{AgentConversationRequest, ComhairleAgentSession},
@@ -33,24 +35,9 @@ use crate::{
 
 use super::{ToolConfigSanitize, ToolImpl};
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct ElicitationBotToolConfig {
-    pub topic: String,
-}
-
-impl ToolConfigSanitize for ElicitationBotToolConfig {
-    fn sanitize(&self) -> Self {
-        self.clone()
-    }
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
-pub struct ElicitationBotToolSetup {
-    pub topic: String,
-}
-
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, JsonSchema)]
-pub struct ElicitationBotReport;
+pub use crate::models::tools::elicitation_bot::{
+    ElicitationBotReport, ElicitationBotToolConfig, ElicitationBotToolSetup,
+};
 
 async fn elicitation_bot_setup(
     config: &ElicitationBotToolSetup,
@@ -117,7 +104,7 @@ impl ToolImpl for ElicitationBotTool {
             .config
             .bot_service
             .as_ref()
-            .ok_or(ComhairleError::NoBotServiceConfigured)?;
+            .ok_or(ServiceError::NoBotServiceConfigured)?;
 
         for session in &sessions {
             bot_service
@@ -178,9 +165,9 @@ async fn get_session_history(
         .config
         .bot_service
         .as_ref()
-        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+        .ok_or(ServiceError::NoBotServiceConfigured)?;
 
-    let user_session = bot_service_user_session::get_or_create(
+    let user_session = crate::services::bot_session::get_or_create(
         &state,
         BotServiceSessionContext::ElicitationBot,
         &user.id,
@@ -227,7 +214,7 @@ async fn converse(
         .config
         .bot_service
         .as_ref()
-        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+        .ok_or(ServiceError::NoBotServiceConfigured)?;
 
     let workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
@@ -237,13 +224,11 @@ async fn converse(
         (None, ToolConfig::ElicitationBot(config)) => config,
 
         _ => {
-            return Err(ComhairleError::ToolConfigError(
-                "incorrect config type".to_string(),
-            ));
+            return Err(WorkflowError::ToolConfigError("incorrect config type".to_string()).into());
         }
     };
 
-    let session = bot_service_user_session::get_or_create(
+    let session = crate::services::bot_session::get_or_create(
         &state,
         BotServiceSessionContext::ElicitationBot,
         &user.id,

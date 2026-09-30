@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use tokio::{sync::Mutex, time::timeout};
 use tracing::{error, instrument};
 
+use crate::error::ServiceError;
 use crate::{
     ComhairleState,
     config::WorkerConfig,
@@ -60,7 +61,7 @@ impl WorkerService for ComhairleWorkerService {
         let mut lock = self.process_documents.lock().await;
         lock.push(job)
             .await
-            .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+            .map_err(|_| ServiceError::BackgroundJobFailedToQueue)?;
 
         Ok(())
     }
@@ -70,7 +71,7 @@ impl WorkerService for ComhairleWorkerService {
         let mut lock = self.process_transcriptions.lock().await;
         lock.start_stepped(job)
             .await
-            .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+            .map_err(|_| ServiceError::BackgroundJobFailedToQueue)?;
 
         Ok(())
     }
@@ -83,7 +84,7 @@ impl WorkerService for ComhairleWorkerService {
         let mut lock = self.send_scheduled_email.lock().await;
         lock.push(job)
             .await
-            .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+            .map_err(|_| ServiceError::BackgroundJobFailedToQueue)?;
 
         Ok(())
     }

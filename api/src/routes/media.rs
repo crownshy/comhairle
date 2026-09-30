@@ -11,6 +11,8 @@ use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::error::ServiceError;
+use crate::models::error::ValidationError;
 use crate::{
     ComhairleState,
     bulk_storage_service::FileMetadata,
@@ -36,7 +38,7 @@ async fn list(
 ) -> Result<(StatusCode, Json<PaginatedResults<MediaDto>>), ComhairleError> {
     let results = media::list(&state.db, page_options, order_options, filter_options).await?;
 
-    Ok((StatusCode::OK, Json(results.into())))
+    Ok((StatusCode::OK, Json(results.map(Into::into))))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -61,7 +63,7 @@ async fn upload(
         .config
         .bulk_storage_service
         .as_ref()
-        .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
+        .ok_or(ServiceError::NoBulkStorageServiceConfigured)?;
 
     let mut upload_media_form = UploadMediaForm::new();
 
@@ -99,19 +101,13 @@ async fn upload(
     }
 
     if upload_media_form.name.is_empty() {
-        return Err(ComhairleError::BadRequest(
-            "No file name provided".to_string(),
-        ));
+        return Err(ValidationError::BadRequest("No file name provided".to_string()).into());
     }
     if upload_media_form.alt.is_empty() {
-        return Err(ComhairleError::BadRequest(
-            "No alt text provided".to_string(),
-        ));
+        return Err(ValidationError::BadRequest("No alt text provided".to_string()).into());
     }
     if upload_media_form.file.content_type.is_empty() {
-        return Err(ComhairleError::BadRequest(
-            "No content-type set".to_string(),
-        ));
+        return Err(ValidationError::BadRequest("No content-type set".to_string()).into());
     }
 
     // Unsupported content will error out here
@@ -262,6 +258,7 @@ curl -X POST \\
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::error::ModelError;
 
     use std::error::Error;
 
@@ -277,10 +274,7 @@ mod tests {
 
     use sqlx::PgPool;
 
-    async fn create_random_image_record(
-        db: &PgPool,
-        user_id: &Uuid,
-    ) -> Result<Media, ComhairleError> {
+    async fn create_random_image_record(db: &PgPool, user_id: &Uuid) -> Result<Media, ModelError> {
         let random_name = gen_id();
         let params = CreateMedia {
             store_name: "comhairle-media-test".to_string(),

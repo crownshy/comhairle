@@ -30,11 +30,9 @@ pub async fn send_scheduled_email(
         "Sending scheduled email to recipient"
     );
 
-    req.scheduled_email
-        .clone()
-        .email_config
-        .template
-        .mailer_send(&req.scheduled_email.user_email, &state)
+    let template = req.scheduled_email.clone().email_config.template;
+
+    crate::services::scheduled_email::send(&template, &req.scheduled_email.user_email, &state)
         .await
         .map_err(|e| WorkerServiceError::MailerError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)

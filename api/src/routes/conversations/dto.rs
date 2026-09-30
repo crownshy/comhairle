@@ -1,3 +1,4 @@
+use crate::routes::media::dto::FromWithMedia;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -5,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     models::{
         conversation::{Conversation, LocalizedConversation},
-        media::{FromWithMedia, MediaResolver},
+        media::MediaResolver,
         pagination::PaginatedResults,
         translations::TextContentId,
     },

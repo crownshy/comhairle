@@ -12,6 +12,7 @@ use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::error::PermissionError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -35,7 +36,7 @@ async fn create_impact(
 ) -> Result<(StatusCode, Json<ReportImpactDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserIsNotConversationOwner);
+        return Err(PermissionError::UserIsNotConversationOwner.into());
     }
 
     let impact = models::report_impact::create(&state.db, create_request, &report_id, &user.id)
@@ -66,7 +67,7 @@ async fn list_impacts_for_conversation(
 ) -> Result<(StatusCode, Json<Vec<ReportImpactDto>>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserIsNotConversationOwner);
+        return Err(PermissionError::UserIsNotConversationOwner.into());
     }
 
     let impacts = models::report_impact::get_for_report(&state.db, &report_id)

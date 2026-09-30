@@ -19,6 +19,8 @@ use reqwest::StatusCode;
 use serde_json::{Value, from_str};
 use tracing::instrument;
 
+use crate::error::ServiceError;
+use crate::models::error::DataError;
 use crate::{
     bot_service::{
         AgentConversationRequest, BotServiceSseEvent, ChatConversationRequest, ComhairleAgent,
@@ -191,10 +193,11 @@ impl ComhairleBotService for ComhairleRagBotService {
         let (_, knowledge_bases) = ragflow::dataset::list(&self.client, Some(params)).await?;
 
         if knowledge_bases.is_empty() || knowledge_bases.len() > 1 {
-            return Err(ComhairleError::RagflowError(RagflowError::Api {
+            return Err(ServiceError::RagflowError(RagflowError::Api {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: "error retrieving knowledge base after update".to_string(),
-            }));
+            })
+            .into());
         }
 
         let knowledge_base: ComhairleKnowledgeBase = (&knowledge_bases[0]).into();
@@ -288,10 +291,11 @@ impl ComhairleBotService for ComhairleRagBotService {
             ragflow::document::list(&self.client, knowledge_base_id, Some(params)).await?;
 
         if documents.is_empty() || documents.len() > 1 {
-            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+            return Err(ServiceError::RagflowError(ragflow::RagflowError::Api {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: "error retrieving document after update".to_string(),
-            }));
+            })
+            .into());
         }
 
         let document: ComhairleDocument = (&documents[0]).into();
@@ -409,10 +413,11 @@ impl ComhairleBotService for ComhairleRagBotService {
         let (_, chats) = ragflow::chat::list(&self.client, Some(params)).await?;
 
         if chats.is_empty() || chats.len() > 1 {
-            return Err(ComhairleError::RagflowError(RagflowError::Api {
+            return Err(ServiceError::RagflowError(RagflowError::Api {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: "error retrieving chat after update".to_string(),
-            }));
+            })
+            .into());
         }
 
         let chat: ComhairleChat = (&chats[0]).into();
@@ -502,10 +507,11 @@ impl ComhairleBotService for ComhairleRagBotService {
             ragflow::chat::session::list(&self.client, chat_id, Some(params)).await?;
 
         if chat_sessions.is_empty() || chat_sessions.len() > 1 {
-            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+            return Err(ServiceError::RagflowError(ragflow::RagflowError::Api {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: "error retrieving session after update".to_string(),
-            }));
+            })
+            .into());
         }
 
         let chat_session: ComhairleChatSession = (&chat_sessions[0]).into();
@@ -591,10 +597,11 @@ impl ComhairleBotService for ComhairleRagBotService {
         let (status, json) = ragflow::agent::create(&self.client, body).await?;
 
         if !json.data {
-            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+            return Err(ServiceError::RagflowError(ragflow::RagflowError::Api {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: "Error creating agent".to_string(),
-            }));
+            })
+            .into());
         }
 
         let params = GetQueryParams {
@@ -604,10 +611,11 @@ impl ComhairleBotService for ComhairleRagBotService {
         let (_, agents) = ragflow::agent::list(&self.client, Some(params)).await?;
 
         if agents.is_empty() || agents.len() > 1 {
-            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+            return Err(ServiceError::RagflowError(ragflow::RagflowError::Api {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: "Error retrieving agent after creation".to_string(),
-            }));
+            })
+            .into());
         }
 
         let agent: ComhairleAgent = (&agents[0]).into();
@@ -631,10 +639,11 @@ impl ComhairleBotService for ComhairleRagBotService {
         let (_, agents) = ragflow::agent::list(&self.client, Some(params)).await?;
 
         if agents.is_empty() || agents.len() > 1 {
-            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+            return Err(ServiceError::RagflowError(ragflow::RagflowError::Api {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: "error retrieving agent after update".to_string(),
-            }));
+            })
+            .into());
         }
 
         let agent: ComhairleAgent = (&agents[0]).into();
@@ -756,9 +765,10 @@ async fn intercept_ragflow_stream(
         let first = first?;
 
         if extract_ragflow_stream_error(&first).is_some() {
-            return Err(ComhairleError::StreamChunkError(
+            return Err(ServiceError::StreamChunkError(
                 "Chunk contains ragflow '**ERROR**:' message. Aborting.".to_string(),
-            ));
+            )
+            .into());
         }
 
         // No error - put the chunk back on the front of the stream.
@@ -800,7 +810,7 @@ fn build_agent_dsl() -> Result<serde_json::Value, ComhairleError> {
         "../agent_templates/ragflow-agent-static-dsl-content.json"
     ))?;
     dsl.as_object_mut()
-        .ok_or(ComhairleError::CorruptedData(
+        .ok_or(DataError::CorruptedData(
             "json template must be an object".to_string(),
         ))?
         .insert("graph".to_string(), graph_json.clone());
@@ -818,7 +828,7 @@ pub async fn parse_sse_stream(
     }
 
     let raw_str = String::from_utf8(raw_bytes).map_err(|_| {
-        ComhairleError::CorruptedData("Invalid UTF-8 in bot service response".to_string())
+        DataError::CorruptedData("Invalid UTF-8 in bot service response".to_string())
     })?;
 
     let chunks = parse_sse_str(&raw_str);
@@ -829,9 +839,10 @@ pub async fn parse_sse_stream(
         .map(|chunk| chunk.data.error.as_ref())
         .and_then(|error| error)
     {
-        return Err(ComhairleError::StreamChunkError(format!(
+        return Err(ServiceError::StreamChunkError(format!(
             "Chunk contains ragflow '**ERROR**:' message: {error}"
-        )));
+        ))
+        .into());
     }
 
     Ok(chunks)
@@ -1387,6 +1398,7 @@ impl From<SseEvent> for BotServiceSseEvent {
 mod tests {
     use super::*;
 
+    use crate::models::error::ValidationError;
     use std::error::Error;
 
     #[tokio::test]
@@ -1421,7 +1433,10 @@ mod tests {
         let result = parse_sse_stream(boxed).await.unwrap_err();
 
         assert!(
-            matches!(result, ComhairleError::StreamChunkError(_)),
+            matches!(
+                result,
+                ComhairleError::Service(ServiceError::StreamChunkError(_))
+            ),
             "incorrect error type"
         );
 
@@ -1546,7 +1561,10 @@ mod tests {
 
         let result = intercept_ragflow_stream(boxed).await;
         assert!(
-            matches!(result, Err(ComhairleError::StreamChunkError(_))),
+            matches!(
+                result,
+                Err(ComhairleError::Service(ServiceError::StreamChunkError(_)))
+            ),
             "Error chunk not detected"
         );
 
@@ -1595,15 +1613,19 @@ mod tests {
 
     #[tokio::test]
     async fn comhairle_error_propogated_as_is() -> Result<(), Box<dyn Error>> {
-        let chunks = stream::iter(vec![Err(ComhairleError::BadRequest(
+        let chunks = stream::iter(vec![Err(ValidationError::BadRequest(
             "missing param".to_string(),
-        ))]);
+        )
+        .into())]);
         let boxed: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(chunks);
 
         let result = intercept_ragflow_stream(boxed).await;
 
         assert!(
-            matches!(result, Err(ComhairleError::BadRequest(_))),
+            matches!(
+                result,
+                Err(ComhairleError::Validation(ValidationError::BadRequest(_)))
+            ),
             "Comhairle error not propogated"
         );
 

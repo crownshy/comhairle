@@ -134,6 +134,9 @@ ragflow = { path = "../adaptors/ragflow" }
 
 # Macros
 comhairle-macros = { path = "../comhairle_macros" }
+
+# The data model crate
+comhairle_model = { path = "../comhairle_model" }
 tracing-test = "0.2.5"
 dotenvy = "0.15.7"
 fake = { version = "4", features = ["chrono", "derive", "uuid"] }
@@ -160,6 +163,7 @@ serial_test = "4.0.1"
 axum-prometheus = "0.10.1"
 
 [dev-dependencies]
+comhairle_model = { path = "../comhairle_model", features = ["test-util"] }
 fake = { version = "4", features = ["derive"] }
 redis-test = "1.0.4"
 

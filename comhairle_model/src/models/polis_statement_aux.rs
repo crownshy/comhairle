@@ -1,0 +1,676 @@
+use crate::models::error::ModelError;
+use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
+use sea_query::{
+    Expr, OnConflict, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def,
+};
+use sea_query_binder::SqlxBinder;
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
+use tracing::instrument;
+use uuid::Uuid;
+
+use crate::models::SqlxResultExt;
+use crate::models::moderation_status::ModerationStatus;
+
+#[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[enum_def(table_name = "polis_statement_aux")]
+pub struct PolisStatementAux {
+    pub id: Uuid,
+    pub workflow_step_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub zid: i32,
+    pub polis_conversation_id: String,
+    pub polis_statement_id: i32,
+    pub statement_text: String,
+    pub moderation_status: ModerationStatus,
+    pub is_seed: bool,
+    pub themes: Vec<String>,
+    pub visible_statement_when_submitted: Option<String>,
+    pub moderation_reason: Option<String>,
+    /// Lineage for a derived (split / reworded) statement: the aux row it was
+    /// split or reworded from. `Some` only on admin-authored derived statements
+    /// (`is_seed = false`); `None` on seeds and raw participant statements.
+    pub original_statement_id: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+const DEFAULT_COLUMNS: [PolisStatementAuxIden; 15] = [
+    PolisStatementAuxIden::Id,
+    PolisStatementAuxIden::WorkflowStepId,
+    PolisStatementAuxIden::UserId,
+    PolisStatementAuxIden::Zid,
+    PolisStatementAuxIden::PolisConversationId,
+    PolisStatementAuxIden::PolisStatementId,
+    PolisStatementAuxIden::StatementText,
+    PolisStatementAuxIden::ModerationStatus,
+    PolisStatementAuxIden::IsSeed,
+    PolisStatementAuxIden::Themes,
+    PolisStatementAuxIden::VisibleStatementWhenSubmitted,
+    PolisStatementAuxIden::ModerationReason,
+    PolisStatementAuxIden::OriginalStatementId,
+    PolisStatementAuxIden::CreatedAt,
+    PolisStatementAuxIden::UpdatedAt,
+];
+
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct CreatePolisStatementAux {
+    pub workflow_step_id: Uuid,
+    pub zid: i32,
+    pub polis_conversation_id: String,
+    pub polis_statement_id: i32,
+    pub statement_text: String,
+    #[serde(default)]
+    pub moderation_status: ModerationStatus,
+    pub is_seed: bool,
+    pub themes: Vec<String>,
+    pub visible_statement_when_submitted: Option<String>,
+    pub moderation_reason: Option<String>,
+}
+
+impl CreatePolisStatementAux {
+    fn columns(&self) -> Vec<PolisStatementAuxIden> {
+        vec![
+            PolisStatementAuxIden::WorkflowStepId,
+            PolisStatementAuxIden::Zid,
+            PolisStatementAuxIden::PolisConversationId,
+            PolisStatementAuxIden::PolisStatementId,
+            PolisStatementAuxIden::StatementText,
+            PolisStatementAuxIden::ModerationStatus,
+            PolisStatementAuxIden::IsSeed,
+            PolisStatementAuxIden::Themes,
+            PolisStatementAuxIden::VisibleStatementWhenSubmitted,
+            PolisStatementAuxIden::ModerationReason,
+        ]
+    }
+
+    fn values(&self) -> Vec<SimpleExpr> {
+        vec![
+            self.workflow_step_id.into(),
+            self.zid.into(),
+            self.polis_conversation_id.clone().into(),
+            self.polis_statement_id.into(),
+            self.statement_text.clone().into(),
+            self.moderation_status.clone().into(),
+            self.is_seed.into(),
+            self.themes.clone().into(),
+            self.visible_statement_when_submitted.clone().into(),
+            self.moderation_reason.clone().into(),
+        ]
+    }
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn create(
+    db: &PgPool,
+    user_id: Uuid,
+    create_aux: &CreatePolisStatementAux,
+) -> Result<PolisStatementAux, ModelError> {
+    let mut columns = create_aux.columns();
+    let mut values = create_aux.values();
+
+    columns.push(PolisStatementAuxIden::UserId);
+    values.push(user_id.into());
+
+    let (sql, values) = Query::insert()
+        .into_table(PolisStatementAuxIden::Table)
+        .columns(columns)
+        .values(values)?
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(aux)
+}
+
+/// A derived statement to insert as part of a split: an admin-authored
+/// replacement (`is_seed = false`, auto-accepted) that points back at the
+/// original participant statement via `original_statement_id`. `user_id` is
+/// left NULL: the admin authored it, so it is not attributed to a participant.
+#[derive(Debug)]
+pub struct CreateDerivedStatement {
+    pub workflow_step_id: Uuid,
+    pub zid: i32,
+    pub polis_conversation_id: String,
+    pub polis_statement_id: i32,
+    pub statement_text: String,
+    pub original_statement_id: Uuid,
+}
+
+impl CreateDerivedStatement {
+    fn columns(&self) -> Vec<PolisStatementAuxIden> {
+        vec![
+            PolisStatementAuxIden::WorkflowStepId,
+            PolisStatementAuxIden::Zid,
+            PolisStatementAuxIden::PolisConversationId,
+            PolisStatementAuxIden::PolisStatementId,
+            PolisStatementAuxIden::StatementText,
+            PolisStatementAuxIden::ModerationStatus,
+            PolisStatementAuxIden::IsSeed,
+            PolisStatementAuxIden::OriginalStatementId,
+        ]
+    }
+
+    fn values(&self) -> Vec<SimpleExpr> {
+        vec![
+            self.workflow_step_id.into(),
+            self.zid.into(),
+            self.polis_conversation_id.clone().into(),
+            self.polis_statement_id.into(),
+            self.statement_text.clone().into(),
+            // Admin-authored replacements are auto-accepted and never seeds.
+            ModerationStatus::Accepted.into(),
+            false.into(),
+            self.original_statement_id.into(),
+        ]
+    }
+}
+
+/// Persist a split atomically: insert each derived replacement row (with lineage
+/// and `moderation_status = accepted`) and mark the original statement rejected
+/// with `reason`, all in one transaction. The Polis side (posting the
+/// replacements, accepting them, rejecting the original) has already happened;
+/// this only records the outcome locally. Returns `(updated original, derived rows)`.
+///
+/// The derived insert upserts on `(workflow_step_id, polis_statement_id)` so that
+/// if a concurrent sync already pulled the freshly-posted replacement in as a
+/// plain row, we enrich it with its lineage rather than conflicting.
+#[instrument(err(Debug), skip(db))]
+pub async fn record_split(
+    db: &PgPool,
+    original_id: Uuid,
+    derived: &[CreateDerivedStatement],
+    reason: &str,
+) -> Result<(PolisStatementAux, Vec<PolisStatementAux>), ModelError> {
+    let mut tx = db.begin().await?;
+
+    let mut derived_rows = Vec::with_capacity(derived.len());
+    for record in derived {
+        let (sql, values) = Query::insert()
+            .into_table(PolisStatementAuxIden::Table)
+            .columns(record.columns())
+            .values(record.values())?
+            .on_conflict(
+                OnConflict::columns([
+                    PolisStatementAuxIden::WorkflowStepId,
+                    PolisStatementAuxIden::PolisStatementId,
+                ])
+                .update_columns([
+                    PolisStatementAuxIden::StatementText,
+                    PolisStatementAuxIden::ModerationStatus,
+                    PolisStatementAuxIden::IsSeed,
+                    PolisStatementAuxIden::OriginalStatementId,
+                ])
+                .value(PolisStatementAuxIden::UpdatedAt, Expr::current_timestamp())
+                .to_owned(),
+            )
+            .returning(Query::returning().columns(DEFAULT_COLUMNS))
+            .build_sqlx(PostgresQueryBuilder);
+
+        let row = query_as_with::<_, PolisStatementAux, _>(&sql, values)
+            .fetch_one(&mut *tx)
+            .await?;
+        derived_rows.push(row);
+    }
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(vec![
+            (
+                PolisStatementAuxIden::ModerationStatus,
+                ModerationStatus::Rejected.into(),
+            ),
+            (
+                PolisStatementAuxIden::ModerationReason,
+                reason.to_owned().into(),
+            ),
+        ])
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(original_id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let original = query_as_with::<_, PolisStatementAux, _>(&sql, values)
+        .fetch_one(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+
+    Ok((original, derived_rows))
+}
+
+#[derive(Debug)]
+pub struct UpsertFromPolis {
+    pub workflow_step_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub zid: i32,
+    pub polis_conversation_id: String,
+    pub polis_statement_id: i32,
+    pub statement_text: String,
+    pub is_seed: bool,
+    pub moderation_status: ModerationStatus,
+}
+
+/// Upsert a row from polis. On conflict (workflow_step_id, polis_statement_id),
+/// `statement_text`, `is_seed`, and `moderation_status` are refreshed from
+/// polis. `moderation_reason`, `themes`, `visible_statement_when_submitted`,
+/// `original_statement_id`, and `user_id` are preserved (these are comhairle-side
+/// state polis doesn't know about) by virtue of being absent from `update_columns`.
+#[instrument(err(Debug), skip(db))]
+pub async fn upsert_from_polis(
+    db: &PgPool,
+    record: &UpsertFromPolis,
+) -> Result<PolisStatementAux, ModelError> {
+    let columns = [
+        PolisStatementAuxIden::WorkflowStepId,
+        PolisStatementAuxIden::UserId,
+        PolisStatementAuxIden::Zid,
+        PolisStatementAuxIden::PolisConversationId,
+        PolisStatementAuxIden::PolisStatementId,
+        PolisStatementAuxIden::StatementText,
+        PolisStatementAuxIden::IsSeed,
+        PolisStatementAuxIden::ModerationStatus,
+    ];
+    let values: Vec<SimpleExpr> = vec![
+        record.workflow_step_id.into(),
+        record.user_id.into(),
+        record.zid.into(),
+        record.polis_conversation_id.clone().into(),
+        record.polis_statement_id.into(),
+        record.statement_text.clone().into(),
+        record.is_seed.into(),
+        record.moderation_status.clone().into(),
+    ];
+
+    let (sql, values) = Query::insert()
+        .into_table(PolisStatementAuxIden::Table)
+        .columns(columns)
+        .values(values)?
+        .on_conflict(
+            OnConflict::columns([
+                PolisStatementAuxIden::WorkflowStepId,
+                PolisStatementAuxIden::PolisStatementId,
+            ])
+            .update_columns([
+                PolisStatementAuxIden::StatementText,
+                PolisStatementAuxIden::IsSeed,
+                PolisStatementAuxIden::ModerationStatus,
+            ])
+            .value(PolisStatementAuxIden::UpdatedAt, Expr::current_timestamp())
+            .to_owned(),
+        )
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(aux)
+}
+
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct UpdatePolisStatementAux {
+    pub statement_text: Option<String>,
+    pub moderation_status: Option<ModerationStatus>,
+    pub themes: Option<Vec<String>>,
+    pub visible_statement_when_submitted: Option<String>,
+    pub moderation_reason: Option<String>,
+}
+
+impl UpdatePolisStatementAux {
+    /// The `(column, value)` pairs for the fields that are `Some`. Shared by the
+    /// single-row `update` and the bulk `update_many` so both apply the same
+    /// partial-update semantics.
+    fn to_values(&self) -> Vec<(PolisStatementAuxIden, SimpleExpr)> {
+        let mut values: Vec<(PolisStatementAuxIden, SimpleExpr)> = vec![];
+
+        if let Some(text) = &self.statement_text {
+            values.push((PolisStatementAuxIden::StatementText, text.clone().into()));
+        }
+        if let Some(status) = &self.moderation_status {
+            values.push((
+                PolisStatementAuxIden::ModerationStatus,
+                status.clone().into(),
+            ));
+        }
+        if let Some(themes) = &self.themes {
+            values.push((PolisStatementAuxIden::Themes, themes.clone().into()));
+        }
+        if let Some(visible) = &self.visible_statement_when_submitted {
+            values.push((
+                PolisStatementAuxIden::VisibleStatementWhenSubmitted,
+                visible.clone().into(),
+            ));
+        }
+        if let Some(reason) = &self.moderation_reason {
+            values.push((
+                PolisStatementAuxIden::ModerationReason,
+                reason.clone().into(),
+            ));
+        }
+
+        values
+    }
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn update(
+    db: &PgPool,
+    id: Uuid,
+    update_aux: &UpdatePolisStatementAux,
+) -> Result<PolisStatementAux, ModelError> {
+    let values = update_aux.to_values();
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(values)
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(aux)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, ModelError> {
+    let (sql, values) = Query::select()
+        .from(PolisStatementAuxIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(*id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Polis Statement Aux")?;
+
+    Ok(aux)
+}
+
+/// Bulk partial-update many rows in one statement, returning the updated rows.
+/// Applies the same field semantics as [`update`]: only the `Some` fields of
+/// `update_aux` are written. Used by batch moderation once the decisions have
+/// been forwarded to Polis. An empty id slice is a no-op.
+#[instrument(err(Debug), skip(db))]
+pub async fn update_many(
+    db: &PgPool,
+    ids: &[Uuid],
+    update_aux: &UpdatePolisStatementAux,
+) -> Result<Vec<PolisStatementAux>, ModelError> {
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(update_aux.to_values())
+        .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(aux)
+}
+
+/// The `(column, value)` pairs a moderation decision writes. Both single
+/// [`moderate`] and bulk [`moderate_many`] use this so they apply identical
+/// semantics: unlike the partial-update path, `moderation_reason` is *always*
+/// written (NULL when `reason` is `None`), so accepting a statement clears any
+/// prior rejection reason (ADR-0015).
+fn moderation_values(
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> [(PolisStatementAuxIden, SimpleExpr); 2] {
+    [
+        (PolisStatementAuxIden::ModerationStatus, status.into()),
+        (
+            PolisStatementAuxIden::ModerationReason,
+            reason.map(|s| s.to_string()).into(),
+        ),
+    ]
+}
+
+/// Apply a moderation decision to a single row, setting `moderation_status`
+/// and `moderation_reason` together (see [`moderation_values`]).
+#[instrument(err(Debug), skip(db))]
+pub async fn moderate(
+    db: &PgPool,
+    id: Uuid,
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> Result<PolisStatementAux, ModelError> {
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(moderation_values(status, reason))
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(aux)
+}
+
+/// Apply a moderation decision to many rows in one statement, returning the
+/// updated rows (see [`moderation_values`]). An empty id slice is a no-op.
+#[instrument(err(Debug), skip(db))]
+pub async fn moderate_many(
+    db: &PgPool,
+    ids: &[Uuid],
+    status: ModerationStatus,
+    reason: Option<&str>,
+) -> Result<Vec<PolisStatementAux>, ModelError> {
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(moderation_values(status, reason))
+        .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(aux)
+}
+
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct PolisStatementAuxFilterOptions {
+    ids: Option<Vec<Uuid>>,
+    user_id: Option<Uuid>,
+    polis_statement_id: Option<i32>,
+}
+
+impl PolisStatementAuxFilterOptions {
+    /// Restrict a `list` to a known set of ids. Used for batch lookups where the
+    /// caller already holds the ids (e.g. batch moderation validating a selection).
+    pub fn by_ids(ids: Vec<Uuid>) -> Self {
+        Self {
+            ids: Some(ids),
+            ..Default::default()
+        }
+    }
+
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(ids) = &self.ids {
+            query = query
+                .and_where(
+                    Expr::col((PolisStatementAuxIden::Table, PolisStatementAuxIden::Id))
+                        .is_in(ids.iter().copied()),
+                )
+                .to_owned();
+        }
+        if let Some(value) = self.user_id {
+            query = query
+                .and_where(
+                    Expr::col((PolisStatementAuxIden::Table, PolisStatementAuxIden::UserId))
+                        .eq(value),
+                )
+                .to_owned();
+        }
+        if let Some(value) = self.polis_statement_id {
+            query = query
+                .and_where(
+                    Expr::col((
+                        PolisStatementAuxIden::Table,
+                        PolisStatementAuxIden::PolisStatementId,
+                    ))
+                    .eq(value),
+                )
+                .to_owned();
+        }
+
+        query
+    }
+}
+
+/// Whether `user_id` is the commentor on this aux row. Callers decide what to do
+/// when they are not; the model layer does not enforce access.
+#[instrument(err(Debug), skip(db))]
+pub async fn is_commentor(db: &PgPool, aux_id: &Uuid, user_id: &Uuid) -> Result<bool, ModelError> {
+    let aux = get_by_id(db, aux_id).await?;
+    Ok(aux.user_id == Some(*user_id))
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn list(
+    db: &PgPool,
+    workflow_step_id: Option<Uuid>,
+    polis_conversation_id: Option<String>,
+    filter_options: PolisStatementAuxFilterOptions,
+) -> Result<Vec<PolisStatementAux>, ModelError> {
+    let mut query = Query::select()
+        .from(PolisStatementAuxIden::Table)
+        .columns(DEFAULT_COLUMNS.map(|col| (PolisStatementAuxIden::Table, col)))
+        .to_owned();
+
+    if let Some(id) = workflow_step_id {
+        query = query
+            .and_where(
+                Expr::col((
+                    PolisStatementAuxIden::Table,
+                    PolisStatementAuxIden::WorkflowStepId,
+                ))
+                .eq(id),
+            )
+            .to_owned();
+    }
+    if let Some(conversation_id) = polis_conversation_id {
+        query = query
+            .and_where(
+                Expr::col((
+                    PolisStatementAuxIden::Table,
+                    PolisStatementAuxIden::PolisConversationId,
+                ))
+                .eq(conversation_id),
+            )
+            .to_owned();
+    }
+
+    let query = filter_options.apply(query);
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(aux)
+}
+
+#[derive(Debug, Serialize, FromRow, JsonSchema)]
+pub struct ThemeStatistic {
+    pub theme: String,
+    pub count: i64,
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn theme_stats(
+    db: &PgPool,
+    workflow_step_id: Option<Uuid>,
+    polis_conversation_id: Option<String>,
+) -> Result<Vec<ThemeStatistic>, ModelError> {
+    let mut builder = sqlx::QueryBuilder::new(
+        "SELECT theme, COUNT(*)::BIGINT AS count \
+         FROM polis_statement_aux, UNNEST(themes) AS theme \
+         WHERE TRUE",
+    );
+
+    if let Some(id) = workflow_step_id {
+        builder.push(" AND workflow_step_id = ").push_bind(id);
+    }
+    if let Some(conversation_id) = polis_conversation_id {
+        builder
+            .push(" AND polis_conversation_id = ")
+            .push_bind(conversation_id);
+    }
+
+    builder.push(" GROUP BY theme ORDER BY count DESC");
+
+    let stats = builder
+        .build_query_as::<ThemeStatistic>()
+        .fetch_all(db)
+        .await?;
+
+    Ok(stats)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn add_theme(
+    db: &PgPool,
+    id: Uuid,
+    theme: &str,
+) -> Result<PolisStatementAux, ModelError> {
+    let aux = sqlx::query_as::<_, PolisStatementAux>(
+        "UPDATE polis_statement_aux \
+         SET themes = CASE WHEN $2 = ANY(themes) THEN themes ELSE array_append(themes, $2) END, \
+             updated_at = NOW() \
+         WHERE id = $1 \
+         RETURNING *",
+    )
+    .bind(id)
+    .bind(theme)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Polis Statement Aux")?;
+
+    Ok(aux)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn remove_theme(
+    db: &PgPool,
+    id: Uuid,
+    theme: &str,
+) -> Result<PolisStatementAux, ModelError> {
+    let aux = sqlx::query_as::<_, PolisStatementAux>(
+        "UPDATE polis_statement_aux \
+         SET themes = array_remove(themes, $2), updated_at = NOW() \
+         WHERE id = $1 \
+         RETURNING *",
+    )
+    .bind(id)
+    .bind(theme)
+    .fetch_one(db)
+    .await
+    .resolve_db_err("Polis Statement Aux")?;
+
+    Ok(aux)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn delete(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, ModelError> {
+    let (sql, values) = Query::delete()
+        .from_table(PolisStatementAuxIden::Table)
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(aux)
+}

@@ -24,7 +24,10 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::bulk_storage_service::FileMetadata;
 use crate::error::ComhairleError;
+use crate::error::ServiceError;
 use crate::models::audio_recording::{self, CreateAudioRecording};
+use crate::models::error::AuthError;
+use crate::models::error::DataError;
 use crate::models::event;
 use crate::models::job::{self, CreateJob};
 use crate::routes::audio_recordings::dto::{
@@ -37,9 +40,9 @@ use crate::worker_service::process_video_call_transcriptions::TranscribeRecordin
 /// Create an audio recording and return a presigned URL for uploading its audio.
 ///
 /// # Errors
-/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
-/// * `ComhairleError::DuplicateRecordingName` if a recording with this name already exists for the event.
-/// * `ComhairleError::DatabaseError` on database errors.
+/// * `ServiceError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `crate::models::error::EventError::DuplicateRecordingName` if a recording with this name already exists for the event.
+/// * `DataError::DatabaseError` on database errors.
 #[instrument(err(Debug), skip(state))]
 async fn create_recording(
     State(state): State<Arc<ComhairleState>>,
@@ -81,7 +84,7 @@ async fn create_recording(
 /// List all recordings for an event with their status.
 ///
 /// # Errors
-/// * `ComhairleError::DatabaseError` on database errors.
+/// * `DataError::DatabaseError` on database errors.
 #[instrument(err(Debug), skip(state))]
 async fn list_recordings(
     State(state): State<Arc<ComhairleState>>,
@@ -103,8 +106,8 @@ async fn list_recordings(
 /// Get a recording's details and presigned download URLs (recording, transcript, report).
 ///
 /// # Errors
-/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
-/// * `ComhairleError::ResourceNotFound` if the recording does not exist for this event.
+/// * `ServiceError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `DataError::ResourceNotFound` if the recording does not exist for this event.
 #[instrument(err(Debug), skip(state))]
 async fn get_recording(
     State(state): State<Arc<ComhairleState>>,
@@ -142,8 +145,8 @@ async fn get_recording(
 /// Start processing (transcription + categorization) for a single recording.
 ///
 /// # Errors
-/// * `ComhairleError::ResourceNotFound` if the recording does not exist for this event.
-/// * `ComhairleError::NoWorkerServiceConfigured` if no worker service is configured.
+/// * `DataError::ResourceNotFound` if the recording does not exist for this event.
+/// * `ServiceError::NoWorkerServiceConfigured` if no worker service is configured.
 #[instrument(err(Debug), skip(state))]
 async fn process_recording(
     State(state): State<Arc<ComhairleState>>,
@@ -201,8 +204,8 @@ async fn process_recording(
 /// drop on the floor — acceptable given the row is being abandoned.
 ///
 /// # Errors
-/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
-/// * `ComhairleError::ResourceNotFound` if the recording does not exist for this event.
+/// * `ServiceError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `DataError::ResourceNotFound` if the recording does not exist for this event.
 #[instrument(err(Debug), skip(state))]
 async fn delete_recording(
     State(state): State<Arc<ComhairleState>>,
@@ -247,8 +250,8 @@ async fn delete_recording(
 /// Authenticated by the HMAC signature headers (not an admin JWT).
 ///
 /// # Errors
-/// * `ComhairleError::AuthWebhookSignatureError` if the signature is missing or invalid.
-/// * `ComhairleError::ResourceNotFound` if the recording/event does not match the path.
+/// * `AuthError::AuthWebhookSignatureError` if the signature is missing or invalid.
+/// * `DataError::ResourceNotFound` if the recording/event does not match the path.
 #[instrument(err(Debug), skip(state))]
 async fn submit_report(
     State(state): State<Arc<ComhairleState>>,
@@ -261,26 +264,26 @@ async fn submit_report(
         .config
         .categorization_service
         .as_ref()
-        .ok_or(ComhairleError::NoCategorizationServiceConfigured)?
+        .ok_or(ServiceError::NoCategorizationServiceConfigured)?
         .webhook_secret;
 
     let webhook_timestamp = headers
         .get("X-Webhook-Timestamp")
-        .ok_or(ComhairleError::AuthWebhookSignatureError(
+        .ok_or(AuthError::AuthWebhookSignatureError(
             "Missing X-Webhook-Timestamp".to_string(),
         ))?
         .to_str()
         .map_err(|_| {
-            ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Timestamp".to_string())
+            AuthError::AuthWebhookSignatureError("Invalid X-Webhook-Timestamp".to_string())
         })?;
     let webhook_signature = headers
         .get("X-Webhook-Signature")
-        .ok_or(ComhairleError::AuthWebhookSignatureError(
+        .ok_or(AuthError::AuthWebhookSignatureError(
             "Missing X-Webhook-Signature".to_string(),
         ))?
         .to_str()
         .map_err(|_| {
-            ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Signature".to_string())
+            AuthError::AuthWebhookSignatureError("Invalid X-Webhook-Signature".to_string())
         })?;
 
     if !verify_webhook_signature(
@@ -289,16 +292,18 @@ async fn submit_report(
         &payload,
         webhook_secret,
     )? {
-        return Err(ComhairleError::AuthWebhookSignatureError(
+        return Err(AuthError::AuthWebhookSignatureError(
             "Invalid X-Webhook-Signature".to_string(),
-        ));
+        )
+        .into());
     }
 
     let event = event::get_by_id(&state.db, &event_id).await?;
     if event.conversation_id != conversation_id {
-        return Err(ComhairleError::ResourceNotFound(format!(
+        return Err(DataError::ResourceNotFound(format!(
             "No event {event_id} found for conversation {conversation_id}"
-        )));
+        ))
+        .into());
     }
     let recording =
         audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;

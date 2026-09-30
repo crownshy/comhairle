@@ -54,12 +54,18 @@ pub struct UserParticipationDto {
     pub sealed: bool,
 }
 
-impl UserParticipation {
+/// Extension for building the DTO; a trait because `UserParticipation` now
+/// lives in the model crate and inherent impls on foreign types are not allowed.
+pub trait UserParticipationExt {
+    fn into_dto(self, sealed: bool) -> UserParticipationDto;
+}
+
+impl UserParticipationExt for UserParticipation {
     /// `sealed` is taken as an argument rather than derived here, so that the one definition
     /// of the seal stays in `user_progress::is_sealed` alongside the write gates that enforce
     /// it. A required parameter also means a caller cannot build one of these without
     /// deciding what the seal is.
-    pub fn into_dto(self, sealed: bool) -> UserParticipationDto {
+    fn into_dto(self, sealed: bool) -> UserParticipationDto {
         UserParticipationDto {
             id: self.id,
             user_id: self.user_id,

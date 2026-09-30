@@ -75,3 +75,21 @@ impl From<NotificationDelivery> for NotificationDeliveryDto {
         }
     }
 }
+
+/// A delivery joined with its notification, as returned by the notification
+/// list endpoints.
+#[derive(Debug, Serialize, Clone, JsonSchema)]
+pub struct NotificationWithDelivery {
+    #[serde(flatten)]
+    pub delivery: NotificationDeliveryDto,
+    pub notification: NotificationDto,
+}
+
+impl From<(NotificationDelivery, Notification)> for NotificationWithDelivery {
+    fn from((delivery, notification): (NotificationDelivery, Notification)) -> Self {
+        Self {
+            delivery: delivery.into(),
+            notification: notification.into(),
+        }
+    }
+}

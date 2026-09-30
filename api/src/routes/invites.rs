@@ -13,6 +13,10 @@ use hyper::StatusCode;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
+use crate::models::error::AuthError;
+use crate::models::error::InviteError;
+use crate::models::error::PermissionError;
+use crate::models::error::ValidationError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -50,7 +54,7 @@ async fn accept_invite(
         let workflow_id = match (invite.workflow_id, conversation.default_workflow_id) {
             (Some(invite_workflow), _) => Ok(invite_workflow),
             (None, Some(conversation_workflow)) => Ok(conversation_workflow),
-            (None, None) => Err(ComhairleError::NoWorkflowFoundForInvite),
+            (None, None) => Err(InviteError::NoWorkflowFoundForInvite),
         }?;
 
         workflow::register_user(&state.db, &workflow_id, &user).await?;
@@ -60,6 +64,7 @@ async fn accept_invite(
         .accept(&state.db, &user)
         .await
         .map(|new_invite| (StatusCode::OK, Json(new_invite.into())))
+        .map_err(Into::into)
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -78,6 +83,7 @@ async fn reject_invite(
         .reject(&state.db, &user)
         .await
         .map(|new_invite| (StatusCode::OK, Json(new_invite.into())))
+        .map_err(Into::into)
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -90,7 +96,7 @@ async fn create_conversation_invite(
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     if conversation.owner_id != admin_user.id {
-        return Err(ComhairleError::UserIsNotConversationOwner);
+        return Err(PermissionError::UserIsNotConversationOwner.into());
     }
 
     // TODO We might need something in here to check that the user in the user type
@@ -155,7 +161,7 @@ async fn create_event_invite(
     Json(create_invite): Json<CreateInviteDTO>,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     if create_invite.event_id.is_none() {
-        return Err(ComhairleError::BadRequest("Missing event_id".to_string()));
+        return Err(ValidationError::BadRequest("Missing event_id".to_string()).into());
     }
 
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
@@ -165,10 +171,10 @@ async fn create_event_invite(
         models::invites::create(&state.db, create_invite, &conversation_id, Some(user.id)).await?;
 
     let InviteType::Email(email) = &invite.invite_type else {
-        return Err(ComhairleError::InvalidInviteType);
+        return Err(InviteError::InvalidInviteType.into());
     };
 
-    let event_id = &invite.event_id.ok_or(ComhairleError::InvalidInviteType)?;
+    let event_id = &invite.event_id.ok_or(InviteError::InvalidInviteType)?;
 
     state
         .mailer
@@ -206,7 +212,7 @@ async fn get_invite(
             models::invites::InviteType::Email(_)
             | models::invites::InviteType::Open
             | models::invites::InviteType::SingleUse => Ok((StatusCode::OK, Json(invite.into()))),
-            models::invites::InviteType::User(_) => Err(ComhairleError::UserRequired),
+            models::invites::InviteType::User(_) => Err(AuthError::UserRequired.into()),
         }
     }
 }
@@ -292,13 +298,13 @@ async fn auto_register_event_attendance(
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let event_id = invite
         .event_id
-        .ok_or_else(|| ComhairleError::InvalidInviteResource("Missing event_id".to_string()))?;
+        .ok_or_else(|| InviteError::InvalidInviteResource("Missing event_id".to_string()))?;
     let event =
         event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale).await?;
 
     let email = match &invite.invite_type {
         InviteType::Email(email) => email,
-        _ => return Err(ComhairleError::InvalidInviteType),
+        _ => return Err(InviteError::InvalidInviteType.into()),
     };
 
     let user = get_or_create_user_by_email(&state.db, email, &client_ip.0, user_agent.0.as_deref())

@@ -14,10 +14,12 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::authz::{PermissionTargetResource, SystemResource};
+use crate::models::error::PermissionError;
+use crate::models::error::ValidationError;
 use crate::models::permissions::{
-    self, Action, GrantRoleRequest, ListPermissionsFilters, PermissionTargetResource,
-    PermissionTriplet, RevokeRoleRequest, SystemResource, UserOrOrganizationId,
-    UserWithPermissionDto, list_permissions,
+    self, Action, GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, RevokeRoleRequest,
+    UserOrOrganizationId, UserWithPermissionDto, list_permissions,
 };
 use crate::models::{
     pagination::{PageOptions, PaginatedResults},
@@ -27,7 +29,7 @@ use crate::routes::auth::{RequiredUser, authorize};
 use crate::{
     ComhairleState,
     error::ComhairleError,
-    models::permissions::{grant_role, revoke_role},
+    services::permissions::{grant_role, revoke_role},
 };
 
 /// Represents the resource type and ID for a permission operation.
@@ -77,8 +79,8 @@ pub struct ListPermissionsByActionQuery {
 ///
 /// # Errors
 ///
-/// * Returns [`ComhairleError::BadRequest`] if more than one of user_id, organization_id or user_email are provided.
-/// * Returns [`ComhairleError::NoUserFoundForEmail`] if no user found for a given user_email.
+/// * Returns [`ValidationError::BadRequest`] if more than one of user_id, organization_id or user_email are provided.
+/// * Returns [`crate::models::error::UserError::NoUserFoundForEmail`] if no user found for a given user_email.
 async fn resolve_actor(
     db: &PgPool,
     user_id: Option<Uuid>,
@@ -95,9 +97,10 @@ async fn resolve_actor(
             Ok(Some(UserOrOrganizationId::User(user.id)))
         }
         (None, None, None) if allow_none => Ok(None),
-        _ => Err(ComhairleError::BadRequest(
+        _ => Err(ValidationError::BadRequest(
             "Only one of user_id, organization_id or user_email can be provided".into(),
-        )),
+        )
+        .into()),
     }
 }
 
@@ -105,9 +108,9 @@ async fn resolve_actor(
 ///
 /// # Errors
 ///
-/// * Returns [`ComhairleError::RoleAlreadyGranted`] if the role was already granted to the actor.
-/// * Returns [`ComhairleError::BadRequest`] if more than one of user_id, organization_id or user_email are provided in the request body.
-/// * Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
+/// * Returns [`PermissionError::RoleAlreadyGranted`] if the role was already granted to the actor.
+/// * Returns [`ValidationError::BadRequest`] if more than one of user_id, organization_id or user_email are provided in the request body.
+/// * Returns [`crate::models::error::DataError::DatabaseError`] if there is an error querying the database.
 #[instrument(err(Debug), skip(state))]
 async fn grant(
     State(state): State<Arc<ComhairleState>>,
@@ -161,9 +164,9 @@ async fn grant(
 ///
 /// # Errors
 ///
-/// * Returns [`ComhairleError::RoleNotFound`] if the role does not exist for the resource type.
-/// * Returns [`ComhairleError::BadRequest`] if both user_id and organization_id are provided in the query parameters.
-/// * Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
+/// * Returns [`PermissionError::RoleNotFound`] if the role does not exist for the resource type.
+/// * Returns [`ValidationError::BadRequest`] if both user_id and organization_id are provided in the query parameters.
+/// * Returns [`crate::models::error::DataError::DatabaseError`] if there is an error querying the database.
 #[instrument(err(Debug), skip(state))]
 async fn revoke(
     State(state): State<Arc<ComhairleState>>,
@@ -196,8 +199,8 @@ async fn revoke(
 ///
 /// # Errors
 ///
-/// * Returns [`ComhairleError::BadRequest`] if both user_id and organization_id are provided.
-/// * Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
+/// * Returns [`ValidationError::BadRequest`] if both user_id and organization_id are provided.
+/// * Returns [`crate::models::error::DataError::DatabaseError`] if there is an error querying the database.
 #[instrument(err(Debug), skip(state))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
@@ -226,7 +229,7 @@ async fn list(
         ..Default::default()
     };
 
-    let page = list_permissions(&state, request).await?;
+    let page = list_permissions(&state.db, request).await?;
 
     Ok((StatusCode::OK, Json(page)))
 }
@@ -235,8 +238,8 @@ async fn list(
 ///
 /// # Errors
 ///
-/// * Returns [`ComhairleError::BadRequest`] if the action is not provided or invalid.
-/// * Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
+/// * Returns [`ValidationError::BadRequest`] if the action is not provided or invalid.
+/// * Returns [`crate::models::error::DataError::DatabaseError`] if there is an error querying the database.
 #[instrument(err(Debug), skip(state))]
 async fn list_permissions_by_action(
     State(state): State<Arc<ComhairleState>>,
@@ -246,8 +249,10 @@ async fn list_permissions_by_action(
     Query(query): Query<ListPermissionsByActionQuery>,
 ) -> Result<(StatusCode, Json<Vec<permissions::ResourcePermission>>), ComhairleError> {
     if let Err(err) = authorize(&state, &caller, Action::ListPermission, &system).await
-        && (!matches!(err, ComhairleError::UserNotAuthorized)
-            || caller.id != query.user_id.unwrap_or(caller.id))
+        && (!matches!(
+            err,
+            ComhairleError::Permission(PermissionError::UserNotAuthorized)
+        ) || caller.id != query.user_id.unwrap_or(caller.id))
     {
         return Err(err);
     };
@@ -267,8 +272,8 @@ async fn list_permissions_by_action(
 ///
 /// # Errors
 ///
-/// * Returns [`ComhairleError::BadRequest`] if both user_id and organization_id are provided.
-/// * Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
+/// * Returns [`ValidationError::BadRequest`] if both user_id and organization_id are provided.
+/// * Returns [`crate::models::error::DataError::DatabaseError`] if there is an error querying the database.
 #[instrument(err(Debug), skip(state))]
 async fn list_for_resource(
     State(state): State<Arc<ComhairleState>>,
@@ -299,7 +304,7 @@ async fn list_for_resource(
         resource_id: Some(&path.resource_id),
     };
 
-    let page = list_permissions(&state, request).await?;
+    let page = list_permissions(&state.db, request).await?;
 
     Ok((StatusCode::OK, Json(page)))
 }
@@ -426,11 +431,12 @@ mod tests {
     use crate::models::pagination::PaginatedResults;
     use crate::models::permissions::{
         GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, ResourcePermission, Role,
-        UserOrOrganizationId, grant_role, has_resource_permission, list_permissions,
+        UserOrOrganizationId, list_permissions,
     };
     use crate::routes::permissions::{
         GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
     };
+    use crate::services::permissions::{grant_role, has_resource_permission};
     use crate::test_helpers::{test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
 
@@ -973,7 +979,7 @@ mod tests {
 
         // Get the permission from the database to check the audit trail
         let permissions = list_permissions(
-            &state,
+            &state.db,
             ListPermissionsFilters {
                 actor: Some(UserOrOrganizationId::User(user.id)),
                 role_name: Some(TestRole::name()),

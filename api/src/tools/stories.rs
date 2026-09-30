@@ -18,20 +18,7 @@ use crate::{ComhairleState, error::ComhairleError};
 
 use super::{ToolConfigSanitize, ToolImpl};
 
-#[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone, PartialEq)]
-pub struct StoriesToolConfig {
-    pub max_time: i32,
-    pub to_see: i32,
-}
-
-#[derive(PartialEq, Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
-pub struct StoriesReport;
-
-#[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
-pub struct StoriesToolSetup {
-    pub max_time: i32,
-    pub to_see: i32,
-}
+pub use crate::models::tools::stories::{StoriesReport, StoriesToolConfig, StoriesToolSetup};
 
 async fn stories_setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, ComhairleError> {
     Ok(StoriesToolConfig {
@@ -43,12 +30,6 @@ async fn stories_setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, C
 // Keep public function for backwards compatibility
 pub async fn setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, ComhairleError> {
     stories_setup(config).await
-}
-
-impl ToolConfigSanitize for StoriesToolConfig {
-    fn sanitize(&self) -> Self {
-        self.clone()
-    }
 }
 
 /// Zero-sized marker type for Stories tool implementation

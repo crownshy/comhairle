@@ -10,14 +10,14 @@ use axum::{
 };
 use hyper::StatusCode;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::models;
-use crate::models::report::{FullReportDto, PartialReport, ReportWithTranslations};
+use crate::models::report::{PartialReport, ReportWithTranslations};
 use crate::routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
-use crate::routes::reports::dto::{LocalizedReportDto, ReportDto};
+use crate::routes::reports::dto::{FullReportDto, ReportDto, ReportView};
 use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleState, error::ComhairleError};
 
@@ -27,13 +27,6 @@ pub mod dto;
 struct GetReportQuery {
     #[serde(rename = "withTranslations", default)]
     with_translations: bool,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(untagged)]
-pub enum ReportView {
-    WithTranslations(ReportWithTranslations),
-    Localized(LocalizedReportDto),
 }
 
 #[instrument(err(Debug), skip(state))]

@@ -7,6 +7,8 @@ use aide::axum::{
 use axum::{Json, extract::State, http::StatusCode};
 use tracing::instrument;
 
+use crate::models::error::DataError;
+use crate::models::error::ModelError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -53,7 +55,7 @@ pub async fn upsert_profile(
             )
             .await?
         }
-        Err(ComhairleError::ResourceNotFound(_)) => {
+        Err(ModelError::Data(DataError::ResourceNotFound(_))) => {
             // Profile doesn't exist, create it
             let create_profile = CreateUserProfile {
                 user_id: user.id,
@@ -68,7 +70,7 @@ pub async fn upsert_profile(
         }
         Err(e) => {
             // Some other error occurred, propagate it
-            return Err(e);
+            return Err(e.into());
         }
     };
 

@@ -11,10 +11,11 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::authz::ConversationResource;
 use crate::models::{
     self,
     moderation_policy::{self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy},
-    permissions::{Action, ConversationResource},
+    permissions::Action,
     users::User,
 };
 use crate::routes::auth::{RequiredUser, authorize};
@@ -214,6 +215,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use crate::models::error::DataError;
+    use crate::models::error::ModelError;
     use axum::Router;
     use serde_json::{Value, json};
     use sqlx::PgPool;
@@ -541,7 +544,7 @@ mod tests {
 
         let result = pending_delete.await?;
         assert!(
-            matches!(result, Err(ComhairleError::Conflict(_))),
+            matches!(result, Err(ModelError::Data(DataError::Conflict(_)))),
             "policy deleted while a step save pointed at it: {result:?}"
         );
 

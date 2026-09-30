@@ -1,3 +1,7 @@
+use crate::authz::ConversationResource;
+use crate::extract::OrderParams;
+use crate::routes::media::dto::FromWithMedia;
+use crate::services::permissions::{can_perform_resource_action, grant_role};
 use std::sync::Arc;
 
 use axum::{
@@ -15,6 +19,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use crate::models::error::AuthError;
+use crate::models::error::ConversationError;
+use crate::models::error::PermissionError;
+use crate::models::error::ValidationError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -26,16 +34,16 @@ use crate::{
         conversation_email_notification_recipients::{
             self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
-        media::{FromWithMedia, MediaResolver},
+        media::MediaResolver,
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
         },
         organization,
-        pagination::{OrderParams, PageOptions, PaginatedResults},
+        pagination::{PageOptions, PaginatedResults},
         permissions::{
-            self, Action, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
-            RevokeRoleRequest, Role, UserOrOrganizationId, can_perform_resource_action, grant_role,
+            Action, GrantRoleRequest, OrganizationWithPermissionDto, RevokeRoleRequest, Role,
+            UserOrOrganizationId,
         },
         user_conversation_preferences,
         user_participation::{self},
@@ -59,7 +67,7 @@ async fn create_conversation(
     RequiredAdminUser(user): RequiredAdminUser,
     Json(new_conversation): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    let conversation = conversation::create(
+    let conversation = crate::services::conversation::create(
         &state.db,
         &state.bot_service,
         &state.config,
@@ -152,16 +160,17 @@ async fn launch_conversation(
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.is_live {
-        return Err(ComhairleError::ConversationAlreadyLive);
+        return Err(ConversationError::ConversationAlreadyLive.into());
     }
 
     if user.id != conversation.owner_id {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
-    let conversation: ConversationDto = conversation::launch(&state.db, conversation_id, &state)
-        .await?
-        .into();
+    let conversation: ConversationDto =
+        crate::services::workflow::launch_conversation(&state, conversation_id)
+            .await?
+            .into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -207,10 +216,10 @@ async fn get_conversation(
                 )
                 .await?
             {
-                return Err(ComhairleError::UserNotAuthorized);
+                return Err(PermissionError::UserNotAuthorized.into());
             }
         } else {
-            return Err(ComhairleError::NoLoggedInUser);
+            return Err(AuthError::NoLoggedInUser.into());
         }
     }
 
@@ -266,7 +275,7 @@ async fn list_conversation_cohosts(
 ) -> Result<(StatusCode, Json<Vec<OrganizationWithPermissionDto>>), ComhairleError> {
     authorize(&state, &user, Action::ConversationRead, &resource).await?;
 
-    let organizations = permissions::list_organizations_with_permission(
+    let organizations = crate::models::permissions::list_organizations_with_permission(
         &state.db,
         Action::ConversationRead.resource_type().as_ref(),
         resource.conversation_id,
@@ -337,7 +346,7 @@ async fn remove_conversation_cohost(
 
     let organization = organization::get_by_id(&state.db, &cohost_id).await?;
 
-    permissions::revoke_role(
+    crate::services::permissions::revoke_role(
         &state,
         RevokeRoleRequest {
             actor_id: UserOrOrganizationId::Org(cohost_id),
@@ -365,10 +374,11 @@ async fn delete_conversation(
     let conversation = conversation::get_by_id(&state.db, &id).await?;
 
     if user.id != conversation.owner_id {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
-    let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
+    let conversation =
+        crate::services::conversation::delete(&state.db, &state.bot_service, &id).await?;
     let conversation: ConversationDto = conversation.into();
 
     Ok((StatusCode::OK, Json(conversation)))
@@ -437,7 +447,7 @@ async fn get_notification_recipients(
 ) -> Result<(StatusCode, Json<NotificationRecipientsResponse>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     let participant_ids =
@@ -469,7 +479,7 @@ async fn send_notification_to_participants(
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     let delivery_method = request
@@ -479,9 +489,10 @@ async fn send_notification_to_participants(
 
     if let Some(test_recipient) = request.test_email_recipient.clone() {
         if !matches!(delivery_method, DeliveryMethod::Email) {
-            return Err(ComhairleError::BadRequest(
+            return Err(ValidationError::BadRequest(
                 "test_email_recipient is only valid when delivery_method is email".into(),
-            ));
+            )
+            .into());
         }
         return send_test_broadcast_email(&state, request, test_recipient).await;
     }
@@ -502,7 +513,7 @@ async fn send_test_broadcast_email(
     recipient: String,
 ) -> Result<(StatusCode, Json<SendEmailNotificationResponse>), ComhairleError> {
     let html_content = request.html_content.ok_or_else(|| {
-        ComhairleError::BadRequest("html_content is required when delivery_method is email".into())
+        ValidationError::BadRequest("html_content is required when delivery_method is email".into())
     })?;
 
     state
@@ -514,7 +525,7 @@ async fn send_test_broadcast_email(
                 recipient,
                 e
             );
-            ComhairleError::BadRequest(format!("Failed to send test email: {}", e))
+            ValidationError::BadRequest(format!("Failed to send test email: {}", e))
         })?;
 
     Ok((
@@ -605,7 +616,7 @@ async fn send_broadcast_email_to_opted_in(
     request: SendNotificationRequest,
 ) -> Result<(StatusCode, Json<SendEmailNotificationResponse>), ComhairleError> {
     let html_content = request.html_content.ok_or_else(|| {
-        ComhairleError::BadRequest("html_content is required when delivery_method is email".into())
+        ValidationError::BadRequest("html_content is required when delivery_method is email".into())
     })?;
 
     // Create a notification row for the audit trail. The HTML body lives in
@@ -743,7 +754,7 @@ async fn export_conversation_contacts(
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     // Get all contacts who opted in
@@ -820,7 +831,7 @@ async fn export_conversation_demographics(
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     // Get demographic data for export
@@ -1081,13 +1092,14 @@ mod tests {
         CreateConversationDemographics, create_conversation_demographics,
     };
     use crate::models::permissions::{
-        GrantRoleRequest, OrganizationWithPermissionDto, Role, UserOrOrganizationId, grant_role,
+        GrantRoleRequest, OrganizationWithPermissionDto, Role, UserOrOrganizationId,
     };
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::{CohostInfo, ConversationResponse};
     use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
+    use crate::services::permissions::grant_role;
     use crate::test_helpers::{MultipartBodyBuilder, test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::body::Body;

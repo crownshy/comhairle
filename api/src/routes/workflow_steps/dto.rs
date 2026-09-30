@@ -149,8 +149,16 @@ pub struct WorkflowStepWithTranslationsDto {
     pub preview_tool_config: ToolConfigWithTranslations,
 }
 
-impl WorkflowStepWithTranslations {
-    pub fn into_dto(
+pub trait WorkflowStepWithTranslationsExt {
+    fn into_dto(
+        self,
+        tool_config_translations: &HashMap<TextContentId, TranslationDto>,
+        locale: &str,
+    ) -> WorkflowStepWithTranslationsDto;
+}
+
+impl WorkflowStepWithTranslationsExt for WorkflowStepWithTranslations {
+    fn into_dto(
         self,
         tool_config_translations: &HashMap<TextContentId, TranslationDto>,
         locale: &str,
@@ -196,8 +204,15 @@ impl From<WorkflowStep> for WorkflowStepDto {
     }
 }
 
-impl LocalizedWorkflowStep {
-    pub fn into_dto(
+pub trait LocalizedWorkflowStepExt {
+    fn into_dto(
+        self,
+        translations_map: &HashMap<TextContentId, String>,
+    ) -> LocalizedWorkflowStepDto;
+}
+
+impl LocalizedWorkflowStepExt for LocalizedWorkflowStep {
+    fn into_dto(
         self,
         translations_map: &HashMap<TextContentId, String>,
     ) -> LocalizedWorkflowStepDto {
@@ -218,8 +233,15 @@ impl LocalizedWorkflowStep {
     }
 }
 
-impl LocalizedWorkflowStepWithProgress {
-    pub fn into_dto(
+pub trait LocalizedWorkflowStepWithProgressExt {
+    fn into_dto(
+        self,
+        translations_map: &HashMap<TextContentId, String>,
+    ) -> LocalizedWorkflowStepWithProgressDto;
+}
+
+impl LocalizedWorkflowStepWithProgressExt for LocalizedWorkflowStepWithProgress {
+    fn into_dto(
         self,
         translations_map: &HashMap<TextContentId, String>,
     ) -> LocalizedWorkflowStepWithProgressDto {

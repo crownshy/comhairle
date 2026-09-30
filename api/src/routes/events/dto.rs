@@ -9,7 +9,6 @@ use crate::{
             Event, EventAgenda, EventFormat, EventLocation, LocalizedEvent,
             LocalizedEventWithAttendance, SignupMode,
         },
-        pagination::PaginatedResults,
         translations::TextContentId,
     },
     schema_helpers::{example_localized_text, example_uuid},
@@ -144,15 +143,6 @@ impl From<LocalizedEvent> for LocalizedEventDto {
             format: e.format,
             custom_event_link: e.custom_event_link,
             current_attendance: None,
-        }
-    }
-}
-
-impl From<PaginatedResults<LocalizedEventWithAttendance>> for PaginatedResults<LocalizedEventDto> {
-    fn from(r: PaginatedResults<LocalizedEventWithAttendance>) -> Self {
-        Self {
-            total: r.total,
-            records: r.records.into_iter().map(Into::into).collect(),
         }
     }
 }

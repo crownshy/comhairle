@@ -15,6 +15,7 @@ use axum::{
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::error::ValidationError;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -28,7 +29,7 @@ use crate::{
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
-        workflows::dto::{UserParticipationDto, WorkflowDto},
+        workflows::dto::{UserParticipationDto, UserParticipationExt, WorkflowDto},
     },
 };
 
@@ -45,7 +46,7 @@ pub mod dto;
 ///
 /// # Errors
 ///
-/// Returns [`ComhairleError::BadRequest`] if `conversation_id` is absent from
+/// Returns [`ValidationError::BadRequest`] if `conversation_id` is absent from
 /// the path, which should only occur if this extractor is used on a route that
 /// does not include the `:conversation_id` segment.
 #[derive(Debug, Clone, OperationIo)]
@@ -66,7 +67,7 @@ impl FromRequestParts<Arc<ComhairleState>> for SourcePathCtx {
         let conversation_id = params
             .get("conversation_id")
             .cloned()
-            .ok_or_else(|| ComhairleError::BadRequest("Missing conversation_id".into()))?;
+            .ok_or_else(|| ValidationError::BadRequest("Missing conversation_id".into()))?;
 
         Ok(Self {
             conversation_id,
@@ -85,7 +86,7 @@ impl FromRequestParts<Arc<ComhairleState>> for SourcePathCtx {
 ///
 /// # Errors
 ///
-/// Returns [`ComhairleError::BadRequest`] if `workflow_id` is absent from the
+/// Returns [`ValidationError::BadRequest`] if `workflow_id` is absent from the
 /// path, which should only occur if this extractor is used on a route that does
 /// not include the `:workflow_id` segment.
 #[derive(Debug, Clone, OperationIo)]
@@ -105,7 +106,7 @@ impl FromRequestParts<Arc<ComhairleState>> for WorkflowPathCtx {
         let workflow_id = params
             .get("workflow_id")
             .cloned()
-            .ok_or_else(|| ComhairleError::BadRequest("Missing workflow_id".into()))?;
+            .ok_or_else(|| ValidationError::BadRequest("Missing workflow_id".into()))?;
 
         Ok(Self { workflow_id })
     }

@@ -273,8 +273,8 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
         #[serde(rename_all = "camelCase")]
         pub struct Translation {
-            pub text_content: crate::routes::translations::dto::TextContentDto,
-            pub text_translations: Vec<crate::routes::translations::dto::TextTranslationDto>,
+            pub text_content: crate::models::dto::translations::TextContentDto,
+            pub text_translations: Vec<crate::models::dto::translations::TextTranslationDto>,
         }
 
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
@@ -413,7 +413,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                 db: &sqlx::PgPool,
                 original: #struct_name,
                 locale: &str,
-            ) -> Result<Self, crate::error::ComhairleError> {
+            ) -> Result<Self, crate::models::error::ModelError> {
                 use crate::models::translations::{get_text_content_by_id, get_text_translations_by_content_id, get_text_translation_by_content_and_locale};
 
                 Ok(Self {

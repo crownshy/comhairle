@@ -14,13 +14,16 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::bot_service::AgentConversationRequest;
+use crate::error::ServiceError;
+use crate::models::error::DataError;
+use crate::models::error::WorkflowError;
 use crate::models::thinking_space_follow_up_question::{
     self, CreateFollowUpQuestions, ThinkingSpaceFollowUpQuestion,
     ThinkingSpaceFollowUpQuestionFilterOptions, UpdateFollowUpQuestions,
@@ -28,7 +31,6 @@ use crate::models::thinking_space_follow_up_question::{
 use crate::models::thinking_space_summary::{
     self, CreateSummary, ThinkingSpaceSummary, ThinkingSpaceSummaryFilterOptions, UpdateSummary,
 };
-use crate::models::translations::{BuildTextTranslation, TextContentId};
 use crate::models::workflow_step;
 use crate::models::{
     thinking_space_answer::{
@@ -39,7 +41,6 @@ use crate::models::{
 };
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
 use crate::{ComhairleError, ComhairleState};
-use crate::{bot_service::AgentConversationRequest, models::translations::TextFormat};
 use crate::{
     models::bot_service_user_session::{self, BotServiceSessionContext},
     routes::translations::LocaleExtractor,
@@ -47,126 +48,9 @@ use crate::{
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
-// ======================
-//
-// LEGACY TYPES
-//
-// Keep for migration binary
-//
-// ======================
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct LegacyThinkingSpaceQuestion {
-    pub id: Uuid,
-    pub text: String,
-    /// Admin-authored description of *why* this question is being asked — fed to
-    /// the AI as `question_intent` so it can generate sharper follow-ups. Never
-    /// shown to participants.
-    pub intent: String,
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct LegacyThinkingSpaceToolConfig {
-    pub topic: String,
-    pub root_questions: Vec<LegacyThinkingSpaceQuestion>,
-    pub follow_up_rounds_count: u8,
-}
-
-// ======================
-//
-// END LEGACY TYPES
-//
-// ======================
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq, TranslatableJson)]
-pub struct ThinkingSpaceQuestion {
-    pub id: Uuid,
-    #[translatable]
-    pub text: TextContentId,
-    /// Admin-authored description of *why* this question is being asked — fed to
-    /// the AI as `question_intent` so it can generate sharper follow-ups. Never
-    /// shown to participants.
-    #[translatable]
-    pub intent: TextContentId,
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq, TranslatableJson)]
-pub struct ThinkingSpaceToolConfig {
-    #[translatable]
-    pub topic: TextContentId,
-    #[translatable]
-    pub root_questions: Vec<ThinkingSpaceQuestion>,
-    pub follow_up_rounds_count: u8,
-}
-
-impl ToolConfigSanitize for ThinkingSpaceToolConfig {
-    fn sanitize(&self) -> Self {
-        self.clone()
-    }
-}
-
-// =================
-// Setup structs
-// =================
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct ThinkingSpaceSetupQuestion {
-    pub text: String,
-    pub intent: String,
-}
-
-impl ThinkingSpaceSetupQuestion {
-    async fn build_with_translations(
-        self,
-        db: &PgPool,
-        locale: &str,
-    ) -> Result<ThinkingSpaceQuestion, ComhairleError> {
-        Ok(ThinkingSpaceQuestion {
-            id: Uuid::new_v4(),
-            text: self
-                .text
-                .build_text_translation(db, locale, TextFormat::Plain)
-                .await?,
-            intent: self
-                .intent
-                .build_text_translation(db, locale, TextFormat::Plain)
-                .await?,
-        })
-    }
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
-pub struct ThinkingSpaceToolSetup {
-    pub topic: String,
-    pub root_questions: Vec<ThinkingSpaceSetupQuestion>,
-    pub follow_up_rounds_count: u8,
-}
-
-impl ThinkingSpaceToolSetup {
-    async fn build_with_translations(
-        self,
-        db: &PgPool,
-        locale: &str,
-    ) -> Result<ThinkingSpaceToolConfig, ComhairleError> {
-        Ok(ThinkingSpaceToolConfig {
-            topic: self
-                .topic
-                .build_text_translation(db, locale, TextFormat::Plain)
-                .await?,
-            root_questions: {
-                let mut built = Vec::with_capacity(self.root_questions.len());
-                for question in self.root_questions {
-                    built.push(question.build_with_translations(db, locale).await?);
-                }
-                built
-            },
-            follow_up_rounds_count: self.follow_up_rounds_count,
-        })
-    }
-}
-
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, JsonSchema)]
-pub struct ThinkingSpaceReport;
+pub use crate::models::tools::thinking_space::{
+    ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup,
+};
 
 /// Zero-sized marker type for ThinkingSpace tool implementation
 pub struct ThinkingSpaceTool;
@@ -217,7 +101,7 @@ impl ToolImpl for ThinkingSpaceTool {
             .config
             .bot_service
             .as_ref()
-            .ok_or(ComhairleError::NoBotServiceConfigured)?;
+            .ok_or(ServiceError::NoBotServiceConfigured)?;
 
         for session in &sessions {
             bot_service
@@ -372,7 +256,7 @@ async fn thinking_space_setup(
     config: &ThinkingSpaceToolSetup,
     locale: &str,
 ) -> Result<ThinkingSpaceToolConfig, ComhairleError> {
-    config.clone().build_with_translations(db, locale).await
+    Ok(config.clone().build_with_translations(db, locale).await?)
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -458,7 +342,9 @@ async fn get_localized_topic(
     translation_map
         .get(&tool_config.topic)
         .ok_or_else(|| {
-            ComhairleError::CorruptedData("Missing topic from thinking space config".to_string())
+            ComhairleError::from(DataError::CorruptedData(
+                "Missing topic from thinking space config".to_string(),
+            ))
         })
         .cloned()
 }
@@ -494,7 +380,7 @@ async fn converse(
         .config
         .bot_service
         .as_ref()
-        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+        .ok_or(ServiceError::NoBotServiceConfigured)?;
 
     let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
 
@@ -504,13 +390,11 @@ async fn converse(
         (None, ToolConfig::ThinkingSpace(config)) => config,
 
         _ => {
-            return Err(ComhairleError::ToolConfigError(
-                "incorrect config type".to_string(),
-            ));
+            return Err(WorkflowError::ToolConfigError("incorrect config type".to_string()).into());
         }
     };
 
-    let session = bot_service_user_session::get_or_create(
+    let session = crate::services::bot_session::get_or_create(
         &state,
         BotServiceSessionContext::ThinkingSpace,
         &user.id,
@@ -642,7 +526,7 @@ async fn generate_thinking_space_summary(
         .config
         .bot_service
         .as_ref()
-        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+        .ok_or(ServiceError::NoBotServiceConfigured)?;
 
     let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
 
@@ -652,9 +536,7 @@ async fn generate_thinking_space_summary(
         (None, ToolConfig::ThinkingSpace(config)) => config,
 
         _ => {
-            return Err(ComhairleError::ToolConfigError(
-                "incorrect config type".to_string(),
-            ));
+            return Err(WorkflowError::ToolConfigError("incorrect config type".to_string()).into());
         }
     };
 
@@ -700,18 +582,18 @@ async fn generate_thinking_space_summary(
         .iter()
         .rfind(|e| e.event == "node_finished" && e.component_type == Some("Message".to_string()))
         .ok_or_else(|| {
-            ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
+            DataError::CorruptedData("Missing summary from bot service agent".to_string())
         })?;
 
     let summary_event = final_event
         .content
         .as_deref()
         .ok_or_else(|| {
-            ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
+            DataError::CorruptedData("Missing summary from bot service agent".to_string())
         })
         .and_then(|content| {
             serde_json::from_str::<ThinkingSpaceContentSummary>(content)
-                .map_err(|e| ComhairleError::CorruptedData(format!("Invalid summary payload: {e}")))
+                .map_err(|e| DataError::CorruptedData(format!("Invalid summary payload: {e}")))
         })?;
 
     let create_summary = CreateSummary {
@@ -748,9 +630,7 @@ async fn get_thinkin_space_summary(
     // Hide other users' summaries behind a 404 rather than 403 so we don't
     // leak that a summary with this id exists.
     if summary.user_id != user.id {
-        return Err(ComhairleError::ResourceNotFound(
-            "ThinkingSpaceSummary".to_string(),
-        ));
+        return Err(DataError::ResourceNotFound("ThinkingSpaceSummary".to_string()).into());
     }
 
     Ok((StatusCode::OK, Json(summary.into())))

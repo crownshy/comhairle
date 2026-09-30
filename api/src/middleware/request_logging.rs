@@ -14,17 +14,7 @@ use tracing::Instrument;
 use crate::ComhairleState;
 use crate::routes::auth::{AUTH_KEY, user_id_from_session_token};
 
-/// The resolved client IP for the current request, stamped into the request
-/// extensions by [`log_requests`] so downstream handlers can read it without
-/// re-deriving it. Handlers extract it with `Extension<ClientIp>`.
-#[derive(Debug, Clone)]
-pub struct ClientIp(pub String);
-
-/// The client browser signature (`User-Agent`) for the current request, stamped
-/// into the request extensions by [`log_requests`] so handlers (e.g. signup) can
-/// persist it. `None` when the header is absent or not valid UTF-8.
-#[derive(Debug, Clone)]
-pub struct ClientUserAgent(pub Option<String>);
+pub use crate::models::request_context::{ClientIp, ClientUserAgent};
 
 /// Middleware that opens an `api_request` span carrying the client IP,
 /// `User-Agent`, method, path, and the logged-in user's id (when a valid session

@@ -1,11 +1,12 @@
 use std::{error::Error, sync::Arc};
 
-use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId, grant_role};
+use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId};
 use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
 use crate::routes::user::dto::UserDto;
 use crate::routes::workflows::dto::WorkflowDto;
+use crate::services::permissions::grant_role;
 use crate::setup_server;
 use crate::test_helpers::{UserSession, test_state};
 

@@ -1555,6 +1555,7 @@ dependencies = [
  "chrono-tz",
  "clap",
  "comhairle-macros",
+ "comhairle_model",
  "config",
  "cookie",
  "css-inline",
@@ -1618,6 +1619,38 @@ dependencies = [
  "tracing-test",
  "unic-langid",
  "urlencoding",
+ "uuid",
+ "zxcvbn",
+]
+
+[[package]]
+name = "comhairle_model"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "chrono-tz",
+ "comhairle-macros",
+ "enum_dispatch",
+ "fake",
+ "hex",
+ "partially",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
+ "schemars 0.8.22",
+ "sea-query",
+ "sea-query-binder",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "sqlx-postgres",
+ "strum",
+ "strum_macros",
+ "thiserror 2.0.18",
+ "tracing",
  "uuid",
  "zxcvbn",
 ]

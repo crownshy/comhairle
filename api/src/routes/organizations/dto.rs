@@ -6,7 +6,6 @@ use uuid::Uuid;
 use crate::{
     models::{
         organization::{LocalizedOrganization, Organization, OrganizationType},
-        pagination::PaginatedResults,
         translations::TextContentId,
     },
     schema_helpers::{example_localized_text, example_uuid},
@@ -94,15 +93,6 @@ impl From<LocalizedOrganization> for LocalizedOrganizationDto {
             regions: o.regions,
             metadata: o.metadata,
             created_at: o.created_at,
-        }
-    }
-}
-
-impl From<PaginatedResults<LocalizedOrganization>> for PaginatedResults<LocalizedOrganizationDto> {
-    fn from(r: PaginatedResults<LocalizedOrganization>) -> Self {
-        Self {
-            total: r.total,
-            records: r.records.into_iter().map(Into::into).collect(),
         }
     }
 }

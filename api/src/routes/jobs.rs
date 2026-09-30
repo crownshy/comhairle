@@ -1,3 +1,4 @@
+use crate::extract::OrderParams;
 use std::sync::Arc;
 
 use aide::axum::{
@@ -16,7 +17,7 @@ use crate::{
     error::ComhairleError,
     models::{
         job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
-        pagination::{OrderParams, PageOptions, PaginatedResults},
+        pagination::{PageOptions, PaginatedResults},
     },
     routes::auth::RequiredAdminUser,
 };

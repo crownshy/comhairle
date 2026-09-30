@@ -17,15 +17,21 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::ComhairleState;
+use crate::authz::ExtractResourceId;
 use crate::error::ComhairleError;
+use crate::models::error::DataError;
+use crate::models::error::ModelError;
+use crate::models::error::PermissionError;
+use crate::models::error::UserError;
+use crate::models::error::ValidationError;
 use crate::models::organization::{
     self, CreateOrganization, OrganizationFilterOptions, OrganizationOrderOptions,
     PartialOrganization,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{
-    Action, ExtractResourceId, GrantRoleRequest, OwnedResource, RevokeRoleRequest, Role,
-    UserOrOrganizationId, grant_role, list_users_with_permission, revoke_role,
+    Action, GrantRoleRequest, OwnedResource, RevokeRoleRequest, Role, UserOrOrganizationId,
+    list_users_with_permission,
 };
 use crate::models::translations;
 use crate::models::users;
@@ -34,6 +40,7 @@ use crate::routes::auth::{
 };
 use crate::routes::organizations::dto::{LocalizedOrganizationDto, OrganizationDto};
 use crate::routes::translations::LocaleExtractor;
+use crate::services::permissions::{grant_role, revoke_role};
 
 pub mod dto;
 
@@ -59,9 +66,7 @@ impl FromRequestParts<Arc<ComhairleState>> for OrganizationResource {
             Path::<OrganizationPath>::from_request_parts(parts, state)
                 .await
                 .map_err(|_| {
-                    ComhairleError::ResourceNotFound(
-                        "Path must contain an organization_id".to_string(),
-                    )
+                    DataError::ResourceNotFound("Path must contain an organization_id".to_string())
                 })?;
 
         Ok(Self {
@@ -151,13 +156,13 @@ async fn set_member_admin_role(
     role: OrganizationTeamRole,
 ) -> Result<(), ComhairleError> {
     if user_id == granted_by && role == OrganizationTeamRole::Member {
-        return Err(ComhairleError::UserNotAuthorized);
+        return Err(PermissionError::UserNotAuthorized.into());
     }
 
     match role {
         OrganizationTeamRole::Admin => {
             let grant_result = grant_role(
-                state,
+                &state,
                 GrantRoleRequest {
                     actor_id: UserOrOrganizationId::User(user_id),
                     permission_triplet: Role::OrganizationAdmin.triplet(&organization_id),
@@ -168,14 +173,14 @@ async fn set_member_admin_role(
             .await;
 
             if let Err(error) = grant_result
-                && !matches!(error, ComhairleError::RoleAlreadyGranted(_))
+                && !matches!(error, PermissionError::RoleAlreadyGranted(_))
             {
-                return Err(error);
+                return Err(error.into());
             }
         }
         OrganizationTeamRole::Member => {
             let revoke_result = revoke_role(
-                state,
+                &state,
                 RevokeRoleRequest {
                     actor_id: UserOrOrganizationId::User(user_id),
                     permission_triplet: Role::OrganizationAdmin.triplet(&organization_id),
@@ -184,9 +189,9 @@ async fn set_member_admin_role(
             .await;
 
             if let Err(error) = revoke_result
-                && !matches!(error, ComhairleError::RoleNotFound(_))
+                && !matches!(error, PermissionError::RoleNotFound(_))
             {
-                return Err(error);
+                return Err(error.into());
             }
         }
     }
@@ -231,19 +236,18 @@ async fn resolve_or_create_user_by_email(
 ) -> Result<(users::User, bool, bool), ComhairleError> {
     let trimmed = email.trim().to_lowercase();
     if trimmed.is_empty() {
-        return Err(ComhairleError::BadRequest(
-            "Email cannot be empty".to_string(),
-        ));
+        return Err(ValidationError::BadRequest("Email cannot be empty".to_string()).into());
     }
 
     match users::get_user_by_email(&trimmed, &state.db).await {
         Ok(user) => Ok((user, false, false)),
-        Err(ComhairleError::NoUserFoundForEmail(_)) => {
+        Err(UserError::NoUserFoundForEmail(_)) => {
             if !allow_create_user {
-                return Err(ComhairleError::NoUserFoundForEmail(trimmed));
+                return Err(UserError::NoUserFoundForEmail(trimmed).into());
             }
 
-            let user = users::create_organization_admin_user(state, &trimmed).await?;
+            let user =
+                crate::services::user::create_organization_admin_user(state, &trimmed).await?;
 
             let token = generate_jwt()
                 .user(&user)
@@ -265,7 +269,7 @@ async fn resolve_or_create_user_by_email(
 
             Ok((user, true, emailed))
         }
-        Err(error) => Err(error),
+        Err(error) => Err(error.into()),
     }
 }
 
@@ -286,7 +290,7 @@ async fn list(
         &locale,
     )
     .await?
-    .into();
+    .map(Into::into);
 
     Ok((StatusCode::OK, Json(organizations)))
 }
@@ -407,9 +411,10 @@ async fn update_member_role(
         .organization_id
         .is_some_and(|member_org_id| member_org_id == organization_id)
     {
-        return Err(ComhairleError::BadRequest(
+        return Err(ValidationError::BadRequest(
             "User is not a member of this organization".to_string(),
-        ));
+        )
+        .into());
     }
 
     set_member_admin_role(&state, organization_id, user_id, user.id, payload.role).await?;
@@ -555,7 +560,7 @@ async fn update_localized_text_content(
             )
             .await?;
         }
-        Err(ComhairleError::ResourceNotFound(_)) => {
+        Err(ModelError::Data(DataError::ResourceNotFound(_))) => {
             translations::create_text_translation(
                 db,
                 &translations::CreateTextTranslation {
@@ -568,7 +573,7 @@ async fn update_localized_text_content(
             )
             .await?;
         }
-        Err(error) => return Err(error),
+        Err(error) => return Err(error.into()),
     }
 
     Ok(())
@@ -726,6 +731,7 @@ mod tests {
 
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::organization::OrganizationType;
+    use crate::test_helpers::test_state;
 
     use super::*;
 
@@ -938,6 +944,93 @@ mod tests {
             response.get("err").and_then(|v| v.as_str()).unwrap(),
             "Organization not found",
             "incorrect error message"
+        );
+
+        Ok(())
+    }
+
+    /// `update_localized_text_content` branches on a not-found error to decide
+    /// between creating a translation and updating one. Nothing in the type system
+    /// protects that branch, so pin both sides of it.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_a_translation_when_none_exists_for_the_locale(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let content =
+            translations::new_translation(&pool, "en", "Original", translations::TextFormat::Plain)
+                .await?;
+
+        // No French translation exists yet, so this must create one rather than fail.
+        update_localized_text_content(&pool, &content.id, "fr", "Traduction").await?;
+
+        let created =
+            translations::get_text_translation_by_content_and_locale(&pool, &content.id, "fr")
+                .await?;
+        assert_eq!(created.content, "Traduction", "translation not created");
+
+        // A second write must reuse the row the first one created.
+        update_localized_text_content(&pool, &content.id, "fr", "Mise a jour").await?;
+
+        let updated =
+            translations::get_text_translation_by_content_and_locale(&pool, &content.id, "fr")
+                .await?;
+        assert_eq!(updated.content, "Mise a jour", "translation not updated");
+        assert_eq!(
+            updated.id, created.id,
+            "expected the existing translation row to be updated, not replaced"
+        );
+
+        // The original locale must be untouched by either write.
+        let english =
+            translations::get_text_translation_by_content_and_locale(&pool, &content.id, "en")
+                .await?;
+        assert_eq!(english.content, "Original", "English translation clobbered");
+
+        Ok(())
+    }
+
+    /// `resolve_or_create_user_by_email` branches on a not-found error to bootstrap
+    /// an account. Only the create path distinguishes a working branch from a broken
+    /// one: if the arm stops matching, the error just propagates and no user appears.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_a_user_when_resolving_an_unknown_email(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+
+        let (user, created_account, _emailed) =
+            resolve_or_create_user_by_email(&state, "  New.User@Example.com  ", true).await?;
+
+        assert!(created_account, "expected a new account to be bootstrapped");
+        assert_eq!(
+            user.email.as_deref(),
+            Some("new.user@example.com"),
+            "email should be trimmed and lowercased"
+        );
+
+        // Resolving the same address again must find the existing user, not remake it.
+        let (again, created_again, _) =
+            resolve_or_create_user_by_email(&state, "new.user@example.com", true).await?;
+
+        assert!(!created_again, "expected the existing user to be reused");
+        assert_eq!(again.id, user.id, "resolved a different user");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_create_a_user_when_bootstrapping_is_not_allowed(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+
+        let err = resolve_or_create_user_by_email(&state, "nobody@example.com", false)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(err, ComhairleError::User(UserError::NoUserFoundForEmail(_))),
+            "expected NoUserFoundForEmail, got {err:?}"
         );
 
         Ok(())

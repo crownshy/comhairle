@@ -1,10 +1,17 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::models::report::{LocalizedReport, Report, ReportSectionConfigs};
+use crate::error::ComhairleError;
+use crate::models::report::{
+    LocalizedReport, Report, ReportSectionConfigs, ReportWithTranslations,
+};
 use crate::models::translations::TextContentId;
+use crate::models::{feedback, report_impact};
+use crate::routes::feedback::dto::FeedbackDto;
+use crate::routes::report_impacts::dto::ReportImpactDto;
 
 /// Data transfer object (public API representation) for a Report.
 ///
@@ -71,5 +78,54 @@ impl From<LocalizedReport> for LocalizedReportDto {
             section_configs: r.section_configs,
             created_at: r.created_at,
         }
+    }
+}
+
+/// A report in one of its two API shapes: the admin view with raw translation
+/// ids, or the participant view localized to one locale.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(untagged)]
+pub enum ReportView {
+    WithTranslations(ReportWithTranslations),
+    Localized(LocalizedReportDto),
+}
+
+/// The full report response: the report in either view, plus the feedback and
+/// impacts attached to it.
+#[derive(Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FullReportDto {
+    #[serde(flatten)]
+    pub report: ReportView,
+    pub facilitator_feedback: Vec<FeedbackDto>,
+    pub participant_feedback: Vec<FeedbackDto>,
+    pub impacts: Vec<ReportImpactDto>,
+}
+
+impl FullReportDto {
+    pub async fn from_report(
+        db: &PgPool,
+        report: ReportView,
+    ) -> Result<FullReportDto, ComhairleError> {
+        let (report_id, conversation_id) = match &report {
+            ReportView::WithTranslations(report) => (report.id, report.conversation_id),
+            ReportView::Localized(report) => (report.id, report.conversation_id),
+        };
+        let feedback = feedback::list_for_conversation(db, &conversation_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        let impacts = report_impact::get_for_report(db, &report_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        Ok(FullReportDto {
+            report,
+            impacts,
+            facilitator_feedback: feedback,
+            participant_feedback: vec![],
+        })
     }
 }

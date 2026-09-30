@@ -9,13 +9,16 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::error::ConversationError;
+use crate::models::error::PermissionError;
+use crate::models::error::ValidationError;
+use crate::models::error::WorkflowError;
 use crate::models::proposal::{
     self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations,
 };
@@ -26,7 +29,7 @@ use crate::models::proposal_response::{
 use crate::models::proposal_section::{
     self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
 };
-use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
+use crate::models::translations::TextContentId;
 use crate::models::user_progress;
 use crate::models::workflow_step;
 use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
@@ -35,196 +38,9 @@ use crate::schema_helpers::{example_localized_text, example_uuid};
 use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::{ComhairleError, ComhairleState};
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
-pub struct PrioritizationToolConfig {
-    /// Questions asked once about the proposal as a whole.
-    #[translatable]
-    pub questions: Vec<Question>,
-    /// Questions asked about each section individually. The same set is used
-    /// for every section; participants answer them once per section.
-    #[serde(default)]
-    #[translatable]
-    pub section_questions: Vec<Question>,
-    pub randomize_order: bool,
-    pub alignment_question_id: Option<Uuid>,
-    /// Minimum proposals a participant must review before they can continue to
-    /// the next step. `None` means every proposal must be reviewed, which is the
-    /// default; an admin sets a number only to loosen that. Non-positive values
-    /// are normalised back to `None` by `ToolConfigSanitize` on save, not on
-    /// every read, and the participant UI clamps the value to the proposal
-    /// count, so the gate is always satisfiable.
-    #[serde(default)]
-    pub required_reviews: Option<i32>,
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
-pub struct Question {
-    pub id: Uuid,
-    #[translatable]
-    pub text: TextContentId,
-    #[translatable]
-    pub r#type: QuestionType,
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
-#[serde(rename_all = "snake_case")]
-pub enum QuestionType {
-    Text,
-    LikertScale {
-        #[translatable]
-        categories: Vec<Category>,
-    },
-    Continuous {
-        #[serde(default = "default_sub_steps")]
-        sub_steps: i32,
-        #[serde(default)]
-        min_value: f64,
-        #[serde(default = "default_max_value")]
-        max_value: f64,
-        #[translatable]
-        min_label: TextContentId,
-        #[translatable]
-        max_label: TextContentId,
-    },
-}
-
-fn default_sub_steps() -> i32 {
-    10
-}
-
-fn default_max_value() -> f64 {
-    10.0
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
-pub struct Category {
-    value: f64,
-    #[translatable]
-    label: TextContentId,
-}
-
-// =================
-// Setup structs
-// =================
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-pub struct SetupQuestion {
-    pub text: String,
-    pub r#type: SetupQuestionType,
-}
-
-impl SetupQuestion {
-    async fn build_with_translations(
-        self,
-        db: &PgPool,
-        locale: &str,
-    ) -> Result<Question, ComhairleError> {
-        Ok(Question {
-            id: Uuid::new_v4(),
-            text: self
-                .text
-                .build_text_translation(db, locale, TextFormat::Plain)
-                .await?,
-            r#type: self.r#type.build_with_translations(db, locale).await?,
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum SetupQuestionType {
-    Text,
-    LikertScale {
-        categories: Vec<SetupCategory>,
-    },
-    Continuous {
-        sub_steps: i32,
-        min_value: f64,
-        max_value: f64,
-        min_label: String,
-        max_label: String,
-    },
-}
-
-impl SetupQuestionType {
-    async fn build_with_translations(
-        self,
-        db: &PgPool,
-        locale: &str,
-    ) -> Result<QuestionType, ComhairleError> {
-        Ok(match self {
-            SetupQuestionType::Text => QuestionType::Text,
-            SetupQuestionType::LikertScale { categories } => {
-                let mut built = Vec::with_capacity(categories.len());
-                for category in categories {
-                    built.push(category.build_with_translations(db, locale).await?);
-                }
-                QuestionType::LikertScale { categories: built }
-            }
-            SetupQuestionType::Continuous {
-                sub_steps,
-                min_value,
-                max_value,
-                min_label,
-                max_label,
-            } => QuestionType::Continuous {
-                sub_steps,
-                min_value,
-                max_value,
-                min_label: min_label
-                    .build_text_translation(db, locale, TextFormat::Plain)
-                    .await?,
-                max_label: max_label
-                    .build_text_translation(db, locale, TextFormat::Plain)
-                    .await?,
-            },
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-pub struct SetupCategory {
-    value: f64,
-    label: String,
-}
-
-impl SetupCategory {
-    async fn build_with_translations(
-        self,
-        db: &PgPool,
-        locale: &str,
-    ) -> Result<Category, ComhairleError> {
-        Ok(Category {
-            value: self.value,
-            label: self
-                .label
-                .build_text_translation(db, locale, TextFormat::Plain)
-                .await?,
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-pub struct PrioritizationToolSetup {
-    pub questions: Vec<SetupQuestion>,
-}
-
-impl ToolConfigSanitize for PrioritizationToolConfig {
-    fn sanitize(&self) -> Self {
-        Self {
-            questions: self.questions.clone(),
-            section_questions: self.section_questions.clone(),
-            randomize_order: self.randomize_order,
-            alignment_question_id: self.alignment_question_id,
-            // A stored zero or negative would make the gate meaningless, so treat
-            // it as unset (every proposal must be reviewed).
-            required_reviews: self.required_reviews.filter(|v| *v >= 1),
-        }
-    }
-}
-
-#[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
-pub struct PrioritizationReport;
+pub use crate::models::tools::prioritization::{
+    PrioritizationReport, PrioritizationToolConfig, PrioritizationToolSetup,
+};
 
 pub struct PrioritizationTool;
 
@@ -693,7 +509,7 @@ async fn create_proposal_response(
     let step = workflow_step::get_by_id(&state.db, &proposal.workflow_step_id).await?;
 
     if user_progress::is_sealed(&state.db, &user.id, &step.workflow_id).await? {
-        return Err(ComhairleError::ParticipantSealed);
+        return Err(PermissionError::ParticipantSealed.into());
     }
 
     let response = proposal_response::create(&state.db, &proposal_id, &user.id, &payload).await?;
@@ -751,20 +567,22 @@ async fn get_prioritization_insights(
     let workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
     let tool_config = match workflow_step.tool_config {
         Some(ToolConfig::Prioritization(config)) => config,
-        None => return Err(ComhairleError::ConversationNotLive),
+        None => return Err(ConversationError::ConversationNotLive.into()),
         _ => {
-            return Err(ComhairleError::WorkflowStepHasWrongType(
+            return Err(WorkflowError::WorkflowStepHasWrongType(
                 "Prioritization type required".to_string(),
-            ));
+            )
+            .into());
         }
     };
 
     let alignment_question_id = if let Some(q_id) = tool_config.alignment_question_id {
         q_id
     } else {
-        return Err(ComhairleError::Unprocessable(
+        return Err(ValidationError::Unprocessable(
             "Cannot generate insights. Missing alignment question".to_string(),
-        ));
+        )
+        .into());
     };
 
     let proposals = proposal::list_localized(&state.db, &workflow_step_id, &locale).await?;
