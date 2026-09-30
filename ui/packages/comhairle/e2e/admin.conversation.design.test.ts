@@ -81,4 +81,20 @@ test.describe('Design page', () => {
 		await (await draggableList.get('a')).reorder('down');
 		await draggableList.expect();
 	});
+
+	test('Move a step upwards - with menu', async ({ page, cleanup }) => {
+		const draggableList = await DraggableList<'a' | 'b'>({ page, cleanup });
+		await draggableList.add('a', 'new', 'Learn');
+		await draggableList.add('b', 'new', 'Poll');
+		await (await draggableList.get('b')).menu().reorder('up');
+		await draggableList.expect();
+	});
+
+	test('Move a step downards - with menu', async ({ page, cleanup }) => {
+		const draggableList = await DraggableList<'a' | 'b'>({ page, cleanup });
+		await draggableList.add('a', 'new', 'Learn');
+		await draggableList.add('b', 'new', 'Poll');
+		await (await draggableList.get('a')).menu().reorder('down');
+		await draggableList.expect();
+	});
 });
