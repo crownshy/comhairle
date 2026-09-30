@@ -1,4 +1,4 @@
-import { generateValue, sleep } from '..';
+import { generateValue, sleep, testWithRefresh } from '..';
 import type { Page } from '../types';
 import { expect, type Locator } from '@playwright/test';
 import { Refs } from './types';
@@ -246,7 +246,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 
 	return {
 		add,
-		expect: expected,
+		expect: () => testWithRefresh(refs.page, () => expected()),
 		get
 	};
 };
