@@ -34,5 +34,16 @@ export default ts.config(
 			}
 		}
 	},
+	{
+		// Rune modules are TypeScript too; without this the svelte parser sees them and
+		// trips on the first `import type`.
+		files: ['**/*.svelte.ts'],
+
+		languageOptions: {
+			parserOptions: {
+				parser: ts.parser
+			}
+		}
+	},
 	storybook.configs['flat/recommended']
 );

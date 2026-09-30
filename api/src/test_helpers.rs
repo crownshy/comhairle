@@ -1,8 +1,10 @@
 use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
 use crate::redis_connection::RedisConnection;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
+use axum::extract::ConnectInfo;
 use chrono::Utc;
 use hyper::header::AUTHORIZATION;
+use std::net::SocketAddr;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
@@ -359,6 +361,18 @@ impl UserSession {
         }
     }
 
+    /// Inserts a mock `ConnectInfo<SocketAddr>` into the request extensions.
+    ///
+    /// Required for rate-limited endpoints.
+    ///
+    /// `tower-governor`'s IP-based key extractors read the peer address from
+    /// `ConnectInfo`, which is only populated by a real listener. Requests sent
+    /// via `Router::oneshot` in tests skip that step, so it has to be added here.
+    fn apply_connection_info(&self, req: &mut Request<Body>) {
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 8080))));
+    }
+
     pub async fn get(
         &mut self,
         app: &Router,
@@ -370,7 +384,9 @@ impl UserSession {
             request = request.header(COOKIE, cookie_header)
         }
 
-        let request = request.body(Body::empty()).unwrap();
+        let mut request = request.body(Body::empty()).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -397,7 +413,9 @@ impl UserSession {
 
         request = request.header(AUTHORIZATION, format!("Bearer {api_key}"));
 
-        let request = request.body(Body::empty()).unwrap();
+        let mut request = request.body(Body::empty()).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -416,7 +434,9 @@ impl UserSession {
             request = request.header(COOKIE, cookie)
         }
 
-        let request = request.body(Body::empty()).unwrap();
+        let mut request = request.body(Body::empty()).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -448,7 +468,9 @@ impl UserSession {
             request = request.header(COOKIE, cookie)
         }
 
-        let request = request.body(body).unwrap();
+        let mut request = request.body(body).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -480,7 +502,9 @@ impl UserSession {
             request = request.header(COOKIE, cookie_header)
         }
 
-        let request = request.body(body).unwrap();
+        let mut request = request.body(body).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -512,7 +536,9 @@ impl UserSession {
             request = request.header(COOKIE, cookie);
         }
 
-        let request = request.body(body).unwrap();
+        let mut request = request.body(body).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -546,7 +572,9 @@ impl UserSession {
             request = request.header(COOKIE, cookie)
         }
 
-        let request = request.body(body).unwrap();
+        let mut request = request.body(body).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -583,7 +611,9 @@ impl UserSession {
             request = request.header(name, value);
         }
 
-        let request = request.body(body).unwrap();
+        let mut request = request.body(body).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -615,7 +645,9 @@ impl UserSession {
             request = request.header(COOKIE, cookie)
         }
 
-        let request = request.body(body).unwrap();
+        let mut request = request.body(body).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -647,7 +679,9 @@ impl UserSession {
             request = request.header(COOKIE, cookie)
         }
 
-        let request = request.body(body).unwrap();
+        let mut request = request.body(body).unwrap();
+        self.apply_connection_info(&mut request);
+
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
 
@@ -668,6 +702,7 @@ impl UserSession {
         &mut self,
         app: &Router,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
+        self.cookies = None;
         self.post(app, "/auth/logout", Body::empty()).await
     }
 
