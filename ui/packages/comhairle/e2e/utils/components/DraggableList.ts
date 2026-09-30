@@ -156,6 +156,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 				break;
 			}
 		}
+		await sleep(1);
 	}
 
 	async function get(id: T): Promise<DraggableListItemComponent<T>> {
