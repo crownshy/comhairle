@@ -58,4 +58,11 @@ test.describe('Design page', () => {
 		await (await draggableList.get('a')).menu().delete();
 		await draggableList.expect();
 	});
+
+	test('Rename a step', async ({ page, cleanup }) => {
+		const draggableList = await DraggableList<'a'>({ page, cleanup });
+		await draggableList.add('a', 'new', 'Learn');
+		await (await draggableList.get('a')).menu().rename();
+		await draggableList.expect();
+	});
 });
