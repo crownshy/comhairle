@@ -1,7 +1,6 @@
 use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
-
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use axum::{
     Extension, RequestPartsExt,
@@ -17,42 +16,19 @@ use axum_extra::{
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
+#[cfg(test)]
+use fake::Dummy;
 use hmac::{Hmac, KeyInit, Mac};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
 use rand_core::OsRng;
 use regex::Regex;
-use sha2::Sha256;
-use time::Duration;
-
-/// Helper function to check if a user is admin
-pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
-    // Check if the user has the system admin role
-    if has_resource_permission(
-        state,
-        PermissionRole::Admin.system_triplet(),
-        &user.id,
-        user.organization_id.as_ref(),
-    )
-    .await
-    .unwrap_or(false)
-    {
-        return true;
-    }
-
-    let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
-    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
-        let downcase_admin_users: Vec<String> =
-            admin_users.iter().map(|a| a.to_lowercase()).collect();
-        return downcase_admin_users.contains(&email.to_lowercase())
-            || re.is_match(&email.to_lowercase());
-    }
-    false
-}
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
+use sha2::Sha256;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
+use time::Duration;
 use tower::util::option_layer;
 use tracing::{instrument, warn};
 use uuid::Uuid;
@@ -62,8 +38,8 @@ use crate::error::ComhairleError;
 use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
-    Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
-    UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
+    ActorId, ConversationPath, GrantRoleRequest, PermissionResource, PermissionRole, grant_role,
+    has_resource_permission, system::Role as SystemRole,
 };
 use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
 use crate::models::users::{
@@ -74,12 +50,30 @@ use crate::models::users::{
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
 
-#[cfg(test)]
-use fake::Dummy;
-
 /// This is the key that we use in the cookie for the JWT
 pub const AUTH_KEY: &str = "auth-token";
 const REFRESH_KEY: &str = "refresh-token";
+
+/// Helper function to check if a user is admin
+pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
+    // Check if the user has the system admin role
+    if let Ok(triplet) = SystemRole::Admin.system_triplet()
+        && has_resource_permission(state, triplet, &user.id)
+            .await
+            .unwrap_or(false)
+    {
+        return true;
+    }
+
+    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
+        let downcase_admin_users: Vec<String> =
+            admin_users.iter().map(|a| a.to_lowercase()).collect();
+        return downcase_admin_users.contains(&email.to_lowercase())
+            || Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$")
+                .is_ok_and(|pattern| pattern.is_match(&email.to_lowercase()));
+    }
+    false
+}
 
 /// Validate password strength according to security requirements
 ///
@@ -341,8 +335,8 @@ async fn signup(
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: PermissionRole::Admin.system_triplet(),
+                actor_id: ActorId::User(user.id),
+                permission_triplet: SystemRole::Admin.system_triplet()?,
                 grant_reason: "Admin signup",
                 granted_by: &user.id,
             },
@@ -969,27 +963,20 @@ async fn resolve_user_from_request(
 ///
 /// Access is granted if the user owns the resource, or if the user (or their
 /// organization) holds a role whose policy permits the action. Super admins are
-/// always permitted (handled by [`can_perform_resource_action`]).
+/// always permitted (handled by [`can_perform_action`]).
 ///
 /// # Errors
 ///
 /// * Returns [`ComhairleError::UserNotAuthorized`] if the user is not permitted.
 /// * Propagates [`ComhairleError`] from the underlying permission lookup.
-pub async fn authorize<R: ExtractResourceId>(
+pub async fn authorize<R: PermissionResource>(
     state: &Arc<ComhairleState>,
     user: &User,
-    action: Action,
+    action: R::Action,
     resource: &R,
 ) -> Result<(), ComhairleError> {
-    if can_perform_resource_action(
-        state,
-        &resource.resource_id(),
-        action,
-        &user.id,
-        user.organization_id.as_ref(),
-        resource.owner_id().as_ref(),
-    )
-    .await?
+    if resource.owner_id() == Some(user.id)
+        || resource.can_perform_action(state, action, &user.id).await?
     {
         Ok(())
     } else {

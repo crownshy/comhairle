@@ -24,14 +24,13 @@ use crate::models::organization::{
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{
-    Action, ExtractResourceId, GrantRoleRequest, OwnedResource, RevokeRoleRequest, Role,
-    UserOrOrganizationId, grant_role, list_users_with_permission, revoke_role,
+    PermissionResource, PermissionRole,
+    organization::{Action, Role},
 };
 use crate::models::translations;
+use crate::models::user_group;
 use crate::models::users;
-use crate::routes::auth::{
-    EmailLinkClaims, RequiredAdminUser, RequiredUser, authorize, generate_jwt,
-};
+use crate::routes::auth::{EmailLinkClaims, RequiredAdminUser, RequiredUser, generate_jwt};
 use crate::routes::organizations::dto::{LocalizedOrganizationDto, OrganizationDto};
 use crate::routes::translations::LocaleExtractor;
 
@@ -45,7 +44,6 @@ struct OrganizationPath {
 #[derive(Debug, OperationIo)]
 struct OrganizationResource {
     resource_id: Uuid,
-    owner_id: Option<Uuid>,
 }
 
 impl FromRequestParts<Arc<ComhairleState>> for OrganizationResource {
@@ -66,20 +64,31 @@ impl FromRequestParts<Arc<ComhairleState>> for OrganizationResource {
 
         Ok(Self {
             resource_id: organization_id,
-            owner_id: None,
         })
     }
 }
 
-impl ExtractResourceId for OrganizationResource {
+impl PermissionResource for OrganizationResource {
+    type Action = Action;
+
     fn resource_id(&self) -> Uuid {
         self.resource_id
     }
-}
 
-impl OwnedResource for OrganizationResource {
-    fn owner_id(&self) -> Option<Uuid> {
-        self.owner_id
+    async fn can_perform_action(
+        &self,
+        state: &Arc<ComhairleState>,
+        action: Self::Action,
+        user_id: &Uuid,
+    ) -> Result<bool, ComhairleError> {
+        crate::models::permissions::can_perform_action(
+            state,
+            &self.resource_id,
+            action,
+            user_id,
+            None,
+        )
+        .await
     }
 }
 
@@ -150,48 +159,14 @@ async fn set_member_admin_role(
     granted_by: Uuid,
     role: OrganizationTeamRole,
 ) -> Result<(), ComhairleError> {
-    if user_id == granted_by && role == OrganizationTeamRole::Member {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-
-    match role {
-        OrganizationTeamRole::Admin => {
-            let grant_result = grant_role(
-                state,
-                GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(user_id),
-                    permission_triplet: Role::OrganizationAdmin.triplet(&organization_id),
-                    granted_by: &granted_by,
-                    grant_reason: "Organization team management",
-                },
-            )
-            .await;
-
-            if let Err(error) = grant_result
-                && !matches!(error, ComhairleError::RoleAlreadyGranted(_))
-            {
-                return Err(error);
-            }
-        }
-        OrganizationTeamRole::Member => {
-            let revoke_result = revoke_role(
-                state,
-                RevokeRoleRequest {
-                    actor_id: UserOrOrganizationId::User(user_id),
-                    permission_triplet: Role::OrganizationAdmin.triplet(&organization_id),
-                },
-            )
-            .await;
-
-            if let Err(error) = revoke_result
-                && !matches!(error, ComhairleError::RoleNotFound(_))
-            {
-                return Err(error);
-            }
-        }
-    }
-
-    Ok(())
+    user_group::set_organization_member(
+        state,
+        organization_id,
+        user_id,
+        granted_by,
+        role == OrganizationTeamRole::Admin,
+    )
+    .await
 }
 
 fn role_label(role: OrganizationTeamRole) -> &'static str {
@@ -245,25 +220,7 @@ async fn resolve_or_create_user_by_email(
 
             let user = users::create_organization_admin_user(state, &trimmed).await?;
 
-            let token = generate_jwt()
-                .user(&user)
-                .secret(&state.config.jwt_secret)
-                .custom_claims(EmailLinkClaims {
-                    email: user.email.clone(),
-                })
-                .duration(chrono::Duration::hours(24))
-                .call();
-            let reset_link = format!(
-                "{}/auth/password-reset/update?token={}",
-                state.config.domain, token
-            );
-
-            let emailed = state
-                .mailer
-                .send_user_account_created_email(&user.email, &user.username, reset_link)
-                .is_ok();
-
-            Ok((user, true, emailed))
+            Ok((user, true, false))
         }
         Err(error) => Err(error),
     }
@@ -309,29 +266,17 @@ async fn get(
 async fn get_team(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
-    RequiredUser(user): RequiredUser,
-    resource: OrganizationResource,
 ) -> Result<(StatusCode, Json<OrganizationTeamResponseDto>), ComhairleError> {
-    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
-
-    let admins = list_users_with_permission(
-        &state.db,
-        Role::OrganizationAdmin.resource_type().as_ref(),
-        organization_id,
-        Some(Role::OrganizationAdmin.as_ref()),
-    )
-    .await?;
-
-    let admin_ids = admins
-        .into_iter()
-        .map(|admin| admin.id)
-        .collect::<std::collections::HashSet<_>>();
-
-    let members = users::list_by_organization_id(&organization_id, &state.db)
-        .await?
-        .into_iter()
-        .map(|member| OrganizationTeamUserDto {
-            role: if admin_ids.contains(&member.id) {
+    let mut members = Vec::new();
+    for member in users::list_by_organization_id(&organization_id, &state.db).await? {
+        let administrator = crate::models::permissions::has_resource_permission(
+            &state,
+            Role::Admin.triplet(&organization_id)?,
+            &member.id,
+        )
+        .await?;
+        members.push(OrganizationTeamUserDto {
+            role: if administrator {
                 OrganizationTeamRole::Admin
             } else {
                 OrganizationTeamRole::Member
@@ -339,8 +284,8 @@ async fn get_team(
             id: member.id,
             username: member.username,
             email: member.email,
-        })
-        .collect();
+        });
+    }
 
     Ok((
         StatusCode::OK,
@@ -353,21 +298,37 @@ async fn add_member(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
     RequiredUser(user): RequiredUser,
-    resource: OrganizationResource,
     Json(payload): Json<UpsertOrganizationUserBody>,
 ) -> Result<(StatusCode, Json<UpsertOrganizationUserResponseDto>), ComhairleError> {
-    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
-
     let allow_create_user = payload.allow_create_user.unwrap_or(false);
-    let (resolved_user, created_account, emailed) =
+    let (resolved_user, created_account, mut emailed) =
         resolve_or_create_user_by_email(&state, &payload.email, allow_create_user).await?;
     let role = payload.role.unwrap_or(OrganizationTeamRole::Member);
 
-    let updated_user =
-        users::set_user_organization_id(&resolved_user.id, Some(organization_id), &state.db)
-            .await?;
-
+    let updated_user = resolved_user;
     set_member_admin_role(&state, organization_id, updated_user.id, user.id, role).await?;
+    if created_account {
+        let token = generate_jwt()
+            .user(&updated_user)
+            .secret(&state.config.jwt_secret)
+            .custom_claims(EmailLinkClaims {
+                email: updated_user.email.clone(),
+            })
+            .duration(chrono::Duration::hours(24))
+            .call();
+        let reset_link = format!(
+            "{}/auth/password-reset/update?token={}",
+            state.config.domain, token
+        );
+        emailed = state
+            .mailer
+            .send_user_account_created_email(
+                &updated_user.email,
+                &updated_user.username,
+                reset_link,
+            )
+            .is_ok();
+    }
 
     if let Some(email) = updated_user.email.as_deref() {
         let organization = organization::get_by_id(&state.db, &organization_id).await?;
@@ -397,16 +358,9 @@ async fn update_member_role(
         user_id,
     }): Path<OrganizationMemberPath>,
     RequiredUser(user): RequiredUser,
-    resource: OrganizationResource,
     Json(payload): Json<UpdateOrganizationMemberRoleBody>,
 ) -> Result<StatusCode, ComhairleError> {
-    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
-
-    let target_user = users::get_user_by_id(&user_id, &state.db).await?;
-    if !target_user
-        .organization_id
-        .is_some_and(|member_org_id| member_org_id == organization_id)
-    {
+    if !user_group::is_organization_member(&state.db, organization_id, user_id).await? {
         return Err(ComhairleError::BadRequest(
             "User is not a member of this organization".to_string(),
         ));
@@ -425,27 +379,8 @@ async fn remove_member(
         user_id,
     }): Path<OrganizationMemberPath>,
     RequiredUser(user): RequiredUser,
-    resource: OrganizationResource,
 ) -> Result<StatusCode, ComhairleError> {
-    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
-
-    let target_user = users::get_user_by_id(&user_id, &state.db).await?;
-
-    set_member_admin_role(
-        &state,
-        organization_id,
-        user_id,
-        user.id,
-        OrganizationTeamRole::Member,
-    )
-    .await?;
-
-    if target_user
-        .organization_id
-        .is_some_and(|id| id == organization_id)
-    {
-        users::set_user_organization_id(&user_id, None, &state.db).await?;
-    }
+    user_group::remove_organization_member(&state, organization_id, user_id, user.id).await?;
 
     Ok(StatusCode::OK)
 }
@@ -457,7 +392,8 @@ async fn create(
     LocaleExtractor(locale): LocaleExtractor,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
-    let organization = organization::create(&state.db, &payload, &locale).await?;
+    let organization =
+        organization::create_with_administrator(&state.db, &payload, &locale, user.id).await?;
 
     Ok((StatusCode::CREATED, Json(organization.into())))
 }
@@ -466,13 +402,9 @@ async fn create(
 async fn update(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
-    resource: OrganizationResource,
     LocaleExtractor(locale): LocaleExtractor,
     Json(payload): Json<UpdateOrganizationBody>,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
-    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
-
     let existing = organization::get_by_id(&state.db, &organization_id).await?;
 
     if let Some(description) = payload.description.as_ref() {
@@ -508,11 +440,7 @@ async fn update(
 async fn get_metadata(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    resource: OrganizationResource,
 ) -> Result<(StatusCode, Json<Option<serde_json::Value>>), ComhairleError> {
-    authorize(&state, &_user, Action::OrganizationRead, &resource).await?;
-
     let metadata = organization::get_metadata(&state.db, &organization_id).await?;
 
     Ok((StatusCode::OK, Json(metadata)))
@@ -524,12 +452,8 @@ async fn get_metadata(
 async fn patch_metadata(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
-    resource: OrganizationResource,
     Json(patch): Json<serde_json::Value>,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
-    authorize(&state, &user, Action::OrganizationUpdate, &resource).await?;
-
     let organization = organization::patch_metadata(&state.db, &organization_id, patch)
         .await?
         .into();
@@ -578,11 +502,7 @@ async fn update_localized_text_content(
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
-    resource: OrganizationResource,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
-    authorize(&state, &user, Action::OrganizationDelete, &resource).await?;
-
     let organization = organization::delete(&state.db, &organization_id)
         .await?
         .into();
@@ -591,6 +511,12 @@ async fn delete(
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    use crate::middleware::permissions::{
+        PermissionRequirement, authenticate, authorize as permission_middleware,
+    };
+    use crate::models::permissions::organization::Action as OrganizationAction;
+    use axum::middleware::{from_fn, from_fn_with_state};
+    let requirement = PermissionRequirement::<OrganizationResource>::new;
     ApiRouter::new()
         .api_route(
             "/",
@@ -612,7 +538,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Get an organization by id")
                     .security_requirement("JWT")
                     .response::<200, Json<LocalizedOrganizationDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(requirement(OrganizationAction::Read), permission_middleware::<OrganizationResource>)),
         )
         .api_route(
             "/{organization_id}/team",
@@ -623,7 +550,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Returns members and administrators for an organization")
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationTeamResponseDto>>()
-            }),
+                    })
+                    .route_layer(from_fn_with_state(requirement(OrganizationAction::Read), permission_middleware::<OrganizationResource>)),
         )
         .api_route(
             "/{organization_id}/members",
@@ -634,7 +562,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Adds a member by email and bootstraps an account when needed")
                     .security_requirement("JWT")
                     .response::<200, Json<UpsertOrganizationUserResponseDto>>()
-            }),
+                    })
+                    .route_layer(from_fn_with_state(requirement(OrganizationAction::AddMember), permission_middleware::<OrganizationResource>)),
         )
         .api_route(
             "/{organization_id}/members/{user_id}",
@@ -645,7 +574,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Removes a user's organization membership")
                     .security_requirement("JWT")
                     .response::<200, ()>()
-            }),
+                    })
+                    .route_layer(from_fn_with_state(requirement(OrganizationAction::RemoveMember), permission_middleware::<OrganizationResource>)),
         )
         .api_route(
             "/{organization_id}/members/{user_id}/role",
@@ -656,7 +586,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Updates organization member role between member and admin")
                     .security_requirement("JWT")
                     .response::<200, ()>()
-            }),
+                    })
+                    .route_layer(from_fn_with_state(requirement(OrganizationAction::GrantPermission), permission_middleware::<OrganizationResource>)),
         )
         .api_route(
             "/",
@@ -678,7 +609,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Update an organization")
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationDto>>()
-            }),
+                    })
+                    .route_layer(from_fn_with_state(requirement(Action::Update), permission_middleware::<OrganizationResource>))
+                    .route_layer(from_fn(authenticate::<RequiredAdminUser>)),
         )
         .api_route(
             "/{organization_id}/metadata",
@@ -689,7 +622,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Get organization metadata")
                     .security_requirement("JWT")
                     .response::<200, Json<Option<serde_json::Value>>>()
-            }),
+                    })
+                    .route_layer(from_fn_with_state(requirement(Action::Read), permission_middleware::<OrganizationResource>))
+                    .route_layer(from_fn(authenticate::<RequiredAdminUser>)),
         )
         .api_route(
             "/{organization_id}/metadata",
@@ -702,7 +637,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(requirement(Action::Update), permission_middleware::<OrganizationResource>))
+            .route_layer(from_fn(authenticate::<RequiredAdminUser>)),
         )
         .api_route(
             "/{organization_id}",
@@ -713,7 +650,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Delete an organization")
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationDto>>()
-            }),
+                    })
+                    .route_layer(from_fn_with_state(requirement(Action::Delete), permission_middleware::<OrganizationResource>))
+                    .route_layer(from_fn(authenticate::<RequiredAdminUser>)),
         )
         .with_state(state)
 }

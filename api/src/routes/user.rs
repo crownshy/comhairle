@@ -23,7 +23,10 @@ use crate::{
         media::{FromWithMedia, MediaResolver},
         organization::{self, OrganizationFilterOptions, OrganizationOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        permissions::{Action, Role, can_perform_resource_action, has_resource_permission},
+        permissions::{
+            PermissionRole, can_perform_action, has_resource_permission,
+            organization as organization_permissions, system,
+        },
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{
@@ -83,18 +86,13 @@ pub async fn get_user_permitted_conversations(
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
-    let is_super_admin = has_resource_permission(
-        &state,
-        Role::SuperAdmin.system_triplet(),
-        &user.id,
-        user.organization_id.as_ref(),
-    )
-    .await?;
+    let is_super_admin =
+        has_resource_permission(&state, system::Role::SuperAdmin.system_triplet()?, &user.id)
+            .await?;
 
     let results = models::conversation::list_for_permitted_user(
         &state.db,
         user.id,
-        user.organization_id,
         is_super_admin,
         page_options,
         order_options,
@@ -233,22 +231,20 @@ pub async fn get_user_organizations(
             .organization_id
             .is_some_and(|organization_id| organization_id == organization.id);
 
-        let can_update = can_perform_resource_action(
+        let can_update = can_perform_action(
             &state,
             &organization.id,
-            Action::OrganizationUpdate,
+            organization_permissions::Action::Update,
             &user.id,
-            user.organization_id.as_ref(),
             None,
         )
         .await?;
 
-        let can_delete = can_perform_resource_action(
+        let can_delete = can_perform_action(
             &state,
             &organization.id,
-            Action::OrganizationDelete,
+            organization_permissions::Action::Delete,
             &user.id,
-            user.organization_id.as_ref(),
             None,
         )
         .await?;
@@ -262,12 +258,11 @@ pub async fn get_user_organizations(
         });
     }
 
-    let can_create_organization = can_perform_resource_action(
+    let can_create_organization = can_perform_action(
         &state,
         &Uuid::nil(),
-        Action::OrganizationCreate,
+        system::Action::OrganizationCreate,
         &user.id,
-        user.organization_id.as_ref(),
         None,
     )
     .await?;
