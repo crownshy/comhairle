@@ -18,6 +18,7 @@
 	import StepHeader from './StepHeader.svelte';
 	import StepHeaderSkeleton from './StepHeaderSkeleton.svelte';
 	import type { StepItem } from './stepItems';
+	import type { ToolSequence } from '$lib/tools/toolSequence';
 	import { STEP_COLUMN } from './stepColumn';
 
 	import { goto } from '$app/navigation';
@@ -99,9 +100,6 @@
 
 	let introUrl = $derived(conversation_url(conversation.id, isPreview) + queryString);
 
-	// Empty until the step is done. Filling within a step is ADR-0047 parts 2 and 3.
-	let fill = $derived(isRevisiting ? 1 : 0);
-
 	// Mid-navigation `data` still describes the step we're leaving, so the skeleton is picked
 	// from the destination's tool.
 	let navigatingToToolType = $derived.by(() => {
@@ -125,8 +123,7 @@
 	// the step we just left can never leak into the next one.
 	type StepScoped<T> = { stepId: string; value: T };
 
-	let toolNextAction = $state.raw<StepScoped<() => void>>();
-	let toolPrevAction = $state.raw<StepScoped<(() => void) | undefined>>();
+	let toolSequence = $state.raw<StepScoped<ToolSequence>>();
 	let toolCanContinue = $state.raw<StepScoped<boolean>>();
 	let submittingStepId = $state<string>();
 
@@ -134,8 +131,10 @@
 		return scoped?.stepId === workflowStep.id ? scoped.value : undefined;
 	}
 
-	let currentNextAction = $derived(forThisStep(toolNextAction));
-	let currentPrevAction = $derived(forThisStep(toolPrevAction));
+	let currentSequence = $derived(forThisStep(toolSequence));
+	let currentNextAction = $derived(currentSequence?.next);
+	let currentPrevAction = $derived(currentSequence?.previous);
+	let fill = $derived(isRevisiting ? 1 : (currentSequence?.progress ?? 0));
 	let toolNeedsNoSignal = $derived.by(() => {
 		const type = toolConfig?.type;
 		return type === Learn.TOOL_NAME || type === LivedExperience.TOOL_NAME;
@@ -143,19 +142,15 @@
 	let canProceed = $derived(forThisStep(toolCanContinue) ?? toolNeedsNoSignal);
 	let isSubmitting = $derived(submittingStepId === workflowStep.id);
 
-	function handleNextAction(fn: () => void) {
-		toolNextAction = { stepId: workflowStep.id, value: fn };
-	}
-
-	function handlePrevAction(fn: (() => void) | undefined) {
-		toolPrevAction = { stepId: workflowStep.id, value: fn };
+	function handleSequenceChange(sequence: ToolSequence) {
+		toolSequence = { stepId: workflowStep.id, value: sequence };
 	}
 
 	function handleCanContinueChange(value: boolean) {
 		toolCanContinue = { stepId: workflowStep.id, value };
 	}
 
-	// Learn's own pages come before the step boundary (ADR-0047).
+	// A tool's own pages come before the step boundary (ADR-0047).
 	let stepCanAdvance = $derived(currentNextAction !== undefined || canProceed || isRevisiting);
 	let canGoBack = $derived(currentPrevAction !== undefined || prevStepHref !== undefined);
 	let canGoForward = $derived(stepCanAdvance || !workflowStep.required);
@@ -280,6 +275,7 @@
 					<StepHeader
 						{currentStepNumber}
 						totalSteps={stepItems.length}
+						count={currentSequence?.count}
 						title={workflowStep.name}
 						description={workflowStep.description}
 						{availableDocuments}
@@ -305,11 +301,8 @@
 				{:else if toolConfig.type === Learn.TOOL_NAME}
 					{#key workflowStep.id}
 						<Learn.UserUI
-							onDone={stepComplete}
 							pages={toolConfig.pages}
-							user_id={user.id}
-							onNextAction={handleNextAction}
-							onPrevAction={handlePrevAction}
+							onSequenceChange={handleSequenceChange}
 							{conversation}
 							{availableDocuments}
 							{hasKnowledgeBaseDocs}
