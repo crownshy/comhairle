@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
 	import { Progress } from '$lib/components/ui/progress';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -25,8 +23,7 @@
 		onPrevAction,
 		conversation,
 		availableDocuments = [],
-		hasKnowledgeBaseDocs = false,
-		isSubmitting = false
+		hasKnowledgeBaseDocs = false
 	}: {
 		pages: Array<Page>;
 		onDone: () => void;
@@ -35,7 +32,6 @@
 		conversation?: LocalizedConversationDto;
 		availableDocuments?: ComhairleDocument[];
 		hasKnowledgeBaseDocs?: boolean;
-		isSubmitting?: boolean;
 	} = $props();
 
 	// The assistant only answers from parsed knowledge base documents, so it is hidden entirely
@@ -83,8 +79,7 @@
 		});
 	}
 
-	/** True while SvelteKit is routing to another step. Gates the controls, which shouldn't be
-	 * clickable mid-navigation. */
+	/** True while SvelteKit is routing to another step. */
 	let isNavigating = $derived(!!navigating.to);
 
 	/**
@@ -146,18 +141,5 @@
 				loading={showSkeleton.current}
 			/>
 		</div>
-	{/if}
-
-	{#if currentPageNo == pages.length - 1}
-		<!-- Disabling tracks isNavigating, not the delayed flag: a control that stays live for
-			150ms into a navigation could fire twice. -->
-		<Button class="mx-auto mt-10" onclick={onDone} disabled={isNavigating || isSubmitting}>
-			{#if isSubmitting}
-				<Spinner class="mr-2 size-4" />
-			{/if}
-			{m.continue_()}
-		</Button>
-	{:else}
-		<Button class="mx-auto mt-10" onclick={nextPage} disabled={isNavigating}>{m.next()}</Button>
 	{/if}
 </div>

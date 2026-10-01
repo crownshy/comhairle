@@ -302,7 +302,6 @@
 							{conversation}
 							{availableDocuments}
 							{hasKnowledgeBaseDocs}
-							{isSubmitting}
 						/>
 					{/key}
 				{/if}
@@ -315,7 +314,6 @@
 							requiredVotes={toolConfig.required_votes}
 							workflowStepId={workflowStep.id}
 							{isPreview}
-							onDone={stepComplete}
 							onCanContinueChange={handleCanContinueChange}
 							showRemainingStatementCount={toolConfig.show_remaining_statements}
 						/>
