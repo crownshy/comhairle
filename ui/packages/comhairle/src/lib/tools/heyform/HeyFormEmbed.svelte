@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { offsetInStepScroll, scrollStepTo, stepScrollTop } from '$lib/utils/stepScroll';
 	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import HeyFormEmbedSkeleton from './HeyFormEmbedSkeleton.svelte';
@@ -110,9 +111,8 @@
 
 	let measuredHeight = $state<number | null>(null);
 
-	// The page scrolls, not the frame, so after a step change the new question can sit above the
-	// fold. We pull the frame's top edge back into view, only upwards and only on FORM_STEP_CHANGE
-	// (NOTES.md, "Keeping the question in view").
+	// After a form step change the new question can sit above the fold, so we pull the frame's
+	// top back into view (NOTES.md, "Keeping the question in view").
 	const FRAME_TOP_MARGIN_PX = 16;
 	// The new question's height lands in a FORM_RESIZE just after the step change. Aligning before
 	// it applies would scroll against the old box, so we wait for it; this bounds the wait.
@@ -127,12 +127,9 @@
 		alignTimer = undefined;
 		if (!iframeEl) return;
 
-		const frameTop = window.scrollY + iframeEl.getBoundingClientRect().top;
-		const target = Math.max(0, frameTop - FRAME_TOP_MARGIN_PX);
-		if (window.scrollY <= target) return;
-
-		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		window.scrollTo({ top: target, behavior: reduceMotion ? 'auto' : 'smooth' });
+		const target = Math.max(0, offsetInStepScroll(iframeEl) - FRAME_TOP_MARGIN_PX);
+		if (stepScrollTop() <= target) return;
+		scrollStepTo(target, { smooth: true });
 	}
 
 	function requestFrameTopAlign() {
