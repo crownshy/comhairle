@@ -15,7 +15,6 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::{self, SqlxResultExt, users::User};
-use crate::routes::auth::authorize;
 use crate::wiki_poll_service::ModerationStatus;
 
 impl From<ModerationStatus> for sea_query::Value {
@@ -591,11 +590,20 @@ pub async fn check_is_commentor(
     Ok(())
 }
 
-#[instrument(err(Debug), skip(state))]
-pub async fn check_can_moderate(
+pub async fn check_can_perform(
     state: &Arc<ComhairleState>,
     user: &User,
     workflow_step_id: &Uuid,
+    action: models::permissions::conversation::Action,
+) -> Result<(), ComhairleError> {
+    check_can_perform_any(state, user, workflow_step_id, &[action]).await
+}
+
+pub async fn check_can_perform_any(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    workflow_step_id: &Uuid,
+    actions: &[models::permissions::conversation::Action],
 ) -> Result<(), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, workflow_step_id).await?;
 
@@ -604,18 +612,20 @@ pub async fn check_can_moderate(
         "workflow is not attached to a conversation".into(),
     ))?;
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
-    let conversation_resource = models::permissions::ConversationResource {
-        conversation_id: conversation.id,
-        owner_id: conversation.owner_id,
-    };
-    authorize(
-        state,
-        user,
-        models::permissions::Action::ConversationUpdate,
-        &conversation_resource,
-    )
-    .await?;
-    Ok(())
+    for action in actions {
+        if models::permissions::can_perform_action(
+            state,
+            &conversation.id,
+            *action,
+            &user.id,
+            Some(&conversation.owner_id),
+        )
+        .await?
+        {
+            return Ok(());
+        }
+    }
+    Err(ComhairleError::UserNotAuthorized)
 }
 
 #[instrument(err(Debug), skip(db))]

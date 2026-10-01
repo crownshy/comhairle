@@ -18,10 +18,17 @@
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
+	let canLaunch = $derived(
+		permissions.can('conversation', 'conversation_launch', conversation.id)
+	);
+	let canUpdate = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 	let displayTitle = $derived(
 		getTextInLocale(
 			conversation.translations?.title,
@@ -165,20 +172,27 @@
 					{#if !conversation.isComplete}
 						<DropdownMenu.Item
 							class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
+							disabled={!canLaunch}
 							onclick={() => (endModalOpen = true)}
 						>
 							<CircleX class="text-destructive size-4" />
 							End Conversation
 						</DropdownMenu.Item>
 					{:else}
-						<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
+						<DropdownMenu.Item
+							disabled={!canLaunch}
+							onclick={() => (endModalOpen = true)}
+						>
 							<Check class="size-4" />
 							Re-open Conversation
 						</DropdownMenu.Item>
 					{/if}
 				{:else}
 					<DropdownMenu.Separator />
-					<DropdownMenu.Item onclick={() => (launchModalOpen = true)}>
+					<DropdownMenu.Item
+						disabled={!canLaunch}
+						onclick={() => (launchModalOpen = true)}
+					>
 						<ArrowUpRight class="size-4" />
 						Launch Conversation
 					</DropdownMenu.Item>
@@ -234,13 +248,17 @@
 					{#if !conversation.isComplete}
 						<DropdownMenu.Item
 							class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
+							disabled={!canLaunch}
 							onclick={() => (endModalOpen = true)}
 						>
 							<CircleX class="text-destructive size-4" />
 							End Conversation
 						</DropdownMenu.Item>
 					{:else}
-						<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
+						<DropdownMenu.Item
+							disabled={!canLaunch}
+							onclick={() => (endModalOpen = true)}
+						>
 							<Check class="size-4" />
 							Re-open Conversation
 						</DropdownMenu.Item>
@@ -248,7 +266,12 @@
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 		{:else}
-			<Button variant="default" class="h-10" onclick={() => (launchModalOpen = true)}>
+			<Button
+				variant="default"
+				class="h-10"
+				disabled={!canLaunch}
+				onclick={() => (launchModalOpen = true)}
+			>
 				Launch Conversation
 			</Button>
 		{/if}
@@ -283,7 +306,7 @@
 		<WorkflowStepStrip
 			conversationId={conversation.id}
 			steps={data.workflowSteps}
-			onAddStep={() => (addStepDialog.open = true)}
+			onAddStep={canUpdate ? () => (addStepDialog.open = true) : undefined}
 		/>
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />

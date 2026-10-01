@@ -20,9 +20,13 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import TranslatableFieldWithSkeleton from '$lib/components/Translation/TranslatableFieldWithSkeleton.svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { data } = $props();
 	const { conversation, streamedAvailableDocuments } = $derived(data);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 
 	let primaryLocale = $derived<Locale>((data.conversation.primaryLocale as Locale) ?? 'en');
 	let supportedLanguages = $derived<Locale[]>(
@@ -69,7 +73,7 @@
 		format: 'plain' | 'rich' = 'rich',
 		autoTranslate: boolean = false
 	): Promise<string | undefined> {
-		if (!conversation) return;
+		if (!conversation || !canEdit) return;
 
 		const textContent = await tryCatchAsync(() =>
 			apiClient.CreateTextContent({
@@ -151,12 +155,14 @@
 				<div class="flex-1">
 					<CollapsibleRichField
 						label="Privacy policy"
+						editable={canEdit}
 						content={$form.privacyPolicy}
 						open={openContentField === 'privacyPolicy'}
 						onOpenChange={(o) => (openContentField = o ? 'privacyPolicy' : null)}
 					>
 						<TranslatableFieldWithSkeleton
 							source={privacyPolicySource}
+							disabled={!canEdit}
 							editorType="rich"
 							placeholder="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
 							{primaryLocale}
@@ -184,12 +190,14 @@
 				<div class="flex-1">
 					<CollapsibleRichField
 						label="Short privacy policy"
+						editable={canEdit}
 						content={$form.shortPrivacyPolicy}
 						open={openContentField === 'shortPrivacyPolicy'}
 						onOpenChange={(o) => (openContentField = o ? 'shortPrivacyPolicy' : null)}
 					>
 						<TranslatableFieldWithSkeleton
 							source={shortPrivacyPolicySource}
+							disabled={!canEdit}
 							editorType="rich"
 							placeholder="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
 							{primaryLocale}
@@ -217,12 +225,14 @@
 				<div class="flex-1">
 					<CollapsibleRichField
 						label="FAQs"
+						editable={canEdit}
 						content={$form.faqs}
 						open={openContentField === 'faqs'}
 						onOpenChange={(o) => (openContentField = o ? 'faqs' : null)}
 					>
 						<TranslatableFieldWithSkeleton
 							source={faqsSource}
+							disabled={!canEdit}
 							editorType="rich"
 							placeholder="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
 							{primaryLocale}
@@ -250,12 +260,14 @@
 				<div class="flex-1">
 					<CollapsibleRichField
 						label="Thank you message"
+						editable={canEdit}
 						content={$form.thankYouMessage}
 						open={openContentField === 'thankYouMessage'}
 						onOpenChange={(o) => (openContentField = o ? 'thankYouMessage' : null)}
 					>
 						<TranslatableFieldWithSkeleton
 							source={thankYouMessageSource}
+							disabled={!canEdit}
 							editorType="rich"
 							placeholder="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
 							{primaryLocale}
@@ -283,6 +295,7 @@
 				<div class="flex-1">
 					<TranslatableField
 						source={callToActionSource}
+						disabled={!canEdit}
 						{primaryLocale}
 						{supportedLanguages}
 						inputProps={props}

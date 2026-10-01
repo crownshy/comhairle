@@ -17,6 +17,7 @@
 	import type { ConversationDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
 	import { LucideCircleX } from 'lucide-svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
 		conversation: ConversationDto;
@@ -26,8 +27,12 @@
 
 	let { conversation, open = $bindable(false), hideTrigger = false }: Props = $props();
 	const loader = useLoading();
+	const canLaunch = $derived(
+		permissions.can('conversation', 'conversation_launch', conversation.id)
+	);
 
 	async function toggleComplete() {
+		if (!canLaunch) return;
 		await loader.run(async () => {
 			const isComplete = !conversation.isComplete;
 			try {
@@ -60,7 +65,9 @@
 
 {#if conversation.isComplete}
 	{#if !hideTrigger}
-		<Button variant="outline" onclick={toggleComplete}>Re-open Conversation</Button>
+		<Button variant="outline" onclick={toggleComplete} disabled={!canLaunch}
+			>Re-open Conversation</Button
+		>
 	{/if}
 
 	<Dialog bind:open>
@@ -77,7 +84,12 @@
 			</Alert>
 
 			<DialogFooter>
-				<LoadingButton variant="default" onclick={toggleComplete} loading={loader.loading}>
+				<LoadingButton
+					variant="default"
+					onclick={toggleComplete}
+					loading={loader.loading}
+					disabled={!canLaunch}
+				>
 					Re-open
 				</LoadingButton>
 				<Button onclick={cancel} variant="outline">cancel</Button>
@@ -87,9 +99,10 @@
 {:else}
 	<Dialog bind:open>
 		{#if !hideTrigger}
-			<DialogTrigger>
+			<DialogTrigger disabled={!canLaunch}>
 				<Button
 					variant="outline"
+					disabled={!canLaunch}
 					class="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive!"
 					><LucideCircleX /> End Conversation</Button
 				>
@@ -114,7 +127,12 @@
 			</Alert>
 
 			<DialogFooter>
-				<LoadingButton variant="default" onclick={toggleComplete} loading={loader.loading}>
+				<LoadingButton
+					variant="default"
+					onclick={toggleComplete}
+					loading={loader.loading}
+					disabled={!canLaunch}
+				>
 					End
 				</LoadingButton>
 				<Button onclick={cancel} variant="outline">cancel</Button>

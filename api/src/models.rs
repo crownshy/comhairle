@@ -43,6 +43,7 @@ pub mod thinking_space_follow_up_question;
 pub mod thinking_space_summary;
 pub mod translations;
 pub mod user_conversation_preferences;
+pub mod user_group;
 pub mod user_participation;
 pub mod user_profile;
 pub mod user_progress;

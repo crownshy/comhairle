@@ -11,6 +11,7 @@ use axum::{
     RequestPartsExt,
     extract::{FromRequestParts, Json, Path, State},
     http::{StatusCode, request::Parts},
+    middleware::from_fn_with_state,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -21,13 +22,13 @@ use axum_extra::extract::cookie::CookieJar;
 use crate::{
     ComhairleState,
     error::ComhairleError,
+    middleware::permissions::{PermissionRequirement, authorize},
+    models::permissions::{SystemResource, system},
     models::translations::{
         self, CreateTextTranslation, TextContentId, UpdateTextContent, UpdateTextTranslation,
     },
     routes::translations::dto::{TextContentDto, TextTranslationDto},
 };
-
-use super::auth::RequiredAdminUser;
 
 pub mod dto;
 
@@ -76,7 +77,6 @@ pub struct CreateTextContentRequest {
 async fn get_text_content_with_translations(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
     let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
         .await?
@@ -101,7 +101,6 @@ async fn get_text_content_with_translations(
 #[instrument(err(Debug), skip(state))]
 async fn create_text_content(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateTextContentRequest>,
 ) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
     let text_content = translations::new_translation(
@@ -120,7 +119,6 @@ async fn create_text_content(
 async fn update_text_content(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextContent>,
 ) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
     let text_content = translations::update_text_content(&state.db, &text_content_id, &update)
@@ -135,7 +133,6 @@ async fn update_text_content(
 async fn delete_text_content(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
     let text_content = translations::delete_text_content(&state.db, &text_content_id)
         .await?
@@ -149,7 +146,6 @@ async fn delete_text_content(
 async fn get_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     let translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -176,7 +172,6 @@ pub struct CreateOrUpdateTextTranslationRequest {
 async fn create_or_update_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateOrUpdateTextTranslationRequest>,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // Check if translation already exists
@@ -223,7 +218,6 @@ async fn create_or_update_text_translation(
 async fn update_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextTranslation>,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // First get the existing translation to get its ID
@@ -247,7 +241,6 @@ async fn update_text_translation(
 async fn auto_translate(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     if let Some(translation_service) = &state.translation_service {
         let new_translation = translations::auto_generate_translation(
@@ -269,7 +262,6 @@ async fn auto_translate(
 async fn auto_translate_all(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
     if let Some(translation_service) = &state.translation_service {
         let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
@@ -299,7 +291,6 @@ async fn auto_translate_all(
 async fn delete_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // First get the existing translation to get its ID
     let existing_translation = translations::get_text_translation_by_content_and_locale(
@@ -328,7 +319,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Create new TextContent")
                     .description("Create a new TextContent entry that can hold translations")
                     .response::<201, Json<TextContentDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         .api_route(
             "/{text_content_id}",
@@ -338,7 +330,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Get TextContent with all translations")
                     .description("Get a TextContent entry with all its translations")
                     .response::<200, Json<TextContentWithTranslations>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         .api_route(
             "/{text_content_id}",
@@ -348,7 +341,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Update TextContent")
                     .description("Update a TextContent entry")
                     .response::<200, Json<TextContentDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         .api_route(
             "/{text_content_id}",
@@ -358,7 +352,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Delete TextContent")
                     .description("Delete a TextContent entry and all its translations")
                     .response::<200, Json<TextContentDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         // TextTranslation routes
         .api_route(
@@ -369,7 +364,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Get translation for specific locale")
                     .description("Get a translation for a specific TextContent and locale")
                     .response::<200, Json<TextTranslationDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         .api_route(
             "/{text_content_id}/{locale}",
@@ -382,7 +378,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .response::<200, Json<TextTranslationDto>>()
                     .response::<201, Json<TextTranslationDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         .api_route(
             "/{text_content_id}/{locale}",
@@ -392,7 +389,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Update translation")
                     .description("Update an existing translation for a specific locale")
                     .response::<200, Json<TextTranslationDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         .api_route(
             "/{text_content_id}/{locale}",
@@ -402,7 +400,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Delete translation")
                     .description("Delete a translation for a specific locale")
                     .response::<200, Json<TextTranslationDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>)),
         )
         .api_route(
             "/{text_content_id}/translate",
@@ -412,7 +411,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Generate all translations for this Text Content")
                     .description("Use the default locale content as the reference text and generate automatic translations for each language form it")
                     .response::<200, Json<TextContentWithTranslations>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         .api_route(
             "/{text_content_id}/{locale}/translate",
@@ -422,7 +422,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Automatically generate this language")
                     .description("Use the primary_locale language and translate this language from it using the tarnslation service")
                     .response::<200, Json<TextTranslationDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
         .with_state(state)
 }
@@ -431,6 +432,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use super::*;
     use crate::{
+        models::permissions::{self, PermissionRole},
         models::translations::TextFormat,
         setup_server,
         test_helpers::{UserSession, extract, test_state},
@@ -440,6 +442,263 @@ mod tests {
     use mockall::predicate;
     use serde_json::json;
     use std::{error::Error, sync::Arc};
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn system_translators_can_translate_system_wide(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut service = MockTranslationService::new();
+        service
+            .expect_translate_from_to()
+            .times(4)
+            .returning(|_, _, _| Ok("Automatic translation".into()));
+        let state = Arc::new(
+            test_state()
+                .db(pool)
+                .translation_service(Arc::new(service))
+                .call()?,
+        );
+        let app = setup_server(state.clone()).await?;
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let mut translator = UserSession::new_guest();
+        translator.signup_guest(&app).await?;
+        let user_id = translator.id.unwrap();
+        permissions::grant_role(
+            &state,
+            permissions::GrantRoleRequest {
+                actor_id: permissions::ActorId::User(user_id),
+                granted_by: &admin.id.unwrap(),
+                grant_reason: "System translation test",
+                permission_triplet: system::Role::Translator.system_triplet()?,
+            },
+        )
+        .await?;
+
+        let mut last_content_id = None;
+        for source in ["First source", "Second source"] {
+            let content =
+                translations::new_translation(&state.db, "en", source, TextFormat::Rich).await?;
+            let path = format!("/translations/{}", content.id);
+            let (status, _, _) = translator.get(&app, &path).await?;
+            assert_eq!(status, StatusCode::OK);
+            let (status, _, _) = translator
+                .post(
+                    &app,
+                    &format!("{path}/fr"),
+                    json!({ "content": "French translation" })
+                        .to_string()
+                        .into(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::CREATED);
+            let (status, _, _) = translator
+                .put(
+                    &app,
+                    &format!("{path}/fr"),
+                    json!({ "locale": "fr", "content": "Updated translation" })
+                        .to_string()
+                        .into(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::OK);
+            let (status, _, _) = translator
+                .post(&app, &format!("{path}/fr/translate"), Body::empty())
+                .await?;
+            assert_eq!(status, StatusCode::OK);
+            let (status, _, _) = translator
+                .post(&app, &format!("{path}/translate"), Body::empty())
+                .await?;
+            assert_eq!(status, StatusCode::OK);
+            let (status, response, _) = translator.get(&app, &format!("{path}/fr")).await?;
+            assert_eq!(status, StatusCode::OK);
+            let translated: TextTranslationDto = serde_json::from_value(response)?;
+            assert_eq!(translated.content, "Automatic translation");
+            let primary = translations::get_text_translation_by_content_and_locale(
+                &state.db,
+                &content.id,
+                "en",
+            )
+            .await?;
+            assert_eq!(primary.content, source);
+            let (status, _, _) = translator.delete(&app, &format!("{path}/fr")).await?;
+            assert_eq!(status, StatusCode::OK);
+            last_content_id = Some(content.id);
+        }
+        permissions::revoke_role(
+            &state,
+            permissions::RevokeRoleRequest {
+                actor_id: permissions::ActorId::User(user_id),
+                permission_triplet: system::Role::Translator.system_triplet()?,
+            },
+        )
+        .await?;
+        let (status, _, _) = translator
+            .get(&app, &format!("/translations/{}", last_content_id.unwrap()))
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn system_translators_can_edit(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let mut service = MockTranslationService::new();
+        service
+            .expect_translate_from_to()
+            .once()
+            .returning(|_, _, _| Ok("Automatic source".into()));
+        let state = Arc::new(
+            test_state()
+                .db(pool)
+                .translation_service(Arc::new(service))
+                .call()?,
+        );
+        let app = setup_server(state.clone()).await?;
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let mut translator = UserSession::new_guest();
+        translator.signup_guest(&app).await?;
+        let content =
+            translations::new_translation(&state.db, "en", "Source", TextFormat::Rich).await?;
+        let path = format!("/translations/{}", content.id);
+        let (status, _, _) = translator.get(&app, &path).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        permissions::grant_role(
+            &state,
+            permissions::GrantRoleRequest {
+                actor_id: permissions::ActorId::User(translator.id.unwrap()),
+                granted_by: &admin.id.unwrap(),
+                grant_reason: "System translation boundary test",
+                permission_triplet: system::Role::Translator.system_triplet()?,
+            },
+        )
+        .await?;
+        let (status, response, _) = translator
+            .post(
+                &app,
+                "/translations",
+                json!({
+                    "primary_locale": "en", "format": "plain", "content": "New content"
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED);
+        let created: TextContentDto = serde_json::from_value(response)?;
+        let created_path = format!("/translations/{}", created.id);
+        let (status, response, _) = translator
+            .put(
+                &app,
+                &created_path,
+                json!({ "primary_locale": "fr", "format": "markdown" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let updated: TextContentDto = serde_json::from_value(response)?;
+        assert_eq!(updated.primary_locale, "fr");
+        assert_eq!(updated.format, TextFormat::Markdown);
+        let (status, _, _) = translator.delete(&app, &created_path).await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = translator.get(&app, &created_path).await?;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        let primary_path = format!("{path}/en");
+        let (status, _, _) = translator
+            .post(
+                &app,
+                &primary_path,
+                json!({ "content": "Changed source" }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = translator
+            .put(
+                &app,
+                &primary_path,
+                json!({ "content": "Updated source" }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let primary =
+            translations::get_text_translation_by_content_and_locale(&state.db, &content.id, "en")
+                .await?;
+        assert_eq!(primary.content, "Updated source");
+        let (status, _, _) = translator
+            .post(&app, &format!("{primary_path}/translate"), Body::empty())
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = translator
+            .post(
+                &app,
+                &format!("{path}/fr"),
+                json!({ "content": "French translation" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED);
+        let (status, _, _) = translator
+            .put(
+                &app,
+                &format!("{path}/fr"),
+                json!({ "locale": "de", "content": "Renamed translation" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let renamed =
+            translations::get_text_translation_by_content_and_locale(&state.db, &content.id, "de")
+                .await?;
+        assert_eq!(renamed.content, "Renamed translation");
+        let primary =
+            translations::get_text_translation_by_content_and_locale(&state.db, &content.id, "en")
+                .await?;
+        assert_eq!(primary.content, "Automatic source");
+        let (status, _, _) = translator.delete(&app, &primary_path).await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = translator
+            .post(
+                &app,
+                &primary_path,
+                json!({ "content": "Recreated source" }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED);
+        for format in [TextFormat::Plain, TextFormat::Markdown] {
+            let content =
+                translations::new_translation(&state.db, "en", "Non-rich text", format).await?;
+            let path = format!("/translations/{}", content.id);
+            let (status, _, _) = translator
+                .post(
+                    &app,
+                    &format!("{path}/fr"),
+                    json!({ "content": "Translated text" }).to_string().into(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::CREATED);
+            let (status, _, _) = translator
+                .put(
+                    &app,
+                    &format!("{path}/en"),
+                    json!({ "content": "Updated non-rich source" })
+                        .to_string()
+                        .into(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::OK);
+            let primary = translations::get_text_translation_by_content_and_locale(
+                &state.db,
+                &content.id,
+                "en",
+            )
+            .await?;
+            assert_eq!(primary.content, "Updated non-rich source");
+        }
+        Ok(())
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_create_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {

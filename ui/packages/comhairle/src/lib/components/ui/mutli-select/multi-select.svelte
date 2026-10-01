@@ -46,6 +46,7 @@
 	);
 
 	function updateSelected(newSelected: Option[]) {
+		if (disabled) return;
 		selected = newSelected;
 		onSelectedChange?.(newSelected);
 	}
@@ -56,6 +57,7 @@
 	}
 
 	function handleSelect(option: Option) {
+		if (disabled || option.disable) return;
 		inputValue = '';
 		updateSelected([...selected, option]);
 	}
@@ -116,6 +118,7 @@
 					{#if !option.fixed}
 						<button
 							type="button"
+							{disabled}
 							class="text-muted-foreground/80 hover:text-foreground absolute -inset-y-px -right-px flex size-7 items-center justify-center rounded-r-md border border-transparent p-0 transition-[color,box-shadow] outline-none"
 							onclick={(e) => {
 								e.stopPropagation();
@@ -148,7 +151,7 @@
 		</div>
 	</div>
 
-	{#if open}
+	{#if open && !disabled}
 		<div
 			class="border-input bg-popover text-popover-foreground animate-in fade-in-0 zoom-in-95 absolute top-[calc(100%+8px)] z-50 w-full overflow-hidden rounded-md border shadow-lg"
 			onmouseenter={() => (onScrollbar = true)}

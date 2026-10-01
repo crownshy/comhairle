@@ -5,14 +5,16 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Trash2, GripVertical } from 'lucide-svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type { AgendaItemData } from './agenda-types';
 
 	interface Props {
 		items: AgendaItemData[];
 		onUpdate: (items: AgendaItemData[]) => void;
+		editable?: boolean;
 	}
 
-	let { items = $bindable(), onUpdate }: Props = $props();
+	let { items = $bindable(), onUpdate, editable = true }: Props = $props();
 
 	const balanceOptions = [
 		'Age',
@@ -28,11 +30,13 @@
 	}
 
 	function addStandardItem() {
+		if (!editable) return;
 		items = [...items, { id: createId(), type: 'standard', title: '' }];
 		onUpdate(items);
 	}
 
 	function addBreakoutSession() {
+		if (!editable) return;
 		items = [
 			...items,
 			{
@@ -50,11 +54,13 @@
 	}
 
 	function removeItem(index: number) {
+		if (!editable) return;
 		items = items.filter((_, i) => i !== index);
 		onUpdate(items);
 	}
 
 	function addPrompt(itemIndex: number) {
+		if (!editable) return;
 		const item = items[itemIndex];
 		if (item.prompts) {
 			item.prompts = [...item.prompts, { title: '', instructions: '' }];
@@ -64,6 +70,7 @@
 	}
 
 	function removePrompt(itemIndex: number, promptIndex: number) {
+		if (!editable) return;
 		const item = items[itemIndex];
 		if (item.prompts && item.prompts.length > 1) {
 			item.prompts = item.prompts.filter((_, i) => i !== promptIndex);
@@ -73,6 +80,7 @@
 	}
 
 	function toggleBalance(itemIndex: number, value: string) {
+		if (!editable) return;
 		const item = items[itemIndex];
 		if (!item.balanceBy) item.balanceBy = [];
 		if (item.balanceBy.includes(value)) {
@@ -89,6 +97,10 @@
 	let dropIdx: number | null = $state(null);
 
 	function handleDragStart(e: DragEvent, idx: number) {
+		if (!editable) {
+			e.preventDefault();
+			return;
+		}
 		dragIdx = idx;
 		if (e.dataTransfer) {
 			e.dataTransfer.effectAllowed = 'move';
@@ -98,6 +110,7 @@
 
 	function handleDragOver(e: DragEvent, idx: number) {
 		e.preventDefault();
+		if (!editable) return;
 		dropIdx = idx;
 	}
 
@@ -111,6 +124,7 @@
 
 	function handleDrop(e: DragEvent, targetIdx: number) {
 		e.preventDefault();
+		if (!editable) return;
 		if (dragIdx === null || dragIdx === targetIdx) {
 			dragIdx = null;
 			dropIdx = null;
@@ -155,6 +169,7 @@
 					<div class="flex items-center gap-6">
 						<Label class="w-16 shrink-0 font-bold">Title</Label>
 						<Input
+							disabled={!editable}
 							bind:value={item.title}
 							placeholder="Enter agenda item here"
 							class="bg-muted max-w-60"
@@ -173,6 +188,7 @@
 						</div>
 						<Input
 							type="number"
+							disabled={!editable}
 							bind:value={item.duration}
 							class="bg-muted w-14"
 							min={1}
@@ -190,6 +206,7 @@
 						</div>
 						<Input
 							type="number"
+							disabled={!editable}
 							bind:value={item.groupSize}
 							class="bg-muted w-14"
 							min={2}
@@ -212,6 +229,7 @@
 									>
 								</div>
 								<Input
+									disabled={!editable}
 									bind:value={prompt.title}
 									placeholder="Enter prompt title here"
 									class="bg-muted max-w-64"
@@ -224,18 +242,23 @@
 								<span class="text-muted-foreground text-sm"
 									>What should participants do during this session?</span
 								>
-								<RichTextEditor
-									value={prompt.instructions}
-									placeholder="Enter instructions here"
-									minHeight="120px"
-									onChange={(json) => {
-										prompt.instructions = json;
-										onUpdate(items);
-									}}
-								/>
+								{#if editable}
+									<RichTextEditor
+										value={prompt.instructions}
+										placeholder="Enter instructions here"
+										minHeight="120px"
+										onChange={(json) => {
+											if (!editable) return;
+											prompt.instructions = json;
+											onUpdate(items);
+										}}
+									/>
+								{:else}
+									<ContentRenderer content={prompt.instructions} />
+								{/if}
 							</div>
 
-							{#if (item.prompts?.length ?? 0) > 1}
+							{#if editable && (item.prompts?.length ?? 0) > 1}
 								<button
 									class="text-destructive hover:text-destructive/80 flex items-center gap-1 text-sm"
 									onclick={() => removePrompt(index, pIdx)}
@@ -247,9 +270,11 @@
 						</div>
 					{/each}
 
-					<Button variant="default" class="w-fit" onclick={() => addPrompt(index)}>
-						+ Add breakout prompt
-					</Button>
+					{#if editable}
+						<Button variant="default" class="w-fit" onclick={() => addPrompt(index)}>
+							+ Add breakout prompt
+						</Button>
+					{/if}
 
 					<!-- Group assignment -->
 					<div class="flex flex-col gap-2">
@@ -258,6 +283,7 @@
 							>How do we want to breakdown the groups?</span
 						>
 						<select
+							disabled={!editable}
 							bind:value={item.assignmentMode}
 							class="border-input bg-muted/50 w-64 rounded-md border p-2.5 text-sm"
 							onchange={() => onUpdate(items)}
@@ -276,9 +302,13 @@
 							>
 							<div class="flex flex-col">
 								{#each balanceOptions as opt}
-									<label class="flex cursor-pointer items-center gap-2.5 p-2.5">
+									<label
+										class="flex items-center gap-2.5 p-2.5"
+										class:cursor-pointer={editable}
+									>
 										<input
 											type="checkbox"
+											disabled={!editable}
 											checked={item.balanceBy?.includes(opt) ?? false}
 											onchange={() => toggleBalance(index, opt)}
 											class="border-border bg-muted/50 h-4 w-4 rounded-full border shadow-sm"
@@ -293,28 +323,32 @@
 			</div>
 
 			<!-- Side controls: drag handle + delete -->
-			<div class="flex flex-col items-center gap-2 pt-6">
-				<button
-					class="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
-					draggable="true"
-					ondragstart={(e) => handleDragStart(e, index)}
-					ondragend={handleDragEnd}
-				>
-					<GripVertical class="h-5 w-5" />
-				</button>
-				<button
-					class="text-muted-foreground hover:text-destructive"
-					onclick={() => removeItem(index)}
-				>
-					<Trash2 class="h-5 w-5" />
-				</button>
-			</div>
+			{#if editable}
+				<div class="flex flex-col items-center gap-2 pt-6">
+					<button
+						class="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+						draggable="true"
+						ondragstart={(e) => handleDragStart(e, index)}
+						ondragend={handleDragEnd}
+					>
+						<GripVertical class="h-5 w-5" />
+					</button>
+					<button
+						class="text-muted-foreground hover:text-destructive"
+						onclick={() => removeItem(index)}
+					>
+						<Trash2 class="h-5 w-5" />
+					</button>
+				</div>
+			{/if}
 		</div>
 	{/each}
 
 	<!-- Add buttons -->
-	<div class="flex gap-4">
-		<Button variant="default" onclick={addStandardItem}>+ Add agenda item</Button>
-		<Button variant="default" onclick={addBreakoutSession}>+ Add breakout session</Button>
-	</div>
+	{#if editable}
+		<div class="flex gap-4">
+			<Button variant="default" onclick={addStandardItem}>+ Add agenda item</Button>
+			<Button variant="default" onclick={addBreakoutSession}>+ Add breakout session</Button>
+		</div>
+	{/if}
 </div>

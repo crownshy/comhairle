@@ -92,6 +92,60 @@ export const PasswordResetUpdateRequest = z
 export type PasswordResetUpdateRequest = z.infer<
   typeof PasswordResetUpdateRequest
 >;
+export const ConversationAction = z.enum([
+  "conversation_read",
+  "conversation_update",
+  "conversation_admin",
+  "conversation_launch",
+  "conversation_delete",
+  "conversation_moderate",
+  "conversation_translate",
+  "conversation_export",
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+]);
+export type ConversationAction = z.infer<typeof ConversationAction>;
+export const OrganizationAction = z.enum([
+  "organization_read",
+  "organization_update",
+  "organization_delete",
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+  "organization_add_member",
+  "organization_remove_member",
+]);
+export type OrganizationAction = z.infer<typeof OrganizationAction>;
+export const SystemAction = z.enum([
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+  "conversation_create",
+  "organization_create",
+  "translate",
+]);
+export type SystemAction = z.infer<typeof SystemAction>;
+export const UserAction = z.union([
+  ConversationAction,
+  OrganizationAction,
+  SystemAction,
+]);
+export type UserAction = z.infer<typeof UserAction>;
+export const PermissionResourceType = z.enum([
+  "system",
+  "conversation",
+  "organization",
+]);
+export type PermissionResourceType = z.infer<typeof PermissionResourceType>;
+export const UserActions = z
+  .object({
+    actions: z.array(UserAction),
+    resourceId: z.string().uuid(),
+    resourceType: PermissionResourceType,
+  })
+  .passthrough();
+export type UserActions = z.infer<typeof UserActions>;
 export const ResourceType = z.union([
   z.literal("Site"),
   z.object({ Conversation: z.string().uuid() }),
@@ -165,6 +219,7 @@ export const LocalizedOrganizationDto = z
     name: z.string(),
     orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
+    userGroupId: z.string().uuid(),
   })
   .passthrough();
 export type LocalizedOrganizationDto = z.infer<typeof LocalizedOrganizationDto>;
@@ -2814,6 +2869,7 @@ export const OrganizationDto = z
     name: z.string(),
     orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
+    userGroupId: z.string().uuid(),
   })
   .passthrough();
 export type OrganizationDto = z.infer<typeof OrganizationDto>;
@@ -3177,13 +3233,38 @@ export const PreviewEmailTemplateConfigResponse = z
 export type PreviewEmailTemplateConfigResponse = z.infer<
   typeof PreviewEmailTemplateConfigResponse
 >;
+export const InheritedRoles = z
+  .object({
+    group_id: z.string().uuid(),
+    group_name: z.string(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+    roles: z.array(z.string()),
+  })
+  .passthrough();
+export type InheritedRoles = z.infer<typeof InheritedRoles>;
+export const Snapshot = z
+  .object({
+    inherited: z.array(InheritedRoles),
+    roles: z.array(z.string()),
+    version: z.number().int(),
+  })
+  .passthrough();
+export type Snapshot = z.infer<typeof Snapshot>;
+export const SaveAssignments = z
+  .object({
+    expected_version: z.number().int(),
+    grant_reason: z.string(),
+    roles: z.array(z.string()),
+  })
+  .passthrough();
+export type SaveAssignments = z.infer<typeof SaveAssignments>;
 export const ResourcePermission = z
   .object({
     grant_reason: z.string(),
     granted_at: z.string().datetime({ offset: true }),
     granted_by: z.union([z.string(), z.null()]).optional(),
+    group_id: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    organization_id: z.union([z.string(), z.null()]).optional(),
     resource_id: z.string().uuid(),
     resource_type: z.string(),
     role_name: z.string(),
@@ -3345,6 +3426,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
   PasswordResetUpdateRequest,
+  ConversationAction,
+  OrganizationAction,
+  SystemAction,
+  UserAction,
+  PermissionResourceType,
+  UserActions,
   ResourceType,
   ResourceRole,
   UserRoles,
@@ -3677,6 +3764,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailTypeSchema,
   PreviewEmailTemplateConfigRequest,
   PreviewEmailTemplateConfigResponse,
+  InheritedRoles,
+  Snapshot,
+  SaveAssignments,
   ResourcePermission,
   PaginatedResults_for_ResourcePermission,
   GrantPermissionBody,
@@ -4148,7 +4238,7 @@ Use a raw HTTP request and process the response body incrementally.`,
     method: "get",
     path: "/conversation/:conversation_id/demographics/export",
     alias: "ExportConversationDemographics",
-    description: `Exports a CSV file containing demographic data for users participating in the conversation&#x27;s workflow. Only includes consented users. Requires conversation ownership.`,
+    description: `Exports consented participant demographics. Requires conversation data access.`,
     requestFormat: "json",
     response: z.void(),
   },
@@ -6118,6 +6208,69 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions/:resource_type/:resource_id/assignments/:recipient_type/:recipient_id",
+    alias: "GetPermissionAssignments",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "recipient_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "recipient_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: Snapshot,
+  },
+  {
+    method: "put",
+    path: "/permissions/:resource_type/:resource_id/assignments/:recipient_type/:recipient_id",
+    alias: "SavePermissionAssignments",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SaveAssignments,
+      },
+      {
+        name: "recipient_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "recipient_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: Snapshot,
+  },
+  {
+    method: "get",
     path: "/permissions/:resource_type/:resource_id/users",
     alias: "ListUsersWithPermission",
     description: `List users with a give permission (role + resource_type) for a given resource`,
@@ -6163,27 +6316,17 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions/:resource_type/roles",
+    alias: "GetPermissionRoles",
+    requestFormat: "json",
+    response: z.array(z.string()),
+  },
+  {
+    method: "get",
     path: "/permissions/by-action/:action",
     alias: "ListPermissionsByAction",
     description: `Returns resources of the specified type that the caller can perform the specified action on. Optionally filter by user_id. Use the &#x60;offset&#x60; and &#x60;limit&#x60; query params to page through results.`,
     requestFormat: "json",
-    parameters: [
-      {
-        name: "limit",
-        type: "Query",
-        schema: limit,
-      },
-      {
-        name: "offset",
-        type: "Query",
-        schema: limit,
-      },
-      {
-        name: "user_id",
-        type: "Query",
-        schema: created_after,
-      },
-    ],
     response: z.array(ResourcePermission),
   },
   {
@@ -7279,6 +7422,26 @@ This struct contains optional fields that can be updated on a TextTranslation re
     description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
     requestFormat: "json",
     response: TextContentWithTranslations,
+  },
+  {
+    method: "get",
+    path: "/user/actions/:resource_type/:resource_id",
+    alias: "GetUserActions",
+    description: `Gets the current user&#x27;s effective actions on a resource`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: UserActions,
   },
   {
     method: "get",

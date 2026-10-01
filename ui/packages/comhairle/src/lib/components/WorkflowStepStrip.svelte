@@ -4,6 +4,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let {
 		conversationId,
@@ -15,6 +16,9 @@
 		onAddStep: () => void;
 	} = $props();
 
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversationId)
+	);
 	let basePath = $derived(`/admin/conversations/${conversationId}/design`);
 	let orderedSteps = $derived(steps ? [...steps].sort((a, b) => a.stepOrder - b.stepOrder) : []);
 	let loading = $derived(steps === undefined);
@@ -65,8 +69,12 @@
 		<li>
 			<button
 				type="button"
-				onclick={onAddStep}
-				class="text-foreground/40 hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap"
+				disabled={!canEdit}
+				title={canEdit ? undefined : 'Edit permission required'}
+				onclick={() => {
+					if (canEdit) onAddStep();
+				}}
+				class="text-foreground/40 enabled:hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap disabled:cursor-not-allowed! disabled:opacity-50"
 			>
 				<Plus class="size-4" />
 				Add step

@@ -1,15 +1,20 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
-import type { ZodiosInstance } from '@zodios/core';
-import type { Api } from '@crown-shy/api-client/api';
+import type { createApiClient } from '@crownshy/api-client/client';
+import type { UserActions } from '@crownshy/api-client/api';
 
 declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			api: ZodiosInstance<Api>;
+			api: ReturnType<typeof createApiClient>;
 		}
-		// interface PageData {}
+		interface PageData {
+			systemActions?: UserActions | null;
+			conversationActions?: UserActions | null;
+			organizationActions?: UserActions | null;
+			resourceActions?: (UserActions | null)[];
+		}
 		// interface PageState {}
 		// interface Platform {}
 	}

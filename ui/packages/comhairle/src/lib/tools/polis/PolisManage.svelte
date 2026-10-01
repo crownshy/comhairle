@@ -10,6 +10,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { useDebounce } from 'runed';
 	import type { InstancedToolConfig } from '$lib/tools/types';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let {
 		toolConfig,
@@ -24,6 +25,10 @@
 		workflowStepId: string;
 		isLive: boolean;
 	} = $props();
+
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversationId)
+	);
 
 	const {
 		required_votes: requiredVotes,
@@ -52,6 +57,7 @@
 	 * tool_config value Polis never accepted.
 	 */
 	async function saveField(field: string, value: unknown) {
+		if (!canEdit) return;
 		try {
 			if (POLIS_KEYS.has(field)) {
 				await apiClient.PolisUpdateConfig({
@@ -116,6 +122,7 @@
 			>
 			<Input
 				id="topic"
+				disabled={!canEdit}
 				bind:value={topicInput}
 				placeholder="Conversation topic"
 				oninput={(e) => saveTopic((e.currentTarget as HTMLInputElement).value)}
@@ -128,6 +135,7 @@
 			</Label>
 			<Textarea
 				id="description"
+				disabled={!canEdit}
 				bind:value={descriptionInput}
 				rows={3}
 				placeholder="What is this conversation about?"
@@ -150,6 +158,7 @@
 			</span>
 			<Input
 				id="requiredVotes"
+				disabled={!canEdit}
 				name="requiredVotes"
 				type="number"
 				min="1"
@@ -171,6 +180,7 @@
 			</div>
 			<Switch
 				id="showRemaining"
+				disabled={!canEdit}
 				checked={showRemaining}
 				onCheckedChange={(checked) => saveField('show_remaining_statements', checked)}
 			/>
@@ -194,6 +204,7 @@
 			</div>
 			<Switch
 				id="strictModeration"
+				disabled={!canEdit}
 				checked={strictModeration ?? false}
 				onCheckedChange={(checked) => saveField('strict_moderation', checked)}
 			/>

@@ -252,8 +252,10 @@ If you copy a block a second time, stop and extract it.
     use(res.ok);
     ```
 
-- Client-side data goes through `apiClient` (`@crownshy/api-client/client`); server-side
-  loads use `tryFetch` from the same util.
+- Client-side data goes through `apiClient` (`@crownshy/api-client/client`). Server-side
+  loads await `parent()` before using the request-scoped `locals.api`, provided lazily by
+  the server hook so it uses the session's current cookies. Wrap API calls with
+  `tryCatchAsync`.
 
 ### Comments
 
