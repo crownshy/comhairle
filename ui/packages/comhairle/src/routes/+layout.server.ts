@@ -20,14 +20,20 @@ export const load: LayoutServerLoad = async (event) => {
 	// `hooks.server.ts`).
 	const tk = event.cookies.get('auth-token');
 
-	let resp: Response;
+	let body: { id?: string } | undefined;
 	try {
-		resp = await event.fetch(`/api/auth/current_user`, {
+		const resp = await event.fetch(`/api/auth/current_user`, {
 			method: 'GET',
 			headers: { Accept: 'application/json' }
 		});
+
+		if (!tk || !resp.ok) {
+			return { user: null, ...common };
+		}
+		body = await resp.json();
 	} catch (e) {
-		// Network-level failure (e.g. upstream unreachable) — degrade to
+		// Network-level failure, including a connection reset mid-body-read
+		// (resp.ok can be true before the stream errors out) — degrade to
 		// anonymous instead of letting this throw crash every route that
 		// shares this root layout. Still pass the cookie through: the
 		// session itself is fine, only this one fetch failed, so child loads
@@ -35,11 +41,7 @@ export const load: LayoutServerLoad = async (event) => {
 		return { user: null, token: tk, ...common };
 	}
 
-	if (!tk || !resp.ok) {
-		return { user: null, ...common };
-	}
-	const body = await resp.json();
-	if (!body.id) return { user: null, ...common };
+	if (!body?.id) return { user: null, ...common };
 
 	// console.log("Returning with token ", tk)
 	return { user: body, token: tk, ...common };
