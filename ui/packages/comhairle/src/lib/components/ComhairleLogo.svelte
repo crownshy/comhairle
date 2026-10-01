@@ -3,9 +3,11 @@
 	import FullLogo from '$lib/assets/comhairle_full_logo.svg';
 	import WavesLogo from '$lib/assets/waves-logo-lg.png';
 	import { themeStore } from '$lib/stores/theme.svelte';
+	import { cn } from '$lib/utils';
 
 	type Props = {
-		href?: string;
+		/** `null` renders the mark without a link, for a caller that wraps it in its own. */
+		href?: string | null;
 		showText?: boolean;
 		logoSize?: 'sm' | 'md' | 'lg';
 		color?: string;
@@ -55,11 +57,13 @@
 {/snippet}
 
 {#if href}
-	<a {href} class="flex items-center {color} {className}">
+	<!-- href is whatever plain site path the caller passes, so resolve() has nothing to check. -->
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+	<a {href} class={cn('flex items-center', color, className)}>
 		{@render logoContent()}
 	</a>
 {:else}
-	<div class="flex items-center {color} {className}">
+	<div class={cn('flex items-center', color, className)}>
 		{@render logoContent()}
 	</div>
 {/if}
