@@ -5,6 +5,7 @@
 	import AuthLayout from '$lib/components/AuthLayout.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { data }: { data: PageData } = $props();
 	let loading = $state(false);
@@ -17,7 +18,7 @@
 			await goto(
 				`/auth/anonymous-signup/code?backTo=${encodeURIComponent(data.backTo ?? '/')}`,
 				{
-					invalidate: ['user']
+					invalidate: [key('user')]
 				}
 			);
 		} catch (e) {
