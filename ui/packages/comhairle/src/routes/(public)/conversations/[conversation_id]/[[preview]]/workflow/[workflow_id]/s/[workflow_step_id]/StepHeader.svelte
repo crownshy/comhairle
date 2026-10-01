@@ -6,6 +6,8 @@
 	import { STEP_COLUMN_CLASS } from './styles';
 
 	interface StepHeaderProps {
+		/** The tool's own position inside the step, such as "Page 3 of 12" (ADR-0047). */
+		count?: string;
 		title: string;
 		description?: string;
 		estimatedMinutes?: number;
@@ -14,6 +16,7 @@
 	}
 
 	let {
+		count,
 		title,
 		description,
 		estimatedMinutes,
@@ -23,6 +26,9 @@
 </script>
 
 <div class={cn(STEP_COLUMN_CLASS, 'flex flex-col items-center pt-3 pb-2')}>
+	{#if count}
+		<p class="text-muted-foreground mb-1 text-center text-sm leading-5 font-medium">{count}</p>
+	{/if}
 	<p class="text-foreground text-center text-xl leading-6 font-semibold md:text-2xl">
 		{title}
 		{#if estimatedMinutes}
