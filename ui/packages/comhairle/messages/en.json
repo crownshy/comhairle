@@ -318,7 +318,7 @@
 	"a11y_prep_line2": "This website was last tested on 5th March 2026 against the WCAG 2.2 AA standard.",
 	"a11y_prep_line3": "The test was carried out by the CrownShy development team. The most viewed pages were tested using automated testing tools. A further internal review of the website was carried out against the WCAG 2.2 AA standard.",
 	"tos_s10_email_label": "Email:",
-	"page": "page",
+	"learn_page_x_of_y": "Page {current} of {total}",
 	"of": "of",
 	"ask": "Ask",
 	"try_again": "Try again",
