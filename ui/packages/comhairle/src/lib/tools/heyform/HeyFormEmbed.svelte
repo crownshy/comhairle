@@ -16,12 +16,8 @@
 	};
 	let { onDone, surveyId, userId, serverURL, extraSurveyParams }: Props = $props();
 
-	/**
-	 * The iframe's `load` fires when the form *document* arrives, but the renderer then boots its
-	 * own JS and shows its own spinner on a blank page for a moment. Uncovering at `load` would
-	 * hand off skeleton -> white -> their spinner, which is the flicker this grace absorbs.
-	 * Mirrors the same trick in HeyFormManage.
-	 */
+	// The renderer shows its own spinner for a moment after `load`, so uncovering the frame at
+	// `load` would flicker. Same grace as HeyFormManage.
 	const RENDERER_BOOT_GRACE_MS = 700;
 
 	// The iframe renders at opacity 0 behind the skeleton until this flips, so it still loads on time.
@@ -30,13 +26,8 @@
 
 	let iframeEl = $state<HTMLIFrameElement>();
 
-	/**
-	 * The fork's initial FORM_RESIZE is a one-shot emit. On a hard refresh a cached iframe can boot and
-	 * emit it before this component's message listener is attached during hydration, so the height is
-	 * missed and the frame stays stuck at its fallback size. To recover, we ping the fork for its
-	 * height once the iframe has loaded and keep pinging until one comes back (see the fork's
-	 * REQUEST_RESIZE handler). Deterministic, and a no-op the moment a height arrives.
-	 */
+	// The fork's first FORM_RESIZE can fire before our listener exists on a hard refresh, so we
+	// ask again until a height arrives (NOTES.md, "Height").
 	const RESIZE_PING_INTERVAL_MS = 300;
 	const RESIZE_PING_TIMEOUT_MS = 5000;
 	let pingTimer: ReturnType<typeof setInterval> | undefined;
@@ -49,8 +40,8 @@
 	function requestResizeUntilAnswered() {
 		stopResizePing();
 		let elapsed = 0;
-		// '*' rather than base_url: this is a benign height request and the fork gates on
-		// `source: 'COMHAIRLE'`, so a redirected survey origin can't silently drop it.
+		// '*' rather than base_url: the fork gates on `source: 'COMHAIRLE'`, and a survey origin
+		// that redirects would silently drop a message addressed to base_url.
 		const ping = () =>
 			iframeEl?.contentWindow?.postMessage(
 				{ source: 'COMHAIRLE', eventName: 'REQUEST_RESIZE' },
@@ -79,29 +70,12 @@
 		setTimeout(() => (ready = true), RENDERER_BOOT_GRACE_MS);
 	}
 
-	/**
-	 * Keeping the form in our colours (see embedTheme). The URL the frame boots with already carries
-	 * the palette, so this is only for the palette changing under a form that is already open: the
-	 * viewer hits the light / dark toggle halfway through answering. Rebuilding the URL would be the
-	 * obvious move and the wrong one, because changing `src` reloads the frame and throws away
-	 * everything they have typed. So the colours go over the same postMessage channel as the resize
-	 * handshake and the fork repaints in place.
-	 *
-	 * `framePalette` is what the frame is currently showing, so a toggle back and forth, or a rerun
-	 * of the effect for any other reason, does not post anything. It resets on load because a fresh
-	 * document is showing whatever its URL asked for.
-	 *
-	 * `frameListening` is the race this would otherwise lose. Our `load` fires when the document
-	 * arrives, but the renderer attaches its message listener when it mounts, some way after that, so
-	 * a theme posted at `load` can land before anything is listening and be dropped. The frame's own
-	 * messages are the proof it is up: the first one it sends comes from a mounted renderer, and the
-	 * REQUEST_RESIZE ping guarantees one arrives even if the mount emit was missed. So we hold the
-	 * palette until we hear from it.
-	 */
+	// A theme change after boot goes over postMessage, because changing `src` would reload the form
+	// and lose the answers. The frame only hears it once its renderer has mounted, and its own first
+	// message is the proof of that (NOTES.md, "Theme").
 	let framePalette: string | undefined;
 	let frameListening = false;
 
-	/** What the palette hangs off. Both are settled before any component runs (see bootPalette). */
 	function paletteKey() {
 		return `${themeStore.name}:${themeStore.mode}`;
 	}
@@ -120,68 +94,28 @@
 		if (!Object.keys(theme).length) return;
 
 		framePalette = key;
-		// '*' for the same reason as the resize ping: the fork gates on `source: 'COMHAIRLE'`, and a
-		// survey origin that redirects would silently swallow a message addressed to base_url.
+		// '*' for the same reason as the resize ping.
 		iframeEl?.contentWindow?.postMessage(
 			{ source: 'COMHAIRLE', eventName: 'SET_THEME', theme },
 			'*'
 		);
 	}
 
-	/**
-	 * Auto-height. The form is a cross-origin iframe, so we can't measure it from here (the browser
-	 * blocks reaching into its document). Instead our HeyForm fork measures its own active question
-	 * and posts the height out; we listen and size the iframe to it. That gives long / grouped
-	 * questions exactly the room they need (no footer overlapping the answers) without leaving a big
-	 * empty card on short ones.
-	 *
-	 * Contract with the fork (see its `sendMessageToParent`), all tagged `source: 'HEYFORM'`:
-	 *   FORM_RESIZE      { height: <px> }                    height the frame needs for this question
-	 *   FORM_STEP_CHANGE {}                                  a new question became active
-	 *   HIDE_EMBED_MODAL {}                                  the form finished
-	 * And the messages we send back, tagged `source: 'COMHAIRLE'`:
-	 *   REQUEST_RESIZE   {}                                  asks the fork to re-emit FORM_RESIZE now
-	 *   SET_THEME        { theme: { <colour>: <hex>, ... } } repaints the form in our palette
-	 *
-	 * `measuredHeight` stays null until FORM_RESIZE arrives, so the iframe falls back to the bounded
-	 * viewport height in the markup. That keeps this correct against a fork that hasn't shipped the
-	 * emit yet: it just behaves like the fixed-height version until the messages start coming.
-	 */
+	// The fork measures its active question and posts the height; we size the iframe to it. Until
+	// the first FORM_RESIZE the markup falls back to a fixed height (NOTES.md, "Height").
 	const MIN_FRAME_PX = 440;
-	/**
-	 * Not a layout constraint. The URL carries `hostScroll=true`, which tells the fork that we size
-	 * the frame and scroll the page, so it lays the question out at its natural height and never
-	 * scrolls inside the frame. Without that, a swipe on a phone goes to the form's inner scroller
-	 * first and stops there, so the participant scrolls twice. A frame shorter than the reported
-	 * height would clip the question, so we follow it however tall it gets. This ceiling only rejects
-	 * a nonsense number from the frame.
-	 */
+	// Only rejects a nonsense number. The frame never scrolls inside itself (`hostScroll=true`), so
+	// we follow the reported height however tall it gets.
 	const MAX_FRAME_PX = 20000;
 
 	let measuredHeight = $state<number | null>(null);
 
-	/**
-	 * Keeping the active question in view. The iframe sizes itself to each question, so the page (not
-	 * the frame) is what scrolls: answer a tall question at the bottom and the next one renders above
-	 * the fold, or the page shrinks under you and strands you at the footer. The correction is to pull
-	 * the frame's top edge back up to the top of the viewport.
-	 *
-	 * Scrolling the window to 0 is a different thing and the wrong one: a step description can be many
-	 * paragraphs long, so top-of-page routinely leaves the question itself off screen.
-	 *
-	 * Two rules keep this from fighting the user:
-	 *   - FORM_STEP_CHANGE is the only trigger. FORM_RESIZE also covers the mount emit and every
-	 *     reflow (a textarea growing, validation, fonts settling), so acting on it hijacks someone who
-	 *     is reading or typing further down the page, or scrolling while the form is still a skeleton.
-	 *   - We only ever scroll up, and only when the frame's top is already above the viewport. If the
-	 *     new question starts on screen there is nothing to correct.
-	 */
+	// The page scrolls, not the frame, so after a step change the new question can sit above the
+	// fold. We pull the frame's top edge back into view, only upwards and only on FORM_STEP_CHANGE
+	// (NOTES.md, "Keeping the question in view").
 	const FRAME_TOP_MARGIN_PX = 16;
-	/**
-	 * The height for the new question arrives in a FORM_RESIZE just after the step change. Aligning
-	 * before it applies would scroll against the outgoing question's box and then be clamped when the
-	 * document resizes, so we wait for it; this bounds that wait.
-	 */
+	// The new question's height lands in a FORM_RESIZE just after the step change. Aligning before
+	// it applies would scroll against the old box, so we wait for it; this bounds the wait.
 	const ALIGN_AFTER_STEP_CHANGE_MS = 150;
 
 	let alignPending = false;
@@ -209,10 +143,10 @@
 
 	function onFrameMessage(e: MessageEvent) {
 		const data = e.data;
-		// HeyForm tags every message it posts; ignore anything else on the page (HMR, analytics, ...).
+		// HeyForm tags every message it posts; ignore anything else on the page.
 		if (!data || data.source !== 'HEYFORM') return;
 
-		// Anything from the frame means its renderer has mounted, so a theme will be heard now.
+		// Any message from the frame means its renderer has mounted and can hear a theme.
 		frameListening = true;
 		syncFrameTheme(paletteKey());
 
@@ -243,23 +177,15 @@
 		};
 	});
 
-	/**
-	 * Read once, at setup, and deliberately not reactive: it goes into the iframe's `src`, and a
-	 * palette that changed the URL would reload the form under whoever is filling it in. Live changes
-	 * go through syncFrameTheme instead.
-	 *
-	 * Reading this early is safe because app.html sets the `dark` class in a pre-paint script and the
-	 * server stamps `data-theme` onto the document, so the palette is settled before any component
-	 * runs.
-	 */
+	// Read once and not reactive: it goes into the iframe `src`, and a changed URL would reload the
+	// form under whoever is answering. The palette is settled this early because `dark` and
+	// `data-theme` are set before any component runs. Later changes go through syncFrameTheme.
 	const bootPalette = browser ? currentPalette() : {};
 	const bootKey = paletteKey();
 
 	$effect(() => {
-		// Reading the key here is what makes a mode flip or a theme swap rerun this effect. The
-		// colours are taken a frame later rather than now: ThemeProvider writes the `dark` class and
-		// `data-theme` in an effect of its own, and this way we never sample the outgoing palette if
-		// that effect happens to run after this one.
+		// Reading the key is what reruns this on a mode flip or theme swap. The colours are read a
+		// frame later, after ThemeProvider's own effect has written `dark` and `data-theme`.
 		const key = paletteKey();
 		const frame = requestAnimationFrame(() => syncFrameTheme(key));
 
@@ -281,20 +207,10 @@
 	});
 </script>
 
-<!-- The form is a self-themed UI inside a cross-origin iframe, so we can't reach in and style it.
-	Instead we hand it our palette and it themes itself: on the URL for the first paint, over
-	postMessage for a change after that (see embedTheme and syncFrameTheme). It follows light / dark
-	and the deployment's theme without us touching its internals.
-
-	It is still framed as a centered card rather than a full-bleed slab, so it reads as an embedded
-	form rather than as the page. That is why the palette maps the form's background to `--card` and
-	not `--background`. The max-width is tunable.
-
-	Height: once the fork reports its content height (measuredHeight, see the FORM_RESIZE handler) we
-	size the iframe to exactly that. Until then we fall back to a compact fixed height that matches the
-	skeleton, so the pre-emit flash and the loaded form line up. NOTE: this assumes the fork emits
-	FORM_RESIZE; a heyform build without that would render every form at this short fixed height, so
-	the emit must be deployed alongside this. The height transition smooths the per-question resize. -->
+<!-- The form themes itself from the palette we hand it (see embedTheme) and sits in a centered
+	card, which is why its background maps to `--card` rather than `--background`. The height
+	follows the fork's FORM_RESIZE; until the first one the frame uses the skeleton's fixed height,
+	and a fork without the emit renders every form at that height (NOTES.md). -->
 <!-- A single-cell grid rather than absolute positioning: both children claim the same cell, so the
 	skeleton inherits the iframe's exact box without restating its height clamp. -->
 <div class="grid w-full grid-cols-1 grid-rows-1">

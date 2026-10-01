@@ -1,10 +1,7 @@
 <!--
-	Stands in for the participant-facing form while its cross-origin iframe boots.
-
-	It is painted in the same tokens the form itself is handed (see embedTheme): `bg-card` is the
-	paper the form boots on, and the bars sit on `--foreground` and `--primary` the way its text and
-	its submit button do. So the handover from skeleton to form is the same card in the same palette,
-	in either mode, rather than a white sheet dropping into a dark one.
+	Stands in for the participant-facing form while its cross-origin iframe boots. Painted in the
+	same tokens the form is handed (see embedTheme), so the handover does not flash a white sheet
+	into a dark page.
 -->
 <div
 	class="bg-card mx-auto mt-1 min-h-110 w-full max-w-2xl overflow-hidden rounded-xl"
@@ -26,7 +23,7 @@
 			<div class="bg-foreground/5 h-11 w-2/3 animate-pulse rounded-md"></div>
 		</div>
 
-		<!-- Submit. Tinted like the button it stands in for, which the form paints in `--primary`. -->
+		<!-- Submit -->
 		<div class="bg-primary/20 mt-4 h-10 w-28 animate-pulse rounded-md"></div>
 	</div>
 

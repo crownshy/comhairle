@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readEmbedTheme } from './embedTheme';
 
-/** Stands in for getComputedStyle: an unset custom property resolves to the empty string. */
+// Like getComputedStyle, an unset custom property resolves to the empty string.
 function resolver(tokens: Record<string, string>) {
 	return (token: string) => tokens[token] ?? '';
 }
