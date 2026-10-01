@@ -886,7 +886,7 @@ mod tests {
                 statement_text: "cats are great and dogs are great".into(),
                 is_seed: false,
                 moderation_status: ModerationStatus::Pending,
-                source_locale: "en".into(),
+                source_locale: Some("en".into()),
             },
         )
         .await?;
