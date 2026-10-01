@@ -6,8 +6,8 @@ use crate::{
     models::{
         pagination::{Order, PageOptions, PaginatedResults},
         permissions::{
-            self, GrantRoleRequest, ResourcePermissionIden, ResourceType as PermissionResourceType,
-            Role as PermissionRole, grant_role,
+            self, GrantRoleRequest, PermissionRole, ResourcePermissionIden, grant_role,
+            system::Role as SystemRole,
         },
     },
     routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
@@ -376,10 +376,10 @@ pub async fn create_organization_admin_user(
     let _ = grant_role(
         state,
         GrantRoleRequest {
-            actor_id: permissions::UserOrOrganizationId::User(user.id),
+            actor_id: permissions::ActorId::User(user.id),
             granted_by: &user.id,
             grant_reason: "Admin user created for organization",
-            permission_triplet: permissions::Role::Admin.system_triplet(),
+            permission_triplet: SystemRole::Admin.system_triplet()?,
         },
     )
     .await?;
@@ -566,7 +566,11 @@ pub async fn list_by_organization_id(
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
-        .and_where(Expr::col(UserIden::OrganizationId).eq(*organization_id))
+        .and_where(Expr::cust_with_values(
+            "id IN (SELECT user_id FROM user_group_member JOIN organization
+            ON organization.user_group_id = user_group_member.group_id WHERE organization.id = $1)",
+            [*organization_id],
+        ))
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_as_with::<_, User, _>(&sql, values)
@@ -719,31 +723,11 @@ pub struct UserFilterOptions {
 impl UserFilterOptions {
     fn apply(&self, mut query: SelectStatement) -> SelectStatement {
         if let Some(is_admin) = self.is_admin {
-            let admin_subquery = Query::select()
-                .expr(Expr::val(1))
-                .from(ResourcePermissionIden::Table)
-                .and_where(
-                    Expr::col((
-                        ResourcePermissionIden::Table,
-                        ResourcePermissionIden::UserId,
-                    ))
-                    .equals((UserIden::Table, UserIden::Id)),
-                )
-                .and_where(
-                    Expr::col((
-                        ResourcePermissionIden::Table,
-                        ResourcePermissionIden::ResourceType,
-                    ))
-                    .eq(PermissionResourceType::System.as_ref()),
-                )
-                .and_where(
-                    Expr::col((
-                        ResourcePermissionIden::Table,
-                        ResourcePermissionIden::RoleName,
-                    ))
-                    .eq(PermissionRole::Admin.as_ref()),
-                )
-                .to_owned();
+            let mut admin_subquery = permissions::permission_select(Some("system"))
+                .expect("System permission tables are defined");
+            admin_subquery.and_where(Expr::col(ResourcePermissionIden::RoleName).eq(SystemRole::Admin.as_ref()))
+                .and_where(Expr::col(ResourcePermissionIden::ResourceId).eq(permissions::SYSTEM_RESOURCE_ID))
+                .and_where(Expr::cust("(user_id = comhairle_user.id OR group_id IN (SELECT group_id FROM user_group_member WHERE user_id = comhairle_user.id))"));
 
             query = if is_admin {
                 query.and_where(Expr::exists(admin_subquery)).to_owned()

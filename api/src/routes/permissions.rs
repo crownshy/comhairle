@@ -2,11 +2,14 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{delete_with, get_with, post_with},
+    routing::{delete_with, get_with, post_with, put_with},
 };
 use axum::{
-    extract::{Json, Path, Query, State},
+    Extension,
+    extract::{FromRequestParts, Json, Path, Query, Request, State},
     http::StatusCode,
+    middleware::{Next, from_fn, from_fn_with_state},
+    response::Response,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -14,16 +17,19 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::middleware::permissions::{
+    PermissionRequirement, TargetPermissionRequirement, authenticate,
+    authorize as permission_middleware, authorize_target,
+};
 use crate::models::permissions::{
-    self, Action, GrantRoleRequest, ListPermissionsFilters, PermissionTargetResource,
-    PermissionTriplet, RevokeRoleRequest, SystemResource, UserOrOrganizationId,
-    UserWithPermissionDto, list_permissions,
+    self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, RevokeRoleRequest,
+    SystemResource, UserWithPermissionDto, list_permissions, system::Action,
 };
 use crate::models::{
     pagination::{PageOptions, PaginatedResults},
     users,
 };
-use crate::routes::auth::{RequiredUser, authorize};
+use crate::routes::auth::RequiredUser;
 use crate::{
     ComhairleState,
     error::ComhairleError,
@@ -85,14 +91,16 @@ async fn resolve_actor(
     organization_id: Option<Uuid>,
     user_email: Option<String>,
     allow_none: bool,
-) -> Result<Option<UserOrOrganizationId>, ComhairleError> {
+) -> Result<Option<ActorId>, ComhairleError> {
     match (user_id, organization_id, user_email) {
-        (Some(uid), None, None) => Ok(Some(UserOrOrganizationId::User(uid))),
-        (None, Some(oid), None) => Ok(Some(UserOrOrganizationId::Org(oid))),
+        (Some(uid), None, None) => Ok(Some(ActorId::User(uid))),
+        (None, Some(oid), None) => Ok(Some(ActorId::Group(
+            crate::models::user_group::organization_group(db, oid).await?,
+        ))),
         (None, None, Some(u_email)) => {
             let user = users::get_user_by_email(&u_email, db).await?;
 
-            Ok(Some(UserOrOrganizationId::User(user.id)))
+            Ok(Some(ActorId::User(user.id)))
         }
         (None, None, None) if allow_none => Ok(None),
         _ => Err(ComhairleError::BadRequest(
@@ -112,12 +120,9 @@ async fn resolve_actor(
 async fn grant(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(caller): RequiredUser,
-    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Json(body): Json<GrantPermissionBody>,
 ) -> Result<(StatusCode, Json<permissions::ResourcePermission>), ComhairleError> {
-    authorize(&state, &caller, Action::GrantPermission, &resource).await?;
-
     let actor_id = resolve_actor(
         &state.db,
         body.user_id,
@@ -142,7 +147,7 @@ async fn grant(
     .await?;
 
     match actor_id {
-        UserOrOrganizationId::User(uid) => {
+        ActorId::User(uid) => {
             let user = users::get_user_by_id(&uid, &state.db).await?;
 
             if let Some(email) = user.email {
@@ -151,7 +156,7 @@ async fn grant(
                     .send_permission_notification_email(&email, &permission, "granted")?;
             }
         }
-        UserOrOrganizationId::Org(_) => {}
+        ActorId::Group(_) => {}
     }
 
     Ok((StatusCode::CREATED, Json(permission)))
@@ -167,13 +172,9 @@ async fn grant(
 #[instrument(err(Debug), skip(state))]
 async fn revoke(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(caller): RequiredUser,
-    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<RevokePermissionQuery>,
 ) -> Result<StatusCode, ComhairleError> {
-    authorize(&state, &caller, Action::RevokePermission, &resource).await?;
-
     let actor_id = resolve_actor(&state.db, query.user_id, query.organization_id, None, false)
         .await?
         .unwrap();
@@ -201,8 +202,6 @@ async fn revoke(
 #[instrument(err(Debug), skip(state))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(caller): RequiredUser,
-    system: SystemResource,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<
     (
@@ -211,8 +210,6 @@ async fn list(
     ),
     ComhairleError,
 > {
-    authorize(&state, &caller, Action::ListPermission, &system).await?;
-
     let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
     let page_options = PageOptions {
         limit: query.limit,
@@ -241,26 +238,35 @@ async fn list(
 async fn list_permissions_by_action(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(caller): RequiredUser,
-    system: SystemResource,
     Path(action): Path<String>,
-    Query(query): Query<ListPermissionsByActionQuery>,
 ) -> Result<(StatusCode, Json<Vec<permissions::ResourcePermission>>), ComhairleError> {
-    if let Err(err) = authorize(&state, &caller, Action::ListPermission, &system).await
-        && (!matches!(err, ComhairleError::UserNotAuthorized)
-            || caller.id != query.user_id.unwrap_or(caller.id))
-    {
-        return Err(err);
-    };
-
-    let permissions = permissions::list_permissions_by_action(
-        &state.db,
-        caller.id,
-        caller.organization_id,
-        &action,
-    )
-    .await?;
+    let permissions =
+        permissions::list_permissions_by_action(&state.db, caller.id, &action).await?;
 
     Ok((StatusCode::OK, Json(permissions)))
+}
+
+async fn authorize_list_action(
+    Extension(state): Extension<Arc<ComhairleState>>,
+    Query(query): Query<ListPermissionsByActionQuery>,
+    request: Request,
+    next: Next,
+) -> Result<Response, ComhairleError> {
+    let (mut parts, body) = request.into_parts();
+    let RequiredUser(caller) = RequiredUser::from_request_parts(&mut parts, &state).await?;
+    if !permissions::can_perform_action(
+        &state,
+        &permissions::SYSTEM_RESOURCE_ID,
+        Action::ListPermission,
+        &caller.id,
+        None,
+    )
+    .await?
+        && caller.id != query.user_id.unwrap_or(caller.id)
+    {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+    Ok(next.run(Request::from_parts(parts, body)).await)
 }
 
 /// Lists permissions for a specific resource with optional filtering. Supports pagination via offset and limit query parameters.
@@ -272,8 +278,6 @@ async fn list_permissions_by_action(
 #[instrument(err(Debug), skip(state))]
 async fn list_for_resource(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(caller): RequiredUser,
-    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<
@@ -283,8 +287,6 @@ async fn list_for_resource(
     ),
     ComhairleError,
 > {
-    authorize(&state, &caller, Action::ListPermission, &resource).await?;
-
     let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
     let page_options = PageOptions {
         limit: query.limit,
@@ -307,13 +309,9 @@ async fn list_for_resource(
 #[instrument(err(Debug), skip(state))]
 async fn list_users_with_permission(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(caller): RequiredUser,
-    resource: PermissionTargetResource,
     Path(path): Path<TargetResourceId>,
     Query(query): Query<ListPermissionsQuery>,
 ) -> Result<(StatusCode, Json<Vec<UserWithPermissionDto>>), ComhairleError> {
-    authorize(&state, &caller, Action::ListPermission, &resource).await?;
-
     let users_with_permission = permissions::list_users_with_permission(
         &state.db,
         &path.resource_type,
@@ -326,8 +324,107 @@ async fn list_users_with_permission(
 }
 
 /// Creates the permissions API router with all the defined routes and their corresponding handlers.
+#[derive(Deserialize, JsonSchema)]
+struct AssignmentPath {
+    resource_type: permissions::ResourceType,
+    resource_id: Uuid,
+    recipient_type: String,
+    recipient_id: Uuid,
+}
+
+impl AssignmentPath {
+    fn recipient(&self) -> Result<permissions::assignments::Recipient, ComhairleError> {
+        match self.recipient_type.as_str() {
+            "user" => Ok(permissions::assignments::Recipient::User(self.recipient_id)),
+            "group" => Ok(permissions::assignments::Recipient::Group(
+                self.recipient_id,
+            )),
+            _ => Err(ComhairleError::BadRequest(
+                "Recipient must be a User or UserGroup".into(),
+            )),
+        }
+    }
+}
+
+async fn catalogue(Path(resource_type): Path<permissions::ResourceType>) -> Json<Vec<String>> {
+    Json(permissions::assignments::role_catalogue(resource_type))
+}
+
+async fn load_assignments(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(caller): RequiredUser,
+    Path(path): Path<AssignmentPath>,
+) -> Result<Json<permissions::assignments::Snapshot>, ComhairleError> {
+    Ok(Json(
+        permissions::assignments::load(
+            &state,
+            path.resource_type,
+            path.resource_id,
+            caller.id,
+            path.recipient()?,
+        )
+        .await?,
+    ))
+}
+
+async fn save_assignments(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(caller): RequiredUser,
+    Path(path): Path<AssignmentPath>,
+    Json(request): Json<permissions::assignments::SaveAssignments>,
+) -> Result<Json<permissions::assignments::Snapshot>, ComhairleError> {
+    Ok(Json(
+        permissions::assignments::save(
+            &state,
+            path.resource_type,
+            path.resource_id,
+            caller.id,
+            path.recipient()?,
+            request,
+        )
+        .await?,
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    let target_requirement = TargetPermissionRequirement::new;
     ApiRouter::new()
+        .api_route(
+            "/{resource_type}/roles",
+            get_with(catalogue, |operation| {
+                operation
+                    .id("GetPermissionRoles")
+                    .tag("Permissions")
+                    .security_requirement("JWT")
+            })
+            .route_layer(from_fn(authenticate::<RequiredUser>)),
+        )
+        .api_route(
+            "/{resource_type}/{resource_id}/assignments/{recipient_type}/{recipient_id}",
+            get_with(load_assignments, |operation| {
+                operation
+                    .id("GetPermissionAssignments")
+                    .tag("Permissions")
+                    .security_requirement("JWT")
+            })
+            .route_layer(from_fn_with_state(
+                target_requirement(Action::ListPermission),
+                authorize_target,
+            )),
+        )
+        .api_route(
+            "/{resource_type}/{resource_id}/assignments/{recipient_type}/{recipient_id}",
+            put_with(save_assignments, |operation| {
+                operation
+                    .id("SavePermissionAssignments")
+                    .tag("Permissions")
+                    .security_requirement("JWT")
+            })
+            .route_layer(from_fn_with_state(
+                target_requirement(Action::GrantPermission),
+                authorize_target,
+            )),
+        )
         .api_route(
             "/",
             get_with(list, |op| {
@@ -341,7 +438,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<PaginatedResults<permissions::ResourcePermission>>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<SystemResource>::new(Action::ListPermission),
+                permission_middleware::<SystemResource>,
+            )),
         )
         .api_route(
             "/by-action/{action}",
@@ -356,7 +457,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<Vec<permissions::ResourcePermission>>>()
-            }),
+            })
+            .route_layer(from_fn(authorize_list_action)),
         )
         .api_route(
             "/{resource_type}/{resource_id}",
@@ -372,7 +474,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<PaginatedResults<permissions::ResourcePermission>>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                target_requirement(Action::ListPermission),
+                authorize_target,
+            )),
         )
         .api_route(
             "/{resource_type}/{resource_id}",
@@ -386,7 +492,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<201, Json<permissions::ResourcePermission>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                target_requirement(Action::GrantPermission),
+                authorize_target,
+            )),
         )
         .api_route(
             "/{resource_type}/{resource_id}",
@@ -402,7 +512,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, ()>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                target_requirement(Action::RevokePermission),
+                authorize_target,
+            )),
         )
         .api_route(
             "/{resource_type}/{resource_id}/users",
@@ -416,7 +530,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<Vec<UserWithPermissionDto>>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                target_requirement(Action::ListPermission),
+                authorize_target,
+            )),
         )
         .with_state(state)
 }
@@ -425,8 +543,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use crate::models::pagination::PaginatedResults;
     use crate::models::permissions::{
-        GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, ResourcePermission, Role,
-        UserOrOrganizationId, grant_role, has_resource_permission, list_permissions,
+        ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionRole, PermissionTriplet,
+        ResourcePermission, grant_role, has_resource_permission, list_permissions, system::Role,
     };
     use crate::routes::permissions::{
         GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
@@ -440,7 +558,7 @@ mod tests {
     use std::sync::Arc;
 
     // Role definitions for testing
-    const RESOURCE_TYPE: &str = "test_resource";
+    const RESOURCE_TYPE: &str = "conversation";
 
     struct TestRole;
 
@@ -504,13 +622,8 @@ mod tests {
         let (_, user, _) = session.current_user(&app).await?;
 
         // Check if the user has the system admin role
-        let has_admin_role = has_resource_permission(
-            &state,
-            Role::Admin.system_triplet(),
-            &user.id,
-            user.organization_id.as_ref(),
-        )
-        .await?;
+        let has_admin_role =
+            has_resource_permission(&state, Role::Admin.system_triplet()?, &user.id).await?;
 
         assert!(
             has_admin_role,
@@ -521,6 +634,111 @@ mod tests {
     }
 
     // Grant permission
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn middleware_rejects_unauthenticated_requests(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::models::model_test_helpers::{
+            get_random_conversation_id, setup_default_app_and_session,
+        };
+
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut owner).await?;
+        let mut anonymous = UserSession::new_admin();
+        for url in [
+            "/permissions".to_owned(),
+            format!("/permissions/conversation/{conversation_id}"),
+            format!("/conversation/{conversation_id}/cohosts"),
+            format!("/conversation/{conversation_id}/moderation_policies"),
+        ] {
+            let (status, response, _) = anonymous.get(&app, &url).await?;
+            assert_eq!(status, StatusCode::UNAUTHORIZED, "{url}: {response}");
+        }
+        let (status, _, _) = anonymous
+            .post(
+                &app,
+                &format!("/permissions/conversation/{conversation_id}"),
+                "{invalid".into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn middleware_denies_unpermitted_requests_but_allows_self_listing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::models::model_test_helpers::{
+            get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
+        };
+
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let owner_id = session.id.ok_or("missing owner ID")?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let user_id = get_random_user_id(&app, &mut session).await?;
+        let target = format!("/permissions/conversation/{conversation_id}");
+        let assignments = format!("{target}/assignments/user/{user_id}");
+
+        for url in [
+            "/permissions".to_owned(),
+            target.clone(),
+            format!("{target}/users"),
+            assignments.clone(),
+            format!("/permissions/by-action/conversation_read?user_id={owner_id}"),
+            format!("/conversation/{conversation_id}/cohosts"),
+            format!("/conversation/{conversation_id}/moderation_policies"),
+        ] {
+            let (status, response, _) = session.get(&app, &url).await?;
+            assert_eq!(status, StatusCode::FORBIDDEN, "{url}: {response}");
+        }
+        let body = GrantPermissionBody {
+            user_id: Some(user_id),
+            organization_id: None,
+            user_email: None,
+            role_name: "content_editor".into(),
+            grant_reason: "Unauthorized request".into(),
+        };
+        let (status, _, _) = session
+            .post(&app, &target, serde_json::to_vec(&body)?.into())
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        let (status, _, _) = session
+            .delete(
+                &app,
+                &format!("{target}?user_id={user_id}&role_name=content_editor"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        let (status, _, _) = session
+            .put(
+                &app,
+                &assignments,
+                serde_json::json!({
+                    "expected_version": 0,
+                    "roles": ["content_editor"],
+                    "grant_reason": "Unauthorized request",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, response, _) = session
+            .get(
+                &app,
+                &format!("/permissions/by-action/conversation_read?user_id={user_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert!(response.as_array().is_some_and(Vec::is_empty));
+        let granted: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM conversation_user_permissions WHERE user_id = $1 AND resource_id = $2)")
+            .bind(user_id).bind(conversation_id).fetch_one(&pool).await?;
+        assert!(!granted);
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn test_post_permission(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
@@ -537,8 +755,8 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
+                actor_id: ActorId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
             },
@@ -602,8 +820,8 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
+                actor_id: ActorId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
             },
@@ -617,7 +835,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
+                actor_id: ActorId::User(user.id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
@@ -663,8 +881,8 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
+                actor_id: ActorId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
             },
@@ -681,7 +899,7 @@ mod tests {
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(user.id),
+                    actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
                     grant_reason: "Testing".into(),
@@ -746,8 +964,8 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
+                actor_id: ActorId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
             },
@@ -765,7 +983,7 @@ mod tests {
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(user.id),
+                    actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
                     grant_reason: "Testing".into(),
@@ -780,7 +998,7 @@ mod tests {
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(user.id),
+                    actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
                     grant_reason: "Testing".into(),
@@ -853,8 +1071,8 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
+                actor_id: ActorId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
             },
@@ -872,7 +1090,7 @@ mod tests {
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(user.id),
+                    actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
                     grant_reason: "Testing".into(),
@@ -885,7 +1103,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
+                actor_id: ActorId::User(user.id),
                 permission_triplet: PermissionTriplet(RESOURCE_TYPE, &resource_2_id, "Role1"),
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
@@ -937,8 +1155,8 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(user.id),
-                permission_triplet: Role::SuperAdmin.system_triplet(),
+                actor_id: ActorId::User(user.id),
+                permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
             },
@@ -975,7 +1193,7 @@ mod tests {
         let permissions = list_permissions(
             &state,
             ListPermissionsFilters {
-                actor: Some(UserOrOrganizationId::User(user.id)),
+                actor: Some(ActorId::User(user.id)),
                 role_name: Some(TestRole::name()),
                 resource_type: Some(RESOURCE_TYPE),
                 resource_id: Some(&resource_id),

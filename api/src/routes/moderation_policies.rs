@@ -4,53 +4,29 @@ use aide::axum::{
     ApiRouter,
     routing::{delete_with, get_with, post_with, put_with},
 };
-use axum::{
-    extract::{Json, Path, State},
-    http::StatusCode,
-};
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
+use axum::middleware::from_fn_with_state;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::{
-    self,
-    moderation_policy::{self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy},
-    permissions::{Action, ConversationResource},
-    users::User,
+use crate::middleware::permissions::{PermissionRequirement, authorize};
+use crate::models::moderation_policy::{
+    self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy,
 };
-use crate::routes::auth::{RequiredUser, authorize};
+use crate::models::permissions::{ConversationResource, conversation::Action};
+use crate::routes::moderation_policies::dto::{
+    DefaultModerationPolicyReasonDto, ModerationPolicyDto,
+};
 use crate::{ComhairleError, ComhairleState};
-use dto::{DefaultModerationPolicyReasonDto, ModerationPolicyDto};
 
 pub mod dto;
-
-/// Policies are edited in Configure and read while moderating, so every route needs the
-/// conversation update permission that moderating a statement already checks.
-async fn authorize_policy_access(
-    state: &Arc<ComhairleState>,
-    user: &User,
-    conversation_id: &Uuid,
-) -> Result<(), ComhairleError> {
-    let conversation = models::conversation::get_by_id(&state.db, conversation_id).await?;
-    authorize(
-        state,
-        user,
-        Action::ConversationUpdate,
-        &ConversationResource {
-            conversation_id: conversation.id,
-            owner_id: conversation.owner_id,
-        },
-    )
-    .await
-}
 
 #[instrument(err(Debug), skip(state))]
 async fn list_policies(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<ModerationPolicyDto>>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
-
     let policies = moderation_policy::list_for_conversation(&state.db, conversation_id).await?;
 
     Ok((
@@ -59,14 +35,9 @@ async fn list_policies(
     ))
 }
 
-#[instrument(err(Debug), skip(state))]
-async fn get_default_reasons(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<Vec<DefaultModerationPolicyReasonDto>>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
-
+#[instrument(err(Debug))]
+async fn get_default_reasons()
+-> Result<(StatusCode, Json<Vec<DefaultModerationPolicyReasonDto>>), ComhairleError> {
     let reasons = DEFAULT_REASONS
         .iter()
         .map(|(label, description)| DefaultModerationPolicyReasonDto {
@@ -81,11 +52,8 @@ async fn get_default_reasons(
 #[instrument(err(Debug), skip(state))]
 async fn get_policy(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
     Path((conversation_id, moderation_policy_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<ModerationPolicyDto>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
-
     let policy =
         moderation_policy::get_by_id(&state.db, conversation_id, moderation_policy_id).await?;
 
@@ -95,12 +63,9 @@ async fn get_policy(
 #[instrument(err(Debug), skip(state))]
 async fn create_policy(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(payload): Json<CreateModerationPolicy>,
 ) -> Result<(StatusCode, Json<ModerationPolicyDto>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
-
     let policy = moderation_policy::create(&state.db, conversation_id, &payload).await?;
 
     Ok((StatusCode::CREATED, Json(policy.into())))
@@ -109,12 +74,9 @@ async fn create_policy(
 #[instrument(err(Debug), skip(state))]
 async fn update_policy(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
     Path((conversation_id, moderation_policy_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<UpdateModerationPolicy>,
 ) -> Result<(StatusCode, Json<ModerationPolicyDto>), ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
-
     let policy =
         moderation_policy::update(&state.db, conversation_id, moderation_policy_id, &payload)
             .await?;
@@ -125,11 +87,8 @@ async fn update_policy(
 #[instrument(err(Debug), skip(state))]
 async fn delete_policy(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
     Path((conversation_id, moderation_policy_id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode, ComhairleError> {
-    authorize_policy_access(&state, &user, &conversation_id).await?;
-
     moderation_policy::delete(&state.db, conversation_id, moderation_policy_id).await?;
 
     Ok(StatusCode::NO_CONTENT)
@@ -209,6 +168,10 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<204, ()>()
             }),
         )
+        .route_layer(from_fn_with_state(
+            PermissionRequirement::<ConversationResource>::new(Action::Update),
+            authorize::<ConversationResource>,
+        ))
         .with_state(state)
 }
 

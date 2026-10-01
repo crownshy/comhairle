@@ -13,15 +13,15 @@ use crate::bot_service::{
 };
 use crate::config::ComhairleConfig;
 use crate::error::ComhairleError;
-use crate::models::permissions::{Action, ResourcePermissionIden, ResourceType, Role};
+use crate::models::permissions::{
+    ResourcePermissionIden, conversation as conversation_permissions, roles_for_action,
+};
 use crate::models::{self, SqlxResultExt};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{
-    Cond, Expr, JoinType, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr,
-};
+use sea_query::{Cond, Expr, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
@@ -945,7 +945,6 @@ pub async fn list(
 pub async fn list_for_permitted_user(
     db: &PgPool,
     user_id: Uuid,
-    organization_id: Option<Uuid>,
     is_super_admin: bool,
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
@@ -959,75 +958,19 @@ pub async fn list_for_permitted_user(
         .distinct();
 
     if !is_super_admin {
-        let read_role_names: Vec<String> = Role::all()
-            .filter(|role| {
-                role.resource_type() == ResourceType::Conversation
-                    && role.actions().contains(&Action::ConversationRead)
-            })
-            .map(|role| role.as_ref().to_string())
-            .collect();
+        let read_role_names = roles_for_action(conversation_permissions::Action::Read);
 
-        let actor_condition = match organization_id {
-            Some(org_id) => Cond::any()
-                .add(
-                    Expr::col((
-                        ResourcePermissionIden::Table,
-                        ResourcePermissionIden::UserId,
-                    ))
-                    .eq(user_id),
-                )
-                .add(
-                    Expr::col((
-                        ResourcePermissionIden::Table,
-                        ResourcePermissionIden::OrganizationId,
-                    ))
-                    .eq(org_id),
-                ),
-            None => Cond::all().add(
-                Expr::col((
-                    ResourcePermissionIden::Table,
-                    ResourcePermissionIden::UserId,
-                ))
-                .eq(user_id),
-            ),
-        };
-
-        let join_condition = Cond::all()
-            .add(
-                Expr::col((ConversationIden::Table, ConversationIden::Id)).equals((
-                    ResourcePermissionIden::Table,
-                    ResourcePermissionIden::ResourceId,
-                )),
-            )
-            .add(
-                Expr::col((
-                    ResourcePermissionIden::Table,
-                    ResourcePermissionIden::ResourceType,
-                ))
-                .eq(ResourceType::Conversation.as_ref()),
-            )
-            .add(
-                Expr::col((
-                    ResourcePermissionIden::Table,
-                    ResourcePermissionIden::RoleName,
-                ))
-                .is_in(read_role_names),
-            )
-            .add(actor_condition);
-
-        query.join(
-            JoinType::LeftJoin,
-            ResourcePermissionIden::Table,
-            join_condition,
-        );
+        let mut permission_query =
+            crate::models::permissions::permission_select(Some("conversation"))?;
+        permission_query.and_where(Expr::col(ResourcePermissionIden::ResourceId)
+            .equals((ConversationIden::Table, ConversationIden::Id)))
+            .and_where(Expr::col(ResourcePermissionIden::RoleName).is_in(read_role_names))
+            .and_where(Expr::cust_with_values("(user_id = $1 OR group_id IN (SELECT group_id FROM user_group_member WHERE user_id = $1))", [user_id]));
 
         query.and_where(
             Cond::any()
                 .add(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
-                .add(
-                    Expr::col((ResourcePermissionIden::Table, ResourcePermissionIden::Id))
-                        .is_not_null(),
-                )
+                .add(Expr::exists(permission_query))
                 .into(),
         );
     }
@@ -1050,7 +993,9 @@ mod tests {
     use serde_json::json;
 
     use crate::models::model_test_helpers::setup_default_app_and_session;
-    use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId, grant_role};
+    use crate::models::permissions::{
+        ActorId, GrantRoleRequest, PermissionRole, conversation::Role, grant_role,
+    };
     use crate::models::users::{self, UpdateUserRequest, create_user, update_user};
     use crate::routes::auth::SignupRequest;
     use crate::routes::conversations::dto::ConversationDto;
@@ -1331,16 +1276,16 @@ mod tests {
         let user_b = users::create_guest_user(&state.db).await?;
 
         let grant_request_a_a = GrantRoleRequest {
-            actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: Role::ConversationContentEditor.triplet(&conversation.id),
+            actor_id: ActorId::User(user_a.id),
+            permission_triplet: Role::ContentEditor.triplet(&conversation.id)?,
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
         };
         grant_role(&state, grant_request_a_a).await?;
 
         let grant_request_a_b = GrantRoleRequest {
-            actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: Role::Tester.triplet(&conversation.id),
+            actor_id: ActorId::User(user_a.id),
+            permission_triplet: crate::test_helpers::TestRole::make_triplet(&conversation.id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
         };
@@ -1360,7 +1305,6 @@ mod tests {
         let results_user_a_a = list_for_permitted_user(
             &state.db,
             user_a.id,
-            None,
             false,
             page_options.clone(),
             order_options,
@@ -1378,7 +1322,6 @@ mod tests {
         let results_user_b_a = list_for_permitted_user(
             &state.db,
             user_b.id,
-            None,
             false,
             page_options.clone(),
             order_options,
@@ -1405,7 +1348,6 @@ mod tests {
         let results_owner = list_for_permitted_user(
             &state.db,
             session.id.unwrap(),
-            None,
             false,
             page_options.clone(),
             order_options,
@@ -1423,7 +1365,6 @@ mod tests {
         let results_user_b_b = list_for_permitted_user(
             &state.db,
             user_b.id,
-            None,
             false,
             page_options.clone(),
             order_options,

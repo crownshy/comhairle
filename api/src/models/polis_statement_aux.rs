@@ -575,7 +575,7 @@ pub async fn check_can_moderate(
     authorize(
         state,
         user,
-        models::permissions::Action::ConversationUpdate,
+        models::permissions::conversation::Action::Update,
         &conversation_resource,
     )
     .await?;

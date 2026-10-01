@@ -1,6 +1,8 @@
 use std::{error::Error, sync::Arc};
 
-use crate::models::permissions::{GrantRoleRequest, Role, UserOrOrganizationId, grant_role};
+use crate::models::permissions::{
+    ActorId, GrantRoleRequest, PermissionRole, grant_role, system::Role,
+};
 use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
@@ -32,8 +34,8 @@ pub async fn setup_default_app_and_session(
     let _ = grant_role(
         &state,
         GrantRoleRequest {
-            actor_id: UserOrOrganizationId::User(user_id),
-            permission_triplet: Role::SuperAdmin.system_triplet(),
+            actor_id: ActorId::User(user_id),
+            permission_triplet: Role::SuperAdmin.system_triplet()?,
             granted_by: &user_id,
             grant_reason: "Default super admin test setup",
         },
