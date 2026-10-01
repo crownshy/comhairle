@@ -6,28 +6,54 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
 	import * as m from '$lib/paraglide/messages';
-	import type { StepItem } from './stepItems';
+	import type { StepItem, StepStatus } from './stepItems';
 
 	type Props = {
 		steps: StepItem[];
 		currentIndex: number;
-		/** The trigger's text: the viewed step's name, prefixed with its position. */
-		label: string;
 	};
 
-	let { steps, currentIndex, label }: Props = $props();
+	let { steps, currentIndex }: Props = $props();
+
+	type RowStyle = { badge: string; name: string; done: boolean; locked: boolean };
+
+	const FILLED_BADGE = 'bg-primary text-primary-foreground';
+	const ROW_STYLES: Record<StepStatus, RowStyle> = {
+		completed: { badge: FILLED_BADGE, name: 'text-foreground', done: true, locked: false },
+		'completed-locked': {
+			badge: FILLED_BADGE,
+			name: 'text-muted-foreground',
+			done: true,
+			locked: true
+		},
+		current: { badge: FILLED_BADGE, name: 'text-foreground', done: false, locked: false },
+		upcoming: {
+			badge: 'bg-muted text-muted-foreground',
+			name: 'text-muted-foreground',
+			done: false,
+			locked: false
+		}
+	};
+
+	// Both shells share one pill so the dropdown the server paints can become the sheet
+	// on hydration without a visible change (ADR-0049).
+	const TRIGGER_CLASS =
+		'group text-primary active:bg-primary/10 data-[state=open]:bg-primary/10 -mx-2 flex min-w-0 items-center justify-end gap-2 rounded-full px-2 py-1 text-base font-medium transition-colors duration-75';
 
 	const isMobile = new IsMobile();
 
 	let open = $state(false);
 
 	let viewedStep = $derived(steps[currentIndex]);
-
-	// The count goes in the heading once rather than on every row.
 	let heading = $derived(m.step_x_of_y({ current: currentIndex + 1, total: steps.length }));
+	let label = $derived(viewedStep ? `${heading}: ${viewedStep.name}` : heading);
 
 	let themeLabel = $derived(themeStore.isDark ? m.theme_light_mode() : m.theme_dark_mode());
 	let ThemeIcon = $derived(themeStore.isDark ? Sun : Moon);
+
+	function ariaCurrent(step: StepItem) {
+		return step === viewedStep ? 'step' : undefined;
+	}
 </script>
 
 {#snippet triggerInner()}
@@ -39,44 +65,40 @@
 {/snippet}
 
 {#snippet stepRow(step: StepItem, position: number)}
+	{@const style = ROW_STYLES[step.status]}
 	<span class="flex w-full items-center gap-3">
 		<span
 			class={cn(
-				'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums',
-				step.status === 'upcoming'
-					? 'bg-muted text-muted-foreground'
-					: 'bg-primary text-primary-foreground'
+				'flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums',
+				style.badge
 			)}
 		>
-			{#if step.status === 'completed' || step.status === 'completed-locked'}
+			{#if style.done}
 				<!-- `text-current` opts out of the menu item's blanket muted colour for icons. -->
 				<Check class="size-3.5 text-current" strokeWidth={3} />
 			{:else}
 				{position}
 			{/if}
 		</span>
-		<span
-			class={cn(
-				'min-w-0 truncate text-base font-medium',
-				step.status === 'completed-locked' || step.status === 'upcoming'
-					? 'text-muted-foreground'
-					: 'text-foreground'
-			)}
-		>
+		<span class={cn('min-w-0 truncate text-base font-medium', style.name)}>
 			{step.name}
 		</span>
-		{#if step.status === 'completed-locked'}
+		{#if style.locked}
 			<Lock class="text-muted-foreground ml-auto size-4 shrink-0" />
 		{/if}
 	</span>
 {/snippet}
 
+{#snippet themeRowInner()}
+	<ThemeIcon class="text-muted-foreground size-5 shrink-0 stroke-current" />
+	{themeLabel}
+{/snippet}
+
+<!-- eslint-disable svelte/no-navigation-without-resolve -->
+
 {#if isMobile.current}
 	<Drawer.Root bind:open>
-		<Drawer.Trigger
-			class="group text-primary active:bg-primary/10 data-[state=open]:bg-primary/10 -mx-2 flex min-w-0 items-center justify-end gap-2 rounded-full px-2 py-1 text-sm font-medium transition-colors duration-75"
-			aria-label={m.step_dropdown_open()}
-		>
+		<Drawer.Trigger class={TRIGGER_CLASS}>
 			{@render triggerInner()}
 		</Drawer.Trigger>
 
@@ -92,21 +114,19 @@
 			>
 				{#each steps as step, index (step.id)}
 					{#if step.href}
-						<!-- Step hrefs come from workflow_step_url, so resolve() has nothing to check. -->
-						<!-- eslint-disable svelte/no-navigation-without-resolve -->
 						<a
 							href={step.href}
 							class="hover:bg-muted active:bg-muted flex min-h-14 items-center rounded-xl px-3 transition-colors"
+							aria-current={ariaCurrent(step)}
 							onclick={() => (open = false)}
 						>
 							{@render stepRow(step, index + 1)}
 						</a>
-						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{:else}
 						<!-- Inert rather than absent: an unreachable step still tells you where you are. -->
 						<div
 							class="flex min-h-14 items-center px-3"
-							aria-current={step === viewedStep ? 'step' : undefined}
+							aria-current={ariaCurrent(step)}
 						>
 							{@render stepRow(step, index + 1)}
 						</div>
@@ -114,14 +134,12 @@
 				{/each}
 
 				<div class="border-border mt-2 border-t pt-2 pb-2">
-					<!-- Stays open so you can see the new mode and switch back. -->
 					<button
 						type="button"
 						class="hover:bg-muted active:bg-muted text-foreground flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left text-base transition-colors"
 						onclick={() => themeStore.toggleMode()}
 					>
-						<ThemeIcon class="text-muted-foreground size-5 shrink-0 stroke-current" />
-						{themeLabel}
+						{@render themeRowInner()}
 					</button>
 				</div>
 			</div>
@@ -137,10 +155,7 @@
 	{/if}
 
 	<DropdownMenu.Root bind:open>
-		<DropdownMenu.Trigger
-			class="group text-primary active:bg-primary/10 data-[state=open]:bg-primary/10 relative -mx-2 flex min-w-0 items-center justify-end gap-2 rounded-full px-2 py-1 text-base font-medium transition-colors duration-75 data-[state=open]:z-50"
-			aria-label={m.step_dropdown_open()}
-		>
+		<DropdownMenu.Trigger class={cn(TRIGGER_CLASS, 'relative data-[state=open]:z-50')}>
 			{@render triggerInner()}
 		</DropdownMenu.Trigger>
 
@@ -154,30 +169,32 @@
 					{#if step.href}
 						<DropdownMenu.Item class="py-2.5">
 							{#snippet child({ props })}
-								<!-- eslint-disable svelte/no-navigation-without-resolve -->
 								<a
 									{...props}
 									href={step.href}
 									class={cn(props.class as string, 'cursor-pointer')}
+									aria-current={ariaCurrent(step)}
 								>
 									{@render stepRow(step, index + 1)}
 								</a>
-								<!-- eslint-enable svelte/no-navigation-without-resolve -->
 							{/snippet}
 						</DropdownMenu.Item>
 					{:else}
-						<!-- Inert rather than absent: an unreachable step still tells you where you are. -->
-						<div
-							class="px-2 py-2.5"
-							aria-current={step === viewedStep ? 'step' : undefined}
+						<!-- Disabled rather than absent: an unreachable step still tells you where you are.
+							Full opacity because the current step is one of these. -->
+						<DropdownMenu.Item
+							disabled
+							class="py-2.5 data-[disabled]:opacity-100"
+							aria-current={ariaCurrent(step)}
 						>
 							{@render stepRow(step, index + 1)}
-						</div>
+						</DropdownMenu.Item>
 					{/if}
 				{/each}
 			</DropdownMenu.Group>
 
 			<DropdownMenu.Separator />
+			<!-- Stays open so you can see the new mode and switch back. -->
 			<DropdownMenu.Item
 				class="cursor-pointer py-2.5 text-base"
 				onSelect={(event) => {
@@ -185,8 +202,7 @@
 					themeStore.toggleMode();
 				}}
 			>
-				<ThemeIcon class="text-muted-foreground size-4 stroke-current" />
-				{themeLabel}
+				{@render themeRowInner()}
 			</DropdownMenu.Item>
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>

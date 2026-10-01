@@ -96,9 +96,6 @@
 
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
 	let currentStepNumber = $derived(viewedIndex + 1);
-	let stepLabel = $derived(
-		`${m.step_x_of_y({ current: currentStepNumber, total: sortedSteps.length })}: ${workflowStep.name}`
-	);
 
 	let introUrl = $derived(conversation_url(conversation.id, isPreview) + queryString);
 
@@ -273,7 +270,6 @@
 				<StepChrome
 					steps={stepItems}
 					currentIndex={viewedIndex}
-					label={stepLabel}
 					{fill}
 					{introUrl}
 					preview={isPreview}
