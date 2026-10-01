@@ -1,6 +1,5 @@
-import { generateValue } from '..';
-import type { Page } from '../types';
-import type { Cleanup } from './types';
+import { generateValue } from '../..';
+import type { Cleanup, Locators } from '../types';
 
 type InputType<T> = { id: T; value: string };
 
@@ -11,18 +10,12 @@ type UserInputsReturn<T, U> = {
 };
 
 type UserInputsParams<T, U> = {
-	inputs: UserInputsInput<T>;
+	inputs: Locators<T>;
 	mutator: (name: string, index: number) => Omit<U, 'id' | 'value'>;
 	cleanup: Cleanup;
 	focus: (input: U) => Promise<void>;
 	update: (input: U, value: string) => Promise<void>;
 	expector: (input: U) => Promise<void>;
-};
-
-export type UserInputsInput<T> = [id: T, name: string][];
-export type Refs = {
-	page: Page;
-	cleanup: Cleanup;
 };
 
 const UserInputs = <const T extends string, U extends InputType<T>>({

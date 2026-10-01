@@ -5,6 +5,7 @@
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import RejectReasonPopover from './RejectReasonPopover.svelte';
+	import { pluralise } from '$lib/utils/pluralise';
 
 	type Props = {
 		row: PolisStatementAux;
@@ -135,7 +136,8 @@
 		{/if}
 		{#if replacedBy && replacedBy.length}
 			<p class="text-muted-foreground text-sm">
-				Replaced by {replacedBy.length} statement{replacedBy.length === 1 ? '' : 's'}
+				Replaced by {replacedBy.length}
+				{pluralise(replacedBy.length, 'statement')}
 			</p>
 		{/if}
 		{#if row.moderation_status === 'rejected' && row.moderation_reason}

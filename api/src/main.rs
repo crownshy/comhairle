@@ -30,10 +30,27 @@ async fn main() {
     }
 }
 
+fn base_fmt_layer<S>() -> tracing_subscriber::fmt::Layer<S> {
+    tracing_subscriber::fmt::layer()
+        .with_file(true)
+        .with_line_number(true)
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_target(true)
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
+}
+
 async fn run() -> Result<(), Box<dyn Error>> {
     // Load .env files
     //
     dotenvy::dotenv().ok();
+
+    let use_pretty = dotenvy::var("LOG_FORMAT")
+        .map(|v| v == "pretty")
+        .unwrap_or(false);
+
+    let pretty_layer = use_pretty.then(|| base_fmt_layer().pretty());
+    let json_layer = (!use_pretty).then(|| base_fmt_layer().json());
 
     // initialize tracing
     tracing_subscriber::registry()
@@ -42,16 +59,8 @@ async fn run() -> Result<(), Box<dyn Error>> {
                 "debug,sqlx=debug,tower_http=info,axum::rejection=trace".into()
             }),
         )
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_file(true)
-                .with_line_number(true)
-                .with_thread_ids(true)
-                .with_thread_names(true)
-                .with_target(true)
-                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
-                .json(),
-        )
+        .with(pretty_layer)
+        .with(json_layer)
         .init();
 
     // Capture top-level panics and log them using tracing

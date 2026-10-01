@@ -30,8 +30,8 @@ use crate::{
     },
     routes::auth::extract::{RequiredAdminUser, RequiredUser},
     wiki_poll_service::{
-        ModerationStatus, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
-        polis_service::WikiPollReport,
+        ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin,
+        WikiPollService, polis_service::WikiPollReport,
     },
 };
 
@@ -117,7 +117,13 @@ impl ToolImpl for PolisTool {
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function
-        polis_setup(setup, &state.config.polis_url, &state.wiki_poll_service).await
+        polis_setup(
+            setup,
+            &PolisPollSettings::default(),
+            &state.config.polis_url,
+            &state.wiki_poll_service,
+        )
+        .await
     }
 
     async fn clone_tool(
@@ -427,6 +433,9 @@ pub enum PolisError {
     #[error("Failed to get comments {0}")]
     FailedToGetComments(StatusCode, String),
 
+    #[error("Failed to get report data {1}")]
+    FailedToGetReport(StatusCode, String),
+
     #[error("Failed to get xids {0}")]
     FailedToGetXIDs(StatusCode, String),
 
@@ -460,6 +469,7 @@ impl Into<StatusCode> for &PolisError {
             PolisError::FailedToLogin(status) => *status,
             PolisError::FailedToCreateNewPoll(status) => *status,
             PolisError::FailedToGetComments(status, _) => *status,
+            PolisError::FailedToGetReport(status, _) => *status,
             PolisError::FailedToGetXIDs(status, _) => *status,
             PolisError::FailedPollUpdate(status, _) => *status,
             PolisError::FailedToPostSeedComment(status, _) => *status,
@@ -546,10 +556,18 @@ async fn get_report_data(
         _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
     };
 
+    // With strict_moderation off, Polis shows participants every statement a moderator has
+    // not rejected. Polis defaults a new conversation to off, so an unset flag counts as off.
+    let scope = if config.strict_moderation.unwrap_or(false) {
+        ReportScope::AcceptedOnly
+    } else {
+        ReportScope::AcceptedAndPending
+    };
+
     // Get the report data
     let data = state
         .wiki_poll_service
-        .get_report_data(&config.poll_id)
+        .get_report_data(&config.poll_id, scope)
         .await?;
 
     Ok((StatusCode::OK, Json(data)))
@@ -1265,7 +1283,6 @@ pub async fn launch(
         })
         .await?;
 
-    // Need to also migrate the setting for moderation
     let seed_statements = client.get_comments(&preview_config.poll_id).await?;
 
     let live_poll_config = polis_setup(
@@ -1273,6 +1290,13 @@ pub async fn launch(
             topic: "".into(),
             required_votes: preview_config.required_votes,
             show_remaining_statements: preview_config.show_remaining_statements,
+        },
+        &PolisPollSettings {
+            topic: preview_config.topic.clone(),
+            description: preview_config.description.clone(),
+            // None is a preview created before the mirror existed, so its real
+            // Polis value is unknown. Go live moderated rather than guess.
+            strict_moderation: preview_config.strict_moderation.unwrap_or(true),
         },
         &preview_config.server_url,
         client,
@@ -1297,12 +1321,33 @@ pub async fn launch(
 
     Ok(PolisToolConfig {
         moderation_policy_id: preview_config.moderation_policy_id,
+        label_seeds_as_conversation_starter: preview_config.label_seeds_as_conversation_starter,
         ..live_poll_config
     })
 }
 
+/// Polis conversation settings written straight after the poll is created.
+/// Polis creates polls unmoderated, so the default turns strict moderation on.
+#[derive(Debug)]
+struct PolisPollSettings {
+    topic: Option<String>,
+    description: Option<String>,
+    strict_moderation: bool,
+}
+
+impl Default for PolisPollSettings {
+    fn default() -> Self {
+        Self {
+            topic: None,
+            description: None,
+            strict_moderation: true,
+        }
+    }
+}
+
 async fn polis_setup(
     setup: &PolisToolSetup,
+    settings: &PolisPollSettings,
     polis_url: &str,
     client: &Arc<dyn WikiPollService>,
 ) -> Result<PolisToolConfig, ComhairleError> {
@@ -1314,6 +1359,18 @@ async fn polis_setup(
         })
         .await?;
     let poll_id = client.create_poll(&auth_cookies).await?;
+    client
+        .update_poll_config(
+            &poll_id,
+            &auth_cookies,
+            &WikiPollConfigUpdate {
+                is_active: None,
+                topic: settings.topic.clone(),
+                description: settings.description.clone(),
+                strict_moderation: Some(settings.strict_moderation),
+            },
+        )
+        .await?;
 
     Ok(PolisToolConfig {
         server_url: polis_url.to_string(),
@@ -1322,12 +1379,12 @@ async fn polis_setup(
         admin_password: password,
         required_votes: Some(setup.required_votes.unwrap_or(10)),
         show_remaining_statements: setup.show_remaining_statements,
-        // Mirror Polis's creation defaults so the Setup tab reflects reality
+        // Mirror what the poll now holds so the Setup tab reflects reality
         // before the admin edits anything.
-        topic: None,
-        description: None,
+        topic: settings.topic.clone(),
+        description: settings.description.clone(),
         is_active: Some(true),
-        strict_moderation: Some(false),
+        strict_moderation: Some(settings.strict_moderation),
         label_seeds_as_conversation_starter: false,
         moderation_policy_id: None,
     })
@@ -1625,6 +1682,9 @@ mod tests {
             .expect_create_poll()
             .returning(|_| Box::pin(async { Ok("test_poll_id".to_string()) }));
         service
+            .expect_update_poll_config()
+            .returning(|_, _, _| Box::pin(async { Ok(WikiPoll::default()) }));
+        service
             .expect_moderate_comment()
             .returning(move |_poll, tid, _decision, _cookies| {
                 let fails = failing.contains(&tid);
@@ -1811,6 +1871,120 @@ mod tests {
             let reloaded = polis_statement_aux::get_by_id(&pool, &aux.id).await?;
             assert_eq!(reloaded.moderation_status, ModerationStatus::Pending);
         }
+        Ok(())
+    }
+
+    /// A Polis mock that records every config update it is sent.
+    fn poll_service_recording_updates() -> (
+        Arc<dyn WikiPollService>,
+        Arc<std::sync::Mutex<Vec<(String, WikiPollConfigUpdate)>>>,
+    ) {
+        let updates = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut service = MockWikiPollService::new();
+        service
+            .expect_create_random_admin_user()
+            .returning(|| Box::pin(async { Ok(("u@mock.com".to_string(), "pw".to_string())) }));
+        service
+            .expect_login()
+            .returning(|_| Box::pin(async { Ok("cookie".to_string()) }));
+        service
+            .expect_create_poll()
+            .returning(|_| Box::pin(async { Ok("live_poll".to_string()) }));
+        service
+            .expect_get_comments()
+            .returning(|_| Box::pin(async { Ok(vec![]) }));
+        let recorded = updates.clone();
+        service
+            .expect_update_poll_config()
+            .returning(move |poll_id, _, config| {
+                recorded.lock().unwrap().push((
+                    poll_id.to_string(),
+                    WikiPollConfigUpdate {
+                        is_active: config.is_active,
+                        topic: config.topic.clone(),
+                        description: config.description.clone(),
+                        strict_moderation: config.strict_moderation,
+                    },
+                ));
+                Box::pin(async { Ok(WikiPoll::default()) })
+            });
+        (Arc::new(service), updates)
+    }
+
+    fn preview_config() -> PolisToolConfig {
+        PolisToolConfig {
+            server_url: "polis.test".into(),
+            poll_id: "preview_poll".into(),
+            admin_user: "u@mock.com".into(),
+            admin_password: "pw".into(),
+            required_votes: Some(5),
+            show_remaining_statements: false,
+            topic: Some("Transport".into()),
+            description: Some("Buses and trains".into()),
+            is_active: Some(true),
+            strict_moderation: Some(false),
+            label_seeds_as_conversation_starter: true,
+            moderation_policy_id: Some(Uuid::new_v4()),
+        }
+    }
+
+    #[tokio::test]
+    async fn setup_creates_poll_with_strict_moderation_on() -> Result<(), Box<dyn Error>> {
+        let (service, updates) = poll_service_recording_updates();
+        let config = polis_setup(
+            &PolisToolSetup {
+                topic: "".into(),
+                required_votes: None,
+                show_remaining_statements: true,
+            },
+            &PolisPollSettings::default(),
+            "polis.test",
+            &service,
+        )
+        .await?;
+
+        assert_eq!(config.strict_moderation, Some(true));
+        let updates = updates.lock().unwrap();
+        assert_eq!(updates.len(), 1);
+        assert_eq!(updates[0].0, "live_poll");
+        assert_eq!(updates[0].1.strict_moderation, Some(true));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn launch_carries_preview_poll_settings() -> Result<(), Box<dyn Error>> {
+        let (service, updates) = poll_service_recording_updates();
+        let preview = preview_config();
+        let live = launch(&preview, &service).await?;
+
+        assert_eq!(live.poll_id, "live_poll");
+        assert_eq!(live.strict_moderation, Some(false));
+        assert_eq!(live.topic, preview.topic);
+        assert_eq!(live.description, preview.description);
+        assert_eq!(live.required_votes, preview.required_votes);
+        assert!(!live.show_remaining_statements);
+        assert!(live.label_seeds_as_conversation_starter);
+        assert_eq!(live.moderation_policy_id, preview.moderation_policy_id);
+
+        let updates = updates.lock().unwrap();
+        assert_eq!(updates.len(), 1);
+        assert_eq!(updates[0].1.strict_moderation, Some(false));
+        assert_eq!(updates[0].1.topic, preview.topic);
+        assert_eq!(updates[0].1.description, preview.description);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn launch_moderates_when_preview_setting_is_unknown() -> Result<(), Box<dyn Error>> {
+        let (service, updates) = poll_service_recording_updates();
+        let preview = PolisToolConfig {
+            strict_moderation: None,
+            ..preview_config()
+        };
+        let live = launch(&preview, &service).await?;
+
+        assert_eq!(live.strict_moderation, Some(true));
+        assert_eq!(updates.lock().unwrap()[0].1.strict_moderation, Some(true));
         Ok(())
     }
 }

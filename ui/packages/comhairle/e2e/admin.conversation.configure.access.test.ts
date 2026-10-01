@@ -1,6 +1,6 @@
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
-import Switches from './utils/inputs/Switches';
+import { Switches } from './utils/components';
 import { test } from './utils/testing';
 import { testWithRefresh } from './utils';
 

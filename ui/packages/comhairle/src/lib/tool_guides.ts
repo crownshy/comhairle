@@ -268,14 +268,16 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 	lived_experience: stub('Lived Experience', 'Lived Experience', 'lived_experience')
 };
 
-/** Order of tools in the guide's left navigation. */
+/**
+ * Order of tools in the guide's left navigation. `elicitation_bot` keeps its guide
+ * page for existing steps but is hidden here since it can no longer be added (#1017).
+ */
 export const GUIDE_NAV_ORDER = [
 	'polis',
 	'thinking_space',
 	'learn',
 	'heyform',
 	'prioritization',
-	'elicitation_bot',
 	'lived_experience',
 	'online_group_conversation'
 ];
