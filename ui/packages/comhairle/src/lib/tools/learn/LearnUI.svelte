@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Progress } from '$lib/components/ui/progress';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
@@ -15,24 +14,23 @@
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { resolveGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
-	let {
-		pages,
-		onDone,
-		onNextAction,
-		onPrevAction,
-		conversation,
-		availableDocuments = [],
-		hasKnowledgeBaseDocs = false
-	}: {
+	type Props = {
 		pages: Array<Page>;
-		onDone: () => void;
-		onNextAction?: (fn: () => void) => void;
-		onPrevAction?: (fn: (() => void) | undefined) => void;
+		onSequenceChange?: OnSequenceChange;
 		conversation?: LocalizedConversationDto;
 		availableDocuments?: ComhairleDocument[];
 		hasKnowledgeBaseDocs?: boolean;
-	} = $props();
+	};
+
+	let {
+		pages,
+		onSequenceChange,
+		conversation,
+		availableDocuments = [],
+		hasKnowledgeBaseDocs = false
+	}: Props = $props();
 
 	// The assistant only answers from parsed knowledge base documents, so it is hidden entirely
 	// when the knowledge base is empty. hasKnowledgeBaseDocs is the single source of truth,
@@ -82,42 +80,30 @@
 	/** True while SvelteKit is routing to another step. */
 	let isNavigating = $derived(!!navigating.to);
 
-	/**
-	 * Skeleton only, so a step hop that resolves quickly never renders one and can't flash.
-	 * See delayedFlag for the reasoning.
-	 *
-	 * Deliberately not gated on the document fetch, unlike before: the article server-renders
-	 * now, and withholding it for a client-only fetch would blank content that is already on
-	 * screen. A source-document badge instead renders its placeholder label and upgrades in
-	 * place when the fetch lands, which is a far smaller change than hiding the whole article.
-	 */
+	// Not gated on the document fetch: the article server-renders, and a source-document badge
+	// upgrades in place when the fetch lands.
 	let showSkeleton = delayedFlag(() => isNavigating, 150);
 
-	$effect(() => {
-		if (onNextAction) {
-			onNextAction(isLastPage ? onDone : nextPage);
-		}
-	});
+	// The segment fills as pages are left behind, so a single page stays empty until the step
+	// completes, like every other tool.
+	let progress = $derived(pages.length > 0 ? currentPageNo / pages.length : undefined);
+	let pageCount = $derived(
+		pages.length > 1
+			? m.learn_page_x_of_y({ current: currentPageNo + 1, total: pages.length })
+			: undefined
+	);
 
 	$effect(() => {
-		onPrevAction?.(currentPageNo > 0 ? prevPage : undefined);
+		onSequenceChange?.({
+			next: isLastPage ? undefined : nextPage,
+			previous: currentPageNo > 0 ? prevPage : undefined,
+			progress,
+			count: pageCount
+		});
 	});
 </script>
 
 <div class="mx-auto flex grow flex-col">
-	{#if pages.length > 1}
-		<div class="mx-auto mb-6 w-full max-w-[65ch]">
-			<p class="text-muted-foreground mb-1.5 text-sm font-medium">
-				<span class="capitalize">{m.page()}</span>
-				{currentPageNo + 1}
-				{m.of()}
-				{pages.length}
-			</p>
-			<Progress value={currentPageNo + 1} max={pages.length} aria-label="Learning progress" />
-		</div>
-	{/if}
-
-	<!-- Article content: own loading state (route navigation / content not ready) -->
 	{#if showSkeleton.current}
 		<LearnArticleSkeleton />
 	{:else if content}
@@ -130,7 +116,7 @@
 			/>
 		</article>
 	{:else}
-		<h1>Sorry this page is currently not avaliable in this language</h1>
+		<h1>Sorry this page is currently not available in this language</h1>
 	{/if}
 
 	{#if tutorAvailable && conversation}

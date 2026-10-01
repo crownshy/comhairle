@@ -8,6 +8,8 @@
 	interface StepHeaderProps {
 		currentStepNumber: number;
 		totalSteps: number;
+		/** The tool's own position inside the step, such as "Page 3 of 12" (ADR-0047). */
+		count?: string;
 		title: string;
 		description?: string;
 		estimatedMinutes?: number;
@@ -18,6 +20,7 @@
 	let {
 		currentStepNumber,
 		totalSteps,
+		count,
 		title,
 		description,
 		estimatedMinutes,
@@ -30,6 +33,9 @@
 <div class={cn(STEP_COLUMN, 'flex flex-col items-center pt-3 pb-2')}>
 	<p class="text-primary text-center text-sm leading-5 font-semibold">
 		{m.step_x_of_y({ current: currentStepNumber, total: totalSteps })}
+		{#if count}
+			<span class="text-muted-foreground font-medium">· {count}</span>
+		{/if}
 	</p>
 	<p class="text-foreground mt-1 text-center text-xl leading-6 font-semibold md:text-2xl">
 		{title}
