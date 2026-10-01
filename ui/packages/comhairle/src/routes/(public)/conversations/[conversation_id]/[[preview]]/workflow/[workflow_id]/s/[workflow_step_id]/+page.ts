@@ -92,16 +92,11 @@ export const load: PageLoad = async (event) => {
 			preview,
 			permissionToShareWithOrganizers
 		};
-	} catch (e: any) {
-		// TODO: figure out how to type this from the generated api
-		/// Throw if error is a redirect
-		if (isRedirect(e)) {
-			console.log(e);
-			throw e;
-		}
+	} catch (e: unknown) {
+		if (isRedirect(e)) throw e;
 		// TODO: we probably want some error codes to match on here
 		// rather than the plain text
-		if (e.response.data.err === 'User Required for this route') {
+		if (apiErrorText(e) === 'User Required for this route') {
 			notifications.addFlash({
 				message: 'Login or signup to take part in the conversation',
 				priority: 'INFO'
@@ -111,3 +106,10 @@ export const load: PageLoad = async (event) => {
 		redirect(307, '/' + queryString);
 	}
 };
+
+function apiErrorText(error: unknown): string | undefined {
+	if (typeof error !== 'object' || error === null || !('response' in error)) return undefined;
+	const { response } = error as { response?: { data?: { err?: unknown } } };
+	const text = response?.data?.err;
+	return typeof text === 'string' ? text : undefined;
+}
