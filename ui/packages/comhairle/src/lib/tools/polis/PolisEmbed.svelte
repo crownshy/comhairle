@@ -30,7 +30,6 @@
 		polis_id: string;
 		polis_url: string;
 		user_id: string;
-		onDone: () => void | Promise<void>;
 		requiredVotes?: number;
 		workflowStepId?: string;
 		isPreview?: boolean;
@@ -42,7 +41,6 @@
 		polis_id,
 		polis_url,
 		user_id,
-		onDone,
 		requiredVotes = 10,
 		workflowStepId = polis_id,
 		isPreview = false,
@@ -152,11 +150,6 @@
 	}
 
 	const disabled = $derived(voteCooldown || waitingForNext);
-	const canContinue = $derived(hasMetThreshold);
-
-	$effect(() => {
-		onCanContinueChange?.(canContinue);
-	});
 
 	let anchoredRemaining = $state<number | null>(null);
 	let anchoredTotal = $state<number | null>(null);
@@ -181,6 +174,13 @@
 	const poolExhausted = $derived(
 		polisReady && !polisLoading && !polisError && !polisCurrentStatement
 	);
+
+	// The pager is the only way out (ADR-0047), so an exhausted pool must unlock it too.
+	const canContinue = $derived(hasMetThreshold || poolExhausted);
+
+	$effect(() => {
+		onCanContinueChange?.(canContinue);
+	});
 
 	$effect(() => {
 		if (screen === 'voting' && poolExhausted) {
@@ -221,19 +221,6 @@
 		resetVoteCount(user_id, voteScopeKey);
 		totalVotes = 0;
 		screen = 'voting';
-	}
-
-	let continuing = $state(false);
-
-	async function handleContinue() {
-		if (continuing) return;
-		continuing = true;
-		try {
-			await onDone();
-		} finally {
-			// Navigation usually unmounts us first; reset as a safety net if it didn't.
-			continuing = false;
-		}
 	}
 
 	async function submitOpinion(text: string): Promise<boolean> {
@@ -293,7 +280,6 @@
 		}
 	}
 
-	const remainingBeforeContinue = $derived(safeRequiredVotes - totalVotes);
 	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
@@ -418,22 +404,6 @@
 					{m.polis_add_opinion()}
 				</Button>
 			{/if}
-
-			<!-- Continue to next step (only after threshold) -->
-			{#if canContinue}
-				<div class="mt-4 w-full border-t pt-6" in:fade={{ duration: 300 }}>
-					<LoadingButton
-						variant="primaryDark"
-						size="lg"
-						loading={continuing}
-						onclick={handleContinue}
-						class="gap-2 px-6 py-4 text-lg"
-					>
-						{m.polis_continue_to_next_step()}
-						{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
-					</LoadingButton>
-				</div>
-			{/if}
 		</div>
 	{:else if screen === 'add-opinion'}
 		<!-- Add Opinion Screen -->
@@ -544,16 +514,6 @@
 				>
 					{m.polis_continue_voting()}
 				</Button>
-				<LoadingButton
-					variant="ghost"
-					size="lg"
-					loading={continuing}
-					class="text-muted-foreground hover:text-foreground flex items-center gap-2 px-6 py-4 text-lg font-medium transition-colors"
-					onclick={handleContinue}
-				>
-					{m.polis_continue_to_next_step()}
-					{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
-				</LoadingButton>
 			</div>
 		</div>
 	{:else if screen === 'completed'}
@@ -582,16 +542,5 @@
 				<span class="md:hidden">{m.polis_add_your_own_opinion()}</span>
 			</Button>
 		</div>
-
-		<LoadingButton
-			variant="primaryDark"
-			size="lg"
-			loading={continuing}
-			onclick={handleContinue}
-			class="mb-5 gap-2 px-6 py-4 text-lg"
-		>
-			{m.continue_()}
-			{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
-		</LoadingButton>
 	{/if}
 </div>
