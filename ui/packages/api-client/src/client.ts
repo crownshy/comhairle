@@ -29,7 +29,8 @@ export const createApiClient = (
 	baseUrl: string,
 	authToken: string | undefined,
 	source: string,
-	locale?: string
+	locale?: string,
+	guestToken?: string
 ): ReturnType<typeof createApi> => {
 	let api = createApi(baseUrl, {
 		axiosConfig: {
@@ -42,6 +43,9 @@ export const createApiClient = (
 			const cookies: string[] = [];
 			if (authToken) {
 				cookies.push(`kc-access-token=${authToken}`);
+			}
+			if (guestToken) {
+				cookies.push(`auth-token=${guestToken}`);
 			}
 			if (locale) {
 				cookies.push(`COMHAIRLE_LOCALE=${locale}`);

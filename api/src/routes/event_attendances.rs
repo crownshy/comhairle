@@ -24,7 +24,7 @@ use crate::models::event_attendance::{
     EventAttendanceOrderOptions, UpdateEventAttendance,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::users::{self, User, get_or_create_user_by_email};
+use crate::models::users::{self, get_or_create_user_by_email};
 use crate::models::{breakout_plan, conversation};
 use crate::routes::auth::extract::{OptionalUser, RequiredAdminUser, RequiredUser};
 use crate::routes::event_attendances::dto::EventAttendanceDto;

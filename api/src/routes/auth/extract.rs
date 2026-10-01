@@ -9,7 +9,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use axum_keycloak_auth::KeycloakAuthStatus;
-use axum_keycloak_auth::decode::{KeycloakToken, ProfileAndEmail};
+use axum_keycloak_auth::decode::ProfileAndEmail;
 use axum_keycloak_auth::error::AuthError;
 use axum_keycloak_auth::extract::{ExtractedToken, TokenExtractor};
 use serde::Deserialize;

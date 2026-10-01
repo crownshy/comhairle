@@ -4,9 +4,16 @@ import { browser } from '$app/environment';
 
 export const load: LayoutLoad = async ({ url, data }) => {
 	const token = data.token;
+	const guestToken = data.guestToken;
 	const user = data.user;
 	const { isCommunity, themeName } = data;
-	const api = createApiClient(url.origin + '/api', token, browser ? 'client' : 'server');
+	const api = createApiClient(
+		url.origin + '/api',
+		token,
+		browser ? 'client' : 'server',
+		undefined,
+		guestToken
+	);
 
 	try {
 		const userRoles = await api.GetUserRoles();

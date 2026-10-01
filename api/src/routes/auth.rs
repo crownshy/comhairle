@@ -16,11 +16,7 @@ use axum::{
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
-use axum_extra::{
-    TypedHeader,
-    extract::cookie::{Cookie, CookieJar, SameSite},
-    headers::{Authorization, authorization::Bearer},
-};
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use bon::builder;
 use chrono::{TimeDelta, Utc};
@@ -46,18 +42,18 @@ use uuid::Uuid;
 use crate::auth_service::GetAuthorizationTokensResponse;
 use crate::error::ComhairleError;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
+use crate::models::otp;
 use crate::models::permissions::{
     Action, ConversationPath, ExtractResourceId, GrantRoleRequest, Role as PermissionRole,
     UserOrOrganizationId, can_perform_resource_action, grant_role, has_resource_permission,
 };
 use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
 use crate::models::users::{
-    self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-    create_guest_user, create_otp_user, create_user, get_guest_user_by_code, get_user_by_email,
-    get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
+    self, Resource, Role, UpdateUserRequest, UserAuthType, UserResourceRole, create_guest_user,
+    create_otp_user, create_user, get_guest_user_by_code, get_user_by_email, get_user_by_id,
+    get_user_resource_roles, set_signup_metadata, update_user,
 };
-use crate::models::{api_key, otp};
-use crate::routes::auth::extract::{OptionalRawAccessToken, RequiredAdminUser, RequiredUser};
+use crate::routes::auth::extract::{OptionalUser, RequiredAdminUser, RequiredUser};
 use crate::routes::user::dto::UserDto;
 use crate::{ComhairleState, optional_auth, required_auth};
 
@@ -1126,28 +1122,14 @@ async fn logout(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, Co
 }
 
 /// Handler for the current user if there is one
-#[instrument(err(Debug), skip(state, access_token))]
+#[instrument(err(Debug), skip(state))]
 pub async fn current_user(
     State(state): State<Arc<ComhairleState>>,
-    OptionalRawAccessToken(access_token): OptionalRawAccessToken,
+    OptionalUser(user): OptionalUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    match access_token {
-        Some(token) => {
-            let user = state
-                .auth_service
-                .get_user_info(&token)
-                .await
-                // Token exists but is invalid
-                .map_err(|e| {
-                    warn!("Invalid token: {e:#?}");
-                    ComhairleError::NoLoggedInUser
-                })?;
+    let user = user.ok_or_else(|| ComhairleError::NoLoggedInUser)?;
 
-            let user: UserDto = user.into();
-            Ok((StatusCode::OK, Json(user)))
-        }
-        None => Err(ComhairleError::NoLoggedInUser),
-    }
+    Ok((StatusCode::OK, Json(user)))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -1518,7 +1500,7 @@ mod tests {
     use crate::{
         mailer::MockComhairleMailer,
         models::{
-            api_key::CreateApiKeyRequest,
+            api_key::{self, CreateApiKeyRequest},
             model_test_helpers::setup_default_app_and_session,
             otp,
             users::{

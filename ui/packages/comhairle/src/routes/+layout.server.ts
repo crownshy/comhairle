@@ -25,6 +25,9 @@ export const load: LayoutServerLoad = async (event) => {
 	// `hooks.server.ts`).
 	const tk = event.cookies.get('kc-access-token');
 
+	// No signed-in keycloak user -> fallback to check for guest user
+	const guestTk = event.cookies.get('auth-token');
+
 	if (!resp.ok) {
 		return { user: null, ...common };
 	}
@@ -33,5 +36,5 @@ export const load: LayoutServerLoad = async (event) => {
 	if (!body.id) return { user: null, ...common };
 
 	// console.log("Returning with token ", tk)
-	return { user: body, token: tk, ...common };
+	return { user: body, token: tk, guestToken: guestTk, ...common };
 };
