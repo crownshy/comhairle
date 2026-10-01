@@ -102,7 +102,7 @@ reader; the "Step N of M" line beneath it carries the position.
 _Avoid_: Stepper (the old row of circles), step selector.
 
 **Step menu**:
-The pill beside the Comhairle mark in the step header, listing the Workflow's Steps with
+The pill at the right of the step header, listing the Workflow's Steps with
 their status and the light and dark toggle. An anchored dropdown on a pointer, a bottom sheet
 on a phone. Navigation permissions are unchanged: only completed, revisitable Steps are
 links.

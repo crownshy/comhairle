@@ -23,7 +23,6 @@
 				targetUrl.searchParams.set('embed', 'true');
 				// Cancel current navigation and redirect with embed param
 				cancel();
-				// The destination plus one query flag, not a typed route id, so resolve() can't help.
 				// eslint-disable-next-line svelte/no-navigation-without-resolve
 				goto(targetUrl.toString());
 			}

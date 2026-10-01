@@ -6,8 +6,9 @@
 	import { cn } from '$lib/utils';
 
 	type Props = {
-		/** `null` renders the mark without a link, for a caller that wraps it in its own. */
-		href?: string | null;
+		href?: string;
+		/** Names the link when the mark alone doesn't say where it goes. */
+		ariaLabel?: string;
 		showText?: boolean;
 		logoSize?: 'sm' | 'md' | 'lg';
 		color?: string;
@@ -16,6 +17,7 @@
 
 	let {
 		href = '/',
+		ariaLabel,
 		showText = true,
 		logoSize = 'md',
 		color = 'text-primary-foreground',
@@ -57,9 +59,8 @@
 {/snippet}
 
 {#if href}
-	<!-- href is whatever plain site path the caller passes, so resolve() has nothing to check. -->
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-	<a {href} class={cn('flex items-center', color, className)}>
+	<a {href} aria-label={ariaLabel} class={cn('flex items-center', color, className)}>
 		{@render logoContent()}
 	</a>
 {:else}
