@@ -302,7 +302,6 @@
 							{conversation}
 							{availableDocuments}
 							{hasKnowledgeBaseDocs}
-							{isSubmitting}
 						/>
 					{/key}
 				{:else if toolConfig?.type === Polis.TOOL_NAME}
@@ -314,7 +313,6 @@
 							requiredVotes={toolConfig.required_votes}
 							workflowStepId={workflowStep.id}
 							{isPreview}
-							onDone={stepComplete}
 							onCanContinueChange={handleCanContinueChange}
 							showRemainingStatementCount={toolConfig.show_remaining_statements}
 						/>
