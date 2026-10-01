@@ -80,15 +80,8 @@
 	/** True while SvelteKit is routing to another step. */
 	let isNavigating = $derived(!!navigating.to);
 
-	/**
-	 * Skeleton only, so a step hop that resolves quickly never renders one and can't flash.
-	 * See delayedFlag for the reasoning.
-	 *
-	 * Deliberately not gated on the document fetch, unlike before: the article server-renders
-	 * now, and withholding it for a client-only fetch would blank content that is already on
-	 * screen. A source-document badge instead renders its placeholder label and upgrades in
-	 * place when the fetch lands, which is a far smaller change than hiding the whole article.
-	 */
+	// Not gated on the document fetch: the article server-renders, and a source-document badge
+	// upgrades in place when the fetch lands.
 	let showSkeleton = delayedFlag(() => isNavigating, 150);
 
 	// The segment fills as pages are left behind, so a single page stays empty until the step
@@ -123,7 +116,7 @@
 			/>
 		</article>
 	{:else}
-		<h1>Sorry this page is currently not avaliable in this language</h1>
+		<h1>Sorry this page is currently not available in this language</h1>
 	{/if}
 
 	{#if tutorAvailable && conversation}
