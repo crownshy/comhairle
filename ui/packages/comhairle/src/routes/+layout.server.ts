@@ -11,11 +11,6 @@ export const load: LayoutServerLoad = async (event) => {
 		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true'
 	};
 
-	const resp = await event.fetch(`/api/auth/current_user`, {
-		method: 'GET',
-		headers: { Accept: 'application/json' }
-	});
-
 	// Keep extraction of `auth-token` cookie after `/api/auth/current_user`
 	// request.
 	//
@@ -24,6 +19,21 @@ export const load: LayoutServerLoad = async (event) => {
 	// updated as part of the refresh flow in `handleFetch` (see
 	// `hooks.server.ts`).
 	const tk = event.cookies.get('auth-token');
+
+	let resp: Response;
+	try {
+		resp = await event.fetch(`/api/auth/current_user`, {
+			method: 'GET',
+			headers: { Accept: 'application/json' }
+		});
+	} catch (e) {
+		// Network-level failure (e.g. upstream unreachable) — degrade to
+		// anonymous instead of letting this throw crash every route that
+		// shares this root layout. Still pass the cookie through: the
+		// session itself is fine, only this one fetch failed, so child loads
+		// should keep authenticating rather than silently going anonymous too.
+		return { user: null, token: tk, ...common };
+	}
 
 	if (!tk || !resp.ok) {
 		return { user: null, ...common };
