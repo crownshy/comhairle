@@ -67,8 +67,7 @@
 		)
 	);
 
-	/** Invited-by-email people who haven't registered yet — shown non-selectable
-	 *  in the facilitators tab (a role can't attach without a registration). */
+	// Shown but not selectable in the facilitators tab: a role needs a registration to attach to.
 	let pendingInvites = $derived(
 		emailInvites
 			.filter((invite) => invite.status === 'pending' || invite.status === 'open')
@@ -116,8 +115,7 @@
 
 	let { form, enhance, validateForm, submitting, tainted } = $derived(eventForm);
 
-	// Each field is driven by a TranslationSource (ADR-0005); `onEdit` mirrors the primary value into
-	// `$form` so superForm's inline validation keeps working while the source owns the content.
+	// `onEdit` mirrors the primary value into `$form` so superForm's inline validation still runs (ADR-0005).
 	const nameSource = createTextContentSource({
 		getTranslation: () => event.translations?.name,
 		getPrimaryLocale: () => primaryLanguage,
@@ -154,8 +152,7 @@
 	let saving = $state(false);
 
 	async function handleUpdateEvent({ cancel }: { cancel: () => void }) {
-		// We submit via the API client below — prevent SvelteKit from POSTing the form to the
-		// page route (which has no server actions and would return 405 Method Not Allowed).
+		// The page route has no server actions, so a SvelteKit POST would 405. Save via the API client.
 		cancel();
 
 		if (saving) return;
@@ -407,7 +404,6 @@
 			</Form.Field>
 		</div>
 
-		<!-- Default time zone -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
@@ -522,7 +518,6 @@
 			</div>
 		</div>
 
-		<!-- Format -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
@@ -550,7 +545,6 @@
 			</Form.Field>
 		</div>
 
-		<!-- Custom Event Link -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>

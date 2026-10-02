@@ -33,11 +33,7 @@ type TextContentSourceOptions = {
 	 * fields). Must create and link it, and return the new id.
 	 */
 	ensureTextContentId?: (content: string) => Promise<string | undefined>;
-	/**
-	 * Fired synchronously on every primary-locale edit. Used by `superForm`-bound consumers to mirror
-	 * the value into their `$form` store so inline (`Form.FieldErrors`) validation keeps working; the
-	 * source still owns the content (see ADR-0005).
-	 */
+	/** Fires on every primary-locale edit, so `superForm` consumers can mirror it into `$form`. */
 	onEdit?: (content: string) => void;
 	/**
 	 * Re-fetches the data `getTranslation()` reads. Saves don't call it, since the overlay already
@@ -82,9 +78,7 @@ export function createTextContentSource(options: TextContentSourceOptions): Auto
 	let failureNotified = false;
 	const activeSaves = new SvelteSet<Promise<unknown>>();
 
-	// Flip to "saving" the instant an edit is queued (not just when the debounced request fires), so the
-	// indicator reflects "unsaved changes" during the debounce window and an unsaved-changes guard can
-	// see it. Mirrors what the learn Pages controller does.
+	// Show "saving" as soon as an edit is queued, so unsaved-changes guards see the debounce window too.
 	function markSaving() {
 		clearTimeout(savedResetTimer);
 		saveState = 'saving';

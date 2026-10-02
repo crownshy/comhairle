@@ -299,7 +299,7 @@
 									</p>
 								{:else}
 									<p class="text-destructive text-xs">
-										Intent missing — add one before saving.
+										Intent missing. Add one before saving.
 									</p>
 								{/if}
 							</div>

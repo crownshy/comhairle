@@ -158,7 +158,6 @@
 </script>
 
 {#snippet fields()}
-	<!-- Name field -->
 	<div class="flex flex-col gap-1">
 		<span class="text-lg font-semibold">Name</span>
 		<p class="text-muted-foreground mb-2 text-sm">
@@ -167,7 +166,6 @@
 		<TranslatableField source={nameSource} {primaryLocale} {supportedLanguages} />
 	</div>
 
-	<!-- Description field -->
 	<div class="pt-4">
 		<div class="flex flex-col gap-1">
 			<span class="text-lg font-semibold">Description</span>

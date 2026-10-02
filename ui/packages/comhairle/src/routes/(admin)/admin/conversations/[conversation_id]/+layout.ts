@@ -10,19 +10,8 @@ import type {
 import type { LayoutLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 
-/**
- * Invalidation keys for this load. Each re-runs this fetch; the names let callers
- * express *what* they changed without coupling to load internals.
- * - conversation:meta — conversation record itself (title, description, flags…)
- * - conversation:workflow — workflows + steps + stats (anything step-related)
- * - conversation:events — the events list (create/rename/delete an event)
- * - conversation:moderation-policy — the moderation policies and default reject reasons
- *
- * Events are loaded here (not lazily in events/+layout) so the conversation layout can
- * server-render the events sub-tab strip from `data.events`, the same way it renders the
- * workflow step strip from `data.workflowSteps`. It runs in parallel with the workflow
- * fetch, so it adds no extra latency to a page load.
- */
+// Events load here, in parallel with the workflow fetch, so the layout can server-render the
+// events strip from `data.events` the same way it renders the step strip.
 export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	depends(key('admin/conversation'));
 	depends(key('admin/conversation/workflow'));
