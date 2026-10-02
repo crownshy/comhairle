@@ -1,16 +1,10 @@
 use std::sync::Arc;
 
-use aide::{
-    OperationIo,
-    axum::{
-        ApiRouter,
-        routing::{delete_with, get_with, patch_with, post_with, put_with},
-    },
-};
-use axum::{
-    extract::{FromRequestParts, Json, Path, Query, State},
-    http::StatusCode,
-};
+use aide::OperationIo;
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with};
+use axum::extract::{FromRequestParts, Json, Path, Query, State};
+use axum::http::StatusCode;
 use minijinja::context;
 use schemars::JsonSchema;
 use tracing::instrument;

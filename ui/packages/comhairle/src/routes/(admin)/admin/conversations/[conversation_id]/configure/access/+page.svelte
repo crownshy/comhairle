@@ -102,7 +102,7 @@
 			return;
 		}
 		notifications.send({ message: 'Setting updated', priority: 'INFO' });
-		await invalidate(key('admin/conversation'));
+		await invalidate(key('admin/conversation/meta'));
 	}
 
 	let adding = $state(false);
@@ -135,7 +135,7 @@
 			message: 'Co-host organization added',
 			priority: 'INFO'
 		});
-		await invalidate('conversation:meta');
+		await invalidate(key('admin/conversation/meta'));
 	}
 
 	async function removeCohost(organizationId: string) {
@@ -160,7 +160,7 @@
 			message: 'Co-host organization removed',
 			priority: 'INFO'
 		});
-		await invalidate('conversation:meta');
+		await invalidate(key('admin/conversation/meta'));
 	}
 </script>
 

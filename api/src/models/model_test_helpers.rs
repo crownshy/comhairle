@@ -49,12 +49,14 @@ pub async fn setup_default_app_and_session(
 pub async fn get_random_workflow_id(
     app: &Router,
     session: &mut UserSession,
+    conversation_id: &Uuid,
 ) -> Result<Uuid, Box<dyn Error>> {
-    let (_, response, _) = session.create_random_conversation(app).await?;
-    let conversation: ConversationDto = serde_json::from_value(response)?;
-    let (_, response, _) = session
-        .create_random_workflow(app, &conversation.id.to_string())
+    let (status, response, _) = session
+        .create_random_workflow(app, &conversation_id.to_string())
         .await?;
+    if !status.is_success() {
+        return Err(format!("workflow creation failed with status {status}: {response}").into());
+    }
     let workflow: WorkflowDto = serde_json::from_value(response)?;
 
     Ok(workflow.id)

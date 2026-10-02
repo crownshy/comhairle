@@ -1,40 +1,160 @@
 use std::sync::Arc;
 
-use crate::models::polis_statement_aux;
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use async_trait::async_trait;
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use axum::Extension;
+use axum::body::{Body, Bytes};
+use axum::extract::{FromRequest, FromRequestParts, Json, Path, Query, Request, State};
+use axum::http::StatusCode;
+use axum::middleware::{Next, from_fn_with_state};
+use axum::response::Response;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        polis_statement_aux::{
-            CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
-            PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux,
-            UpsertFromPolis,
-        },
-    },
-    routes::auth::{RequiredAdminUser, RequiredUser},
-    wiki_poll_service::{
-        ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin,
-        WikiPollService, polis_service::WikiPollReport,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::permissions::conversation::Action;
+use crate::models::polis_statement_aux;
+use crate::models::polis_statement_aux::{
+    CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
+    PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux, UpsertFromPolis,
+};
+use crate::models::{self};
+use crate::routes::auth::RequiredUser;
+use crate::wiki_poll_service::{
+    ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
+    polis_service::WikiPollReport,
 };
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
+
+#[derive(Deserialize)]
+struct PolisWorkflowStepPermissionBody {
+    workflow_step_id: Uuid,
+}
+
+async fn authorize_polis_workflow_step(
+    State(action): State<Action>,
+    Extension(state): Extension<Arc<ComhairleState>>,
+    request: Request,
+    next: Next,
+) -> Result<Response, ComhairleError> {
+    let (mut parts, body) = request.into_parts();
+
+    let RequiredUser(user) = RequiredUser::from_request_parts(&mut parts, &state).await?;
+
+    let body_bytes = Bytes::from_request(Request::from_parts(parts.clone(), body), &state)
+        .await
+        .map_err(|error| ComhairleError::BadRequest(error.to_string()))?;
+
+    let target_workflow_step: PolisWorkflowStepPermissionBody = serde_json::from_slice(&body_bytes)
+        .map_err(|error| ComhairleError::BadRequest(error.to_string()))?;
+
+    polis_statement_aux::check_can_perform(
+        &state,
+        &user,
+        &target_workflow_step.workflow_step_id,
+        action,
+    )
+    .await?;
+
+    Ok(next
+        .run(Request::from_parts(parts, Body::from(body_bytes)))
+        .await)
+}
+
+async fn authorize_polis_statement(
+    State(action): State<Action>,
+    Extension(state): Extension<Arc<ComhairleState>>,
+    request: Request,
+    next: Next,
+) -> Result<Response, ComhairleError> {
+    let (mut parts, body) = request.into_parts();
+
+    let RequiredUser(user) = RequiredUser::from_request_parts(&mut parts, &state).await?;
+
+    let Path(statement_id) = Path::<Uuid>::from_request_parts(&mut parts, &state).await?;
+
+    let statement = polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
+
+    polis_statement_aux::check_can_perform(&state, &user, &statement.workflow_step_id, action)
+        .await?;
+
+    parts.extensions.insert(statement);
+
+    Ok(next.run(Request::from_parts(parts, body)).await)
+}
+
+#[derive(Clone, Debug)]
+struct AuthorizedPolisStatementBatch {
+    workflow_step_id: Uuid,
+    rows: Vec<PolisStatementAux>,
+}
+
+async fn authorize_polis_statement_batch(
+    State(action): State<Action>,
+    Extension(state): Extension<Arc<ComhairleState>>,
+    request: Request,
+    next: Next,
+) -> Result<Response, ComhairleError> {
+    let (mut parts, body) = request.into_parts();
+
+    let RequiredUser(user) = RequiredUser::from_request_parts(&mut parts, &state).await?;
+
+    let body_bytes = Bytes::from_request(Request::from_parts(parts.clone(), body), &state)
+        .await
+        .map_err(|error| ComhairleError::BadRequest(error.to_string()))?;
+
+    let target: ModerateStatementAuxBatchRequest = serde_json::from_slice(&body_bytes)
+        .map_err(|error| ComhairleError::BadRequest(error.to_string()))?;
+
+    if target.ids.is_empty() {
+        return Err(ComhairleError::BadRequest("ids must not be empty".into()));
+    }
+
+    let rows = polis_statement_aux::list(
+        &state.db,
+        None,
+        None,
+        PolisStatementAuxFilterOptions::by_ids(target.ids.clone()),
+    )
+    .await?;
+
+    if rows.len() != target.ids.len() {
+        return Err(ComhairleError::BadRequest(
+            "one or more statement ids do not exist".into(),
+        ));
+    }
+
+    let workflow_step_id = rows
+        .first()
+        .ok_or_else(|| ComhairleError::BadRequest("ids must not be empty".into()))?
+        .workflow_step_id;
+
+    if rows
+        .iter()
+        .any(|row| row.workflow_step_id != workflow_step_id)
+    {
+        return Err(ComhairleError::BadRequest(
+            "all statements must belong to the same workflow step".into(),
+        ));
+    }
+
+    polis_statement_aux::check_can_perform(&state, &user, &workflow_step_id, action).await?;
+
+    parts.extensions.insert(AuthorizedPolisStatementBatch {
+        workflow_step_id,
+        rows,
+    });
+
+    Ok(next
+        .run(Request::from_parts(parts, Body::from(body_bytes)))
+        .await)
+}
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
 pub struct PolisToolConfig {
@@ -192,7 +312,11 @@ impl ToolImpl for PolisTool {
                              fields are written.",
                         )
                         .response::<200, Json<WikiPoll>>()
-                }),
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Update,
+                    authorize_polis_workflow_step,
+                )),
             )
             .api_route(
                 "/polis/seed",
@@ -206,7 +330,11 @@ impl ToolImpl for PolisTool {
                              in the local statement_aux table.",
                         )
                         .response::<201, Json<PostSeedResponse>>()
-                }),
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Update,
+                    authorize_polis_workflow_step,
+                )),
             )
             .api_route(
                 "/polis/statement_aux",
@@ -289,7 +417,11 @@ impl ToolImpl for PolisTool {
                              must be the owner of the conversation the statement belongs to.",
                         )
                         .response::<200, Json<PolisStatementAux>>()
-                }),
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Moderate,
+                    authorize_polis_statement,
+                )),
             )
             .api_route(
                 "/polis/statement_aux/{id}/themes",
@@ -303,7 +435,11 @@ impl ToolImpl for PolisTool {
                              the owner of the conversation the statement belongs to.",
                         )
                         .response::<200, Json<PolisStatementAux>>()
-                }),
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Moderate,
+                    authorize_polis_statement,
+                )),
             )
             .api_route(
                 "/polis/statement_aux/{id}/moderate",
@@ -318,7 +454,11 @@ impl ToolImpl for PolisTool {
                              moderation_reason",
                         )
                         .response::<200, Json<PolisStatementAux>>()
-                }),
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Moderate,
+                    authorize_polis_statement,
+                )),
             )
             .api_route(
                 "/polis/statement_aux/moderate_batch",
@@ -333,7 +473,11 @@ impl ToolImpl for PolisTool {
                              step. Returns the updated rows plus any per-row failures.",
                         )
                         .response::<200, Json<ModerateStatementAuxBatchResponse>>()
-                }),
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Moderate,
+                    authorize_polis_statement_batch,
+                )),
             )
             .api_route(
                 "/polis/statement_aux/{id}/split",
@@ -350,7 +494,11 @@ impl ToolImpl for PolisTool {
                              now-rejected original and the derived replacements.",
                         )
                         .response::<201, Json<SplitStatementResponse>>()
-                }),
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Moderate,
+                    authorize_polis_statement,
+                )),
             )
             .with_state(state.clone())
     }
@@ -423,6 +571,7 @@ impl Into<StatusCode> for &PolisError {
 }
 
 #[derive(Deserialize, Serialize)]
+#[allow(dead_code, reason = "deprecated")]
 struct NewAdminUser {
     pub hname: String,
     pub password: String,
@@ -432,12 +581,14 @@ struct NewAdminUser {
 }
 
 #[derive(Deserialize, Serialize)]
+#[allow(dead_code, reason = "deprecated")]
 struct PolisLogin {
     pub email: String,
     pub password: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(dead_code, reason = "deprecated")]
 struct NewUserResp {
     pub uid: u32,
     pub hname: String,
@@ -445,10 +596,12 @@ struct NewUserResp {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(dead_code, reason = "deprecated")]
 struct NewPollResp {
     conversation_id: String,
 }
 
+#[allow(dead_code, reason = "deprecated")]
 pub struct PolisClient {
     client: reqwest::Client,
     base_url: String,
@@ -456,12 +609,14 @@ pub struct PolisClient {
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code, reason = "deprecated")]
 pub struct PolisCommentCreateResponse {
     tid: u8,
     current_pid: u8,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(dead_code, reason = "deprecated")]
 pub struct LoginResp {
     pub uid: u32,
     pub email: String,
@@ -469,12 +624,14 @@ pub struct LoginResp {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(dead_code, reason = "deprecated")]
 pub struct SetTopicRequest {
     pub topic: String,
     pub conversation_id: String,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
+#[allow(dead_code, reason = "deprecated")]
 struct AdminLoginQuery {
     pub workflow_step_id: Uuid,
 }
@@ -588,12 +745,10 @@ pub struct UpdatePolisConfigRequest {
 #[instrument(err(Debug), skip(state))]
 async fn update_polis_config(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
     Json(request): Json<UpdatePolisConfigRequest>,
 ) -> Result<(StatusCode, Json<WikiPoll>), ComhairleError> {
     let workflow_step =
         models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
-    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -643,12 +798,10 @@ pub struct PostSeedResponse {
 #[instrument(err(Debug), skip(state))]
 async fn post_seed(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
     Json(request): Json<PostSeedRequest>,
 ) -> Result<(StatusCode, Json<PostSeedResponse>), ComhairleError> {
     let workflow_step =
         models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
-    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -883,14 +1036,9 @@ fn reason_for_decision<'a>(
 #[instrument(err(Debug), skip(state))]
 async fn moderate_statement_aux(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(statement_id): Path<Uuid>,
+    Extension(aux): Extension<PolisStatementAux>,
     Json(request): Json<ModerateStatementAuxRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
-    let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
-
     let workflow_step = models::workflow_step::get_by_id(&state.db, &aux.workflow_step_id).await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
@@ -921,8 +1069,7 @@ async fn moderate_statement_aux(
     let reason = reason_for_decision(&status, &request.moderation_reason);
 
     let updated =
-        models::polis_statement_aux::moderate(&state.db, statement_id, status.clone(), reason)
-            .await?;
+        models::polis_statement_aux::moderate(&state.db, aux.id, status.clone(), reason).await?;
 
     Ok((StatusCode::OK, Json(updated)))
 }
@@ -952,14 +1099,9 @@ pub struct SplitStatementResponse {
 #[instrument(err(Debug), skip(state))]
 async fn split_statement(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(statement_id): Path<Uuid>,
+    Extension(original): Extension<PolisStatementAux>,
     Json(request): Json<SplitStatementRequest>,
 ) -> Result<(StatusCode, Json<SplitStatementResponse>), ComhairleError> {
-    let original = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-
-    polis_statement_aux::check_can_moderate(&state, &user, &original.workflow_step_id).await?;
-
     let replacements: Vec<String> = request
         .replacements
         .into_iter()
@@ -1070,40 +1212,11 @@ pub struct ModerateStatementAuxBatchResponse {
 #[instrument(err(Debug), skip(state))]
 async fn moderate_statement_aux_batch(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
+    Extension(batch): Extension<AuthorizedPolisStatementBatch>,
     Json(request): Json<ModerateStatementAuxBatchRequest>,
 ) -> Result<(StatusCode, Json<ModerateStatementAuxBatchResponse>), ComhairleError> {
-    if request.ids.is_empty() {
-        return Err(ComhairleError::BadRequest("ids must not be empty".into()));
-    }
-
-    // Load every target row up front: this validates the ids and gives us the
-    // polis_statement_ids to forward, without a DB round-trip per row.
-    let rows = models::polis_statement_aux::list(
-        &state.db,
-        None,
-        None,
-        PolisStatementAuxFilterOptions::by_ids(request.ids.clone()),
-    )
-    .await?;
-    if rows.len() != request.ids.len() {
-        return Err(ComhairleError::BadRequest(
-            "one or more statement ids do not exist".into(),
-        ));
-    }
-
-    // A selection always comes from a single moderation view (one workflow step,
-    // one poll), so we authorize and log in to Polis exactly once for the batch.
-    let workflow_step_id = rows[0].workflow_step_id;
-    if rows.iter().any(|r| r.workflow_step_id != workflow_step_id) {
-        return Err(ComhairleError::BadRequest(
-            "all statements must belong to the same workflow step".into(),
-        ));
-    }
-
-    polis_statement_aux::check_can_moderate(&state, &user, &workflow_step_id).await?;
-
-    let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &batch.workflow_step_id).await?;
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
@@ -1124,7 +1237,7 @@ async fn moderate_statement_aux_batch(
     // aborting the whole batch on the first error.
     let mut succeeded_ids: Vec<Uuid> = Vec::new();
     let mut failed: Vec<ModerateBatchFailure> = Vec::new();
-    for row in &rows {
+    for row in &batch.rows {
         match client
             .moderate_comment(
                 &config.poll_id,
@@ -1166,30 +1279,21 @@ pub struct ThemeRequest {
 #[instrument(err(Debug), skip(state))]
 async fn add_statement_aux_theme(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(statement_id): Path<Uuid>,
+    Extension(aux): Extension<PolisStatementAux>,
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
-    let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
-
-    let updated =
-        models::polis_statement_aux::add_theme(&state.db, statement_id, &request.theme).await?;
+    let updated = models::polis_statement_aux::add_theme(&state.db, aux.id, &request.theme).await?;
     Ok((StatusCode::OK, Json(updated)))
 }
 
 #[instrument(err(Debug), skip(state))]
 async fn remove_statement_aux_theme(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(statement_id): Path<Uuid>,
+    Extension(aux): Extension<PolisStatementAux>,
     Json(request): Json<ThemeRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
-    let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
-
     let updated =
-        models::polis_statement_aux::remove_theme(&state.db, statement_id, &request.theme).await?;
+        models::polis_statement_aux::remove_theme(&state.db, aux.id, &request.theme).await?;
     Ok((StatusCode::OK, Json(updated)))
 }
 
@@ -1404,6 +1508,71 @@ mod tests {
         .await?;
 
         Ok(aux)
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn moderation_middleware_enforces_conversation_roles(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::permissions::{
+            self, ActorId, GrantRoleRequest, PermissionRole, RevokeRoleRequest, conversation::Role,
+        };
+
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut owner = UserSession::new_admin();
+        owner.signup(&app).await?;
+        let aux = setup_polis_aux(&app, &pool, &mut owner, vec![]).await?;
+        let step = models::workflow_step::get_by_id(&pool, &aux.workflow_step_id).await?;
+        let workflow = models::workflow::get_by_id(&pool, &step.workflow_id).await?;
+        let conversation_id = workflow.conversation_id.unwrap();
+        let mut caller = UserSession::new_guest();
+        caller.signup_guest(&app).await?;
+        let caller_id = caller.id.unwrap();
+        let owner_id = owner.id.unwrap();
+
+        for (role, expected_status) in [
+            (Role::ContentEditor, StatusCode::FORBIDDEN),
+            (Role::Observer, StatusCode::FORBIDDEN),
+            (Role::Moderator, StatusCode::OK),
+            (Role::Admin, StatusCode::OK),
+        ] {
+            permissions::grant_role(
+                &state,
+                GrantRoleRequest {
+                    actor_id: ActorId::User(caller_id),
+                    permission_triplet: role.triplet(&conversation_id)?,
+                    granted_by: &owner_id,
+                    grant_reason: "Polis middleware role boundary",
+                },
+            )
+            .await?;
+            let (status, _, _) = caller
+                .post(
+                    &app,
+                    &format!("/tools/polis/statement_aux/{}/themes", aux.id),
+                    json!({ "theme": "Authorized theme" }).to_string().into(),
+                )
+                .await?;
+            assert_eq!(status, expected_status, "role {role:?}");
+            permissions::revoke_role(
+                &state,
+                RevokeRoleRequest {
+                    actor_id: ActorId::User(caller_id),
+                    permission_triplet: role.triplet(&conversation_id)?,
+                },
+            )
+            .await?;
+        }
+        let (status, _, _) = caller
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/themes", aux.id),
+                json!({ "theme": "Revoked role" }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]

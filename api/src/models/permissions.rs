@@ -363,6 +363,9 @@ pub struct ConversationPath {
 #[derive(Deserialize)]
 struct ConversationResourcePath {
     conversation_id: models::conversation::IdOrSlug,
+    event_id: Option<Uuid>,
+    workflow_id: Option<Uuid>,
+    workflow_step_id: Option<Uuid>,
 }
 
 #[derive(Debug, OperationIo)]
@@ -378,17 +381,42 @@ impl FromRequestParts<Arc<ComhairleState>> for ConversationResource {
         parts: &mut axum::http::request::Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
-        let Path(ConversationResourcePath { conversation_id }) =
-            Path::<ConversationResourcePath>::from_request_parts(parts, state)
-                .await
-                .map_err(|_| {
-                    ComhairleError::ResourceNotFound(
-                        "Path must contain a conversation_id".to_string(),
-                    )
-                })?;
+        let Path(path) = Path::<ConversationResourcePath>::from_request_parts(parts, state)
+            .await
+            .map_err(|_| {
+                ComhairleError::ResourceNotFound("Path must contain a conversation_id".to_string())
+            })?;
 
         let conversation =
-            models::conversation::get_by_id_or_slug(&state.db, &conversation_id).await?;
+            models::conversation::get_by_id_or_slug(&state.db, &path.conversation_id).await?;
+
+        if let Some(event_id) = path.event_id {
+            let event = models::event::get_by_id(&state.db, &event_id).await?;
+            if event.conversation_id != conversation.id {
+                return Err(ComhairleError::UserNotAuthorized);
+            }
+        }
+        if let Some(workflow_id) = path.workflow_id {
+            let workflow = models::workflow::get_by_id(&state.db, &workflow_id).await?;
+            let belongs_to_conversation = match path.event_id {
+                Some(event_id) => {
+                    workflow.event_id == Some(event_id)
+                        && workflow
+                            .conversation_id
+                            .is_none_or(|id| id == conversation.id)
+                }
+                None => workflow.conversation_id == Some(conversation.id),
+            };
+            if !belongs_to_conversation {
+                return Err(ComhairleError::UserNotAuthorized);
+            }
+        }
+        if let Some(workflow_step_id) = path.workflow_step_id {
+            let step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+            if Some(step.workflow_id) != path.workflow_id {
+                return Err(ComhairleError::UserNotAuthorized);
+            }
+        }
 
         Ok(ConversationResource {
             conversation_id: conversation.id,
@@ -1570,13 +1598,17 @@ mod tests {
         assert_eq!(
             roles_for_action(conversation::Action::Read),
             vec![
+                "admin".to_owned(),
+                "observer".to_owned(),
                 "content_editor".to_owned(),
-                "conversation_co_host".to_owned(),
+                "moderator".to_owned(),
+                "translator".to_owned(),
+                "data_access".to_owned(),
             ]
         );
         assert_eq!(
             roles_for_action(conversation::Action::Update),
-            vec!["content_editor".to_owned(),]
+            vec!["admin".to_owned(), "content_editor".to_owned()]
         );
         assert_eq!(
             roles_for_action(organization::Action::Update),
@@ -1588,9 +1620,12 @@ mod tests {
         );
         assert_eq!(
             roles_for_action(system::Action::OrganizationCreate),
-            vec!["super_admin".to_owned(),]
+            vec!["super_admin".to_owned(), "admin".to_owned()]
         );
-        assert!(roles_for_action(conversation::Action::Admin).is_empty());
+        assert_eq!(
+            roles_for_action(conversation::Action::Admin),
+            vec!["admin".to_owned()]
+        );
     }
 
     struct OtherRole;
@@ -2082,12 +2117,12 @@ mod tests {
         let resource_3_id = get_random_organization_id(&app, &mut session).await?;
         let user_id = get_random_user_id(&app, &mut session).await?;
 
-        // Grant the conversation co host and conversation content editor roles to the user for resource_1 and resource_2
+        // Grant the conversation observer and content editor roles for resource_1 and resource_2
         grant_role(
             &state,
             GrantRoleRequest {
                 actor_id: ActorId::User(user_id),
-                permission_triplet: conversation::Role::CoHost.triplet(&resource_1_id)?,
+                permission_triplet: conversation::Role::Observer.triplet(&resource_1_id)?,
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
             },

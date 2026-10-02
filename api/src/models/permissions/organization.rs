@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 
 use super::{PermissionAction, PermissionRole, ResourceType};
@@ -116,17 +117,11 @@ impl PermissionRole for Role {
     type Action = Action;
 
     fn actions(self) -> &'static [Action] {
+        static ALL_ACTIONS: std::sync::LazyLock<Vec<Action>> =
+            std::sync::LazyLock::new(|| Action::iter().collect());
+
         match self {
-            Self::Admin => &[
-                Action::Read,
-                Action::Update,
-                Action::Delete,
-                Action::ListPermission,
-                Action::GrantPermission,
-                Action::RevokePermission,
-                Action::AddMember,
-                Action::RemoveMember,
-            ],
+            Self::Admin => ALL_ACTIONS.as_slice(),
         }
     }
 }
