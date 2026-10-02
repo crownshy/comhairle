@@ -57,10 +57,6 @@ pub struct PolisToolConfig {
     pub is_active: Option<bool>,
     #[serde(default)]
     pub strict_moderation: Option<bool>,
-    // comhairle-only display flag (not sent to Polis): style seed statements
-    // with a "conversation starter" label in the participant embed.
-    #[serde(default)]
-    pub label_seeds_as_conversation_starter: bool,
     // Reasons offered when rejecting a statement. None means the built-in
     // defaults in models::moderation_policy::DEFAULT_REASONS.
     #[serde(default)]
@@ -84,7 +80,6 @@ impl ToolConfigSanitize for PolisToolConfig {
             description: self.description.clone(),
             is_active: self.is_active,
             strict_moderation: self.strict_moderation,
-            label_seeds_as_conversation_starter: self.label_seeds_as_conversation_starter,
             moderation_policy_id: self.moderation_policy_id,
         }
     }
@@ -1269,7 +1264,6 @@ pub async fn launch(
 
     Ok(PolisToolConfig {
         moderation_policy_id: preview_config.moderation_policy_id,
-        label_seeds_as_conversation_starter: preview_config.label_seeds_as_conversation_starter,
         ..live_poll_config
     })
 }
@@ -1333,7 +1327,6 @@ async fn polis_setup(
         description: settings.description.clone(),
         is_active: Some(true),
         strict_moderation: Some(settings.strict_moderation),
-        label_seeds_as_conversation_starter: false,
         moderation_policy_id: None,
     })
 }
@@ -1875,7 +1868,6 @@ mod tests {
             description: Some("Buses and trains".into()),
             is_active: Some(true),
             strict_moderation: Some(false),
-            label_seeds_as_conversation_starter: true,
             moderation_policy_id: Some(Uuid::new_v4()),
         }
     }
@@ -1915,7 +1907,6 @@ mod tests {
         assert_eq!(live.description, preview.description);
         assert_eq!(live.required_votes, preview.required_votes);
         assert!(!live.show_remaining_statements);
-        assert!(live.label_seeds_as_conversation_starter);
         assert_eq!(live.moderation_policy_id, preview.moderation_policy_id);
 
         let updates = updates.lock().unwrap();

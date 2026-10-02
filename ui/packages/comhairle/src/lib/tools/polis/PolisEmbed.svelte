@@ -36,7 +36,6 @@
 		workflowStepId?: string;
 		isPreview?: boolean;
 		showRemainingStatementCount?: boolean;
-		labelStatementSources?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
 	};
 
@@ -49,8 +48,7 @@
 		workflowStepId = polis_id,
 		isPreview = false,
 		onCanContinueChange,
-		showRemainingStatementCount,
-		labelStatementSources = false
+		showRemainingStatementCount
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -354,14 +352,11 @@
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					{@const highlightSeed = labelStatementSources && polisCurrentStatement.is_seed}
-					{#if labelStatementSources}
-						<div class="mb-1 flex">
-							<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
-						</div>
-					{/if}
+					<div class="mb-1 flex">
+						<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
+					</div>
 					<div
-						class="border-seed-highlight rounded-lg transition-colors {highlightSeed
+						class="border-seed-highlight rounded-lg transition-colors {polisCurrentStatement.is_seed
 							? 'bg-seed-highlight-bg border-seed-highlight border px-4 py-3'
 							: ''}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}

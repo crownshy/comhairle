@@ -312,7 +312,6 @@
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
 								showRemainingStatementCount={toolConfig.show_remaining_statements}
-								labelStatementSources={toolConfig.label_seeds_as_conversation_starter}
 							/>
 						{/key}
 					{/if}
