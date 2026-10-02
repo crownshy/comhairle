@@ -25,6 +25,7 @@
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import StatementSourceLabel from './StatementSourceLabel.svelte';
 
 	type Props = {
 		polis_id: string;
@@ -35,6 +36,7 @@
 		workflowStepId?: string;
 		isPreview?: boolean;
 		showRemainingStatementCount?: boolean;
+		labelStatementSources?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
 	};
 
@@ -47,7 +49,8 @@
 		workflowStepId = polis_id,
 		isPreview = false,
 		onCanContinueChange,
-		showRemainingStatementCount
+		showRemainingStatementCount,
+		labelStatementSources = false
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -295,7 +298,6 @@
 		}
 	}
 
-	const remainingBeforeContinue = $derived(safeRequiredVotes - totalVotes);
 	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
@@ -352,13 +354,14 @@
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					{#if polisCurrentStatement.is_seed}
-						<p class="text-seed-highlight mb-1 text-right text-xs font-medium">
-							{m.polis_seed_statement()}
-						</p>
+					{@const highlightSeed = labelStatementSources && polisCurrentStatement.is_seed}
+					{#if labelStatementSources}
+						<div class="mb-1 flex">
+							<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
+						</div>
 					{/if}
 					<div
-						class="border-seed-highlight rounded-lg transition-colors {polisCurrentStatement.is_seed
+						class="border-seed-highlight rounded-lg transition-colors {highlightSeed
 							? 'bg-seed-highlight-bg border-seed-highlight border px-4 py-3'
 							: ''}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}

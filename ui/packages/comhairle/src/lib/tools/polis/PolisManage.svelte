@@ -10,6 +10,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { useDebounce } from 'runed';
+	import type { InstancedToolConfig } from '$lib/tools/types';
 
 	let {
 		toolConfig,
@@ -18,7 +19,7 @@
 		workflowStepId,
 		isLive
 	}: {
-		toolConfig: any; // TODO: type once tool config types are generated
+		toolConfig: InstancedToolConfig<'polis'>;
 		conversationId: string;
 		workflowId: string;
 		workflowStepId: string;
@@ -207,16 +208,19 @@
 					</Label>
 					<span class="text-muted-foreground text-xs">
 						When on, every statement must be accepted or rejected at
+						<!-- eslint-disable svelte/no-navigation-without-resolve -->
 						<a
 							href={moderationHref}
 							class="text-primary font-medium underline underline-offset-2"
 							>Moderation</a
-						> before participants see it.
+						>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+						before participants see it.
 					</span>
 				</div>
 				<Switch
 					id="strictModeration"
-					checked={strictModeration}
+					checked={strictModeration ?? false}
 					onCheckedChange={(checked) => saveField('strict_moderation', checked)}
 				/>
 			</div>
@@ -224,16 +228,16 @@
 			<div class="flex items-start justify-between gap-4">
 				<div class="flex flex-col gap-0.5">
 					<Label for="labelSeeds" class="text-sm font-medium">
-						Label seed statements as {@render term(
-							'Conversation Starter',
-							'The first statements shown to participants, meant to kick off the conversation.'
-						)}
+						Label who wrote each statement
 					</Label>
 					<span class="text-muted-foreground text-xs">
-						When on, seed statements carry a styled {@render term(
-							'conversation starter',
-							'The first statements shown to participants, meant to kick off the conversation.'
-						)} label.
+						When on, seed statements show a {@render term(
+							'Conversation starter',
+							'Written by the organisers to get the conversation going.'
+						)} label and statements from participants show a {@render term(
+							'From a member of the public',
+							'Written by someone taking part in the conversation.'
+						)} label. Participants can tap either label to see what it means.
 					</span>
 				</div>
 				<Switch
