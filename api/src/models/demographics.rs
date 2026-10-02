@@ -1105,13 +1105,7 @@ mod tests {
         let mut other_session = UserSession::new_guest();
         let (status, other_user_dto, _) = other_session.signup_guest(&app).await?;
         assert!(status.is_success(), "Failed to create random user");
-        let other_user_id: Uuid = serde_json::from_value(
-            other_user_dto
-                .get("id")
-                .cloned()
-                .flatten()
-                .ok_or("Failed to get other user id")?,
-        )?;
+        let other_user_id = other_user_dto.id;
 
         // Create a demographics question
         let question_slug = "test_question".to_string();
@@ -1139,7 +1133,7 @@ mod tests {
         let _ = create_conversation_demographics(
             &db,
             CreateConversationDemographics {
-                conversation_id: conversation_id,
+                conversation_id,
                 question_slug: question.slug.clone(),
             },
         )
@@ -1147,7 +1141,7 @@ mod tests {
         let _ = create_conversation_demographics(
             &db,
             CreateConversationDemographics {
-                conversation_id: conversation_id,
+                conversation_id,
                 question_slug: other_question.slug.clone(),
             },
         )

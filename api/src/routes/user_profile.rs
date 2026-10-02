@@ -5,6 +5,7 @@ use aide::axum::{
     routing::{get_with, put_with},
 };
 use axum::{Json, extract::State, http::StatusCode};
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 
 use crate::{
@@ -14,7 +15,8 @@ use crate::{
         self,
         user_profile::{CreateUserProfile, PartialUserProfile},
     },
-    routes::{auth::RequiredUser, user_profile::dto::UserProfileDto},
+    required_auth,
+    routes::{auth::extract::RequiredUser, user_profile::dto::UserProfileDto},
 };
 
 pub mod dto;
@@ -75,29 +77,36 @@ pub async fn upsert_profile(
     Ok((StatusCode::OK, Json(profile.into())))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get_profile, |op| {
-                op.id("GetUserProfile")
-                    .tag("User Profile")
-                    .description("Get the current user's profile")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserProfileDto>>()
-            }),
+            required_auth(
+                get_with(get_profile, |op| {
+                    op.id("GetUserProfile")
+                        .tag("User Profile")
+                        .description("Get the current user's profile")
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserProfileDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            put_with(upsert_profile, |op| {
-                op.id("UpsertUserProfile")
-                    .tag("User Profile")
-                    .description("Create or update the current user's profile")
-                    .security_requirement("JWT")
-                    .response::<200, Json<UserProfileDto>>()
-            }),
+            required_auth(
+                put_with(upsert_profile, |op| {
+                    op.id("UpsertUserProfile")
+                        .tag("User Profile")
+                        .description("Create or update the current user's profile")
+                        .security_requirement("JWT")
+                        .response::<200, Json<UserProfileDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -226,7 +235,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "user2@test.com",
         );
-        session2.signup(&app).await?;
+        session2.login(&app).await?;
 
         // User 2 tries to get their own profile (should fail because they don't have one yet)
         let (status, response, _) = session2.get(&app, "/user/profile").await?;

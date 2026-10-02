@@ -26,15 +26,19 @@ use uuid::Uuid;
 
 /// Defines the type of authentication has been used to create
 /// The user
-#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
+#[derive(
+    Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema, Default,
+)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
 pub enum UserAuthType {
     #[sqlx(rename = "guest")]
     Guest,
     #[sqlx(rename = "email_password")]
+    #[default]
     EmailPassword,
     #[sqlx(rename = "one_time_passcode")]
+    #[serde(rename = "one_time_passcode")]
     Otp,
     #[sqlx(rename = "scot_account")]
     ScotAccount,
@@ -55,6 +59,22 @@ impl fmt::Display for UserAuthType {
             UserAuthType::ScotAccount => "scot_account",
         };
         write!(f, "{}", value)
+    }
+}
+
+impl TryFrom<&str> for UserAuthType {
+    type Error = ComhairleError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "guest" => Ok(UserAuthType::Guest),
+            "email_password" => Ok(UserAuthType::EmailPassword),
+            "one_time_passcode" => Ok(UserAuthType::Otp),
+            "scot_account" => Ok(UserAuthType::ScotAccount),
+            _ => Err(ComhairleError::CorruptedData(format!(
+                "Invalid auth_type: {value}"
+            ))),
+        }
     }
 }
 
@@ -896,7 +916,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (status, conversation, _) = session
             .create_conversation(
@@ -924,7 +944,7 @@ mod tests {
             crate::test_helpers::TEST_PASSWORD,
             "test.user@gmail.com",
         );
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         add_user_resource_role(
             Resource::Conversation,

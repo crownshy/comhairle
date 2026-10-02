@@ -10,19 +10,22 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::routes::auth::extract::RequiredAdminUser;
+use crate::routes::email_template_configs::dto::EmailTemplateConfigDto;
+use crate::{ComhairleError, ComhairleState};
 use crate::{
-    ComhairleError, ComhairleState,
     models::email_template_config::{
         self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
         EmailTypeSchema, UpdateEmailTemplateConfig,
     },
-    routes::{auth::RequiredAdminUser, email_template_configs::dto::EmailTemplateConfigDto},
+    required_auth,
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -31,7 +34,8 @@ async fn create(
     RequiredAdminUser(user): RequiredAdminUser,
     Json(payload): Json<CreateEmailTemplateConfig>,
 ) -> Result<(StatusCode, Json<EmailTemplateConfigDto>), ComhairleError> {
-    let email_config = email_template_config::create(&state.db, user.id, &payload).await?;
+    let email_config =
+        email_template_config::create(&state.db, user.id, user.organization_id, &payload).await?;
 
     Ok((StatusCode::CREATED, Json(email_config.into())))
 }
@@ -143,97 +147,128 @@ async fn preview(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create, |op| {
-                op.id("CreateEmailTemplateConfig")
-                    .summary("Create email template config")
-                    .description("Create custom content for specific email template")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<201, Json<EmailTemplateConfigDto>>()
-            }),
+            required_auth(
+                post_with(create, |op| {
+                    op.id("CreateEmailTemplateConfig")
+                        .summary("Create email template config")
+                        .description("Create custom content for specific email template")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<201, Json<EmailTemplateConfigDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{email_config_id}",
-            get_with(get, |op| {
-                op.id("GetEmailTemplateConfig")
-                    .summary("Get email template config")
-                    .description("Get custom email template configuration")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTemplateConfigDto>>()
-            }),
+            required_auth(
+                get_with(get, |op| {
+                    op.id("GetEmailTemplateConfig")
+                        .summary("Get email template config")
+                        .description("Get custom email template configuration")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<EmailTemplateConfigDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListEmailTemplateConfigs")
-                    .summary("List email template configs")
-                    .description("List custom email template configurations")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<Vec<EmailTemplateConfigDto>>>()
-            }),
+            required_auth(
+                get_with(list, |op| {
+                    op.id("ListEmailTemplateConfigs")
+                        .summary("List email template configs")
+                        .description("List custom email template configurations")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<Vec<EmailTemplateConfigDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{email_config_id}",
-            put_with(update, |op| {
-                op.id("UpdateEmailTemplateConfig")
-                    .summary("Update email template config")
-                    .description("Update custom email template configuration")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTemplateConfigDto>>()
-            }),
+            required_auth(
+                put_with(update, |op| {
+                    op.id("UpdateEmailTemplateConfig")
+                        .summary("Update email template config")
+                        .description("Update custom email template configuration")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<EmailTemplateConfigDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{email_config_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteEmailTemplateConfig")
-                    .summary("Delete email template config")
-                    .description("Delete custom email template configuration")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTemplateConfigDto>>()
-            }),
+            required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteEmailTemplateConfig")
+                        .summary("Delete email template config")
+                        .description("Delete custom email template configuration")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<EmailTemplateConfigDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{email_config_id}/schemas",
-            get_with(get_schema, |op| {
-                op.id("GetEmailTemplateSchema")
-                    .summary("Get email template schema")
-                    .description("Get template schemas for an email config")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTypeSchema>>()
-            }),
+            required_auth(
+                get_with(get_schema, |op| {
+                    op.id("GetEmailTemplateSchema")
+                        .summary("Get email template schema")
+                        .description("Get template schemas for an email config")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<EmailTypeSchema>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/schemas",
-            get_with(list_schemas, |op| {
-                op.id("ListEmailTemplateSchemas")
-                    .summary("List email template schemas")
-                    .description("List all template schemas for each email template type")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<[EmailTypeSchema; EmailTemplateSlots::COUNT]>>()
-            }),
+            required_auth(
+                get_with(list_schemas, |op| {
+                    op.id("ListEmailTemplateSchemas")
+                        .summary("List email template schemas")
+                        .description("List all template schemas for each email template type")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<[EmailTypeSchema; EmailTemplateSlots::COUNT]>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/preview",
-            post_with(preview, |op| {
-                op.id("PreviewEmailTemplateConfig")
-                    .summary("Preview email template config")
-                    .description("Preview appearance of custom email before sending")
-                    .security_requirement("JWT")
-                    .tag("EmailTemplateConfig")
-                    .response::<200, Json<PreviewEmailTemplateConfigResponse>>()
-            }),
+            required_auth(
+                post_with(preview, |op| {
+                    op.id("PreviewEmailTemplateConfig")
+                        .summary("Preview email template config")
+                        .description("Preview appearance of custom email before sending")
+                        .security_requirement("JWT")
+                        .tag("EmailTemplateConfig")
+                        .response::<200, Json<PreviewEmailTemplateConfigResponse>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -557,7 +592,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let params = PreviewEmailTemplateConfigRequest {
             slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {

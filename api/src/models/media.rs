@@ -544,10 +544,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{model_test_helpers::setup_default_app_and_session, users},
-        test_helpers::TEST_PASSWORD,
-    };
+    use crate::models::{model_test_helpers::setup_default_app_and_session, users};
 
     use super::*;
 
@@ -556,10 +553,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -591,10 +585,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_media_record_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -626,10 +617,7 @@ mod tests {
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -705,7 +693,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_filter_media_by_owner(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let user_1 = users::create_guest_user(&pool).await?;
         let user_2 = users::create_guest_user(&pool).await?;
@@ -763,10 +751,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 
@@ -803,10 +788,7 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        session.signup(&app).await?;
-        session
-            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
-            .await?;
+        session.login(&app).await?;
 
         let (_, user, _) = session.current_user(&app).await?;
 

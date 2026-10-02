@@ -6,14 +6,9 @@ rust-version = { workspace = true }
 
 [dependencies]
 aide = { workspace = true }
-async-trait = { workspace = true }
-lettre = { workspace = true }
-minijinja = { workspace = true }
+axum-keycloak-auth = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sqlx = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-uuid = { workspace = true }
-
 
 comhairle_api = { path = "../api" }

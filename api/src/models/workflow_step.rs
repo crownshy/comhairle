@@ -763,7 +763,8 @@ mod tests {
             workflow,
         },
         routes::{
-            auth::SignupRequest, workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto,
+            auth::SignupRequest, user::dto::UserDto, workflow_steps::dto::WorkflowStepDto,
+            workflows::dto::WorkflowDto,
         },
     };
 
@@ -902,6 +903,7 @@ mod tests {
             &pool,
         )
         .await?;
+        let user: UserDto = user.into();
         workflow::register_user(&pool, &workflow.id, &user).await?;
 
         let initial_progress =
@@ -973,6 +975,7 @@ mod tests {
             &pool,
         )
         .await?;
+        let user: UserDto = user.into();
         workflow::register_user(&pool, &workflow.id, &user).await?;
 
         let params = UpdateUserProgress {

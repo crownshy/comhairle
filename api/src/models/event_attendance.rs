@@ -236,6 +236,7 @@ pub async fn list(
     filter_options: EventAttendanceFilterOptions,
     order_options: EventAttendanceOrderOptions,
 ) -> Result<PaginatedResults<EventAttendanceEtx>, ComhairleError> {
+    // FIXME: join on user table won't work. Needs rethought
     let query = Query::select()
         .from(EventAttendanceIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (EventAttendanceIden::Table, col)))

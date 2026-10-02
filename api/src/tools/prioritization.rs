@@ -9,6 +9,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -16,9 +17,6 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::proposal::{
-    self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations,
-};
 use crate::models::proposal_response::{
     self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
     ProposalResponseOrderOptions, QuestionResponses, ResponseValue,
@@ -29,11 +27,20 @@ use crate::models::proposal_section::{
 use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
 use crate::models::user_progress;
 use crate::models::workflow_step;
-use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::routes::auth::{
+    extract::{RequiredAdminUser, RequiredUser},
+    is_user_admin,
+};
 use crate::routes::translations::LocaleExtractor;
 use crate::schema_helpers::{example_localized_text, example_uuid};
 use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    models::proposal::{
+        self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations,
+    },
+    required_auth,
+};
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct PrioritizationToolConfig {
@@ -253,110 +260,141 @@ impl ToolImpl for PrioritizationTool {
         config.sanitize()
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/prioritization/proposals",
-                post_with(create_proposal, |op| {
-                    op.id("CreateProposal")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Create proposal")
-                        .description(
-                            "
+                required_auth(
+                    post_with(create_proposal, |op| {
+                        op.id("CreateProposal")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Create proposal")
+                            .description(
+                                "
 Create a new prioritization tool proposal for a given prioritization tool workflow_step
 ",
-                        )
-                        .response::<201, Json<ProposalDto>>()
-                }),
+                            )
+                            .response::<201, Json<ProposalDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/prioritization/proposals",
-                get_with(list_proposals, |op| {
-                    op.id("ListProposals")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("List proposals")
-                        .description(
-                            "List proposals for a given prioritization tool workflow_step. \
+                required_auth(
+                    get_with(list_proposals, |op| {
+                        op.id("ListProposals")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("List proposals")
+                            .description(
+                                "List proposals for a given prioritization tool workflow_step. \
                              Admin callers may pass `withTranslations=true` to receive raw \
                              TextContentId references plus full translation data so the \
                              admin UI can drive the standard TranslatableField component.",
-                        )
-                        .response::<200, Json<ProposalsListResponse>>()
-                }),
+                            )
+                            .response::<200, Json<ProposalsListResponse>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}",
-                delete_with(delete_proposal, |op| {
-                    op.id("DeleteProposal")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Delete proposal")
-                        .description("Delete a prioritization tool proposal")
-                        .response::<200, Json<ProposalDto>>()
-                }),
+                required_auth(
+                    delete_with(delete_proposal, |op| {
+                        op.id("DeleteProposal")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Delete proposal")
+                            .description("Delete a prioritization tool proposal")
+                            .response::<200, Json<ProposalDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/sections",
-                post_with(create_proposal_section, |op| {
-                    op.id("CreateProposalSection")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Create proposal section")
-                        .description("Append a section to a prioritization tool proposal")
-                        .response::<201, Json<ProposalSectionDto>>()
-                }),
+                required_auth(
+                    post_with(create_proposal_section, |op| {
+                        op.id("CreateProposalSection")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Create proposal section")
+                            .description("Append a section to a prioritization tool proposal")
+                            .response::<201, Json<ProposalSectionDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/sections/{section_id}",
-                delete_with(delete_proposal_section, |op| {
-                    op.id("DeleteProposalSection")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Delete proposal section")
-                        .description("Delete a section from a prioritization tool proposal")
-                        .response::<200, Json<ProposalSectionDto>>()
-                }),
+                required_auth(
+                    delete_with(delete_proposal_section, |op| {
+                        op.id("DeleteProposalSection")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Delete proposal section")
+                            .description("Delete a section from a prioritization tool proposal")
+                            .response::<200, Json<ProposalSectionDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/responses",
-                post_with(create_proposal_response, |op| {
-                    op.id("CreateProposalResponse")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Create proposal response")
-                        .description(
-                            "
+                required_auth(
+                    post_with(create_proposal_response, |op| {
+                        op.id("CreateProposalResponse")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Create proposal response")
+                            .description(
+                                "
 Create a response for prioritization tool proposal
 ",
-                        )
-                        .response::<201, Json<ProposalResponseDto>>()
-                }),
+                            )
+                            .response::<201, Json<ProposalResponseDto>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/prioritization/proposals/{proposal_id}/responses",
-                get_with(list_proposal_responses, |op| {
-                    op.id("ListProposalResponses")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("List proposal responses")
-                        .description("List responses for a prioritization tool proposal")
-                        .response::<200, Json<Vec<ProposalResponseDto>>>()
-                }),
+                required_auth(
+                    get_with(list_proposal_responses, |op| {
+                        op.id("ListProposalResponses")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("List proposal responses")
+                            .description("List responses for a prioritization tool proposal")
+                            .response::<200, Json<Vec<ProposalResponseDto>>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/prioritization/insights",
-                get_with(get_prioritization_insights, |op| {
-                    op.id("GetPrioritizationInsights")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Get prioritization insights")
-                        .description("Insights reporting data for prioritization tool step")
-                        .response::<200, Json<PrioritizationInsightsResponse>>()
-                }),
+                required_auth(
+                    get_with(get_prioritization_insights, |op| {
+                        op.id("GetPrioritizationInsights")
+                            .tag("Tools")
+                            .security_requirement("JWT")
+                            .summary("Get prioritization insights")
+                            .description("Insights reporting data for prioritization tool step")
+                            .response::<200, Json<PrioritizationInsightsResponse>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
-            .with_state(state.clone())
     }
 }
 

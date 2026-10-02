@@ -5,11 +5,14 @@ use axum::{
     extract::{Json, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredUser};
+use crate::{
+    ComhairleState, error::ComhairleError, required_auth, routes::auth::extract::RequiredUser,
+};
 
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -39,10 +42,10 @@ async fn list(
     Ok((StatusCode::OK, Json(services)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    ApiRouter::new()
-        .api_route(
-            "/",
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
+    ApiRouter::new().api_route(
+        "/",
+        required_auth(
             get_with(list, |op| {
                 op.id("ListSupportedServices")
                     .summary("List of supported services")
@@ -52,6 +55,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<ComhairleServices>>()
             }),
-        )
-        .with_state(state)
+            None,
+            keycloak_auth_instance.clone(),
+        ),
+    )
 }

@@ -41,7 +41,7 @@ export const createApiClient = (
 		if (source === 'server') {
 			const cookies: string[] = [];
 			if (authToken) {
-				cookies.push(`auth-token=${authToken}`);
+				cookies.push(`kc-access-token=${authToken}`);
 			}
 			if (locale) {
 				cookies.push(`COMHAIRLE_LOCALE=${locale}`);

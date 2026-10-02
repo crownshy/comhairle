@@ -8,6 +8,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -19,8 +20,9 @@ use crate::{
         region::{self, CreateRegion, PartialRegion, RegionFilterOptions, RegionOrderOptions},
         region_area,
     },
+    required_auth,
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::extract::{RequiredAdminUser, RequiredUser},
         regions::dto::{
             LocalizedRegionDto, RegionAreaLinksDto, RegionAreaLinksRequestDto, RegionDto,
         },
@@ -211,132 +213,176 @@ async fn remove_area_link(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list, |op| {
-                op.id("ListRegions")
-                    .tag("Regions")
-                    .summary("List of regions")
-                    .description("Paginated list of regions with optional ordering")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<LocalizedRegionDto>>>()
-            }),
+            required_auth(
+                get_with(list, |op| {
+                    op.id("ListRegions")
+                        .tag("Regions")
+                        .summary("List of regions")
+                        .description("Paginated list of regions with optional ordering")
+                        .security_requirement("JWT")
+                        .response::<200, Json<PaginatedResults<LocalizedRegionDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}",
-            get_with(get, |op| {
-                op.id("GetRegion")
-                    .tag("Regions")
-                    .summary("Get a region by id")
-                    .description("Get a region by id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<LocalizedRegionDto>>()
-            }),
+            required_auth(
+                get_with(get, |op| {
+                    op.id("GetRegion")
+                        .tag("Regions")
+                        .summary("Get a region by id")
+                        .description("Get a region by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<LocalizedRegionDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            post_with(create, |op| {
-                op.id("CreateRegion")
-                    .tag("Regions")
-                    .summary("Create a new region")
-                    .description("Create a new region")
-                    .security_requirement("JWT")
-                    .response::<201, Json<RegionDto>>()
-            }),
+            required_auth(
+                post_with(create, |op| {
+                    op.id("CreateRegion")
+                        .tag("Regions")
+                        .summary("Create a new region")
+                        .description("Create a new region")
+                        .security_requirement("JWT")
+                        .response::<201, Json<RegionDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}",
-            put_with(update, |op| {
-                op.id("UpdateRegion")
-                    .tag("Regions")
-                    .summary("Update a region")
-                    .description("Update a region")
-                    .security_requirement("JWT")
-                    .response::<200, Json<RegionDto>>()
-            }),
+            required_auth(
+                put_with(update, |op| {
+                    op.id("UpdateRegion")
+                        .tag("Regions")
+                        .summary("Update a region")
+                        .description("Update a region")
+                        .security_requirement("JWT")
+                        .response::<200, Json<RegionDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}/metadata",
-            get_with(get_region_metadata, |op| {
-                op.id("GetRegionMetadata")
-                    .tag("Regions")
-                    .summary("Get region metadata")
-                    .description("Get region metadata")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Option<serde_json::Value>>>()
-            }),
+            required_auth(
+                get_with(get_region_metadata, |op| {
+                    op.id("GetRegionMetadata")
+                        .tag("Regions")
+                        .summary("Get region metadata")
+                        .description("Get region metadata")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Option<serde_json::Value>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}/metadata",
-            patch_with(patch_region_metadata, |op| {
-                op.id("PatchRegionMetadata")
-                    .tag("Regions")
-                    .summary("Shallow-merge region metadata")
-                    .description(
-                        "Merge a JSON object into region.metadata at the top level using jsonb concatenation",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<RegionDto>>()
-            }),
+            required_auth(
+                patch_with(patch_region_metadata, |op| {
+                    op.id("PatchRegionMetadata")
+                        .tag("Regions")
+                        .summary("Shallow-merge region metadata")
+                        .description(
+                            "Merge a JSON object into region.metadata at the top \
+                            level using jsonb concatenation",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<RegionDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}",
-            delete_with(delete, |op| {
-                op.id("DeleteRegion")
-                    .tag("Regions")
-                    .summary("Delete a region")
-                    .description("Delete a region")
-                    .security_requirement("JWT")
-                    .response::<200, Json<RegionDto>>()
-            }),
+            required_auth(
+                delete_with(delete, |op| {
+                    op.id("DeleteRegion")
+                        .tag("Regions")
+                        .summary("Delete a region")
+                        .description("Delete a region")
+                        .security_requirement("JWT")
+                        .response::<200, Json<RegionDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}/areas",
-            get_with(get_area_links, |op| {
-                op.id("GetRegionAreaLinks")
-                    .tag("Regions")
-                    .summary("List region area links")
-                    .description("List region area links")
-                    .security_requirement("JWT")
-                    .response::<200, Json<RegionAreaLinksDto>>()
-            }),
+            required_auth(
+                get_with(get_area_links, |op| {
+                    op.id("GetRegionAreaLinks")
+                        .tag("Regions")
+                        .summary("List region area links")
+                        .description("List region area links")
+                        .security_requirement("JWT")
+                        .response::<200, Json<RegionAreaLinksDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}/areas",
-            put_with(set_area_links, |op| {
-                op.id("SetRegionAreaLinks")
-                    .tag("Regions")
-                    .summary("Replace region area links")
-                    .description("Replace region area links")
-                    .security_requirement("JWT")
-                    .response::<200, Json<RegionAreaLinksDto>>()
-            }),
+            required_auth(
+                put_with(set_area_links, |op| {
+                    op.id("SetRegionAreaLinks")
+                        .tag("Regions")
+                        .summary("Replace region area links")
+                        .description("Replace region area links")
+                        .security_requirement("JWT")
+                        .response::<200, Json<RegionAreaLinksDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}/areas/{area_id}",
-            post_with(add_area_link, |op| {
-                op.id("AddRegionAreaLink")
-                    .tag("Regions")
-                    .summary("Add region area link")
-                    .description("Add region area link")
-                    .security_requirement("JWT")
-                    .response::<200, Json<RegionAreaLinksDto>>()
-            }),
+            required_auth(
+                post_with(add_area_link, |op| {
+                    op.id("AddRegionAreaLink")
+                        .tag("Regions")
+                        .summary("Add region area link")
+                        .description("Add region area link")
+                        .security_requirement("JWT")
+                        .response::<200, Json<RegionAreaLinksDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{region_id}/areas/{area_id}",
-            delete_with(remove_area_link, |op| {
-                op.id("RemoveRegionAreaLink")
-                    .tag("Regions")
-                    .summary("Remove region area link")
-                    .description("Remove region area link")
-                    .security_requirement("JWT")
-                    .response::<200, Json<RegionAreaLinksDto>>()
-            }),
+            required_auth(
+                delete_with(remove_area_link, |op| {
+                    op.id("RemoveRegionAreaLink")
+                        .tag("Regions")
+                        .summary("Remove region area link")
+                        .description("Remove region area link")
+                        .security_requirement("JWT")
+                        .response::<200, Json<RegionAreaLinksDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

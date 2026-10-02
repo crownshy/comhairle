@@ -8,17 +8,25 @@ use axum::{
     extract::{Json, Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::{
-    self,
-    moderation_policy::{self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy},
-    permissions::{Action, ConversationResource},
-    users::User,
-};
-use crate::routes::auth::{RequiredUser, authorize};
 use crate::{ComhairleError, ComhairleState};
+use crate::{
+    models::{
+        self,
+        moderation_policy::{
+            self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy,
+        },
+        permissions::{Action, ConversationResource},
+    },
+    routes::user::dto::UserDto,
+};
+use crate::{
+    required_auth,
+    routes::auth::{authorize, extract::RequiredUser},
+};
 use dto::{DefaultModerationPolicyReasonDto, ModerationPolicyDto};
 
 pub mod dto;
@@ -27,7 +35,7 @@ pub mod dto;
 /// conversation update permission that moderating a statement already checks.
 async fn authorize_policy_access(
     state: &Arc<ComhairleState>,
-    user: &User,
+    user: &UserDto,
     conversation_id: &Uuid,
 ) -> Result<(), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, conversation_id).await?;
@@ -135,86 +143,110 @@ async fn delete_policy(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(list_policies, |op| {
-                op.id("ListConversationModerationPolicies")
-                    .tag("ModerationPolicies")
-                    .summary("List a conversation's moderation policies")
-                    .description("Lists each policy with its reasons in display order")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<ModerationPolicyDto>>>()
-            }),
+            required_auth(
+                get_with(list_policies, |op| {
+                    op.id("ListConversationModerationPolicies")
+                        .tag("ModerationPolicies")
+                        .summary("List a conversation's moderation policies")
+                        .description("Lists each policy with its reasons in display order")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<ModerationPolicyDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            post_with(create_policy, |op| {
-                op.id("CreateConversationModerationPolicy")
-                    .tag("ModerationPolicies")
-                    .summary("Create a moderation policy")
-                    .description(
-                        "Creates a policy on the conversation. Without reasons it starts from \
+            required_auth(
+                post_with(create_policy, |op| {
+                    op.id("CreateConversationModerationPolicy")
+                        .tag("ModerationPolicies")
+                        .summary("Create a moderation policy")
+                        .description(
+                            "Creates a policy on the conversation. Without reasons it starts from \
                         the default reasons.",
-                    )
-                    .security_requirement("JWT")
-                    .response::<201, Json<ModerationPolicyDto>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<201, Json<ModerationPolicyDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/default",
-            get_with(get_default_reasons, |op| {
-                op.id("GetDefaultModerationPolicyReasons")
-                    .tag("ModerationPolicies")
-                    .summary("Get the default reject reasons")
-                    .description("The reasons a Polis step uses when it has no moderation policy")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Vec<DefaultModerationPolicyReasonDto>>>()
-            }),
+            required_auth(
+                get_with(get_default_reasons, |op| {
+                    op.id("GetDefaultModerationPolicyReasons")
+                        .tag("ModerationPolicies")
+                        .summary("Get the default reject reasons")
+                        .description(
+                            "The reasons a Polis step uses when it has no moderation policy",
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<DefaultModerationPolicyReasonDto>>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            get_with(get_policy, |op| {
-                op.id("GetConversationModerationPolicy")
-                    .tag("ModerationPolicies")
-                    .summary("Get a moderation policy")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ModerationPolicyDto>>()
-            }),
+            required_auth(
+                get_with(get_policy, |op| {
+                    op.id("GetConversationModerationPolicy")
+                        .tag("ModerationPolicies")
+                        .summary("Get a moderation policy")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ModerationPolicyDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            put_with(update_policy, |op| {
-                op.id("UpdateConversationModerationPolicy")
-                    .tag("ModerationPolicies")
-                    .summary("Replace a moderation policy's name and reasons")
-                    .description(
-                        "Reasons sent with an id are updated in place, reasons without one are \
+            required_auth(
+                put_with(update_policy, |op| {
+                    op.id("UpdateConversationModerationPolicy")
+                        .tag("ModerationPolicies")
+                        .summary("Replace a moderation policy's name and reasons")
+                        .description(
+                            "Reasons sent with an id are updated in place, reasons without one are \
                         added, and reasons left out are deleted. The list order becomes the \
                         display order.",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ModerationPolicyDto>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ModerationPolicyDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{moderation_policy_id}",
-            delete_with(delete_policy, |op| {
-                op.id("DeleteConversationModerationPolicy")
-                    .tag("ModerationPolicies")
-                    .summary("Delete a moderation policy")
-                    .description("Fails with 409 while a workflow step still uses the policy")
-                    .security_requirement("JWT")
-                    .response::<204, ()>()
-            }),
+            required_auth(
+                delete_with(delete_policy, |op| {
+                    op.id("DeleteConversationModerationPolicy")
+                        .tag("ModerationPolicies")
+                        .summary("Delete a moderation policy")
+                        .description("Fails with 409 while a workflow step still uses the policy")
+                        .security_requirement("JWT")
+                        .response::<204, ()>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use serde_json::{Value, json};
     use sqlx::PgPool;
 
@@ -222,6 +254,7 @@ mod tests {
 
     use std::{error::Error, time::Duration};
 
+    use crate::App;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
@@ -229,7 +262,7 @@ mod tests {
     use crate::test_helpers::{UserSession, polis_tool_config};
 
     async fn create_policy(
-        app: &Router,
+        app: &App,
         session: &mut UserSession,
         conversation_id: Uuid,
     ) -> Result<ModerationPolicyDto, Box<dyn Error>> {
@@ -247,7 +280,7 @@ mod tests {
 
     /// Creates a Polis step and returns its url and preview tool config.
     async fn create_polis_step(
-        app: &Router,
+        app: &App,
         session: &mut UserSession,
         conversation_id: Uuid,
     ) -> Result<(String, Value), Box<dyn Error>> {

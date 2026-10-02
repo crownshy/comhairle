@@ -17,10 +17,7 @@ use strum_macros::EnumCount;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{SqlxResultExt, users},
-};
+use crate::{error::ComhairleError, models::SqlxResultExt};
 
 /// A client-configured email template, persisted to the `email_template_config` table.
 ///
@@ -484,6 +481,7 @@ pub struct CreateEmailTemplateConfig {
 pub async fn create(
     db: &PgPool,
     user_id: Uuid,
+    organization_id: Option<Uuid>,
     params: &CreateEmailTemplateConfig,
 ) -> Result<EmailTemplateConfig, ComhairleError> {
     let slots_json = serde_json::to_value(&params.slots)?;
@@ -502,9 +500,9 @@ pub async fn create(
         values.push(subject.into());
     }
 
-    let user = users::get_user_by_id(&user_id, db).await?;
+    // let user = users::get_user_by_id(&user_id, db).await?;
 
-    if let Some(organization_id) = user.organization_id {
+    if let Some(organization_id) = organization_id {
         columns.push(EmailTemplateConfigIden::OrganizationId);
         values.push(organization_id.into());
     }
@@ -676,7 +674,7 @@ mod tests {
             subject: None,
         };
 
-        let email_config = create(&pool, current_user.id, &params).await?;
+        let email_config = create(&pool, current_user.id, None, &params).await?;
 
         assert_eq!(
             email_config.owner_id, current_user.id,
@@ -703,7 +701,7 @@ mod tests {
             subject: None,
         };
 
-        let new_email_config = create(&pool, current_user.id, &params).await?;
+        let new_email_config = create(&pool, current_user.id, None, &params).await?;
 
         assert_eq!(
             new_email_config.slots, create_slots,
@@ -752,7 +750,7 @@ mod tests {
             subject: None,
         };
 
-        let new_email_config = create(&pool, current_user.id, &params).await?;
+        let new_email_config = create(&pool, current_user.id, None, &params).await?;
 
         let email_config = get_by_id(&pool, new_email_config.id).await?;
 
@@ -779,7 +777,7 @@ mod tests {
             subject: None,
         };
 
-        create(&pool, current_user.id, &params).await?;
+        create(&pool, current_user.id, None, &params).await?;
 
         let email_config = get_by_type_user(
             &pool,
@@ -818,12 +816,12 @@ mod tests {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
             subject: None,
         };
-        create(&pool, user.id, &params_a).await?;
+        create(&pool, user.id, None, &params_a).await?;
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
             subject: None,
         };
-        create(&pool, user.id, &params_b).await?;
+        create(&pool, user.id, None, &params_b).await?;
 
         let filter_options = EmailTemplateConfigFilterOptions {
             email_type: Some(EmailType::EventRegistrationConfirmation),
@@ -857,7 +855,7 @@ mod tests {
             subject: None,
         };
 
-        let email_config = create(&pool, current_user.id, &params).await?;
+        let email_config = create(&pool, current_user.id, None, &params).await?;
 
         delete(&pool, email_config.id).await?;
 

@@ -8,10 +8,11 @@ use axum::{
     extract::{Json, Path, State},
     http::StatusCode,
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{ComhairleError, ComhairleState};
+use crate::{ComhairleError, ComhairleState, required_auth};
 use crate::{
     bot_service::{ComhairlePrompt, UpdateChatRequest, Variable},
     models::{
@@ -98,34 +99,41 @@ async fn upsert_for_conversation(
     Ok((StatusCode::OK, Json(instructions.into())))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get_by_conversation, |op| {
-                op.id("GetConversationChatInstructions")
-                    .tag("ChatInstructions")
-                    .summary("Get chat instructions by conversation_id")
-                    .description("Get chat instructions by conversation_id")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ChatInstructionsDto>>()
-            }),
+            required_auth(
+                get_with(get_by_conversation, |op| {
+                    op.id("GetConversationChatInstructions")
+                        .tag("ChatInstructions")
+                        .summary("Get chat instructions by conversation_id")
+                        .description("Get chat instructions by conversation_id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ChatInstructionsDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
-            post_with(upsert_for_conversation, |op| {
-                op.id("UpsertConversationChatInstructions")
-                    .tag("ChatInstructions")
-                    .summary("Upsert chat instructions ")
-                    .description(
-                        "Creates a new chat instructions record for \
+            required_auth(
+                post_with(upsert_for_conversation, |op| {
+                    op.id("UpsertConversationChatInstructions")
+                        .tag("ChatInstructions")
+                        .summary("Upsert chat instructions ")
+                        .description(
+                            "Creates a new chat instructions record for \
                         a conversation or updates and existing record",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ChatInstructionsDto>>()
-            }),
+                        )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ChatInstructionsDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

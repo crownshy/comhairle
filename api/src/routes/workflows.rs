@@ -12,6 +12,7 @@ use axum::{
     extract::{FromRequestParts, Path, State},
     http::{StatusCode, request::Parts},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -26,8 +27,9 @@ use crate::{
         workflow::{self, CreateWorkflow, PartialWorkflow, WorkflowStats},
         workflow_step::{self, WorkflowStep},
     },
+    required_auth,
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::extract::{RequiredAdminUser, RequiredUser},
         workflows::dto::{UserParticipationDto, WorkflowDto},
     },
 };
@@ -299,17 +301,24 @@ impl Display for WorkflowRouterContext {
     }
 }
 
-pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
+pub fn router(
+    keycloak_auth_instance: Arc<KeycloakAuthInstance>,
+    ctx: WorkflowRouterContext,
+) -> ApiRouter<Arc<ComhairleState>> {
     let router = ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_workflow, |op| {
-                op.id(&format!("Create{ctx}Workflow"))
-                    .tag("Workflow")
-                    .security_requirement("JWT")
-                    .summary("Create a new workflow on the conversation")
-                    .response::<201, Json<WorkflowDto>>()
-            }),
+            required_auth(
+                post_with(create_workflow, |op| {
+                    op.id(&format!("Create{ctx}Workflow"))
+                        .tag("Workflow")
+                        .security_requirement("JWT")
+                        .summary("Create a new workflow on the conversation")
+                        .response::<201, Json<WorkflowDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/",
@@ -331,36 +340,48 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
         )
         .api_route(
             "/{workflow_id}",
-            put_with(update_workflow, |op| {
-                op.id(&format!("Update{ctx}Workflow"))
-                    .tag("Workflow")
-                    .security_requirement("JWT")
-                    .summary("Update the workflow")
-                    .response::<201, Json<WorkflowDto>>()
-            }),
+            required_auth(
+                put_with(update_workflow, |op| {
+                    op.id(&format!("Update{ctx}Workflow"))
+                        .tag("Workflow")
+                        .security_requirement("JWT")
+                        .summary("Update the workflow")
+                        .response::<201, Json<WorkflowDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         )
         .api_route(
             "/{workflow_id}",
-            delete_with(delete_workflow, |op| {
-                op.id(&format!("Delete{ctx}Workflow"))
-                    .tag("Workflow")
-                    .security_requirement("JWT")
-                    .summary("Delete the workflow and it's associated workflow steps")
-                    .response::<201, Json<WorkflowDto>>()
-            }),
+            required_auth(
+                delete_with(delete_workflow, |op| {
+                    op.id(&format!("Delete{ctx}Workflow"))
+                        .tag("Workflow")
+                        .security_requirement("JWT")
+                        .summary("Delete the workflow and it's associated workflow steps")
+                        .response::<201, Json<WorkflowDto>>()
+                }),
+                None,
+                keycloak_auth_instance.clone(),
+            ),
         );
 
     let router = match ctx {
         WorkflowRouterContext::Conversation => router
             .api_route(
                 "/{workflow_id}/next",
-                get_with(active_step_for_user, |op| {
-                    op.id(&format!("Next{ctx}WorkflowStepForUser"))
-                        .tag("Workflow")
-                        .security_requirement("JWT")
-                        .summary("Gets the next undone workflow step for the current user")
-                        .response::<201, Json<Option<WorkflowStep>>>()
-                }),
+                required_auth(
+                    get_with(active_step_for_user, |op| {
+                        op.id(&format!("Next{ctx}WorkflowStepForUser"))
+                            .tag("Workflow")
+                            .security_requirement("JWT")
+                            .summary("Gets the next undone workflow step for the current user")
+                            .response::<201, Json<Option<WorkflowStep>>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/{workflow_id}/stats",
@@ -382,38 +403,50 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
             )
             .api_route(
                 "/{workflow_id}/register",
-                post_with(register_user_for_workflow, |op| {
-                    op.id(&format!("RegisterUserFor{ctx}Workflow"))
-                        .tag("Workflow")
-                        .security_requirement("JWT")
-                        .summary("Register the currently logged in user for this workflow")
-                        .response::<201, Json<UserParticipation>>()
-                }),
+                required_auth(
+                    post_with(register_user_for_workflow, |op| {
+                        op.id(&format!("RegisterUserFor{ctx}Workflow"))
+                            .tag("Workflow")
+                            .security_requirement("JWT")
+                            .summary("Register the currently logged in user for this workflow")
+                            .response::<201, Json<UserParticipation>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/{workflow_id}/leave",
-                delete_with(deregister_user_on_workflow, |op| {
-                    op.id(&format!("UnregisterUserFor{ctx}Workflow"))
-                        .tag("Workflow")
-                        .security_requirement("JWT")
-                        .summary("Unregisters the current user on this workflow")
-                        .response::<200, Json<UserParticipation>>()
-                }),
+                required_auth(
+                    delete_with(deregister_user_on_workflow, |op| {
+                        op.id(&format!("UnregisterUserFor{ctx}Workflow"))
+                            .tag("Workflow")
+                            .security_requirement("JWT")
+                            .summary("Unregisters the current user on this workflow")
+                            .response::<200, Json<UserParticipation>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/{workflow_id}/participation",
-                get_with(get_user_participation, |op| {
-                    op.id(&format!("GetUser{ctx}Participation"))
-                        .tag("Workflow")
-                        .security_requirement("JWT")
-                        .summary("Returns the status of the current user on this workflow")
-                        .response::<200, Json<Option<UserParticipationDto>>>()
-                }),
+                required_auth(
+                    get_with(get_user_participation, |op| {
+                        op.id(&format!("GetUser{ctx}Participation"))
+                            .tag("Workflow")
+                            .security_requirement("JWT")
+                            .summary("Returns the status of the current user on this workflow")
+                            .response::<200, Json<Option<UserParticipationDto>>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             ),
         _ => router,
     };
 
-    router.with_state(state)
+    router
 }
 
 #[cfg(test)]
@@ -442,7 +475,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -526,7 +559,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
@@ -578,7 +611,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
 
@@ -685,7 +718,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
@@ -763,7 +796,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
@@ -850,7 +883,7 @@ mod tests {
 
         let mut session = UserSession::new_admin();
 
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
@@ -870,7 +903,7 @@ mod tests {
                 crate::test_helpers::TEST_PASSWORD,
                 &format!("test.user_{i}@gmail.com"),
             );
-            session.signup(&app).await?;
+            session.login(&app).await?;
 
             let url = format!("/conversation/{id}/workflow/{workflow_id}/register");
             session.post(&app, &url, Body::empty()).await?;

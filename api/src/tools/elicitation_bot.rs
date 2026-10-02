@@ -14,6 +14,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use axum_keycloak_auth::instance::KeycloakAuthInstance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -27,7 +28,8 @@ use crate::{
         bot_service_user_session::{self, BotServiceSessionContext},
         workflow_step,
     },
-    routes::auth::RequiredUser,
+    required_auth,
+    routes::auth::extract::RequiredUser,
     tools::ToolConfig,
 };
 
@@ -134,36 +136,45 @@ impl ToolImpl for ElicitationBotTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes(keycloak_auth_instance: Arc<KeycloakAuthInstance>) -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/elicitation_bot/workflow_step/{workflow_step_id}",
-                get_with(get_session_history, |op| {
-                    op.id("GetElicitationBotSessionHistory")
-                        .tag("Tools")
-                        .summary("Get user session history for an elicitation bot")
-                        .security_requirement("JWT")
-                        .description("Returns a user session for an elicitation bot including message history")
-                        .response::<200, Json<ComhairleAgentSession>>()
-                }),
+                required_auth(
+                    get_with(get_session_history, |op| {
+                        op.id("GetElicitationBotSessionHistory")
+                            .tag("Tools")
+                            .summary("Get user session history for an elicitation bot")
+                            .security_requirement("JWT")
+                            .description(
+                                "Returns a user session for an elicitation bot \
+                                including message history",
+                            )
+                            .response::<200, Json<ComhairleAgentSession>>()
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
             .api_route(
                 "/elicitation_bot/workflow_step/{workflow_step_id}",
-                post_with(converse, |op| {
-                    op.tag("Tools")
-                        .summary("Converse with an elicitation bot")
-                        .security_requirement("JWT")
-                        .description(
-"
-Streamed LLM response.
-⚠️ This endpoint returns a streaming response on success.
-Generated API clients are NOT suitable for consuming this endpoint.
-Use a raw HTTP request and process the response body incrementally.
-"
-                        )
-                }),
+                required_auth(
+                    post_with(converse, |op| {
+                        op.tag("Tools")
+                            .summary("Converse with an elicitation bot")
+                            .security_requirement("JWT")
+                            .description(
+                                "Streamed LLM response. \
+                                This endpoint returns a streaming response on success.\
+                                Generated API clients are NOT suitable for consuming this endpoint.\
+                                Use a raw HTTP request and process the response body incrementally.
+",
+                            )
+                    }),
+                    None,
+                    keycloak_auth_instance.clone(),
+                ),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -274,15 +285,13 @@ mod tests {
     use super::*;
 
     use crate::{
+        App,
         bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService},
         setup_server,
         test_helpers::{UserSession, elicitation_bot_tool_config, test_state},
     };
 
-    use axum::{
-        Router,
-        body::{Bytes, to_bytes},
-    };
+    use axum::body::{Bytes, to_bytes};
     use futures::{Stream, stream};
     use mockall::predicate::always;
     use serde_json::json;
@@ -331,7 +340,7 @@ mod tests {
     async fn setup_test_app_with_workflow_step<F>(
         pool: PgPool,
         configure_bot_service: F,
-    ) -> Result<(Router, UserSession, String), Box<dyn Error>>
+    ) -> Result<(App, UserSession, String), Box<dyn Error>>
     where
         F: FnOnce(&mut MockComhairleBotService),
     {
@@ -342,7 +351,7 @@ mod tests {
             .call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
+        session.login(&app).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let conversation_id = conversation["id"].as_str().unwrap().to_string();
