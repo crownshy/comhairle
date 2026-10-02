@@ -105,6 +105,29 @@ _Avoid_: Primary host organization, member organization.
 A conversation-scoped role intended for organization actors, granting read-only access (`ConversationRead`) by default.
 _Avoid_: Content editor (that role implies update access).
 
+**Conversation Owner**:
+The User who owns a Conversation and has full authority over it, including launch and deletion. Ownership is distinct from an assigned Administrator role.
+
+**Conversation Administrator**:
+A User with full authority over one Conversation, including launch, deletion, role management, content editing, moderation, translation, and data export.
+_Avoid_: Organization Administrator, Super Administrator (those have different scopes).
+
+**Conversation Observer**:
+A User with read-only access to a Conversation. Observer access does not confer editing, moderation, translation, export, launch, or deletion authority.
+
+**Conversation Content Editor**:
+A User who can edit a Conversation's content, tool configuration, and Workflow design, but cannot launch or delete it. Moderation, translation, and data export are separate capabilities.
+
+**Conversation Moderator**:
+A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design.
+
+**System Translator**:
+A User with authority to create, edit, and delete text content in all formats and locales, including the primary locale, across all Conversations and system content. This authority includes text-content configuration but does not grant permission management or other administrative capabilities.
+_Avoid_: Conversation Translator (that role has a narrower scope), System Administrator.
+
+**Conversation Data Access**:
+Authority to export data belonging to a Conversation, without conferring content-editing, moderation, translation, launch, or deletion authority.
+
 **Organization contact email**:
 A communication address for the Organization entity itself. It is not a permission grant and is distinct from both member emails and Organization Administrator emails.
 _Avoid_: Admin email, owner email.

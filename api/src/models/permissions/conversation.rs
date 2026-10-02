@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 
 use super::{PermissionAction, PermissionRole, ResourceType};
@@ -69,6 +70,21 @@ pub enum Action {
     #[serde(rename = "conversation_admin")]
     #[strum(serialize = "conversation_admin")]
     Admin,
+    #[serde(rename = "conversation_launch")]
+    #[strum(serialize = "conversation_launch")]
+    Launch,
+    #[serde(rename = "conversation_delete")]
+    #[strum(serialize = "conversation_delete")]
+    Delete,
+    #[serde(rename = "conversation_moderate")]
+    #[strum(serialize = "conversation_moderate")]
+    Moderate,
+    #[serde(rename = "conversation_translate")]
+    #[strum(serialize = "conversation_translate")]
+    Translate,
+    #[serde(rename = "conversation_export")]
+    #[strum(serialize = "conversation_export")]
+    Export,
     #[serde(rename = "list_permission")]
     #[strum(serialize = "list_permission")]
     ListPermission,
@@ -101,21 +117,43 @@ impl PermissionAction for Action {
     IntoStaticStr,
 )]
 pub enum Role {
+    #[serde(rename = "admin")]
+    #[strum(serialize = "admin")]
+    Admin,
+    #[serde(rename = "observer")]
+    #[strum(serialize = "observer")]
+    Observer,
     #[serde(rename = "content_editor")]
     #[strum(serialize = "content_editor")]
     ContentEditor,
     #[serde(rename = "conversation_co_host")]
     #[strum(serialize = "conversation_co_host")]
     CoHost,
+    #[serde(rename = "moderator")]
+    #[strum(serialize = "moderator")]
+    Moderator,
+    #[serde(rename = "translator")]
+    #[strum(serialize = "translator")]
+    Translator,
+    #[serde(rename = "data_access")]
+    #[strum(serialize = "data_access")]
+    DataAccess,
 }
 
 impl PermissionRole for Role {
     type Action = Action;
 
     fn actions(self) -> &'static [Action] {
+        static ALL_ACTIONS: std::sync::LazyLock<Vec<Action>> =
+            std::sync::LazyLock::new(|| Action::iter().collect());
+
         match self {
+            Self::Admin => ALL_ACTIONS.as_slice(),
             Self::ContentEditor => &[Action::Read, Action::Update],
-            Self::CoHost => &[Action::Read],
+            Self::Observer | Self::CoHost => &[Action::Read],
+            Self::Moderator => &[Action::Read, Action::Moderate],
+            Self::Translator => &[Action::Read, Action::Translate],
+            Self::DataAccess => &[Action::Read, Action::Export],
         }
     }
 }
@@ -134,5 +172,24 @@ mod tests {
         assert!(Role::CoHost.allows(Action::Read));
         assert!(!Role::CoHost.allows(Action::Update));
         assert_eq!(Action::RESOURCE_TYPE, ResourceType::Conversation);
+    }
+
+    #[test]
+    fn conversation_roles_have_separate_capabilities() {
+        use strum::IntoEnumIterator;
+
+        for role in Role::iter() {
+            for action in Action::iter() {
+                let expected = match role {
+                    Role::Admin => true,
+                    Role::Observer | Role::CoHost => action == Action::Read,
+                    Role::ContentEditor => matches!(action, Action::Read | Action::Update),
+                    Role::Moderator => matches!(action, Action::Read | Action::Moderate),
+                    Role::Translator => matches!(action, Action::Read | Action::Translate),
+                    Role::DataAccess => matches!(action, Action::Read | Action::Export),
+                };
+                assert_eq!(role.allows(action), expected, "{role}: {action}");
+            }
+        }
     }
 }

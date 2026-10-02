@@ -315,7 +315,7 @@ mod tests {
     async fn should_create_new_thinking_space_answer(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(
@@ -359,7 +359,7 @@ mod tests {
     ) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(
@@ -433,7 +433,7 @@ mod tests {
     async fn should_get_thinking_space_answer_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(
@@ -473,7 +473,7 @@ mod tests {
     async fn should_list_thinking_space_answers(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(
@@ -577,7 +577,7 @@ mod tests {
     async fn should_update_thinking_space_answer(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(
@@ -627,7 +627,7 @@ mod tests {
     async fn should_delete_thinking_space_answer_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(

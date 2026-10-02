@@ -555,11 +555,11 @@ pub async fn check_is_commentor(
     Ok(())
 }
 
-#[instrument(err(Debug), skip(state))]
-pub async fn check_can_moderate(
+pub async fn check_can_perform(
     state: &Arc<ComhairleState>,
     user: &User,
     workflow_step_id: &Uuid,
+    action: models::permissions::conversation::Action,
 ) -> Result<(), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, workflow_step_id).await?;
 
@@ -572,13 +572,7 @@ pub async fn check_can_moderate(
         conversation_id: conversation.id,
         owner_id: conversation.owner_id,
     };
-    authorize(
-        state,
-        user,
-        models::permissions::conversation::Action::Update,
-        &conversation_resource,
-    )
-    .await?;
+    authorize(state, user, action, &conversation_resource).await?;
     Ok(())
 }
 

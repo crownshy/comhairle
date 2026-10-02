@@ -1157,7 +1157,7 @@ mod tests {
         server_url: &str,
     ) -> Result<WorkflowStepDto, Box<dyn Error>> {
         let conversation_id = get_random_conversation_id(app, session).await?;
-        let workflow_id = get_random_workflow_id(app, session).await?;
+        let workflow_id = get_random_workflow_id(app, session, &conversation_id).await?;
 
         let mut tool_setup = heyform_tool_config();
         tool_setup["server_url"] = json!(server_url);

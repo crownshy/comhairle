@@ -1,59 +1,47 @@
 use std::sync::Arc;
 
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-    middleware::{from_fn, from_fn_with_state},
-};
-
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, patch_with, post_with, put_with},
-};
-
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
+use axum::middleware::from_fn_with_state;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    middleware::permissions::{
-        PermissionRequirement, authenticate, authorize as permission_middleware,
-    },
-    models::{
-        conversation::{
-            self, ConversationFilterOptions, ConversationOrderOptions,
-            ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
-        },
-        conversation_email_notification_recipients::{
-            self as email_recipients_model, CreateConversationEmailNotificationRecipients,
-        },
-        media::{FromWithMedia, MediaResolver},
-        notification::{self as notification_model, CreateNotification, NotificationContextType},
-        notification_delivery::{
-            self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
-        },
-        organization,
-        pagination::{OrderParams, PageOptions, PaginatedResults},
-        permissions::{
-            self, ActorId, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
-            PermissionRole, RevokeRoleRequest, can_perform_action,
-            conversation::{Action, Role},
-            grant_role,
-        },
-        user_conversation_preferences,
-        user_participation::{self},
-        user_profile,
-    },
-    routes::{
-        conversations::dto::{ConversationDto, LocalizedConversationDto},
-        translations::LocaleExtractor,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
+use crate::models::conversation::{
+    self, ConversationFilterOptions, ConversationOrderOptions, ConversationWithTranslations,
+    CreateConversation, IdOrSlug, PartialConversation,
 };
+use crate::models::conversation_email_notification_recipients::{
+    self as email_recipients_model, CreateConversationEmailNotificationRecipients,
+};
+use crate::models::media::{FromWithMedia, MediaResolver};
+use crate::models::notification::{
+    self as notification_model, CreateNotification, NotificationContextType,
+};
+use crate::models::notification_delivery::{
+    self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
+};
+use crate::models::organization;
+use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
+use crate::models::permissions::{
+    self, ActorId, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
+    PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action,
+    conversation::{Action, Role},
+    grant_role,
+};
+use crate::models::user_conversation_preferences;
+use crate::models::user_participation::{self};
+use crate::models::user_profile;
+use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
+use crate::routes::translations::LocaleExtractor;
 
-use super::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
+use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 
 pub mod dto;
 
@@ -96,7 +84,6 @@ async fn update_conversation(
 #[instrument(err(Debug), skip(state))]
 async fn patch_conversation_metadata(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Path(id): Path<Uuid>,
     Json(patch): Json<serde_json::Value>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
@@ -149,15 +136,10 @@ async fn list_conversations(
 async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.is_live {
         return Err(ComhairleError::ConversationAlreadyLive);
-    }
-
-    if user.id != conversation.owner_id {
-        return Err(ComhairleError::UserNotAuthorized);
     }
 
     let conversation: ConversationDto = conversation::launch(&state.db, conversation_id, &state)
@@ -283,7 +265,7 @@ pub struct CohostInfo {
 #[instrument(err(Debug), skip(state))]
 async fn add_conversation_cohost(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(cohost_info): Json<CohostInfo>,
 ) -> Result<(StatusCode, Json<OrganizationWithPermissionDto>), ComhairleError> {
@@ -341,15 +323,8 @@ async fn remove_conversation_cohost(
 #[instrument(err(Debug), skip(state))]
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
     Path(id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    let conversation = conversation::get_by_id(&state.db, &id).await?;
-
-    if user.id != conversation.owner_id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-
     let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
     let conversation: ConversationDto = conversation.into();
 
@@ -719,15 +694,7 @@ async fn register_email_for_updates(
 async fn export_conversation_contacts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
-    // Verify conversation exists
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-
-    if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-
     // Get all contacts who opted in
     let contacts =
         user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
@@ -796,15 +763,7 @@ async fn export_conversation_contacts(
 async fn export_conversation_demographics(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
-    // Verify conversation exists and user is owner
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-
-    if conversation.owner_id != user.id {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-
     // Get demographic data for export
     let demographics =
         user_profile::get_demographics_for_export(&state.db, &conversation_id).await?;
@@ -890,6 +849,7 @@ async fn export_conversation_demographics(
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     let requirement = PermissionRequirement::<ConversationResource>::new;
+    let system_requirement = PermissionRequirement::<SystemResource>::new;
     ApiRouter::new()
         .api_route(
             "/",
@@ -899,7 +859,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Conversation")
                     .description("Creates a new conversation")
                     .response::<201, Json<ConversationDto>>()
-            }),
+            })
+                .route_layer(from_fn_with_state(system_requirement(crate::models::permissions::system::Action::ConversationCreate), permission_middleware::<SystemResource>))
         )
         .api_route(
             "/",
@@ -919,7 +880,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Conversation")
                     .description("Get a conversation by id or slug. If user is admin and withTranslations=true, returns detailed translation data.")
                     .response::<200, Json<ConversationResponse>>()
-            }).route_layer(from_fn_with_state(requirement(Action::Read), permission_middleware::<ConversationResource>)),
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Read), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}",
@@ -929,8 +891,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Conversation")
                     .description("Update a conversation")
                     .response::<200, Json<ConversationDto>>()
-                    }).route_layer(from_fn_with_state(requirement(Action::Update), permission_middleware::<ConversationResource>)),
-        )
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Update), permission_middleware::<ConversationResource>)),
+    )
         .api_route(
             "/{conversation_id}",
             delete_with(delete_conversation, |op| {
@@ -939,7 +902,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Conversation")
                     .description("Delete the conversation and all related content")
                     .response::<200, Json<ConversationDto>>()
-            }).route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Delete), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/metadata",
@@ -954,7 +918,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                          Nested objects are replaced, not deep-merged.",
                     )
                     .response::<200, Json<ConversationDto>>()
-            }).route_layer(from_fn_with_state(requirement(Action::Update), permission_middleware::<ConversationResource>)),
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Update), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/launch",
@@ -964,7 +929,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Conversation")
                     .description("Makes the conversation live for participants")
                     .response::<200, Json<ConversationDto>>()
-            }).route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Launch), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/cohosts",
@@ -976,7 +942,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         "Returns organizations that hold the conversation co-host role for this conversation.",
                     )
                     .response::<200, Json<Vec<OrganizationWithPermissionDto>>>()
-            }).route_layer(from_fn_with_state(requirement(Action::Read), permission_middleware::<ConversationResource>)),
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Read), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/cohosts",
@@ -988,7 +955,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         "Grants the conversation co-host role to the specified organization.",
                     )
                     .response::<201, Json<OrganizationWithPermissionDto>>()
-            }).route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/cohosts/{cohost_id}",
@@ -1001,8 +969,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .response::<200, Json<OrganizationWithPermissionDto>>()
             })
-            .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>))
-            .route_layer(from_fn(authenticate::<RequiredAdminUser>)),
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/notifications",
@@ -1013,7 +980,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<SendEmailNotificationResponse>>()
                     .tag("Notifications")
             })
-            .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/notifications/recipients",
@@ -1024,7 +991,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<NotificationRecipientsResponse>>()
                     .tag("Notifications")
             })
-            .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/email-updates",
@@ -1036,7 +1003,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<RegisterEmailResponse>>()
                     .tag("Email Notifications")
             })
-            .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/contacts/export",
@@ -1046,17 +1013,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Exports a CSV file containing all users who have opted in to receive email updates for this conversation")
                     .tag("Conversation")
             })
-            .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+                    .route_layer(from_fn_with_state(requirement(Action::Export), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/demographics/export",
             get_with(export_conversation_demographics, |op| {
                 op.id("ExportConversationDemographics")
                     .summary("Export demographics for conversation participants")
-                    .description("Exports a CSV file containing demographic data for users participating in the conversation's workflow. Only includes consented users. Requires conversation ownership.")
+                    .description("Exports consented participant demographics. Requires conversation data access.")
                     .tag("Conversation")
             })
-            .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+                .route_layer(from_fn_with_state(requirement(Action::Export), permission_middleware::<ConversationResource>)),
         )
         .with_state(state)
 }
