@@ -1,7 +1,9 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
 
-	let { isSeed }: { isSeed: boolean } = $props();
+	type Props = { isSeed: boolean };
+
+	let { isSeed }: Props = $props();
 </script>
 
 <p
