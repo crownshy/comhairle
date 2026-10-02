@@ -354,9 +354,9 @@
 				{:else if polisCurrentStatement}
 					<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
 					<div
-						class="border-seed-highlight rounded-lg transition-colors {polisCurrentStatement.is_seed
-							? 'bg-seed-highlight-bg border-seed-highlight border px-4 py-3'
-							: ''}"
+						class="rounded-lg border px-4 py-3 transition-colors {polisCurrentStatement.is_seed
+							? 'bg-seed-highlight-bg border-seed-highlight'
+							: 'bg-participant-highlight-bg border-participant-highlight'}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
 						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
