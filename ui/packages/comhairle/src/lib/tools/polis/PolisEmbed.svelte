@@ -120,6 +120,8 @@
 	let opinionError = $state(false);
 	let returningToVoting = $state(false);
 	const submitBusy = $derived(opinionSubmitting || returningToVoting);
+	const MAX_STATEMENT_LENGTH = 200;
+	const charactersLeft = $derived(MAX_STATEMENT_LENGTH - opinionText.length);
 	let previousText = '';
 	let visibleStatementWhenOpened: PolisStatement | undefined = undefined;
 
@@ -462,6 +464,7 @@
 				<ul class="list-inside list-disc space-y-2">
 					<li>{m.polis_tip_agreeable()}</li>
 					<li>{m.polis_tip_one_idea()}</li>
+					<li>{m.polis_tip_max_length({ max: MAX_STATEMENT_LENGTH })}</li>
 					<li>{m.polis_tip_no_jargon()}</li>
 					<li>{m.polis_tip_many_statements()}</li>
 					<li>{m.polis_tip_come_back()}</li>
@@ -487,8 +490,18 @@
 					bind:value={opinionText}
 					oninput={() => (opinionError = false)}
 					placeholder={m.polis_opinion_placeholder()}
+					maxlength={MAX_STATEMENT_LENGTH}
+					aria-describedby="polis-opinion-characters-left"
 					class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
 				></textarea>
+				<p
+					id="polis-opinion-characters-left"
+					class="mt-2 text-right text-base {charactersLeft === 0
+						? 'text-destructive'
+						: 'text-muted-foreground'}"
+				>
+					{m.polis_characters_left({ count: charactersLeft })}
+				</p>
 			</div>
 
 			<div class="flex flex-wrap items-start gap-6">
