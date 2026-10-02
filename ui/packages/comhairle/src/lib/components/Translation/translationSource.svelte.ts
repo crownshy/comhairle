@@ -235,7 +235,7 @@ export function createTextContentSource(options: TextContentSourceOptions): Auto
 	async function flush() {
 		await debouncedSaveSource.runScheduledNow();
 		await debouncedSaveTarget.runScheduledNow();
-		await Promise.allSettled([...activeSaves]);
+		await Promise.allSettled(activeSaves);
 	}
 
 	return {

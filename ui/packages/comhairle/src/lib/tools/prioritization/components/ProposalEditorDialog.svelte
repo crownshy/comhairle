@@ -141,7 +141,7 @@
 	// Saves don't reload the list behind the dialog, so closing syncs it once.
 	async function flushAll() {
 		await Promise.allSettled(
-			[...sources.values()].map((s) => (isAutosaveSource(s) ? s.sync() : s.flush()))
+			Array.from(sources.values(), (s) => (isAutosaveSource(s) ? s.sync() : s.flush()))
 		);
 	}
 
