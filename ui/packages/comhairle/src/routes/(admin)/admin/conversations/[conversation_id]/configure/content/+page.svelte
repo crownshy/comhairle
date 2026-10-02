@@ -51,7 +51,7 @@
 
 	const fieldSource = (
 		field: 'privacyPolicy' | 'shortPrivacyPolicy' | 'faqs' | 'thankYouMessage' | 'callToAction',
-		ensureTextContentId: (content: string) => Promise<void>
+		ensureTextContentId: (content: string) => Promise<string | undefined>
 	): TranslationSource =>
 		createTextContentSource({
 			getTranslation: () => conversation.translations?.[field] ?? undefined,
@@ -59,6 +59,7 @@
 			getSupportedLanguages: () => supportedLanguages,
 			getPrimaryFallback: () => $form[field] ?? '',
 			onEdit: (content) => ($form[field] = content),
+			refresh: () => invalidate(key('admin/conversation')),
 			ensureTextContentId
 		});
 
@@ -67,7 +68,7 @@
 		field: string,
 		format: 'plain' | 'rich' = 'rich',
 		autoTranslate: boolean = false
-	) {
+	): Promise<string | undefined> {
 		if (!conversation) return;
 
 		const textContent = await tryCatchAsync(() =>
@@ -114,7 +115,7 @@
 			}
 		}
 
-		await invalidate(key('admin/conversation'));
+		return textContent.ok.id;
 	}
 
 	const privacyPolicySource = fieldSource('privacyPolicy', (content) =>

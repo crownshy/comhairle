@@ -7,6 +7,7 @@
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
 	import { loginRedirectServer } from '$lib/urls';
+	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
 
 	let { children, data }: LayoutProps = $props();
 	let ownedConversations = $derived(data.ownedConversations);
@@ -51,6 +52,8 @@
 		</main>
 	</SideBar.Inset>
 </SideBar.Provider>
+
+<AutosaveLeaveGuard />
 
 <style>
 	:global([data-slot='sidebar-wrapper'] [data-slot='sidebar-gap']),
