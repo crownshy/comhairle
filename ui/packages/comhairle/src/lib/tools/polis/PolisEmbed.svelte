@@ -25,6 +25,7 @@
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import StatementSourceLabel from './StatementSourceLabel.svelte';
 
 	type Props = {
 		polis_id: string;
@@ -295,7 +296,6 @@
 		}
 	}
 
-	const remainingBeforeContinue = $derived(safeRequiredVotes - totalVotes);
 	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
@@ -352,15 +352,11 @@
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					{#if polisCurrentStatement.is_seed}
-						<p class="text-seed-highlight mb-1 text-right text-xs font-medium">
-							{m.polis_seed_statement()}
-						</p>
-					{/if}
+					<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
 					<div
-						class="border-seed-highlight rounded-lg transition-colors {polisCurrentStatement.is_seed
-							? 'bg-seed-highlight-bg border-seed-highlight border px-4 py-3'
-							: ''}"
+						class="rounded-lg border px-4 py-3 transition-colors {polisCurrentStatement.is_seed
+							? 'bg-seed-highlight-bg border-seed-highlight'
+							: 'bg-participant-highlight-bg border-participant-highlight'}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
 						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
