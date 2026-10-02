@@ -11,6 +11,7 @@
 		Home,
 		Mail,
 		Images,
+		Map,
 		PanelLeftClose,
 		PanelLeftOpen,
 		Plus
@@ -26,7 +27,8 @@
 	import type {
 		LocalizedConversationDto,
 		UserOrganizationsResponse,
-		UserDto
+		UserDto,
+		UserRoles
 	} from '@crownshy/api-client/api';
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
 	import { m } from '$lib/paraglide/messages';
@@ -39,6 +41,7 @@
 			canCreateOrganization: boolean;
 		};
 		user: UserDto;
+		userRoles: UserRoles[];
 		path: string;
 	};
 
@@ -56,11 +59,17 @@
 	let ownedConversations = $derived(props.ownedConversations);
 	let permittedConversations = $derived(props.permittedConversations);
 	let userOrganizations = $derived(props.userOrganizations);
+	let userRoles = $derived(props.userRoles);
+	let isSuperAdmin = $derived(
+		userRoles.some((role) => role.resource === 'Site' && role.roles.includes('SuperAdmin'))
+	);
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
 	function isConversationActive(conversationId: string): boolean {
 		return path.startsWith(`/admin/conversations/${conversationId}`);
 	}
+
+	let isRegionAreasActive = $derived(path.startsWith('/admin/regionss'));
 </script>
 
 <SideBar.Root collapsible="icon">
@@ -132,6 +141,18 @@
 							{/snippet}
 						</SideBar.MenuButton>
 					</SideBar.MenuItem>
+					{#if isSuperAdmin}
+						<SideBar.MenuItem>
+							<SideBar.MenuButton isActive={isRegionAreasActive}>
+								{#snippet child({ props: btnProps })}
+									<a {...btnProps} href="/admin/regions">
+										<Map class="size-4" />
+										Regions
+									</a>
+								{/snippet}
+							</SideBar.MenuButton>
+						</SideBar.MenuItem>
+					{/if}
 				</SideBar.Menu>
 			</SideBar.GroupContent>
 		</SideBar.Group>
