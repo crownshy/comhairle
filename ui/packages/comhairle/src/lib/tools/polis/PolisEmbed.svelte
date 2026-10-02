@@ -352,9 +352,7 @@
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					<div class="mb-1 flex">
-						<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
-					</div>
+					<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
 					<div
 						class="border-seed-highlight rounded-lg transition-colors {polisCurrentStatement.is_seed
 							? 'bg-seed-highlight-bg border-seed-highlight border px-4 py-3'
