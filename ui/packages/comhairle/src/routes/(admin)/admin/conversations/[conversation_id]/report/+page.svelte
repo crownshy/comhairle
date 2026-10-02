@@ -47,7 +47,8 @@
 	const summaryTranslationSource = createTextContentSource({
 		getTranslation: () => report.translations.summary,
 		getPrimaryLocale: () => conversation.primaryLocale as Locale,
-		getSupportedLanguages: () => conversation.supportedLanguages as Locale[]
+		getSupportedLanguages: () => conversation.supportedLanguages as Locale[],
+		refresh: () => invalidate(key('admin/conversation/report'))
 	});
 
 	async function createFeedback() {}
@@ -60,7 +61,7 @@
 			invalidate(key('admin/conversation/report'));
 			impactOpen = false;
 			notifications.send({ message: 'Impact Saved', priority: 'INFO' });
-		} catch (e) {
+		} catch {
 			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
 		}
 	}
