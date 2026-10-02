@@ -3,8 +3,9 @@ import { useDebounce } from 'runed';
 import type { Translation, Translation2 } from '@crownshy/api-client/api';
 import { getLanguageName } from '$lib/config/languages';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { notifications } from '$lib/notifications.svelte';
 import {
-	type TranslationSource,
+	type AutosaveSource,
 	type TranslationStatus,
 	type TranslationEntry,
 	type SaveState,
@@ -21,18 +22,17 @@ import type { Locale } from '$lib/paraglide/runtime';
 const SAVE_DEBOUNCE_MS = 1 * Second;
 
 type TextContentSourceOptions = {
-	/** Getter (not a value) so the source tracks the live prop across `invalidateAll()`. */
+	/** Getter (not a value) so the source tracks the live prop across a reload. */
 	getTranslation: () => Translation | Translation2 | undefined;
 	getPrimaryLocale: () => Locale;
 	getSupportedLanguages: () => Locale[];
 	/** Plain field value used for the primary locale before any translation row exists (e.g. `step.name`). */
 	getPrimaryFallback?: () => string;
 	/**
-	 * For fields whose `TextContent` is created lazily (e.g. configure's nullable rich fields): called
-	 * on the first primary-locale save when no text content id exists yet. It must create the content,
-	 * link it to its parent, and refresh so `getTranslation()` returns the new id afterwards.
+	 * Called on the first save when the field has no `TextContent` yet (e.g. optional configure
+	 * fields). Must create and link it, and return the new id.
 	 */
-	ensureTextContentId?: (content: string) => Promise<void>;
+	ensureTextContentId?: (content: string) => Promise<string | undefined>;
 	/**
 	 * Fired synchronously on every primary-locale edit. Used by `superForm`-bound consumers to mirror
 	 * the value into their `$form` store so inline (`Form.FieldErrors`) validation keeps working; the
@@ -40,28 +40,19 @@ type TextContentSourceOptions = {
 	 */
 	onEdit?: (content: string) => void;
 	/**
-	 * How to re-fetch server truth after a write, so the optimistic overlay reconciles against fresh
-	 * data. Defaults to SvelteKit's `invalidateAll` (correct for consumers whose `getTranslation()`
-	 * reads route `data`). Tools with a self-managed store (e.g. prioritization) must pass their own
-	 * refresh here; otherwise `invalidateAll()` is a no-op for their list and edits reconcile against
-	 * stale data, i.e. saved content visibly reverts.
+	 * Re-fetches the data `getTranslation()` reads. Saves don't call it, since the overlay already
+	 * shows what was typed. `sync()` does, once, when the user leaves the page or closes a dialog.
+	 * Defaults to `invalidateAll`; a store-backed list (e.g. prioritization) passes its own reload.
 	 */
 	refresh?: () => Promise<void>;
 };
 
 /**
- * A {@link TranslationSource} backed by a `TextContent` entity (the common case: step name /
- * description, conversation config fields, event fields, prioritization proposals).
- *
- * `contents` is derived from the `translation` prop, with a thin **optimistic overlay** of just-typed
- * edits layered on top so it reflects a keystroke immediately; the overlay entry is cleared once the
- * save + `invalidateAll()` has brought the server truth back (unless the user has typed again since).
- * That overlay is what keeps `RichTextEditor` from resetting the cursor mid-edit (see ADR-0005).
- *
- * Must be called during component initialisation (it uses `$state`/`$derived`), like `runed`'s
- * utilities. Construct it at the consumer and pass the result to `TranslatableField source={...}`.
+ * A {@link TranslationSource} backed by a `TextContent` entity. Edits live in an overlay on top of
+ * the loaded data until `sync()` reloads it, so saving never reloads the page under the editor
+ * (ADR-0005). Call it during component init, since it uses runes.
  */
-export function createTextContentSource(options: TextContentSourceOptions): TranslationSource {
+export function createTextContentSource(options: TextContentSourceOptions): AutosaveSource {
 	const {
 		getTranslation,
 		getPrimaryLocale,
@@ -73,16 +64,23 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 
 	const refresh = options.refresh ?? invalidateAll;
 
-	const textContentId = () => getTranslation()?.textContent?.id;
+	let createdTextContentId = $state<string | undefined>();
+	const textContentId = () => getTranslation()?.textContent?.id ?? createdTextContentId;
 	const otherLanguages = () => getSupportedLanguages().filter((l) => l !== getPrimaryLocale());
 
-	// locale -> content typed but not yet reconciled from the server.
+	// Saved (or saving) values the loaded data doesn't have yet, per locale.
 	let overlay = $state<Record<string, string>>({});
+	let statusOverlay = $state<Record<string, TranslationStatus>>({});
+	// True once something saved since the data was loaded, so `sync()` knows to reload.
+	let stale = $state(false);
+	// Per locale, how to redo the save that last failed there.
+	let failedSaves = $state<Record<string, () => Promise<void>>>({});
 
-	// --- save-state machine (shared across the two debounced channels + the immediate actions) ---
 	let saveState = $state<SaveState>('idle');
 	let inFlightCount = $state(0);
 	let savedResetTimer: ReturnType<typeof setTimeout> | undefined;
+	// Notify once per run of failures, not on every retry.
+	let failureNotified = false;
 	const activeSaves = new Set<Promise<unknown>>();
 
 	// Flip to "saving" the instant an edit is queued (not just when the debounced request fires), so the
@@ -105,6 +103,13 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 			// Only the last save to settle drives the terminal state, so overlapping saves don't
 			// flip the indicator to "saved" while another is still in flight.
 			if (inFlightCount === 0) {
+				if (!ok && !failureNotified) {
+					notifications.send({
+						message: "Your changes couldn't be saved. Check your connection and retry.",
+						priority: 'ERROR'
+					});
+				}
+				failureNotified = !ok;
 				saveState = ok ? 'saved' : 'error';
 				if (ok) {
 					savedResetTimer = setTimeout(() => {
@@ -133,7 +138,6 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 		for (const locale of otherLanguages()) {
 			server[locale] = getTextInLocale(translation, locale, '');
 		}
-		// Optimistic edits win until the server catches up (their overlay entry is then cleared).
 		return { ...server, ...overlay };
 	});
 
@@ -145,38 +149,54 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 			const row = translation?.textTranslations?.find((t) => t.locale === locale);
 			result[locale] = deriveStatus(false, row?.requiresValidation);
 		}
-		return result;
+		return { ...result, ...statusOverlay };
 	});
 
-	/** Clear a locale's optimistic entry once the server has it, unless the user typed something newer. */
-	function reconcileOverlay(locale: string, savedContent: string) {
-		if (overlay[locale] === savedContent) {
-			const next = { ...overlay };
-			delete next[locale];
-			overlay = next;
-		}
+	type PersistOptions = {
+		requiresValidation: boolean;
+		markOthersDraft?: boolean;
+		canCreate?: boolean;
+	};
+
+	function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+		const next = { ...record };
+		delete next[key];
+		return next;
 	}
 
-	/**
-	 * Persist one locale, then reconcile: clear its overlay entry only if the user hasn't typed
-	 * something newer in the meantime (otherwise a pending save still owns it).
-	 */
-	async function persist(
-		locale: string,
-		content: string,
-		opts: { requiresValidation: boolean; markOthersDraft?: boolean; canCreate?: boolean }
-	) {
+	/** Saves one locale's latest content, remembering how to retry it if the save fails. */
+	function saveLocale(locale: string, opts: PersistOptions): Promise<void> {
+		const attempt = () =>
+			runSave(async () => {
+				const result = await tryCatchAsync(() =>
+					persist(locale, contents[locale] ?? '', opts)
+				);
+				if (result.err !== null) {
+					failedSaves = { ...failedSaves, [locale]: attempt };
+					throw result.err;
+				}
+				failedSaves = withoutKey(failedSaves, locale);
+			});
+		return attempt();
+	}
+
+	async function persist(locale: string, content: string, opts: PersistOptions) {
 		const id = textContentId();
 		if (!id) {
-			// First edit of a not-yet-created field: let the consumer create + link the TextContent.
-			// It refreshes, so subsequent saves take the normal path above.
 			if (opts.canCreate && ensureTextContentId) {
-				await ensureTextContentId(content);
-				reconcileOverlay(locale, content);
+				createdTextContentId = await ensureTextContentId(content);
+				if (!createdTextContentId) throw new Error('Could not create the text content');
+				stale = true;
 			}
 			return;
 		}
 		await saveTranslation(id, locale, content, { requiresValidation: opts.requiresValidation });
+		if (locale !== getPrimaryLocale()) {
+			statusOverlay = {
+				...statusOverlay,
+				[locale]: opts.requiresValidation ? 'draft' : 'approved'
+			};
+		}
 		if (opts.markOthersDraft) {
 			const primaryLocale = getPrimaryLocale();
 			const approved: TranslationEntry[] = otherLanguages()
@@ -187,27 +207,36 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 					status: 'approved',
 					content: contents[l]
 				}));
-			if (approved.length > 0)
+			if (approved.length > 0) {
 				await markOtherTranslationsAsDraft(id, primaryLocale, approved);
+				for (const entry of approved) {
+					statusOverlay = { ...statusOverlay, [entry.language]: 'draft' };
+				}
+			}
 		}
-		await refresh();
-		reconcileOverlay(locale, content);
+		stale = true;
 	}
 
-	const debouncedSaveSource = useDebounce((content: string) => {
-		const primaryLocale = getPrimaryLocale();
-		return runSave(() =>
-			persist(primaryLocale, content, {
+	const debouncedSaveSource = useDebounce(
+		() =>
+			saveLocale(getPrimaryLocale(), {
 				requiresValidation: false,
 				markOthersDraft: true,
 				canCreate: true
-			})
-		);
-	}, SAVE_DEBOUNCE_MS);
+			}),
+		SAVE_DEBOUNCE_MS
+	);
 
-	const debouncedSaveTarget = useDebounce((locale: string, content: string) => {
-		return runSave(() => persist(locale, content, { requiresValidation: true }));
-	}, SAVE_DEBOUNCE_MS);
+	const debouncedSaveTarget = useDebounce(
+		(locale: string) => saveLocale(locale, { requiresValidation: true }),
+		SAVE_DEBOUNCE_MS
+	);
+
+	async function flush() {
+		await debouncedSaveSource.runScheduledNow();
+		await debouncedSaveTarget.runScheduledNow();
+		await Promise.allSettled([...activeSaves]);
+	}
 
 	return {
 		get contents() {
@@ -219,18 +248,21 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 		get saveState() {
 			return saveState;
 		},
+		get stale() {
+			return stale;
+		},
 
 		saveSource(content: string) {
 			onEdit?.(content);
 			overlay = { ...overlay, [getPrimaryLocale()]: content };
 			markSaving();
-			debouncedSaveSource(content);
+			debouncedSaveSource();
 		},
 
 		saveTarget(locale: string, content: string) {
 			overlay = { ...overlay, [locale]: content };
 			markSaving();
-			debouncedSaveTarget(locale, content);
+			debouncedSaveTarget(locale);
 		},
 
 		async aiTranslate(locale: string, sourceContent: string) {
@@ -241,28 +273,49 @@ export function createTextContentSource(options: TextContentSourceOptions): Tran
 				// aiTranslateApi persists the generated translation against this text content id.
 				result = await aiTranslateApi(id, locale, sourceContent, getPrimaryLocale());
 				overlay = { ...overlay, [locale]: result.content };
-				await refresh();
-				reconcileOverlay(locale, result.content);
+				statusOverlay = {
+					...statusOverlay,
+					[locale]: result.requiresValidation ? 'draft' : 'approved'
+				};
+				stale = true;
 			});
 			return result!;
 		},
 
 		approve(locale: string) {
-			return runSave(async () => {
-				await persist(locale, contents[locale] ?? '', { requiresValidation: false });
-			});
+			return saveLocale(locale, { requiresValidation: false });
 		},
 
 		markAsDraft(locale: string) {
-			return runSave(async () => {
-				await persist(locale, contents[locale] ?? '', { requiresValidation: true });
-			});
+			return saveLocale(locale, { requiresValidation: true });
 		},
 
-		async flush() {
-			await debouncedSaveSource.runScheduledNow();
-			await debouncedSaveTarget.runScheduledNow();
-			await Promise.allSettled([...activeSaves]);
+		flush,
+
+		async retry() {
+			await Promise.allSettled(Object.values(failedSaves).map((attempt) => attempt()));
+		},
+
+		async sync() {
+			await flush();
+			if (!stale || Object.keys(failedSaves).length > 0) return;
+			const savedOverlay = overlay;
+			const savedStatusOverlay = statusOverlay;
+			stale = false;
+			const result = await tryCatchAsync(refresh);
+			if (result.err !== null) {
+				stale = true;
+				return;
+			}
+			overlay = keepChangedSince(overlay, savedOverlay);
+			statusOverlay = keepChangedSince(statusOverlay, savedStatusOverlay);
 		}
 	};
+}
+
+/** The entries of `current` that were added or changed after `snapshot` was taken. */
+function keepChangedSince<T>(current: Record<string, T>, snapshot: Record<string, T>) {
+	return Object.fromEntries(
+		Object.entries(current).filter(([key, value]) => snapshot[key] !== value)
+	);
 }

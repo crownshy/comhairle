@@ -155,3 +155,14 @@ immediately, so `value` is never stale, and the local copy is no longer needed.
 - **Migration is a single branch of ordered, green commits:** land the contract and both sources,
   migrate the five consumers one at a time, then delete the old props last. `TranslationStatus` and
   `SaveState` are the shared vocabulary, defined once in `translationUtils`.
+
+## Amendment (save without reloading, sync on leave)
+
+`createTextContentSource` no longer reloads after each save. Every pause in typing reran the whole
+conversation layout load, and a re-created streamed promise remounted the rich text editor, which
+jumped it back to the top. Saved edits now stay in the overlay, and the source is marked stale.
+
+`sync()` reloads once. `AutosaveLeaveGuard` (mounted in the admin layout) calls it just after
+navigating away, because invalidating during a navigation cancels it. Dialogs whose list sits
+behind them call it on close. Leaving with a save in flight waits for it; leaving after a failed
+save asks to retry or leave. A failed save also shows a notification and a Retry link on the field.

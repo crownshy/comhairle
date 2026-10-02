@@ -5,10 +5,9 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import {
-		hasUnsavedChanges,
+		isAutosaveSource,
 		type TranslationSource
 	} from '$lib/components/Translation/translationUtils';
-	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import ProposalSectionField from './ProposalSectionField.svelte';
 	import { isTiptapJson, extractTextFromTiptap } from '$lib/utils/tiptapUtils';
 	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
@@ -104,11 +103,6 @@
 	});
 	registerSource('__title__', titleSource);
 
-	// Warn on refresh / tab-close / in-app navigation while any title or section save is still pending,
-	// so a mid-debounce edit isn't silently lost. The dialog is a persistent instance, so this registers
-	// once; the getter reads the live source set at event time.
-	guardUnsavedChanges(() => [...sources.values()].some(hasUnsavedChanges));
-
 	let addingSection = $state(false);
 
 	async function addSection() {
@@ -144,8 +138,11 @@
 		return isBlank(p.title) && p.sections.every((s) => isBlank(s.body));
 	}
 
+	// Saves don't reload the list behind the dialog, so closing syncs it once.
 	async function flushAll() {
-		await Promise.allSettled([...sources.values()].map((s) => s.flush()));
+		await Promise.allSettled(
+			[...sources.values()].map((s) => (isAutosaveSource(s) ? s.sync() : s.flush()))
+		);
 	}
 
 	/** Commit pending edits, then close. A self-created draft is deleted when discarded outright or
