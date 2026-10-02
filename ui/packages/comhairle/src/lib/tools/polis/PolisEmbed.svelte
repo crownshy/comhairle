@@ -26,6 +26,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import StatementSourceLabel from './StatementSourceLabel.svelte';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	type Props = {
 		polis_id: string;
@@ -309,10 +310,13 @@
 			in:fade={{ duration: 300 }}
 		>
 			<!-- Opinion counter -->
-			{#if !polisReady}
-				<div class="bg-foreground/10 h-5 w-32 animate-pulse rounded md:h-6"></div>
-			{:else if !polisError && !poolExhausted && showRemainingStatementCount}
-				<p class="text-muted-foreground tex-base font-semibold md:text-lg">
+			{#if showRemainingStatementCount && !polisReady}
+				<div class="flex h-6 items-center md:h-7">
+					<Skeleton class="h-4 w-32 rounded md:h-5" />
+				</div>
+				<Skeleton class="h-1.5 w-full rounded-none" />
+			{:else if showRemainingStatementCount && !polisError && !poolExhausted}
+				<p class="text-muted-foreground text-base font-semibold md:text-lg">
 					{m.polis_opinion_counter({
 						current: opinionPosition.current,
 						total: opinionPosition.total
@@ -343,12 +347,19 @@
 					</div>
 				{:else if !polisReady || waitingForNext || !polisCurrentStatement}
 					<!-- Loading, between statements, or briefly empty before the screen
-					     flips to "completed" — show a skeleton, never a blank card. -->
-					<div in:fade={{ duration: 200 }} class="w-full animate-pulse">
-						<div class="space-y-3">
-							<div class="bg-foreground/10 h-8 w-full rounded"></div>
-							<div class="bg-foreground/10 h-8 w-4/5 rounded"></div>
-							<div class="bg-foreground/10 h-8 w-3/5 rounded"></div>
+					     flips to "completed". Rows match the label, the statement box and its
+					     line heights so nothing below moves when the statement arrives. -->
+					<div in:fade={{ duration: 200 }} class="w-full">
+						<div class="mb-1 flex h-6 items-center">
+							<Skeleton class="h-5 w-64 max-w-full rounded" />
+						</div>
+						<div class="border-foreground/10 rounded-lg border px-4 py-3">
+							<div class="flex h-9 items-center">
+								<Skeleton class="h-6 w-full rounded sm:h-7" />
+							</div>
+							<div class="flex h-9 items-center">
+								<Skeleton class="h-6 w-3/5 rounded sm:h-7" />
+							</div>
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
@@ -366,7 +377,8 @@
 				{/if}
 			</div>
 
-			{#if !polisError && polisCurrentStatement}
+			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
+			{#if !polisError && (!polisReady || polisCurrentStatement)}
 				<!-- Vote buttons -->
 				<div class="flex flex-wrap items-start gap-4 md:gap-6">
 					<Button
