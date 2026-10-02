@@ -217,18 +217,20 @@ export function createTextContentSource(options: TextContentSourceOptions): Auto
 		stale = true;
 	}
 
+	// Nothing awaits a typed save, and a failure is already shown on the field, so don't let it
+	// surface as an unhandled rejection.
 	const debouncedSaveSource = useDebounce(
 		() =>
 			saveLocale(getPrimaryLocale(), {
 				requiresValidation: false,
 				markOthersDraft: true,
 				canCreate: true
-			}),
+			}).catch(() => {}),
 		SAVE_DEBOUNCE_MS
 	);
 
 	const debouncedSaveTarget = useDebounce(
-		(locale: string) => saveLocale(locale, { requiresValidation: true }),
+		(locale: string) => saveLocale(locale, { requiresValidation: true }).catch(() => {}),
 		SAVE_DEBOUNCE_MS
 	);
 
