@@ -57,10 +57,6 @@ pub struct PolisToolConfig {
     pub is_active: Option<bool>,
     #[serde(default)]
     pub strict_moderation: Option<bool>,
-    // comhairle-only display flag (not sent to Polis): style seed statements
-    // with a "conversation starter" label in the participant embed.
-    #[serde(default)]
-    pub label_seeds_as_conversation_starter: bool,
     // Reasons offered when rejecting a statement. None means the built-in
     // defaults in models::moderation_policy::DEFAULT_REASONS.
     #[serde(default)]
@@ -84,7 +80,6 @@ impl ToolConfigSanitize for PolisToolConfig {
             description: self.description.clone(),
             is_active: self.is_active,
             strict_moderation: self.strict_moderation,
-            label_seeds_as_conversation_starter: self.label_seeds_as_conversation_starter,
             moderation_policy_id: self.moderation_policy_id,
         }
     }
@@ -1276,7 +1271,6 @@ async fn polis_setup(
         description: None,
         is_active: Some(true),
         strict_moderation: Some(false),
-        label_seeds_as_conversation_starter: false,
         moderation_policy_id: None,
     })
 }

@@ -26,6 +26,7 @@
 		type DraftTranslatableJsonField
 	} from '$lib/components/Translation/translationUtils';
 	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		conversation: ConversationWithTranslations;
@@ -64,7 +65,8 @@
 			getTranslation: () => topic?.translations,
 			getPrimaryLocale: () => conversation.primaryLocale,
 			getSupportedLanguages: () => conversation.supportedLanguages,
-			getPrimaryFallback: () => topic?.localized ?? ''
+			getPrimaryFallback: () => topic?.localized ?? '',
+			refresh: () => invalidate(key('admin/conversation/workflow'))
 		});
 	});
 
@@ -297,7 +299,7 @@
 									</p>
 								{:else}
 									<p class="text-destructive text-xs">
-										Intent missing — add one before saving.
+										Intent missing. Add one before saving.
 									</p>
 								{/if}
 							</div>
