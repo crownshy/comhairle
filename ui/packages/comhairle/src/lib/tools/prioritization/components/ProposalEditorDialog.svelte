@@ -84,8 +84,7 @@
 
 	// Title owns its own source (ADR-0005); sections own theirs via ProposalSectionField. Every source
 	// is registered here so the dialog can flush pending debounced saves before it closes. `refresh`
-	// points at the store's silent reload: the prioritization list is self-managed, so `invalidateAll`
-	// alone would leave saves reconciling against stale data (see store.reload / translationSource).
+	// points at the store's silent reload because the prioritization list is self-managed, not route data.
 	const sources = new Map<string, TranslationSource>();
 
 	function registerSource(id: string, source: TranslationSource) {

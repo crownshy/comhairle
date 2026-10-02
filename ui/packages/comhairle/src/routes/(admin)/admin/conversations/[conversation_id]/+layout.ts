@@ -26,6 +26,7 @@ import { key } from '$lib/utils/invalidationKey';
 export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	depends(key('admin/conversation'));
 	depends(key('admin/conversation/workflow'));
+	depends(key('admin/conversation/events'));
 	depends('conversation:meta');
 	depends('conversation:workflow');
 	depends('conversation:events');

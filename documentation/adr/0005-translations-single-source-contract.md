@@ -166,3 +166,11 @@ jumped it back to the top. Saved edits now stay in the overlay, and the source i
 navigating away, because invalidating during a navigation cancels it. Dialogs whose list sits
 behind them call it on close. Leaving with a save in flight waits for it; leaving after a failed
 save asks to retry or leave. A failed save also shows a notification and a Retry link on the field.
+
+## Amendment (targeted refresh instead of `invalidateAll()`)
+
+`refresh`, which `sync()` calls, no longer defaults to `invalidateAll()`. It is a required option,
+and each consumer passes `invalidate(key(...))` for the load that supplies its `getTranslation()`
+data, or a store's own reload. Reloading everything reran every load on the page, which the #992
+invalidation audit set out to remove. Making the option required means a new consumer has to name
+what it refreshes.

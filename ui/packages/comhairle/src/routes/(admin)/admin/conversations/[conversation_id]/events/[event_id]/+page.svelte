@@ -87,8 +87,7 @@
 	);
 
 	const timeZone = getLocalTimeZone();
-	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
-	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
+	const [startDate] = $derived(event.startTime.split('T'));
 	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
 		value: tz,
 		label: tz
@@ -124,14 +123,16 @@
 		getPrimaryLocale: () => primaryLanguage,
 		getSupportedLanguages: () => supportedLanguages,
 		getPrimaryFallback: () => $form.name ?? '',
-		onEdit: (content) => ($form.name = content)
+		onEdit: (content) => ($form.name = content),
+		refresh: () => invalidate(key('admin/conversation/events'))
 	});
 	const descriptionSource = createTextContentSource({
 		getTranslation: () => event.translations?.description,
 		getPrimaryLocale: () => primaryLanguage,
 		getSupportedLanguages: () => supportedLanguages,
 		getPrimaryFallback: () => $form.description ?? '',
-		onEdit: (content) => ($form.description = content)
+		onEdit: (content) => ($form.description = content),
+		refresh: () => invalidate(key('admin/event'))
 	});
 
 	function convertTimeToSelectedZone(date: string, time: string, timeZone: string) {
@@ -412,24 +413,22 @@
 		>
 			<Form.Field form={eventForm} name="default_time_zone" class="contents">
 				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>
-							<span>Default time zone</span>
-							<span class="font-normal">Time zone event is taking place in</span>
-						</Form.Label>
-						<div class="flex-1">
-							<Combobox
-								selectedItem={availableTimeZones.find(
-									(tz) => tz.value === $form.default_time_zone
-								)}
-								items={availableTimeZones}
-								placeholder="Select a default timezone"
-								onSelect={(item) => ($form.default_time_zone = item.value)}
-							/>
-						</div>
-					{/snippet}
+					<Form.Label
+						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>
+						<span>Default time zone</span>
+						<span class="font-normal">Time zone event is taking place in</span>
+					</Form.Label>
+					<div class="flex-1">
+						<Combobox
+							selectedItem={availableTimeZones.find(
+								(tz) => tz.value === $form.default_time_zone
+							)}
+							items={availableTimeZones}
+							placeholder="Select a default timezone"
+							onSelect={(item) => ($form.default_time_zone = item.value)}
+						/>
+					</div>
 				</Form.Control>
 			</Form.Field>
 		</div>
@@ -529,26 +528,24 @@
 		>
 			<Form.Field form={eventForm} name="format" class="contents">
 				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					<Form.Label
+						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>
+						<span>Format</span>
+					</Form.Label>
+					<Select.Root
+						type="single"
+						value={$form.format}
+						onValueChange={(value: string) => ($form.format = value)}
+					>
+						<Select.Trigger class="w-45"
+							>Format: {snakeToStartCase($form.format)}</Select.Trigger
 						>
-							<span>Format</span>
-						</Form.Label>
-						<Select.Root
-							type="single"
-							value={$form.format}
-							onValueChange={(value: string) => ($form.format = value)}
-						>
-							<Select.Trigger class="w-45"
-								>Format: {snakeToStartCase($form.format)}</Select.Trigger
-							>
-							<Select.Content>
-								<Select.Item value="online">Online</Select.Item>
-								<Select.Item value="in_person">In-person</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					{/snippet}
+						<Select.Content>
+							<Select.Item value="online">Online</Select.Item>
+							<Select.Item value="in_person">In-person</Select.Item>
+						</Select.Content>
+					</Select.Root>
 				</Form.Control>
 			</Form.Field>
 		</div>

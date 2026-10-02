@@ -1,5 +1,5 @@
-import { invalidateAll } from '$app/navigation';
 import { useDebounce } from 'runed';
+import { SvelteSet } from 'svelte/reactivity';
 import type { Translation, Translation2 } from '@crownshy/api-client/api';
 import { getLanguageName } from '$lib/config/languages';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -42,9 +42,9 @@ type TextContentSourceOptions = {
 	/**
 	 * Re-fetches the data `getTranslation()` reads. Saves don't call it, since the overlay already
 	 * shows what was typed. `sync()` does, once, when the user leaves the page or closes a dialog.
-	 * Defaults to `invalidateAll`; a store-backed list (e.g. prioritization) passes its own reload.
+	 * Usually `invalidate(key(...))` for the load that supplies the data, or a store's own reload.
 	 */
-	refresh?: () => Promise<void>;
+	refresh: () => Promise<void>;
 };
 
 /**
@@ -59,10 +59,9 @@ export function createTextContentSource(options: TextContentSourceOptions): Auto
 		getSupportedLanguages,
 		getPrimaryFallback,
 		ensureTextContentId,
-		onEdit
+		onEdit,
+		refresh
 	} = options;
-
-	const refresh = options.refresh ?? invalidateAll;
 
 	let createdTextContentId = $state<string | undefined>();
 	const textContentId = () => getTranslation()?.textContent?.id ?? createdTextContentId;
@@ -81,7 +80,7 @@ export function createTextContentSource(options: TextContentSourceOptions): Auto
 	let savedResetTimer: ReturnType<typeof setTimeout> | undefined;
 	// Notify once per run of failures, not on every retry.
 	let failureNotified = false;
-	const activeSaves = new Set<Promise<unknown>>();
+	const activeSaves = new SvelteSet<Promise<unknown>>();
 
 	// Flip to "saving" the instant an edit is queued (not just when the debounced request fires), so the
 	// indicator reflects "unsaved changes" during the debounce window and an unsaved-changes guard can
