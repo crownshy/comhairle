@@ -59,6 +59,7 @@
 			getSupportedLanguages: () => supportedLanguages,
 			getPrimaryFallback: () => $form[field] ?? '',
 			onEdit: (content) => ($form[field] = content),
+			refresh: () => invalidate(key('admin/conversation')),
 			ensureTextContentId
 		});
 

@@ -27,9 +27,22 @@
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { DEFAULT_LOCALE } from '$lib/utils/constants';
+	import { resource } from 'runed';
 
 	const { data } = $props();
 	const { conversation, streamedMedia } = $derived(data);
+
+	// Every autosave reruns the page load and hands us a new promise. Keeping the last resolved
+	// image (rather than {#await}) stops it collapsing to a skeleton, which shifted the page.
+	const media = resource(
+		() => streamedMedia,
+		async (promise, _previous, { signal }) => {
+			if (promise === null) return null;
+			const result = await promise;
+			if (signal.aborted) throw new DOMException('Superseded', 'AbortError');
+			return result;
+		}
+	);
 
 	let primaryLocale = $derived<Locale>(
 		(data.conversation.primaryLocale as Locale) ?? DEFAULT_LOCALE
@@ -63,7 +76,8 @@
 			getPrimaryLocale: () => primaryLocale,
 			getSupportedLanguages: () => supportedLanguages,
 			getPrimaryFallback: () => $form[field] ?? '',
-			onEdit: (content) => ($form[field] = content)
+			onEdit: (content) => ($form[field] = content),
+			refresh: () => invalidate(key('admin/conversation'))
 		});
 
 	const titleSource = fieldSource('title');
@@ -346,29 +360,25 @@
 				</div>
 				{#if streamedMedia === null}
 					<span class="text-muted-foreground">No image</span>
+				{:else if !media.current}
+					<!-- TODO: Try using a CSS mask here -->
+					<div class="pile">
+						<Skeleton class="h-40 w-40 rounded-4xl" />
+						<Image class="z-2 h-full w-auto" strokeWidth={0.9} opacity={0.5} />
+					</div>
+				{:else if media.current.err !== null}
+					{notifications.addFlash({
+						message: 'Could not load image. Please try again',
+						priority: 'ERROR'
+					})}
 				{:else}
-					{#await streamedMedia}
-						<!-- TODO: Try using a CSS mask here -->
-						<div class="pile">
-							<Skeleton class="h-40 w-40 rounded-4xl" />
-							<Image class="z-2 h-full w-auto" strokeWidth={0.9} opacity={0.5} />
-						</div>
-					{:then media}
-						{#if media?.err !== null}
-							{notifications.addFlash({
-								message: 'Could not load image. Please try again',
-								priority: 'ERROR'
-							})}
-						{:else}
-							<div class="h-70 w-auto">
-								<img
-									src={media.ok.url}
-									alt="Conversation"
-									class="h-full w-auto object-contain"
-								/>
-							</div>
-						{/if}
-					{/await}
+					<div class="h-70 w-auto">
+						<img
+							src={media.current.ok.url}
+							alt="Conversation"
+							class="h-full w-auto object-contain"
+						/>
+					</div>
 				{/if}
 			</div>
 		</div>
