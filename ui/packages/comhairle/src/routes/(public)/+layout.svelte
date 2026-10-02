@@ -3,6 +3,7 @@
 	import NavBar from '$lib/components/NavBar.svelte';
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
+	import { cn } from '$lib/utils';
 
 	let { children, data }: LayoutProps = $props();
 	const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
@@ -18,6 +19,13 @@
 			'/(public)/conversations/[conversation_id]/room-display/[workflow_step_id]'
 	);
 
+	// The step shell scrolls inside a fixed viewport, so the step page gets no Footer.
+	// See CONTEXT.md, "Step shell".
+	const isStepPage = $derived(
+		page.route.id ===
+			'/(public)/conversations/[conversation_id]/[[preview]]/workflow/[workflow_id]/s/[workflow_step_id]'
+	);
+
 	let isAdmin = $derived(
 		data.userRoles
 			? data.userRoles.find((ur) => ur.resource === 'Site')?.roles.includes('Admin')
@@ -25,7 +33,13 @@
 	);
 </script>
 
-<div class="flex min-h-screen w-full flex-col {isReportPage ? 'bg-primary/10' : ''}">
+<div
+	class={cn(
+		'flex w-full flex-col',
+		isStepPage ? 'h-dvh' : 'min-h-screen',
+		isReportPage && 'bg-primary/10'
+	)}
+>
 	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
@@ -39,12 +53,16 @@
 		<div class="w-full grow">
 			{@render children()}
 		</div>
+	{:else if isStepPage}
+		<div class="flex min-h-0 w-full grow flex-col">
+			{@render children()}
+		</div>
 	{:else}
 		<div class="mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20">
 			{@render children()}
 		</div>
 	{/if}
-	{#if !isEmbed && !isLivePage && !isRoomDisplay}
+	{#if !isEmbed && !isLivePage && !isRoomDisplay && !isStepPage}
 		<Footer />
 	{/if}
 </div>
