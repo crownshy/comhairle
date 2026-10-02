@@ -13,7 +13,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
 	import StepShell from './StepShell.svelte';
-	import StepProgressBar from './StepProgressBar.svelte';
+	import StepChrome from './StepChrome.svelte';
 	import StepPager from './StepPager.svelte';
 	import StepHeader from './StepHeader.svelte';
 	import StepHeaderSkeleton from './StepHeaderSkeleton.svelte';
@@ -21,7 +21,12 @@
 	import { STEP_COLUMN } from './stepColumn';
 
 	import { goto } from '$app/navigation';
-	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
+	import {
+		thank_you_page,
+		next_workflow_step_url,
+		workflow_step_url,
+		conversation_url
+	} from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
@@ -91,6 +96,8 @@
 
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
 	let currentStepNumber = $derived(viewedIndex + 1);
+
+	let introUrl = $derived(conversation_url(conversation.id, isPreview) + queryString);
 
 	// Empty until the step is done. Filling within a step is ADR-0047 parts 2 and 3.
 	let fill = $derived(isRevisiting ? 1 : 0);
@@ -259,10 +266,14 @@
 {#if conversation && workflowStep && user}
 	<StepShell class="min-h-0 grow">
 		{#snippet header()}
-			<header class="bg-background pt-3 md:pt-4">
-				<div class={STEP_COLUMN}>
-					<StepProgressBar steps={stepItems} currentIndex={viewedIndex} {fill} />
-				</div>
+			<div class="bg-background">
+				<StepChrome
+					steps={stepItems}
+					currentIndex={viewedIndex}
+					{fill}
+					{introUrl}
+					preview={isPreview}
+				/>
 				{#if showNavigationSkeleton.current}
 					<StepHeaderSkeleton />
 				{:else}
@@ -275,7 +286,7 @@
 						conversationId={conversation.id}
 					/>
 				{/if}
-			</header>
+			</div>
 		{/snippet}
 
 		{#snippet content()}

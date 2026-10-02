@@ -72,9 +72,10 @@ The per-Step `can_revisit` flag (default `false`), controlling whether a partici
 ### Participant step chrome
 
 The participant-facing frame around a Step, shared by both breakpoints. Replaces the old
-`StepHeader` chevrons plus `StepSelector` pair. See
-[ADR-0047](documentation/adr/0047-one-pager-innermost-first-navigation.md) and
-[ADR-0048](documentation/adr/0048-the-middle-is-the-move-the-corners-are-navigation.md).
+`StepHeader` chevrons plus `StepSelector` pair, and the site NavBar and Footer on the step
+route. See [ADR-0047](documentation/adr/0047-one-pager-innermost-first-navigation.md),
+[ADR-0048](documentation/adr/0048-the-middle-is-the-move-the-corners-are-navigation.md) and
+[ADR-0049](documentation/adr/0049-the-step-menu-is-a-sheet-on-a-phone.md).
 
 **Step shell**:
 The one-screen layout a Step renders in: a header on top, the tool scrolling in the middle,
@@ -88,6 +89,13 @@ The segmented bar at the top of the [[#step-shell]]: one stub per Step, the curr
 flexible track that fills. Completed stubs read filled. The bar is decoration for a screen
 reader; the "Step N of M" line beneath it carries the position.
 _Avoid_: Stepper (the old row of circles), step selector.
+
+**Step menu**:
+The pill at the right of the step header, listing the Workflow's Steps with
+their status and the light and dark toggle. An anchored dropdown on a pointer, a bottom sheet
+on a phone. Navigation permissions are unchanged: only completed, revisitable Steps are
+links.
+_Avoid_: Step dropdown (half of it is not a dropdown), stepper.
 
 **Pager**:
 The bar at the bottom of the [[#step-shell]]: back on the left, forward on the right, and

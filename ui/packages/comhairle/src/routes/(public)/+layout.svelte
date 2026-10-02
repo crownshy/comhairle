@@ -19,7 +19,7 @@
 			'/(public)/conversations/[conversation_id]/room-display/[workflow_step_id]'
 	);
 
-	// The step shell scrolls inside a fixed viewport, so the step page gets no Footer.
+	// The step page draws its own header row and pager in place of the NavBar and Footer.
 	// See CONTEXT.md, "Step shell".
 	const isStepPage = $derived(
 		page.route.id ===
@@ -40,7 +40,7 @@
 		isReportPage && 'bg-primary/10'
 	)}
 >
-	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay}
+	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay && !isStepPage}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
 	{#if isRoomDisplay}
