@@ -316,7 +316,7 @@
 				<div class="flex h-6 items-center md:h-7">
 					<Skeleton class="h-4 w-32 rounded md:h-5" />
 				</div>
-				<Skeleton class="h-1.5 w-full rounded-none" />
+				<Skeleton class="h-1.5 w-full rounded-full" />
 			{:else if showRemainingStatementCount && !polisError && !poolExhausted}
 				<p class="text-muted-foreground text-base font-semibold md:text-lg">
 					{m.polis_opinion_counter({
@@ -349,11 +349,11 @@
 					</div>
 				{:else if !polisReady || waitingForNext || !polisCurrentStatement}
 					<!-- Loading, between statements, or briefly empty before the screen
-					     flips to "completed". Rows match the label, the statement box and its
-					     line heights so nothing below moves when the statement arrives. -->
+					     flips to "completed". Rows match a one-line source label, the statement
+					     box and its line heights so nothing below moves when the statement arrives. -->
 					<div in:fade={{ duration: 200 }} class="w-full">
 						<div class="border-foreground/10 rounded-2xl border p-3 sm:p-6">
-							<Skeleton class="mb-3 h-8 w-72 max-w-full rounded-full" />
+							<Skeleton class="mb-3 h-8.5 w-72 max-w-full rounded-full sm:mb-4" />
 							<div class="flex h-7 items-center sm:h-9">
 								<Skeleton class="h-6 w-full rounded sm:h-7" />
 							</div>
