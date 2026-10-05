@@ -119,6 +119,8 @@
 
 	--seed-highlight: #6b9b3a;
 	--seed-highlight-bg: #6b9b3a1a;
+	--participant-highlight: #0066bd;
+	--participant-highlight-bg: #0066bd1a;
 
 	/* Default vote palette (inherited by the waves theme). Per-theme overrides live in
 	   the theme blocks below. Not-voted is the empty (card-coloured) tail of the bar. */
@@ -189,6 +191,8 @@
 
 	--seed-highlight: #7cb342;
 	--seed-highlight-bg: #7cb34226;
+	--participant-highlight: #60a5fa;
+	--participant-highlight-bg: #60a5fa26;
 }
 
 /* Scottish Government Theme */
@@ -240,6 +244,8 @@
 
 	--seed-highlight: #16a34a;
 	--seed-highlight-bg: #16a34a1a;
+	--participant-highlight: #0066bd;
+	--participant-highlight-bg: #0066bd1a;
 
 	--font-sans: Inter, sans-serif;
 	--font-serif: Merriweather, serif;
@@ -326,6 +332,8 @@
 
 	--seed-highlight: #4ade80;
 	--seed-highlight-bg: #4ade8026;
+	--participant-highlight: #60a5fa;
+	--participant-highlight-bg: #60a5fa26;
 
 	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
 	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
@@ -445,6 +453,8 @@
 
 	--seed-highlight: #90c46b;
 	--seed-highlight-bg: #90c46b1a;
+	--participant-highlight: #0066bd;
+	--participant-highlight-bg: #0066bd1a;
 }
 
 /* Deltas only. Fonts, radii, shadows and anything else omitted here fall through to
@@ -516,6 +526,8 @@
 	--auth-gradient-4: #353638;
 
 	--seed-highlight-bg: #90c46b26;
+	--participant-highlight: #60a5fa;
+	--participant-highlight-bg: #60a5fa26;
 }
 
 @theme {
@@ -611,6 +623,8 @@
 
 	--color-seed-highlight: var(--seed-highlight);
 	--color-seed-highlight-bg: var(--seed-highlight-bg);
+	--color-participant-highlight: var(--participant-highlight);
+	--color-participant-highlight-bg: var(--participant-highlight-bg);
 
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);

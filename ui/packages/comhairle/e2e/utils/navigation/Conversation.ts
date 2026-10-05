@@ -3,7 +3,7 @@ import { exists } from '..';
 import type { Page } from '../types';
 
 type Tabs = {
-	Configure: readonly ['Details', 'Content', 'Glossary', 'Access', 'Team'];
+	Configure: readonly ['Details', 'Content', 'Glossary', 'Moderation policy', 'Access', 'Team'];
 	'Process Design': readonly ['Add step'];
 	'Learning Assistant': undefined;
 	Events: readonly ['Add event'];
@@ -62,7 +62,7 @@ const Conversation = {
 		switch (tab) {
 			case 'Configure':
 			case 'Recruit':
-				await page.getByRole('link', { name: subtab as string }).click();
+				await page.getByRole('tab', { name: subtab }).click();
 				return;
 			case 'Process Design':
 				// TODO:Add if statements here

@@ -1,8 +1,8 @@
 import { test } from './utils/testing';
 import Conversation from './utils/navigation/Conversation';
-import Textboxes from './utils/inputs/Textboxes';
+import { Textboxes, CollapsibleRichFields } from './utils/components';
 import { login } from './utils/auth';
-import CollapisbleRichFields from './utils/inputs/CollapsibleRichField';
+import { testWithRefresh } from './utils';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Content page', async ({ page, cleanup }) => {
-	const collapsibleRichFields = CollapisbleRichFields(
+	const collapsibleRichFields = CollapsibleRichFields(
 		[
 			['privacy_policy', 'Add privacy policy'],
 			['short_privacy_policy', 'Add short privacy policy'],
@@ -31,6 +31,8 @@ test('Configure/Content page', async ({ page, cleanup }) => {
 	const textboxes = Textboxes.new([['cta', 'Call to action']], { page, cleanup });
 	await textboxes.write('cta', '');
 
-	await collapsibleRichFields.expect();
-	await textboxes.expect();
+	await testWithRefresh(page, async () => {
+		await collapsibleRichFields.expect();
+		await textboxes.expect();
+	});
 });

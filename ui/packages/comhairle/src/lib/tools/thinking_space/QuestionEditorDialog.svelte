@@ -12,6 +12,8 @@
 	} from '$lib/components/Translation/translationUtils';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		open: boolean;
@@ -41,7 +43,8 @@
 			getTranslation: () => draftQuestion.text.translations,
 			getPrimaryLocale: () => primaryLocale,
 			getSupportedLanguages: () => supportedLanguages,
-			getPrimaryFallback: () => draftQuestion.text.localized
+			getPrimaryFallback: () => draftQuestion.text.localized,
+			refresh: () => invalidate(key('admin/conversation/workflow'))
 		});
 	});
 	const intentTransSource = $derived.by(() => {
@@ -50,7 +53,8 @@
 			getTranslation: () => draftQuestion.intent.translations,
 			getPrimaryLocale: () => primaryLocale,
 			getSupportedLanguages: () => supportedLanguages,
-			getPrimaryFallback: () => draftQuestion.intent.localized
+			getPrimaryFallback: () => draftQuestion.intent.localized,
+			refresh: () => invalidate(key('admin/conversation/workflow'))
 		});
 	});
 

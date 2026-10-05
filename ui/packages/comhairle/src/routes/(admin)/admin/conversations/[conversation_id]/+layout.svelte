@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
+	import TabContent from './TabContent.svelte';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -9,7 +10,6 @@
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
-	import ConfigureTabStrip from './configure/ConfigureTabStrip.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
 	import EventStrip from '$lib/components/EventStrip.svelte';
@@ -48,13 +48,12 @@
 			.startsWith(`/admin/conversations/${conversation.id}/design/step/`)
 	);
 
-	// Configure's sub-tabs are a static list (its `?tab=` sections share one form + load), so we
-	// server-render the strip here from `configureTabs`, the same way the workflow step strip is
-	// rendered from data, rather than the page injecting it via a client `$effect`.
-	let isConfigureSection = $derived(
-		page.url.pathname.replace(/\/+$/, '') ===
-			`/admin/conversations/${conversation.id}/configure`
-	);
+	// Configure renders its own sub-tab strip above a TabContent, so it skips the padded wrapper.
+	let isConfigureSection = $derived.by(() => {
+		const base = `/admin/conversations/${conversation.id}/configure`;
+		const path = page.url.pathname.replace(/\/+$/, '');
+		return path === base || path.startsWith(`${base}/`);
+	});
 
 	// Recruit (invites) is the same shape as Configure: a static `?subtab=` strip over one page,
 	// so we server-render it here from INVITE_SUBTABS instead of a client `$effect`.
@@ -249,7 +248,7 @@
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 		{:else}
-			<Button variant="default" class="h-[40px]" onclick={() => (launchModalOpen = true)}>
+			<Button variant="default" class="h-10" onclick={() => (launchModalOpen = true)}>
 				Launch Conversation
 			</Button>
 		{/if}
@@ -286,17 +285,10 @@
 			steps={data.workflowSteps}
 			onAddStep={() => (addStepDialog.open = true)}
 		/>
-	{:else if isConfigureSection}
-		<ConfigureTabStrip tabs={data.configureTabs} />
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
 	{:else if isEventsSection}
 		<EventStrip conversationId={conversation.id} events={data.events} />
-	{:else if primaryStripSkeleton}
-		<TabStripSkeleton
-			leadingIcon={primaryStripSkeleton.leadingIcon}
-			widths={primaryStripSkeleton.widths}
-		/>
 	{/if}
 	<!-- Row 4: only the event-detail sub-tabs live here now. -->
 	{#if isEventDetailPage && !showSwitchingSkeleton.current}
@@ -314,7 +306,7 @@
 	<div class="bg-card flex min-h-0 grow flex-col overflow-hidden">
 		{#if showSwitchingSkeleton.current}
 			<div class="pt-page-top px-gutter">
-				<div class="w-full max-w-[1200px]">
+				<div class="w-full max-w-300">
 					<TabContentSkeleton />
 				</div>
 			</div>
@@ -327,7 +319,7 @@
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
 		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-			<div class="h-full w-full max-w-[1200px]">
+			<div class="h-full w-full max-w-300">
 				<TabContentSkeleton />
 			</div>
 		</div>
@@ -337,13 +329,17 @@
 {:else}
 	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
 		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-		<div class="h-full w-full max-w-[1200px]">
-			{#if showSwitchingSkeleton.current}
+	<div class="bg-admin-background grow">
+		{#if showSwitchingSkeleton.current}
+			<TabContent>
 				<TabContentSkeleton />
-			{:else}
+			</TabContent>
+		{:else if isConfigureSection}
+			{@render children()}
+		{:else}
+			<TabContent>
 				{@render children()}
-			{/if}
-		</div>
+			</TabContent>
+		{/if}
 	</div>
 {/if}

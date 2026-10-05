@@ -3,7 +3,9 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { key } from '$lib/utils/invalidationKey';
 	import { Trash2, LoaderCircle } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import type {
@@ -56,13 +58,15 @@
 		getTranslation: () => step?.translations?.name,
 		getPrimaryLocale: () => primaryLocale,
 		getSupportedLanguages: () => supportedLanguages,
-		getPrimaryFallback: () => step?.name ?? ''
+		getPrimaryFallback: () => step?.name ?? '',
+		refresh: () => invalidate(key('admin/conversation/workflow'))
 	});
 	const descriptionSource = createTextContentSource({
 		getTranslation: () => step?.translations?.description,
 		getPrimaryLocale: () => primaryLocale,
 		getSupportedLanguages: () => supportedLanguages,
-		getPrimaryFallback: () => step?.description ?? ''
+		getPrimaryFallback: () => step?.description ?? '',
+		refresh: () => invalidate(key('admin/conversation/workflow'))
 	});
 
 	// Header / delete-dialog / preview read the live primary content straight from the sources.
@@ -108,8 +112,8 @@
 					}
 				}
 			);
-			await invalidateAll();
-		} catch (e) {
+			await invalidate(key('admin/conversation/workflow'));
+		} catch {
 			notifications.send({ message: `Failed to update ${field} status`, priority: 'ERROR' });
 		}
 	}, 500);
@@ -135,9 +139,14 @@
 			});
 			notifications.send({ priority: 'INFO', message: 'Step deleted' });
 			deleteOpen = false;
-			await goto(`/admin/conversations/${conversation_id}/design`, {
-				invalidate: ['conversation:workflow']
-			});
+			await goto(
+				resolve('/(admin)/admin/conversations/[conversation_id]/design', {
+					conversation_id
+				}),
+				{
+					invalidate: [key('admin/conversation/workflow')]
+				}
+			);
 		} catch (e) {
 			console.error(e);
 			deleteError = 'Something went wrong while deleting this step. Please try again.';
@@ -149,7 +158,6 @@
 </script>
 
 {#snippet fields()}
-	<!-- Name field -->
 	<div class="flex flex-col gap-1">
 		<span class="text-lg font-semibold">Name</span>
 		<p class="text-muted-foreground mb-2 text-sm">
@@ -158,7 +166,6 @@
 		<TranslatableField source={nameSource} {primaryLocale} {supportedLanguages} />
 	</div>
 
-	<!-- Description field -->
 	<div class="pt-4">
 		<div class="flex flex-col gap-1">
 			<span class="text-lg font-semibold">Description</span>
@@ -338,7 +345,7 @@
 	<Dialog.Root
 		bind:open
 		onOpenChange={(isOpen) => {
-			if (!isOpen) invalidateAll();
+			if (!isOpen) invalidate(key('admin/conversation/workflow'));
 		}}
 	>
 		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">

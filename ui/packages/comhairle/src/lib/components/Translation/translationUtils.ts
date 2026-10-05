@@ -64,6 +64,20 @@ export interface TranslationSource {
 	flush(): Promise<void>;
 }
 
+/** A source that saves without reloading, so it has to be told when to catch up. */
+export interface AutosaveSource extends TranslationSource {
+	/** Something saved since the data was loaded, so `sync()` would reload. */
+	readonly stale: boolean;
+	/** Redo the saves that failed. */
+	retry(): Promise<void>;
+	/** Finish pending saves, then reload once if anything changed. */
+	sync(): Promise<void>;
+}
+
+export function isAutosaveSource(source: TranslationSource): source is AutosaveSource {
+	return 'sync' in source;
+}
+
 /**
  * True while a source still has an edit in flight (or a failed save), i.e. there are unsaved changes.
  * Handy for an unsaved-changes guard: `guardUnsavedChanges(() => sources.some(hasUnsavedChanges))`.

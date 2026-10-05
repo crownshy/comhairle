@@ -6,8 +6,6 @@
 	import * as Select from '$lib/components/ui/select';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
-	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
-	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';
@@ -31,7 +29,8 @@
 	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import FacilitatorRoleList from './FacilitatorRoleList.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
@@ -46,7 +45,7 @@
 	import EventLocationForm from './EventLocationForm.svelte';
 	import EventRecordings from './EventRecordings.svelte';
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
+	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 
 	let url = $derived(page.url);
@@ -68,8 +67,7 @@
 		)
 	);
 
-	/** Invited-by-email people who haven't registered yet — shown non-selectable
-	 *  in the facilitators tab (a role can't attach without a registration). */
+	// Shown but not selectable in the facilitators tab: a role needs a registration to attach to.
 	let pendingInvites = $derived(
 		emailInvites
 			.filter((invite) => invite.status === 'pending' || invite.status === 'open')
@@ -88,8 +86,7 @@
 	);
 
 	const timeZone = getLocalTimeZone();
-	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
-	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
+	const [startDate] = $derived(event.startTime.split('T'));
 	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
 		value: tz,
 		label: tz
@@ -118,25 +115,23 @@
 
 	let { form, enhance, validateForm, submitting, tainted } = $derived(eventForm);
 
-	// Each field is driven by a TranslationSource (ADR-0005); `onEdit` mirrors the primary value into
-	// `$form` so superForm's inline validation keeps working while the source owns the content.
+	// `onEdit` mirrors the primary value into `$form` so superForm's inline validation still runs (ADR-0005).
 	const nameSource = createTextContentSource({
 		getTranslation: () => event.translations?.name,
 		getPrimaryLocale: () => primaryLanguage,
 		getSupportedLanguages: () => supportedLanguages,
 		getPrimaryFallback: () => $form.name ?? '',
-		onEdit: (content) => ($form.name = content)
+		onEdit: (content) => ($form.name = content),
+		refresh: () => invalidate(key('admin/conversation/events'))
 	});
 	const descriptionSource = createTextContentSource({
 		getTranslation: () => event.translations?.description,
 		getPrimaryLocale: () => primaryLanguage,
 		getSupportedLanguages: () => supportedLanguages,
 		getPrimaryFallback: () => $form.description ?? '',
-		onEdit: (content) => ($form.description = content)
+		onEdit: (content) => ($form.description = content),
+		refresh: () => invalidate(key('admin/event'))
 	});
-
-	// Warn on refresh / navigate-away while a field is still autosaving.
-	guardUnsavedChanges(() => [nameSource, descriptionSource].some(hasUnsavedChanges));
 
 	function convertTimeToSelectedZone(date: string, time: string, timeZone: string) {
 		const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -157,8 +152,7 @@
 	let saving = $state(false);
 
 	async function handleUpdateEvent({ cancel }: { cancel: () => void }) {
-		// We submit via the API client below — prevent SvelteKit from POSTing the form to the
-		// page route (which has no server actions and would return 405 Method Not Allowed).
+		// The page route has no server actions, so a SvelteKit POST would 405. Save via the API client.
 		cancel();
 
 		if (saving) return;
@@ -194,7 +188,7 @@
 				}
 			});
 
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
@@ -290,7 +284,7 @@
 					}
 				}
 			);
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 			agendaDirty = false;
 			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
 		} catch (e) {
@@ -319,7 +313,7 @@
 				message: 'Role updated'
 			});
 
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -330,7 +324,7 @@
 	}
 
 	async function emailInvitesSubmitted() {
-		await invalidateAll();
+		await invalidate(key('admin/event'));
 	}
 </script>
 
@@ -410,30 +404,27 @@
 			</Form.Field>
 		</div>
 
-		<!-- Default time zone -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
 			<Form.Field form={eventForm} name="default_time_zone" class="contents">
 				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>
-							<span>Default time zone</span>
-							<span class="font-normal">Time zone event is taking place in</span>
-						</Form.Label>
-						<div class="flex-1">
-							<Combobox
-								selectedItem={availableTimeZones.find(
-									(tz) => tz.value === $form.default_time_zone
-								)}
-								items={availableTimeZones}
-								placeholder="Select a default timezone"
-								onSelect={(item) => ($form.default_time_zone = item.value)}
-							/>
-						</div>
-					{/snippet}
+					<Form.Label
+						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>
+						<span>Default time zone</span>
+						<span class="font-normal">Time zone event is taking place in</span>
+					</Form.Label>
+					<div class="flex-1">
+						<Combobox
+							selectedItem={availableTimeZones.find(
+								(tz) => tz.value === $form.default_time_zone
+							)}
+							items={availableTimeZones}
+							placeholder="Select a default timezone"
+							onSelect={(item) => ($form.default_time_zone = item.value)}
+						/>
+					</div>
 				</Form.Control>
 			</Form.Field>
 		</div>
@@ -527,37 +518,33 @@
 			</div>
 		</div>
 
-		<!-- Format -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
 			<Form.Field form={eventForm} name="format" class="contents">
 				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					<Form.Label
+						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>
+						<span>Format</span>
+					</Form.Label>
+					<Select.Root
+						type="single"
+						value={$form.format}
+						onValueChange={(value: string) => ($form.format = value)}
+					>
+						<Select.Trigger class="w-45"
+							>Format: {snakeToStartCase($form.format)}</Select.Trigger
 						>
-							<span>Format</span>
-						</Form.Label>
-						<Select.Root
-							type="single"
-							value={$form.format}
-							onValueChange={(value: string) => ($form.format = value)}
-						>
-							<Select.Trigger class="w-45"
-								>Format: {snakeToSentenceCase($form.format)}</Select.Trigger
-							>
-							<Select.Content>
-								<Select.Item value="online">Online</Select.Item>
-								<Select.Item value="in_person">In-person</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					{/snippet}
+						<Select.Content>
+							<Select.Item value="online">Online</Select.Item>
+							<Select.Item value="in_person">In-person</Select.Item>
+						</Select.Content>
+					</Select.Root>
 				</Form.Control>
 			</Form.Field>
 		</div>
 
-		<!-- Custom Event Link -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>

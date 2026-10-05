@@ -9,12 +9,17 @@
 	import { Languages, X, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import type { ComponentProps } from 'svelte';
-	import type { TranslationSource, TranslationEntry } from './translationUtils';
+	import {
+		isAutosaveSource,
+		type TranslationSource,
+		type TranslationEntry
+	} from './translationUtils';
+	import { registerAutosaveSource } from './autosaveRegistry.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
 
-	type BaseProps = {
+	export type TranslatableFieldBaseProps = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
 		source: TranslationSource;
 		primaryLocale: Locale;
@@ -40,7 +45,7 @@
 	// `inputProps` is typed against whichever underlying element `inputType` selects, so callers
 	// get element-correct autocomplete/checking at the call site. TS can't carry that correlation
 	// through the `$props()` destructure (see the cast at the spread below).
-	type Props = BaseProps &
+	export type TranslatableFieldInputProps = TranslatableFieldBaseProps &
 		(
 			| { inputType?: 'input'; inputProps?: ComponentProps<typeof Input> }
 			| { inputType?: 'textarea'; inputProps?: ComponentProps<typeof Textarea> }
@@ -62,7 +67,7 @@
 		availableDocuments = [],
 		conversationId,
 		reportEmbedSteps = []
-	}: Props = $props();
+	}: TranslatableFieldBaseProps & TranslatableFieldInputProps = $props();
 
 	let dialogOpen = $state(false);
 	let clickedLang = $state<Locale | undefined>(undefined);
@@ -71,6 +76,8 @@
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
 	let hasTranslations = $derived(otherLanguages.length > 0);
 	let saveState = $derived(source.saveState);
+
+	registerAutosaveSource(() => source);
 
 	let badges = $derived.by((): TranslationEntry[] =>
 		otherLanguages.map((locale) => ({
@@ -181,6 +188,17 @@
 					<TriangleAlert class="h-3 w-3" />
 					Not saved
 				</span>
+				{#if isAutosaveSource(source)}
+					<Button
+						type="button"
+						variant="link"
+						size="sm"
+						class="h-auto p-0 text-xs"
+						onclick={() => isAutosaveSource(source) && source.retry()}
+					>
+						Retry
+					</Button>
+				{/if}
 			{/if}
 			{#each badges as badge (badge.language)}
 				<LanguageStatusBadge

@@ -1,56 +1,6 @@
+import { parseCsvRows } from '$lib/utils/csv';
 import type { Glossary } from './types';
 import { parseGlossary } from './parseGlossary';
-
-/**
- * Parses CSV text into rows of string cells (RFC 4180: quoted fields may contain commas,
- * newlines, and "" escaped quotes). Hand-rolled because there's no CSV dep in the repo and
- * the glossary's two-column shape doesn't warrant adding one.
- */
-export function parseCsvRows(text: string): string[][] {
-	const rows: string[][] = [];
-	let row: string[] = [];
-	let field = '';
-	let inQuotes = false;
-
-	for (let i = 0; i < text.length; i++) {
-		const char = text[i];
-
-		if (inQuotes) {
-			if (char === '"') {
-				if (text[i + 1] === '"') {
-					field += '"';
-					i++;
-				} else {
-					inQuotes = false;
-				}
-			} else {
-				field += char;
-			}
-			continue;
-		}
-
-		if (char === '"') {
-			inQuotes = true;
-		} else if (char === ',') {
-			row.push(field);
-			field = '';
-		} else if (char === '\n') {
-			row.push(field);
-			rows.push(row);
-			row = [];
-			field = '';
-		} else if (char !== '\r') {
-			// A lone or CRLF '\r' is dropped; '\n' handles the row break.
-			field += char;
-		}
-	}
-
-	row.push(field);
-	rows.push(row);
-
-	// Drop blank lines (a trailing newline leaves an empty final row).
-	return rows.filter((cells) => !(cells.length === 1 && cells[0].trim() === ''));
-}
 
 const HEADER_TERM_NAMES = ['term', 'terms', 'word', 'words', 'phrase'];
 const HEADER_DEFINITION_NAMES = ['tooltip', 'definition', 'explanation', 'meaning', 'description'];
@@ -67,8 +17,8 @@ function looksLikeHeader(cells: string[]): boolean {
  * the second holds the explanation. A header row is skipped when the first row's cells look
  * like column names. Malformed rows are dropped via parseGlossary.
  */
-export function parseGlossaryCsv(text: string): Glossary {
-	const rows = parseCsvRows(text);
+export async function parseGlossaryCsv(text: string): Promise<Glossary> {
+	const { rows } = await parseCsvRows(text);
 	if (rows.length === 0) return [];
 
 	const body = looksLikeHeader(rows[0]) ? rows.slice(1) : rows;

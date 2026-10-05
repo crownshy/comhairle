@@ -10,17 +10,9 @@ import type {
 	ModerationPolicyDto,
 	PartialWorkflowStep,
 	ToolConfigWithTranslations,
-	WorkflowStepWithTranslations
+	WorkflowStepWithTranslations,
+	UpdateModerationPolicyReason
 } from '@crownshy/api-client/api';
-
-export interface RejectReason {
-	/** The saved reason's id. A save sends it back so the reason is updated in place. */
-	id?: string;
-	/** Short label shown in the reason picker and stored verbatim in `moderation_reason`. */
-	label: string;
-	/** What counts under this reason, shown to moderators when they pick it. */
-	description?: string;
-}
 
 /** Joins a reason's label to the moderator's note in `moderation_reason` (ADR-0015). */
 export const REASON_NOTE_SEPARATOR = ': ';
@@ -47,9 +39,11 @@ export function rejectReasonLabelProblems(labels: string[]): (RejectReasonLabelP
 }
 
 /** Trims every reason and drops the ones `rejectReasonLabelProblems` flags. */
-export function cleanRejectReasons(reasons: RejectReason[]): RejectReason[] {
+export function cleanRejectReasons(
+	reasons: UpdateModerationPolicyReason[]
+): UpdateModerationPolicyReason[] {
 	const problems = rejectReasonLabelProblems(reasons.map((reason) => reason.label));
-	const cleaned: RejectReason[] = [];
+	const cleaned: UpdateModerationPolicyReason[] = [];
 	reasons.forEach((reason, index) => {
 		if (problems[index] !== null) return;
 		const label = reason.label.trim();
@@ -61,7 +55,9 @@ export function cleanRejectReasons(reasons: RejectReason[]): RejectReason[] {
 }
 
 /** A saved policy's reasons, in the shape the editor and the reason picker use. */
-export function rejectReasonsFromPolicy(policy: ModerationPolicyDto): RejectReason[] {
+export function rejectReasonsFromPolicy(
+	policy: ModerationPolicyDto
+): UpdateModerationPolicyReason[] {
 	return policy.reasons.map(({ id, label, description }) =>
 		description ? { id, label, description } : { id, label }
 	);
@@ -75,8 +71,8 @@ export function rejectReasonsFromPolicy(policy: ModerationPolicyDto): RejectReas
 export function rejectReasonsForStep(
 	toolConfig: ToolConfigWithTranslations | null | undefined,
 	policies: ModerationPolicyDto[],
-	defaultReasons: RejectReason[]
-): RejectReason[] {
+	defaultReasons: UpdateModerationPolicyReason[]
+): UpdateModerationPolicyReason[] {
 	const policyId = toolConfig?.type === 'polis' ? toolConfig.moderation_policy_id : null;
 	const policy = policies.find((candidate) => candidate.id === policyId) ?? policies[0];
 	return policy ? rejectReasonsFromPolicy(policy) : defaultReasons;
@@ -87,9 +83,9 @@ export function rejectReasonsForStep(
  * case, so the next save updates them in place. A reason renamed while its save was in
  * flight finds no match and is saved as a new reason next time.
  */
-export function withSavedReasonIds<T extends RejectReason>(
+export function withSavedReasonIds<T extends UpdateModerationPolicyReason>(
 	reasons: T[],
-	saved: RejectReason[]
+	saved: UpdateModerationPolicyReason[]
 ): T[] {
 	const labelKey = (label: string) => label.trim().toLowerCase();
 	const heldIds = new Set(reasons.map((reason) => reason.id));
@@ -108,11 +104,6 @@ export function withSavedReasonIds<T extends RejectReason>(
 	});
 }
 
-type StepToolConfigs = Pick<
-	WorkflowStepWithTranslations,
-	'id' | 'toolConfig' | 'previewToolConfig'
->;
-
 /**
  * The step updates that point every Polis step's preview and live configs at `policyId`, or
  * at no policy when it is null. Configs already pointing there are skipped. `pointedAt` holds
@@ -120,7 +111,7 @@ type StepToolConfigs = Pick<
  * are loaded again.
  */
 export function policyStepUpdates(
-	steps: StepToolConfigs[],
+	steps: WorkflowStepWithTranslations[],
 	policyId: string | null,
 	pointedAt: ReadonlyMap<string, string | null> = new Map()
 ): { stepId: string; body: PartialWorkflowStep }[] {

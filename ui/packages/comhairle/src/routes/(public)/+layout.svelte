@@ -10,6 +10,14 @@
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
 	const isLivePage = $derived(page.url.pathname.endsWith('/live'));
 
+	// A Room display is projected in a room, so it renders no site chrome at all and
+	// fills the viewport: a NavBar and Footer would both steal space from an eight-metre
+	// read and shift the layout as the page settles. See CONTEXT.md, "Room display".
+	const isRoomDisplay = $derived(
+		page.route.id ===
+			'/(public)/conversations/[conversation_id]/room-display/[workflow_step_id]'
+	);
+
 	let isAdmin = $derived(
 		data.userRoles
 			? data.userRoles.find((ur) => ur.resource === 'Site')?.roles.includes('Admin')
@@ -18,10 +26,12 @@
 </script>
 
 <div class="flex min-h-screen w-full flex-col {isReportPage ? 'bg-primary/10' : ''}">
-	{#if !isEmbed && !isAuthPage && !isLivePage}
+	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
-	{#if isAuthPage || isReportPage}
+	{#if isRoomDisplay}
+		{@render children()}
+	{:else if isAuthPage || isReportPage}
 		<div class="grow">
 			{@render children()}
 		</div>
@@ -34,7 +44,7 @@
 			{@render children()}
 		</div>
 	{/if}
-	{#if !isEmbed && !isLivePage}
+	{#if !isEmbed && !isLivePage && !isRoomDisplay}
 		<Footer />
 	{/if}
 </div>

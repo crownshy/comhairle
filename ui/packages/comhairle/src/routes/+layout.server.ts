@@ -1,19 +1,15 @@
 import type { LayoutServerLoad } from './$types.js';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName } from '$lib/types/theme';
+import { key } from '$lib/utils/invalidationKey';
 
 export const load: LayoutServerLoad = async (event) => {
-	event.depends('user');
+	event.depends(key('user'));
 
 	const common = {
 		themeName: resolveThemeName(env.PUBLIC_THEME),
 		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true'
 	};
-
-	const resp = await event.fetch(`/api/auth/current_user`, {
-		method: 'GET',
-		headers: { Accept: 'application/json' }
-	});
 
 	// Keep extraction of `auth-token` cookie after `/api/auth/current_user`
 	// request.
@@ -24,11 +20,28 @@ export const load: LayoutServerLoad = async (event) => {
 	// `hooks.server.ts`).
 	const tk = event.cookies.get('auth-token');
 
-	if (!tk || !resp.ok) {
-		return { user: null, ...common };
+	let body: { id?: string } | undefined;
+	try {
+		const resp = await event.fetch(`/api/auth/current_user`, {
+			method: 'GET',
+			headers: { Accept: 'application/json' }
+		});
+
+		if (!tk || !resp.ok) {
+			return { user: null, ...common };
+		}
+		body = await resp.json();
+	} catch (e) {
+		// Network-level failure, including a connection reset mid-body-read
+		// (resp.ok can be true before the stream errors out) — degrade to
+		// anonymous instead of letting this throw crash every route that
+		// shares this root layout. Still pass the cookie through: the
+		// session itself is fine, only this one fetch failed, so child loads
+		// should keep authenticating rather than silently going anonymous too.
+		return { user: null, token: tk, ...common };
 	}
-	const body = await resp.json();
-	if (!body.id) return { user: null, ...common };
+
+	if (!body?.id) return { user: null, ...common };
 
 	// console.log("Returning with token ", tk)
 	return { user: body, token: tk, ...common };

@@ -393,6 +393,7 @@
 							<div class="relative z-10 shrink-0">
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger
+										title="More options"
 										aria-label="Step actions"
 										class="text-muted-foreground hover:text-foreground hover:bg-accent flex size-9 items-center justify-center rounded-md transition-colors"
 									>
