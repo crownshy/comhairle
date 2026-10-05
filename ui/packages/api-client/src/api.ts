@@ -1369,10 +1369,6 @@ export const ToolConfig = z.union([
       admin_user: z.string(),
       description: z.union([z.string(), z.null()]).optional().default(null),
       is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-      label_seeds_as_conversation_starter: z
-        .boolean()
-        .optional()
-        .default(false),
       moderation_policy_id: z
         .union([z.string(), z.null()])
         .optional()
@@ -1579,10 +1575,6 @@ export const ToolConfigWithTranslations = z.union([
       admin_user: z.string(),
       description: z.union([z.string(), z.null()]).optional().default(null),
       is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-      label_seeds_as_conversation_starter: z
-        .boolean()
-        .optional()
-        .default(false),
       moderation_policy_id: z
         .union([z.string(), z.null()])
         .optional()
@@ -1722,10 +1714,6 @@ export const LocalizedToolConfig = z.union([
       admin_user: z.string(),
       description: z.union([z.string(), z.null()]).optional().default(null),
       is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-      label_seeds_as_conversation_starter: z
-        .boolean()
-        .optional()
-        .default(false),
       moderation_policy_id: z
         .union([z.string(), z.null()])
         .optional()

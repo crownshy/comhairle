@@ -63,7 +63,8 @@
 			getPrimaryLocale: () => primaryLocale,
 			getSupportedLanguages: () => supportedLanguages,
 			getPrimaryFallback: () => $form[field] ?? '',
-			onEdit: (content) => ($form[field] = content)
+			onEdit: (content) => ($form[field] = content),
+			refresh: () => invalidate(key('admin/conversation'))
 		});
 
 	const titleSource = fieldSource('title');

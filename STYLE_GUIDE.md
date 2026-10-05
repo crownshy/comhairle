@@ -403,6 +403,29 @@ type safe
 - When sibling pages fetch the same resource, hoist the fetch to the nearest shared layout
   `load` and read it via `await parent()` in children.
 
+### Autosave
+
+Fields that save as you type (configure pages, step config, events, the report summary) follow
+one pattern. ADR-0005 has the background.
+
+- **A save sends data, it doesn't reload.** The client already has what was typed. Calling
+  `invalidate` or `invalidateAll` after each save reruns layout loads every time someone pauses,
+  and anything rendered from a re-created streamed promise (`{#await}`) remounts, which resets
+  scroll and cursor in an editor.
+- **Translatable text goes through `createTextContentSource` + `TranslatableField`.** Pass a
+  `refresh` that reloads only the load your `getTranslation()` data comes from:
+  `refresh: () => invalidate(key('admin/conversation'))`, or a store's own reload.
+- **Reload once, when the user leaves.** `AutosaveLeaveGuard` in the admin layout does this for
+  every mounted `TranslatableField`: it waits for in-flight saves, offers Retry / Leave anyway /
+  Stay after a failed one, and reloads stale data after the navigation. A dialog that sits on top
+  of a list it edits calls `source.sync()` when it closes.
+- **Never `invalidate` inside `beforeNavigate`.** It cancels the navigation in progress. Reload in
+  `afterNavigate` instead.
+- **A failed save must be loud.** Keep the text on screen, show a notification and a Retry, and
+  don't let the user leave without choosing. Never drop an edit silently.
+- **Autosave that isn't a `TranslationSource`** (glossary, moderation policy) uses
+  `guardUnsavedChanges` so leaving mid-save still warns.
+
 ### Before you finish
 
 - `pnpm test:unit` and `pnpm check` (svelte-check) pass.

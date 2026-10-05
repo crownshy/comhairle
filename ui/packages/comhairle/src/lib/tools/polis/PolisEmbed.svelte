@@ -25,6 +25,8 @@
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import StatementSourceLabel from './StatementSourceLabel.svelte';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	type Props = {
 		polis_id: string;
@@ -120,6 +122,8 @@
 	let opinionError = $state(false);
 	let returningToVoting = $state(false);
 	const submitBusy = $derived(opinionSubmitting || returningToVoting);
+	const MAX_STATEMENT_LENGTH = 200;
+	const charactersLeft = $derived(MAX_STATEMENT_LENGTH - opinionText.length);
 	let previousText = '';
 	let visibleStatementWhenOpened: PolisStatement | undefined = undefined;
 
@@ -293,7 +297,6 @@
 		}
 	}
 
-	const remainingBeforeContinue = $derived(safeRequiredVotes - totalVotes);
 	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
@@ -307,10 +310,13 @@
 			in:fade={{ duration: 300 }}
 		>
 			<!-- Opinion counter -->
-			{#if !polisReady}
-				<div class="bg-foreground/10 h-5 w-32 animate-pulse rounded md:h-6"></div>
-			{:else if !polisError && !poolExhausted && showRemainingStatementCount}
-				<p class="text-muted-foreground tex-base font-semibold md:text-lg">
+			{#if showRemainingStatementCount && !polisReady}
+				<div class="flex h-6 items-center md:h-7">
+					<Skeleton class="h-4 w-32 rounded md:h-5" />
+				</div>
+				<Skeleton class="h-1.5 w-full rounded-none" />
+			{:else if showRemainingStatementCount && !polisError && !poolExhausted}
+				<p class="text-muted-foreground text-base font-semibold md:text-lg">
 					{m.polis_opinion_counter({
 						current: opinionPosition.current,
 						total: opinionPosition.total
@@ -341,24 +347,27 @@
 					</div>
 				{:else if !polisReady || waitingForNext || !polisCurrentStatement}
 					<!-- Loading, between statements, or briefly empty before the screen
-					     flips to "completed" — show a skeleton, never a blank card. -->
-					<div in:fade={{ duration: 200 }} class="w-full animate-pulse">
-						<div class="space-y-3">
-							<div class="bg-foreground/10 h-8 w-full rounded"></div>
-							<div class="bg-foreground/10 h-8 w-4/5 rounded"></div>
-							<div class="bg-foreground/10 h-8 w-3/5 rounded"></div>
+					     flips to "completed". Rows match the label, the statement box and its
+					     line heights so nothing below moves when the statement arrives. -->
+					<div in:fade={{ duration: 200 }} class="w-full">
+						<div class="mb-1 flex h-6 items-center">
+							<Skeleton class="h-5 w-64 max-w-full rounded" />
+						</div>
+						<div class="border-foreground/10 rounded-lg border px-4 py-3">
+							<div class="flex h-9 items-center">
+								<Skeleton class="h-6 w-full rounded sm:h-7" />
+							</div>
+							<div class="flex h-9 items-center">
+								<Skeleton class="h-6 w-3/5 rounded sm:h-7" />
+							</div>
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					{#if polisCurrentStatement.is_seed}
-						<p class="text-seed-highlight mb-1 text-right text-xs font-medium">
-							{m.polis_seed_statement()}
-						</p>
-					{/if}
+					<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
 					<div
-						class="border-seed-highlight rounded-lg transition-colors {polisCurrentStatement.is_seed
-							? 'bg-seed-highlight-bg border-seed-highlight border px-4 py-3'
-							: ''}"
+						class="rounded-lg border px-4 py-3 transition-colors {polisCurrentStatement.is_seed
+							? 'bg-seed-highlight-bg border-seed-highlight'
+							: 'bg-participant-highlight-bg border-participant-highlight'}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
 						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
@@ -368,7 +377,8 @@
 				{/if}
 			</div>
 
-			{#if !polisError && polisCurrentStatement}
+			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
+			{#if !polisError && (!polisReady || polisCurrentStatement)}
 				<!-- Vote buttons -->
 				<div class="flex flex-wrap items-start gap-4 md:gap-6">
 					<Button
@@ -462,6 +472,7 @@
 				<ul class="list-inside list-disc space-y-2">
 					<li>{m.polis_tip_agreeable()}</li>
 					<li>{m.polis_tip_one_idea()}</li>
+					<li>{m.polis_tip_max_length({ max: MAX_STATEMENT_LENGTH })}</li>
 					<li>{m.polis_tip_no_jargon()}</li>
 					<li>{m.polis_tip_many_statements()}</li>
 					<li>{m.polis_tip_come_back()}</li>
@@ -487,8 +498,18 @@
 					bind:value={opinionText}
 					oninput={() => (opinionError = false)}
 					placeholder={m.polis_opinion_placeholder()}
+					maxlength={MAX_STATEMENT_LENGTH}
+					aria-describedby="polis-opinion-characters-left"
 					class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
 				></textarea>
+				<p
+					id="polis-opinion-characters-left"
+					class="mt-2 text-right text-base {charactersLeft === 0
+						? 'text-destructive'
+						: 'text-muted-foreground'}"
+				>
+					{m.polis_characters_left({ count: charactersLeft })}
+				</p>
 			</div>
 
 			<div class="flex flex-wrap items-start gap-6">
