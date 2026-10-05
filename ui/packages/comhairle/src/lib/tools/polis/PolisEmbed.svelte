@@ -12,8 +12,7 @@
 		MessageSquare,
 		MessageSquarePlus,
 		AlertTriangle,
-		Lightbulb
-		AlertTriangle,
+		Lightbulb,
 		Languages
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
@@ -444,7 +443,7 @@
 						<p
 							class="text-card-foreground mt-3 text-xl leading-snug font-normal sm:mt-4 sm:text-3xl sm:leading-9"
 						>
-							{polisCurrentStatement.txt}
+							{displayText}
 						</p>
 						{#if isTranslated}
 							<button
