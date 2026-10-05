@@ -7,7 +7,7 @@
 	import { GUIDE_NAV } from '$lib/tool_guides';
 	import type { LayoutProps } from './$types';
 	import * as Collapsible from '$lib/components/ui/collapsible';
-	import { ChevronDown } from 'lucide-svelte';
+	import { ChevronDown, Folder, FolderOpen } from 'lucide-svelte';
 
 	let { children }: LayoutProps = $props();
 	const NAV_GROUPS = [
@@ -44,7 +44,7 @@
 	}
 </script>
 
-<div class="bg-background flex min-h-svh flex-col">
+<div class="bg-nav-background flex min-h-svh flex-col">
 	<div class="bg-card border-border border-b px-4 py-2 md:px-8">
 		<h1 class="text-primary my-2 text-2xl font-semibold">Comhairle Admin Guide</h1>
 	</div>
@@ -73,7 +73,7 @@
 				</Select.Root>
 			</div>
 			<nav
-				class="bg-nav-background hidden shrink-0 flex-col gap-4 rounded-lg md:flex md:w-56"
+				class="hidden shrink-0 flex-col gap-4 rounded-lg md:flex md:w-56"
 				aria-label="Admin guide"
 			>
 				{#each NAV_GROUPS as group, groupIndex (group.label)}
@@ -96,9 +96,19 @@
 										>
 											<div class="flex items-center gap-1">
 												<Collapsible.Trigger
-													class="text-foreground hover:bg-muted flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-base font-medium [&[data-state=closed]>svg]:-rotate-90"
+													class="group/guide text-foreground hover:bg-muted flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium [&[data-state=closed]>svg]:-rotate-90"
 												>
-													{item.label}
+													<span class="flex items-center gap-2">
+														<Folder
+															class="text-muted-foreground size-4 shrink-0 group-data-[state=open]/guide:hidden"
+															aria-hidden="true"
+														/>
+														<FolderOpen
+															class="text-muted-foreground hidden size-4 shrink-0 group-data-[state=open]/guide:block"
+															aria-hidden="true"
+														/>
+														{item.label}
+													</span>
 													<ChevronDown
 														class="size-4 shrink-0 transition-transform"
 														aria-hidden="true"
@@ -114,11 +124,11 @@
 														<li>
 															<a
 																href={resolve(topic.path)}
-																class="text-foreground block rounded-lg px-2 py-2 text-base {page
+																class="block rounded-lg px-2 py-2 text-sm {page
 																	.url.pathname ===
 																resolve(topic.path)
-																	? 'bg-muted'
-																	: 'hover:bg-muted/60'}"
+																	? 'bg-accent text-accent-foreground'
+																	: 'text-foreground hover:bg-muted/60'}"
 																aria-current={page.url.pathname ===
 																resolve(topic.path)
 																	? 'page'
@@ -134,10 +144,10 @@
 									{:else}
 										<a
 											href={resolve(item.path)}
-											class="text-foreground inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {page
+											class="inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {page
 												.url.pathname === resolve(item.path)
-												? 'bg-muted'
-												: 'hover:bg-muted/60'}"
+												? 'bg-accent text-accent-foreground'
+												: 'text-foreground hover:bg-muted/60'}"
 											aria-current={page.url.pathname === resolve(item.path)
 												? 'page'
 												: undefined}>{item.label}</a
@@ -149,7 +159,9 @@
 					</Collapsible.Root>
 				{/each}
 			</nav>
-			{@render children()}
+			<div class="bg-card min-w-0 flex-1 rounded-xl">
+				{@render children()}
+			</div>
 		</div>
 	</div>
 </div>
