@@ -38,13 +38,13 @@
 	let tabs = [
 		{
 			value: 'faqs',
-			label: 'FAQs',
+			label: m.faq,
 			content: conversation.faqs,
 			fallback: ComhairleFAQs
 		},
 		{
 			value: 'privacyPolicy',
-			label: 'Privacy Policy',
+			label: m.privacy_policy,
 			content: conversation.privacyPolicy,
 			fallback: ComhairlePrivacyPolicy
 		}
@@ -74,14 +74,14 @@
 					<Tabs.Trigger
 						value="learningAssistant"
 						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
-						>Learning assistant</Tabs.Trigger
+						>{m.learning_assistant()}</Tabs.Trigger
 					>
 				{/if}
 				{#each tabs as tab (tab.value)}
 					<Tabs.Trigger
 						value={tab.value}
 						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
-						>{tab.label}</Tabs.Trigger
+						>{tab.label()}</Tabs.Trigger
 					>
 				{/each}
 			</div>
