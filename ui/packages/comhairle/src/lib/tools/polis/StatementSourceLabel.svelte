@@ -7,12 +7,6 @@
 	let { source }: Props = $props();
 </script>
 
-<p
-	class={cn(
-		'inline-flex items-start gap-2 rounded-2xl border px-2.5 py-1 text-base font-medium sm:items-center sm:rounded-full sm:px-3',
-		source.labelClass
-	)}
->
-	<source.icon class="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
+<p class={cn('text-base font-medium', source.labelClass)}>
 	{source.label()}
 </p>
