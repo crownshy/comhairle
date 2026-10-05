@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-
 	let { data }: PageProps = $props();
 </script>
 
@@ -8,8 +7,8 @@
 	<title>{data.topic.title} - Comhairle Admin Guide</title>
 </svelte:head>
 
-<main class="bg-muted w-full max-w-6xl min-w-0 rounded-xl p-6">
-	<h1 class="text-primary text-4xl font-bold">
+<main class="w-full max-w-6xl min-w-0 rounded-xl p-6">
+	<h1 class="text-foreground text-2xl font-bold">
 		{data.topic.title}
 	</h1>
 
