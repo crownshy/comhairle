@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { BadgeCheck, User } from 'lucide-svelte';
+	import { Megaphone, User } from 'lucide-svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = { isSeed: boolean };
 
 	let { isSeed }: Props = $props();
 
-	const Icon = $derived(isSeed ? BadgeCheck : User);
+	const Icon = $derived(isSeed ? Megaphone : User);
 </script>
 
 <p
