@@ -73,8 +73,8 @@
 				</Select.Root>
 			</div>
 			<nav class="hidden shrink-0 flex-col gap-4 md:flex md:w-56" aria-label="Admin guide">
-				{#each NAV_GROUPS as group (group.label)}
-					<Collapsible.Root open={true} class="group">
+				{#each NAV_GROUPS as group, groupIndex (group.label)}
+					<Collapsible.Root open={groupIndex === 0} class="group">
 						<Collapsible.Trigger
 							class="text-foreground hover:bg-muted flex w-full items-center justify-between rounded-lg px-3 py-2 text-base font-semibold"
 						>
@@ -86,9 +86,11 @@
 						</Collapsible.Trigger>
 						<Collapsible.Content>
 							<div class="mt-2 flex flex-col gap-2">
-								{#each group.items as item (resolve(item.path))}
+								{#each group.items as item, itemIndex (resolve(item.path))}
 									{#if 'topics' in item}
-										<Collapsible.Root open={true}>
+										<Collapsible.Root
+											open={groupIndex === 0 && itemIndex === 0}
+										>
 											<div class="flex items-center gap-1">
 												<Collapsible.Trigger
 													class="text-foreground hover:bg-muted flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-base font-medium [&[data-state=closed]>svg]:-rotate-90"
@@ -99,16 +101,6 @@
 														aria-hidden="true"
 													/>
 												</Collapsible.Trigger>
-
-												<!-- <Collapsible.Trigger
-													class="hover:bg-muted rounded-lg p-2 [&[data-state=closed]>svg]:-rotate-90"
-													aria-label={`Toggle topics for ${item.label}`}
-												>
-													<ChevronDown
-														class="size-4 transition-transform"
-														aria-hidden="true"
-													/>
-												</Collapsible.Trigger> -->
 											</div>
 
 											<Collapsible.Content>
