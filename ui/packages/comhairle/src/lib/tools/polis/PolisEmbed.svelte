@@ -501,7 +501,7 @@
 				></textarea>
 				<p
 					id="polis-opinion-characters-left"
-					class="mt-2 text-right text-base {charactersLeft === 0
+					class="mt-2 text-end text-base {charactersLeft === 0
 						? 'text-destructive'
 						: 'text-muted-foreground'}"
 				>
