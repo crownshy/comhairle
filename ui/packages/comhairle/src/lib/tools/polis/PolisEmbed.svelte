@@ -348,26 +348,26 @@
 					     flips to "completed". Rows match the label, the statement box and its
 					     line heights so nothing below moves when the statement arrives. -->
 					<div in:fade={{ duration: 200 }} class="w-full">
-						<div class="border-foreground/10 rounded-2xl border p-4 sm:p-6">
-							<Skeleton class="mb-4 h-8 w-72 max-w-full rounded-full" />
-							<div class="flex h-9 items-center">
+						<div class="border-foreground/10 rounded-2xl border p-3 sm:p-6">
+							<Skeleton class="mb-3 h-8 w-72 max-w-full rounded-full" />
+							<div class="flex h-7 items-center sm:h-9">
 								<Skeleton class="h-6 w-full rounded sm:h-7" />
 							</div>
-							<div class="flex h-9 items-center">
+							<div class="flex h-7 items-center sm:h-9">
 								<Skeleton class="h-6 w-3/5 rounded sm:h-7" />
 							</div>
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
 					<div
-						class="rounded-2xl border p-4 transition-colors sm:p-6 {polisCurrentStatement.is_seed
+						class="rounded-2xl border p-3 transition-colors sm:p-6 {polisCurrentStatement.is_seed
 							? 'bg-seed-highlight-bg border-seed-highlight'
 							: 'bg-participant-highlight-bg border-participant-highlight'}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
 						<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
 						<p
-							class="text-card-foreground mt-4 text-xl leading-9 font-normal sm:text-3xl"
+							class="text-card-foreground mt-3 text-xl leading-snug font-normal sm:mt-4 sm:text-3xl sm:leading-9"
 						>
 							{polisCurrentStatement.txt}
 						</p>
@@ -416,7 +416,7 @@
 					onclick={openAddOpinion}
 				>
 					<MessageSquarePlus class="size-6" />
-					{m.polis_add_opinion()}
+					{m.polis_add_your_own_opinion()}
 				</Button>
 			{/if}
 

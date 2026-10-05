@@ -10,7 +10,7 @@
 </script>
 
 <p
-	class="inline-flex items-start gap-2 rounded-2xl border px-3 py-1 text-base font-medium sm:items-center sm:rounded-full {isSeed
+	class="inline-flex items-start gap-2 rounded-2xl border px-2.5 py-1 text-base font-medium sm:items-center sm:rounded-full sm:px-3 {isSeed
 		? 'border-seed-highlight text-seed-highlight'
 		: 'border-participant-highlight text-participant-highlight'}"
 >
