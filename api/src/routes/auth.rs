@@ -22,25 +22,27 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
 };
 use axum_keycloak_auth::instance::KeycloakAuthInstance;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
 use governor::middleware::StateInformationMiddleware;
 use hmac::{Hmac, KeyInit, Mac};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
-use rand_core::OsRng;
+use rand_core::{OsRng, RngCore};
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use time::Duration;
 use tower::layer::util::Identity;
 use tower::util::Either;
 use tower_governor::GovernorLayer;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::{instrument, warn};
+use url::Url;
 use uuid::Uuid;
 
 use crate::auth_service::GetAuthorizationTokensResponse;
@@ -71,6 +73,9 @@ const REFRESH_KEY: &str = "refresh-token";
 pub const KC_ACCESS_KEY: &str = "kc-access-token";
 pub const KC_IDENTITY_KEY: &str = "kc-id-token";
 pub const KC_REFRESH_KEY: &str = "kc-refresh-token";
+
+pub const LOGIN_TTL_SECS: u64 = 600;
+pub const LOGIN_STATE_KEY: &str = "oauth_state";
 
 /// Helper function to check if a user is admin
 pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &UserDto) -> bool {
@@ -207,7 +212,7 @@ pub fn hash_pw(password: &str) -> Result<String, ComhairleError> {
 
 /// Expected payload for a login request
 #[derive(Deserialize, JsonSchema)]
-struct LoginRequest {
+struct LegacyLoginRequest {
     email: String,
     password: String,
 }
@@ -443,7 +448,7 @@ async fn legacy_login(
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
-    Json(payload): Json<LoginRequest>,
+    Json(payload): Json<LegacyLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = get_user_by_email(&payload.email, &state.db).await?;
 
@@ -1258,17 +1263,116 @@ pub async fn current_user(
     }
 }
 
+/// Ensure `back_to` path from login request is safe and won't attempt to redirect
+/// user to different domain (phishing).
+// TODO: unit tests
+fn safe_back_to_path(back_to: Option<&str>) -> String {
+    match back_to {
+        Some(path)
+            if path.starts_with('/')
+                && !path.starts_with("//")
+                && !path.starts_with("/\\")
+                && !path.contains('\\')
+                && !path.chars().any(|char| char.is_control()) =>
+        {
+            path.to_string()
+        }
+        _ => "/".to_string(),
+    }
+}
+
+/// Generate random 32 byte string value
+fn random_token() -> String {
+    let mut bytes = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    URL_SAFE_NO_PAD.encode(bytes)
+}
+
+fn code_challenge(verifier: &str) -> String {
+    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+}
+
+fn pending_login_redis_key(rand_token: &str) -> String {
+    format!("auth:pending:{rand_token}")
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+struct LoginRequest {
+    #[serde(rename = "camelCase")]
+    back_to: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PendingLogin {
+    back_to: String,
+    code_verifier: String,
+}
+
 #[instrument(err(Debug), skip(state))]
-async fn login(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, ComhairleError> {
+async fn login(
+    State(state): State<Arc<ComhairleState>>,
+    Query(query): Query<LoginRequest>,
+    jar: CookieJar,
+) -> Result<(CookieJar, Redirect), ComhairleError> {
+    // TODO: redirect user to homepage if any error occurs in this handler
+    // otherwise user is presented with `{ err: "No redis configured" }` or
+    // something similar
     let auth_config = &state.config.auth_service;
+    let redis = state
+        .redis_conn
+        .as_ref()
+        .ok_or_else(|| ComhairleError::NoRedisConfigured)?;
 
     let redirect_url = format!("{}/api/auth/callback", state.config.domain);
-    let authentication_url = format!(
-        "{}/realms/{}/protocol/openid-connect/auth?client_id={}&response_type=code&scope=openid&redirect_uri={}",
-        auth_config.url, auth_config.realm, auth_config.client_id, redirect_url
-    );
 
-    Ok(Redirect::to(&authentication_url))
+    let oauth_state = random_token();
+    let pending = PendingLogin {
+        back_to: safe_back_to_path(query.back_to.as_deref()),
+        code_verifier: random_token(),
+    };
+
+    redis
+        .set_ex(
+            &pending_login_redis_key(&oauth_state),
+            &serde_json::to_string(&pending)?,
+            LOGIN_TTL_SECS,
+        )
+        .await
+        .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+
+    let authentication_url = Url::parse_with_params(
+        &format!(
+            "{}/realms/{}/protocol/openid-connect/auth",
+            auth_config.url, auth_config.realm
+        ),
+        &[
+            ("client_id", auth_config.client_id.as_str()),
+            ("response_type", "code"),
+            ("scope", "openid"),
+            ("redirect_uri", &redirect_url),
+            ("state", &oauth_state),
+            (
+                "code_challenge",
+                code_challenge(&pending.code_verifier).as_str(),
+            ),
+            ("code_challenge_method", "S256"),
+        ],
+    )?;
+
+    // Bind login flow to the browser to prevent CSRF logging user in as
+    // malicious actor and potentially exposing sensitive data.
+    let state_cookie = Cookie::build((LOGIN_STATE_KEY, oauth_state))
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::Lax)
+        .path("/api/auth/callback")
+        .max_age(Duration::seconds(LOGIN_TTL_SECS as i64))
+        .build();
+
+    Ok((
+        jar.add(state_cookie),
+        Redirect::to(authentication_url.as_str()),
+    ))
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
