@@ -46,7 +46,7 @@
 
 <div class="bg-background flex min-h-svh flex-col">
 	<div class="bg-card border-border border-b px-4 py-2 md:px-8">
-		<h1 class="text-primary text-3xl font-semibold">Comhairle Admin Guide</h1>
+		<h1 class="text-primary my-2 text-2xl font-semibold">Comhairle Admin Guide</h1>
 	</div>
 	<div class="px-4 py-6 md:px-8">
 		<div class="flex flex-col gap-6 md:flex-row md:items-start md:gap-10 md:pb-10">
@@ -72,7 +72,10 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<nav class="hidden shrink-0 flex-col gap-4 md:flex md:w-56" aria-label="Admin guide">
+			<nav
+				class="bg-nav-background hidden shrink-0 flex-col gap-4 rounded-lg md:flex md:w-56"
+				aria-label="Admin guide"
+			>
 				{#each NAV_GROUPS as group, groupIndex (group.label)}
 					<Collapsible.Root open={groupIndex === 0} class="group">
 						<Collapsible.Trigger

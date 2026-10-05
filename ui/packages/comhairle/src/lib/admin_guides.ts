@@ -122,13 +122,13 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Go through the participant journey in preview and check each Step. Launch your Conversation when its content and Steps are ready.'
 			},
 			{
-				key: 'invite -articipants',
+				key: 'invite-participants',
 				title: 'Invite participants',
 				navLabel: 'Invite participants',
 				content: 'Share the participant link with the people you want to take part.'
 			},
 			{
-				key: 'moderatino',
+				key: 'moderation',
 				title: 'Moderate contributions',
 				navLabel: 'Moderate contributions',
 				content:
