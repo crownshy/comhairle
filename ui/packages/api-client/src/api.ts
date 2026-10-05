@@ -564,6 +564,12 @@ export const PolisStatementTranslation = z
 export type PolisStatementTranslation = z.infer<
   typeof PolisStatementTranslation
 >;
+export const UpdateStatementTranslationRequest = z
+  .object({ content: z.string() })
+  .passthrough();
+export type UpdateStatementTranslationRequest = z.infer<
+  typeof UpdateStatementTranslationRequest
+>;
 export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
@@ -3355,6 +3361,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SyncStatementAuxResponse,
   LocalizedStatement,
   PolisStatementTranslation,
+  UpdateStatementTranslationRequest,
   ThemeStatistic,
   ThemeRequest,
   ModerationDecisionRequest,
@@ -6603,6 +6610,29 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.array(ThemeStatistic),
+  },
+  {
+    method: "put",
+    path: "/tools/polis/statement_translation/:id",
+    alias: "PolisUpdateStatementTranslation",
+    description: `Overwrites a translation&#x27;s content with an admin-provided correction. Clears ai_generated and requires_validation, since the text is no longer raw machine output and a human has just reviewed it.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ content: z.string() }).passthrough(),
+      },
+    ],
+    response: PolisStatementTranslation,
+  },
+  {
+    method: "put",
+    path: "/tools/polis/statement_translation/:id/verify",
+    alias: "PolisVerifyStatementTranslation",
+    description: `Clears requires_validation without changing the translation&#x27;s content, for when an admin reviews a machine translation and finds it&#x27;s already correct.`,
+    requestFormat: "json",
+    response: PolisStatementTranslation,
   },
   {
     method: "get",
