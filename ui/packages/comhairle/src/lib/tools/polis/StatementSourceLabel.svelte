@@ -1,15 +1,20 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
+	import { cn } from '$lib/utils';
+	import type { StatementSource } from './statementSource';
 
-	type Props = { isSeed: boolean };
+	type Props = { source: StatementSource };
 
-	let { isSeed }: Props = $props();
+	let { source }: Props = $props();
 </script>
 
+<!-- Kept small so the source reads as secondary to the statement. The tint carries the source
+     colour because the highlight colours are too light for small text. -->
 <p
-	class="mb-1 text-base font-semibold {isSeed
-		? 'text-seed-highlight'
-		: 'text-participant-highlight'}"
+	class={cn(
+		'text-foreground/80 inline-flex items-start gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium sm:text-sm',
+		source.tagClass
+	)}
 >
-	{isSeed ? m.polis_seed_statement() : m.polis_participant_statement()}
+	<source.icon class="mt-px size-3.5 shrink-0 sm:mt-0.5 sm:size-4" aria-hidden="true" />
+	{source.label()}
 </p>
