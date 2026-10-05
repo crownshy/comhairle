@@ -14,9 +14,11 @@
 		{
 			label: 'Admin how-to',
 			items: ADMIN_GUIDE_NAV.map((guide) => ({
+				key: guide.key,
 				label: guide.navLabel,
 				path: `/admin/info/how-to/${guide.key}` as const,
 				topics: guide.topics.map((topic) => ({
+					key: topic.key,
 					label: topic.navLabel,
 					path: `/admin/info/how-to/${guide.key}/${topic.key}` as const
 				}))
@@ -25,6 +27,7 @@
 		{
 			label: 'Engagement tools',
 			items: GUIDE_NAV.map((guide) => ({
+				key: guide.key,
 				label: guide.navLabel,
 				path: `/admin/info/tools/${guide.key}` as const
 			}))
@@ -37,6 +40,22 @@
 		NAV_ITEMS.find((item) => resolve(item.path) === page.url.pathname)?.label ??
 			'Select a guide'
 	);
+
+	// Which guide, topic or tool is open comes from the URL's params
+	// (/how-to/[guide_id]/[topic_id], /tools/[tool_id]). We compare keys rather
+	// than resolve()d paths because during server rendering resolve() returns
+	// relative paths (../../admin/...), which never equal page.url.pathname.
+	type NavItem = (typeof NAV_ITEMS)[number];
+
+	function isActiveItem(item: NavItem) {
+		return 'topics' in item
+			? page.params.guide_id === item.key
+			: page.params.tool_id === item.key;
+	}
+
+	function isActiveTopic(guideKey: string, topicKey: string) {
+		return page.params.guide_id === guideKey && page.params.topic_id === topicKey;
+	}
 
 	function navigateToGuide(path: string) {
 		const item = NAV_ITEMS.find((item) => resolve(item.path) === path);
@@ -76,8 +95,8 @@
 				class="hidden shrink-0 flex-col gap-4 rounded-lg md:flex md:w-56"
 				aria-label="Admin guide"
 			>
-				{#each NAV_GROUPS as group, groupIndex (group.label)}
-					<Collapsible.Root open={groupIndex === 0} class="group">
+				{#each NAV_GROUPS as group (group.label)}
+					<Collapsible.Root open={group.items.some(isActiveItem)} class="group">
 						<Collapsible.Trigger
 							class="text-foreground hover:bg-muted flex w-full items-center justify-between rounded-lg px-3 py-2 text-base font-semibold"
 						>
@@ -89,11 +108,9 @@
 						</Collapsible.Trigger>
 						<Collapsible.Content>
 							<div class="mt-2 flex flex-col gap-2">
-								{#each group.items as item, itemIndex (resolve(item.path))}
+								{#each group.items as item (resolve(item.path))}
 									{#if 'topics' in item}
-										<Collapsible.Root
-											open={groupIndex === 0 && itemIndex === 0}
-										>
+										<Collapsible.Root open={isActiveItem(item)}>
 											<div class="flex items-center gap-1">
 												<Collapsible.Trigger
 													class="group/guide text-foreground hover:bg-muted flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium [&[data-state=closed]>svg]:-rotate-90"
@@ -124,13 +141,16 @@
 														<li>
 															<a
 																href={resolve(topic.path)}
-																class="block rounded-lg px-2 py-2 text-sm {page
-																	.url.pathname ===
-																resolve(topic.path)
+																class="block rounded-lg px-2 py-2 text-sm {isActiveTopic(
+																	item.key,
+																	topic.key
+																)
 																	? 'bg-accent text-accent-foreground'
 																	: 'text-foreground hover:bg-muted/60'}"
-																aria-current={page.url.pathname ===
-																resolve(topic.path)
+																aria-current={isActiveTopic(
+																	item.key,
+																	topic.key
+																)
 																	? 'page'
 																	: undefined}
 															>
@@ -144,13 +164,13 @@
 									{:else}
 										<a
 											href={resolve(item.path)}
-											class="inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {page
-												.url.pathname === resolve(item.path)
+											class="inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {isActiveItem(
+												item
+											)
 												? 'bg-accent text-accent-foreground'
 												: 'text-foreground hover:bg-muted/60'}"
-											aria-current={page.url.pathname === resolve(item.path)
-												? 'page'
-												: undefined}>{item.label}</a
+											aria-current={isActiveItem(item) ? 'page' : undefined}
+											>{item.label}</a
 										>
 									{/if}
 								{/each}

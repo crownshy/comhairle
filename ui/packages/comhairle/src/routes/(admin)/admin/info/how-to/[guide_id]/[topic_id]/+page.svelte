@@ -12,7 +12,7 @@
 		{data.topic.title}
 	</h1>
 
-	<p class="text-foreground mt-6 max-w-3xl text-lg leading-8 whitespace-pre-line">
+	<p class="text-foreground mt-6 max-w-3xl leading-8 whitespace-pre-line">
 		{data.topic.content}
 	</p>
 </main>
