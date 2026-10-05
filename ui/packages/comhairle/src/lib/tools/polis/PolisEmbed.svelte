@@ -428,7 +428,10 @@
 
 			<!-- Continue to next step (only after threshold) -->
 			{#if canContinue}
-				<div class="mt-4 w-full border-t pt-6" in:fade={{ duration: 300 }}>
+				<div
+					class="mt-4 flex w-full justify-center border-t pt-6 sm:justify-start"
+					in:fade={{ duration: 300 }}
+				>
 					<LoadingButton
 						variant="primaryDark"
 						size="lg"
