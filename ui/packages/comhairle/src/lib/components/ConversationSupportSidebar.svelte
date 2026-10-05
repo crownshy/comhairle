@@ -1,8 +1,7 @@
 <script lang="ts">
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { LucideChevronRight } from 'lucide-svelte';
-	import CircleQuestionMark from '$lib/components/icons/CircleQuestionMark.svelte';
+	import { CircleHelp, LucideChevronRight } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type { ComhairleDocument, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
@@ -52,17 +51,18 @@
 </script>
 
 <Drawer.Root direction="right">
-	<!-- Two triggers for one drawer: the sideways tab covers content on phones, so phones get
-	     a floating button instead, raised to clear sticky bottom bars like Prioritization's. -->
+	<!-- Two triggers for one drawer: the sideways tab covers the step header below lg, so phones
+	     and tablets get a floating button instead, raised to clear sticky bottom bars like
+	     Prioritization's. -->
 	<Drawer.Trigger
-		class="bg-primary/50 hover:bg-primary lg:bg-primary fixed top-1/5 right-0 translate-x-12 -rotate-90 p-3 font-bold text-white transition-colors duration-300 ease-in-out max-md:hidden"
+		class="bg-primary text-primary-foreground fixed top-1/5 right-0 translate-x-12 -rotate-90 p-3 font-bold max-lg:hidden"
 		><span>{m.support_find_out_more()}</span></Drawer.Trigger
 	>
 	<Drawer.Trigger
-		class="bg-primary text-primary-foreground fixed end-4 bottom-20 z-40 inline-flex size-14 items-center justify-center rounded-full shadow-lg md:hidden"
+		class="bg-primary text-primary-foreground fixed end-4 bottom-20 z-40 inline-flex size-14 items-center justify-center rounded-full shadow-lg lg:hidden"
 		aria-label={m.support_find_out_more()}
 	>
-		<CircleQuestionMark class="size-7 stroke-current" aria-hidden="true" />
+		<CircleHelp class="size-7" aria-hidden="true" />
 	</Drawer.Trigger>
 	<Drawer.Content class="flex w-screen! max-w-[100vw]! flex-col px-8 py-12 lg:max-w-[50vw]!">
 		<Drawer.Close class="absolute top-0 left-0 p-3 focus:border-none"
