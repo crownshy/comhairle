@@ -6,11 +6,12 @@ use aide::axum::{
 };
 use axum::{
     Json,
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -24,7 +25,8 @@ use crate::{
         organization::{self, OrganizationFilterOptions, OrganizationOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
         permissions::{
-            PermissionRole, can_perform_action, has_resource_permission,
+            PermissionAction, PermissionRole, SYSTEM_RESOURCE_ID, can_perform_action,
+            conversation as conversation_permissions, has_resource_permission,
             organization as organization_permissions, system,
         },
         users::{UpdateUserRequest, UpgradeAccountRequest},
@@ -184,6 +186,90 @@ pub async fn get_user_roles(
     Ok((StatusCode::OK, Json(roles)))
 }
 
+#[derive(Deserialize, JsonSchema, Debug)]
+pub struct UserActionsPath {
+    pub resource_type: String,
+    pub resource_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserActionsResponse {
+    pub resource_type: models::permissions::ResourceType,
+    pub resource_id: Uuid,
+    pub actions: Vec<String>,
+}
+
+async fn allowed_user_actions<Action: PermissionAction + IntoEnumIterator>(
+    state: &Arc<ComhairleState>,
+    resource_id: &Uuid,
+    user_id: &Uuid,
+    owner_id: Option<&Uuid>,
+) -> Result<Vec<String>, ComhairleError> {
+    let mut actions = Vec::new();
+    for action in Action::iter() {
+        if can_perform_action(state, resource_id, action, user_id, owner_id).await? {
+            actions.push(action.as_ref().to_string());
+        }
+    }
+    Ok(actions)
+}
+
+#[instrument(err(Debug), skip(state))]
+pub async fn get_user_actions(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(path): Path<UserActionsPath>,
+) -> Result<(StatusCode, Json<UserActionsResponse>), ComhairleError> {
+    use models::permissions::ResourceType;
+
+    let resource_type = path
+        .resource_type
+        .parse::<ResourceType>()
+        .map_err(|_| ComhairleError::BadRequest("Unknown permission resource type".into()))?;
+    let actions = match resource_type {
+        ResourceType::Conversation => {
+            let conversation =
+                models::conversation::get_by_id(&state.db, &path.resource_id).await?;
+            allowed_user_actions::<conversation_permissions::Action>(
+                &state,
+                &path.resource_id,
+                &user.id,
+                Some(&conversation.owner_id),
+            )
+            .await?
+        }
+        ResourceType::Organization => {
+            organization::get_by_id(&state.db, &path.resource_id).await?;
+            allowed_user_actions::<organization_permissions::Action>(
+                &state,
+                &path.resource_id,
+                &user.id,
+                None,
+            )
+            .await?
+        }
+        ResourceType::System => {
+            if path.resource_id != SYSTEM_RESOURCE_ID {
+                return Err(ComhairleError::BadRequest(
+                    "System permissions are global; use the nil UUID".into(),
+                ));
+            }
+            allowed_user_actions::<system::Action>(&state, &path.resource_id, &user.id, None)
+                .await?
+        }
+    };
+
+    Ok((
+        StatusCode::OK,
+        Json(UserActionsResponse {
+            resource_type,
+            resource_id: path.resource_id,
+            actions,
+        }),
+    ))
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserOrganizationAccess {
@@ -302,6 +388,16 @@ pub async fn upgrade_account(
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
+            "/actions/{resource_type}/{resource_id}",
+            get_with(get_user_actions, |op| {
+                op.id("GetUserActions")
+                    .tag("User")
+                    .description("Gets the current user's allowed actions on an existing resource")
+                    .security_requirement("JWT")
+                    .response::<200, Json<UserActionsResponse>>()
+            }),
+        )
+        .api_route(
             "/roles",
             get_with(get_user_roles, |op| {
                 op.id("GetUserRoles")
@@ -374,4 +470,265 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::error::Error;
+
+    use serde_json::json;
+    use sqlx::PgPool;
+
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_organization_id,
+    };
+    use crate::models::permissions::{ActorId, GrantRoleRequest, grant_role};
+    use crate::models::user_group;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn organization_members_can_read_details_without_team_access(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let admin_id = admin.id.ok_or("missing administrator id")?;
+        let organization_id = get_random_organization_id(&app, &mut admin).await?;
+        let other_organization_id = get_random_organization_id(&app, &mut admin).await?;
+        let details_url = format!("/organizations/{organization_id}");
+        let actions_url = format!("/user/actions/organization/{organization_id}");
+
+        let mut member = UserSession::new_guest();
+        member.signup_guest(&app).await?;
+        let member_id = member.id.ok_or("missing member id")?;
+        let (status, _, _) = member.get(&app, &details_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        user_group::set_organization_member(&state, organization_id, member_id, admin_id, false)
+            .await?;
+        let (status, response, _) = member.get(&app, &details_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response["id"], json!(organization_id));
+        let (status, response, _) = member.get(&app, &actions_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response["actions"], json!(["organization_read"]));
+
+        for url in [
+            format!("/organizations/{organization_id}/team"),
+            format!("/permissions/organization/{organization_id}"),
+            format!("/organizations/{other_organization_id}"),
+        ] {
+            let (status, _, _) = member.get(&app, &url).await?;
+            assert_eq!(status, StatusCode::FORBIDDEN, "{url}");
+        }
+
+        let (status, _, _) = admin
+            .get(&app, &format!("/organizations/{organization_id}/team"))
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        user_group::remove_organization_member(&state, organization_id, member_id, admin_id)
+            .await?;
+        let (status, _, _) = member.get(&app, &details_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        let (status, response, _) = member.get(&app, &actions_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response["actions"], json!([]));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn user_actions_include_ownership_direct_and_inherited_roles(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut owner = UserSession::new_admin();
+        owner.signup(&app).await?;
+        let owner_id = owner.id.ok_or("missing owner id")?;
+        let conversation_id = get_random_conversation_id(&app, &mut owner).await?;
+        let organization_id = get_random_organization_id(&app, &mut owner).await?;
+        let url = format!("/user/actions/conversation/{conversation_id}");
+
+        let (status, response, _) = owner.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response["resourceId"], json!(conversation_id));
+        assert_eq!(response["resourceType"], "conversation");
+        assert_eq!(
+            response["actions"],
+            json!(conversation_permissions::Action::iter().collect::<Vec<_>>())
+        );
+
+        let mut editor = UserSession::new_guest();
+        editor.signup_guest(&app).await?;
+        let editor_id = editor.id.ok_or("missing editor id")?;
+        let (status, response, _) = editor.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response["actions"], json!([]));
+
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(editor_id),
+                permission_triplet: conversation_permissions::Role::ContentEditor
+                    .triplet(&conversation_id)?,
+                granted_by: &owner_id,
+                grant_reason: "Actions endpoint test",
+            },
+        )
+        .await?;
+        let (status, response, _) = editor.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            response["actions"],
+            json!(["conversation_read", "conversation_update"])
+        );
+
+        let permissions_url = format!("/permissions/conversation/{conversation_id}");
+        let (status, _, _) = editor.get(&app, &permissions_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        let revoke_url = format!("{permissions_url}?user_id={editor_id}&role_name=content_editor");
+        let (status, _, _) = editor.delete(&app, &revoke_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        user_group::set_organization_member(&state, organization_id, editor_id, owner_id, false)
+            .await?;
+        let group_id = user_group::organization_group(&state.db, organization_id).await?;
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::Group(group_id),
+                permission_triplet: conversation_permissions::Role::Moderator
+                    .triplet(&conversation_id)?,
+                granted_by: &owner_id,
+                grant_reason: "Inherited actions endpoint test",
+            },
+        )
+        .await?;
+        let (status, response, _) = editor.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            response["actions"],
+            json!([
+                "conversation_read",
+                "conversation_update",
+                "conversation_moderate"
+            ])
+        );
+
+        user_group::remove_organization_member(&state, organization_id, editor_id, owner_id)
+            .await?;
+        let (status, response, _) = editor.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            response["actions"],
+            json!(["conversation_read", "conversation_update"])
+        );
+
+        let (status, _, _) = owner.delete(&app, &revoke_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, response, _) = editor.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response["actions"], json!([]));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn user_actions_support_system_and_organization_resources(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let admin_id = admin.id.ok_or("missing admin id")?;
+
+        let organization_id = get_random_organization_id(&app, &mut admin).await?;
+
+        let (status, response, _) = admin
+            .get(
+                &app,
+                &format!("/user/actions/organization/{organization_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            response["actions"],
+            json!(organization_permissions::Action::iter().collect::<Vec<_>>())
+        );
+
+        let mut translator = UserSession::new_guest();
+        translator.signup_guest(&app).await?;
+        let translator_id = translator.id.ok_or("missing translator id")?;
+
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(translator_id),
+                permission_triplet: system::Role::Translator.system_triplet()?,
+                granted_by: &admin_id,
+                grant_reason: "System actions endpoint test",
+            },
+        )
+        .await?;
+
+        let (status, response, _) = translator
+            .get(&app, &format!("/user/actions/system/{SYSTEM_RESOURCE_ID}"))
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response["actions"], json!(["translate"]));
+
+        let (_, response, _) = translator
+            .get(
+                &app,
+                &format!("/user/actions/organization/{organization_id}"),
+            )
+            .await?;
+        assert_eq!(response["actions"], json!([]));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn user_actions_reject_invalid_resources_and_require_authentication(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(state).await?;
+
+        let mut session = UserSession::new_guest();
+        let (status, _, _) = session
+            .get(&app, &format!("/user/actions/system/{SYSTEM_RESOURCE_ID}"))
+            .await?;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+
+        session.signup_guest(&app).await?;
+        let (status, _, _) = session
+            .get(&app, &format!("/user/actions/system/{}", Uuid::new_v4()))
+            .await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        for resource_type in ["conversation", "organization"] {
+            let (status, _, _) = session
+                .get(
+                    &app,
+                    &format!("/user/actions/{resource_type}/{}", Uuid::new_v4()),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::NOT_FOUND);
+        }
+
+        let (status, _, _) = session
+            .get(&app, &format!("/user/actions/unknown/{SYSTEM_RESOURCE_ID}"))
+            .await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        Ok(())
+    }
 }

@@ -11,15 +11,45 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { snakeToStartCase } from '$lib/utils/casingUtils';
 	import { notifications } from '$lib/notifications.svelte';
-	import type { PageData } from './$types';
-	import { roleRecipients, type RoleRecipient } from './roleAssignments';
+	import {
+		roleRecipients,
+		type RoleRecipient,
+		type RoleManagement,
+		type RoleResourceType
+	} from './roleAssignments';
 	import { key } from '$lib/utils/invalidationKey';
 	import RoleAssignmentDialog from './RoleAssignmentDialog.svelte';
 
-	type Props = { conversationId: string; roleManagement: PageData['roleManagement'] };
-	let { conversationId, roleManagement }: Props = $props();
+	type Props = {
+		resourceType: RoleResourceType;
+		resourceId: string;
+		roleManagement: RoleManagement | null;
+	};
+	let { resourceType, resourceId, roleManagement }: Props = $props();
 	const canAdmin = $derived(
-		permissions.can('conversation', 'conversation_admin', conversationId)
+		resourceType === 'conversation'
+			? permissions.can('conversation', 'conversation_admin', resourceId)
+			: permissions.can('organization', 'grant_permission', resourceId) &&
+					permissions.can('organization', 'revoke_permission', resourceId)
+	);
+	const permissionsKey = $derived(
+		key(
+			resourceType === 'conversation'
+				? 'admin/conversation/permissions'
+				: 'admin/organization/permissions'
+		)
+	);
+	const detailsKey = $derived(
+		key(
+			resourceType === 'conversation'
+				? 'admin/conversation/meta'
+				: 'admin/organization/details'
+		)
+	);
+	const grantReason = $derived(
+		resourceType === 'conversation'
+			? 'Conversation access configuration'
+			: 'Organization access configuration'
 	);
 	const roleData = $derived(roleManagement?.err === null ? roleManagement.ok : null);
 	const recipients = $derived(
@@ -48,8 +78,8 @@
 	let email = $state('');
 	let organizationId = $state('');
 	const params = $derived({
-		resource_type: 'conversation' as const,
-		resource_id: conversationId
+		resource_type: resourceType,
+		resource_id: resourceId
 	});
 	const hasChanges = $derived(
 		!snapshot ||
@@ -119,7 +149,7 @@
 				{
 					user_email: email.trim(),
 					role_name: selectedRoles[0],
-					grant_reason: 'Conversation access configuration'
+					grant_reason: grantReason
 				},
 				{ params }
 			);
@@ -169,7 +199,7 @@
 			{
 				roles: selectedRoles,
 				expected_version: current.version,
-				grant_reason: 'Conversation access configuration'
+				grant_reason: grantReason
 			},
 			{ params: { ...params, recipient_type: target.type, recipient_id: target.id } }
 		);
@@ -187,16 +217,13 @@
 				result.err.response?.status === 409
 					? 'Roles changed since this dialog opened. Reload assignments before saving.'
 					: 'Could not save roles. Check the recipient and try again.';
-			await invalidate(key('admin/conversation/permissions'));
+			await invalidate(permissionsKey);
 			return;
 		}
 		snapshot = result.ok;
 		open = false;
 		notifications.send({ message: 'Roles updated', priority: 'INFO' });
-		await Promise.all([
-			invalidate(key('admin/conversation/permissions')),
-			invalidate(key('admin/conversation/meta'))
-		]);
+		await Promise.all([invalidate(permissionsKey), invalidate(detailsKey)]);
 	}
 </script>
 
@@ -207,10 +234,16 @@
 			You do not have permission to manage role assignments.
 		</p>
 	{:else if !roleData}
-		<p class="text-destructive text-base" role="alert">Could not load role assignments.</p>
-		<Button variant="outline" onclick={() => invalidate(key('admin/conversation/permissions'))}
-			>Retry</Button
-		>
+		<div class="text-destructive text-base" role="alert">
+			{#if roleManagement?.err}
+				{#each roleManagement.err as loadError (loadError.source)}
+					<p>{loadError.message}</p>
+				{/each}
+			{:else}
+				<p>Could not load role assignments.</p>
+			{/if}
+		</div>
+		<Button variant="outline" onclick={() => invalidate(permissionsKey)}>Retry</Button>
 	{:else}
 		<div class="mb-4 flex flex-wrap items-center gap-3">
 			<div class="relative min-w-0 flex-1">

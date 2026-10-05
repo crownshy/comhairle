@@ -8,8 +8,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { snakeToStartCase } from '$lib/utils/casingUtils';
-	import type { PageData } from './$types';
-	import type { RoleRecipient } from './roleAssignments';
+	import type { RoleManagement, RoleRecipient } from './roleAssignments';
 
 	type Props = {
 		open: boolean;
@@ -23,7 +22,7 @@
 		email: string;
 		organizationId: string;
 		canAdmin: boolean;
-		roleData: NonNullable<NonNullable<PageData['roleManagement']>['ok']> | null;
+		roleData: RoleManagement['ok'];
 		hasChanges: boolean;
 		onToggleRole: (role: string, checked: boolean) => void;
 		onSave: () => Promise<void>;

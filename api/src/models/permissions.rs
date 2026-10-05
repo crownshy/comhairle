@@ -1111,6 +1111,13 @@ pub async fn can_perform_action<Action: PermissionAction>(
 
     let resource_type = Action::RESOURCE_TYPE;
 
+    if resource_type == ResourceType::Organization
+        && action.as_ref() == organization::Action::Read.as_ref()
+        && models::user_group::is_organization_member(&state.db, *resource_id, *user_id).await?
+    {
+        return Ok(true);
+    }
+
     let mut roles = get_actor_roles_for_resource(
         state,
         resource_type.as_ref(),

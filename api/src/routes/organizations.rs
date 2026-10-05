@@ -545,7 +545,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationTeamResponseDto>>()
                     })
-                    .route_layer(from_fn_with_state(requirement(OrganizationAction::Read), permission_middleware::<OrganizationResource>)),
+                    .route_layer(from_fn_with_state(requirement(OrganizationAction::ListPermission), permission_middleware::<OrganizationResource>)),
         )
         .api_route(
             "/{organization_id}/members",
