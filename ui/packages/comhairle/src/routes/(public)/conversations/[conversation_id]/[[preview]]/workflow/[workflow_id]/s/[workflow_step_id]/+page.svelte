@@ -118,14 +118,9 @@
 	let currentNextAction = $state<(() => void) | undefined>(undefined);
 	let currentPrevAction = $state<(() => void) | undefined>(undefined);
 	let canProceed = $state(false);
-	let isSubmitting = $state(false);
-
-	$effect(() => {
-		// Read the step id so this reruns on every step change and a new step never starts mid-submit.
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		workflowStep.id;
-		isSubmitting = false;
-	});
+	// Keyed to the step so navigating to a new step never starts mid-submit.
+	let submittingStepId = $state<string | null>(null);
+	let isSubmitting = $derived(submittingStepId === workflowStep.id);
 
 	$effect(() => {
 		const type = toolConfig.type;
@@ -159,7 +154,7 @@
 
 	async function stepComplete() {
 		if (isSubmitting) return;
-		isSubmitting = true;
+		submittingStepId = workflowStep.id;
 
 		if (isRevisiting) {
 			const isPreview = !conversation.isLive;
@@ -227,7 +222,7 @@
 				message: 'Something unexpected happened. Try again shortly',
 				priority: 'ERROR'
 			});
-			isSubmitting = false;
+			submittingStepId = null;
 		}
 	}
 </script>
