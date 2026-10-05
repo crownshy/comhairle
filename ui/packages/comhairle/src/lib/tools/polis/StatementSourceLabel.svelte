@@ -1,19 +1,18 @@
 <script lang="ts">
-	import { Megaphone, User } from 'lucide-svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { cn } from '$lib/utils';
+	import type { StatementSource } from './statementSource';
 
-	type Props = { isSeed: boolean };
+	type Props = { source: StatementSource };
 
-	let { isSeed }: Props = $props();
-
-	const Icon = $derived(isSeed ? Megaphone : User);
+	let { source }: Props = $props();
 </script>
 
 <p
-	class="inline-flex items-start gap-2 rounded-2xl border px-2.5 py-1 text-base font-medium sm:items-center sm:rounded-full sm:px-3 {isSeed
-		? 'border-seed-highlight text-seed-highlight'
-		: 'border-participant-highlight text-participant-highlight'}"
+	class={cn(
+		'inline-flex items-start gap-2 rounded-2xl border px-2.5 py-1 text-base font-medium sm:items-center sm:rounded-full sm:px-3',
+		source.labelClass
+	)}
 >
-	<Icon class="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
-	{isSeed ? m.polis_seed_statement() : m.polis_participant_statement()}
+	<source.icon class="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
+	{source.label()}
 </p>

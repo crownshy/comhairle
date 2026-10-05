@@ -26,6 +26,8 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import StatementSourceLabel from './StatementSourceLabel.svelte';
+	import { statementSourceOf } from './statementSource';
+	import { cn } from '$lib/utils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	type Props = {
@@ -359,13 +361,15 @@
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
+					{@const source = statementSourceOf(polisCurrentStatement.is_seed)}
 					<div
-						class="rounded-2xl border p-3 transition-colors sm:p-6 {polisCurrentStatement.is_seed
-							? 'bg-seed-highlight-bg border-seed-highlight'
-							: 'bg-participant-highlight-bg border-participant-highlight'}"
+						class={cn(
+							'rounded-2xl border p-3 transition-colors sm:p-6',
+							source.cardClass
+						)}
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
-						<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
+						<StatementSourceLabel {source} />
 						<p
 							class="text-card-foreground mt-3 text-xl leading-snug font-normal sm:mt-4 sm:text-3xl sm:leading-9"
 						>

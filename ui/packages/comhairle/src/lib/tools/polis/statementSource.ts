@@ -1,0 +1,22 @@
+import { Megaphone, User } from 'lucide-svelte';
+import * as m from '$lib/paraglide/messages';
+
+const seedSource = {
+	icon: Megaphone,
+	label: m.polis_seed_statement,
+	labelClass: 'border-seed-highlight text-seed-highlight',
+	cardClass: 'bg-seed-highlight-bg border-seed-highlight'
+};
+
+const participantSource = {
+	icon: User,
+	label: m.polis_participant_statement,
+	labelClass: 'border-participant-highlight text-participant-highlight',
+	cardClass: 'bg-participant-highlight-bg border-participant-highlight'
+};
+
+export type StatementSource = typeof seedSource;
+
+export function statementSourceOf(isSeed: boolean): StatementSource {
+	return isSeed ? seedSource : participantSource;
+}
