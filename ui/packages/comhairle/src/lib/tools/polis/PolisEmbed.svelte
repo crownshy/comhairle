@@ -299,8 +299,6 @@
 		}
 	}
 
-	const voteButtonClass = 'h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none';
-
 	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
@@ -383,13 +381,14 @@
 
 			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
 			{#if !polisError && (!polisReady || polisCurrentStatement)}
+				{@const VOTE_BUTTON_CLASS = 'h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none'}
 				<!-- Vote buttons -->
 				<div class="flex w-full flex-wrap items-center gap-3 md:gap-5">
 					<Button
 						size="lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('agree')}
-						class={voteButtonClass}
+						class={VOTE_BUTTON_CLASS}
 					>
 						<ThumbsUp class="size-6" />
 						{m.polis_agree()}
@@ -398,7 +397,7 @@
 						size="lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('disagree')}
-						class={voteButtonClass}
+						class={VOTE_BUTTON_CLASS}
 					>
 						<ThumbsDown class="size-6" />
 						{m.polis_disagree()}
