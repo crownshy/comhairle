@@ -4,8 +4,12 @@
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import { kebabToSentenceCase } from '$lib/utils/casingUtils';
 	import TabContent from '../TabContent.svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { data, children, params } = $props();
+	const canAdmin = $derived(
+		permissions.can('conversation', 'conversation_admin', data.conversation.id)
+	);
 
 	const tabs = ['details', 'content', 'glossary', 'moderation-policy', 'access'] as const;
 </script>
@@ -24,7 +28,7 @@
 	{#each tabs as tab (tab)}
 		{@render Tab(tab)}
 	{/each}
-	{#if data.isConversationOwner}
+	{#if canAdmin}
 		{@render Tab('team')}
 	{/if}
 </TabStripShell>

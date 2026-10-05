@@ -60,6 +60,7 @@ super::impl_permission_assignment!(
     EnumString,
     EnumIter,
 )]
+#[schemars(rename = "SystemAction")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Action {

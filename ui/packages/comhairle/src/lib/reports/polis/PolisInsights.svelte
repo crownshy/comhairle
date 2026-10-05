@@ -16,18 +16,24 @@
 	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
 	import type { Snippet } from 'svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let {
+		conversationId,
 		reportData,
 		statementAux,
 		actions
 	}: {
+		conversationId: string;
 		workflowStepId: string;
 		reportData: PolisReportData | null;
 		statementAux: PolisStatementAux[];
 		/** Extra page actions, shown beside Download CSV. */
 		actions?: Snippet;
 	} = $props();
+	const canExport = $derived(
+		permissions.can('conversation', 'conversation_export', conversationId)
+	);
 
 	// "aux" = PolisStatementAux: our supplementary per-statement record (themes,
 	// moderation status/reason, step id, seed flag) that Polis itself doesn't store.
@@ -149,7 +155,7 @@
 	}
 
 	function handleDownloadCsv() {
-		if (!report) return;
+		if (!canExport || !report) return;
 		const csv = buildInsightsCsv(report, auxByTid);
 		const ts = new Date().toISOString().slice(0, 10);
 		downloadCsv(`polis-statements-${ts}.csv`, csv);
@@ -194,7 +200,7 @@
 			</div>
 			<div class="flex flex-wrap gap-2">
 				{@render actions?.()}
-				<Button size="sm" onclick={handleDownloadCsv}>
+				<Button size="sm" onclick={handleDownloadCsv} disabled={!canExport}>
 					<Download class="size-4" />
 					Download CSV
 				</Button>

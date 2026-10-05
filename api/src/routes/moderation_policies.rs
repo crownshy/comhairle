@@ -119,7 +119,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<201, Json<ModerationPolicyDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                authorize::<ConversationResource>,
+            )),
         )
         .api_route(
             "/default",
@@ -155,7 +159,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<ModerationPolicyDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                authorize::<ConversationResource>,
+            )),
         )
         .api_route(
             "/{moderation_policy_id}",
@@ -166,10 +174,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Fails with 409 while a workflow step still uses the policy")
                     .security_requirement("JWT")
                     .response::<204, ()>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                authorize::<ConversationResource>,
+            )),
         )
         .route_layer(from_fn_with_state(
-            PermissionRequirement::<ConversationResource>::new(Action::Update),
+            PermissionRequirement::<ConversationResource>::new(Action::Read),
             authorize::<ConversationResource>,
         ))
         .with_state(state)

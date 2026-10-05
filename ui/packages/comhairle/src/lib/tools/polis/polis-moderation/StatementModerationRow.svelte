@@ -8,6 +8,7 @@
 	import { pluralise } from '$lib/utils/pluralise';
 
 	type Props = {
+		editable?: boolean;
 		row: PolisStatementAux;
 		/** The conversation's moderation policy reasons, offered on reject. */
 		rejectReasons: RejectReason[];
@@ -31,6 +32,7 @@
 	};
 
 	let {
+		editable = true,
 		row,
 		rejectReasons,
 		selected,
@@ -76,7 +78,8 @@
 
 <div
 	role="button"
-	tabindex="0"
+	tabindex={editable ? 0 : -1}
+	aria-disabled={!editable}
 	aria-pressed={selected}
 	onmousedowncapture={(e) => {
 		snapshotShift(e);
@@ -86,10 +89,12 @@
 	onkeydowncapture={snapshotShift}
 	onclick={(e) => {
 		// Ignore clicks that land on the checkbox or the accept/reject controls.
-		if (bulkWorking || (e.target as HTMLElement).closest('[data-row-control]')) return;
+		if (!editable || bulkWorking || (e.target as HTMLElement).closest('[data-row-control]'))
+			return;
 		onToggle(!selected, shiftHeld);
 	}}
 	onkeydown={(e) => {
+		if (!editable) return;
 		if (e.key !== 'Enter' && e.key !== ' ') return;
 		// Ignore keys aimed at the checkbox / accept-reject controls; those toggle
 		// themselves (the checkbox via onCheckedChange).
@@ -97,7 +102,8 @@
 		e.preventDefault();
 		if (!bulkWorking) onToggle(!selected, shiftHeld);
 	}}
-	class={`border-border group relative grid cursor-pointer grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 border-b py-4 pl-4 transition-colors last:border-b-0 ${
+	class:cursor-pointer={editable}
+	class={`border-border group relative grid grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 border-b py-4 pl-4 transition-colors last:border-b-0 ${
 		selected ? 'bg-primary/5' : 'hover:bg-muted/40'
 	}`}
 >
@@ -108,12 +114,14 @@
 
 	<!-- Select -->
 	<div class="flex items-center" data-row-control>
-		<Checkbox
-			checked={selected}
-			disabled={bulkWorking}
-			onCheckedChange={(v) => onToggle(v === true, shiftHeld)}
-			aria-label="Select statement"
-		/>
+		{#if editable}
+			<Checkbox
+				checked={selected}
+				disabled={bulkWorking}
+				onCheckedChange={(v) => onToggle(v === true, shiftHeld)}
+				aria-label="Select statement"
+			/>
+		{/if}
 	</div>
 
 	<!-- # -->
@@ -149,48 +157,52 @@
 
 	<!-- Actions -->
 	<div class="flex items-center gap-1 self-center pr-2" data-row-control>
-		{#if !row.is_seed}
-			<button
-				type="button"
-				disabled={pending || bulkWorking}
-				onclick={onSplit}
-				title="Split or reword"
-				class="text-muted-foreground hover:bg-muted inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
-			>
-				<Pencil class="size-5" />
-			</button>
-		{/if}
-		<button
-			type="button"
-			disabled={pending ||
-				bulkWorking ||
-				(!actsOnSelection && row.moderation_status === 'accepted')}
-			onclick={() => onModerate('accepted')}
-			title={acceptTitle}
-			class="text-primary hover:bg-primary/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
-		>
-			<Check class="size-6" />
-		</button>
-		<RejectReasonPopover
-			reasons={rejectReasons}
-			heading={rejectHeading}
-			disabled={pending ||
-				bulkWorking ||
-				(!actsOnSelection && row.moderation_status === 'rejected')}
-			onConfirm={(reason) => onModerate('rejected', reason)}
-		>
-			{#snippet trigger()}
+		{#if editable}
+			{#if !row.is_seed}
 				<button
 					type="button"
-					disabled={pending ||
-						bulkWorking ||
-						(!actsOnSelection && row.moderation_status === 'rejected')}
-					title={rejectTitle}
-					class="text-destructive hover:bg-destructive/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
+					disabled={pending || bulkWorking}
+					onclick={onSplit}
+					title="Split or reword"
+					class="text-muted-foreground hover:bg-muted inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
 				>
-					<X class="size-6" />
+					<Pencil class="size-5" />
 				</button>
-			{/snippet}
-		</RejectReasonPopover>
+			{/if}
+			<button
+				type="button"
+				disabled={pending ||
+					bulkWorking ||
+					(!actsOnSelection && row.moderation_status === 'accepted')}
+				onclick={() => onModerate('accepted')}
+				title={acceptTitle}
+				class="text-primary hover:bg-primary/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
+			>
+				<Check class="size-6" />
+			</button>
+			<RejectReasonPopover
+				reasons={rejectReasons}
+				heading={rejectHeading}
+				disabled={pending ||
+					bulkWorking ||
+					(!actsOnSelection && row.moderation_status === 'rejected')}
+				onConfirm={(reason) => onModerate('rejected', reason)}
+			>
+				{#snippet trigger()}
+					<button
+						type="button"
+						disabled={pending ||
+							bulkWorking ||
+							(!actsOnSelection && row.moderation_status === 'rejected')}
+						title={rejectTitle}
+						class="text-destructive hover:bg-destructive/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
+					>
+						<X class="size-6" />
+					</button>
+				{/snippet}
+			</RejectReasonPopover>
+		{:else}
+			<Badge variant="outline" class="text-base capitalize">{row.moderation_status}</Badge>
+		{/if}
 	</div>
 </div>

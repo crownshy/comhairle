@@ -19,9 +19,10 @@
 		conversation_id: string;
 		event_id: string;
 		recordings: AudioRecordingDto[];
+		editable?: boolean;
 	};
 
-	let { conversation_id, event_id, recordings }: Props = $props();
+	let { conversation_id, event_id, recordings, editable = true }: Props = $props();
 
 	// TODO: Merge with interfaces/Media.ts
 	const maxSizeMB = 500;
@@ -71,16 +72,18 @@
 	const hasInFlight = $derived(recordings.some((r) => isInFlight(r.status)));
 
 	function addRow() {
+		if (!editable) return;
 		rows = [...rows, makeRow()];
 	}
 
 	function removeRow(key: string) {
+		if (!editable) return;
 		rows = rows.filter((r) => r.key !== key);
 		if (rows.length === 0) rows = [makeRow()];
 	}
 
 	function chooseFile(row: UploadRow, file: File | null) {
-		if (!file) return;
+		if (!editable || !file) return;
 		if (file.size > maxSizeBytes) {
 			notifications.send({
 				message: `File "${file.name}" exceeds ${maxSizeMB}MB limit`,
@@ -126,6 +129,7 @@
 	}
 
 	async function uploadRow(row: UploadRow): Promise<boolean> {
+		if (!editable) return false;
 		const name = row.name.trim();
 		if (!row.file) {
 			row.state = 'error';
@@ -149,10 +153,12 @@
 				{ name, fileExtension: ext },
 				{ params: { conversation_id, event_id } }
 			);
+			if (!editable) throw new Error('Event Edit access is required');
 			await uploadToSignedUrl(row.file, created.uploadUrl, (pct) => {
 				row.progress = pct;
 				rows = [...rows];
 			});
+			if (!editable) throw new Error('Event Edit access is required');
 			await apiClient.ProcessAudioRecording(undefined, {
 				params: { conversation_id, event_id, recording_id: created.recording.id }
 			});
@@ -169,6 +175,7 @@
 	}
 
 	async function startUpload() {
+		if (!editable || isUploading) return;
 		const pending = rows.filter((r) => r.state !== 'done');
 		const names = pending.map((r) => r.name.trim());
 		if (names.some((n) => !n)) {
@@ -220,6 +227,7 @@
 	}
 
 	async function deleteRecording(recording: AudioRecordingDto) {
+		if (!editable) return;
 		const ok = window.confirm(
 			`Delete recording "${recording.name}"? This removes its audio, transcript, and report. This cannot be undone.`
 		);
@@ -245,6 +253,7 @@
 	}
 
 	async function retryProcessing(recordingId: string) {
+		if (!editable) return;
 		try {
 			await apiClient.ProcessAudioRecording(undefined, {
 				params: { conversation_id, event_id, recording_id: recordingId }
@@ -441,7 +450,7 @@
 										<Badge variant={statusVariant(recording.status)}>
 											{statusLabel(recording.status)}
 										</Badge>
-										{#if recording.status === 'transcription_failed' || recording.status === 'categorization_failed'}
+										{#if editable && (recording.status === 'transcription_failed' || recording.status === 'categorization_failed')}
 											<Button
 												variant="outline"
 												size="sm"
@@ -492,16 +501,18 @@
 									{/if}
 								</td>
 								<td class="px-4 py-3 text-right">
-									<Button
-										variant="ghost"
-										size="sm"
-										title="Delete recording"
-										aria-label="Delete recording {recording.name}"
-										disabled={isDeleting}
-										onclick={() => deleteRecording(recording)}
-									>
-										<Trash2 class="text-muted-foreground h-4 w-4" />
-									</Button>
+									{#if editable}
+										<Button
+											variant="ghost"
+											size="sm"
+											title="Delete recording"
+											aria-label="Delete recording {recording.name}"
+											disabled={isDeleting}
+											onclick={() => deleteRecording(recording)}
+										>
+											<Trash2 class="text-muted-foreground h-4 w-4" />
+										</Button>
+									{/if}
 								</td>
 							</tr>
 						{/each}
@@ -517,52 +528,59 @@
 		</section>
 	{/if}
 
-	<section class="flex flex-col gap-4">
-		<div class="flex flex-col gap-1">
-			<h2 class="text-2xl font-bold">
-				{recordings.length > 0 ? 'Add more recordings' : 'Upload recordings'}
-			</h2>
-			<p class="text-muted-foreground text-sm">
-				Audio up to {maxSizeMB}MB per file. Upload one recording per room — add a row for
-				each.
-			</p>
-		</div>
-
-		{#each rows as row (row.key)}
-			<div class="border-border flex flex-col gap-3 rounded-lg border p-4">
-				<div class="flex items-center justify-between gap-3">
-					<div class="flex flex-1 items-center gap-2">
-						<label class="text-sm font-semibold whitespace-nowrap" for="name-{row.key}">
-							Name
-						</label>
-						<Input
-							id="name-{row.key}"
-							class="max-w-xs"
-							bind:value={row.name}
-							disabled={isUploading}
-							placeholder="e.g. Main room, Breakout 1"
-						/>
-					</div>
-					<Button
-						variant="ghost"
-						size="sm"
-						onclick={() => removeRow(row.key)}
-						disabled={isUploading || rows.length === 1}
-					>
-						<Trash2 class="h-4 w-4" />
-					</Button>
-				</div>
-				{@render dropZone(row)}
+	{#if editable}
+		<section class="flex flex-col gap-4">
+			<div class="flex flex-col gap-1">
+				<h2 class="text-2xl font-bold">
+					{recordings.length > 0 ? 'Add more recordings' : 'Upload recordings'}
+				</h2>
+				<p class="text-muted-foreground text-sm">
+					Audio up to {maxSizeMB}MB per file. Upload one recording per room — add a row
+					for each.
+				</p>
 			</div>
-		{/each}
 
-		<div class="flex flex-wrap items-center gap-3">
-			<Button variant="outline" onclick={addRow} disabled={isUploading}>
-				<Plus class="mr-2 h-4 w-4" /> Add another recording
-			</Button>
-			<Button onclick={startUpload} disabled={isUploading}>
-				{isUploading ? 'Uploading…' : 'Upload'}
-			</Button>
-		</div>
-	</section>
+			{#each rows as row (row.key)}
+				<div class="border-border flex flex-col gap-3 rounded-lg border p-4">
+					<div class="flex items-center justify-between gap-3">
+						<div class="flex flex-1 items-center gap-2">
+							<label
+								class="text-sm font-semibold whitespace-nowrap"
+								for="name-{row.key}"
+							>
+								Name
+							</label>
+							<Input
+								id="name-{row.key}"
+								class="max-w-xs"
+								bind:value={row.name}
+								disabled={isUploading}
+								placeholder="e.g. Main room, Breakout 1"
+							/>
+						</div>
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => removeRow(row.key)}
+							disabled={isUploading || rows.length === 1}
+						>
+							<Trash2 class="h-4 w-4" />
+						</Button>
+					</div>
+					{@render dropZone(row)}
+				</div>
+			{/each}
+
+			<div class="flex flex-wrap items-center gap-3">
+				<Button variant="outline" onclick={addRow} disabled={isUploading}>
+					<Plus class="mr-2 h-4 w-4" /> Add another recording
+				</Button>
+				<Button onclick={startUpload} disabled={isUploading}>
+					{isUploading ? 'Uploading…' : 'Upload'}
+				</Button>
+			</div>
+		</section>
+	{:else if recordings.length === 0}
+		<p class="text-muted-foreground text-base">No recordings yet.</p>
+	{/if}
 </div>

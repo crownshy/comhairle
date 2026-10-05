@@ -8,10 +8,14 @@
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import AddStepDialog from './AddStepDialog.svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 	let workflow = $derived(data.workflows[0]);
 	let workflowSteps = $derived(data.workflowSteps ?? []);
 
@@ -23,14 +27,14 @@
 
 	// Deep link: /design?addStep=true opens the dialog, then drops the query param.
 	$effect(() => {
-		if (page.url.searchParams.get('addStep') === 'true') {
+		if (canEdit && page.url.searchParams.get('addStep') === 'true') {
 			addStepDialog.open = true;
 			goto(page.url.pathname, { replaceState: true });
 		}
 	});
 
 	async function addStep(creationKey: CreationKey) {
-		if (adding) return;
+		if (!canEdit || adding) return;
 		adding = true;
 		try {
 			const created = await createWorkflowStep({
@@ -66,6 +70,7 @@
 	// adding it creates a conversation Event instead. Hand off to the create-event
 	// flow, where the organiser sets the required date, time, and details.
 	function addEvent() {
+		if (!canEdit) return;
 		addStepDialog.open = false;
 		goto(
 			resolve('/(admin)/admin/conversations/[conversation_id]/events/new', {
@@ -75,6 +80,8 @@
 	}
 </script>
 
-<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
+{#if canEdit}
+	<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
+{/if}
 
 {@render children()}

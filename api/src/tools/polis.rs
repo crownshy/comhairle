@@ -386,7 +386,8 @@ impl ToolImpl for PolisTool {
                             "Fetches comments and xid mappings from Polis and upserts a row \
                              per statement. Existing rows have their statement_text and \
                              is_seed refreshed; moderation_status, moderation_reason, themes, \
-                             visible_statement_when_submitted and user_id are preserved.",
+                             visible_statement_when_submitted and user_id are preserved. \
+                             Requires conversation update or moderation permission.",
                         )
                         .response::<200, Json<SyncStatementAuxResponse>>()
                 }),
@@ -905,7 +906,13 @@ async fn sync_statement_aux(
     Json(SyncStatementAuxRequest { workflow_step_id }): Json<SyncStatementAuxRequest>,
 ) -> Result<(StatusCode, Json<SyncStatementAuxResponse>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
-    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+    polis_statement_aux::check_can_perform_any(
+        &state,
+        &user,
+        &workflow_step_id,
+        &[Action::Update, Action::Moderate],
+    )
+    .await?;
 
     // Fetch from the live poll when the conversation is live, otherwise from
     // the preview poll. We key off the conversation's live status rather than
@@ -1534,6 +1541,8 @@ mod tests {
         for (role, expected_status) in [
             (Role::ContentEditor, StatusCode::FORBIDDEN),
             (Role::Observer, StatusCode::FORBIDDEN),
+            (Role::DataAccess, StatusCode::FORBIDDEN),
+            (Role::Translator, StatusCode::FORBIDDEN),
             (Role::Moderator, StatusCode::OK),
             (Role::Admin, StatusCode::OK),
         ] {
@@ -1555,6 +1564,20 @@ mod tests {
                 )
                 .await?;
             assert_eq!(status, expected_status, "role {role:?}");
+            let (sync_status, _, _) = caller
+                .post(
+                    &app,
+                    "/tools/polis/statement_aux/sync",
+                    json!({ "workflow_step_id": aux.workflow_step_id })
+                        .to_string()
+                        .into(),
+                )
+                .await?;
+            let expected_sync_status = match role {
+                Role::ContentEditor | Role::Moderator | Role::Admin => StatusCode::OK,
+                _ => StatusCode::FORBIDDEN,
+            };
+            assert_eq!(sync_status, expected_sync_status, "sync role {role:?}");
             permissions::revoke_role(
                 &state,
                 RevokeRoleRequest {
@@ -1572,6 +1595,19 @@ mod tests {
             )
             .await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
+        let sync_request = json!({ "workflow_step_id": aux.workflow_step_id }).to_string();
+        let (status, _, _) = caller
+            .post(
+                &app,
+                "/tools/polis/statement_aux/sync",
+                sync_request.clone().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "sync after role revocation");
+        let (status, _, _) = owner
+            .post(&app, "/tools/polis/statement_aux/sync", sync_request.into())
+            .await?;
+        assert_eq!(status, StatusCode::OK, "owner sync");
         Ok(())
     }
 

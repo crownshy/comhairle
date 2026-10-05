@@ -5,6 +5,7 @@
 	import Media from '$lib/interfaces/Media';
 
 	interface Props extends FileAttr {
+		disabled?: boolean;
 		onfile?: (file: File) => Promise<unknown> | unknown;
 		multiple?: boolean;
 		class?: string;
@@ -12,6 +13,7 @@
 
 	const {
 		name,
+		disabled = false,
 		onfile,
 		required,
 		accept,
@@ -79,6 +81,7 @@
 	}
 
 	function handleFiles(files: FileList | undefined | null) {
+		if (disabled) return;
 		setError('');
 
 		if (files && files.length > 0) {
@@ -107,18 +110,24 @@
 
 <div
 	role="button"
-	tabindex="0"
-	class="border-input dark:bg-input/30 flex w-full cursor-pointer flex-col items-center gap-4 rounded-xl border bg-gray-50 p-8 py-5 transition-colors {status ===
+	tabindex={disabled ? -1 : 0}
+	aria-disabled={disabled}
+	class="border-input dark:bg-input/30 flex w-full flex-col items-center gap-4 rounded-xl border bg-gray-50 p-8 py-5 transition-colors {status ===
 		'error' && 'border-destructive!'} {className}"
-	class:bg-gray-100={status === 'dragging'}
-	class:border-primary={status === 'dragging'}
+	class:cursor-pointer={!disabled}
+	class:cursor-default={disabled}
+	class:opacity-50={disabled}
+	class:bg-gray-100={!disabled && status === 'dragging'}
+	class:border-primary={!disabled && status === 'dragging'}
 	ondrop={(event) => {
 		event.preventDefault();
+		if (disabled) return;
 		status = 'idle';
 		handleFiles(event.dataTransfer?.files);
 	}}
 	ondragover={(event) => {
 		event.preventDefault();
+		if (disabled) return;
 		status = 'dragging';
 	}}
 	ondragleave={(event) => {
@@ -126,7 +135,7 @@
 		status = 'idle';
 	}}
 	onkeydown={(event) => {
-		if (event.key !== 'Enter') {
+		if (disabled || event.key !== 'Enter') {
 			return;
 		}
 		input?.click();
@@ -150,12 +159,17 @@
 			</div>
 		{/if}
 	</div>
-	<Button variant="outline" onclick={() => input?.click()} disabled={status === 'uploading'}>
+	<Button
+		variant="outline"
+		onclick={() => input?.click()}
+		disabled={disabled || status === 'uploading'}
+	>
 		{status === 'uploading' ? 'Uploading...' : `Select ${plural}`}
 	</Button>
 	<input
 		bind:this={input}
 		type="file"
+		{disabled}
 		{name}
 		{required}
 		{accept}

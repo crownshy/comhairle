@@ -17,8 +17,12 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { notificationFormSchema } from './NotificationForm/schema';
 	import { jsonToHtml } from '$lib/utils/rich-text';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { conversationId }: { conversationId: string } = $props();
+	const canAdmin = $derived(
+		permissions.can('conversation', 'conversation_admin', conversationId)
+	);
 
 	let participantCount = $state<number | null>(null);
 	let emailRecipients = $state<string[]>([]);
@@ -27,6 +31,7 @@
 	let recipientsOpen = $state(false);
 
 	async function loadRecipients() {
+		if (!canAdmin) return;
 		recipientsLoading = true;
 		recipientsError = null;
 		try {
@@ -77,9 +82,10 @@
 		// action handler, and letting it proceed restores the submitted
 		// values to the form (defeating our reset below).
 		cancel();
+		if (!canAdmin) return;
 
 		const result = await validateForm({ update: true });
-		if (!result.valid) return;
+		if (!canAdmin || !result.valid) return;
 
 		// Clear any prior failure state at the start of a fresh attempt.
 		failedRecipients = [];
@@ -149,9 +155,11 @@
 	const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 	async function sendTestEmail() {
+		if (!canAdmin) return;
 		testEmailError = null;
 
 		const result = await validateForm({ update: true });
+		if (!canAdmin) return;
 		if (!result.valid) {
 			testEmailError = 'Fill in the email subject and body before sending a test.';
 			return;

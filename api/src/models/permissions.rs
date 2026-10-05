@@ -192,6 +192,7 @@ pub trait PermissionResource:
     EnumIter,
     IntoStaticStr,
 )]
+#[schemars(rename = "PermissionResourceType")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ResourceType {

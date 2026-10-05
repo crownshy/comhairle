@@ -25,6 +25,7 @@
 		primaryLocale: Locale;
 		supportedLanguages: Locale[];
 		editorType?: 'plain' | 'rich';
+		disabled?: boolean;
 		placeholder?: string;
 		minHeight?: string;
 		maxHeight?: string;
@@ -56,6 +57,7 @@
 		primaryLocale,
 		supportedLanguages,
 		editorType = 'plain',
+		disabled = false,
 		inputType = 'input',
 		placeholder = '',
 		minHeight = '100px',
@@ -89,6 +91,7 @@
 	);
 
 	function saveSource(content: string) {
+		if (disabled) return;
 		if (!canSave || canSave(content)) source.saveSource(content);
 	}
 
@@ -120,6 +123,7 @@
 		<div class="relative">
 			<RichTextEditor
 				{value}
+				editable={!disabled}
 				onChange={handleRichChange}
 				{placeholder}
 				{minHeight}
@@ -148,6 +152,7 @@
 					oninput={handlePlainInput}
 					{placeholder}
 					{...inputProps as ComponentProps<typeof Textarea>}
+					{disabled}
 				/>
 			{:else}
 				<Input
@@ -156,6 +161,7 @@
 					oninput={handlePlainInput}
 					{placeholder}
 					{...inputProps as ComponentProps<typeof Input>}
+					{disabled}
 				/>
 			{/if}
 			{#if hasTranslations}
@@ -244,6 +250,7 @@
 			<div class="max-h-[calc(90vh-120px)] overflow-y-auto">
 				<TranslationEditor
 					{source}
+					{disabled}
 					{primaryLocale}
 					{supportedLanguages}
 					{editorType}

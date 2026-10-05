@@ -9,6 +9,7 @@ import type {
 } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
+import { canPerformAction, loadUserActions } from '$lib/utils/permissions';
 
 // Events load here, in parallel with the workflow fetch, so the layout can server-render the
 // events strip from `data.events` the same way it renders the step strip.
@@ -29,6 +30,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			params: { conversation_id },
 			queries: { withTranslations: true }
 		})) as ConversationWithTranslations;
+		const conversationActions = await loadUserActions(api, 'conversation', conversation.id);
 		const [
 			workflows,
 			eventsResponse,
@@ -65,7 +67,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 		];
 
 		let usersWithPermission: UserWithPermissionDto[] = [];
-		if (user.id === conversation.ownerId) {
+		if (canPerformAction(conversationActions, 'list_permission')) {
 			configureTabs.push({ id: 'team', label: 'Team' });
 			usersWithPermission = await api.ListUsersWithPermission({
 				params: {
@@ -88,6 +90,7 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 
 		return {
 			conversation,
+			conversationActions,
 			workflows,
 			stats,
 			workflowSteps,

@@ -27,9 +27,13 @@
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { DEFAULT_LOCALE } from '$lib/utils/constants';
+	import { permissions } from '$lib/permissions.svelte';
 
 	const { data } = $props();
 	const { conversation, streamedMedia } = $derived(data);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 
 	let primaryLocale = $derived<Locale>(
 		(data.conversation.primaryLocale as Locale) ?? DEFAULT_LOCALE
@@ -72,6 +76,7 @@
 	const descriptionSource = fieldSource('description');
 
 	async function updateConversationMedia(media: MediaDto, field: string) {
+		if (!canEdit) return;
 		const response = await tryCatchAsync(() =>
 			apiClient.UpdateConversation(
 				{
@@ -82,7 +87,6 @@
 		);
 
 		if (response.err !== null) {
-			console.error(response.err);
 			notifications.send({
 				message: 'Something went wrong updating conversation media',
 				priority: 'ERROR'
@@ -127,6 +131,7 @@
 		}
 	}
 	async function handlePrimaryLanguageChange(newPrimary: string) {
+		if (!canEdit) return;
 		updateFormForLanguage(newPrimary);
 
 		const result = await tryCatchAsync(() =>
@@ -149,6 +154,7 @@
 	}
 
 	async function handleSupportedLanguagesChange(newSupported: string[]) {
+		if (!canEdit) return;
 		const currentSupported = conversation.supportedLanguages ?? [];
 		const newlyAddedLanguages = newSupported.filter((lang) => !currentSupported.includes(lang));
 
@@ -231,6 +237,7 @@
 					<div class="flex-1" id="conversation-title-field">
 						<TranslatableField
 							source={titleSource}
+							disabled={!canEdit}
 							canSave={requiredFieldValidator('title')}
 							{primaryLocale}
 							{supportedLanguages}
@@ -258,6 +265,7 @@
 					<div class="flex-1">
 						<TranslatableField
 							source={shortDescriptionSource}
+							disabled={!canEdit}
 							canSave={requiredFieldValidator('shortDescription')}
 							{primaryLocale}
 							{supportedLanguages}
@@ -286,6 +294,7 @@
 					<div class="flex-1">
 						<TranslatableField
 							source={descriptionSource}
+							disabled={!canEdit}
 							canSave={requiredFieldValidator('description')}
 							{primaryLocale}
 							{supportedLanguages}
@@ -309,14 +318,15 @@
 			label="Language options"
 			info="The primary language plus any others you support. Adding a language lets you translate the other fields into it."
 		/>
-		<div class="max-w-md flex-1">
+		<fieldset disabled={!canEdit} class="max-w-md flex-1">
 			<LanguageSelector
+				disabled={!canEdit}
 				bind:primaryLanguage={primaryLocale}
 				bind:supportedLanguages
 				onPrimaryChange={handlePrimaryLanguageChange}
 				onSupportedChange={handleSupportedLanguagesChange}
 			/>
-		</div>
+		</fieldset>
 	</div>
 
 	<!-- Banner Image URL -->
@@ -330,7 +340,7 @@
 				info="Shown beside the description on the landing and invitation pages."
 			/>
 			<div class="align-start flex w-full flex-col gap-4">
-				<div class="flex flex-1 gap-4">
+				<fieldset disabled={!canEdit} class="flex flex-1 gap-4">
 					<MediaLibraryDialog
 						onconfirm={(media) => {
 							updateConversationMedia(media, 'image');
@@ -344,7 +354,7 @@
 							addToCache(media);
 						}}
 					/>
-				</div>
+				</fieldset>
 				{#if streamedMedia === null}
 					<span class="text-muted-foreground">No image</span>
 				{:else}

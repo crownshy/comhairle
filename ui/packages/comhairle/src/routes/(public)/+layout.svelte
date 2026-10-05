@@ -3,6 +3,7 @@
 	import NavBar from '$lib/components/NavBar.svelte';
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
+	import { canAccessAdminPortal } from '$lib/utils/permissions';
 
 	let { children, data }: LayoutProps = $props();
 	const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
@@ -18,11 +19,7 @@
 			'/(public)/conversations/[conversation_id]/room-display/[workflow_step_id]'
 	);
 
-	let isAdmin = $derived(
-		data.userRoles
-			? data.userRoles.find((ur) => ur.resource === 'Site')?.roles.includes('Admin')
-			: false
-	);
+	let isAdmin = $derived(canAccessAdminPortal(data.userRoles));
 </script>
 
 <div class="flex min-h-screen w-full flex-col {isReportPage ? 'bg-primary/10' : ''}">

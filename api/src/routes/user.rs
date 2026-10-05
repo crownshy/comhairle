@@ -141,6 +141,100 @@ pub struct UserRoles {
     pub roles: Vec<ResourceRole>,
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(untagged)]
+pub enum UserAction {
+    Conversation(conversation_permissions::Action),
+    Organization(organization_permissions::Action),
+    System(system::Action),
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserActions {
+    pub resource_type: models::permissions::ResourceType,
+    pub resource_id: Uuid,
+    pub actions: Vec<UserAction>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct UserActionsPath {
+    pub resource_type: models::permissions::ResourceType,
+    pub resource_id: Uuid,
+}
+
+async fn permitted_actions<Action: PermissionAction + IntoEnumIterator>(
+    state: &Arc<ComhairleState>,
+    resource_id: &Uuid,
+    user_id: &Uuid,
+    owner_id: Option<&Uuid>,
+) -> Result<Vec<Action>, ComhairleError> {
+    let mut actions = Vec::new();
+    for action in Action::iter() {
+        if can_perform_action(state, resource_id, action, user_id, owner_id).await? {
+            actions.push(action);
+        }
+    }
+    Ok(actions)
+}
+
+#[instrument(err(Debug), skip(state))]
+pub async fn get_user_actions(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(path): Path<UserActionsPath>,
+) -> Result<Json<UserActions>, ComhairleError> {
+    use models::permissions::ResourceType;
+
+    let actions = match path.resource_type {
+        ResourceType::Conversation => {
+            let conversation =
+                models::conversation::get_by_id(&state.db, &path.resource_id).await?;
+            permitted_actions::<conversation_permissions::Action>(
+                &state,
+                &conversation.id,
+                &user.id,
+                Some(&conversation.owner_id),
+            )
+            .await?
+            .into_iter()
+            .map(UserAction::Conversation)
+            .collect()
+        }
+        ResourceType::Organization => {
+            models::organization::get_by_id(&state.db, &path.resource_id).await?;
+            permitted_actions::<organization_permissions::Action>(
+                &state,
+                &path.resource_id,
+                &user.id,
+                None,
+            )
+            .await?
+            .into_iter()
+            .map(UserAction::Organization)
+            .collect()
+        }
+        ResourceType::System => {
+            if path.resource_id != SYSTEM_RESOURCE_ID {
+                return Err(ComhairleError::BadRequest(
+                    "System resource ID must be nil".into(),
+                ));
+            }
+            permitted_actions::<system::Action>(&state, &SYSTEM_RESOURCE_ID, &user.id, None)
+                .await?
+                .into_iter()
+                .map(UserAction::System)
+                .collect()
+        }
+    };
+
+    Ok(Json(UserActions {
+        resource_type: path.resource_type,
+        resource_id: path.resource_id,
+        actions,
+    }))
+}
+
 #[instrument(err(Debug), skip(state))]
 pub async fn get_conversations_user_participating_in(
     State(state): State<Arc<ComhairleState>>,
@@ -184,90 +278,6 @@ pub async fn get_user_roles(
     }
 
     Ok((StatusCode::OK, Json(roles)))
-}
-
-#[derive(Deserialize, JsonSchema, Debug)]
-pub struct UserActionsPath {
-    pub resource_type: String,
-    pub resource_id: Uuid,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct UserActionsResponse {
-    pub resource_type: models::permissions::ResourceType,
-    pub resource_id: Uuid,
-    pub actions: Vec<String>,
-}
-
-async fn allowed_user_actions<Action: PermissionAction + IntoEnumIterator>(
-    state: &Arc<ComhairleState>,
-    resource_id: &Uuid,
-    user_id: &Uuid,
-    owner_id: Option<&Uuid>,
-) -> Result<Vec<String>, ComhairleError> {
-    let mut actions = Vec::new();
-    for action in Action::iter() {
-        if can_perform_action(state, resource_id, action, user_id, owner_id).await? {
-            actions.push(action.as_ref().to_string());
-        }
-    }
-    Ok(actions)
-}
-
-#[instrument(err(Debug), skip(state))]
-pub async fn get_user_actions(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(path): Path<UserActionsPath>,
-) -> Result<(StatusCode, Json<UserActionsResponse>), ComhairleError> {
-    use models::permissions::ResourceType;
-
-    let resource_type = path
-        .resource_type
-        .parse::<ResourceType>()
-        .map_err(|_| ComhairleError::BadRequest("Unknown permission resource type".into()))?;
-    let actions = match resource_type {
-        ResourceType::Conversation => {
-            let conversation =
-                models::conversation::get_by_id(&state.db, &path.resource_id).await?;
-            allowed_user_actions::<conversation_permissions::Action>(
-                &state,
-                &path.resource_id,
-                &user.id,
-                Some(&conversation.owner_id),
-            )
-            .await?
-        }
-        ResourceType::Organization => {
-            organization::get_by_id(&state.db, &path.resource_id).await?;
-            allowed_user_actions::<organization_permissions::Action>(
-                &state,
-                &path.resource_id,
-                &user.id,
-                None,
-            )
-            .await?
-        }
-        ResourceType::System => {
-            if path.resource_id != SYSTEM_RESOURCE_ID {
-                return Err(ComhairleError::BadRequest(
-                    "System permissions are global; use the nil UUID".into(),
-                ));
-            }
-            allowed_user_actions::<system::Action>(&state, &path.resource_id, &user.id, None)
-                .await?
-        }
-    };
-
-    Ok((
-        StatusCode::OK,
-        Json(UserActionsResponse {
-            resource_type,
-            resource_id: path.resource_id,
-            actions,
-        }),
-    ))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -392,9 +402,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_user_actions, |op| {
                 op.id("GetUserActions")
                     .tag("User")
-                    .description("Gets the current user's allowed actions on an existing resource")
+                    .description("Gets the current user's effective actions on a resource")
                     .security_requirement("JWT")
-                    .response::<200, Json<UserActionsResponse>>()
+                    .response::<200, Json<UserActions>>()
             }),
         )
         .api_route(
@@ -490,7 +500,7 @@ mod tests {
     use crate::test_helpers::{UserSession, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn organization_members_can_read_details_without_team_access(
+    async fn organization_members_can_read_details_without_admin_access(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let state = Arc::new(test_state().db(pool).call()?);

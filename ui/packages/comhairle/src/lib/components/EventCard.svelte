@@ -8,9 +8,10 @@
 	type Props = {
 		event: LocalizedEventDto;
 		conversationId: string;
+		editable?: boolean;
 	};
 
-	let { event, conversationId }: Props = $props();
+	let { event, conversationId, editable = true }: Props = $props();
 
 	function getEventStatus(ev: LocalizedEventDto): 'upcoming' | 'live' | 'past' {
 		const now = Date.now();
@@ -75,7 +76,7 @@
 			size="sm"
 			href="/admin/conversations/{conversationId}/events/{event.id}"
 		>
-			Edit event
+			{editable ? 'Edit event' : 'View details'}
 			<ArrowRight class="ml-1 h-4 w-4" />
 		</Button>
 	</div>

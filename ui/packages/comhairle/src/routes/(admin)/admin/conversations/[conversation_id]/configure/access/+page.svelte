@@ -1,28 +1,25 @@
 <script lang="ts">
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as Form from '$lib/components/ui/form';
-	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { LoaderCircle, Trash } from '@lucide/svelte';
 	import { Switch } from '$lib/components/ui/switch';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { accessSchema } from './schema';
 	import FieldLabel from '../FieldLabel.svelte';
-	import InfoHover from '../InfoHover.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
 	import type { WorkflowStepWithTranslationsDto } from '@crownshy/api-client/api';
+	import { permissions } from '$lib/permissions.svelte';
 
 	const { data } = $props();
 	const { conversation } = $derived(data);
+	const canAdmin = $derived(
+		permissions.can('conversation', 'conversation_admin', conversation.id)
+	);
 
 	let workflowId = $state<WorkflowStepWithTranslationsDto['id'] | null>(null);
 
@@ -54,6 +51,7 @@
 		| 'allowRevisitAfterFinishing';
 
 	async function saveConversationToggle(field: ConversationToggle, value: boolean) {
+		if (!canAdmin) return;
 		const res = await tryCatchAsync(() =>
 			apiClient.UpdateConversation(
 				{ [camelToSnakeCase(field)]: value },
@@ -71,6 +69,7 @@
 	}
 
 	async function saveAutoLogin(value: boolean) {
+		if (!canAdmin) return;
 		if (workflowId === null) {
 			const workflows = await tryCatchAsync(() =>
 				apiClient.ListConversationWorkflows({
@@ -104,64 +103,6 @@
 		notifications.send({ message: 'Setting updated', priority: 'INFO' });
 		await invalidate(key('admin/conversation/meta'));
 	}
-
-	let adding = $state(false);
-	let removingOrganizationId = $state<string | null>(null);
-	let selectedOrganization = $state<{ value: string; label: string } | undefined>(undefined);
-
-	async function addCohost() {
-		if (selectedOrganization === undefined) return;
-
-		adding = true;
-		const response = await tryCatchAsync(() =>
-			apiClient.AddConversationCoHostOrganization(
-				{ organization_id: selectedOrganization!.value },
-				{ params: { conversation_id: conversation.id } }
-			)
-		);
-		adding = false;
-
-		if (response.err !== null) {
-			console.error(response.err);
-			notifications.send({
-				message: 'Failed to add co-host organization',
-				priority: 'ERROR'
-			});
-			return;
-		}
-
-		selectedOrganization = undefined;
-		notifications.send({
-			message: 'Co-host organization added',
-			priority: 'INFO'
-		});
-		await invalidate(key('admin/conversation/meta'));
-	}
-
-	async function removeCohost(organizationId: string) {
-		removingOrganizationId = organizationId;
-		const response = await tryCatchAsync(() =>
-			apiClient.RemoveConversationCoHostOrganization(undefined, {
-				params: { conversation_id: conversation.id, cohost_id: organizationId }
-			})
-		);
-		removingOrganizationId = null;
-
-		if (response.err !== null) {
-			console.error(response.err);
-			notifications.send({
-				message: 'Failed to remove co-host organization',
-				priority: 'ERROR'
-			});
-			return;
-		}
-
-		notifications.send({
-			message: 'Co-host organization removed',
-			priority: 'INFO'
-		});
-		await invalidate(key('admin/conversation/meta'));
-	}
 </script>
 
 <PageHeader title="Access" description="Visibility, invites and participation." />
@@ -185,6 +126,7 @@
 						<Switch
 							{...props}
 							bind:checked={$form.isPublic}
+							disabled={!canAdmin}
 							onCheckedChange={(v) => saveConversationToggle('isPublic', v)}
 						/>
 					</div>
@@ -209,6 +151,7 @@
 						<Switch
 							{...props}
 							bind:checked={$form.isInviteOnly}
+							disabled={!canAdmin}
 							onCheckedChange={(v) => saveConversationToggle('isInviteOnly', v)}
 						/>
 					</div>
@@ -233,6 +176,7 @@
 						<Switch
 							{...props}
 							bind:checked={$form.autoLogin}
+							disabled={!canAdmin}
 							onCheckedChange={(v) => saveAutoLogin(v)}
 						/>
 					</div>
@@ -257,6 +201,7 @@
 						<Switch
 							{...props}
 							bind:checked={$form.enableSignupPrompts}
+							disabled={!canAdmin}
 							onCheckedChange={(v) =>
 								saveConversationToggle('enableSignupPrompts', v)}
 						/>
@@ -282,6 +227,7 @@
 						<Switch
 							{...props}
 							bind:checked={$form.showThankYouPageAnnonInstructions}
+							disabled={!canAdmin}
 							onCheckedChange={(v) =>
 								saveConversationToggle('showThankYouPageAnnonInstructions', v)}
 						/>
@@ -307,6 +253,7 @@
 						<Switch
 							{...props}
 							bind:checked={$form.showThankyouPageFeedbackButton}
+							disabled={!canAdmin}
 							onCheckedChange={(v) =>
 								saveConversationToggle('showThankyouPageFeedbackButton', v)}
 						/>
@@ -332,6 +279,7 @@
 						<Switch
 							{...props}
 							bind:checked={$form.allowRevisitAfterFinishing}
+							disabled={!canAdmin}
 							onCheckedChange={(v) =>
 								saveConversationToggle('allowRevisitAfterFinishing', v)}
 						/>
@@ -340,126 +288,5 @@
 			</Form.Control>
 			<Form.FieldErrors />
 		</Form.Field>
-	</div>
-</div>
-
-<div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
-	<div class="lg:w-50 lg:shrink-0 lg:pt-2">
-		<h3 class="text-base font-semibold">Co-hosting organizations</h3>
-		<InfoHover
-			info="Additional organizations that should have read access to this conversation. Search by organization name to add one, and remove it here later."
-		/>
-	</div>
-	<div class="flex-1">
-		<section class="flex flex-col gap-4">
-			<div class="flex flex-col gap-1">
-				<p class="text-muted-foreground text-sm">
-					Grant read access to additional organizations on this conversation.
-				</p>
-			</div>
-
-			{#if data.canManageCohosts}
-				<div class="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center">
-					{#await data.streamedCohostOrganizations}
-						<Skeleton class="h-12 w-full" />
-					{:then cohostOrganizations}
-						{#if cohostOrganizations.err !== null}
-							{notifications.addFlash({
-								message: 'Could not load cohost organizations, please try again',
-								priority: 'ERROR'
-							})}
-							<span class="text-destructive text-sm"
-								>Could not load cohost organizations, please try again</span
-							>
-						{:else}
-							<div class="min-w-0 flex-1">
-								<Combobox
-									items={cohostOrganizations.ok.map((c) => ({
-										value: c.id,
-										label: c.name
-									}))}
-									selectedItem={selectedOrganization}
-									placeholder="Search organizations by name"
-									emptyMessage="No organizations available"
-									onSelect={(item) => {
-										selectedOrganization = item;
-									}}
-								/>
-							</div>
-							<Button
-								type="button"
-								disabled={!selectedOrganization || adding}
-								onclick={addCohost}
-							>
-								{#if adding}
-									<LoaderCircle class="mr-2 size-4 animate-spin" />
-								{/if}
-								Add co-host
-							</Button>
-						{/if}
-					{/await}
-				</div>
-			{/if}
-
-			<Card.Root>
-				<Card.Content>
-					{#await data.streamedCohostOrganizations}
-						<Skeleton class="h-20	w-full" />
-					{:then cohostOrganizations}
-						{#if cohostOrganizations.err !== null}
-							<span class="text-destructive text-sm">
-								Could not load cohost organizations, please try again
-							</span>
-						{:else if cohostOrganizations.ok.length === 0}
-							<span class="text-muted-foreground text-sm">
-								No co-hosting organizations added yet.
-							</span>
-						{:else}
-							<Table.Root>
-								<Table.Header>
-									<Table.Row>
-										<Table.Head>Organization</Table.Head>
-										<Table.Head>Role</Table.Head>
-										{#if data.canManageCohosts}
-											<Table.Head class="w-24">Actions</Table.Head>
-										{/if}
-									</Table.Row>
-								</Table.Header>
-								<Table.Body>
-									{#each cohostOrganizations.ok as organization (organization.id)}
-										<Table.Row>
-											<Table.Cell>{organization.name}</Table.Cell>
-											<Table.Cell>{organization.roleName}</Table.Cell>
-											{#if data.canManageCohosts}
-												<Table.Cell>
-													<Button
-														type="button"
-														variant="ghost"
-														size="icon"
-														disabled={removingOrganizationId ===
-															organization.id}
-														onclick={() =>
-															removeCohost(organization.id)}
-													>
-														{#if removingOrganizationId === organization.id}
-															<LoaderCircle
-																class="size-4 animate-spin"
-															/>
-														{:else}
-															<Trash class="size-4" />
-														{/if}
-														<span class="sr-only">Remove co-host</span>
-													</Button>
-												</Table.Cell>
-											{/if}
-										</Table.Row>
-									{/each}
-								</Table.Body>
-							</Table.Root>
-						{/if}
-					{/await}
-				</Card.Content>
-			</Card.Root>
-		</section>
 	</div>
 </div>

@@ -5,7 +5,7 @@
 	let { data }: PageProps = $props();
 </script>
 
-<PageHeader title="Team" description="Manage collaborators." />
+<PageHeader title="Team" description="Manage collaborators and role assignments." />
 
 <RoleAssignments
 	resourceType="conversation"

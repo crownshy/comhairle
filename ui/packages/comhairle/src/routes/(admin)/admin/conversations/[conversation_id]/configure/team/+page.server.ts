@@ -1,11 +1,11 @@
 import { resolve } from '$app/paths';
 import { HttpStatus } from '$lib/utils/constants';
-import { tryCatchAsync, tryFetch } from '$lib/utils/errorHandling';
-import type { ConversationDto } from '@crownshy/api-client/api';
-import { redirect, type ServerLoad } from '@sveltejs/kit';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { canPerformAction } from '$lib/utils/permissions';
+import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 
-export const load: ServerLoad = async ({ parent, params, fetch }) => {
-	const { user } = await parent();
+export const load: PageServerLoad = async ({ parent, params, locals }) => {
 	const { conversation_id } = params;
 
 	if (!conversation_id) {
@@ -19,19 +19,23 @@ export const load: ServerLoad = async ({ parent, params, fetch }) => {
 		}
 	);
 
-	const conversationResponse = await tryFetch(
-		`/api/conversation/${conversation_id}?withTranslations=true`,
-		undefined,
-		fetch
-	);
+	await parent();
 
-	if (conversationResponse.err !== null) {
+	const conversation = await tryCatchAsync(() =>
+		locals.api.GetConversation({
+			params: { conversation_id },
+			queries: { withTranslations: true }
+		})
+	);
+	if (conversation.err !== null) {
 		redirect(HttpStatus.Found, configurePage);
 	}
-
-	const conversation = await tryCatchAsync(() => conversationResponse.ok.json());
-
-	if (conversation.err !== null || user.id !== (conversation.ok as ConversationDto).ownerId) {
+	const actions = await tryCatchAsync(() =>
+		locals.api.GetUserActions({
+			params: { resource_type: 'conversation', resource_id: conversation.ok.id }
+		})
+	);
+	if (actions.err !== null || !canPerformAction(actions.ok, 'conversation_admin')) {
 		redirect(HttpStatus.Found, configurePage);
 	}
 };

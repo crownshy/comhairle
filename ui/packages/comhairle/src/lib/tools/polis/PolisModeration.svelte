@@ -13,8 +13,10 @@
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
+		conversationId: string;
 		workflowStepId: string;
 		statements: PolisStatementAux[];
 		/** The step's moderation policy reasons (ADR-0038), offered on reject. */
@@ -24,11 +26,21 @@
 	};
 
 	let {
+		conversationId,
 		workflowStepId,
 		statements: initialStatements,
 		rejectReasons,
 		defaultRejectReasons
 	}: Props = $props();
+	const canModerate = $derived(
+		permissions.can('conversation', 'conversation_moderate', conversationId)
+	);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversationId)
+	);
+	const canExport = $derived(
+		permissions.can('conversation', 'conversation_export', conversationId)
+	);
 
 	// Local optimistic copy so accept/reject re-renders without a refetch. A writable
 	// `$derived` seeds from the prop and lets optimistic assignments below override it,
@@ -42,7 +54,7 @@
 	let syncing = $state(false);
 
 	async function syncFromPolis() {
-		if (syncing) return;
+		if ((!canModerate && !canEdit) || syncing) return;
 		syncing = true;
 
 		const res = await tryCatchAsync(() =>
@@ -107,6 +119,7 @@
 	]);
 
 	function downloadStatements() {
+		if (!canExport) return;
 		const date = new Date().toISOString().slice(0, 10);
 		downloadCsv(`polis-statements-${date}.csv`, buildStatementsCsv(statements, reasonLabels));
 	}
@@ -123,6 +136,7 @@
 	let anchorId = $state<string | null>(null);
 
 	function toggleSelect(id: string, checked: boolean, range = false) {
+		if (!canModerate) return;
 		// Shift-click: select every visible row between the anchor and this row
 		// (inclusive). Falls back to a plain toggle if there's no anchor or it's
 		// no longer visible (e.g. filtered out since it was clicked).
@@ -144,6 +158,7 @@
 		anchorId = id;
 	}
 	function toggleSelectAll(checked: boolean) {
+		if (!canModerate) return;
 		const next = { ...selected };
 		for (const r of visible) next[r.id] = checked;
 		selected = next;
@@ -158,6 +173,7 @@
 	const bulkWorking = $derived(bulkAction !== null);
 
 	async function bulkModerate(status: 'accepted' | 'rejected', reason?: string) {
+		if (!canModerate) return;
 		const decision = status === 'accepted' ? 'accept' : 'reject';
 		// Skip rows already in the target status.
 		const targets = selectedVisible.filter((r) => r.moderation_status !== status);
@@ -213,6 +229,7 @@
 		status: 'accepted' | 'rejected',
 		reason?: string
 	) {
+		if (!canModerate) return;
 		// If the clicked row is part of an active selection, the per-row accept/reject
 		// applies to the whole selection (same as the bulk bar). Clicking a row that
 		// isn't selected stays a single-row action.
@@ -289,6 +306,7 @@
 	});
 
 	function openSplit(row: PolisStatementAux) {
+		if (!canModerate) return;
 		splitTarget = row;
 		splitOpen = true;
 	}
@@ -305,26 +323,31 @@
 		<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0">
 			<Button
 				variant="outline"
-				disabled={statements.length === 0}
+				disabled={!canExport || statements.length === 0}
 				onclick={downloadStatements}
 			>
 				<Download class="size-4" />
 				Download CSV
 			</Button>
-			<LoadingButton
-				loading={syncing}
-				variant="outline"
-				onclick={syncFromPolis}
-				title="Pull the latest submitted statements from Polis"
-			>
-				<RefreshCw class="size-4" />
-				Sync from Polis
-			</LoadingButton>
-			<AddSeedStatementsDialog
-				{workflowStepId}
-				existingStatements={statements.map((s) => s.statement_text)}
-				onSeeded={() => invalidate('polis:statement-aux')}
-			/>
+			{#if canModerate || canEdit}
+				<LoadingButton
+					loading={syncing}
+					variant="outline"
+					onclick={syncFromPolis}
+					title="Pull the latest submitted statements from Polis"
+				>
+					<RefreshCw class="size-4" />
+					Sync from Polis
+				</LoadingButton>
+			{/if}
+			{#if canEdit}
+				<AddSeedStatementsDialog
+					{conversationId}
+					{workflowStepId}
+					existingStatements={statements.map((s) => s.statement_text)}
+					onSeeded={() => invalidate('polis:statement-aux')}
+				/>
+			{/if}
 		</div>
 	</div>
 
@@ -355,6 +378,7 @@
 
 	<!-- Statements list -->
 	<StatementsTable
+		editable={canModerate}
 		rows={visible}
 		{rejectReasons}
 		{selected}
@@ -370,9 +394,12 @@
 	/>
 </div>
 
-<SplitStatementDialog
-	bind:open={splitOpen}
-	original={splitTarget}
-	viewedContext={splitContext}
-	onDone={() => invalidate('polis:statement-aux')}
-/>
+{#if canModerate}
+	<SplitStatementDialog
+		{conversationId}
+		bind:open={splitOpen}
+		original={splitTarget}
+		viewedContext={splitContext}
+		onDone={() => invalidate('polis:statement-aux')}
+	/>
+{/if}

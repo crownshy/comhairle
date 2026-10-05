@@ -12,11 +12,13 @@
 	type Props = {
 		conversationId: string;
 		document: ComhairleDocument;
+		editable?: boolean;
 	};
 
-	let { document, conversationId }: Props = $props();
+	let { document, conversationId, editable = true }: Props = $props();
 
 	async function deleteFile() {
+		if (!editable) return;
 		try {
 			await apiClient.DeleteDocument(undefined, {
 				params: { document_id: document.id, conversation_id: conversationId }
@@ -38,6 +40,7 @@
 	}
 
 	async function restartParsingFile() {
+		if (!editable) return;
 		try {
 			await apiClient.ParseDocument(undefined, {
 				params: { document_id: document.id, conversation_id: conversationId }
@@ -78,14 +81,16 @@
 					Download
 				</Button>
 			{/if}
-			{#if document.parse_status !== 'DONE'}
+			{#if editable && document.parse_status !== 'DONE'}
 				<Button variant="outline" onclick={restartParsingFile}>
 					<RefreshCw />
 				</Button>
 			{/if}
-			<Button variant="outline" onclick={deleteFile}>
-				<Trash2 />
-			</Button>
+			{#if editable}
+				<Button variant="outline" onclick={deleteFile}>
+					<Trash2 />
+				</Button>
+			{/if}
 		</div>
 	</div>
 	{#if document.parse_status !== 'DONE'}

@@ -14,6 +14,7 @@
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import LoadingButton from './ui/button/loading-button.svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
 		conversation_id: string;
@@ -23,8 +24,12 @@
 
 	let { conversation_id, hideTrigger = false, open = $bindable(false) }: Props = $props();
 	const loader = useLoading();
+	const canLaunch = $derived(
+		permissions.can('conversation', 'conversation_launch', conversation_id)
+	);
 
 	async function launch() {
+		if (!canLaunch) return;
 		await loader.run(async () => {
 			try {
 				await apiClient.LaunchConversation(undefined, { params: { conversation_id } });
@@ -44,8 +49,10 @@
 
 <Dialog bind:open>
 	{#if !hideTrigger}
-		<DialogTrigger>
-			<Button variant="default" class="h-[40px]">Launch Conversation</Button>
+		<DialogTrigger disabled={!canLaunch}>
+			<Button variant="default" class="h-[40px]" disabled={!canLaunch}
+				>Launch Conversation</Button
+			>
 		</DialogTrigger>
 	{/if}
 
@@ -63,7 +70,12 @@
 		</Alert>
 
 		<DialogFooter>
-			<LoadingButton variant="default" onclick={launch} loading={loader.loading}>
+			<LoadingButton
+				variant="default"
+				onclick={launch}
+				loading={loader.loading}
+				disabled={!canLaunch}
+			>
 				Launch
 			</LoadingButton>
 			<Button onclick={cancel} variant="outline">cancel</Button>

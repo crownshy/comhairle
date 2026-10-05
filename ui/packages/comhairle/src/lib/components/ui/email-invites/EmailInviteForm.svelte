@@ -24,11 +24,16 @@
 		onDone: () => void;
 		conversationId: string;
 		eventId?: string;
+		editable?: boolean;
 	};
 
-	let { onDone, conversationId, eventId }: Props = $props();
+	let { onDone, conversationId, eventId, editable = true }: Props = $props();
 
-	async function sendEmailInvite() {
+	async function sendEmailInvite({ cancel }: { cancel: () => void }) {
+		if (!editable) {
+			cancel();
+			return;
+		}
 		const result = await validateForm({ update: true });
 		if (!result.valid) {
 			return;
@@ -97,107 +102,111 @@
 	let customExpire = $derived($form.customExpire ? parseDate($form.customExpire) : undefined);
 </script>
 
-<form method="POST" class="mt-10 flex flex-col gap-y-10" use:enhance>
-	<Form.Field form={emailsForm} name="emails" class="">
-		<Form.Control>
-			{#snippet children({ props })}
-				<Form.Label>Emails</Form.Label>
-				<Input {...props} bind:value={$form.emails} />
-			{/snippet}
-		</Form.Control>
-		<Form.Description class="text-mutted-foreground"
-			>Comma separated list of emails to send invites to.</Form.Description
-		>
-		<Form.FieldErrors />
-	</Form.Field>
-	<Form.Fieldset form={emailsForm} name="expiresOption" class="space-y-3">
-		<Form.Legend>Invite valid for...</Form.Legend>
-		<RadioGroup.Root
-			bind:value={$form.expiresOption}
-			class="flex flex-row space-x-1"
-			name="expiresOption"
-		>
-			<div class="flex items-center space-y-0 space-x-3">
-				<Form.Control>
-					{#snippet children({ props })}
-						<RadioGroup.Item value="never" {...props} />
-						<Form.Label class="font-normal">never</Form.Label>
-					{/snippet}
-				</Form.Control>
-				<Form.Control>
-					{#snippet children({ props })}
-						<RadioGroup.Item value="1 day" {...props} />
-						<Form.Label class="font-normal">1 Day</Form.Label>
-					{/snippet}
-				</Form.Control>
-				<Form.Control>
-					{#snippet children({ props })}
-						<RadioGroup.Item value="1 week" {...props} />
-						<Form.Label class="font-normal">1 Week</Form.Label>
-					{/snippet}
-				</Form.Control>
-				<Form.Control>
-					{#snippet children({ props })}
-						<RadioGroup.Item value="1 month" {...props} />
-						<Form.Label class="font-normal">1 Month</Form.Label>
-					{/snippet}
-				</Form.Control>
-				<Form.Control>
-					{#snippet children({ props })}
-						<RadioGroup.Item value="custom" {...props} />
-						<Form.Label class="font-normal">custom</Form.Label>
-					{/snippet}
-				</Form.Control>
-			</div>
-		</RadioGroup.Root>
-	</Form.Fieldset>
-
-	{#if $form.expiresOption == 'custom'}
-		<Form.Field form={emailsForm} name="customExpire" class="flex flex-col">
+{#if editable}
+	<form method="POST" class="mt-10 flex flex-col gap-y-10" use:enhance>
+		<Form.Field form={emailsForm} name="emails" class="">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Popover.Root>
-						<Popover.Trigger
-							{...props}
-							class={cn(
-								buttonVariants({ variant: 'outline' }),
-								'mt-5 w-[280px] justify-start pl-4 text-left font-normal',
-								!customExpire && 'text-muted-foreground'
-							)}
-						>
-							{customExpire
-								? df.format(customExpire.toDate(getLocalTimeZone()))
-								: 'Pick a date'}
-							<CalendarIcon class="ml-auto size-4 opacity-50" />
-						</Popover.Trigger>
-						<Popover.Content class=" w-auto p-0" side="top">
-							<Calendar
-								type="single"
-								value={customExpire as DateValue}
-								minValue={today(getLocalTimeZone())}
-								calendarLabel="Expire Date"
-								onValueChange={(v) => {
-									if (v) {
-										$form.customExpire = v.toString();
-									} else {
-										$form.customExpire = '';
-									}
-								}}
-							/>
-						</Popover.Content>
-					</Popover.Root>
-					<Form.Description>Select a date on which to expire the invite</Form.Description>
-					<Form.FieldErrors />
-					<input hidden value={$form.customExpire} name="customExpire" />
+					<Form.Label>Emails</Form.Label>
+					<Input {...props} bind:value={$form.emails} />
 				{/snippet}
 			</Form.Control>
+			<Form.Description class="text-mutted-foreground"
+				>Comma separated list of emails to send invites to.</Form.Description
+			>
+			<Form.FieldErrors />
 		</Form.Field>
-	{/if}
+		<Form.Fieldset form={emailsForm} name="expiresOption" class="space-y-3">
+			<Form.Legend>Invite valid for...</Form.Legend>
+			<RadioGroup.Root
+				bind:value={$form.expiresOption}
+				class="flex flex-row space-x-1"
+				name="expiresOption"
+			>
+				<div class="flex items-center space-y-0 space-x-3">
+					<Form.Control>
+						{#snippet children({ props })}
+							<RadioGroup.Item value="never" {...props} />
+							<Form.Label class="font-normal">never</Form.Label>
+						{/snippet}
+					</Form.Control>
+					<Form.Control>
+						{#snippet children({ props })}
+							<RadioGroup.Item value="1 day" {...props} />
+							<Form.Label class="font-normal">1 Day</Form.Label>
+						{/snippet}
+					</Form.Control>
+					<Form.Control>
+						{#snippet children({ props })}
+							<RadioGroup.Item value="1 week" {...props} />
+							<Form.Label class="font-normal">1 Week</Form.Label>
+						{/snippet}
+					</Form.Control>
+					<Form.Control>
+						{#snippet children({ props })}
+							<RadioGroup.Item value="1 month" {...props} />
+							<Form.Label class="font-normal">1 Month</Form.Label>
+						{/snippet}
+					</Form.Control>
+					<Form.Control>
+						{#snippet children({ props })}
+							<RadioGroup.Item value="custom" {...props} />
+							<Form.Label class="font-normal">custom</Form.Label>
+						{/snippet}
+					</Form.Control>
+				</div>
+			</RadioGroup.Root>
+		</Form.Fieldset>
 
-	<div class="flex justify-start">
-		<Form.Button class="my-5" disabled={$submitting}>Submit</Form.Button>
-	</div>
-	{#if message}
-		<p>{$message}</p>
-	{/if}
-</form>
+		{#if $form.expiresOption == 'custom'}
+			<Form.Field form={emailsForm} name="customExpire" class="flex flex-col">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Popover.Root>
+							<Popover.Trigger
+								{...props}
+								class={cn(
+									buttonVariants({ variant: 'outline' }),
+									'mt-5 w-[280px] justify-start pl-4 text-left font-normal',
+									!customExpire && 'text-muted-foreground'
+								)}
+							>
+								{customExpire
+									? df.format(customExpire.toDate(getLocalTimeZone()))
+									: 'Pick a date'}
+								<CalendarIcon class="ml-auto size-4 opacity-50" />
+							</Popover.Trigger>
+							<Popover.Content class=" w-auto p-0" side="top">
+								<Calendar
+									type="single"
+									value={customExpire as DateValue}
+									minValue={today(getLocalTimeZone())}
+									calendarLabel="Expire Date"
+									onValueChange={(v) => {
+										if (v) {
+											$form.customExpire = v.toString();
+										} else {
+											$form.customExpire = '';
+										}
+									}}
+								/>
+							</Popover.Content>
+						</Popover.Root>
+						<Form.Description
+							>Select a date on which to expire the invite</Form.Description
+						>
+						<Form.FieldErrors />
+						<input hidden value={$form.customExpire} name="customExpire" />
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
+		{/if}
+
+		<div class="flex justify-start">
+			<Form.Button class="my-5" disabled={$submitting}>Submit</Form.Button>
+		</div>
+		{#if message}
+			<p>{$message}</p>
+		{/if}
+	</form>
+{/if}

@@ -92,6 +92,60 @@ export const PasswordResetUpdateRequest = z
 export type PasswordResetUpdateRequest = z.infer<
   typeof PasswordResetUpdateRequest
 >;
+export const ConversationAction = z.enum([
+  "conversation_read",
+  "conversation_update",
+  "conversation_admin",
+  "conversation_launch",
+  "conversation_delete",
+  "conversation_moderate",
+  "conversation_translate",
+  "conversation_export",
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+]);
+export type ConversationAction = z.infer<typeof ConversationAction>;
+export const OrganizationAction = z.enum([
+  "organization_read",
+  "organization_update",
+  "organization_delete",
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+  "organization_add_member",
+  "organization_remove_member",
+]);
+export type OrganizationAction = z.infer<typeof OrganizationAction>;
+export const SystemAction = z.enum([
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+  "conversation_create",
+  "organization_create",
+  "translate",
+]);
+export type SystemAction = z.infer<typeof SystemAction>;
+export const UserAction = z.union([
+  ConversationAction,
+  OrganizationAction,
+  SystemAction,
+]);
+export type UserAction = z.infer<typeof UserAction>;
+export const PermissionResourceType = z.enum([
+  "system",
+  "conversation",
+  "organization",
+]);
+export type PermissionResourceType = z.infer<typeof PermissionResourceType>;
+export const UserActions = z
+  .object({
+    actions: z.array(UserAction),
+    resourceId: z.string().uuid(),
+    resourceType: PermissionResourceType,
+  })
+  .passthrough();
+export type UserActions = z.infer<typeof UserActions>;
 export const ResourceType = z.union([
   z.literal("Site"),
   z.object({ Conversation: z.string().uuid() }),
@@ -3297,6 +3351,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
   PasswordResetUpdateRequest,
+  ConversationAction,
+  OrganizationAction,
+  SystemAction,
+  UserAction,
+  PermissionResourceType,
+  UserActions,
   ResourceType,
   ResourceRole,
   UserRoles,
@@ -7136,6 +7196,26 @@ This struct contains optional fields that can be updated on a TextTranslation re
     description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
     requestFormat: "json",
     response: TextContentWithTranslations,
+  },
+  {
+    method: "get",
+    path: "/user/actions/:resource_type/:resource_id",
+    alias: "GetUserActions",
+    description: `Gets the current user&#x27;s effective actions on a resource`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: UserActions,
   },
   {
     method: "get",

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
@@ -25,10 +26,15 @@
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { key } from '$lib/utils/invalidationKey.js';
+	import { permissions } from '$lib/permissions.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	let { data } = $props();
 	let report = $derived(data.report);
 	let conversation = $derived(data.conversation);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 
 	let newImpact = $state({
 		title: '',
@@ -54,16 +60,19 @@
 	async function createFeedback() {}
 
 	async function createImpact() {
-		try {
-			await apiClient.CreateImpact(newImpact, {
+		if (!canEdit) return;
+		const result = await tryCatchAsync(() =>
+			apiClient.CreateImpact(newImpact, {
 				params: { report_id: report.id, conversation_id: report.conversationId }
-			});
-			invalidate(key('admin/conversation/report'));
-			impactOpen = false;
-			notifications.send({ message: 'Impact Saved', priority: 'INFO' });
-		} catch {
+			})
+		);
+		if (result.err !== null) {
 			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
+			return;
 		}
+		invalidate(key('admin/conversation/report'));
+		impactOpen = false;
+		notifications.send({ message: 'Impact Saved', priority: 'INFO' });
 	}
 </script>
 
@@ -77,7 +86,7 @@
 	<div class="flex w-full flex-row items-center justify-end gap-2">
 		<Button variant="ghost" href={report_url(conversation.id, '')}>View Report</Button>
 		<Label for="published">Publish Report</Label>
-		<Switch name="published" value={report.isPublic} />
+		<Switch name="published" value={report.isPublic} disabled={!canEdit} />
 	</div>
 
 	<Card.Root>
@@ -86,16 +95,27 @@
 			<Card.Description>Overall summary of the conversation</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<TranslatableField
-				source={summaryTranslationSource}
-				primaryLocale={conversation.primaryLocale as Locale}
-				supportedLanguages={conversation.supportedLanguages as Locale[]}
-				inputType="textarea"
-				placeholder="Summary to be filled out by the facilitator"
-				editorType="rich"
-				minHeight="100px"
-				reportEmbedSteps={data.reportEmbedSteps}
-			/>
+			{#if canEdit}
+				<TranslatableField
+					source={summaryTranslationSource}
+					disabled={!canEdit}
+					primaryLocale={conversation.primaryLocale as Locale}
+					supportedLanguages={conversation.supportedLanguages as Locale[]}
+					inputType="textarea"
+					placeholder="Summary to be filled out by the facilitator"
+					editorType="rich"
+					minHeight="100px"
+					reportEmbedSteps={data.reportEmbedSteps}
+				/>
+			{:else}
+				<div class="bg-card border-border rounded-lg border p-4">
+					<ContentRenderer
+						content={summaryTranslationSource.contents[
+							conversation.primaryLocale as Locale
+						] ?? ''}
+					/>
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
@@ -108,85 +128,91 @@
 			{#each report.impacts as impact (impact.id)}
 				<div class="flex w-full flex-row items-center justify-between">
 					<p class="">{impact.title}</p>
-					<div class="flex flex-row">
-						<Tooltip.Provider>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Button aria-label="Edit" variant="ghost"><Edit /></Button>
-								</Tooltip.Trigger>
-								<Tooltip.Content>
-									<p>Edit Impact</p>
-								</Tooltip.Content>
-							</Tooltip.Root>
-						</Tooltip.Provider>
+					{#if canEdit}
+						<div class="flex flex-row">
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button aria-label="Edit" variant="ghost"><Edit /></Button>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Edit Impact</p>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							</Tooltip.Provider>
 
-						<Tooltip.Provider>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Button aria-label="Delete" variant="ghost"><Delete /></Button>
-								</Tooltip.Trigger>
-								<Tooltip.Content>
-									<p>Delete Impact</p>
-								</Tooltip.Content>
-							</Tooltip.Root></Tooltip.Provider
-						>
-					</div>
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button aria-label="Delete" variant="ghost"
+											><Delete /></Button
+										>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Delete Impact</p>
+									</Tooltip.Content>
+								</Tooltip.Root></Tooltip.Provider
+							>
+						</div>
+					{/if}
 				</div>
 				<Separator class="my-4" />
 			{/each}
-			<Card.Footer class="flex w-full justify-end">
-				<Dialog.Root bind:open={impactOpen}>
-					<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
-						>Add Impact</Dialog.Trigger
-					>
+			{#if canEdit}
+				<Card.Footer class="flex w-full justify-end">
+					<Dialog.Root bind:open={impactOpen}>
+						<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
+							>Add Impact</Dialog.Trigger
+						>
 
-					<Dialog.Content class="sm:max-w-[425px]">
-						<Dialog.Header>
-							<Dialog.Title>Add an impact</Dialog.Title>
-							<Dialog.Description
-								>Record an impact that this report has had</Dialog.Description
-							>
-						</Dialog.Header>
-						<div class="grid gap-4 py-4">
-							<div class="flex flex-col gap-4">
-								<Label for="title">Title</Label>
-								<Input bind:value={newImpact.title} id="title" />
-								<Label for="title">Details</Label>
-								<Textarea
-									id="details"
-									placeholder="Describe in detail the impact."
-									bind:value={newImpact.details}
-									class="col-span-3"
-								/>
-								<Label for="title">Impact Type</Label>
-								<Select.Root
-									required
-									onSelectedChange={(v) => {
-										if (v?.value) {
-											newImpact.kind = v.value;
-										}
-									}}
+						<Dialog.Content class="sm:max-w-[425px]">
+							<Dialog.Header>
+								<Dialog.Title>Add an impact</Dialog.Title>
+								<Dialog.Description
+									>Record an impact that this report has had</Dialog.Description
 								>
-									<Select.Trigger>
-										<Select.Value placeholder="Select an impact type" />
-									</Select.Trigger>
-									<Select.Content class="w-56">
-										<Select.Item value="policy" label="Policy" />
-										<Select.Item value="debate" label="Debate" />
-										<Select.Item
-											value="followup_conversation"
-											label="Followup Conversation"
-										/>
-									</Select.Content>
-								</Select.Root>
+							</Dialog.Header>
+							<div class="grid gap-4 py-4">
+								<div class="flex flex-col gap-4">
+									<Label for="title">Title</Label>
+									<Input bind:value={newImpact.title} id="title" />
+									<Label for="title">Details</Label>
+									<Textarea
+										id="details"
+										placeholder="Describe in detail the impact."
+										bind:value={newImpact.details}
+										class="col-span-3"
+									/>
+									<Label for="title">Impact Type</Label>
+									<Select.Root
+										required
+										onSelectedChange={(v) => {
+											if (v?.value) {
+												newImpact.kind = v.value;
+											}
+										}}
+									>
+										<Select.Trigger>
+											<Select.Value placeholder="Select an impact type" />
+										</Select.Trigger>
+										<Select.Content class="w-56">
+											<Select.Item value="policy" label="Policy" />
+											<Select.Item value="debate" label="Debate" />
+											<Select.Item
+												value="followup_conversation"
+												label="Followup Conversation"
+											/>
+										</Select.Content>
+									</Select.Root>
+								</div>
 							</div>
-						</div>
-						<Dialog.Footer>
-							<Button onclick={createImpact} type="submit">{m.submit()}</Button>
-						</Dialog.Footer>
-					</Dialog.Content>
-				</Dialog.Root>
-			</Card.Footer>
+							<Dialog.Footer>
+								<Button onclick={createImpact} type="submit">{m.submit()}</Button>
+							</Dialog.Footer>
+						</Dialog.Content>
+					</Dialog.Root>
+				</Card.Footer>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
@@ -199,64 +225,70 @@
 			{#each report.facilitatorFeedback as impact (impact.id)}
 				<div class="flex w-full flex-row items-center justify-between">
 					<p class="">{impact.title}</p>
-					<div class="flex flex-row">
-						<Tooltip.Provider>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Button aria-label="Edit" variant="ghost"><Edit /></Button>
-								</Tooltip.Trigger>
-								<Tooltip.Content>
-									<p>Edit Feedback</p>
-								</Tooltip.Content>
-							</Tooltip.Root></Tooltip.Provider
-						>
+					{#if canEdit}
+						<div class="flex flex-row">
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button aria-label="Edit" variant="ghost"><Edit /></Button>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Edit Feedback</p>
+									</Tooltip.Content>
+								</Tooltip.Root></Tooltip.Provider
+							>
 
-						<Tooltip.Provider>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Button aria-label="Delete" variant="ghost"><Delete /></Button>
-								</Tooltip.Trigger>
-								<Tooltip.Content>
-									<p>Delete Feedback</p>
-								</Tooltip.Content>
-							</Tooltip.Root></Tooltip.Provider
-						>
-					</div>
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button aria-label="Delete" variant="ghost"
+											><Delete /></Button
+										>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Delete Feedback</p>
+									</Tooltip.Content>
+								</Tooltip.Root></Tooltip.Provider
+							>
+						</div>
+					{/if}
 				</div>
 				<Separator class="my-4" />
 			{/each}
-			<Card.Footer class="flex w-full justify-end">
-				<Dialog.Root bind:open={feedbackOpen}>
-					<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
-						>Add Feedback</Dialog.Trigger
-					>
+			{#if canEdit}
+				<Card.Footer class="flex w-full justify-end">
+					<Dialog.Root bind:open={feedbackOpen}>
+						<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
+							>Add Feedback</Dialog.Trigger
+						>
 
-					<Dialog.Content class="sm:max-w-[425px]">
-						<Dialog.Header>
-							<Dialog.Title>Add feedback</Dialog.Title>
-							<Dialog.Description
-								>Record some feedback or notes from facilitators</Dialog.Description
-							>
-						</Dialog.Header>
-						<div class="grid gap-4 py-4">
-							<div class="flex flex-col gap-4">
-								<Label for="title">Title</Label>
-								<Input bind:value={newFeedback.title} id="title" />
-								<Label for="title">Details</Label>
-								<Textarea
-									id="details"
-									placeholder="Describe in detail the impact."
-									bind:value={newFeedback.details}
-									class="col-span-3"
-								/>
+						<Dialog.Content class="sm:max-w-[425px]">
+							<Dialog.Header>
+								<Dialog.Title>Add feedback</Dialog.Title>
+								<Dialog.Description
+									>Record some feedback or notes from facilitators</Dialog.Description
+								>
+							</Dialog.Header>
+							<div class="grid gap-4 py-4">
+								<div class="flex flex-col gap-4">
+									<Label for="title">Title</Label>
+									<Input bind:value={newFeedback.title} id="title" />
+									<Label for="title">Details</Label>
+									<Textarea
+										id="details"
+										placeholder="Describe in detail the impact."
+										bind:value={newFeedback.details}
+										class="col-span-3"
+									/>
+								</div>
 							</div>
-						</div>
-						<Dialog.Footer>
-							<Button onclick={createFeedback} type="submit">{m.submit()}</Button>
-						</Dialog.Footer>
-					</Dialog.Content>
-				</Dialog.Root>
-			</Card.Footer>
+							<Dialog.Footer>
+								<Button onclick={createFeedback} type="submit">{m.submit()}</Button>
+							</Dialog.Footer>
+						</Dialog.Content>
+					</Dialog.Root>
+				</Card.Footer>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 </div>

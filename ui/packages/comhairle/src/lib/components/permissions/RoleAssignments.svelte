@@ -7,7 +7,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Table from '$lib/components/ui/table';
-	import { permissions } from '$lib/permissions';
+	import { permissions } from '$lib/permissions.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { snakeToStartCase } from '$lib/utils/casingUtils';
 	import { notifications } from '$lib/notifications.svelte';
