@@ -162,7 +162,7 @@
 	"polis_voted_everything": "Você votou em tudo. Obrigado!",
 	"polis_come_back_later": "Volte mais tarde para ver se novas opiniões foram adicionadas.",
 	"polis_error_description": "Não foi possível carregar as opiniões neste momento. Pode ser um problema temporário.",
-	"polis_seed_statement": "Iniciador de conversa:",
+	"polis_seed_statement": "Iniciador de conversa fornecido pela organização",
 	"polis_participant_statement": "Um membro do público comentou:",
 	"password_updated_successfully": "Senha atualizada com sucesso",
 	"password_updated_successfully_body": "Sua senha foi alterada. Você pode continuar usando o aplicativo.",

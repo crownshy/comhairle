@@ -350,10 +350,8 @@
 					     flips to "completed". Rows match the label, the statement box and its
 					     line heights so nothing below moves when the statement arrives. -->
 					<div in:fade={{ duration: 200 }} class="w-full">
-						<div class="mb-1 flex h-6 items-center">
-							<Skeleton class="h-5 w-64 max-w-full rounded" />
-						</div>
-						<div class="border-foreground/10 rounded-lg border px-4 py-3">
+						<div class="border-foreground/10 rounded-2xl border p-6">
+							<Skeleton class="mb-4 h-8 w-72 max-w-full rounded-full" />
 							<div class="flex h-9 items-center">
 								<Skeleton class="h-6 w-full rounded sm:h-7" />
 							</div>
@@ -363,14 +361,16 @@
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
 					<div
-						class="rounded-lg border px-4 py-3 transition-colors {polisCurrentStatement.is_seed
+						class="rounded-2xl border p-6 transition-colors {polisCurrentStatement.is_seed
 							? 'bg-seed-highlight-bg border-seed-highlight'
 							: 'bg-participant-highlight-bg border-participant-highlight'}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
-						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
+						<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
+						<p
+							class="text-card-foreground mt-4 text-xl leading-9 font-normal sm:text-3xl"
+						>
 							{polisCurrentStatement.txt}
 						</p>
 					</div>
