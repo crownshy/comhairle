@@ -408,7 +408,7 @@
 					<Button
 						variant="ghost"
 						size="lg"
-						class="text-foreground/80 hover:text-foreground h-12 justify-start ps-0 text-lg hover:bg-transparent has-[>svg]:ps-0 max-sm:w-full"
+						class="text-foreground/80 hover:text-foreground h-12 w-full px-0 text-lg hover:bg-transparent has-[>svg]:px-0 sm:w-auto sm:justify-start"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('pass')}
 					>
@@ -419,7 +419,7 @@
 
 				<Button
 					variant="ghost"
-					class="text-muted-foreground hover:text-foreground h-auto px-0 py-1 text-start text-lg font-normal whitespace-normal hover:bg-transparent has-[>svg]:px-0"
+					class="text-muted-foreground hover:text-foreground mt-3 h-auto w-full px-0 py-1 text-center text-lg font-normal whitespace-normal hover:bg-transparent has-[>svg]:px-0 sm:mt-0 sm:w-auto sm:justify-start sm:text-start"
 					disabled={!polisReady}
 					onclick={openAddOpinion}
 				>
