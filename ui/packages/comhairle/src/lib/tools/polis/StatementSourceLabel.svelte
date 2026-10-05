@@ -7,10 +7,11 @@
 	let { source }: Props = $props();
 </script>
 
-<!-- Kept small so the source reads as secondary to the statement; the card colour also marks it. -->
+<!-- Kept small so the source reads as secondary to the statement; the card colour also marks it.
+     A border instead of a tinted fill keeps the small text on the plain card background. -->
 <p
 	class={cn(
-		'inline-flex items-start gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium',
+		'inline-flex items-start gap-1 rounded-md border px-1.5 py-px text-xs font-medium',
 		source.labelClass
 	)}
 >

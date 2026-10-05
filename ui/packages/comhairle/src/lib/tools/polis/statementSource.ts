@@ -6,14 +6,14 @@ const seedSource = {
 	// hold. A check badge would read as an endorsement, so the icon stays neutral.
 	icon: Megaphone,
 	label: m.polis_seed_statement,
-	labelClass: 'bg-seed-highlight/15 text-seed-highlight',
+	labelClass: 'border-seed-highlight/50 text-seed-highlight',
 	cardClass: 'bg-seed-highlight-bg border-seed-highlight'
 };
 
 const participantSource = {
 	icon: User,
 	label: m.polis_participant_statement,
-	labelClass: 'bg-participant-highlight/15 text-participant-highlight',
+	labelClass: 'border-participant-highlight/50 text-participant-highlight',
 	cardClass: 'bg-participant-highlight-bg border-participant-highlight'
 };
 
