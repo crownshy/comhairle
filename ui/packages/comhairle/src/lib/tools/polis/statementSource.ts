@@ -2,6 +2,8 @@ import { Megaphone, User } from 'lucide-svelte';
 import * as m from '$lib/paraglide/messages';
 
 const seedSource = {
+	// The organiser offers seed statements to start discussion, not as views they
+	// hold. A check badge would read as an endorsement, so the icon stays neutral.
 	icon: Megaphone,
 	label: m.polis_seed_statement,
 	labelClass: 'border-seed-highlight text-seed-highlight',
