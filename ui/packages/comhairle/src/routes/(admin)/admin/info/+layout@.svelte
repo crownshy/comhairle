@@ -6,6 +6,8 @@
 	import * as Select from '$lib/components/ui/select';
 	import { GUIDE_NAV } from '$lib/tool_guides';
 	import type { LayoutProps } from './$types';
+	import * as Collapsible from '$lib/components/ui/collapsible';
+	import { ChevronDown } from 'lucide-svelte';
 
 	let { children }: LayoutProps = $props();
 	const NAV_GROUPS = [
@@ -66,25 +68,35 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<nav class="hidden shrink-0 flex-col gap-6 md:flex md:w-56" aria-label="Admin guide">
+			<nav class="hidden shrink-0 flex-col gap-4 md:flex md:w-56" aria-label="Admin guide">
 				{#each NAV_GROUPS as group (group.label)}
-					<div class="flex flex-col gap-2">
-						<p class="text-muted-foreground mb-1 px-3 text-sm font-medium">
+					<Collapsible.Root open={true} class="group">
+						<Collapsible.Trigger
+							class="text-foreground hover:bg-muted flex w-full items-center justify-between rounded-lg px-3 py-2 text-base font-semibold"
+						>
 							{group.label}
-						</p>
-						{#each group.items as item (resolve(item.path))}
-							<a
-								href={resolve(item.path)}
-								class="text-foreground inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {page
-									.url.pathname === resolve(item.path)
-									? 'bg-muted'
-									: 'hover:bg-muted/60'}"
-								aria-current={page.url.pathname === resolve(item.path)
-									? 'page'
-									: undefined}>{item.label}</a
-							>
-						{/each}
-					</div>
+							<ChevronDown
+								class="size-4 transition-transform group-data-[state=closed]:-rotate-90"
+								aria-hidden="true"
+							/>
+						</Collapsible.Trigger>
+						<Collapsible.Content>
+							<div class="mt-2 flex flex-col gap-2">
+								{#each group.items as item (resolve(item.path))}
+									<a
+										href={resolve(item.path)}
+										class="text-foreground inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {page
+											.url.pathname === resolve(item.path)
+											? 'bg-muted'
+											: 'hover:bg-muted/60'}"
+										aria-current={page.url.pathname === resolve(item.path)
+											? 'page'
+											: undefined}>{item.label}</a
+									>
+								{/each}
+							</div>
+						</Collapsible.Content>
+					</Collapsible.Root>
 				{/each}
 			</nav>
 			{@render children()}
