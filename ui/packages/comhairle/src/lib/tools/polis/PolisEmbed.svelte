@@ -304,7 +304,7 @@
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-8 md:gap-6 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-4 sm:px-8 md:gap-6 md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
 			<!-- Opinion counter -->
@@ -348,7 +348,7 @@
 					     flips to "completed". Rows match the label, the statement box and its
 					     line heights so nothing below moves when the statement arrives. -->
 					<div in:fade={{ duration: 200 }} class="w-full">
-						<div class="border-foreground/10 rounded-2xl border p-6">
+						<div class="border-foreground/10 rounded-2xl border p-4 sm:p-6">
 							<Skeleton class="mb-4 h-8 w-72 max-w-full rounded-full" />
 							<div class="flex h-9 items-center">
 								<Skeleton class="h-6 w-full rounded sm:h-7" />
@@ -360,7 +360,7 @@
 					</div>
 				{:else if polisCurrentStatement}
 					<div
-						class="rounded-2xl border p-6 transition-colors {polisCurrentStatement.is_seed
+						class="rounded-2xl border p-4 transition-colors sm:p-6 {polisCurrentStatement.is_seed
 							? 'bg-seed-highlight-bg border-seed-highlight'
 							: 'bg-participant-highlight-bg border-participant-highlight'}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
@@ -378,12 +378,12 @@
 			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
 			{#if !polisError && (!polisReady || polisCurrentStatement)}
 				<!-- Vote buttons -->
-				<div class="flex flex-wrap items-center gap-4 md:gap-5">
+				<div class="flex w-full flex-wrap items-center gap-3 md:gap-5">
 					<Button
 						size="lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('agree')}
-						class="h-12 px-6 text-lg has-[>svg]:px-6"
+						class="h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none"
 					>
 						<ThumbsUp class="size-6" />
 						{m.polis_agree()}
@@ -392,7 +392,7 @@
 						size="lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('disagree')}
-						class="h-12 px-6 text-lg has-[>svg]:px-6"
+						class="h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none"
 					>
 						<ThumbsDown class="size-6" />
 						{m.polis_disagree()}
@@ -400,7 +400,7 @@
 					<Button
 						variant="ghost"
 						size="lg"
-						class="text-foreground/80 h-12 text-lg"
+						class="text-foreground/80 hover:text-foreground h-12 justify-start ps-0 text-lg hover:bg-transparent has-[>svg]:ps-0 max-sm:w-full"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('pass')}
 					>
@@ -411,7 +411,7 @@
 
 				<Button
 					variant="ghost"
-					class="text-muted-foreground hover:text-foreground -ms-1 h-auto px-1 py-1 text-lg font-normal hover:bg-transparent"
+					class="text-muted-foreground hover:text-foreground h-auto px-0 py-1 text-start text-lg font-normal whitespace-normal hover:bg-transparent has-[>svg]:px-0"
 					disabled={!polisReady}
 					onclick={openAddOpinion}
 				>

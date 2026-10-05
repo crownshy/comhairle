@@ -10,10 +10,10 @@
 </script>
 
 <p
-	class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-base font-medium {isSeed
+	class="inline-flex items-start gap-2 rounded-2xl border px-3 py-1 text-base font-medium sm:items-center sm:rounded-full {isSeed
 		? 'border-seed-highlight text-seed-highlight'
 		: 'border-participant-highlight text-participant-highlight'}"
 >
-	<Icon class="size-5 shrink-0" aria-hidden="true" />
+	<Icon class="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
 	{isSeed ? m.polis_seed_statement() : m.polis_participant_statement()}
 </p>
