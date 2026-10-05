@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Button, LoadingButton } from '$lib/components/ui/button';
+	import { Button, LoadingButton, buttonVariants } from '$lib/components/ui/button';
+	import * as Drawer from '$lib/components/ui/drawer';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import {
@@ -10,7 +11,8 @@
 		ChevronRight,
 		MessageSquare,
 		MessageSquarePlus,
-		AlertTriangle
+		AlertTriangle,
+		Lightbulb
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
@@ -302,6 +304,17 @@
 	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
+{#snippet opinionTips()}
+	<ul class="list-outside list-disc space-y-2 ps-5">
+		<li>{m.polis_tip_agreeable()}</li>
+		<li>{m.polis_tip_one_idea()}</li>
+		<li>{m.polis_tip_max_length({ max: MAX_STATEMENT_LENGTH })}</li>
+		<li>{m.polis_tip_no_jargon()}</li>
+		<li>{m.polis_tip_many_statements()}</li>
+		<li>{m.polis_tip_come_back()}</li>
+	</ul>
+{/snippet}
+
 <div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->
@@ -450,16 +463,19 @@
 			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
-			<div class="flex w-full items-center justify-between">
-				<div class="flex items-center gap-4">
-					<MessageSquare fill="currentColor" class="text-card-foreground h-8 w-8" />
-					<h2 class="text-card-foreground text-3xl font-semibold">
+			<div class="flex w-full items-start justify-between gap-2 sm:items-center">
+				<div class="flex items-center gap-3 sm:gap-4">
+					<MessageSquare
+						fill="currentColor"
+						class="text-card-foreground size-6 shrink-0 sm:size-8"
+					/>
+					<h2 class="text-card-foreground text-xl font-semibold sm:text-3xl">
 						{m.polis_add_your_own_opinion()}
 					</h2>
 				</div>
 				<Button
 					variant="link"
-					class="text-foreground/80 hover:text-foreground/60 text-xl transition-colors"
+					class="text-foreground/80 hover:text-foreground/60 shrink-0 text-xl transition-colors"
 					onclick={closeAddOpinion}
 					aria-label={m.polis_close()}
 				>
@@ -467,16 +483,33 @@
 				</Button>
 			</div>
 
-			<div class="text-card-foreground flex flex-col px-4 text-base">
-				<ul class="list-inside list-disc space-y-2">
-					<li>{m.polis_tip_agreeable()}</li>
-					<li>{m.polis_tip_one_idea()}</li>
-					<li>{m.polis_tip_max_length({ max: MAX_STATEMENT_LENGTH })}</li>
-					<li>{m.polis_tip_no_jargon()}</li>
-					<li>{m.polis_tip_many_statements()}</li>
-					<li>{m.polis_tip_come_back()}</li>
-				</ul>
+			<!-- Phones open the tips in a sheet so the text box stays above the fold. -->
+			<div class="text-card-foreground hidden text-base sm:block sm:px-4">
+				{@render opinionTips()}
 			</div>
+			<Drawer.Root>
+				<Drawer.Trigger
+					class="text-primary inline-flex items-center gap-2 text-base font-medium underline-offset-4 hover:underline sm:hidden"
+				>
+					<Lightbulb class="size-5" aria-hidden="true" />
+					{m.polis_tips_for_your_opinion()}
+				</Drawer.Trigger>
+				<Drawer.Content>
+					<div class="flex flex-col gap-4 overflow-y-auto px-6 pt-4 pb-8">
+						<Drawer.Title class="text-card-foreground text-xl font-semibold">
+							{m.polis_tips_for_your_opinion()}
+						</Drawer.Title>
+						<div class="text-card-foreground text-base">
+							{@render opinionTips()}
+						</div>
+						<Drawer.Close
+							class={cn(buttonVariants({ size: 'lg' }), 'mt-2 w-full text-lg')}
+						>
+							{m.polis_close()}
+						</Drawer.Close>
+					</div>
+				</Drawer.Content>
+			</Drawer.Root>
 
 			{#if opinionSubmitted}
 				<div
@@ -492,7 +525,7 @@
 				</div>
 			{/if}
 
-			<div class="w-full pb-6">
+			<div class="w-full sm:pb-6">
 				<textarea
 					bind:value={opinionText}
 					oninput={() => (opinionError = false)}
@@ -511,14 +544,16 @@
 				</p>
 			</div>
 
-			<div class="flex flex-wrap items-start gap-6">
+			<div
+				class="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-start sm:gap-6"
+			>
 				<LoadingButton
 					variant="default"
 					size="lg"
 					loading={submitBusy}
 					disabled={!opinionText.trim()}
 					onclick={handleSubmitOpinion}
-					class="gap-2 px-6 py-4 text-lg"
+					class="w-full gap-2 px-6 py-4 text-lg sm:w-auto"
 				>
 					{m.submit()}
 				</LoadingButton>
@@ -536,7 +571,7 @@
 			</div>
 
 			<button
-				class="text-muted-foreground hover:text-foreground mt-2 text-base font-medium transition-colors"
+				class="text-muted-foreground hover:text-foreground self-center text-base font-medium transition-colors sm:mt-2 sm:self-start"
 				onclick={closeAddOpinion}
 			>
 				&larr; {m.polis_back_to_voting()}
