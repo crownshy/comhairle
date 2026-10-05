@@ -5,11 +5,11 @@
 	import {
 		ThumbsUp,
 		ThumbsDown,
-		SkipForward,
 		PenLine,
 		X,
 		ChevronRight,
 		MessageSquare,
+		MessageSquarePlus,
 		AlertTriangle
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
@@ -300,9 +300,7 @@
 	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
-<div
-	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-4 md:py-0"
->
+<div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->
 		<div
@@ -322,9 +320,9 @@
 						total: opinionPosition.total
 					})}
 				</p>
-				<div class="bg-secondary/30 relative h-1.5 w-full">
+				<div class="bg-primary/20 relative h-1.5 w-full overflow-hidden rounded-full">
 					<div
-						class="bg-secondary absolute top-0 left-0 h-full transition-all duration-300"
+						class="bg-primary absolute inset-y-0 start-0 rounded-full transition-all duration-300"
 						style="width: {progress}%"
 					></div>
 				</div>
@@ -380,51 +378,44 @@
 			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
 			{#if !polisError && (!polisReady || polisCurrentStatement)}
 				<!-- Vote buttons -->
-				<div class="flex flex-wrap items-start gap-4 md:gap-6">
+				<div class="flex flex-wrap items-center gap-4 md:gap-5">
 					<Button
-						variant="default"
 						size="lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('agree')}
-						class="text-lg"
+						class="h-12 px-6 text-lg has-[>svg]:px-6"
 					>
-						<ThumbsUp class="h-5 w-5" />
+						<ThumbsUp class="size-6" />
 						{m.polis_agree()}
 					</Button>
 					<Button
-						variant="default"
 						size="lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('disagree')}
-						class="gap-2 px-6 py-4 text-lg"
+						class="h-12 px-6 text-lg has-[>svg]:px-6"
 					>
-						<ThumbsDown class="h-5 w-5" />
+						<ThumbsDown class="size-6" />
 						{m.polis_disagree()}
 					</Button>
 					<Button
 						variant="ghost"
 						size="lg"
-						class="text-lg"
+						class="text-foreground/80 h-12 text-lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('pass')}
 					>
 						{m.polis_pass_unsure()}
-						<SkipForward class="h-5 w-5" />
+						<ChevronRight class="size-5 rtl:-scale-x-100" />
 					</Button>
 				</div>
 
-				<Separator orientation="horizontal" />
-
-				<!-- Add your own opinion -->
-				<p>{m.polis_dont_see_your_view()}</p>
-
 				<Button
-					variant="secondary"
-					class="text-foreground hover:text-foreground flex items-center gap-2 p-5 text-xl font-bold transition-colors"
+					variant="ghost"
+					class="text-muted-foreground hover:text-foreground -ms-1 h-auto px-1 py-1 text-lg font-normal hover:bg-transparent"
 					disabled={!polisReady}
 					onclick={openAddOpinion}
 				>
-					<MessageSquare fill="currentColor" class="h-5 w-5" />
+					<MessageSquarePlus class="size-6" />
 					{m.polis_add_opinion()}
 				</Button>
 			{/if}
@@ -440,7 +431,7 @@
 						class="gap-2 px-6 py-4 text-lg"
 					>
 						{m.polis_continue_to_next_step()}
-						{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+						{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
 					</LoadingButton>
 				</div>
 			{/if}
@@ -532,7 +523,7 @@
 					onclick={handleSubmitAndAddAnother}
 				>
 					{m.polis_submit_and_add_another()}
-					{#if !submitBusy}<ChevronRight class="h-5 w-5" />{/if}
+					{#if !submitBusy}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
 				</LoadingButton>
 			</div>
 
@@ -573,7 +564,7 @@
 					onclick={handleContinue}
 				>
 					{m.polis_continue_to_next_step()}
-					{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+					{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
 				</LoadingButton>
 			</div>
 		</div>
@@ -612,7 +603,7 @@
 			class="mb-5 gap-2 px-6 py-4 text-lg"
 		>
 			{m.continue_()}
-			{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+			{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
 		</LoadingButton>
 	{/if}
 </div>
