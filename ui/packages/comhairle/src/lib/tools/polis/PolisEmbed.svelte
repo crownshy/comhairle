@@ -343,7 +343,7 @@
 						<p class="text-foreground text-lg font-medium">
 							{m.something_went_wrong()}
 						</p>
-						<p class="text-muted-foreground text-sm">
+						<p class="text-muted-foreground text-base">
 							{m.polis_error_description()}
 						</p>
 					</div>
