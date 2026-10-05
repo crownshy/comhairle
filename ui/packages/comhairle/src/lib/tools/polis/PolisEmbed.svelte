@@ -353,7 +353,7 @@
 					     box and its line heights so nothing below moves when the statement arrives. -->
 					<div in:fade={{ duration: 200 }} class="w-full">
 						<div class="border-foreground/10 rounded-2xl border p-3 sm:p-6">
-							<Skeleton class="mb-3 h-4 w-64 max-w-full rounded-md sm:mb-4" />
+							<Skeleton class="mb-3 h-4 w-64 max-w-full rounded-md sm:mb-4 sm:h-5" />
 							<div class="flex h-7 items-center sm:h-9">
 								<Skeleton class="h-6 w-full rounded sm:h-7" />
 							</div>
