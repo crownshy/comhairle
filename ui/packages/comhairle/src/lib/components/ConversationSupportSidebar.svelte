@@ -8,6 +8,7 @@
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
 	import ComhairleFAQs from './ComhairleFAQs.svelte';
 	import LearningAssistant from './LearningAssistant/LearningAssistant.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	let {
 		conversation,
@@ -51,10 +52,18 @@
 </script>
 
 <Drawer.Root direction="right">
+	<!-- Two triggers for one drawer: the sideways tab covers content on phones, so phones get
+	     a floating button instead, raised to clear sticky bottom bars like Prioritization's. -->
 	<Drawer.Trigger
-		class="bg-primary/50 hover:bg-primary lg:bg-primary fixed top-1/5 right-0 translate-x-12 -rotate-90 p-3 font-bold text-white transition-colors duration-300 ease-in-out"
-		><span>Find out more</span></Drawer.Trigger
+		class="bg-primary/50 hover:bg-primary lg:bg-primary fixed top-1/5 right-0 translate-x-12 -rotate-90 p-3 font-bold text-white transition-colors duration-300 ease-in-out max-md:hidden"
+		><span>{m.support_find_out_more()}</span></Drawer.Trigger
 	>
+	<Drawer.Trigger
+		class="bg-primary text-primary-foreground fixed end-4 bottom-20 z-40 inline-flex size-14 items-center justify-center rounded-full shadow-lg md:hidden"
+		aria-label={m.support_find_out_more()}
+	>
+		<CircleQuestionMark class="size-7 stroke-current" aria-hidden="true" />
+	</Drawer.Trigger>
 	<Drawer.Content class="flex w-screen! max-w-[100vw]! flex-col px-8 py-12 lg:max-w-[50vw]!">
 		<Drawer.Close class="absolute top-0 left-0 p-3 focus:border-none"
 			><span><LucideChevronRight class="stroke-foreground" /></span></Drawer.Close
