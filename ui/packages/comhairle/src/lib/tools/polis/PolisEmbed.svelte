@@ -545,22 +545,24 @@
 	{:else if screen === 'continue-prompt'}
 		<!-- Do you want to continue? -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-center gap-6 px-4 py-8 text-center sm:items-start sm:px-8 sm:text-start md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
-			<div class="flex items-center gap-4">
+			<div class="flex flex-col items-center gap-4 sm:flex-row">
 				<PenLine class="text-card-foreground h-8 w-8" />
 				<h2 class="text-card-foreground text-3xl font-semibold">
 					{m.polis_do_you_want_to_continue()}
 				</h2>
 			</div>
 
-			<div class="flex flex-wrap items-start gap-6">
+			<div
+				class="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-start sm:gap-6"
+			>
 				<Button
 					variant="default"
 					size="lg"
 					onclick={resumeVoting}
-					class="w-72 gap-2 px-6 py-4 text-lg"
+					class="w-full max-w-72 gap-2 px-6 py-4 text-lg sm:w-72"
 				>
 					{m.polis_continue_voting()}
 				</Button>
@@ -579,7 +581,7 @@
 	{:else if screen === 'completed'}
 		<!-- Voted everything -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-center gap-6 px-4 py-8 text-center sm:items-start sm:px-8 sm:text-start md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
 			<p class="text-card-foreground text-3xl font-normal">
@@ -603,15 +605,17 @@
 			</Button>
 		</div>
 
-		<LoadingButton
-			variant="primaryDark"
-			size="lg"
-			loading={continuing}
-			onclick={handleContinue}
-			class="mb-5 gap-2 px-6 py-4 text-lg"
-		>
-			{m.continue_()}
-			{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
-		</LoadingButton>
+		<div class="mb-5 w-full px-4 sm:w-auto sm:px-0">
+			<LoadingButton
+				variant="primaryDark"
+				size="lg"
+				loading={continuing}
+				onclick={handleContinue}
+				class="w-full gap-2 px-6 py-4 text-lg sm:w-auto"
+			>
+				{m.continue_()}
+				{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
+			</LoadingButton>
+		</div>
 	{/if}
 </div>
