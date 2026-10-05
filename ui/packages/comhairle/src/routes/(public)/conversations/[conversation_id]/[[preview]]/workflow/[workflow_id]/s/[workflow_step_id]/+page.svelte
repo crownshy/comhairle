@@ -121,6 +121,8 @@
 	let isSubmitting = $state(false);
 
 	$effect(() => {
+		// Read the step id so this reruns on every step change and a new step never starts mid-submit.
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		workflowStep.id;
 		isSubmitting = false;
 	});
@@ -151,6 +153,7 @@
 	}
 
 	function goToThankYouPage() {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
 		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString);
 	}
 
@@ -165,6 +168,7 @@
 			const target = nextRevisitable ?? actualCurrentStep;
 			if (target) {
 				goto(
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
 					workflow_step_url(conversation.id, workflow_id, target.id, isPreview) +
 						queryString
 				);
@@ -196,6 +200,7 @@
 				 * invalidateAll refreshes the step list and the participation seal at
 				 * the destination instead. */
 				await goto(
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
 					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
 					{ invalidateAll: true }
 				);
@@ -208,6 +213,7 @@
 						next.id,
 						!conversation.isLive
 					);
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
 					goto(next_step_url + queryString);
 				} else {
 					goToThankYouPage();
