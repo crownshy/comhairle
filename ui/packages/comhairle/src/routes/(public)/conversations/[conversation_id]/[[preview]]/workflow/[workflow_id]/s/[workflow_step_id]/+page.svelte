@@ -285,7 +285,7 @@
 								</div>
 							{/if}
 						{/if}
-					{:else if toolConfig.type === Learn.TOOL_NAME}
+					{:else if toolConfig?.type === Learn.TOOL_NAME}
 						{#key workflowStep.id}
 							<Learn.UserUI
 								onDone={stepComplete}
@@ -299,8 +299,7 @@
 								{isSubmitting}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig?.type === Polis.TOOL_NAME}
+					{:else if toolConfig?.type === Polis.TOOL_NAME}
 						{#key workflowStep.id}
 							<Polis.UserUI
 								user_id={user.id}
@@ -314,8 +313,7 @@
 								showRemainingStatementCount={toolConfig.show_remaining_statements}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig.type === HeyForm.TOOL_NAME}
+					{:else if toolConfig?.type === HeyForm.TOOL_NAME}
 						{#key workflowStep.id}
 							<HeyForm.UserUI
 								userId={user.id}
@@ -325,11 +323,9 @@
 								onDone={stepComplete}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig.type === LivedExperience.TOOL_NAME}
+					{:else if toolConfig?.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
-					{/if}
-					{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
+					{:else if toolConfig?.type === ThinkingSpace.TOOL_NAME}
 						{#key workflowStep.id}
 							<ThinkingSpace.UserUI
 								workflowStepId={workflowStep.id}
@@ -346,8 +342,7 @@
 								onCanContinueChange={handleCanContinueChange}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig.type === ElicitationBot.TOOL_NAME}
+					{:else if toolConfig?.type === ElicitationBot.TOOL_NAME}
 						{#key workflowStep.id}
 							<ElicitationBot.UserUI
 								conversationId={conversation.id}
@@ -359,8 +354,7 @@
 								onCanContinueChange={handleCanContinueChange}
 							/>
 						{/key}
-					{/if}
-					{#if toolConfig.type === Prioritization.TOOL_NAME}
+					{:else if toolConfig?.type === Prioritization.TOOL_NAME}
 						{#key workflowStep.id}
 							<Prioritization.UserUI
 								{workflowStep}
