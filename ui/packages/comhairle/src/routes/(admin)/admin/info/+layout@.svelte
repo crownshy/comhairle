@@ -15,7 +15,11 @@
 			label: 'Admin how-to',
 			items: ADMIN_GUIDE_NAV.map((guide) => ({
 				label: guide.navLabel,
-				path: `/admin/info/how-to/${guide.key}` as const
+				path: `/admin/info/how-to/${guide.key}` as const,
+				topics: guide.topics.map((topic) => ({
+					label: topic.navLabel,
+					path: `/admin/info/how-to/${guide.key}/${topic.key}` as const
+				}))
 			}))
 		},
 		{
@@ -83,16 +87,67 @@
 						<Collapsible.Content>
 							<div class="mt-2 flex flex-col gap-2">
 								{#each group.items as item (resolve(item.path))}
-									<a
-										href={resolve(item.path)}
-										class="text-foreground inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {page
-											.url.pathname === resolve(item.path)
-											? 'bg-muted'
-											: 'hover:bg-muted/60'}"
-										aria-current={page.url.pathname === resolve(item.path)
-											? 'page'
-											: undefined}>{item.label}</a
-									>
+									{#if 'topics' in item}
+										<Collapsible.Root open={true}>
+											<div class="flex items-center gap-1">
+												<Collapsible.Trigger
+													class="text-foreground hover:bg-muted flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-base font-medium [&[data-state=closed]>svg]:-rotate-90"
+												>
+													{item.label}
+													<ChevronDown
+														class="size-4 shrink-0 transition-transform"
+														aria-hidden="true"
+													/>
+												</Collapsible.Trigger>
+
+												<!-- <Collapsible.Trigger
+													class="hover:bg-muted rounded-lg p-2 [&[data-state=closed]>svg]:-rotate-90"
+													aria-label={`Toggle topics for ${item.label}`}
+												>
+													<ChevronDown
+														class="size-4 transition-transform"
+														aria-hidden="true"
+													/>
+												</Collapsible.Trigger> -->
+											</div>
+
+											<Collapsible.Content>
+												<ul
+													class="border-border ml-4 space-y-1 border-l pl-3"
+												>
+													{#each item.topics as topic (topic.path)}
+														<li>
+															<a
+																href={resolve(topic.path)}
+																class="text-foreground block rounded-lg px-2 py-2 text-base {page
+																	.url.pathname ===
+																resolve(topic.path)
+																	? 'bg-muted'
+																	: 'hover:bg-muted/60'}"
+																aria-current={page.url.pathname ===
+																resolve(topic.path)
+																	? 'page'
+																	: undefined}
+															>
+																{topic.label}
+															</a>
+														</li>
+													{/each}
+												</ul>
+											</Collapsible.Content>
+										</Collapsible.Root>
+									{:else}
+										<a
+											href={resolve(item.path)}
+											class="text-foreground inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {page
+												.url.pathname === resolve(item.path)
+												? 'bg-muted'
+												: 'hover:bg-muted/60'}"
+											aria-current={page.url.pathname === resolve(item.path)
+												? 'page'
+												: undefined}>{item.label}</a
+										>
+									{/if}
 								{/each}
 							</div>
 						</Collapsible.Content>
