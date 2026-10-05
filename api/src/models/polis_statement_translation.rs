@@ -114,6 +114,82 @@ pub async fn list_by_statement_aux_id(
     Ok(translations)
 }
 
+/// Fetch a single translation by id.
+#[instrument(err(Debug))]
+pub async fn get_by_id(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<PolisStatementTranslation, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(PolisStatementTranslationIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(PolisStatementTranslationIden::Id).eq(*id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let translation = query_as_with(&sql, values).fetch_optional(db).await?;
+
+    translation
+        .ok_or_else(|| ComhairleError::ResourceNotFound("No translation found with this id".into()))
+}
+
+/// Mark a translation as human-verified without changing its `content` or
+/// `ai_generated` flag: an admin read the machine translation and confirmed it's
+/// correct as-is.
+#[instrument(err(Debug), skip(db))]
+pub async fn verify(db: &PgPool, id: Uuid) -> Result<PolisStatementTranslation, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(PolisStatementTranslationIden::Table)
+        .values([(
+            PolisStatementTranslationIden::RequiresValidation,
+            false.into(),
+        )])
+        .value(
+            PolisStatementTranslationIden::UpdatedAt,
+            Expr::current_timestamp(),
+        )
+        .and_where(Expr::col(PolisStatementTranslationIden::Id).eq(id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let translation = query_as_with(&sql, values).fetch_optional(db).await?;
+
+    translation
+        .ok_or_else(|| ComhairleError::ResourceNotFound("No translation found with this id".into()))
+}
+
+/// Overwrite a translation's `content` with an admin-provided correction. Clears
+/// `ai_generated` and `requires_validation`: the text is no longer the raw
+/// machine-translation output, and a human has just reviewed it.
+#[instrument(err(Debug), skip(db))]
+pub async fn update_content(
+    db: &PgPool,
+    id: Uuid,
+    content: &str,
+) -> Result<PolisStatementTranslation, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(PolisStatementTranslationIden::Table)
+        .values([
+            (PolisStatementTranslationIden::Content, content.into()),
+            (PolisStatementTranslationIden::AiGenerated, false.into()),
+            (
+                PolisStatementTranslationIden::RequiresValidation,
+                false.into(),
+            ),
+        ])
+        .value(
+            PolisStatementTranslationIden::UpdatedAt,
+            Expr::current_timestamp(),
+        )
+        .and_where(Expr::col(PolisStatementTranslationIden::Id).eq(id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let translation = query_as_with(&sql, values).fetch_optional(db).await?;
+
+    translation
+        .ok_or_else(|| ComhairleError::ResourceNotFound("No translation found with this id".into()))
+}
+
 /// Machine-translate `statement_text` into every `supported_language` other than
 /// `source_locale`, upserting a row per target. Each generated row is flagged
 /// `ai_generated` and `requires_validation`.
@@ -249,6 +325,41 @@ mod tests {
         let mut locales: Vec<_> = stored.iter().map(|t| t.locale.clone()).collect();
         locales.sort();
         assert_eq!(locales, vec!["es".to_string(), "fr".to_string()]);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn verify_clears_requires_validation_only(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let aux_id = seed_aux(&pool).await?;
+
+        let row = upsert(&pool, aux_id, "es", "hola generado", true, true).await?;
+
+        let verified = verify(&pool, row.id).await?;
+
+        assert_eq!(verified.content, "hola generado");
+        assert!(verified.ai_generated);
+        assert!(!verified.requires_validation);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn update_content_overwrites_and_clears_flags(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let aux_id = seed_aux(&pool).await?;
+
+        let row = upsert(&pool, aux_id, "es", "hola generado", true, true).await?;
+
+        let updated = update_content(&pool, row.id, "hola corregido").await?;
+
+        assert_eq!(updated.content, "hola corregido");
+        assert!(!updated.ai_generated);
+        assert!(!updated.requires_validation);
+
+        let fetched = get_by_id(&pool, &row.id).await?;
+        assert_eq!(fetched.content, "hola corregido");
 
         Ok(())
     }

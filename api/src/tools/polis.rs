@@ -295,6 +295,35 @@ impl ToolImpl for PolisTool {
                 }),
             )
             .api_route(
+                "/polis/statement_translation/{id}",
+                put_with(update_statement_translation, |op| {
+                    op.id("PolisUpdateStatementTranslation")
+                        .tag("Tools")
+                        .summary("Correct a stored Polis statement translation")
+                        .description(
+                            "Overwrites a translation's content with an admin-provided \
+                             correction. Clears ai_generated and requires_validation, \
+                             since the text is no longer raw machine output and a human \
+                             has just reviewed it.",
+                        )
+                        .response::<200, Json<PolisStatementTranslation>>()
+                }),
+            )
+            .api_route(
+                "/polis/statement_translation/{id}/verify",
+                put_with(verify_statement_translation, |op| {
+                    op.id("PolisVerifyStatementTranslation")
+                        .tag("Tools")
+                        .summary("Mark a Polis statement translation as human-verified")
+                        .description(
+                            "Clears requires_validation without changing the translation's \
+                             content, for when an admin reviews a machine translation and \
+                             finds it's already correct.",
+                        )
+                        .response::<200, Json<PolisStatementTranslation>>()
+                }),
+            )
+            .api_route(
                 "/polis/statement_aux/theme_stats",
                 get_with(theme_stats, |op| {
                     op.id("PolisStatementAuxThemeStats")
@@ -1445,6 +1474,50 @@ async fn remove_statement_aux_theme(
 
     let updated =
         models::polis_statement_aux::remove_theme(&state.db, statement_id, &request.theme).await?;
+    Ok((StatusCode::OK, Json(updated)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct UpdateStatementTranslationRequest {
+    pub content: String,
+}
+
+/// Overwrite a stored translation's text with an admin correction. Clears
+/// `ai_generated`/`requires_validation` (see `update_content`).
+#[instrument(err(Debug), skip(state))]
+async fn update_statement_translation(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(id): Path<Uuid>,
+    Json(request): Json<UpdateStatementTranslationRequest>,
+) -> Result<(StatusCode, Json<PolisStatementTranslation>), ComhairleError> {
+    let translation = models::polis_statement_translation::get_by_id(&state.db, &id).await?;
+    let aux =
+        models::polis_statement_aux::get_by_id(&state.db, &translation.polis_statement_aux_id)
+            .await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+
+    let updated =
+        models::polis_statement_translation::update_content(&state.db, id, &request.content)
+            .await?;
+    Ok((StatusCode::OK, Json(updated)))
+}
+
+/// Mark a stored translation as human-verified without changing its text. See
+/// `polis_statement_translation::verify`.
+#[instrument(err(Debug), skip(state))]
+async fn verify_statement_translation(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(id): Path<Uuid>,
+) -> Result<(StatusCode, Json<PolisStatementTranslation>), ComhairleError> {
+    let translation = models::polis_statement_translation::get_by_id(&state.db, &id).await?;
+    let aux =
+        models::polis_statement_aux::get_by_id(&state.db, &translation.polis_statement_aux_id)
+            .await?;
+    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+
+    let updated = models::polis_statement_translation::verify(&state.db, id).await?;
     Ok((StatusCode::OK, Json(updated)))
 }
 
