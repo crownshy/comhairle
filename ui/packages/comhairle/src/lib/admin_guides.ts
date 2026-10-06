@@ -191,20 +191,36 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 		navLabel: 'Create a conversation',
 		topics: [
 			{
-				key: 'name-your-conversation',
-				title: 'Name your conversation',
-				navLabel: 'Name your conversation',
+				key: 'create-a-conversation',
+				title: 'Create a conversation',
+				navLabel: 'Create a conversation',
 				summary:
-					'The title is the first thing participants see when they open your [Conversation](/admin/info/how-to/getting-started/glossary#term-conversation): on the landing page, in invitations and on listing cards.',
+					'Create a new conversation from scratch or start with a template that already contains a set of steps.',
 				steps: [
-					'On **Your conversations**, click **Create New Conversation** and choose **Start from blank**. To begin with a ready-made set of steps, choose **Choose from templates** instead.',
-					'The Conversation is created with a placeholder title like "Untitled 2026-10-05 2:24:30PM", and opens on **Configure** → **Details**.',
-					'Replace the placeholder in **Title** with a clear, specific name.',
-					'Add a **Short description**: one line shown under the title and on listing cards.'
+					'Click **+ New Conversation**.',
+					'Choose **Start from blank** to create a conversation from scratch, or **Choose from template** to start with a ready-made set of steps.',
+					'If you choose **Start from blank**, the Conversation is created with a placeholder title like "Untitled 2026-10-05 2:24:30PM".'
 				],
 				tips: [
-					'Write the title in words participants use, not internal project names.',
-					"Every Conversation needs a unique title. Two Conversations can't share exactly the same one."
+					'**Start from blank** gives you an empty conversation that you can build step by step.',
+					'**Choose from template** gives you a starting structure that you can adapt to your needs.',
+					'Creating a conversation does not make it available to participants. You can configure and review it before launching it.'
+				]
+			},
+			{
+				key: 'name-a-conversation',
+				title: 'Name a conversation',
+				navLabel: 'Name a conversation',
+				summary:
+					'Give your conversation a clear name that colleagues and participants can easily recognise.',
+				steps: [
+					'Go to **Configure** → **Details**.',
+					'Replace the temporary **Title** with a clear, specific name.',
+					'This title will be visible to colleagues and participants.'
+				],
+				tips: [
+					'Use words that participants will recognise rather than internal project names.',
+					'Every Conversation needs a unique title. Two conversations cannot have exactly the same title.'
 				]
 			},
 			{
@@ -212,32 +228,51 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Add a description',
 				navLabel: 'Add a description',
 				summary:
-					"The description tells participants what's being discussed and what might happen as a result of their input.",
+					'Describe what the conversation is about, why you’re asking for input, and what might happen as a result.',
 				steps: [
 					'Go to **Configure** → **Details**.',
-					'In **Description**, introduce the topic and outline the actions that might be taken as a result of the Conversation.',
-					'Under **Language options**, add any other languages you support. You can then translate each field into them.',
-					'For the rest of the participant-facing text, open **Configure** → **Content**. There you can set the **Call to action** button label, **FAQs**, **Privacy policy** and **Thank you message**.'
+					'In **Description**, explain the topic, why you’re asking for input, and what might happen as a result.'
 				],
 				tips: [
-					"Fields in **Content** fall back to Comhairle's defaults if you leave them blank.",
-					'Use **Configure** → **Glossary** to explain specialist terms. Their explanations appear as tooltips wherever the term is used in the Conversation.'
+					'Select **Preview** in the top-right corner to see how the conversation will appear to participants.',
+					'To customise other participant-facing text, go to **Configure** → **Content**. Here you can edit the **Call to action**, **FAQs**, **Privacy policy**, and **Thank you message**.',
+					'If you leave fields under **Content** blank, Comhairle’s default text will be used.',
+					'If you use specialist or unfamiliar terms, explain them under **Configure** → **Glossary**. Their definitions will appear as tooltips when those terms are used in the conversation.'
 				]
 			},
 			{
-				key: 'add-images-and-files',
-				title: 'Add images and files',
-				navLabel: 'Add images and files',
+				key: 'multilingual-conversation',
+				title: 'Setup a multilingual conversation',
+				navLabel: 'Setup a multilingual conversation',
 				summary:
-					'A banner image appears beside the description on the landing and invitation pages.',
+					'Add other languages to your conversation so participants can read and take part in their preferred language.',
 				steps: [
-					'Go to **Configure** → **Details** and find **Banner image**.',
-					"Click **Upload** to add a new image from your computer, or **Media library** to reuse one you've already uploaded.",
-					'If you chose the media library, pick the image and click **Select**.'
+					'Go to **Configure** → **Details**.',
+					'Under **Language options**, add the languages you want your conversation to support.',
+					'Once you add a language, translation fields will become available for the content you can translate.',
+					'Add the translated content for each language you support.'
 				],
 				tips: [
-					'Everything you upload is stored in the **Media library**, so you can reuse it in other Conversations.',
-					'Add **Alt** text to images in the media library so people using screen readers know what they show.'
+					'Add all the languages you plan to support before you start translating your conversation.',
+					'Adding a language does not automatically translate your content. Use the **Translate** button to generate a draft translation, then review and edit it before publishing.',
+					'Check that participant-facing content is translated before launching your conversation.'
+				]
+			},
+			{
+				key: 'add-banner-image',
+				title: 'Add a banner image',
+				navLabel: 'Add a banner image',
+				summary:
+					'Add a banner image to help participants recognise your conversation. It appears alongside the description on the conversation landing and invitation pages.',
+				steps: [
+					'Go to **Configure** → **Details** and find **Banner image**.',
+					'Select **Upload** to add a new image from your computer, or **Media library** to choose an image you’ve already uploaded.',
+					'If you choose **Media library**, select an image and click **Select**.'
+				],
+				tips: [
+					'Images you upload are saved to the **Media library**, so you can reuse them in other conversations.',
+					'Add **Alt text** to images in the **Media library** to describe their content for people using screen readers.',
+					'Choose an image that supports the topic of the conversation and is still easy to understand when displayed at different sizes.'
 				]
 			},
 			{
@@ -245,15 +280,17 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Preview your page',
 				navLabel: 'Preview your page',
 				summary:
-					'Preview shows the Conversation exactly as participants will see it, without launching it.',
+					'See how your conversation will appear to participants without launching it.',
 				steps: [
-					'Click **Preview** in the top-right corner of any Conversation page. It opens in a new tab.',
-					'Check the title, short description, description and banner image on the landing page.',
-					'Click through the join button and the steps as a participant would.',
-					'Fix anything in the admin tab, then refresh the preview tab to see the change.'
+					'Click **Preview** in the top-right corner. The preview opens in a new tab.',
+					'Check the **Title**, **Short description**, **Description**, and **Banner image** on the landing page.',
+					'Select the join button and go through the conversation steps as a participant would.',
+					'If you need to make changes, return to the admin tab and edit your conversation.',
+					'Refresh the preview tab to see your changes.'
 				],
 				tips: [
-					"Preview doesn't launch the Conversation or make it visible to participants, so use it as often as you like."
+					'Previewing does not launch your conversation or make it visible to participants, so you can preview it as often as you need.',
+					'Go through the full conversation before launching to check that the content, steps, and participant journey work as expected.'
 				]
 			}
 		]
