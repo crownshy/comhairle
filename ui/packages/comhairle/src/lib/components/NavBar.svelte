@@ -32,6 +32,7 @@
 	import { resolve } from '$app/paths';
 	import { key } from '$lib/utils/invalidationKey';
 	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	let links = [
 		{
@@ -63,26 +64,17 @@
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
 	const supportDrawer = useSupportDrawer();
-	// The Find out more drawer only exists inside a conversation workflow (its layout renders it).
-	let isInWorkflow = $derived(
-		page.route.id?.startsWith(
-			'/(public)/conversations/[conversation_id]/[[preview]]/workflow/'
-		) ?? false
-	);
+	let hasSupportDrawer = $derived(page.data.hasSupportDrawer === true);
 
 	const linkIcons = [Home, Info, MessageSquare, Shield];
 
 	async function attemptLogout() {
-		try {
+		const logout = await tryCatchAsync(async () => {
 			await apiClient.LogoutUser(undefined);
-
 			await goto(resolve('/'), { invalidate: [key('user')] });
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				priority: 'ERROR',
-				message: 'An error occurred when attempting to logout '
-			});
+		});
+		if (logout.err) {
+			notifications.send({ priority: 'ERROR', message: m.logout_failed() });
 		}
 	}
 </script>
@@ -131,7 +123,7 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			{#if isInWorkflow}
+			{#if hasSupportDrawer}
 				<Button
 					variant="nav"
 					class="gap-2 rounded-full text-base font-normal lg:hidden"
@@ -147,7 +139,7 @@
 				<Drawer.Root bind:open={isOpen} direction="bottom">
 					<Drawer.Trigger>
 						{#snippet child({ props })}
-							<Button {...props} variant="nav" size="icon" aria-label="Open menu">
+							<Button {...props} variant="nav" size="icon" aria-label={m.open_menu()}>
 								<Menu class="size-7" />
 							</Button>
 						{/snippet}
@@ -170,10 +162,10 @@
 									</Avatar.Root>
 									<div class="flex flex-col">
 										<span class="text-foreground text-sm font-medium">
-											{#if user.authType === 'guest'}Guest{:else}{user.guestCode}{/if}
+											{#if user.authType === 'guest'}{m.guest()}{:else}{user.guestCode}{/if}
 										</span>
 										{#if user.email}
-											<span class="text-muted-foreground text-xs"
+											<span class="text-muted-foreground text-sm"
 												>{user.email}</span
 											>
 										{/if}
@@ -244,7 +236,7 @@
 							<div class="flex flex-col gap-2 px-3 py-2">
 								<div class="flex items-center justify-between">
 									<span
-										class="text-muted-foreground text-xs font-medium tracking-wider uppercase"
+										class="text-muted-foreground text-sm font-medium tracking-wider uppercase"
 										>{m.language()}</span
 									>
 									<LocaleSwitcher />
