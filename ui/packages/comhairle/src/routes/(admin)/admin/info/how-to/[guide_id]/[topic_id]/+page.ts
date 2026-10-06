@@ -1,6 +1,12 @@
 import { error } from '@sveltejs/kit';
-import { ADMIN_GUIDES } from '$lib/admin_guides';
+import { ADMIN_GUIDES, ADMIN_GUIDE_NAV } from '$lib/admin_guides';
 import type { PageLoad } from './$types';
+
+// Every topic in reading order, across all guides, so "Next" can carry on
+// from the last topic of one guide to the first topic of the next.
+const ALL_TOPICS = ADMIN_GUIDE_NAV.flatMap((guide) =>
+	guide.topics.map((topic) => ({ guideKey: guide.key, topic }))
+);
 
 export const load: PageLoad = ({ params }) => {
 	if (!Object.hasOwn(ADMIN_GUIDES, params.guide_id)) {
@@ -14,5 +20,17 @@ export const load: PageLoad = ({ params }) => {
 		error(404, 'Topic not found');
 	}
 
-	return { guide, topic };
+	const index = ALL_TOPICS.findIndex(
+		(entry) => entry.guideKey === guide.key && entry.topic.key === topic.key
+	);
+	const following = ALL_TOPICS[index + 1];
+	const next = following
+		? {
+				guideKey: following.guideKey,
+				topicKey: following.topic.key,
+				title: following.topic.title
+			}
+		: null;
+
+	return { guide, topic, next };
 };
