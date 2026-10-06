@@ -17,6 +17,13 @@
  */
 
 import environmentImage from './assets/admin-guide/environment.webp';
+import rolesAndPermissionsImage from './assets/admin-guide/roles-and-permissions.webp';
+import createAConversationImage from './assets/admin-guide/create-a-conversation.webp';
+import nameAConversationImage from './assets/admin-guide/name-a-conversation.webp';
+import addADescriptionImage from './assets/admin-guide/add-a-description.webp';
+import multilingualConversationImage from './assets/admin-guide/multilingual-conversation.webp';
+import addBannerImageImage from './assets/admin-guide/add-banner-image.webp';
+import previewImage from './assets/admin-guide/preview.webp';
 import logInImage from './assets/admin-guide/log-in.webp';
 import signUpImage from './assets/admin-guide/sign-up.webp';
 
@@ -124,6 +131,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Your role and permissions',
 				summary:
 					'What you can see and change depends on whether you created a Conversation or were added to it by someone else.',
+				image: {
+					src: rolesAndPermissionsImage,
+					alt: "The Team tab under Configure, where the owner enters a colleague's email address to grant them content editor access, above the list of the conversation's content editor users."
+				},
 				steps: [
 					'Conversations you create appear under **Owned Conversations**. As the owner, you can edit everything and decide who else has access.',
 					'To bring in a colleague, open the Conversation and go to **Configure** → **Team**. Find them by email address and grant them content editor permission.',
@@ -196,6 +207,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Create a conversation',
 				summary:
 					'Create a new conversation from scratch or start with a template that already contains a set of steps.',
+				image: {
+					src: createAConversationImage,
+					alt: "The Choose a template window, listing workflow templates such as Informed-participants survey, Understand opinion groups and Citizen workshop, with a preview of the selected template's steps."
+				},
 				steps: [
 					'Click **+ New Conversation**.',
 					'Choose **Start from blank** to create a conversation from scratch, or **Choose from template** to start with a ready-made set of steps.',
@@ -213,6 +228,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Name a conversation',
 				summary:
 					'Give your conversation a clear name that colleagues and participants can easily recognise.',
+				image: {
+					src: nameAConversationImage,
+					alt: "The Details tab under Configure, with the conversation's Title field highlighted."
+				},
 				steps: [
 					'Go to **Configure** → **Details**.',
 					'Replace the temporary **Title** with a clear, specific name.',
@@ -229,6 +248,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Add a description',
 				summary:
 					'Describe what the conversation is about, why you’re asking for input, and what might happen as a result.',
+				image: {
+					src: addADescriptionImage,
+					alt: 'The Details tab under Configure, showing the Short description and Description fields filled in.'
+				},
 				steps: [
 					'Go to **Configure** → **Details**.',
 					'In **Description**, explain the topic, why you’re asking for input, and what might happen as a result.'
@@ -246,6 +269,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Setup a multilingual conversation',
 				summary:
 					'Add other languages to your conversation so participants can read and take part in their preferred language.',
+				image: {
+					src: multilingualConversationImage,
+					alt: 'Language options on the Details tab, with English as the primary language and Gaelic added as a supported language. Translated fields show a Gaelic Draft label.'
+				},
 				steps: [
 					'Go to **Configure** → **Details**.',
 					'Under **Language options**, add the languages you want your conversation to support.',
@@ -264,6 +291,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Add a banner image',
 				summary:
 					'Add a banner image to help participants recognise your conversation. It appears alongside the description on the conversation landing and invitation pages.',
+				image: {
+					src: addBannerImageImage,
+					alt: 'The upload window for a banner image, with an area to drag and drop a file, Filename and Alt fields, and an Upload button.'
+				},
 				steps: [
 					'Go to **Configure** → **Details** and find **Banner image**.',
 					'Select **Upload** to add a new image from your computer, or **Media library** to choose an image you’ve already uploaded.',
@@ -281,6 +312,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Preview your page',
 				summary:
 					'See how your conversation will appear to participants without launching it.',
+				image: {
+					src: previewImage,
+					alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description and banner image.'
+				},
 				steps: [
 					'Click **Preview** in the top-right corner. The preview opens in a new tab.',
 					'Check the **Title**, **Short description**, **Description**, and **Banner image** on the landing page.',
