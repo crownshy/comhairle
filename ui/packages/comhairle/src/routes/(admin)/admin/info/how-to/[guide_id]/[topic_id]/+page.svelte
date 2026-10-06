@@ -37,6 +37,18 @@
 			{@render richText(topic.summary)}
 		</p>
 
+		{#if topic.image}
+			<figure
+				class="border-border bg-muted mt-6 w-full overflow-hidden rounded-xl border p-2 shadow-sm"
+			>
+				<img
+					src={topic.image.src}
+					alt={topic.image.alt}
+					class="block h-auto w-full rounded-xl"
+				/>
+			</figure>
+		{/if}
+
 		{#if topic.steps?.length}
 			<section class="mt-8" aria-labelledby="steps-heading">
 				<h2 id="steps-heading" class="text-foreground text-lg font-semibold">Steps</h2>
@@ -55,11 +67,22 @@
 		{/if}
 
 		{#if topic.terms?.length}
-			<dl class="mt-8 flex flex-col gap-5">
+			<!-- Glossary: one card per term in a two-column grid. Each card has an id
+			     (e.g. #term-conversation) so other pages can link straight to a term. -->
+			<dl class="mt-8 grid gap-3 sm:grid-cols-2">
 				{#each topic.terms as { term, definition } (term)}
-					<div>
-						<dt class="text-foreground font-semibold">{term}</dt>
-						<dd class="text-foreground mt-1 leading-6">
+					<div
+						id={`term-${term.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+						class="border-border bg-card hover:border-primary/40 target:border-primary target:ring-primary/20 scroll-mt-6 rounded-xl border p-4 transition-colors target:ring-2"
+					>
+						<dt class="flex items-center gap-3">
+							<span
+								class="bg-accent text-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+								aria-hidden="true">{term.charAt(0)}</span
+							>
+							<span class="text-foreground font-semibold">{term}</span>
+						</dt>
+						<dd class="text-muted-foreground mt-3 text-sm leading-6">
 							{@render richText(definition)}
 						</dd>
 					</div>
