@@ -77,10 +77,10 @@
 	{/if}
 	<Drawer.Content class="flex w-screen! max-w-[100vw]! flex-col pb-12 lg:max-w-[50vw]!">
 		<Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col gap-0">
-			<div class="border-border flex shrink-0 items-end gap-2 border-b px-4">
+			<div class="border-border flex shrink-0 items-end gap-2 border-b px-4 pt-2">
 				<Drawer.Close
 					aria-label={m.support_close()}
-					class="hover:bg-muted mb-1 grid size-11 shrink-0 place-items-center rounded-md"
+					class="hover:bg-muted/60 active:bg-muted grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-t-md border-b-2 border-transparent transition-colors"
 				>
 					<LucideChevronRight class="stroke-foreground" aria-hidden="true" />
 				</Drawer.Close>
