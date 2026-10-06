@@ -64,7 +64,7 @@
 	     from a NavBar button instead. -->
 	<Drawer.Trigger
 		class="bg-primary text-primary-foreground fixed top-1/5 right-0 translate-x-12 -rotate-90 p-3 font-bold max-lg:hidden"
-		><span>{m.support_find_out_more()}</span></Drawer.Trigger
+		>{m.support_find_out_more()}</Drawer.Trigger
 	>
 	{#if isEmbed}
 		<!-- Raised to clear sticky bottom bars like Prioritization's. -->
@@ -80,7 +80,7 @@
 			<div class="border-border flex shrink-0 items-end gap-2 border-b px-4 pt-2">
 				<Drawer.Close
 					aria-label={m.support_close()}
-					class="hover:bg-muted/60 active:bg-muted grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-t-md border-b-2 border-transparent transition-colors"
+					class="hover:bg-muted/60 active:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-t-md border-b-2 border-transparent transition-[color,background-color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1"
 				>
 					<LucideChevronRight class="stroke-foreground" aria-hidden="true" />
 				</Drawer.Close>
