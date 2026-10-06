@@ -18,7 +18,8 @@
 		Bell,
 		LogOut,
 		Briefcase,
-		LayoutGrid
+		LayoutGrid,
+		CircleHelp
 	} from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
@@ -28,7 +29,9 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { key } from '$lib/utils/invalidationKey';
+	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
 
 	let links = [
 		{
@@ -55,13 +58,17 @@
 		isOpen = false;
 	});
 
-	$effect(() => {
-		console.log('Unread count ', notificationService.unreadCount);
-	});
-
 	let { user, isAdmin } = $props();
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
+
+	const supportDrawer = useSupportDrawer();
+	// The Find out more drawer only exists inside a conversation workflow (its layout renders it).
+	let isInWorkflow = $derived(
+		page.route.id?.startsWith(
+			'/(public)/conversations/[conversation_id]/[[preview]]/workflow/'
+		) ?? false
+	);
 
 	const linkIcons = [Home, Info, MessageSquare, Shield];
 
@@ -69,7 +76,7 @@
 		try {
 			await apiClient.LogoutUser(undefined);
 
-			await goto('/', { invalidate: [key('user')] });
+			await goto(resolve('/'), { invalidate: [key('user')] });
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -123,152 +130,165 @@
 			<ProfileMenu {user} />
 		</div>
 
-		<!-- Mobile Navigation -->
-		<div class="navbar:hidden">
-			<Drawer.Root bind:open={isOpen} direction="bottom">
-				<Drawer.Trigger>
-					{#snippet child({ props })}
-						<Button {...props} variant="nav" size="icon" aria-label="Open menu">
-							<Menu class="size-7" />
-						</Button>
-					{/snippet}
-				</Drawer.Trigger>
-				<Drawer.Content>
-					<div class="mx-auto flex w-full max-w-md flex-col gap-1 p-4 pb-8">
-						<!-- User section -->
-						{#if user}
-							<div class="flex items-center gap-3 px-3 py-3">
-								<Avatar.Root class="h-10 w-10">
-									{#if user.avatarUrl}
-										<Avatar.Image
-											src={user.avatarUrl}
-											alt={user.username ?? ''}
-										/>
-									{/if}
-									<Avatar.Fallback class="text-sm"
-										>{user_initials}</Avatar.Fallback
-									>
-								</Avatar.Root>
-								<div class="flex flex-col">
-									<span class="text-foreground text-sm font-medium">
-										{#if user.authType === 'guest'}Guest{:else}{user.guestCode}{/if}
-									</span>
-									{#if user.email}
-										<span class="text-muted-foreground text-xs"
-											>{user.email}</span
-										>
-									{/if}
-								</div>
-							</div>
-							<Separator />
-						{/if}
+		<div class="flex items-center gap-2">
+			{#if isInWorkflow}
+				<Button
+					variant="nav"
+					class="gap-2 rounded-full text-base font-normal lg:hidden"
+					onclick={() => (supportDrawer.open = true)}
+				>
+					<CircleHelp class="size-5" aria-hidden="true" />
+					{m.support_find_out_more()}
+				</Button>
+			{/if}
 
-						<!-- Navigation links -->
-						<nav class="flex flex-col gap-0.5">
-							{#each links as link, i (link.href)}
-								{@const Icon = linkIcons[i]}
-								<Button
-									href={link.href}
-									variant="ghost"
-									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
-								>
-									<Icon class="text-muted-foreground size-5" />
-									{link.name}
-								</Button>
-							{/each}
-						</nav>
-
-						<Separator />
-
-						<!-- Settings & account -->
-						<div class="flex flex-col gap-0.5">
+			<!-- Mobile Navigation -->
+			<div class="navbar:hidden">
+				<Drawer.Root bind:open={isOpen} direction="bottom">
+					<Drawer.Trigger>
+						{#snippet child({ props })}
+							<Button {...props} variant="nav" size="icon" aria-label="Open menu">
+								<Menu class="size-7" />
+							</Button>
+						{/snippet}
+					</Drawer.Trigger>
+					<Drawer.Content>
+						<div class="mx-auto flex w-full max-w-md flex-col gap-1 p-4 pb-8">
+							<!-- User section -->
 							{#if user}
-								<Button
-									href="/notifications"
-									variant="ghost"
-									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
-								>
-									<Bell class="text-muted-foreground size-5" />
-									{m.notifications()}
-									{#if notificationService.unreadCount > 0}
-										<Badge class="ml-auto"
-											>{notificationService.unreadCount}</Badge
+								<div class="flex items-center gap-3 px-3 py-3">
+									<Avatar.Root class="h-10 w-10">
+										{#if user.avatarUrl}
+											<Avatar.Image
+												src={user.avatarUrl}
+												alt={user.username ?? ''}
+											/>
+										{/if}
+										<Avatar.Fallback class="text-sm"
+											>{user_initials}</Avatar.Fallback
 										>
-									{/if}
-								</Button>
-								<Button
-									href="/settings"
-									variant="ghost"
-									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
-								>
-									<Settings class="text-muted-foreground size-5" />
-									{m.settings()}
-								</Button>
+									</Avatar.Root>
+									<div class="flex flex-col">
+										<span class="text-foreground text-sm font-medium">
+											{#if user.authType === 'guest'}Guest{:else}{user.guestCode}{/if}
+										</span>
+										{#if user.email}
+											<span class="text-muted-foreground text-xs"
+												>{user.email}</span
+											>
+										{/if}
+									</div>
+								</div>
+								<Separator />
 							{/if}
-							{#if isAdmin}
-								<Button
-									href="/admin"
-									variant="ghost"
-									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+
+							<!-- Navigation links -->
+							<nav class="flex flex-col gap-0.5">
+								{#each links as link, i (link.href)}
+									{@const Icon = linkIcons[i]}
+									<Button
+										href={link.href}
+										variant="ghost"
+										class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+									>
+										<Icon class="text-muted-foreground size-5" />
+										{link.name}
+									</Button>
+								{/each}
+							</nav>
+
+							<Separator />
+
+							<!-- Settings & account -->
+							<div class="flex flex-col gap-0.5">
+								{#if user}
+									<Button
+										href="/notifications"
+										variant="ghost"
+										class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+									>
+										<Bell class="text-muted-foreground size-5" />
+										{m.notifications()}
+										{#if notificationService.unreadCount > 0}
+											<Badge class="ml-auto"
+												>{notificationService.unreadCount}</Badge
+											>
+										{/if}
+									</Button>
+									<Button
+										href="/settings"
+										variant="ghost"
+										class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+									>
+										<Settings class="text-muted-foreground size-5" />
+										{m.settings()}
+									</Button>
+								{/if}
+								{#if isAdmin}
+									<Button
+										href="/admin"
+										variant="ghost"
+										class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+									>
+										<LayoutGrid class="text-muted-foreground size-5" />
+										{m.workspace()}
+									</Button>
+								{/if}
+							</div>
+
+							{#if user}
+								<Separator />
+							{/if}
+
+							<!-- Preferences -->
+							<div class="flex flex-col gap-2 px-3 py-2">
+								<div class="flex items-center justify-between">
+									<span
+										class="text-muted-foreground text-xs font-medium tracking-wider uppercase"
+										>{m.language()}</span
+									>
+									<LocaleSwitcher />
+								</div>
+								<ModeToggle />
+							</div>
+
+							<!-- Auth actions -->
+							{#if user}
+								<Separator />
+								<form
+									method="POST"
+									onsubmit={(e) => {
+										e.preventDefault();
+										attemptLogout();
+									}}
+									class="px-0"
 								>
-									<LayoutGrid class="text-muted-foreground size-5" />
-									{m.workspace()}
-								</Button>
+									<Button
+										type="submit"
+										variant="ghost"
+										class="text-destructive hover:text-destructive h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+									>
+										<LogOut class="size-5" />
+										{m.logout()}
+									</Button>
+								</form>
+							{:else}
+								<Separator />
+								<div class="flex gap-2 px-3 pt-2 text-base">
+									<Button
+										href="/auth/login"
+										variant="outline"
+										class="flex-1 text-base">{m.login()}</Button
+									>
+									<Button href="/auth/signup" class="flex-1 text-base"
+										>{m.sign_up()}</Button
+									>
+								</div>
 							{/if}
 						</div>
-
-						{#if user}
-							<Separator />
-						{/if}
-
-						<!-- Preferences -->
-						<div class="flex flex-col gap-2 px-3 py-2">
-							<div class="flex items-center justify-between">
-								<span
-									class="text-muted-foreground text-xs font-medium tracking-wider uppercase"
-									>{m.language()}</span
-								>
-								<LocaleSwitcher />
-							</div>
-							<ModeToggle />
-						</div>
-
-						<!-- Auth actions -->
-						{#if user}
-							<Separator />
-							<form
-								method="POST"
-								onsubmit={(e) => {
-									e.preventDefault();
-									attemptLogout();
-								}}
-								class="px-0"
-							>
-								<Button
-									type="submit"
-									variant="ghost"
-									class="text-destructive hover:text-destructive h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
-								>
-									<LogOut class="size-5" />
-									{m.logout()}
-								</Button>
-							</form>
-						{:else}
-							<Separator />
-							<div class="flex gap-2 px-3 pt-2 text-base">
-								<Button
-									href="/auth/login"
-									variant="outline"
-									class="flex-1 text-base">{m.login()}</Button
-								>
-								<Button href="/auth/signup" class="flex-1 text-base"
-									>{m.sign_up()}</Button
-								>
-							</div>
-						{/if}
-					</div>
-				</Drawer.Content>
-			</Drawer.Root>
+					</Drawer.Content>
+				</Drawer.Root>
+			</div>
 		</div>
 	</div>
 </nav>
