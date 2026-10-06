@@ -41,10 +41,6 @@
 			'Select a guide'
 	);
 
-	// Which guide, topic or tool is open comes from the URL's params
-	// (/how-to/[guide_id]/[topic_id], /tools/[tool_id]). We compare keys rather
-	// than resolve()d paths because during server rendering resolve() returns
-	// relative paths (../../admin/...), which never equal page.url.pathname.
 	type NavItem = (typeof NAV_ITEMS)[number];
 
 	function isActiveItem(item: NavItem) {

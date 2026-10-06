@@ -1,7 +1,5 @@
 /**
  * Content for the Comhairle Admin Guide (/admin/info/how-to/<guide>/<topic>).
- * The editable copy lives in the "From the code" tab of the Comhairle admin guide
- * Google Doc; change the wording there and copy it back here.
  *
  * Every topic follows the same template so readers know where to look:
  *   summary  – one or two sentences: what this is and why it matters
