@@ -5,6 +5,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import TextViewer from './TextViewer.svelte';
+	import ImageViewer from './ImageViewer.svelte';
 	import type { PdfHighlight } from './highlights';
 	import type { PreviewKind } from '$lib/utils/previewKind';
 
@@ -78,9 +79,7 @@
 		<div class="bg-muted min-h-0 flex-1 overflow-hidden">
 			{#if browser && open && src}
 				{#if kind === 'image'}
-					<div class="flex h-full w-full items-center justify-center overflow-auto p-4">
-						<img {src} alt={name} class="max-h-full max-w-full object-contain" />
-					</div>
+					<ImageViewer {src} alt={name} />
 				{:else if kind === 'text'}
 					<TextViewer {src} />
 				{:else if kind === 'docx' && DocxViewer}

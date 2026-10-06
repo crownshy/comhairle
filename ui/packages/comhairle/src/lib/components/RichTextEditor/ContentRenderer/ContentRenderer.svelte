@@ -58,11 +58,17 @@
 
 	/* Intercept source-document badge clicks: open PDFs, images, and Word
 	 * documents in an in-page viewer instead of downloading. Other file types
-	 * keep default download. */
+	 * keep default download. Inline images open in the same viewer so small
+	 * text in them can be zoomed. */
 	function handleContentClick(event: MouseEvent) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
 
 		const target = event.target as HTMLElement | null;
+		if (target instanceof HTMLImageElement && !target.closest('a')) {
+			openImage(target);
+			return;
+		}
+
 		const badge = target?.closest<HTMLAnchorElement>('a.source-document-badge');
 		if (!badge) return;
 
@@ -79,6 +85,13 @@
 
 		event.preventDefault();
 		previewDialog = { open: true, kind, src: href, name: doc.name, downloadHref: href };
+	}
+
+	function openImage(image: HTMLImageElement) {
+		const src = image.currentSrc || image.src;
+		if (!src) return;
+		const name = image.alt || 'Image';
+		previewDialog = { open: true, kind: 'image', src, name, downloadHref: null };
 	}
 
 	// Delegated rather than an inline onclick: the badges come from {@html}, and putting a
@@ -202,5 +215,9 @@
 
 	:global(.content-renderer .tiptap) {
 		min-height: unset;
+	}
+
+	:global(.content-renderer .tiptap img:not(a img)) {
+		cursor: zoom-in;
 	}
 </style>
