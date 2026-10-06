@@ -88,8 +88,8 @@ export const PasswordResetUpdateRequest = z
 export type PasswordResetUpdateRequest = z.infer<
   typeof PasswordResetUpdateRequest
 >;
-export const camelCase = z.union([z.string(), z.null()]).optional();
-export type camelCase = z.infer<typeof camelCase>;
+export const backTo = z.union([z.string(), z.null()]).optional();
+export type backTo = z.infer<typeof backTo>;
 export const ResourceType = z.union([
   z.literal("Site"),
   z.object({ Conversation: z.string().uuid() }),
@@ -3280,7 +3280,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
   PasswordResetUpdateRequest,
-  camelCase,
+  backTo,
   ResourceType,
   ResourceRole,
   UserRoles,
@@ -3657,7 +3657,17 @@ const endpoints = makeApi([
       {
         name: "code",
         type: "Query",
-        schema: z.string(),
+        schema: backTo,
+      },
+      {
+        name: "error",
+        type: "Query",
+        schema: backTo,
+      },
+      {
+        name: "state",
+        type: "Query",
+        schema: backTo,
       },
     ],
     response: z.void(),
@@ -3691,9 +3701,9 @@ const endpoints = makeApi([
     requestFormat: "json",
     parameters: [
       {
-        name: "camelCase",
+        name: "backTo",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: z.void(),
@@ -3873,12 +3883,12 @@ const endpoints = makeApi([
       {
         name: "created_after",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "created_before",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "is_complete",
@@ -3903,17 +3913,17 @@ const endpoints = makeApi([
       {
         name: "keyword",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "organization_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "owner_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -4105,12 +4115,12 @@ const endpoints = makeApi([
       {
         name: "name",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "order_by",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "page",
@@ -4125,7 +4135,7 @@ const endpoints = makeApi([
       {
         name: "title",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: z.array(ComhairleDocument),
@@ -4261,7 +4271,7 @@ curl -X POST \
       {
         name: "conversation_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "time_status",
@@ -4350,7 +4360,7 @@ curl -X POST \
       {
         name: "role",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -5209,12 +5219,12 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       {
         name: "conversation_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "question_slug",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -5262,12 +5272,12 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       {
         name: "conversation_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "question_slug",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -5331,17 +5341,17 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       {
         name: "conversation_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "question_slug",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "user_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -5520,22 +5530,22 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       {
         name: "completion_message",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "progress",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "status",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "step",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -5603,7 +5613,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       {
         name: "owner_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -5767,7 +5777,7 @@ curl -X POST \
       {
         name: "region_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -5939,17 +5949,17 @@ curl -X POST \
       {
         name: "organization_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "role_name",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "user_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: PaginatedResults_for_ResourcePermission,
@@ -5984,17 +5994,17 @@ curl -X POST \
       {
         name: "organization_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "role_name",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "user_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: PaginatedResults_for_ResourcePermission,
@@ -6045,7 +6055,7 @@ curl -X POST \
       {
         name: "organization_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "role_name",
@@ -6055,7 +6065,7 @@ curl -X POST \
       {
         name: "user_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: z.void(),
@@ -6090,17 +6100,17 @@ curl -X POST \
       {
         name: "organization_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "role_name",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "user_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: z.array(UserWithPermissionDto),
@@ -6125,7 +6135,7 @@ curl -X POST \
       {
         name: "user_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: z.array(ResourcePermission),
@@ -6199,7 +6209,7 @@ curl -X POST \
       {
         name: "organization_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -6409,12 +6419,12 @@ curl -X POST \
       {
         name: "polis_conversation_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "workflow_step_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: z.array(PolisStatementAux),
@@ -6549,12 +6559,12 @@ curl -X POST \
       {
         name: "polis_conversation_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "workflow_step_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: z.array(ThemeStatistic),
@@ -6740,7 +6750,7 @@ Create a response for prioritization tool proposal
       {
         name: "category",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: Submissions,
@@ -6780,7 +6790,7 @@ Use a raw HTTP request and process the response body incrementally.
       {
         name: "user_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "workflow_step_id",
@@ -6835,12 +6845,12 @@ Use a raw HTTP request and process the response body incrementally.
       {
         name: "root_question_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "user_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
     ],
     response: z.array(ThinkingSpaceFollowUpQuestionDto),
@@ -7115,12 +7125,12 @@ This struct contains optional fields that can be updated on a TextTranslation re
       {
         name: "created_after",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "created_before",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "is_complete",
@@ -7145,17 +7155,17 @@ This struct contains optional fields that can be updated on a TextTranslation re
       {
         name: "keyword",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "organization_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "owner_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
@@ -7180,12 +7190,12 @@ This struct contains optional fields that can be updated on a TextTranslation re
       {
         name: "created_after",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "created_before",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "is_complete",
@@ -7210,17 +7220,17 @@ This struct contains optional fields that can be updated on a TextTranslation re
       {
         name: "keyword",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "organization_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "owner_id",
         type: "Query",
-        schema: camelCase,
+        schema: backTo,
       },
       {
         name: "limit",
