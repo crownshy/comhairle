@@ -64,6 +64,8 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 		preview,
 		sealed,
 		availableDocuments,
-		hasKnowledgeBaseDocs
+		hasKnowledgeBaseDocs,
+		// Tells the NavBar, which renders above this layout, to show its Find out more button.
+		hasSupportDrawer: true
 	};
 };

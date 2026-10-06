@@ -10,10 +10,12 @@ export type { SupportDrawerState };
 
 const SYMBOL_KEY = 'comhairle-support-drawer';
 
+/** Create the Find out more drawer state and set it for descendants. */
 export function setSupportDrawer(): SupportDrawerState {
 	return setContext(Symbol.for(SYMBOL_KEY), new SupportDrawerState());
 }
 
+/** Read the Find out more drawer state. Must be called under the `(public)` layout. */
 export function useSupportDrawer(): SupportDrawerState {
 	const context = getContext<SupportDrawerState | undefined>(Symbol.for(SYMBOL_KEY));
 	if (!context) {
