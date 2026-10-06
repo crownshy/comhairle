@@ -11,11 +11,23 @@
  * Inline formatting in any of these strings:
  *   **Launch**            bold – use for button, tab and field names as they appear on screen
  *   [Sign up](/auth/signup)  link – site-relative paths for pages in Comhairle, full URLs otherwise
+ *
+ * Screenshots live in src/lib/assets/admin-guide/, named after the topic key
+ * (sign-up.webp). Import them below and set `image` on the topic.
  */
+
+import environmentImage from './assets/admin-guide/environment.webp';
+import logInImage from './assets/admin-guide/log-in.webp';
+import signUpImage from './assets/admin-guide/sign-up.webp';
 
 export type AdminGuideTerm = {
 	term: string;
 	definition: string;
+};
+
+export type AdminGuideImage = {
+	src: string;
+	alt: string;
 };
 
 export type AdminGuideTopic = {
@@ -23,6 +35,7 @@ export type AdminGuideTopic = {
 	title: string;
 	navLabel: string;
 	summary: string;
+	image?: AdminGuideImage;
 	steps?: string[];
 	terms?: AdminGuideTerm[];
 	tips?: string[];
@@ -47,6 +60,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Sign up for an admin account',
 				summary:
 					'Create an account and request the admin role to gain access to the admin workspace.',
+				image: {
+					src: signUpImage,
+					alt: 'The Create an account page, with Username, Email, Password and Confirm Password fields, a Sign Up button and a Sign up as guest button.'
+				},
 				steps: [
 					'Go to [Sign up](/auth/signup) and create an account.',
 					'Email [team@crown-shy.com](mailto:team@crown-shy.com) from the email address you used to sign up and ask for the admin role to be added to your account.',
@@ -62,6 +79,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Log in as an admin user',
 				navLabel: 'Log in as an admin user',
 				summary: 'Log in with your admin account to access the admin workspace.',
+				image: {
+					src: logInImage,
+					alt: 'The Log In page, with Email and Password fields, a Log In button and options to log in with a one-time passcode or a Guest ID.'
+				},
 				steps: [
 					'Go to [Login](/auth/login)',
 					'Enter your email address and password.',
@@ -76,7 +97,11 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Get familiar with the environment',
 				navLabel: 'Get familiar with the environment',
 				summary:
-					'The workspace is where you create and manage conversations, launch them to participants, and moderate participant contributions.',
+					'The workspace is where you create and manage [conversations](/admin/info/how-to/getting-started/glossary#term-conversation), launch them to participants, and moderate participant contributions.',
+				image: {
+					src: environmentImage,
+					alt: 'The workspace. The sidebar on the left lists Home, Workspace, Organisations, Emails, Media library and your conversations. On the right, Your conversations shows each conversation with its status, such as Draft or Live, and an Edit conversation button.'
+				},
 				steps: [
 					'Use the sidebar to navigate between different areas of the workspace. The content on the right updates based on your selection.',
 					'Select the **collapse icon** to collapse the sidebar. Select it again to reopen it.'
@@ -120,7 +145,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					{
 						term: 'Conversation',
 						definition:
-							'A consultation on one topic. It has a title, a description and a series of steps that participants go through.'
+							'A conversation is a public consultation on a particular topic that you create and manage in the workspace.'
 					},
 					{
 						term: 'Step',
@@ -135,7 +160,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					{
 						term: 'Engagement tool',
 						definition:
-							'The activity behind a step, for example Learn step, Participant-led Poll, Thinking space, Survey or Prioritization tool.'
+							'The tool providing an activity behind a step, for example Learn step, Participant-led Poll, Thinking space, Survey or Prioritization tool.'
 					},
 					{
 						term: 'Preview',
@@ -170,7 +195,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Name your conversation',
 				navLabel: 'Name your conversation',
 				summary:
-					'The title is the first thing participants see: on the landing page, in invitations and on listing cards.',
+					'The title is the first thing participants see when they open your [Conversation](/admin/info/how-to/getting-started/glossary#term-conversation): on the landing page, in invitations and on listing cards.',
 				steps: [
 					'On **Your conversations**, click **Create New Conversation** and choose **Start from blank**. To begin with a ready-made set of steps, choose **Choose from templates** instead.',
 					'The Conversation is created with a placeholder title like "Untitled 2026-10-05 2:24:30PM", and opens on **Configure** → **Details**.',
