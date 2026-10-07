@@ -152,11 +152,11 @@
 {#snippet fields()}
 	<!-- Name field -->
 	<div class="flex flex-col gap-1">
-		<span class="text-lg font-semibold">Name</span>
+		<label for="name" class="text-lg font-semibold">Name</label>
 		<p class="text-muted-foreground mb-2 text-sm">
 			The name of the step that will be shown to participants.
 		</p>
-		<TranslatableField source={nameSource} {primaryLocale} {supportedLanguages} />
+		<TranslatableField id="name" source={nameSource} {primaryLocale} {supportedLanguages} />
 	</div>
 
 	<!-- Description field -->
@@ -185,18 +185,20 @@
 {#snippet switches()}
 	<div class="flex items-center gap-2">
 		<Switch
+			id="revisitable-step"
 			checked={revisitable}
 			onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
 		/>
-		<Label class="text-base">Revisitable step</Label>
+		<Label for="revisitable-step" class="text-base">Revisitable step</Label>
 		<span class="text-muted-foreground ml-2 text-sm">(Can users revisit this step?)</span>
 	</div>
 	<div class="flex items-center gap-2">
 		<Switch
+			id="required-step"
 			checked={required}
 			onCheckedChange={(value) => handleSwitchChange(value, 'required')}
 		/>
-		<Label class="text-base">Required step</Label>
+		<Label for="required-step" class="text-base">Required step</Label>
 		<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
 	</div>
 	<div class="flex flex-col gap-2">
@@ -285,7 +287,7 @@
 				<AlertDialog.Cancel class="w-full sm:w-auto" disabled={deleting}>
 					Cancel
 				</AlertDialog.Cancel>
-				<AlertDialog.Action
+				<Button
 					class="bg-destructive hover:bg-destructive/90 w-full text-white sm:w-auto"
 					disabled={deleting}
 					onclick={(e) => {
@@ -297,7 +299,7 @@
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
 					Delete step
-				</AlertDialog.Action>
+				</Button>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Root>

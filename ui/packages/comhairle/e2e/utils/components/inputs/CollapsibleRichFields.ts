@@ -1,6 +1,7 @@
 import { exists } from '../..';
 import UserInputs from './UserInputs';
 import type { Locators, Refs } from '../types';
+import Tiptap from './Tiptap';
 
 type CollapsibleRichFields<T> = {
 	id: T;
@@ -40,8 +41,8 @@ const CollapisbleRichFields = <const T extends string, U extends CollapsibleRich
 				.click();
 		},
 		async update(_, value) {
-			await refs.page.locator('.tiptap.ProseMirror').click();
-			await refs.page.locator('.tiptap.ProseMirror').fill(value);
+			const tiptap = Tiptap(refs);
+			await tiptap.write(value);
 			await refs.page.getByRole('button', { name: 'Done' }).click();
 		},
 		async expector(collapisbleRichField) {
