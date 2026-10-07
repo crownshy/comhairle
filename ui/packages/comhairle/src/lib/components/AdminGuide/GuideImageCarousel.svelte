@@ -10,12 +10,13 @@
 		/** Renders a caption, so it can use the guide's **bold** and link formatting. */
 		caption: Snippet<[string]>;
 		class?: string;
+		/** Index of the image shown. Bind to it to move the carousel from outside. */
+		current?: number;
 	};
 
-	let { images, caption, class: className = '' }: Props = $props();
+	let { images, caption, class: className = '', current = $bindable(0) }: Props = $props();
 
 	let api = $state<CarouselAPI>();
-	let current = $state(0);
 
 	// Embla tells us when the slide changes (chevrons, swipe or arrow keys).
 	$effect(() => {
@@ -24,6 +25,11 @@
 		onSelect();
 		api.on('select', onSelect);
 		return () => api?.off('select', onSelect);
+	});
+
+	// …and when something outside sets `current` (e.g. hovering a step), slide there.
+	$effect(() => {
+		if (api && api.selectedScrollSnap() !== current) api.scrollTo(current);
 	});
 
 	let currentImage = $derived(images[current]);

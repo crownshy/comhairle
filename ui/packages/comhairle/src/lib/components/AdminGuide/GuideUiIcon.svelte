@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		ArrowUpRight,
+		Briefcase,
 		Check,
 		EllipsisVertical,
 		PanelLeftClose,
@@ -23,6 +24,7 @@
 	//   routes/(admin)/admin/conversations/[conversation_id]/design/+page.svelte, in its hover state
 	// - login/signup: the submit buttons in routes/(public)/auth/login and auth/signup,
 	//   using the same button styles and translated labels
+	// - workspace: the Workspace button in lib/components/NavBar.svelte, on the navbar's blue
 	// - preview: the Preview button in routes/(admin)/admin/conversations/[conversation_id]/+layout.svelte
 	//   (same classes, but h-8 instead of h-10 so it fits in a line of text)
 	const ICONS = {
@@ -80,21 +82,29 @@
 				'bg-primary/20 text-foreground inline-flex h-8 rounded-full px-4 text-sm'
 			),
 			trailingIcon: ArrowUpRight
+		},
+		workspace: {
+			label: () => m.workspace(),
+			class: 'bg-primary text-primary-foreground inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-sm',
+			leadingIcon: Briefcase
 		}
 	} as const;
 </script>
 
-{#if name === 'login' || name === 'signup' || name === 'preview'}
-	{@const button = BUTTONS[name]}
+{#if name in BUTTONS}
+	{@const button = BUTTONS[name as keyof typeof BUTTONS]}
 	{@const label = button.label()}
 	<span role="img" aria-label={`${label} button`} class="{button.class} mx-0.5 align-middle"
-		>{label}{#if 'trailingIcon' in button}<button.trailingIcon
+		>{#if 'leadingIcon' in button}<button.leadingIcon
+				class="size-3.5"
+				aria-hidden="true"
+			/>{/if}{label}{#if 'trailingIcon' in button}<button.trailingIcon
 				class="size-4"
 				aria-hidden="true"
 			/>{/if}</span
 	>
 {:else}
-	{@const item = ICONS[name]}
+	{@const item = ICONS[name as keyof typeof ICONS]}
 	<span
 		role="img"
 		aria-label={item.label}

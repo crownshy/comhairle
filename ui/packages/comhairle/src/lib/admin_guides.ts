@@ -38,6 +38,7 @@ import toggleRevisitAfterFinishImage from './assets/admin-guide/toggle-revisit-a
 import rejectStatementImage from './assets/admin-guide/reject-statement.webp';
 import splitStatementImage from './assets/admin-guide/split-statement.webp';
 import findPreviewButtonImage from './assets/admin-guide/find-preview-button.webp';
+import findWorkspaceImage from './assets/admin-guide/find-workspace.webp';
 import reportImage from './assets/admin-guide/report.webp';
 import notifyImage from './assets/admin-guide/notify.webp';
 import logInImage from './assets/admin-guide/log-in.webp';
@@ -53,6 +54,11 @@ export type AdminGuideImage = {
 	alt: string;
 	/** Short visible caption shown under the image. */
 	caption?: string;
+	/** In a carousel: the step (1, 2, …) this screenshot illustrates. Hovering or
+	 * clicking that step shows this image, and the step is highlighted while it's shown. */
+	step?: number;
+	/** In a carousel: the Good to know tip (1, 2, …) this screenshot illustrates. Works like `step`. */
+	tip?: number;
 };
 
 /** One part of the screen, explained in the "environment" section of an Advanced topic. */
@@ -150,17 +156,28 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Log in as an admin user',
 				navLabel: 'Log in as an admin user',
 				summary: 'Log in with your admin account to access the admin workspace.',
-				image: {
-					src: logInImage,
-					alt: 'The Log In page, with Email and Password fields, a Log In button and options to log in with a one-time passcode or a Guest ID.'
-				},
+				images: [
+					{
+						src: logInImage,
+						alt: 'The Log In page, with Email and Password fields, a Log In button and options to log in with a one-time passcode or a Guest ID.',
+						caption: 'The Log In page.',
+						step: 2
+					},
+					{
+						src: findWorkspaceImage,
+						alt: 'The Comhairle homepage while logged in as an admin. The top navigation bar shows Home, About, Participate, Your Rights, a language menu, a Workspace button and the account menu.',
+						caption:
+							'Admins see **Workspace** in the top navigation bar on the homepage.',
+						tip: 1
+					}
+				],
 				steps: [
 					'Go to [Log in](/auth/login).',
 					'Enter your email address and password, then select :login:.',
 					'If your account has the admin role, you will be taken to the admin workspace.'
 				],
 				tips: [
-					'If you’re taken to the homepage instead, select **Workspace** in the top navigation bar to enter the workspace.'
+					'If you’re taken to the homepage instead, select :workspace: in the top navigation bar to enter the workspace.'
 				]
 			},
 			{
@@ -381,12 +398,14 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 						src: findPreviewButtonImage,
 						alt: 'The top of a conversation in the admin workspace, with the Preview button at the top right, next to the Launched button and the more actions menu.',
 						caption:
-							'The Preview button is at the top right of every conversation page.'
+							'The Preview button is at the top right of every conversation page.',
+						step: 1
 					},
 					{
 						src: previewImage,
 						alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description and banner image.',
-						caption: 'The preview shows your landing page as participants will see it.'
+						caption: 'The preview shows your landing page as participants will see it.',
+						step: 2
 					}
 				],
 				steps: [

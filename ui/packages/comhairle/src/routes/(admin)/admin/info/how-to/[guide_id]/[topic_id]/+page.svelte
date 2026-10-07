@@ -9,6 +9,23 @@
 
 	let { data }: PageProps = $props();
 	let topic = $derived(data.topic);
+
+	// Screenshots linked to steps or tips: hovering or clicking that text shows its image
+	// in the carousel, and the text whose image is showing is highlighted.
+	let slide = $state(0);
+	function slidesFor(field: 'step' | 'tip') {
+		return new Map(
+			(topic.images ?? []).flatMap((image, i) =>
+				image[field] ? [[image[field]! - 1, i] as const] : []
+			)
+		);
+	}
+	let stepSlides = $derived(slidesFor('step'));
+	let tipSlides = $derived(slidesFor('tip'));
+	$effect(() => {
+		void topic.key;
+		slide = 0;
+	});
 </script>
 
 <!-- Guide text can mark **bold** UI names and [links](/path); parseGuideText
@@ -27,6 +44,29 @@
 			>
 		{:else}{part.text}{/if}
 	{/each}
+{/snippet}
+
+<!-- Text linked to a carousel screenshot: hover, click or focus shows the image, and the
+     text is highlighted in yellow while its image is showing. -->
+{#snippet linkedText(text: string, target: number, label: string)}
+	<span
+		role="button"
+		tabindex="0"
+		aria-label={label}
+		class="cursor-pointer rounded-sm box-decoration-clone px-0.5 transition-colors duration-300 {target ===
+		slide
+			? 'bg-yellow-200 dark:bg-yellow-400/30'
+			: 'decoration-muted-foreground/50 underline decoration-dotted underline-offset-4'}"
+		onmouseenter={() => (slide = target)}
+		onfocus={() => (slide = target)}
+		onclick={() => (slide = target)}
+		onkeydown={(e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				slide = target;
+			}
+		}}>{@render richText(text)}</span
+	>
 {/snippet}
 
 <!-- A screenshot with an optional caption underneath. -->
@@ -58,7 +98,14 @@
 		</p>
 
 		{#if topic.images && topic.images.length > 1}
-			<GuideImageCarousel images={topic.images} caption={richText} class="mt-6" />
+			{#key topic.key}
+				<GuideImageCarousel
+					images={topic.images}
+					caption={richText}
+					class="mt-6"
+					bind:current={slide}
+				/>
+			{/key}
 		{:else if topic.images?.[0] ?? topic.image}
 			{@render figure((topic.images?.[0] ?? topic.image)!, 'mt-6')}
 		{/if}
@@ -98,7 +145,17 @@
 								class="bg-accent text-accent-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
 								aria-hidden="true">{i + 1}</span
 							>
-							<p class="text-foreground pt-0.5 leading-6">{@render richText(step)}</p>
+							<p class="text-foreground pt-0.5 leading-6">
+								{#if stepSlides.has(i)}
+									{@render linkedText(
+										step,
+										stepSlides.get(i)!,
+										`Step ${i + 1}: show screenshot`
+									)}
+								{:else}
+									{@render richText(step)}
+								{/if}
+							</p>
 						</li>
 					{/each}
 				</ol>
@@ -216,7 +273,17 @@
 				</h2>
 				<ul class="text-foreground mt-3 flex list-disc flex-col gap-2 pl-5 leading-6">
 					{#each topic.tips as tip, i (i)}
-						<li>{@render richText(tip)}</li>
+						<li>
+							{#if tipSlides.has(i)}
+								{@render linkedText(
+									tip,
+									tipSlides.get(i)!,
+									'Show screenshot for this tip'
+								)}
+							{:else}
+								{@render richText(tip)}
+							{/if}
+						</li>
 					{/each}
 				</ul>
 			</aside>

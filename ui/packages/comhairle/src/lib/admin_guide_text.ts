@@ -8,6 +8,7 @@
  *   :collapse: :expand:        the admin sidebar's collapse and expand buttons
  *   :login: :signup: :preview: the Log In, Sign Up and Preview buttons
  *   :actions:                  a step's actions menu (three dots)
+ *   :workspace:                the Workspace button in the public site's top navigation
  */
 export type GuideTextPart =
 	| { kind: 'text'; text: string }
@@ -24,10 +25,11 @@ export type GuideIconName =
 	| 'login'
 	| 'signup'
 	| 'preview'
-	| 'actions';
+	| 'actions'
+	| 'workspace';
 
 const TOKEN =
-	/\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|:(accept|reject|split|collapse|expand|login|signup|preview|actions):/g;
+	/\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|:(accept|reject|split|collapse|expand|login|signup|preview|actions|workspace):/g;
 
 export function parseGuideText(source: string): GuideTextPart[] {
 	const parts: GuideTextPart[] = [];
