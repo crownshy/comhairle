@@ -49,6 +49,7 @@ pub struct WorkflowStep {
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
     pub request_user_share_permission: bool,
+    pub report_data_public: bool,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -98,7 +99,7 @@ impl WithToolConfig for LocalizedWorkflowStepWithProgress {
     }
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 15] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -111,6 +112,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
     WorkflowStepIden::PreviewToolConfig,
     WorkflowStepIden::Required,
     WorkflowStepIden::RequestUserSharePermission,
+    WorkflowStepIden::ReportDataPublic,
     WorkflowStepIden::CreatedAt,
     WorkflowStepIden::UpdatedAt,
 ];
@@ -253,6 +255,9 @@ impl PartialWorkflowStep {
         };
         if let Some(value) = self.request_user_share_permission {
             values.push((WorkflowStepIden::RequestUserSharePermission, value.into()))
+        };
+        if let Some(value) = self.report_data_public {
+            values.push((WorkflowStepIden::ReportDataPublic, value.into()))
         };
         values
     }

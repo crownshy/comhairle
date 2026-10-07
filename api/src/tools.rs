@@ -20,6 +20,7 @@ pub mod id;
 pub mod learn;
 pub mod polis;
 pub mod prioritization;
+pub mod public_report_data;
 pub mod stories;
 pub mod thinking_space;
 

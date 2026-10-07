@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import ReportEmbedLive from '$lib/reports/polis/ReportEmbedLive.svelte';
+	import ReportEmbedLive from '$lib/reports/ReportEmbedLive.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	/**

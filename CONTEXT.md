@@ -219,6 +219,10 @@ _Avoid_: report piece (use "section block" for the embeddable unit).
 **Report component embed**:
 A TipTap node in the report's `summary` document that carries an embedded [[#embeddable-section-block]]. It stores **only a reference** (`toolStepId`, `componentType`, `config`); every surface (editor node view + published page) mounts the **live** component against current data (see [ADR-0012](documentation/adr/0012-report-component-embeds-store-reference-plus-frozen-html.md), which reversed the frozen-snapshot direction of [ADR-0008](documentation/adr/0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md) for these embeds). Interactive and always-fresh; if the Step/data no longer resolves the embed shows an inline "data unavailable" state. No-JS surfaces (email/print) get a placeholder, not the component.
 
+**Public results** (`report_data_public`):
+A per-Step opt-in that lets the published report show that Step's results. Off by default. When on, the Step's embeds read from dedicated per-widget endpoints that return only anonymised, moderated totals, never from the admin **Insights** endpoints (see [ADR-0046](documentation/adr/0046-public-report-data-comes-from-per-widget-endpoints-behind-a-step-opt-in.md)). Embedding a widget does not turn it on; an admin does, from the Step's settings or the embed dialog.
+_Avoid_: published data, open data (the data protocol "Open" is a different setting).
+
 **Report view**:
 A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:
 1. **Insights** — admin, live, per-tool/Step. A "summary of raw data": current responses + realtime insights; helps spot missing voices. (Already exists for Polis.)

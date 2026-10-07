@@ -30,6 +30,7 @@
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import { hasReportWidgets } from '$lib/reports/embeds';
 
 	type Props = {
 		conversation_id: string;
@@ -88,6 +89,8 @@
 	let required = $derived(step?.required ?? false);
 	let revisitable = $derived(step?.canRevisit ?? false);
 	let requestUserSharePermission = $derived(step?.requestUserSharePermission ?? false);
+	let reportDataPublic = $derived(step?.reportDataPublic ?? false);
+	let toolType = $derived(step?.toolConfig?.type ?? step?.previewToolConfig?.type);
 
 	// Data protocol maps onto the `requestUserSharePermission` boolean (only Confidential
 	// and Restricted are backed today; see tool_meta DATA_PROTOCOLS).
@@ -205,6 +208,18 @@
 		<Label class="text-base">Required step</Label>
 		<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
 	</div>
+	{#if hasReportWidgets(toolType)}
+		<div class="flex items-center gap-2">
+			<Switch
+				checked={reportDataPublic}
+				onCheckedChange={(value) => handleSwitchChange(value, 'reportDataPublic')}
+			/>
+			<Label class="text-base">Public results</Label>
+			<span class="text-muted-foreground ml-2 text-sm">
+				(Can the published report show this step's anonymised results?)
+			</span>
+		</div>
+	{/if}
 	<div class="flex flex-col gap-2">
 		<div class="flex flex-col gap-1">
 			<Label class="text-base">Data protocol</Label>
