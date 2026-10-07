@@ -118,12 +118,9 @@
 	let currentNextAction = $state<(() => void) | undefined>(undefined);
 	let currentPrevAction = $state<(() => void) | undefined>(undefined);
 	let canProceed = $state(false);
-	let isSubmitting = $state(false);
-
-	$effect(() => {
-		workflowStep.id;
-		isSubmitting = false;
-	});
+	// Keyed to the step so navigating to a new step never starts mid-submit.
+	let submittingStepId = $state<string | null>(null);
+	let isSubmitting = $derived(submittingStepId === workflowStep.id);
 
 	$effect(() => {
 		const type = toolConfig.type;
@@ -151,12 +148,13 @@
 	}
 
 	function goToThankYouPage() {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
 		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString);
 	}
 
 	async function stepComplete() {
 		if (isSubmitting) return;
-		isSubmitting = true;
+		submittingStepId = workflowStep.id;
 
 		if (isRevisiting) {
 			const isPreview = !conversation.isLive;
@@ -165,6 +163,7 @@
 			const target = nextRevisitable ?? actualCurrentStep;
 			if (target) {
 				goto(
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
 					workflow_step_url(conversation.id, workflow_id, target.id, isPreview) +
 						queryString
 				);
@@ -196,6 +195,7 @@
 				 * invalidateAll refreshes the step list and the participation seal at
 				 * the destination instead. */
 				await goto(
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
 					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
 					{ invalidateAll: true }
 				);
@@ -208,6 +208,7 @@
 						next.id,
 						!conversation.isLive
 					);
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
 					goto(next_step_url + queryString);
 				} else {
 					goToThankYouPage();
@@ -221,7 +222,7 @@
 				message: 'Something unexpected happened. Try again shortly',
 				priority: 'ERROR'
 			});
-			isSubmitting = false;
+			submittingStepId = null;
 		}
 	}
 </script>

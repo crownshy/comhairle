@@ -3,8 +3,10 @@
 	import NavBar from '$lib/components/NavBar.svelte';
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
+	import { setSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
 
 	let { children, data }: LayoutProps = $props();
+	setSupportDrawer();
 	const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
 	const isAuthPage = $derived(page.url.pathname.startsWith('/auth/'));
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
