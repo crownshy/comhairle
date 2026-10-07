@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { scrollStepToTop } from '$lib/utils/stepScroll';
 	import { Portal } from 'bits-ui';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -59,12 +60,10 @@
 	let submitError = $state<string | null>(null);
 	let savingReview = $state(false);
 	let reviewError = $state<string | null>(null);
-	/** After advancing to the next proposal, return the participant to the top of
-	 * the page so the step header and progress are back in view. */
+	// After advancing to the next proposal, bring the participant back to the top of the step.
 	async function scrollToTop() {
 		await tick();
-		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+		scrollStepToTop({ smooth: true });
 	}
 
 	/** Brief success interstitial shown between proposals so a submit registers as a
