@@ -82,6 +82,15 @@ export type AdminGuideReference = {
 	items: { code: string; name: string; description: string }[];
 };
 
+/** A pointer to another topic, shown as a sticky card beside the content. */
+export type AdminGuideRelated = {
+	title: string;
+	text: string;
+	/** Link text, e.g. the topic name. */
+	label: string;
+	href: string;
+};
+
 export type AdminGuideTopic = {
 	key: string;
 	title: string;
@@ -96,6 +105,8 @@ export type AdminGuideTopic = {
 	decisions?: { title: string; intro?: string; options: AdminGuideDecision[] };
 	reference?: AdminGuideReference;
 	tips?: string[];
+	/** A card pinned to the right of the page pointing to a related topic. */
+	related?: AdminGuideRelated;
 };
 
 export type AdminGuide = {
@@ -642,8 +653,15 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				],
 				tips: [
 					'Check **Pending** regularly while the conversation is live, so new statements don’t wait long for review.',
-					'Moderation is only available for Participant-led poll steps.'
-				]
+					'Moderation is only available for Participant-led poll steps.',
+					'For when to accept, reject or split a statement, and an example moderation policy, see [Moderation in depth](/admin/info/how-to/advanced/moderation-in-depth).'
+				],
+				related: {
+					title: 'Not sure how to moderate?',
+					text: 'Learn when to accept, reject or split a statement, with an example moderation policy.',
+					label: 'Moderation in depth',
+					href: '/admin/info/how-to/advanced/moderation-in-depth'
+				}
 			},
 			{
 				key: 'report',
