@@ -24,6 +24,18 @@ import addADescriptionImage from './assets/admin-guide/add-a-description.webp';
 import multilingualConversationImage from './assets/admin-guide/multilingual-conversation.webp';
 import addBannerImageImage from './assets/admin-guide/add-banner-image.webp';
 import previewImage from './assets/admin-guide/preview.webp';
+import chooseATemplateImage from './assets/admin-guide/choose-a-template.webp';
+import designStepsImage from './assets/admin-guide/design-steps.webp';
+import arrangeStepOrderImage from './assets/admin-guide/arrange-step-order.webp';
+import configureAStepImage from './assets/admin-guide/configure-a-step.webp';
+import previewBeforeLaunchImage from './assets/admin-guide/preview-before-launch.webp';
+import configureAccessImage from './assets/admin-guide/configure-access.webp';
+import launchAConversationImage from './assets/admin-guide/launch-a-conversation.webp';
+import recruitImage from './assets/admin-guide/recruit.webp';
+import monitorImage from './assets/admin-guide/monitor.webp';
+import moderateImage from './assets/admin-guide/moderate.webp';
+import reportImage from './assets/admin-guide/report.webp';
+import notifyImage from './assets/admin-guide/notify.webp';
 import logInImage from './assets/admin-guide/log-in.webp';
 import signUpImage from './assets/admin-guide/sign-up.webp';
 
@@ -336,66 +348,167 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 		navLabel: 'Design the engagement process',
 		topics: [
 			{
-				key: 'design-steps',
-				title: 'Decide the engagement steps',
-				navLabel: 'Decide the engagement steps',
+				key: 'choose-a-template',
+				title: 'Choose a template',
+				navLabel: 'Choose a template',
 				summary:
-					'Steps are the stages participants go through, in order. Plan them on paper before you build them.',
+					'Start with a ready-made conversation flow, then adapt the steps to suit your topic and what you want participants to do.',
+				image: {
+					src: chooseATemplateImage,
+					alt: "The Choose a template window. Templates such as Informed-participants survey and Citizen workshop are listed on the left, with the selected template's workflow steps on the right and an Apply template button."
+				},
 				steps: [
-					'Start with the outcome: decide what you need from participants by the end.',
-					'Work backwards: what do participants need to learn first, and what will they contribute?',
-					'Open **Process design**. Choose **Start from blank**, or **Choose from templates** to apply a ready-made sequence.',
-					'Click **Add step** for each stage you planned.'
+					'Before choosing a template, consider what you want to learn from the conversation, what you want participants to contribute, how they will contribute, and what they need to know first.',
+					'Go to **Process design** and click **Choose from templates**.',
+					'Choose a template that best matches the conversation you want to run.',
+					'Adapt the template by adding, removing, or rearranging steps.'
 				],
 				tips: [
-					'Applying a template replaces any steps the Conversation already has.',
-					'Starting with a Learn step gives everyone the same background before they contribute.'
+					'Templates are a starting point. You can change the steps and their order to suit your conversation.',
+					'If none of the templates suit your needs, you can [design the engagement steps](/admin/info/how-to/design-the-engagement-process/design-steps) yourself.'
 				]
 			},
 			{
-				key: 'choose-tools',
-				title: 'Choose tools',
-				navLabel: 'Choose tools',
+				key: 'design-steps',
+				title: 'Design the engagement steps',
+				navLabel: 'Design the engagement steps',
 				summary:
-					'Each step uses one engagement tool. Pick the tool that fits what you want participants to do.',
+					'Build your own conversation flow by deciding what participants need to learn, consider, and contribute at each step.',
+				image: {
+					src: designStepsImage,
+					alt: "The Add a step window, listing step types such as Topic onboarding, Participant-led poll and Survey. The selected tool's description, examples and Best for list appear on the right, with an Add this step button."
+				},
 				steps: [
-					'In **Process design**, click **Add step**.',
-					"Browse the tools. Each one lists what it's best for, its features and what you'd get from it.",
-					'Choose a tool to add it as a new step at the end of the list.'
+					'Before designing your steps, consider what you want to learn from the conversation, what you want participants to contribute, how they will contribute, and what they need to know first.',
+					'Go to **Process design** and choose **Start from blank**.',
+					'Click **Add step**. You’ll be asked to choose an **engagement tool** for the step, based on what you want participants to do.',
+					'Choose a tool to add the step to your conversation.',
+					'Repeat this for each stage of your conversation, then arrange the steps in the order you want participants to go through them.'
 				],
 				tips: [
-					'Not sure which tool to use? The **Engagement tools** section of this guide explains each one in detail.'
+					'Each step uses an **engagement tool**. Different tools support different ways of participating, such as learning about a topic, contributing a response, or interacting with other participants’ contributions.',
+					'If you’re not sure where to start, browse the premade **templates** or explore **case studies** to see how others have designed their engagement steps.',
+					'Starting with a **Learn step** gives everyone the same background before they contribute.',
+					'You can add, remove, or rearrange steps as your conversation develops.'
 				]
 			},
 			{
 				key: 'arrange-step-order',
 				title: 'Arrange step order',
 				navLabel: 'Arrange step order',
-				summary: 'Participants go through the steps from top to bottom.',
+				summary:
+					'Set the order of your steps. Participants will go through them from top to bottom.',
+				image: {
+					src: arrangeStepOrderImage,
+					alt: "The Process steps page with two step cards. A step's actions menu is open, showing Move up, Move down, Rename, Learn more and Delete."
+				},
 				steps: [
-					'Open **Process design**.',
-					'Drag a step card up or down to move it.',
-					"If dragging is awkward, open the step's actions menu and choose **Move up** or **Move down**.",
-					'Use the same menu to **Rename** or **Delete** a step.'
+					'Go to **Process design**.',
+					'Drag a step card up or down to change its position.',
+					'Alternatively, open the step’s actions menu and select **Move up** or **Move down**.',
+					'You can also use this menu to **Rename** or **Delete** a step.'
 				],
 				tips: [
-					"Deleting a step permanently removes it and its configuration, and the remaining steps are renumbered. This can't be undone."
+					'Think about the participant journey when ordering your steps: what do they need to know or consider before moving on to the next activity?',
+					'Deleting a step permanently removes the step and its configuration. The remaining steps will be renumbered, and this cannot be undone.'
 				]
 			},
 			{
 				key: 'configure-a-step',
 				title: 'Configure a step',
 				navLabel: 'Configure a step',
-				summary: 'Each step has its own content and rules. Set them up before you launch.',
+				summary:
+					'Set up the content and behaviour of each step before participants go through your conversation.',
+				image: {
+					src: configureAStepImage,
+					alt: 'The Configure tab of a step, with the Name and Description fields, and the Revisitable step and Required step switches.'
+				},
 				steps: [
-					'In **Process design**, open the step.',
-					'On the **Setup** tab, add the content for the step, such as Learn pages or poll questions. What you see here depends on the tool.',
-					'On the **Configure** tab, edit the step **Name** and **Description**.',
-					"Turn on **Required step** if participants mustn't skip it, and **Revisitable step** if they can go back to it later.",
-					'Choose a **Data protocol** to control whether participants are asked to share their responses, and with whom.'
+					'In **Process design**, select the step you want to configure.',
+					'Open the **Setup** tab to add the content participants will interact with, such as learning materials or poll questions. The options available depend on the engagement tool you chose.',
+					'Open the **Configure** tab to edit the step’s **Name** and **Description**.',
+					'Turn on **Required step** if participants must complete the step before moving on.',
+					'Turn on **Revisitable step** if participants should be able to return to the step later.'
 				],
 				tips: [
-					"Use **Preview** after each step you set up to check it from a participant's view."
+					'The settings available under **Setup** depend on the **engagement tool** used for that step.',
+					'Use **Preview** as you configure your steps to check how they will appear and work for participants.'
+				]
+			}
+		]
+	},
+	'launch-a-conversation': {
+		key: 'launch-a-conversation',
+		title: 'Launch a conversation',
+		navLabel: 'Launch a conversation',
+		topics: [
+			{
+				key: 'preview-before-launch',
+				title: 'Preview before launch',
+				navLabel: 'Preview before launch',
+				summary:
+					'Go through the full conversation as a participant and check that everything is ready before you launch.',
+				image: {
+					src: previewBeforeLaunchImage,
+					alt: 'A conversation in preview, marked This is a preview of the conversation, showing the first step: a Learn page about waste management.'
+				},
+				steps: [
+					'Click **Preview** in the top-right corner.',
+					'Go through the conversation from beginning to end as a participant would.',
+					'Check that the content, steps, engagement tools, and participant journey work as expected.',
+					'Return to the admin workspace to make any final changes.'
+				],
+				tips: [
+					'Previewing does not launch your conversation or make it available to participants.',
+					'Once you launch a conversation, you can no longer edit it, so use this opportunity to make any final changes.'
+				]
+			},
+			{
+				key: 'configure-access',
+				title: 'Configure access',
+				navLabel: 'Configure access',
+				summary:
+					'Choose who can take part in your conversation and what participants can do before and after completing it.',
+				image: {
+					src: configureAccessImage,
+					alt: 'The Access tab under Configure, listing settings with on and off switches, including Show conversation publicly, Only allow participation by invite, Automatically log in with an anonymous account and Enable signup prompts.'
+				},
+				steps: [
+					'Go to **Configure** → **Access**.',
+					'Review the access and participation settings and turn on the options that suit your conversation.',
+					'Use **Show conversation publicly** to allow anyone to view the conversation’s data once it has been launched.',
+					'Use **Only allow participation by invite** to restrict participation to people invited and managed by admins.',
+					'Use **Automatically log in with an anonymous account** to create a temporary account for participants who are not signed in.',
+					'Use **Enable sign up prompts** to show participants an option to sign up after taking part.',
+					'Use **Show thank you page anonymous instruction** to show a thank you page to anonymous participants after they finish.',
+					'Use the **feedback** setting to show a feedback button on the thank you page.',
+					'Use **Allow revisit later** to let participants return to the conversation steps after they have finished.'
+				],
+				tips: [
+					'Review these settings before launching, as they affect how participants access and move through your conversation.',
+					'**Show conversation publicly** controls whether people can view the conversation’s data; it is different from allowing people to participate.',
+					'If **Only allow participation by invite** is turned on, admins will need to invite and manage the people who can take part.',
+					'Consider the experience of participants who are not signed in when choosing the anonymous account, sign-up, and thank you page settings.'
+				]
+			},
+			{
+				key: 'launch-a-conversation',
+				title: 'Launch a conversation',
+				navLabel: 'Launch a conversation',
+				summary: 'Launch your conversation when it is ready for participants to take part.',
+				image: {
+					src: launchAConversationImage,
+					alt: 'The launch confirmation window, warning that launching will make the conversation live for participants and that it can no longer be modified, with Launch and cancel buttons.'
+				},
+				steps: [
+					'Go to **Configure** → **Access**.',
+					'Complete a final **Preview** to make sure everything is ready.',
+					'Click **Launch Conversation**, then confirm by clicking **Launch**.',
+					'Once launched, a **Launched** badge appears and **Recruit**, **Monitor**, **Notify**, and **Report** become available.'
+				],
+				tips: [
+					'Previewing does not launch your conversation or make it available to participants.',
+					'Once you launch a conversation, you can no longer edit it, so use this opportunity to make any final changes.'
 				]
 			}
 		]
@@ -406,68 +519,114 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 		navLabel: 'Manage a conversation',
 		topics: [
 			{
-				key: 'preview-and-launch',
-				title: 'Preview and launch',
-				navLabel: 'Preview and launch',
+				key: 'recruit',
+				title: 'Recruit participants',
+				navLabel: 'Recruit participants',
 				summary:
-					'Launching makes the Conversation live for participants. Check everything first: once launched, it can no longer be edited.',
+					'Once your conversation is launched, use **Recruit** to invite people to take part by link, QR code or email.',
+				image: {
+					src: recruitImage,
+					alt: 'The Recruit page on its Email tab, with an Emails field for a comma-separated list of addresses, Invite valid for options and a Submit button, above the Email Invite List. Open Links and Physical tabs are at the top.'
+				},
 				steps: [
-					'Click **Preview** and go through the whole journey as a participant, step by step.',
-					'Go to **Configure** → **Access**. Decide whether to turn on **Only allow participation by invite**, and whether to **Show conversation publicly**.',
-					"When you're ready, click **Launch Conversation** and confirm with **Launch**.",
-					'A **Launched** badge appears at the top, and **Recruit**, **Monitor**, **Notify** and **Report** become available.'
-				],
-				tips: [
-					"You can't edit a Conversation after launch, so finish your final preview first.",
-					'With **Only allow participation by invite** off, anyone with the link can take part.'
-				]
-			},
-			{
-				key: 'invite-participants',
-				title: 'Invite participants',
-				navLabel: 'Invite participants',
-				summary:
-					'Once the Conversation is launched, use **Recruit** to share it by link, QR code or email.',
-				steps: [
-					'Open **Recruit**.',
+					'Open **Recruit**. It becomes available after you launch the conversation.',
+					'Go to **Open Links**.',
 					'Click **New Invite Link** to create a link you can share. Give it a **Label**, such as "Newsletter" or "Town hall", so you can tell your links apart.',
-					'Copy the link, or use its **QR code** on posters and at in-person events.',
-					'To invite specific people, enter their addresses under **Emails**, separated by commas. Choose how long the invite is valid for, then click **Submit**.'
+					'Copy the **Link**, or use its **QR code** on posters and at in-person events.',
+					'To invite specific people by email, enter their addresses under **Emails**, separated by commas. Choose how long the invite is valid for, then click **Submit**.'
 				],
 				tips: [
-					'Each link shows how many people have **Accepted**, so you can see which channel works best.',
-					'You can find the public address any time under **Live Conversation Link** in the actions menu at the top right.'
+					'Create a separate link for each channel you use. The **Accepted** column shows how many people joined through each link, so you can see which channels work best.',
+					'If **Only allow participation by invite** is turned on under **Configure** → **Access**, only people you invite can take part.',
+					'You can find the conversation’s public address at any time under **Live Conversation Link** in the more actions menu at the top right.'
 				]
 			},
 			{
-				key: 'moderation',
+				key: 'monitor',
+				title: 'Monitor participation',
+				navLabel: 'Monitor participation',
+				summary:
+					'Use **Monitor** to see how many people are taking part, how far they get through your steps, and how long it takes them.',
+				image: {
+					src: monitorImage,
+					alt: 'The Monitor page. Overview shows Total Users, Active Now, Time Spent and Completed, above a Daily signups chart.'
+				},
+				steps: [
+					'Open **Monitor**. It becomes available after you launch the conversation.',
+					'Check **Overview** to see participation over time.',
+					'Under **Progress**, see how many participants have **Started** and **Completed** each step.',
+					'Check **Time to complete** to see the median time participants take to finish.',
+					'Under **Follow up**, click **Download Contacts** for a list of participants who agreed to be contacted, or **Download Demographics** for demographic data from participants’ profiles.'
+				],
+				tips: [
+					'If many people start a step but few complete it, the step may be too long or unclear. Use **Preview** to go through it again as a participant.',
+					'Downloaded files contain personal data. Store and share them in line with your organisation’s data protection policy.'
+				]
+			},
+			{
+				key: 'notify',
+				title: 'Notify participants',
+				navLabel: 'Notify participants',
+				summary:
+					'Send a message to everyone who has taken part in your conversation, for example to share an update or invite them back.',
+				image: {
+					src: notifyImage,
+					alt: 'The Notify page, with Delivery method set to In-app notification, Notification title and Message content fields, a Send notification to all participants button, and a Recipients preview showing how many participants will receive it.'
+				},
+				steps: [
+					'Open **Notify**. It becomes available after you launch the conversation.',
+					'Under **Delivery method**, choose **In-app notification** or **Email**.',
+					'Enter a **Notification title** and **Message content**. For an email, enter an **Email subject** and **Email body** instead.',
+					'Check **Recipients preview** to see who will receive the message.',
+					'Click **Send notification to all participants**, or **Send email to all participants**.'
+				],
+				tips: [
+					'Messages go to everyone who has taken part in this conversation. You can’t choose individual recipients here.',
+					'Before sending an email, use **Send test email** to send it to a single address and check how it looks.',
+					'Check your message carefully before sending, because it goes to all participants at once.'
+				]
+			},
+			{
+				key: 'moderate',
 				title: 'Moderate contributions',
 				navLabel: 'Moderate contributions',
 				summary:
-					'In a Participant-led Poll, participants write their own statements. Moderation is where you accept or reject them.',
+					'In a Participant-led poll, participants can write their own statements. Moderate them so that only appropriate statements are shown to others.',
+				image: {
+					src: moderateImage,
+					alt: 'The Moderation tab of a Participant-led poll step. Statements can be filtered by All, Seeded, Accepted, Pending and Rejected, and the Reject statement window lists reasons such as Off-topic or unclear, Harmful or abusive, and Advertising or campaigning.'
+				},
 				steps: [
-					'Set your reasons for rejecting statements, such as "Off-topic", in **Configure** → **Moderation policy**. Moderators choose from this list.',
-					'In **Process design**, open the poll step and go to its **Moderation** tab.',
-					'Filter statements by **Pending**, **Accepted**, **Rejected** or **All**, or search for a word.',
-					'Accept or reject each statement. When you reject one, pick a reason.'
+					'Before you launch, set your reasons for rejecting statements, such as "Off-topic", under **Configure** → **Moderation policy**.',
+					'In **Process design**, open the Participant-led poll step and go to its **Moderation** tab.',
+					'Filter statements by **Pending**, **Accepted**, **Rejected**, **Seeded** or **All**, or search for a word.',
+					'Accept or reject each statement. When you reject a statement, choose a reason from your moderation policy.'
 				],
 				tips: [
-					"Check **Pending** regularly while the Conversation is live, so new statements don't wait long for review."
+					'Check **Pending** regularly while the conversation is live, so new statements don’t wait long for review.',
+					'Moderation is only available for Participant-led poll steps.'
 				]
 			},
 			{
-				key: 'review-insight',
-				title: 'Review insights and close',
-				navLabel: 'Review insights and close',
+				key: 'report',
+				title: 'Create a report',
+				navLabel: 'Create a report',
 				summary:
-					'Insights show what participants said in each step. End the Conversation when the engagement period is over.',
+					'Use **Report** to summarise what came out of your conversation, record its impact, and share the results.',
+				image: {
+					src: reportImage,
+					alt: 'The Report page, with View Report and Publish Report at the top and a Summary editor containing an executive summary of participants, statements and votes cast.'
+				},
 				steps: [
-					'In **Process design**, open a step and go to its **Insights** tab. Insights are available for Participant-led Poll, Thinking space, Prioritization tool and Survey steps.',
-					'Use **Monitor** and **Report** to look at the Conversation as a whole.',
-					'To close the Conversation, open the **More actions** menu at the top right, choose **End Conversation**, then confirm with **End**.'
+					'Open **Report**. It becomes available after you launch the conversation.',
+					'Under **Summary**, write an overall summary of the conversation.',
+					'Under **Facilitator Notes**, click **Add feedback** to record notes gathered by facilitators.',
+					'Under **Impacts**, click **Add an impact** to record what the conversation has led to, and choose an **Impact Type**: **Policy**, **Debate** or **Followup Conversation**.',
+					'Turn on **Publish Report** to make the report public, then click **View Report** to see it as others will.'
 				],
 				tips: [
-					'Ending is reversible. Choose **Re-open Conversation** from the same menu to let participants take part again.'
+					'To look at the responses to a single step, open the step in **Process design** and go to its **Insights** tab.',
+					'When the engagement period is over, open the more actions menu at the top right and choose **End Conversation**. Ending is reversible: choose **Re-open Conversation** to let people take part again.'
 				]
 			}
 		]
