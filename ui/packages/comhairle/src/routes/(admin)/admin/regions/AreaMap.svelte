@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { FeatureCollection, Polygon, MultiPolygon } from 'geojson';
 	import type { Map, IControl } from 'maplibre-gl';
 	import type MapboxDraw from '@mapbox/mapbox-gl-draw';
@@ -16,10 +16,12 @@
 	};
 
 	type Props = {
-		geometry: Polygon | MultiPolygon | null;
+		/** Replace this snapshot when an area loads, not when its geometry is edited. */
+		boundary: { geometry: Polygon | MultiPolygon | null };
+		disabled?: boolean;
 		onchange: (geometry: MultiPolygon | null) => void;
 	};
-	let { geometry, onchange }: Props = $props();
+	let { boundary, disabled = false, onchange }: Props = $props();
 	let container: HTMLDivElement;
 	let map: Map | undefined;
 	let draw: MapboxDraw | undefined;
@@ -28,6 +30,40 @@
 	let selected = $state(false);
 	let history = $state<string[]>([]);
 	let cursor = $state(0);
+	let canEdit = $derived(ready && !disabled);
+
+	$effect(() => {
+		const snapshot = boundary;
+		if (!ready) return;
+		untrack(() => loadBoundary(snapshot.geometry));
+	});
+
+	$effect(() => {
+		if (ready && disabled) {
+			draw?.changeMode('simple_select');
+		}
+	});
+
+	function loadBoundary(geometry: Polygon | MultiPolygon | null) {
+		if (!draw) return;
+		draw.changeMode('simple_select');
+		const features: FeatureCollection<Polygon> = {
+			type: 'FeatureCollection',
+			features: geometry
+				? multiPolygon(geometry).coordinates.map((coordinates, index) => ({
+						type: 'Feature',
+						id: `polygon-${index}`,
+						properties: {},
+						geometry: { type: 'Polygon', coordinates }
+					}))
+				: []
+		};
+		draw.set(features);
+		selected = false;
+		history = [JSON.stringify(draw.getAll())];
+		cursor = 0;
+		fit();
+	}
 
 	function emitGeometry() {
 		const polygons =
@@ -40,7 +76,7 @@
 	}
 
 	function recordChange() {
-		if (!draw) return;
+		if (!draw || !canEdit) return;
 		const snapshot = JSON.stringify(draw.getAll());
 		if (snapshot === history[cursor]) return;
 		history = [...history.slice(0, cursor + 1), snapshot].slice(-50);
@@ -49,7 +85,7 @@
 	}
 
 	function restore(offset: number) {
-		if (!draw) return;
+		if (!draw || !canEdit) return;
 		cursor += offset;
 		draw.changeMode('simple_select');
 		draw.set(JSON.parse(history[cursor]) as FeatureCollection);
@@ -109,21 +145,7 @@
 			map.on('load', () => {
 				if (!draw || disposed) return;
 				error = '';
-				const features: FeatureCollection<Polygon> = {
-					type: 'FeatureCollection',
-					features: geometry
-						? multiPolygon(geometry).coordinates.map((coordinates, index) => ({
-								type: 'Feature',
-								id: `polygon-${index}`,
-								properties: {},
-								geometry: { type: 'Polygon', coordinates }
-							}))
-						: []
-				};
-				draw.set(features);
-				history = [JSON.stringify(draw.getAll())];
 				ready = true;
-				fit();
 			});
 			const drawEventMap = map as DrawEventMap;
 			drawEventMap.on('draw.create', recordChange);
@@ -152,7 +174,12 @@
 </script>
 
 <div class="bg-background relative min-h-[460px] w-full flex-1 overflow-hidden border">
-	<div bind:this={container} class="map-container" aria-label="Area boundary map"></div>
+	<div
+		bind:this={container}
+		class="map-container absolute inset-0"
+		aria-label="Area boundary map"
+		inert={disabled}
+	></div>
 	<div
 		class="bg-background absolute top-3 left-3 flex max-w-[calc(100%-80px)] flex-wrap gap-1 rounded border p-1 shadow-sm"
 		role="toolbar"
@@ -163,7 +190,7 @@
 			variant="ghost"
 			title="Select polygon"
 			aria-label="Select polygon"
-			disabled={!ready}
+			disabled={!canEdit}
 			onclick={() => draw?.changeMode('simple_select')}><MousePointer2 /></Button
 		>
 		<Button
@@ -171,7 +198,7 @@
 			variant="ghost"
 			title="Edit vertices"
 			aria-label="Edit vertices"
-			disabled={!ready || !selected}
+			disabled={!canEdit || !selected}
 			onclick={() => {
 				const featureId = draw?.getSelectedIds()[0];
 				if (featureId) draw?.changeMode('direct_select', { featureId });
@@ -182,7 +209,7 @@
 			variant="ghost"
 			title="Draw polygon"
 			aria-label="Draw polygon"
-			disabled={!ready}
+			disabled={!canEdit}
 			onclick={() => draw?.changeMode('draw_polygon')}><Pentagon /></Button
 		>
 		<Button
@@ -190,7 +217,7 @@
 			variant="ghost"
 			title="Delete selected vertices or polygon"
 			aria-label="Delete selected vertices or polygon"
-			disabled={!ready}
+			disabled={!canEdit}
 			onclick={() => {
 				draw?.trash();
 				recordChange();
@@ -201,7 +228,7 @@
 			variant="ghost"
 			title="Undo"
 			aria-label="Undo"
-			disabled={!ready || cursor === 0}
+			disabled={!canEdit || cursor === 0}
 			onclick={() => restore(-1)}><Undo2 /></Button
 		>
 		<Button
@@ -209,7 +236,7 @@
 			variant="ghost"
 			title="Redo"
 			aria-label="Redo"
-			disabled={!ready || cursor >= history.length - 1}
+			disabled={!canEdit || cursor >= history.length - 1}
 			onclick={() => restore(1)}><Redo2 /></Button
 		>
 		<Button
@@ -217,7 +244,7 @@
 			variant="ghost"
 			title="Fit boundary"
 			aria-label="Fit boundary"
-			disabled={!ready}
+			disabled={!canEdit}
 			onclick={fit}><Scan /></Button
 		>
 	</div>
@@ -228,10 +255,3 @@
 			{error}
 		</p>{/if}
 </div>
-
-<style>
-	.map-container {
-		position: absolute;
-		inset: 0;
-	}
-</style>

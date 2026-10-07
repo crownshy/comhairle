@@ -5,6 +5,8 @@ import { saveTranslation } from '$lib/components/Translation/translationUtils';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { toggleArea } from './selection';
 
+type State = 'idle' | 'saving' | 'saved' | 'error' | 'loading';
+
 /** Own the region draft and persist text, metadata, and area associations. */
 export function createRegionEditor() {
 	let regions = $state<LocalizedRegionDto[]>([]);
@@ -15,16 +17,14 @@ export function createRegionEditor() {
 	let regionType = $state<RegionType>('custom');
 	let officialId = $state('');
 	let areaIds = $state<string[]>([]);
-	let loading = $state(false);
+	let editorState = $state<State>('idle');
 	let listing = $state(false);
-	let saving = $state(false);
 	let error = $state('');
-	let saved = $state(false);
 	let baseline = $state('');
 	let requestId = 0;
 	let disposed = false;
 	const snapshot = $derived(
-		JSON.stringify([name, description, regionType, officialId, [...areaIds].sort()])
+		JSON.stringify([name, description, regionType, officialId, areaIds.sort()])
 	);
 	const dirty = $derived(editing && snapshot !== baseline);
 
@@ -44,6 +44,7 @@ export function createRegionEditor() {
 		listing = false;
 		if (response.err !== null) {
 			error = 'Could not load regions. Try refreshing the list.';
+			if (editorState !== 'loading' && editorState !== 'saving') editorState = 'error';
 			return;
 		}
 		regions = response.ok;
@@ -58,18 +59,17 @@ export function createRegionEditor() {
 		officialId = '';
 		areaIds = [];
 		error = '';
-		saved = false;
-		loading = false;
+		editorState = 'idle';
 		baseline = snapshot;
 	}
 
 	async function select(region: LocalizedRegionDto) {
-		if (saving) return;
+		if (editorState === 'saving') return;
 		reset();
 		const currentRequest = requestId;
 		id = region.id;
 		editing = false;
-		loading = true;
+		editorState = 'loading';
 		const response = await tryCatchAsync(() =>
 			Promise.all([
 				apiClient.GetRegion({ params: { region_id: region.id } }),
@@ -77,9 +77,9 @@ export function createRegionEditor() {
 			])
 		);
 		if (disposed || currentRequest !== requestId) return;
-		loading = false;
 		if (response.err !== null) {
 			error = 'Could not load this region.';
+			editorState = 'error';
 			return;
 		}
 		const [current, links] = response.ok;
@@ -90,13 +90,13 @@ export function createRegionEditor() {
 		areaIds = links.area_ids;
 		baseline = snapshot;
 		editing = true;
+		editorState = 'idle';
 	}
 
 	async function save() {
-		if (!editing || saving || !name.trim()) return;
-		saving = true;
+		if (!editing || editorState === 'saving' || !name.trim()) return;
+		editorState = 'saving';
 		error = '';
-		saved = false;
 		const response = await tryCatchAsync(async () => {
 			if (id === null) {
 				const created = await apiClient.CreateRegion({
@@ -123,32 +123,32 @@ export function createRegionEditor() {
 				{ params: { region_id: id } }
 			);
 		});
-		saving = false;
 		if (disposed) return;
 		if (response.err !== null) {
 			error =
 				'Could not save all changes. Some changes may have saved; your draft is retained for retry.';
+			editorState = 'error';
 			return;
 		}
 		name = name.trim();
 		officialId = officialId.trim();
 		baseline = snapshot;
-		saved = true;
+		editorState = 'saved';
 		await loadRegions();
 	}
 
 	async function remove() {
-		if (!id || saving) return;
-		saving = true;
+		if (!id || editorState === 'saving') return;
+		editorState = 'saving';
 		error = '';
 		const regionId = id;
 		const response = await tryCatchAsync(() =>
 			apiClient.DeleteRegion(undefined, { params: { region_id: regionId } })
 		);
-		saving = false;
 		if (disposed) return;
 		if (response.err !== null) {
 			error = 'Could not delete this region.';
+			editorState = 'error';
 			return;
 		}
 		reset();
@@ -156,7 +156,15 @@ export function createRegionEditor() {
 		await loadRegions();
 	}
 
+	function clearSavedState() {
+		if (editorState === 'saved') editorState = 'idle';
+	}
+
 	return {
+		/** Operation status; draft visibility and list refreshes remain independent. */
+		get state() {
+			return editorState;
+		},
 		get regions() {
 			return regions;
 		},
@@ -171,58 +179,58 @@ export function createRegionEditor() {
 		},
 		set name(value: string) {
 			name = value;
-			saved = false;
+			clearSavedState();
 		},
 		get description() {
 			return description;
 		},
 		set description(value: string) {
 			description = value;
-			saved = false;
+			clearSavedState();
 		},
 		get regionType() {
 			return regionType;
 		},
 		set regionType(value: RegionType) {
 			regionType = value;
-			saved = false;
+			clearSavedState();
 		},
 		get officialId() {
 			return officialId;
 		},
 		set officialId(value: string) {
 			officialId = value;
-			saved = false;
+			clearSavedState();
 		},
 		get areaIds() {
 			return areaIds;
 		},
 		get loading() {
-			return loading;
+			return editorState === 'loading';
 		},
 		get listing() {
 			return listing;
 		},
 		get saving() {
-			return saving;
+			return editorState === 'saving';
 		},
 		get error() {
 			return error;
 		},
 		get saved() {
-			return saved && !dirty;
+			return editorState === 'saved' && !dirty;
 		},
 		get dirty() {
 			return dirty;
 		},
 		toggle(id: string) {
-			if (!saving) {
+			if (editorState !== 'saving') {
 				areaIds = toggleArea(areaIds, id);
-				saved = false;
+				clearSavedState();
 			}
 		},
 		create() {
-			if (!saving) {
+			if (editorState !== 'saving') {
 				reset();
 				editing = true;
 			}

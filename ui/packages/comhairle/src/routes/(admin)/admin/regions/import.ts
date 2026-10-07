@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { MultiPolygon, Polygon } from 'geojson';
 import type { CreateRegionArea } from '@crownshy/api-client/api';
+import BinaryTree from '$lib/data-structures/BinaryTree';
 
 const position = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
 const ring = z
@@ -54,7 +55,7 @@ export function positionsFromCoordinates(value: unknown): number[][] {
 			(coordinate) => typeof coordinate === 'number' && Number.isFinite(coordinate)
 		)
 	) {
-		return [[coordinates[0], coordinates[1]]];
+		return [coordinates];
 	}
 	return value.flatMap(positionsFromCoordinates);
 }
@@ -64,9 +65,13 @@ export function inspectBoundaries(input: unknown, filename: string): BoundaryDat
 	const collection = collectionSchema.parse(input);
 	if (collection.crs)
 		throw new Error('GeoJSON must be WGS84 without a legacy CRS. Export as EPSG:4326.');
-	const fields = [
-		...new Set(collection.features.flatMap((feature) => Object.keys(feature.properties ?? {})))
-	].sort();
+	const binaryTree = new BinaryTree<string, string>();
+	for (let feature of collection.features) {
+		for (let key of Object.keys(feature.properties ?? {})) {
+			binaryTree.insert(key);
+		}
+	}
+	const fields = binaryTree.toArray();
 	const nameField =
 		fields.find((field) => /^NAME(?:\d+)?$/i.test(field)) ??
 		fields.find((field) => /^[A-Z]+\d{2}NM$/i.test(field)) ??
@@ -82,11 +87,9 @@ export function importRecords(
 	nameField: string,
 	tags: string[]
 ): CreateRegionArea[] {
-	const seen = new Set<string>();
 	return dataset.features.map((feature) => {
 		const properties = feature.properties ?? {};
 		const name = properties[nameField] as string;
-		seen.add(name);
 		const propertyTags = Object.entries(properties)
 			.filter(
 				([field, value]) =>
@@ -96,7 +99,14 @@ export function importRecords(
 			.map(([field, value]) => `${field.toLowerCase()}:${value}`);
 		return {
 			name: typeof name === 'string' ? name : null,
-			tags: [...new Set([...tags, ...propertyTags].map((tag) => tag.trim()).filter(Boolean))],
+			tags: Array.from(
+				new Set(
+					tags
+						.concat(propertyTags)
+						.map((tag) => tag.trim())
+						.filter(Boolean)
+				)
+			),
 			zip_prefix: null,
 			area_geometry: multiPolygon(feature.geometry)
 		};

@@ -26,7 +26,9 @@ export function areaFeatures(areas: RegionAreaDto[]): FeatureCollection<Polygon 
 
 /** Toggle one association, preserving the order of the remaining selection. */
 export function toggleArea(selectedIds: string[], id: string): string[] {
-	return selectedIds.includes(id)
-		? selectedIds.filter((selectedId) => selectedId !== id)
-		: [...selectedIds, id];
+	let index = selectedIds.findIndex((selectedId) => selectedId === id);
+	if (index < 0) {
+		return selectedIds.slice();
+	}
+	return selectedIds.toSpliced(index, 1);
 }

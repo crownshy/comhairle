@@ -41,7 +41,7 @@
 			canCreateOrganization: boolean;
 		};
 		user: UserDto;
-		userRoles: UserRoles[];
+		isSuperAdmin: boolean;
 		path: string;
 	};
 
@@ -58,18 +58,12 @@
 	let user = $derived(props.user);
 	let ownedConversations = $derived(props.ownedConversations);
 	let permittedConversations = $derived(props.permittedConversations);
-	let userOrganizations = $derived(props.userOrganizations);
-	let userRoles = $derived(props.userRoles);
-	let isSuperAdmin = $derived(
-		userRoles.some((role) => role.resource === 'Site' && role.roles.includes('SuperAdmin'))
-	);
+	let isSuperAdmin = $derived(props.isSuperAdmin);
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
 	function isConversationActive(conversationId: string): boolean {
 		return path.startsWith(`/admin/conversations/${conversationId}`);
 	}
-
-	let isRegionAreasActive = $derived(path.startsWith('/admin/regionss'));
 </script>
 
 <SideBar.Root collapsible="icon">
@@ -142,10 +136,11 @@
 						</SideBar.MenuButton>
 					</SideBar.MenuItem>
 					{#if isSuperAdmin}
+						{@const href = '/admin/regions'}
 						<SideBar.MenuItem>
-							<SideBar.MenuButton isActive={isRegionAreasActive}>
+							<SideBar.MenuButton isActive={path.startsWith(href)}>
 								{#snippet child({ props: btnProps })}
-									<a {...btnProps} href="/admin/regions">
+									<a {...btnProps} {href}>
 										<Map class="size-4" />
 										Regions
 									</a>

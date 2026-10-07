@@ -33,8 +33,6 @@ class BinaryTree<K extends Key, T> {
 				return;
 			}
 			this.#insertNumber(currentNode.right, newNode);
-		} else {
-			console.error(`Duplicate key: ${currentNode}, ${newNode}`);
 		}
 	}
 
@@ -53,8 +51,6 @@ class BinaryTree<K extends Key, T> {
 				return;
 			}
 			this.#insertString(currentNode.right, newNode);
-		} else {
-			console.error(`Duplicate key: ${currentNode}, ${newNode}`);
 		}
 	}
 

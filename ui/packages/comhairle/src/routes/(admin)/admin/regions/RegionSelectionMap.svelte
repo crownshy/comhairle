@@ -4,6 +4,7 @@
 	import type { RegionAreaDto } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Scan } from 'lucide-svelte';
+	import { useDebounce } from 'runed';
 	import { Button } from '$lib/components/ui/button';
 	import * as Menu from '$lib/components/ui/dropdown-menu';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -31,21 +32,20 @@
 	let anchor = $state<{ getBoundingClientRect: () => DOMRect } | null>(null);
 	let requestId = 0;
 	let viewportRequestId = 0;
-	let refreshTimer: ReturnType<typeof setTimeout>;
 	let fitted = false;
 	let disposed = false;
 
 	/** Areas below this share of the visible rectangle are too small to be worth drawing. */
 	const MIN_AREA_RATIO = 0.0002;
 	const VIEWPORT_LIMIT = 1000;
-	const ID_CHUNK = 100;
+	const LOAD_BATCH_SIZE = 100;
 	const REFRESH_DELAY_MS = 1000;
+	const debouncedRefresh = useDebounce(refresh, REFRESH_DELAY_MS);
 
 	$effect(() => {
-		const ids = [...selectedIds];
 		if (!ready || !map) return;
-		map.setFilter('selected-areas', ['in', ['get', 'id'], ['literal', ids]]);
-		void loadSelected(ids);
+		map.setFilter('selected-areas', ['in', ['get', 'id'], ['literal', selectedIds]]);
+		void loadSelected(selectedIds);
 	});
 
 	$effect(() => {
@@ -68,7 +68,7 @@
 		if (!source || source.type !== 'geojson') return;
 		const geojsonSource = source as GeoJSONSource;
 		geojsonSource.setData(
-			areaFeatures([...selected, ...viewportAreas.filter((area) => !shown.has(area.id))])
+			areaFeatures(selected.concat(viewportAreas.filter((area) => !shown.has(area.id))))
 		);
 	}
 
@@ -76,13 +76,16 @@
 	function viewportQueries() {
 		const bounds = map?.getBounds();
 		if (!bounds) return null;
+		// We avoid letting the viewport bounds extend too close to the poles or wrap around the globe so that the
+		// resulting shape has a non-zero area. A viewport with a calculated area of zero will display all areas up to
+		// the pagination limit since smaller areas will not be filtered out.
 		const south = Math.max(-89, bounds.getSouth());
 		const north = Math.min(89, bounds.getNorth());
-		const span = Math.min(358, bounds.getEast() - bounds.getWest());
-		const west = ((((bounds.getWest() + 180) % 360) + 360) % 360) - 180;
+		const span = Math.min(359, bounds.getEast() - bounds.getWest());
+		const west = ((bounds.getWest() + 180) % 360) - 180;
 		const east = west + span;
 		if (![south, north, west, east].every(Number.isFinite) || north <= south) return null;
-		const [minLng, maxLng] = east > west && east <= 180 ? [west, east] : [-179, 179];
+		const [minLng, maxLng] = east > west && east <= 180 ? [west, east] : [-180, 180];
 		return {
 			viewport_min_lng: minLng,
 			viewport_min_lat: south,
@@ -97,15 +100,19 @@
 			render();
 			return;
 		}
-		const chunks: string[][] = [];
-		for (let start = 0; start < missing.length; start += ID_CHUNK) {
-			chunks.push(missing.slice(start, start + ID_CHUNK));
+		const batches: string[][] = [];
+		for (let start = 0; start < missing.length; start += LOAD_BATCH_SIZE) {
+			batches.push(missing.slice(start, start + LOAD_BATCH_SIZE));
 		}
 		const response = await tryCatchAsync(() =>
 			Promise.all(
-				chunks.map((chunk) =>
+				batches.map((chunk) =>
 					apiClient.ListRegionAreas({
-						queries: { include_geometry: true, ids: chunk.join(','), limit: ID_CHUNK }
+						queries: {
+							include_geometry: true,
+							ids: chunk.join(','),
+							limit: LOAD_BATCH_SIZE
+						}
 					})
 				)
 			)
@@ -154,9 +161,12 @@
 		render();
 	}
 
-	function scheduleRefresh() {
-		clearTimeout(refreshTimer);
-		refreshTimer = setTimeout(() => void refresh(), REFRESH_DELAY_MS);
+	async function scheduleRefresh() {
+		const response = await tryCatchAsync(() => debouncedRefresh());
+		if (response.err !== null && !disposed) {
+			status = '';
+			errorMessage = 'Could not load boundaries for this view. Try again.';
+		}
 	}
 
 	function fit() {
@@ -246,13 +256,13 @@
 					id: 'selected-areas',
 					type: 'fill',
 					source: 'areas',
-					filter: ['in', ['get', 'id'], ['literal', [...selectedIds]]],
+					filter: ['in', ['get', 'id'], ['literal', selectedIds]],
 					paint: { 'fill-color': '#ea580c', 'fill-opacity': 0.45 }
 				});
 				map.getCanvas().style.cursor = 'pointer';
 				ready = true;
 				status = '';
-				void loadSelected([...selectedIds]);
+				void loadSelected(selectedIds);
 				void refresh();
 			});
 			map.on('click', selectAt);
@@ -278,7 +288,7 @@
 			disposed = true;
 			requestId += 1;
 			viewportRequestId += 1;
-			clearTimeout(refreshTimer);
+			debouncedRefresh.cancel();
 			map?.remove();
 		};
 	});
@@ -298,18 +308,18 @@
 		disabled={!ready || !selectedIds.length}
 		onclick={fit}><Scan /></Button
 	>
-	{#if status}<p
+	{#if status}<span
 			role="status"
 			class="bg-background absolute bottom-10 left-3 max-w-[calc(100%-24px)] rounded border px-3 py-2 text-base"
 		>
 			{status}
-		</p>{/if}
-	{#if errorMessage}<p
+		</span>{/if}
+	{#if errorMessage}<span
 			role="alert"
 			class="bg-background text-destructive absolute right-3 bottom-10 left-3 rounded border p-3"
 		>
 			{errorMessage}
-		</p>{/if}
+		</span>{/if}
 </div>
 
 <Menu.Root bind:open={menuOpen}>

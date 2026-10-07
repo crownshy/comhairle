@@ -2,17 +2,33 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { CreateRegionArea } from '@crownshy/api-client/api';
 	import { Upload, X } from 'lucide-svelte';
+	import FileInput from '$lib/components/FileInput.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Progress } from '$lib/components/ui/progress';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { importRecords, readBoundaryFile, type BoundaryDataset } from './import';
 
-	let { onimport, onclose }: { onimport: () => Promise<void>; onclose: () => void } = $props();
+	type Props = {
+		onimport: () => Promise<void>;
+		onclose: () => void;
+	};
+	let { onimport, onclose }: Props = $props();
 	// IMPORTANT: Uses .raw to prevent millions of coordinate Proxies from crashing the browser
 	let dataset = $state.raw<BoundaryDataset | null>(null);
 	let nameField = $derived(dataset?.nameField ?? '');
 	let tags = $derived(dataset?.tags.join(', ') ?? '');
+	type State =
+		| {
+				current: 'idle';
+		  }
+		| {
+				current: 'importing';
+				imported: number;
+				total: number;
+		  };
+
+	let importState = $state<State>({ current: 'idle' });
 	let busy = $state(false);
 	let failure = $state('');
 	// IMPORTANT: Uses .raw to prevent millions of coordinate Proxies from crashing the browser
@@ -60,31 +76,26 @@
 
 	async function commit() {
 		if (!previewCurrent) return;
-		busy = true;
-		failure = '';
-		imported = 0;
-		importTotal = records.length;
+		importState = { current: 'importing', imported: 0, total: records.length };
 		for (let start = 0; start < records.length; start += IMPORT_BATCH_SIZE) {
 			const batch = records.slice(start, start + IMPORT_BATCH_SIZE);
 			const response = await tryCatchAsync(() =>
 				apiClient.ImportRegionAreas({ areas: batch })
 			);
 			if (response.err !== null) {
-				failure = `Import stopped after ${imported} of ${importTotal} areas. Check boundary validity, then re-import the remaining areas.`;
-				if (imported) await onimport();
-				busy = false;
-				importTotal = 0;
+				failure = `Import stopped after ${importState.imported} of ${importState.total} areas. Check boundary validity, then re-import the remaining areas.`;
+				if (importState.imported) await onimport();
+				importState = { current: 'idle' };
 				return;
 			}
-			imported += batch.length;
+			importState.imported += batch.length;
 
 			// Yield to the event loop so the Garbage Collector can clean up
 			// the memory from the previous request's response body.
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		}
 		await onimport();
-		busy = false;
-		importTotal = 0;
+		importState = { current: 'idle' };
 		onclose();
 	}
 </script>
@@ -101,15 +112,10 @@
 			onclick={onclose}><X /></Button
 		>
 	</div>
-	<label class="grid gap-2 text-base"
-		>Boundary file (.geojson, .json, .zip)
-		<Input
-			type="file"
-			accept=".geojson,.json,.zip"
-			disabled={busy}
-			onchange={(event) => loadFile(event.currentTarget.files?.[0])}
-		/>
-	</label>
+	<fieldset class="grid gap-2 text-base" disabled={busy} inert={busy}>
+		<legend class="mb-2">Boundary file (.geojson, .json, .zip)</legend>
+		<FileInput name="boundary-file" accept=".geojson,.json,.zip" onfile={loadFile} />
+	</fieldset>
 	{#if dataset}
 		<div class="my-4 grid gap-4 md:grid-cols-3">
 			<label class="grid gap-2"

@@ -1,24 +1,25 @@
 type InvalidationKey = `${string}:${string}`;
 type InputKey =
-	| 'user'
-	| 'admin/conversations'
 	| 'admin/conversation'
-	| 'admin/conversation/report'
-	| 'admin/conversation/workflow'
-	| 'admin/conversation/invites'
 	| 'admin/conversation/documents'
 	| 'admin/conversation/events'
-	| 'admin/event'
-	| 'admin/workflow-steps'
-	| 'admin/knowledge-base/documents'
-	| 'admin/email-template-config'
+	| 'admin/conversation/invites'
+	| 'admin/conversation/report'
+	| 'admin/conversation/workflow'
+	| 'admin/conversations'
 	| 'admin/documents'
+	| 'admin/email-template-config'
+	| 'admin/event'
+	| 'admin/knowledge-base/documents'
+	| 'admin/regions'
+	| 'admin/workflow-steps'
 	| 'public/conversation'
-	| 'public/event'
 	| 'public/documents'
+	| 'public/event'
 	| 'public/notifications'
 	| 'public/participation'
-	| 'public/workflow-steps';
+	| 'public/workflow-steps'
+	| 'user';
 
 export function key(k: InputKey): InvalidationKey {
 	return `app:${k}`;
