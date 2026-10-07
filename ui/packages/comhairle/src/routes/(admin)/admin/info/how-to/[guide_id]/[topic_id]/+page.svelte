@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { ArrowRight, BookOpen, Lightbulb } from 'lucide-svelte';
-	import { isExternalHref, parseGuideText } from '$lib/admin_guide_text';
 	import GuideImageCarousel from '$lib/components/AdminGuide/GuideImageCarousel.svelte';
-	import GuideUiIcon from '$lib/components/AdminGuide/GuideUiIcon.svelte';
+	import GuideRichText from '$lib/components/AdminGuide/GuideRichText.svelte';
 	import type { AdminGuideImage } from '$lib/admin_guides';
 	import type { PageProps } from './$types';
 
@@ -28,23 +27,7 @@
 	});
 </script>
 
-<!-- Guide text can mark **bold** UI names and [links](/path); parseGuideText
-     splits it into pieces so nothing is injected as raw HTML. -->
-{#snippet richText(text: string)}
-	{#each parseGuideText(text) as part, i (i)}
-		{#if part.kind === 'bold'}<strong class="font-semibold">{part.text}</strong>
-		{:else if part.kind === 'icon'}<GuideUiIcon name={part.name} />
-		{:else if part.kind === 'link'}<a
-				href={part.href}
-				class="text-primary font-medium underline underline-offset-2 hover:no-underline"
-				target={isExternalHref(part.href) && !part.href.startsWith('mailto:')
-					? '_blank'
-					: undefined}
-				rel={isExternalHref(part.href) ? 'noopener noreferrer' : undefined}>{part.text}</a
-			>
-		{:else}{part.text}{/if}
-	{/each}
-{/snippet}
+{#snippet richText(text: string)}<GuideRichText {text} />{/snippet}
 
 <!-- Text linked to a carousel screenshot: hover, click or focus shows the image, and the
      text is highlighted in yellow while its image is showing. -->
@@ -160,30 +143,6 @@
 					{/each}
 				</ol>
 			</section>
-		{/if}
-
-		{#if topic.terms?.length}
-			<!-- Glossary: one card per term in a two-column grid. Each card has an id
-			     (e.g. #term-conversation) so other pages can link straight to a term. -->
-			<dl class="mt-8 grid gap-3 sm:grid-cols-2">
-				{#each topic.terms as { term, definition } (term)}
-					<div
-						id={`term-${term.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-						class="border-border bg-card hover:border-primary/40 target:border-primary target:ring-primary/20 scroll-mt-6 rounded-xl border p-4 transition-colors target:ring-2"
-					>
-						<dt class="flex items-center gap-3">
-							<span
-								class="bg-accent text-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
-								aria-hidden="true">{term.charAt(0)}</span
-							>
-							<span class="text-foreground font-semibold">{term}</span>
-						</dt>
-						<dd class="text-muted-foreground mt-3 text-sm leading-6">
-							{@render richText(definition)}
-						</dd>
-					</div>
-				{/each}
-			</dl>
 		{/if}
 
 		{#if topic.decisions}

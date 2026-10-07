@@ -2,11 +2,11 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { ADMIN_GUIDE_NAV, type AdminGuide } from '$lib/admin_guides';
+	import { ADMIN_GUIDE_NAV } from '$lib/admin_guides';
 	import * as Select from '$lib/components/ui/select';
-	import { GUIDE_NAV, type ToolGuide } from '$lib/tool_guides';
+	import { GUIDE_NAV } from '$lib/tool_guides';
 	import * as Collapsible from '$lib/components/ui/collapsible';
-	import { ChevronDown, Folder, FolderOpen } from 'lucide-svelte';
+	import { BookA, ChevronDown, Folder, FolderOpen } from 'lucide-svelte';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 
 	type MobileGroup = {
@@ -21,23 +21,57 @@
 
 	const isMobile = new IsMobile();
 
-	const MOBILE_GROUPS: MobileGroup[] = ADMIN_GUIDE_NAV.map((guide) => ({
-		label: guide.navLabel,
-		options: guide.topics.map((topic) => ({
-			value: `how-to/${guide.key}/${topic.key}`,
-			label: topic.navLabel
-		}))
-	})).concat({
-		label: 'Engagement tools',
-		options: GUIDE_NAV.map((tool) => ({ value: `tools/${tool.key}`, label: tool.navLabel }))
-	});
+	const NAV_GROUPS = [
+		{
+			label: 'Admin how-to',
+			items: ADMIN_GUIDE_NAV.map((guide) => ({
+				key: guide.key,
+				label: guide.navLabel,
+				path: `/admin/info/how-to/${guide.key}` as const,
+				topics: guide.topics.map((topic) => ({
+					key: topic.key,
+					label: topic.navLabel,
+					path: `/admin/info/how-to/${guide.key}/${topic.key}` as const
+				}))
+			}))
+		},
+		{
+			label: 'Engagement tools',
+			items: GUIDE_NAV.map((guide) => ({
+				key: guide.key,
+				label: guide.navLabel,
+				path: `/admin/info/tools/${guide.key}` as const
+			}))
+		}
+	];
+	const MOBILE_GROUPS: MobileGroup[] = [
+		...ADMIN_GUIDE_NAV.map((guide) => ({
+			label: guide.navLabel,
+			options: guide.topics.map((topic) => ({
+				value: `how-to/${guide.key}/${topic.key}`,
+				label: topic.navLabel
+			}))
+		})),
+		{
+			label: 'Engagement tools',
+			options: GUIDE_NAV.map((tool) => ({ value: `tools/${tool.key}`, label: tool.navLabel }))
+		},
+		{
+			label: 'Reference',
+			options: [{ value: 'glossary', label: 'Glossary' }]
+		}
+	];
+
+	let isGlossary = $derived(page.route.id === '/(admin)/admin/info/glossary');
 
 	let currentValue = $derived(
 		page.params.topic_id
 			? `how-to/${page.params.guide_id}/${page.params.topic_id}`
 			: page.params.tool_id
 				? `tools/${page.params.tool_id}`
-				: undefined
+				: isGlossary
+					? 'glossary'
+					: undefined
 	);
 
 	let currentLabel = $derived(
@@ -45,7 +79,9 @@
 			?.label ?? 'Select a topic'
 	);
 
-	function isActiveItem(item: AdminGuide | ToolGuide) {
+	type NavItem = (typeof NAV_GROUPS)[number]['items'][number];
+
+	function isActiveItem(item: NavItem) {
 		return 'topics' in item
 			? page.params.guide_id === item.key
 			: page.params.tool_id === item.key;
@@ -57,7 +93,9 @@
 
 	function navigateTo(value: string) {
 		const [section, first, second] = value.split('/');
-		if (section === 'how-to') {
+		if (section === 'glossary') {
+			void goto(resolve('/admin/info/glossary'));
+		} else if (section === 'how-to') {
 			void goto(
 				resolve('/(admin)/admin/info/how-to/[guide_id]/[topic_id]', {
 					guide_id: first,
@@ -96,16 +134,6 @@
 					</Select.Content>
 				</Select.Root>
 			{:else}
-				{@const NAV_GROUPS = [
-					{
-						label: 'Admin how-to',
-						items: ADMIN_GUIDE_NAV
-					},
-					{
-						label: 'Engagement tools',
-						items: GUIDE_NAV
-					}
-				]}
 				<nav
 					class="flex shrink-0 flex-col gap-4 rounded-lg md:w-56"
 					aria-label="Admin guide"
@@ -139,7 +167,7 @@
 																class="text-muted-foreground hidden size-4 shrink-0 group-data-[state=open]/guide:block"
 																aria-hidden="true"
 															/>
-															{item.navLabel}
+															{item.label}
 														</span>
 														<ChevronDown
 															class="size-4 shrink-0 transition-transform"
@@ -148,55 +176,64 @@
 													</Collapsible.Trigger>
 												</div>
 
-												<Collapsible.Content>
-													<ul
-														class="border-border ml-4 space-y-1 border-l pl-3"
-													>
-														{#each item.topics as topic (topic.key)}
-															<li>
-																<a
-																	href={resolve(
-																		`/admin/info/how-to/${item.key}/${topic.key}`
-																	)}
-																	class="block rounded-lg px-2 py-2 text-sm {isActiveTopic(
-																		item.key,
-																		topic.key
-																	)
-																		? 'bg-accent text-accent-foreground'
-																		: 'text-foreground hover:bg-muted/60'}"
-																	aria-current={isActiveTopic(
-																		item.key,
-																		topic.key
-																	)
-																		? 'page'
-																		: undefined}
-																>
-																	{topic.navLabel}
-																</a>
-															</li>
-														{/each}
-													</ul>
-												</Collapsible.Content>
-											</Collapsible.Root>
-										{:else}
-											<a
-												href={resolve(`/admin/info/tools/${item.key}`)}
-												class="inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {isActiveItem(
-													item
-												)
-													? 'bg-accent text-accent-foreground'
-													: 'text-foreground hover:bg-muted/60'}"
-												aria-current={isActiveItem(item)
-													? 'page'
-													: undefined}>{item.navLabel}</a
-											>
-										{/if}
-									{/each}
-								</div>
-							</Collapsible.Content>
-						</Collapsible.Root>
-					{/each}
-				</nav>
+											<Collapsible.Content>
+												<ul
+													class="border-border ml-4 space-y-1 border-l pl-3"
+												>
+													{#each item.topics as topic (topic.path)}
+														<li>
+															<a
+																href={resolve(topic.path)}
+																class="block rounded-lg px-2 py-2 text-sm {isActiveTopic(
+																	item.key,
+																	topic.key
+																)
+																	? 'bg-accent text-accent-foreground'
+																	: 'text-foreground hover:bg-muted/60'}"
+																aria-current={isActiveTopic(
+																	item.key,
+																	topic.key
+																)
+																	? 'page'
+																	: undefined}
+															>
+																{topic.label}
+															</a>
+														</li>
+													{/each}
+												</ul>
+											</Collapsible.Content>
+										</Collapsible.Root>
+									{:else}
+										<a
+											href={resolve(item.path)}
+											class="inline-flex min-h-8 items-center rounded-xl px-3 py-1 text-base font-medium {isActiveItem(
+												item
+											)
+												? 'bg-accent text-accent-foreground'
+												: 'text-foreground hover:bg-muted/60'}"
+											aria-current={isActiveItem(item) ? 'page' : undefined}
+											>{item.label}</a
+										>
+									{/if}
+								{/each}
+							</div>
+						</Collapsible.Content>
+					</Collapsible.Root>
+				{/each}
+
+				<!-- Reference, not a reading step, so it sits on its own below the guides. -->
+				<a
+					href={resolve('/admin/info/glossary')}
+					class="flex items-center gap-2 rounded-lg px-3 py-2 text-base font-semibold {isGlossary
+						? 'bg-accent text-accent-foreground'
+						: 'text-foreground hover:bg-muted'}"
+					aria-current={isGlossary ? 'page' : undefined}
+				>
+					<BookA class="size-4 shrink-0" aria-hidden="true" />
+					Glossary
+				</a>
+			</nav>
 			{/if}
 			<div class="bg-card min-w-0 flex-1 rounded-xl">
 				{@render children()}
