@@ -33,12 +33,31 @@
 			}))
 		}
 	];
-	const NAV_ITEMS = NAV_GROUPS.flatMap<(typeof NAV_GROUPS)[number]['items'][number]>(
-		(group) => group.items
+	const MOBILE_GROUPS = [
+		...ADMIN_GUIDE_NAV.map((guide) => ({
+			label: guide.navLabel,
+			options: guide.topics.map((topic) => ({
+				value: `how-to/${guide.key}/${topic.key}`,
+				label: topic.navLabel
+			}))
+		})),
+		{
+			label: 'Engagement tools',
+			options: GUIDE_NAV.map((tool) => ({ value: `tools/${tool.key}`, label: tool.navLabel }))
+		}
+	];
+
+	let currentValue = $derived(
+		page.params.topic_id
+			? `how-to/${page.params.guide_id}/${page.params.topic_id}`
+			: page.params.tool_id
+				? `tools/${page.params.tool_id}`
+				: undefined
 	);
+
 	let currentLabel = $derived(
-		NAV_ITEMS.find((item) => resolve(item.path) === page.url.pathname)?.label ??
-			'Select a guide'
+		MOBILE_GROUPS.flatMap((group) => group.options).find((o) => o.value === currentValue)
+			?.label ?? 'Select a topic'
 	);
 
 	type NavItem = (typeof NAV_ITEMS)[number];
@@ -53,9 +72,18 @@
 		return page.params.guide_id === guideKey && page.params.topic_id === topicKey;
 	}
 
-	function navigateToGuide(path: string) {
-		const item = NAV_ITEMS.find((item) => resolve(item.path) === path);
-		if (item) void goto(resolve(item.path));
+	function navigateTo(value: string) {
+		const [section, first, second] = value.split('/');
+		if (section === 'how-to') {
+			void goto(
+				resolve('/admin/info/how-to/[guide_id]/[topic_id]', {
+					guide_id: first,
+					topic_id: second
+				})
+			);
+		} else {
+			void goto(resolve('/admin/info/tools/[tool_id]', { tool_id: first }));
+		}
 	}
 </script>
 
@@ -67,21 +95,19 @@
 		<div class="flex flex-col gap-6 md:flex-row md:items-start md:gap-10 md:pb-10">
 			<div class="md:hidden">
 				<p class="text-muted-foreground mb-2 text-sm font-medium">Admin guide</p>
-				<Select.Root
-					type="single"
-					value={page.url.pathname}
-					onValueChange={navigateToGuide}
-				>
+				<Select.Root type="single" value={currentValue} onValueChange={navigateTo}>
 					<Select.Trigger class="w-full" aria-label="Admin guide"
 						>{currentLabel}</Select.Trigger
 					>
-					<Select.Content>
-						{#each NAV_GROUPS as group (group.label)}
+					<Select.Content class="max-h-[70vh]">
+						{#each MOBILE_GROUPS as group (group.label)}
 							<Select.Group>
 								<Select.Label>{group.label}</Select.Label>
-								{#each group.items as item (resolve(item.path))}<Select.Item
-										value={resolve(item.path)}>{item.label}</Select.Item
-									>{/each}
+								{#each group.options as option (option.value)}
+									<Select.Item value={option.value} label={option.label}
+										>{option.label}</Select.Item
+									>
+								{/each}
 							</Select.Group>
 						{/each}
 					</Select.Content>
