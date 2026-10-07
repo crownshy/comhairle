@@ -345,5 +345,6 @@
 	"thinking_space_lastest_thinking": "na beachdan as ùire agad",
 	"thinking_space_add_more": "Tagh ceist airson barrachd bheachdan a chur rithe. Faodaidh tu tilleadh an seo gus tè eile a thaghadh, no crìochnachadh gus na beachdan as ùire agad ùrachadh.",
 	"image_lightbox_close": "Dùin",
-	"image_lightbox_zoom": "Meudaich"
+	"image_lightbox_zoom": "Meudaich",
+	"image_lightbox_load_failed": "Cha b' urrainn dhuinn an dealbh fhosgladh. Feuch a-rithist."
 }

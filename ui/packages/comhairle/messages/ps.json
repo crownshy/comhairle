@@ -350,5 +350,6 @@
 	"thinking_space_lastest_thinking": "ستاسو وروستي فکرونه",
 	"thinking_space_add_more": "یوه پوښتنه وټاکئ چې نور فکرونه ورته اضافه کړئ. تاسو کولی شئ بېرته دلته راشئ او بله پوښتنه وټاکئ، یا پای ته یې ورسوئ ترڅو خپل وروستي فکرونه تازه کړئ.",
 	"image_lightbox_close": "بندول",
-	"image_lightbox_zoom": "لوی کول"
+	"image_lightbox_zoom": "لوی کول",
+	"image_lightbox_load_failed": "انځور پرانیستل نشو. مهرباني وکړئ بیا هڅه وکړئ."
 }

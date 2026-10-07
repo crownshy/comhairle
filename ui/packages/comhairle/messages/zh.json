@@ -344,5 +344,6 @@
 	"thinking_space_lastest_thinking": "你最新的想法",
 	"thinking_space_add_more": "选择一个问题，补充更多想法。你可以返回这里选择另一个问题，或者完成以更新你的最新想法。",
 	"image_lightbox_close": "关闭",
-	"image_lightbox_zoom": "缩放"
+	"image_lightbox_zoom": "缩放",
+	"image_lightbox_load_failed": "无法打开图片，请重试。"
 }

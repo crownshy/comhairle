@@ -355,5 +355,6 @@
 	"thinking_space_lastest_thinking": "your latest thinking",
 	"thinking_space_add_more": "Pick a question to add more thinking to. You can come back here to pick another, or finish to update your latest thinking.",
 	"image_lightbox_close": "Close",
-	"image_lightbox_zoom": "Zoom"
+	"image_lightbox_zoom": "Zoom",
+	"image_lightbox_load_failed": "Couldn't open the image. Please try again."
 }

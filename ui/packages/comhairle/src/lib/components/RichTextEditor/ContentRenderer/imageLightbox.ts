@@ -1,5 +1,6 @@
 import type { ZoomLevelOption } from 'photoswipe';
 import * as m from '$lib/paraglide/messages';
+import { notifications } from '$lib/notifications.svelte';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 type ZoomLevel = Parameters<Extract<ZoomLevelOption, (...args: never[]) => number>>[0];
@@ -15,7 +16,8 @@ function readableZoom({ fit, panAreaSize, elementSize }: ZoomLevel): number {
 /**
  * Opens the image full screen in a zoomable PhotoSwipe lightbox. PhotoSwipe loads on
  * first open so pages without a clicked image don't pay for it. If it fails to load, the
- * image stays inline as it was.
+ * image stays inline and a toast says so, since the zoom cursor promised something would
+ * happen.
  */
 export async function openImageLightbox(image: HTMLImageElement) {
 	const src = image.currentSrc || image.src;
@@ -24,7 +26,14 @@ export async function openImageLightbox(image: HTMLImageElement) {
 	const loaded = await tryCatchAsync(() =>
 		Promise.all([import('photoswipe'), import('photoswipe/style.css')])
 	);
-	if (loaded.err !== null) return;
+	if (loaded.err !== null) {
+		notifications.send({
+			priority: 'ERROR',
+			message: m.image_lightbox_load_failed(),
+			duration: 5000
+		});
+		return;
+	}
 	const PhotoSwipe = loaded.ok[0].default;
 
 	const lightbox = new PhotoSwipe({

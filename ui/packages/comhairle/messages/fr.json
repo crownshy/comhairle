@@ -345,5 +345,6 @@
 	"thinking_space_lastest_thinking": "vos dernières réflexions",
 	"thinking_space_add_more": "Choisissez une question à laquelle ajouter davantage de réflexions. Vous pourrez revenir ici pour en choisir une autre, ou terminer pour mettre à jour vos dernières réflexions.",
 	"image_lightbox_close": "Fermer",
-	"image_lightbox_zoom": "Zoomer"
+	"image_lightbox_zoom": "Zoomer",
+	"image_lightbox_load_failed": "Impossible d'ouvrir l'image. Veuillez réessayer."
 }

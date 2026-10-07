@@ -345,5 +345,6 @@
 	"thinking_space_lastest_thinking": "eich meddyliau diweddaraf",
 	"thinking_space_add_more": "Dewiswch gwestiwn i ychwanegu mwy o'ch meddyliau ato. Gallwch ddychwelyd yma i ddewis un arall, neu orffen i ddiweddaru eich meddyliau diweddaraf.",
 	"image_lightbox_close": "Cau",
-	"image_lightbox_zoom": "Chwyddo"
+	"image_lightbox_zoom": "Chwyddo",
+	"image_lightbox_load_failed": "Methu agor y ddelwedd. Rhowch gynnig arall arni."
 }

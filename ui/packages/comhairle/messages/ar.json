@@ -345,5 +345,6 @@
 	"thinking_space_lastest_thinking": "أحدث أفكارك",
 	"thinking_space_add_more": "اختر سؤالاً لإضافة المزيد من أفكارك إليه. يمكنك العودة إلى هنا لاختيار سؤال آخر، أو الإنهاء لتحديث أحدث أفكارك.",
 	"image_lightbox_close": "إغلاق",
-	"image_lightbox_zoom": "تكبير"
+	"image_lightbox_zoom": "تكبير",
+	"image_lightbox_load_failed": "تعذّر فتح الصورة. يرجى المحاولة مرة أخرى."
 }
