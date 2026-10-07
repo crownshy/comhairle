@@ -169,6 +169,7 @@
 	--sidebar-ring: #7cb342;
 	--sidebar-secondary: #6b9b3a;
 	--sidebar-active-bg: #070b04;
+	--nav-background: var(--background);
 
 	--chat-primary: #7cb342;
 	--chat-neutral: #99a88a;
@@ -320,6 +321,7 @@
 	--sidebar-ring: #4b92ec;
 	--sidebar-secondary: #7dd3fc;
 	--sidebar-active-bg: #050912;
+	--nav-background: var(--background);
 
 	--chat-primary: #4b92ec;
 	--chat-neutral: #8b9bb5;
