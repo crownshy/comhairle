@@ -35,6 +35,8 @@ import recruitImage from './assets/admin-guide/recruit.webp';
 import monitorImage from './assets/admin-guide/monitor.webp';
 import moderateImage from './assets/admin-guide/moderate.webp';
 import toggleRevisitAfterFinishImage from './assets/admin-guide/toggle-revisit-after-finish.webp';
+import rejectStatementImage from './assets/admin-guide/reject-statement.webp';
+import splitStatementImage from './assets/admin-guide/split-statement.webp';
 import reportImage from './assets/admin-guide/report.webp';
 import notifyImage from './assets/admin-guide/notify.webp';
 import logInImage from './assets/admin-guide/log-in.webp';
@@ -721,7 +723,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 						{
 							name: 'Row icons',
 							description:
-								'Each statement has a pencil to split or reword it, a tick to accept it, and a cross to reject it.'
+								'Each statement has a pencil :split: to split or reword it, a tick :accept: to accept it, and a cross :reject: to reject it.'
 						}
 					]
 				},
@@ -732,29 +734,41 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 						{
 							title: 'Publish as written',
 							when: 'The statement is clear, on topic, makes a single point and meets your moderation policy.',
-							how: ['Click the tick on the statement’s row.'],
+							how: ['Click the tick :accept: on the statement’s row.'],
 							result: 'The statement moves to **Accepted**. Participants can see and vote on it straight away.'
 						},
 						{
 							title: 'Reject and record a reason',
 							when: 'The statement breaks your moderation policy, for example it is harmful, off topic or a duplicate.',
 							how: [
-								'Click the cross on the statement’s row to open **Reject statement**.',
+								'Click the cross :reject: on the statement’s row to open **Reject statement**.',
 								'Choose a **Reason** from your moderation policy (optional).',
 								'Add a **Note** (optional), for example the statement it duplicates, or your initials for the log.',
 								'Confirm to reject.'
 							],
-							result: 'The statement moves to **Rejected** and is hidden from participants. The reason and note are kept in the moderation log for your team; participants are not told why.'
+							result: 'The statement moves to **Rejected** and is hidden from participants. The reason and note are kept in the moderation log for your team; participants are not told why.',
+							image: {
+								src: rejectStatementImage,
+								alt: 'The Reject statement popover next to a pending statement about high street shops, with an empty Reason field, a Note reading "This statement isn’t about air quality, so it’s outside the scope of this conversation. - moderator: SL", and Cancel and Reject buttons.',
+								caption:
+									'Rejecting an off-topic statement, with a note for the moderation log.'
+							}
 						},
 						{
 							title: 'Split or reword',
 							when: 'The statement is unclear, or makes more than one point so participants can’t agree or disagree with it in one vote.',
 							how: [
-								'Click the pencil on the statement’s row to open **Split or reword statement**.',
+								'Click the pencil :split: on the statement’s row to open **Split or reword statement**.',
 								'Write the replacement statement. To split it, click **+ Add another statement** for each extra point.',
 								'Click **Split statement**.'
 							],
-							result: 'The new statements are posted and appear in **Accepted** with an **Edited** badge and **Edited from:** the original. The original is rejected. Votes do not carry over to the new statements.'
+							result: 'The new statements are posted and appear in **Accepted** with an **Edited** badge and **Edited from:** the original. The original is rejected. Votes do not carry over to the new statements.',
+							image: {
+								src: splitStatementImage,
+								alt: 'The Split or reword statement dialog. The original statement asks for air quality monitors outside every school and free buses for under-18s; below it are two replacement statements, one for each proposal, with Add another statement and Split statement buttons.',
+								caption:
+									'Splitting a statement that makes two proposals into two separate statements.'
+							}
 						},
 						{
 							title: 'Leave in Pending for discussion',

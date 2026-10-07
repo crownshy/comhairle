@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { ArrowRight, Lightbulb } from 'lucide-svelte';
 	import { isExternalHref, parseGuideText } from '$lib/admin_guide_text';
+	import GuideUiIcon from '$lib/components/AdminGuide/GuideUiIcon.svelte';
 	import type { AdminGuideImage } from '$lib/admin_guides';
 	import type { PageProps } from './$types';
 
@@ -14,6 +15,7 @@
 {#snippet richText(text: string)}
 	{#each parseGuideText(text) as part, i (i)}
 		{#if part.kind === 'bold'}<strong class="font-semibold">{part.text}</strong>
+		{:else if part.kind === 'icon'}<GuideUiIcon name={part.name} />
 		{:else if part.kind === 'link'}<a
 				href={part.href}
 				class="text-primary font-medium underline underline-offset-2 hover:no-underline"
