@@ -343,5 +343,7 @@
 	"thinking_space_share_desc": "Gobeithiwn fod y profiad hwn wedi bod yn ddefnyddiol i fireinio eich meddyliau am y pwnc. Os ydych chi'n fodlon rhannu'r ymatebion hyn â'r trefnwyr, bydd yn helpu i lywio sgyrsiau yn y dyfodol. Gallwch ddewis rhannu neu beidio â rhannu ar unrhyw adeg.",
 	"thinking_space_lastest_label": "Eich meddyliau diweddaraf — golygwch unrhyw beth nad yw'n swnio'n iawn",
 	"thinking_space_lastest_thinking": "eich meddyliau diweddaraf",
-	"thinking_space_add_more": "Dewiswch gwestiwn i ychwanegu mwy o'ch meddyliau ato. Gallwch ddychwelyd yma i ddewis un arall, neu orffen i ddiweddaru eich meddyliau diweddaraf."
+	"thinking_space_add_more": "Dewiswch gwestiwn i ychwanegu mwy o'ch meddyliau ato. Gallwch ddychwelyd yma i ddewis un arall, neu orffen i ddiweddaru eich meddyliau diweddaraf.",
+	"image_lightbox_close": "Cau",
+	"image_lightbox_zoom": "Chwyddo"
 }

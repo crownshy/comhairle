@@ -166,6 +166,9 @@ importers:
       pdfmake:
         specifier: ^0.3.11
         version: 0.3.11
+      photoswipe:
+        specifier: ^5.4.4
+        version: 5.4.4
       rehype-raw:
         specifier: ^7.0.0
         version: 7.0.0
@@ -1800,15 +1803,8 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
-  '@thisux/sveltednd@0.0.12':
-    resolution: {integrity: sha512-9edVcakYkoCzU6pNIwmJ6Cf+9anECod26Ue/rL3Ssf5LyuLaBLXtBx4H4U8YwQCkwtMeSGFf0OsiMpPpFjvCcg==}
-    peerDependencies:
-      svelte: ^5.0.0
-
   '@thisux/sveltednd@0.0.14':
     resolution: {integrity: sha512-Vbq69SU3HUomPg6oCXtb89OG89hka0YIkdaErYibn3waK7tYE66IcQxD/Fzg8YNW3EVsXoA9kc7kW5EUBCSQGg==}
-    peerDependencies:
-      svelte: ^5.0.0
 
   '@thisux/sveltednd@0.0.17':
     resolution: {integrity: sha512-lRninjw439phhA8xAHqCpMAX0hnwFMdbXW4M0XJgAdnGxeum+QsLiIC4P3HnkNXAygsVKUqxRcbS84CxDZ9hPw==}
@@ -4105,6 +4101,10 @@ packages:
   pdfmake@0.3.11:
     resolution: {integrity: sha512-Uc49J9hUMyuqJk+U+PxlpBpPr96A4HOOfesGx609EPr2ue82+5/Smq/KTAkEqh0/jUGSi1fumvqZ5yAWijJTJg==}
     engines: {node: '>=20'}
+
+  photoswipe@5.4.4:
+    resolution: {integrity: sha512-WNFHoKrkZNnvFFhbHL93WDkW3ifwVOXSW3w1UuZZelSmgXpIGiZSNlZJq37rR8YejqME2rHs9EhH9ZvlvFH2NA==}
+    engines: {node: '>= 0.12.0'}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -6530,18 +6530,11 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.0
 
-  '@thisux/sveltednd@0.0.12(svelte@5.53.3)':
-    dependencies:
-      svelte: 5.53.3
-
-  '@thisux/sveltednd@0.0.14(svelte@5.53.3)':
-    dependencies:
-      '@thisux/sveltednd': 0.0.12(svelte@5.53.3)
-      svelte: 5.53.3
+  '@thisux/sveltednd@0.0.14': {}
 
   '@thisux/sveltednd@0.0.17(svelte@5.53.3)':
     dependencies:
-      '@thisux/sveltednd': 0.0.14(svelte@5.53.3)
+      '@thisux/sveltednd': 0.0.14
       svelte: 5.53.3
 
   '@thisux/sveltednd@0.0.18(svelte@5.53.3)':
@@ -9245,6 +9238,8 @@ snapshots:
       linebreak: 1.1.0
       pdfkit: 0.19.1
       xmldoc: 2.0.3
+
+  photoswipe@5.4.4: {}
 
   picocolors@1.1.1: {}
 

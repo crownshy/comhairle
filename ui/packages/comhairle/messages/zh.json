@@ -342,5 +342,7 @@
 	"thinking_space_share_desc": "希望这次体验能帮助你进一步梳理自己对这个主题的想法。如果你愿意与组织者分享这些回答，将有助于指导未来的讨论。你可以随时选择分享或不分享。",
 	"thinking_space_lastest_label": "你最新的想法 — 编辑任何听起来不对的内容",
 	"thinking_space_lastest_thinking": "你最新的想法",
-	"thinking_space_add_more": "选择一个问题，补充更多想法。你可以返回这里选择另一个问题，或者完成以更新你的最新想法。"
+	"thinking_space_add_more": "选择一个问题，补充更多想法。你可以返回这里选择另一个问题，或者完成以更新你的最新想法。",
+	"image_lightbox_close": "关闭",
+	"image_lightbox_zoom": "缩放"
 }

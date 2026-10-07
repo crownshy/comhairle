@@ -343,5 +343,7 @@
 	"thinking_space_share_desc": "Tha sinn an dòchas gun d’ fhuair thu feum às an eòlas seo gus do bheachdan air a’ chuspair a gheurachadh. Ma tha thu deònach na freagairtean seo a cho-roinn leis an luchd-eagrachaidh, cuidichidh sin le còmhraidhean san àm ri teachd a stiùireadh. Faodaidh tu roghnachadh a-steach no a-mach às seo aig àm sam bith.",
 	"thinking_space_lastest_label": "Na beachdan as ùire agad — deasaich rud sam bith nach eil a’ faireachdainn ceart",
 	"thinking_space_lastest_thinking": "na beachdan as ùire agad",
-	"thinking_space_add_more": "Tagh ceist airson barrachd bheachdan a chur rithe. Faodaidh tu tilleadh an seo gus tè eile a thaghadh, no crìochnachadh gus na beachdan as ùire agad ùrachadh."
+	"thinking_space_add_more": "Tagh ceist airson barrachd bheachdan a chur rithe. Faodaidh tu tilleadh an seo gus tè eile a thaghadh, no crìochnachadh gus na beachdan as ùire agad ùrachadh.",
+	"image_lightbox_close": "Dùin",
+	"image_lightbox_zoom": "Meudaich"
 }
