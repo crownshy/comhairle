@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { HttpStatus } from '$lib/utils/constants';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { key } from '$lib/utils/invalidationKey';
 import { getPage, calcOffset } from '$lib/pagination';
@@ -16,6 +17,7 @@ export const load: PageLoad = async ({ parent, depends, url }) => {
 	const response = await tryCatchAsync(() =>
 		api.ListRegionAreas({ queries: { limit: PAGE_SIZE, offset, name, tag } })
 	);
-	if (response.err !== null) error(500, 'Could not load geographic areas');
+	if (response.err !== null)
+		error(HttpStatus.InternalServerError, 'Could not load geographic areas');
 	return { areas: response.ok, pageSize: PAGE_SIZE };
 };
