@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { RegionAreaDto } from '@crownshy/api-client/api';
-	import { Plus, RefreshCw, Save, Search, Trash2 } from 'lucide-svelte';
+	import { Plus, RefreshCw, Save, Trash2 } from 'lucide-svelte';
+	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Input } from '$lib/components/ui/input';
@@ -188,16 +189,11 @@
 								>({editor.areaIds.length})</span
 							>
 						</h3>
-						<label class="relative"
-							><Search
-								class="text-muted-foreground absolute top-2.5 left-3 size-4"
-							/><Input
-								class="pl-9"
-								bind:value={areaSearch}
-								placeholder="Search areas or tags"
-								aria-label="Search associated areas"
-							/></label
-						>
+						<SearchBar
+							bind:value={areaSearch}
+							placeholder="Search areas or tags"
+							aria-label="Search associated areas"
+						/>
 						<label class="flex items-center gap-2 text-base"
 							><Checkbox bind:checked={selectedOnly} />Selected only</label
 						>

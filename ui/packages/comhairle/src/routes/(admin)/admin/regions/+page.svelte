@@ -7,8 +7,9 @@
 	import type { MultiPolygon, Polygon } from 'geojson';
 	import type { RegionAreaDto } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { AlertCircle, Check, FileUp, Map as MapIcon, Plus, Save, Search } from 'lucide-svelte';
+	import { AlertCircle, Check, FileUp, Map as MapIcon, Plus, Save } from 'lucide-svelte';
 	import { useDebounce } from 'runed';
+	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
@@ -260,16 +261,12 @@
 					aria-label="Area list"
 				>
 					<div class="grid gap-3 border-b p-4">
-						<label class="relative block">
-							<Search class="text-muted-foreground absolute top-2.5 left-3 size-4" />
-							<Input
-								class="pl-9"
-								bind:value={searchText}
-								oninput={onSearchInput}
-								placeholder="Search names or ZIP prefixes"
-								aria-label="Search geographic areas"
-							/>
-						</label>
+						<SearchBar
+							bind:value={searchText}
+							oninput={onSearchInput}
+							placeholder="Search names or ZIP prefixes"
+							aria-label="Search geographic areas"
+						/>
 						<Select.Root
 							type="single"
 							value={tagFilter ? `tag:${tagFilter}` : 'all'}
