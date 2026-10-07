@@ -6,6 +6,7 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
 	import * as m from '$lib/paraglide/messages';
+	import { HEADER_PILL_CLASS } from './styles';
 	import type { StepItem, StepStatus } from './stepItems';
 
 	type Props = {
@@ -17,16 +18,21 @@
 
 	type RowStyle = { badge: string; name: string; done: boolean; locked: boolean };
 
-	const FILLED_BADGE = 'bg-primary text-primary-foreground';
+	const FILLED_BADGE_CLASS = 'bg-primary text-primary-foreground';
 	const ROW_STYLES: Record<StepStatus, RowStyle> = {
-		completed: { badge: FILLED_BADGE, name: 'text-foreground', done: true, locked: false },
+		completed: {
+			badge: FILLED_BADGE_CLASS,
+			name: 'text-foreground',
+			done: true,
+			locked: false
+		},
 		'completed-locked': {
-			badge: FILLED_BADGE,
+			badge: FILLED_BADGE_CLASS,
 			name: 'text-muted-foreground',
 			done: true,
 			locked: true
 		},
-		current: { badge: FILLED_BADGE, name: 'text-foreground', done: false, locked: false },
+		current: { badge: FILLED_BADGE_CLASS, name: 'text-foreground', done: false, locked: false },
 		upcoming: {
 			badge: 'bg-muted text-muted-foreground',
 			name: 'text-muted-foreground',
@@ -37,8 +43,10 @@
 
 	// Both shells share one pill so the dropdown the server paints can become the sheet
 	// on hydration without a visible change (ADR-0049).
-	const TRIGGER_CLASS =
-		'group text-primary active:bg-primary/10 data-[state=open]:bg-primary/10 -mx-2 flex min-w-0 items-center justify-end gap-2 rounded-full px-2 py-1 text-base font-medium transition-colors duration-75';
+	const TRIGGER_CLASS = cn(
+		HEADER_PILL_CLASS,
+		'group data-[state=open]:bg-primary/10 min-w-0 justify-end'
+	);
 
 	const isMobile = new IsMobile();
 
