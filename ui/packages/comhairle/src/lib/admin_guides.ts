@@ -34,6 +34,7 @@ import launchAConversationImage from './assets/admin-guide/launch-a-conversation
 import recruitImage from './assets/admin-guide/recruit.webp';
 import monitorImage from './assets/admin-guide/monitor.webp';
 import moderateImage from './assets/admin-guide/moderate.webp';
+import toggleRevisitAfterFinishImage from './assets/admin-guide/toggle-revisit-after-finish.webp';
 import reportImage from './assets/admin-guide/report.webp';
 import notifyImage from './assets/admin-guide/notify.webp';
 import logInImage from './assets/admin-guide/log-in.webp';
@@ -47,6 +48,36 @@ export type AdminGuideTerm = {
 export type AdminGuideImage = {
 	src: string;
 	alt: string;
+	/** Short visible caption shown under the image. */
+	caption?: string;
+};
+
+/** One part of the screen, explained in the "environment" section of an Advanced topic. */
+export type AdminGuideScreenPart = {
+	/** Exactly as it appears on screen. */
+	name: string;
+	description: string;
+};
+
+/**
+ * A decision an admin makes, used by the Advanced category. Each one says when to
+ * choose it, how to carry it out, and what happens as a result.
+ */
+export type AdminGuideDecision = {
+	title: string;
+	when: string;
+	how: string[];
+	/** What happens next, including knock-on effects people tend to miss. */
+	result: string;
+	/** Optional screenshot showing where to make the change. */
+	image?: AdminGuideImage;
+};
+
+/** A titled reference list, e.g. an example moderation policy with codes. */
+export type AdminGuideReference = {
+	title: string;
+	intro?: string;
+	items: { code: string; name: string; description: string }[];
 };
 
 export type AdminGuideTopic = {
@@ -55,8 +86,13 @@ export type AdminGuideTopic = {
 	navLabel: string;
 	summary: string;
 	image?: AdminGuideImage;
+	/** Advanced topics: introduce the screen before the decisions. */
+	environment?: { title: string; intro?: string; parts: AdminGuideScreenPart[] };
 	steps?: string[];
 	terms?: AdminGuideTerm[];
+	/** Advanced topics: the decisions to make and how to make them. */
+	decisions?: { title: string; intro?: string; options: AdminGuideDecision[] };
+	reference?: AdminGuideReference;
 	tips?: string[];
 };
 
@@ -628,6 +664,309 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'To look at the responses to a single step, open the step in **Process design** and go to its **Insights** tab.',
 					'When the engagement period is over, open the more actions menu at the top right and choose **End Conversation**. Ending is reversible: choose **Re-open Conversation** to let people take part again.'
 				]
+			}
+		]
+	},
+	advanced: {
+		key: 'advanced',
+		title: 'Advanced',
+		navLabel: 'Advanced',
+		topics: [
+			{
+				key: 'moderation-in-depth',
+				title: 'Moderation in depth',
+				navLabel: 'Moderation in depth',
+				summary:
+					'Get to know the moderation screen for a Participant-led poll, then work through the decision each new statement needs and how to carry it out.',
+				image: {
+					src: moderateImage,
+					alt: 'The Statements moderation screen, with Download CSV, Sync from Polis and Add seed statements buttons above a search box, the All, Seeded, Accepted, Pending and Rejected tabs, and a list of statements with edit, accept and reject icons.',
+					caption: 'The moderation screen for a Participant-led poll step.'
+				},
+				environment: {
+					title: 'The moderation screen',
+					intro: 'Open your poll step in **Process design** and go to **Moderation**. Statements are grouped into tabs by where they came from and what has been decided about them.',
+					parts: [
+						{
+							name: 'Download CSV',
+							description:
+								'Downloads the moderation log: every statement, its status, and the reason and note recorded for each decision.'
+						},
+						{
+							name: 'Sync from Polis',
+							description:
+								'Pulls in new participant statements. The list does not update on its own, so click this before you start moderating.'
+						},
+						{
+							name: 'Add seed statements',
+							description:
+								'Adds your own statements to start the conversation. They go straight into **Seeded** and **Accepted**.'
+						},
+						{
+							name: 'All',
+							description:
+								'Every statement: seed statements, participant statements, edited statements, and those pending, accepted or rejected.'
+						},
+						{ name: 'Seeded', description: 'The conversation starters you added.' },
+						{
+							name: 'Accepted',
+							description:
+								'Seed statements and participant statements accepted for participants to see and vote on.'
+						},
+						{
+							name: 'Pending',
+							description: 'Participant statements waiting for a moderation decision.'
+						},
+						{ name: 'Rejected', description: 'Statements a moderator has rejected.' },
+						{
+							name: 'Row icons',
+							description:
+								'Each statement has a pencil to split or reword it, a tick to accept it, and a cross to reject it.'
+						}
+					]
+				},
+				decisions: {
+					title: 'Decisions and how to make them',
+					intro: 'Each statement in **Pending** needs a decision and an action. Use your moderation policy to decide. Every action you take is recorded in the moderation log automatically.',
+					options: [
+						{
+							title: 'Publish as written',
+							when: 'The statement is clear, on topic, makes a single point and meets your moderation policy.',
+							how: ['Click the tick on the statement’s row.'],
+							result: 'The statement moves to **Accepted**. Participants can see and vote on it straight away.'
+						},
+						{
+							title: 'Reject and record a reason',
+							when: 'The statement breaks your moderation policy, for example it is harmful, off topic or a duplicate.',
+							how: [
+								'Click the cross on the statement’s row to open **Reject statement**.',
+								'Choose a **Reason** from your moderation policy (optional).',
+								'Add a **Note** (optional), for example the statement it duplicates, or your initials for the log.',
+								'Confirm to reject.'
+							],
+							result: 'The statement moves to **Rejected** and is hidden from participants. The reason and note are kept in the moderation log for your team; participants are not told why.'
+						},
+						{
+							title: 'Split or reword',
+							when: 'The statement is unclear, or makes more than one point so participants can’t agree or disagree with it in one vote.',
+							how: [
+								'Click the pencil on the statement’s row to open **Split or reword statement**.',
+								'Write the replacement statement. To split it, click **+ Add another statement** for each extra point.',
+								'Click **Split statement**.'
+							],
+							result: 'The new statements are posted and appear in **Accepted** with an **Edited** badge and **Edited from:** the original. The original is rejected. Votes do not carry over to the new statements.'
+						},
+						{
+							title: 'Leave in Pending for discussion',
+							when: 'You are unsure, and the statement is borderline enough to need a second opinion.',
+							how: [
+								'Leave the statement in **Pending**.',
+								'Let your colleagues know which statement needs discussing, then come back and make the decision together.'
+							],
+							result: 'Participants don’t see the statement until someone accepts it, as long as the step requires approval (see **Good to know**).'
+						}
+					]
+				},
+				reference: {
+					title: 'Example moderation policy',
+					intro: 'Your reject reasons come from the moderation policy, set under **Configure** → **Moderation policy**. Here is an example you can adapt.',
+					items: [
+						{
+							code: 'A',
+							name: 'Harmful, abusive or discriminatory',
+							description:
+								'Abuse, threats, hate speech, or content that discriminates against a person or group.'
+						},
+						{
+							code: 'B',
+							name: 'Privacy and personal information',
+							description:
+								'Names, contact details or other information that could identify a person.'
+						},
+						{
+							code: 'C',
+							name: 'Advertising, campaigning or lobbying',
+							description: 'Promotes a product, service, campaign or organisation.'
+						},
+						{
+							code: 'D',
+							name: 'Illegal content',
+							description: 'Content that breaks the law.'
+						},
+						{
+							code: 'E',
+							name: 'Off-topic',
+							description: 'Not related to the conversation’s question.'
+						},
+						{
+							code: 'F',
+							name: 'Duplicate',
+							description:
+								'Says the same as a statement already accepted. Note which one in the **Note** field.'
+						},
+						{
+							code: 'G',
+							name: 'Unclear',
+							description:
+								'Hard to understand. Reject it, or reword it if the meaning is clear enough.'
+						},
+						{
+							code: 'H',
+							name: 'Multi-theme',
+							description:
+								'Makes more than one point. Reject it, or split it so each statement can be voted on with a single agree or disagree.'
+						}
+					]
+				},
+				tips: [
+					'Before you launch, decide whether statements need your approval. In the poll step’s **Setup**, **No comments shown without moderator approval** holds every participant statement in **Pending** until you accept it. Without it, statements are shown straight away and you can only remove them after people may have seen and voted on them.',
+					'If statements need approval, check **Pending** often while the conversation is live, or participants will have little to vote on.',
+					'A statement only appears in **Insights** and its CSV once it is accepted and has at least one vote.',
+					'Preview and the live conversation use separate polls. Statements and votes from preview do not carry over when you launch.'
+				]
+			},
+			{
+				key: 'access-settings',
+				title: 'Access and participation settings',
+				navLabel: 'Access and participation settings',
+				summary:
+					'Get to know the **Access** page, then decide who can see your conversation, who can take part, and what people see when they finish. Make these decisions before you launch.',
+				image: {
+					src: configureAccessImage,
+					alt: 'The Access page under Configure, with toggles for who can see and take part in the conversation.',
+					caption: 'The Access page under Configure.'
+				},
+				environment: {
+					title: 'The Access page',
+					intro: 'Go to **Configure** → **Access**. Each setting is a toggle.',
+					parts: [
+						{
+							name: 'Show conversation publicly',
+							description:
+								'Off by default. Decides who can view the conversation’s documents and data.'
+						},
+						{
+							name: 'Only allow participation by invite',
+							description: 'Off by default. Decides who can take part.'
+						},
+						{
+							name: 'Automatically log in with an anonymous account',
+							description: 'Off by default. Decides whether people need an account.'
+						},
+						{
+							name: 'Allow revisit after finishing',
+							description:
+								'On by default. See [Step navigation](/admin/info/how-to/advanced/step-navigation).'
+						},
+						{
+							name: 'Thank-you page settings',
+							description:
+								'**Enable signup prompts**, **Show thank you page anonymous instructions** and **Show thank you page feedback button**. All on by default.'
+						}
+					]
+				},
+				decisions: {
+					title: 'Decisions and how to make them',
+					options: [
+						{
+							title: 'Make the conversation’s data public',
+							when: 'You want anyone to be able to read the conversation’s documents and results, for example for transparency.',
+							how: ['Turn on **Show conversation publicly**.'],
+							result: 'Once launched, anyone, even without an account, can open the conversation’s documents and data. This does not change who can take part; for that, see the next decision.'
+						},
+						{
+							title: 'Limit who can take part',
+							when: 'Only a specific group should take part, such as a panel or a recruited sample.',
+							how: [
+								'Turn on **Only allow participation by invite**.',
+								'After launch, create invites in **Recruit**.'
+							],
+							result: 'Only people you invite can take part. If you don’t create invites, no one will be able to join.'
+						},
+						{
+							title: 'Let people take part without an account',
+							when: 'You want as few barriers as possible, for example on a public link or a QR code at an event.',
+							how: [
+								'Turn on **Automatically log in with an anonymous account**.',
+								'Keep **Show thank you page anonymous instructions** on.'
+							],
+							result: 'Visitors get a temporary anonymous account and can upgrade it later. They see their temporary ID on the thank-you page; without it they may not be able to come back to their contributions.'
+						},
+						{
+							title: 'Choose what people see when they finish',
+							when: 'You want to adjust the thank-you page.',
+							how: [
+								'Turn **Enable signup prompts** off if you don’t want to encourage people to create an account.',
+								'Turn **Show thank you page feedback button** off if you don’t want feedback on the process.'
+							],
+							result: 'The thank-you page shows only what you leave on.'
+						}
+					]
+				}
+			},
+			{
+				key: 'step-navigation',
+				title: 'Step navigation',
+				navLabel: 'Step navigation',
+				summary:
+					'Three settings decide whether participants can skip steps, go back to them, and return after they have finished. Their effects overlap, so make these decisions together.',
+				image: {
+					src: configureAStepImage,
+					alt: 'A step’s Configure tab in Process design, showing its settings.',
+					caption:
+						'A step’s Configure tab, where Required step and Revisitable step are set.'
+				},
+				environment: {
+					title: 'Where the settings are',
+					parts: [
+						{
+							name: 'Required step',
+							description:
+								'In **Process design** → your step → **Configure**. On by default.'
+						},
+						{
+							name: 'Revisitable step',
+							description:
+								'In **Process design** → your step → **Configure**. Off by default. Applies while a participant is still working through the conversation.'
+						},
+						{
+							name: 'Allow revisit after finishing',
+							description:
+								'In **Configure** → **Access**. On by default. Applies to the whole conversation after a participant finishes every step.'
+						}
+					]
+				},
+				decisions: {
+					title: 'Decisions and how to make them',
+					options: [
+						{
+							title: 'Let participants skip a step',
+							when: 'The step is optional, such as extra background reading.',
+							how: ['Turn off **Required step** for that step.'],
+							result: 'Participants can move on without completing it. Keep steps that later steps depend on required.'
+						},
+						{
+							title: 'Let participants go back to a step',
+							when: 'Participants may want to check or change what they did earlier, such as re-reading background before voting.',
+							how: ['Turn on **Revisitable step** for that step.'],
+							result: 'Participants can return to the step while they are still working through the conversation. After they finish, **Allow revisit after finishing** decides instead.'
+						},
+						{
+							title: 'Close the conversation to people who have finished',
+							when: 'Contributions should be final once someone finishes, for example so results can’t shift after the fact.',
+							how: [
+								'Turn off **Allow revisit after finishing** in **Configure** → **Access**.'
+							],
+							result: 'Participants who finish can’t reach any step, the revisit links disappear, and further contributions are rejected. Adding a step to a live conversation re-opens it for everyone who had already finished.',
+							image: {
+								src: toggleRevisitAfterFinishImage,
+								alt: 'The Access page under Configure, with the Allow revisit after finishing toggle turned off, below the thank-you page settings.',
+								caption:
+									'Allow revisit after finishing, turned off, on the Access page.'
+							}
+						}
+					]
+				}
 			}
 		]
 	}

@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { ArrowRight, Lightbulb } from 'lucide-svelte';
 	import { isExternalHref, parseGuideText } from '$lib/admin_guide_text';
+	import type { AdminGuideImage } from '$lib/admin_guides';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -25,6 +26,20 @@
 	{/each}
 {/snippet}
 
+<!-- A screenshot with an optional caption underneath. -->
+{#snippet figure(image: AdminGuideImage, className = '')}
+	<figure class={className}>
+		<div class="border-border bg-muted w-full overflow-hidden rounded-xl border p-2 shadow-sm">
+			<img src={image.src} alt={image.alt} class="block h-auto w-full rounded-xl" />
+		</div>
+		{#if image.caption}
+			<figcaption class="text-muted-foreground mt-2 text-center text-sm">
+				{@render richText(image.caption)}
+			</figcaption>
+		{/if}
+	</figure>
+{/snippet}
+
 <svelte:head>
 	<title>{topic.title} - Comhairle Admin Guide</title>
 </svelte:head>
@@ -38,15 +53,32 @@
 		</p>
 
 		{#if topic.image}
-			<figure
-				class="border-border bg-muted mt-6 w-full overflow-hidden rounded-xl border p-2 shadow-sm"
-			>
-				<img
-					src={topic.image.src}
-					alt={topic.image.alt}
-					class="block h-auto w-full rounded-xl"
-				/>
-			</figure>
+			{@render figure(topic.image, 'mt-6')}
+		{/if}
+
+		{#if topic.environment}
+			<!-- Advanced topics start by introducing the screen: each part, named as it
+			     appears, with what it is for. -->
+			<section class="mt-8" aria-labelledby="environment-heading">
+				<h2 id="environment-heading" class="text-foreground text-lg font-semibold">
+					{topic.environment.title}
+				</h2>
+				{#if topic.environment.intro}
+					<p class="text-foreground mt-2 leading-6">
+						{@render richText(topic.environment.intro)}
+					</p>
+				{/if}
+				<dl class="border-border mt-4 divide-y border-y">
+					{#each topic.environment.parts as part (part.name)}
+						<div class="grid gap-1 py-3 sm:grid-cols-[12rem_1fr] sm:gap-6">
+							<dt class="text-foreground text-sm font-semibold">{part.name}</dt>
+							<dd class="text-muted-foreground text-sm leading-6">
+								{@render richText(part.description)}
+							</dd>
+						</div>
+					{/each}
+				</dl>
+			</section>
 		{/if}
 
 		{#if topic.steps?.length}
@@ -88,6 +120,85 @@
 					</div>
 				{/each}
 			</dl>
+		{/if}
+
+		{#if topic.decisions}
+			<!-- Advanced topics: each decision says when to choose it, how to do it, and
+			     what happens as a result. -->
+			<section class="mt-10" aria-labelledby="decisions-heading">
+				<h2 id="decisions-heading" class="text-foreground text-lg font-semibold">
+					{topic.decisions.title}
+				</h2>
+				{#if topic.decisions.intro}
+					<p class="text-foreground mt-2 leading-6">
+						{@render richText(topic.decisions.intro)}
+					</p>
+				{/if}
+				<ol class="mt-6 flex flex-col gap-8">
+					{#each topic.decisions.options as option, i (option.title)}
+						<li class="flex gap-4">
+							<span
+								class="bg-accent text-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+								aria-hidden="true">{i + 1}</span
+							>
+							<div class="min-w-0 flex-1">
+								<h3 class="text-foreground pt-1 font-semibold">{option.title}</h3>
+								<p class="text-muted-foreground mt-1 text-sm leading-6">
+									<span class="text-foreground font-medium">Choose this when</span
+									>
+									{@render richText(option.when)}
+								</p>
+								<p class="text-foreground mt-3 text-sm font-medium">How</p>
+								<ol
+									class="text-foreground mt-1 list-decimal pl-5 text-sm leading-6"
+								>
+									{#each option.how as step, j (j)}
+										<li>{@render richText(step)}</li>
+									{/each}
+								</ol>
+								<p
+									class="border-primary text-foreground mt-3 border-l-2 pl-3 text-sm leading-6"
+								>
+									<span class="font-medium">What happens:</span>
+									{@render richText(option.result)}
+								</p>
+								{#if option.image}
+									{@render figure(option.image, 'mt-4')}
+								{/if}
+							</div>
+						</li>
+					{/each}
+				</ol>
+			</section>
+		{/if}
+
+		{#if topic.reference}
+			<section class="mt-10" aria-labelledby="reference-heading">
+				<h2 id="reference-heading" class="text-foreground text-lg font-semibold">
+					{topic.reference.title}
+				</h2>
+				{#if topic.reference.intro}
+					<p class="text-foreground mt-2 leading-6">
+						{@render richText(topic.reference.intro)}
+					</p>
+				{/if}
+				<dl class="mt-4 grid gap-3 sm:grid-cols-2">
+					{#each topic.reference.items as item (item.code)}
+						<div class="border-border flex gap-3 rounded-xl border p-4">
+							<span
+								class="bg-accent text-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+								aria-hidden="true">{item.code}</span
+							>
+							<div>
+								<dt class="text-foreground text-sm font-semibold">{item.name}</dt>
+								<dd class="text-muted-foreground mt-1 text-sm leading-6">
+									{@render richText(item.description)}
+								</dd>
+							</div>
+						</div>
+					{/each}
+				</dl>
+			</section>
 		{/if}
 
 		{#if topic.tips?.length}
