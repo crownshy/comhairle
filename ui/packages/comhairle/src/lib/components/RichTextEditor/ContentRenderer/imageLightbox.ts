@@ -1,40 +1,15 @@
-import type PhotoSwipe from 'photoswipe';
 import type { ZoomLevelOption } from 'photoswipe';
 import * as m from '$lib/paraglide/messages';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 
-const OPEN_HEIGHT_RATIO = 0.8;
-const CLOSE_SWIPE_RATIO = 0.15;
-
 type ZoomLevel = Parameters<Extract<ZoomLevelOption, (...args: never[]) => number>>[0];
 
-// Wide images fitted to a phone's width come out too short to read, so open tall enough
-// to fill most of the screen and let people pan sideways.
-function openingZoom({ fit, panAreaSize, elementSize }: ZoomLevel): number {
-	if (!panAreaSize || !elementSize) return fit;
-	return Math.max(fit, (panAreaSize.y * OPEN_HEIGHT_RATIO) / elementSize.y);
-}
-
-// PhotoSwipe's default zoom target can sit below the opening zoom, which would make the
-// zoom button shrink the image.
-function zoomButtonTarget(zoomLevel: ZoomLevel): number {
-	return Math.max(1, openingZoom(zoomLevel) * 2);
-}
-
-// PhotoSwipe only closes on a vertical swipe at fit zoom, and wide images open above fit.
-// Close on a long vertical swipe whenever the image has no vertical room to pan.
-function closeOnVerticalSwipe(lightbox: PhotoSwipe) {
-	lightbox.on('pointerUp', () => {
-		const { gestures, currSlide, viewportSize } = lightbox;
-		if (!currSlide || currSlide.currZoomLevel <= currSlide.zoomLevels.fit) return;
-		if (!gestures.isDragging || gestures.isMultitouch || gestures.dragAxis !== 'y') return;
-
-		const canPanVertically = currSlide.bounds.min.y !== currSlide.bounds.max.y;
-		const swipeDistance = Math.abs(gestures.p1.y - gestures.startP1.y);
-		if (!canPanVertically && swipeDistance > viewportSize.y * CLOSE_SWIPE_RATIO) {
-			lightbox.close();
-		}
-	});
+// The lightbox opens at fit so people see the whole image. Double-tap or the zoom button
+// then makes it readable: at least twice the size, and tall enough to fill the screen so
+// wide diagrams on a phone can be panned sideways.
+function readableZoom({ fit, panAreaSize, elementSize }: ZoomLevel): number {
+	if (!panAreaSize || !elementSize) return fit * 2;
+	return Math.max(fit * 2, panAreaSize.y / elementSize.y);
 }
 
 /**
@@ -50,9 +25,9 @@ export async function openImageLightbox(image: HTMLImageElement) {
 		Promise.all([import('photoswipe'), import('photoswipe/style.css')])
 	);
 	if (loaded.err !== null) return;
-	const PhotoSwipeLightbox = loaded.ok[0].default;
+	const PhotoSwipe = loaded.ok[0].default;
 
-	const lightbox = new PhotoSwipeLightbox({
+	const lightbox = new PhotoSwipe({
 		dataSource: [
 			{
 				src,
@@ -62,13 +37,12 @@ export async function openImageLightbox(image: HTMLImageElement) {
 				element: image
 			}
 		],
-		initialZoomLevel: openingZoom,
-		secondaryZoomLevel: zoomButtonTarget,
+		secondaryZoomLevel: readableZoom,
+		bgOpacity: 1,
 		wheelToZoom: true,
 		showHideAnimationType: 'zoom',
 		closeTitle: m.image_lightbox_close(),
 		zoomTitle: m.image_lightbox_zoom()
 	});
-	closeOnVerticalSwipe(lightbox);
 	lightbox.init();
 }
