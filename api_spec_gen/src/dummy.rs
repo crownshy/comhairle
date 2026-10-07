@@ -275,6 +275,7 @@ impl wiki_poll_service::WikiPollService for DummyWikiPollService {
     async fn get_report_data(
         &self,
         _poll_id: &str,
+        _scope: wiki_poll_service::ReportScope,
     ) -> Result<WikiPollReport, WikiPollServiceError> {
         todo!()
     }
