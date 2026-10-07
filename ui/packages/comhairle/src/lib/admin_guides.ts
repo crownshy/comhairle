@@ -482,10 +482,22 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Preview before launch',
 				summary:
 					'Go through the full conversation as a participant and check that everything is ready before you launch.',
-				image: {
-					src: previewBeforeLaunchImage,
-					alt: 'A conversation in preview, marked This is a preview of the conversation, showing the first step: a Learn page about waste management.'
-				},
+				images: [
+					{
+						src: findPreviewButtonImage,
+						alt: 'The top of a conversation in the admin workspace, with the Preview button at the top right, next to the Launched button and the more actions menu.',
+						caption:
+							'The Preview button is at the top right of every conversation page.',
+						step: 1
+					},
+					{
+						src: previewBeforeLaunchImage,
+						alt: 'A conversation in preview, marked This is a preview of the conversation, showing the first step: a Learn page about waste management.',
+						caption:
+							'Going through the conversation in preview, starting with its first step.',
+						step: 2
+					}
+				],
 				steps: [
 					'Click :preview: in the top-right corner.',
 					'Go through the conversation from beginning to end as a participant would.',

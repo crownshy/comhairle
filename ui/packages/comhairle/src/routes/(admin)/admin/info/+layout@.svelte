@@ -6,7 +6,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { GUIDE_NAV } from '$lib/tool_guides';
 	import * as Collapsible from '$lib/components/ui/collapsible';
-	import { BookA, ChevronDown, Folder, FolderOpen } from 'lucide-svelte';
+	import { BookA, ChevronDown, Folder, FolderOpen, Sparkles } from 'lucide-svelte';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 
 	type MobileGroup = {
@@ -45,6 +45,10 @@
 		}
 	];
 	const MOBILE_GROUPS: MobileGroup[] = [
+		{
+			label: 'Start here',
+			options: [{ value: 'welcome', label: 'Welcome to Comhairle' }]
+		},
 		...ADMIN_GUIDE_NAV.map((guide) => ({
 			label: guide.navLabel,
 			options: guide.topics.map((topic) => ({
@@ -63,6 +67,7 @@
 	];
 
 	let isGlossary = $derived(page.route.id === '/(admin)/admin/info/glossary');
+	let isWelcome = $derived(page.route.id === '/(admin)/admin/info/welcome');
 
 	let currentValue = $derived(
 		page.params.topic_id
@@ -71,7 +76,9 @@
 				? `tools/${page.params.tool_id}`
 				: isGlossary
 					? 'glossary'
-					: undefined
+					: isWelcome
+						? 'welcome'
+						: undefined
 	);
 
 	let currentLabel = $derived(
@@ -93,7 +100,9 @@
 
 	function navigateTo(value: string) {
 		const [section, first, second] = value.split('/');
-		if (section === 'glossary') {
+		if (section === 'welcome') {
+			void goto(resolve('/admin/info/welcome'));
+		} else if (section === 'glossary') {
 			void goto(resolve('/admin/info/glossary'));
 		} else if (section === 'how-to') {
 			void goto(
@@ -138,6 +147,17 @@
 					class="flex shrink-0 flex-col gap-4 rounded-lg md:w-56"
 					aria-label="Admin guide"
 				>
+					<a
+						href={resolve('/admin/info/welcome')}
+						class="flex items-center gap-2 rounded-lg px-3 py-2 text-base font-semibold {isWelcome
+							? 'bg-accent text-accent-foreground'
+							: 'text-foreground hover:bg-muted'}"
+						aria-current={isWelcome ? 'page' : undefined}
+					>
+						<Sparkles class="size-4 shrink-0" aria-hidden="true" />
+						Welcome
+					</a>
+
 					{#each NAV_GROUPS as group (group.label)}
 						<Collapsible.Root open={group.items.some(isActiveItem)} class="group">
 							<Collapsible.Trigger
