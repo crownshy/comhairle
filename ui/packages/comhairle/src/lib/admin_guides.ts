@@ -37,6 +37,7 @@ import moderateImage from './assets/admin-guide/moderate.webp';
 import toggleRevisitAfterFinishImage from './assets/admin-guide/toggle-revisit-after-finish.webp';
 import rejectStatementImage from './assets/admin-guide/reject-statement.webp';
 import splitStatementImage from './assets/admin-guide/split-statement.webp';
+import findPreviewButtonImage from './assets/admin-guide/find-preview-button.webp';
 import reportImage from './assets/admin-guide/report.webp';
 import notifyImage from './assets/admin-guide/notify.webp';
 import logInImage from './assets/admin-guide/log-in.webp';
@@ -97,6 +98,8 @@ export type AdminGuideTopic = {
 	navLabel: string;
 	summary: string;
 	image?: AdminGuideImage;
+	/** Several screenshots shown as a carousel. Use instead of `image`. */
+	images?: AdminGuideImage[];
 	/** Advanced topics: introduce the screen before the decisions. */
 	environment?: { title: string; intro?: string; parts: AdminGuideScreenPart[] };
 	steps?: string[];
@@ -133,7 +136,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					alt: 'The Create an account page, with Username, Email, Password and Confirm Password fields, a Sign Up button and a Sign up as guest button.'
 				},
 				steps: [
-					'Go to [Sign up](/auth/signup) and create an account.',
+					'Go to [Sign up](/auth/signup), fill in your details and select :signup: to create an account.',
 					'Email [team@crown-shy.com](mailto:team@crown-shy.com) from the email address you used to sign up and ask for the admin role to be added to your account.',
 					'Your request will usually be processed within one working day.'
 				],
@@ -152,8 +155,8 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					alt: 'The Log In page, with Email and Password fields, a Log In button and options to log in with a one-time passcode or a Guest ID.'
 				},
 				steps: [
-					'Go to [Login](/auth/login)',
-					'Enter your email address and password.',
+					'Go to [Log in](/auth/login).',
+					'Enter your email address and password, then select :login:.',
 					'If your account has the admin role, you will be taken to the admin workspace.'
 				],
 				tips: [
@@ -172,7 +175,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				},
 				steps: [
 					'Use the sidebar to navigate between different areas of the workspace. The content on the right updates based on your selection.',
-					'Select the **collapse icon** to collapse the sidebar. Select it again to reopen it.'
+					'Select the **collapse icon** :collapse: to collapse the sidebar. To reopen it, select the **expand icon** :expand:.'
 				],
 				tips: [
 					'Under **Your conversations**: **Owned Conversations** lists conversations you’ve created. **Permitted Conversations** lists conversations that have been shared with you.',
@@ -318,7 +321,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'In **Description**, explain the topic, why you’re asking for input, and what might happen as a result.'
 				],
 				tips: [
-					'Select **Preview** in the top-right corner to see how the conversation will appear to participants.',
+					'Select :preview: in the top-right corner to see how the conversation will appear to participants.',
 					'To customise other participant-facing text, go to **Configure** → **Content**. Here you can edit the **Call to action**, **FAQs**, **Privacy policy**, and **Thank you message**.',
 					'If you leave fields under **Content** blank, Comhairle’s default text will be used.',
 					'If you use specialist or unfamiliar terms, explain them under **Configure** → **Glossary**. Their definitions will appear as tooltips when those terms are used in the conversation.'
@@ -373,12 +376,21 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Preview your page',
 				summary:
 					'See how your conversation will appear to participants without launching it.',
-				image: {
-					src: previewImage,
-					alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description and banner image.'
-				},
+				images: [
+					{
+						src: findPreviewButtonImage,
+						alt: 'The top of a conversation in the admin workspace, with the Preview button at the top right, next to the Launched button and the more actions menu.',
+						caption:
+							'The Preview button is at the top right of every conversation page.'
+					},
+					{
+						src: previewImage,
+						alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description and banner image.',
+						caption: 'The preview shows your landing page as participants will see it.'
+					}
+				],
 				steps: [
-					'Click **Preview** in the top-right corner. The preview opens in a new tab.',
+					'Click :preview: in the top-right corner. The preview opens in a new tab.',
 					'Check the **Title**, **Short description**, **Description**, and **Banner image** on the landing page.',
 					'Select the join button and go through the conversation steps as a participant would.',
 					'If you need to make changes, return to the admin tab and edit your conversation.',
@@ -454,7 +466,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				steps: [
 					'Go to **Process design**.',
 					'Drag a step card up or down to change its position.',
-					'Alternatively, open the step’s actions menu and select **Move up** or **Move down**.',
+					'Alternatively, open the step’s actions menu :actions: and select **Move up** or **Move down**.',
 					'You can also use this menu to **Rename** or **Delete** a step.'
 				],
 				tips: [
@@ -502,7 +514,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					alt: 'A conversation in preview, marked This is a preview of the conversation, showing the first step: a Learn page about waste management.'
 				},
 				steps: [
-					'Click **Preview** in the top-right corner.',
+					'Click :preview: in the top-right corner.',
 					'Go through the conversation from beginning to end as a participant would.',
 					'Check that the content, steps, engagement tools, and participant journey work as expected.',
 					'Return to the admin workspace to make any final changes.'

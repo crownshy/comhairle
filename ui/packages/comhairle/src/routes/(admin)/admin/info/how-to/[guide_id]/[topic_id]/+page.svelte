@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { ArrowRight, BookOpen, Lightbulb } from 'lucide-svelte';
 	import { isExternalHref, parseGuideText } from '$lib/admin_guide_text';
+	import GuideImageCarousel from '$lib/components/AdminGuide/GuideImageCarousel.svelte';
 	import GuideUiIcon from '$lib/components/AdminGuide/GuideUiIcon.svelte';
 	import type { AdminGuideImage } from '$lib/admin_guides';
 	import type { PageProps } from './$types';
@@ -56,8 +57,10 @@
 			{@render richText(topic.summary)}
 		</p>
 
-		{#if topic.image}
-			{@render figure(topic.image, 'mt-6')}
+		{#if topic.images && topic.images.length > 1}
+			<GuideImageCarousel images={topic.images} caption={richText} class="mt-6" />
+		{:else if topic.images?.[0] ?? topic.image}
+			{@render figure((topic.images?.[0] ?? topic.image)!, 'mt-6')}
 		{/if}
 
 		{#if topic.environment}
