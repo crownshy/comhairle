@@ -1,5 +1,5 @@
 /**
- * Content for the Comhairle Admin Guide (/admin/info/how-to/<guide>/<topic>).
+ * Content for the Comhairle Handbook (/admin/info/how-to/<guide>/<topic>).
  *
  * Every topic follows the same template so readers know where to look:
  *   summary  – one or two sentences: what this is and why it matters

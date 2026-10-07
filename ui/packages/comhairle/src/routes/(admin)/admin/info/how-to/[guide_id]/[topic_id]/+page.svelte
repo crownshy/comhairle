@@ -67,7 +67,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>{topic.title} - Comhairle Admin Guide</title>
+	<title>{topic.title} - Comhairle Handbook</title>
 </svelte:head>
 
 <main

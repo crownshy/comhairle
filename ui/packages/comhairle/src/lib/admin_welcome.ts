@@ -1,5 +1,5 @@
 /**
- * Content for the admin guide's welcome page (/admin/info/welcome): who CrownShy are, what
+ * Content for the Handbook's welcome page (/admin/info/welcome): who CrownShy are, what
  * Comhairle is, what an admin does, and where to start depending on your role.
  * Text uses the same formatting as admin_guides.ts: **bold**, [links](/path) and :icons:.
  */
@@ -25,7 +25,7 @@ export type WelcomePath = {
 };
 
 export const ADMIN_WELCOME = {
-	title: 'Welcome to Comhairle',
+	title: 'The Comhairle Handbook',
 	summary:
 		'Start here if you’re new to running conversations on Comhairle. This page explains who we are, what the platform does, and where to go next.',
 
@@ -36,6 +36,7 @@ export const ADMIN_WELCOME = {
 
 	comhairle: {
 		heading: 'What is Comhairle?',
+		pronunciation: 'kuh-ur-lhya',
 		paragraphs: [
 			'Comhairle (pronounced “kuh-ur-lhya”) is CrownShy’s platform for public participation. It makes it easier for people to take part in the decisions that affect them, and for organisations to run engaging, accessible consultations.',
 			'Each consultation is a [conversation](/admin/info/glossary#term-conversation): a sequence of [steps](/admin/info/glossary#term-step) that participants go through. Each step uses an [engagement tool](/admin/info/glossary#term-engagement-tool) suited to a different kind of input, and what people say in one step can inform the next. Comhairle supports facilitators rather than replacing them.'

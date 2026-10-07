@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-	<title>{ADMIN_GLOSSARY.title} - Comhairle Admin Guide</title>
+	<title>{ADMIN_GLOSSARY.title} - Comhairle Handbook</title>
 </svelte:head>
 
 <main class="w-full max-w-6xl min-w-0 rounded-xl p-6 md:p-10">
