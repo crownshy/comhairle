@@ -139,6 +139,24 @@ async fn reset_orders(pool: &mut PgConnection, workflow_id: &Uuid) -> Result<(),
     Ok(())
 }
 
+/// The conversation-level locale settings that drive statement translation:
+/// the conversation's `primary_locale` and its `supported_languages`.
+#[instrument(err(Debug), skip(state))]
+async fn conversation_locales(
+    state: &Arc<ComhairleState>,
+    workflow_id: &Uuid,
+) -> Result<(String, Vec<String>), ComhairleError> {
+    let workflow = crate::models::workflow::get_by_id(&state.db, workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+        "workflow is not attached to a conversation".into(),
+    ))?;
+    let conversation = crate::models::conversation::get_by_id(&state.db, &conversation_id).await?;
+    Ok((
+        conversation.primary_locale,
+        conversation.supported_languages,
+    ))
+}
+
 /// Create the live version of this workflow step
 #[instrument(err(Debug), skip(state))]
 pub async fn launch(
@@ -159,11 +177,20 @@ pub async fn launch(
         },
     )
     .await?;
+    let (primary_locale, supported_languages) =
+        conversation_locales(&state, &workflow_step.workflow_id).await?;
 
     // When a Polis poll goes live, seed the aux statement table from the new
     // live poll so moderation/theming has rows to work with immediately.
     if let ToolConfig::Polis(config) = &new_live_config {
-        crate::tools::polis::sync_statement_aux_inner(state, workflow_step_id, config).await?;
+        crate::tools::polis::sync_statement_aux_inner(
+            state,
+            workflow_step_id,
+            config,
+            &primary_locale,
+            &supported_languages,
+        )
+        .await?;
     }
 
     Ok(())

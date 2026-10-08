@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Check, Pencil, X } from '@lucide/svelte';
+	import { Check, Languages, Pencil, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import RejectReasonPopover from './RejectReasonPopover.svelte';
+	import TranslationsPanel from './TranslationsPanel.svelte';
 	import { pluralise } from '$lib/utils/pluralise';
 
 	type Props = {
@@ -72,6 +73,8 @@
 	const snapshotShift = (e: MouseEvent | KeyboardEvent) => {
 		shiftHeld = e.shiftKey;
 	};
+
+	let translationsOpen = $state(false);
 </script>
 
 <div
@@ -149,6 +152,19 @@
 
 	<!-- Actions -->
 	<div class="flex items-center gap-1 self-center pr-2" data-row-control>
+		<button
+			type="button"
+			aria-pressed={translationsOpen}
+			onclick={() => (translationsOpen = !translationsOpen)}
+			title="Translations"
+			class={`inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 ${
+				translationsOpen
+					? 'bg-muted text-foreground'
+					: 'text-muted-foreground hover:bg-muted'
+			}`}
+		>
+			<Languages class="size-5" />
+		</button>
 		{#if !row.is_seed}
 			<button
 				type="button"
@@ -193,4 +209,10 @@
 			{/snippet}
 		</RejectReasonPopover>
 	</div>
+
+	{#if translationsOpen}
+		<div class="col-span-full pt-2 pr-2 pb-4 pl-[5.5rem]" data-row-control>
+			<TranslationsPanel polisStatementAuxId={row.id} />
+		</div>
+	{/if}
 </div>
