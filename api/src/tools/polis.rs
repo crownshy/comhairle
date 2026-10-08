@@ -1606,7 +1606,8 @@ async fn update_statement_translation(
     let aux =
         models::polis_statement_aux::get_by_id(&state.db, &translation.polis_statement_aux_id)
             .await?;
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+    polis_statement_aux::check_can_perform(&state, &user, &aux.workflow_step_id, Action::Moderate)
+        .await?;
 
     let updated =
         models::polis_statement_translation::update_content(&state.db, id, &request.content)
@@ -1626,7 +1627,8 @@ async fn verify_statement_translation(
     let aux =
         models::polis_statement_aux::get_by_id(&state.db, &translation.polis_statement_aux_id)
             .await?;
-    polis_statement_aux::check_can_moderate(&state, &user, &aux.workflow_step_id).await?;
+    polis_statement_aux::check_can_perform(&state, &user, &aux.workflow_step_id, Action::Moderate)
+        .await?;
 
     let updated = models::polis_statement_translation::verify(&state.db, id).await?;
     Ok((StatusCode::OK, Json(updated)))

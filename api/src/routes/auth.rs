@@ -79,13 +79,13 @@ pub async fn is_user_super_admin(
     state: &Arc<ComhairleState>,
     user: &crate::models::users::User,
 ) -> bool {
-     if let Ok(triplet) = SystemRole::SuperAdmin.system_triplet() {
-         has_resource_permission(state, triplet, &user.id)
+    if let Ok(triplet) = SystemRole::SuperAdmin.system_triplet() {
+        has_resource_permission(state, triplet, &user.id)
             .await
             .unwrap_or(false)
-     } else {
-         false
-     }
+    } else {
+        false
+    }
 }
 
 /// Validate password strength according to security requirements
