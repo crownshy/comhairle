@@ -29,6 +29,13 @@ api-dev:
     -i open-api-spec.json \
     -w api/src/ \
     -w adaptors \
+    -x "run -- --export-api-spec"
+
+api-dev-jq:
+    cargo watch -q -c \
+    -i open-api-spec.json \
+    -w api/src/ \
+    -w adaptors \
     -x "run -- --export-api-spec | jq --unbuffered '.'"
 
 watch-api-spec:
@@ -36,6 +43,9 @@ watch-api-spec:
 
 api-watch:
     just api-dev & just watch-api-spec
+
+api-watch-jq:
+    just api-dev-jq & just watch-api-spec
 
 # Create admin user (requires API running)
 seed:

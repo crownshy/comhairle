@@ -1358,10 +1358,6 @@ export const ToolConfig = z.union([
       admin_user: z.string(),
       description: z.union([z.string(), z.null()]).optional().default(null),
       is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-      label_seeds_as_conversation_starter: z
-        .boolean()
-        .optional()
-        .default(false),
       moderation_policy_id: z
         .union([z.string(), z.null()])
         .optional()
@@ -1431,6 +1427,7 @@ export const WorkflowStep = z
     activation_rule: ActivationRule,
     can_revisit: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
+    data_protocol: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     id: z.string().uuid(),
     is_offline: z.boolean(),
@@ -1568,10 +1565,6 @@ export const ToolConfigWithTranslations = z.union([
       admin_user: z.string(),
       description: z.union([z.string(), z.null()]).optional().default(null),
       is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-      label_seeds_as_conversation_starter: z
-        .boolean()
-        .optional()
-        .default(false),
       moderation_policy_id: z
         .union([z.string(), z.null()])
         .optional()
@@ -1643,13 +1636,18 @@ export const Translation4 = z
   .passthrough();
 export type Translation4 = z.infer<typeof Translation4>;
 export const WorkflowStepTranslations = z
-  .object({ description: Translation4, name: Translation4 })
+  .object({
+    dataProtocol: z.union([Translation4, z.null()]).optional(),
+    description: Translation4,
+    name: Translation4,
+  })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
 export const WorkflowStepWithTranslationsDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1711,10 +1709,6 @@ export const LocalizedToolConfig = z.union([
       admin_user: z.string(),
       description: z.union([z.string(), z.null()]).optional().default(null),
       is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-      label_seeds_as_conversation_starter: z
-        .boolean()
-        .optional()
-        .default(false),
       moderation_policy_id: z
         .union([z.string(), z.null()])
         .optional()
@@ -1782,6 +1776,7 @@ export const LocalizedWorkflowStepWithProgressDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1802,6 +1797,7 @@ export const LocalizedWorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1917,6 +1913,7 @@ export const WorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1934,6 +1931,7 @@ export const PartialWorkflowStep = z
   .object({
     activation_rule: z.union([ActivationRule, z.null()]),
     can_revisit: z.union([z.boolean(), z.null()]),
+    data_protocol: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     is_offline: z.union([z.boolean(), z.null()]),
     name: z.union([z.string(), z.null()]),

@@ -3,8 +3,10 @@
 	import NavBar from '$lib/components/NavBar.svelte';
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
+	import { setSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
 
 	let { children, data }: LayoutProps = $props();
+	setSupportDrawer();
 	const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
 	const isAuthPage = $derived(page.url.pathname.startsWith('/auth/'));
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
@@ -25,7 +27,13 @@
 	);
 </script>
 
-<div class="flex min-h-screen w-full flex-col {isReportPage ? 'bg-primary/10' : ''}">
+<!-- The live call fills h-dvh. On mobile 100vh is taller than that while the browser
+	toolbar shows, so min-h-screen would leave a strip of blank page to scroll into. -->
+<div
+	class="flex w-full flex-col {isLivePage ? 'min-h-dvh' : 'min-h-screen'} {isReportPage
+		? 'bg-primary/10'
+		: ''}"
+>
 	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}

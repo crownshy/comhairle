@@ -7,6 +7,10 @@ on:
         description: Newline-delimited Docker tags
         required: true
         type: string
+      cache_from:
+        description: Newline-delimited cache-from sources
+        required: false
+        type: string
       dry_run:
         description: When true, do not push images
         required: false
@@ -63,6 +67,8 @@ jobs:
         with:
           context: ./ui
           push: true
+          cache-from: ${{ inputs.cache_from }}
+          cache-to: type=gha,mode=max
           tags: ${{ inputs.tags }}
 
       - name: Dry run - skip build and push

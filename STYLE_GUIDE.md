@@ -183,6 +183,10 @@ If you copy a block a second time, stop and extract it.
 - **Spell it out.** Prefer full words for variables, functions, props, and types (see
   [Abbreviations in variable names](#abbreviations-in-variable-names) under General
   Principles, which applies here too).
+- **Constants in `SCREAMING_SNAKE_CASE`.** A fixed value that never changes at runtime,
+  such as a shared class string or a limit, reads as a constant when it's named like one:
+  `VOTE_BUTTON_CLASS`, not `voteButtonClass`. Keep it next to where it's used; if only one
+  template block needs it, a `{@const}` inside that block is fine.
 - **Name the props type; don't inline the annotation.** Declare a `type Props = { … }`
   (or `interface Props`) above the destructure and annotate with it, rather than inlining
   a large object literal after `}:`.
@@ -397,11 +401,35 @@ migrate them.
       runs at event time via a getter).
 
 ### SvelteKit
+
 - Use `depends()` in `load` functions to declare explicit cache keys for invalidation. Use
-the `key()` function from the `invalidationKeys` file to make sure that the keys are
-type safe
+  the `key()` function from the `invalidationKeys` file to make sure that the keys are
+  type safe
 - When sibling pages fetch the same resource, hoist the fetch to the nearest shared layout
   `load` and read it via `await parent()` in children.
+
+### Autosave
+
+Fields that save as you type (configure pages, step config, events, the report summary) follow
+one pattern. ADR-0005 has the background.
+
+- **A save sends data, it doesn't reload.** The client already has what was typed. Calling
+  `invalidate` or `invalidateAll` after each save reruns layout loads every time someone pauses,
+  and anything rendered from a re-created streamed promise (`{#await}`) remounts, which resets
+  scroll and cursor in an editor.
+- **Translatable text goes through `createTextContentSource` + `TranslatableField`.** Pass a
+  `refresh` that reloads only the load your `getTranslation()` data comes from:
+  `refresh: () => invalidate(key('admin/conversation'))`, or a store's own reload.
+- **Reload once, when the user leaves.** `AutosaveLeaveGuard` in the admin layout does this for
+  every mounted `TranslatableField`: it waits for in-flight saves, offers Retry / Leave anyway /
+  Stay after a failed one, and reloads stale data after the navigation. A dialog that sits on top
+  of a list it edits calls `source.sync()` when it closes.
+- **Never `invalidate` inside `beforeNavigate`.** It cancels the navigation in progress. Reload in
+  `afterNavigate` instead.
+- **A failed save must be loud.** Keep the text on screen, show a notification and a Retry, and
+  don't let the user leave without choosing. Never drop an edit silently.
+- **Autosave that isn't a `TranslationSource`** (glossary, moderation policy) uses
+  `guardUnsavedChanges` so leaving mid-save still warns.
 
 ### Before you finish
 

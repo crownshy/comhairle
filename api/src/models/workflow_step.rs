@@ -49,6 +49,8 @@ pub struct WorkflowStep {
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
     pub request_user_share_permission: bool,
+    #[partially(transparent)]
+    pub data_protocol: Option<TextContentId>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -98,7 +100,7 @@ impl WithToolConfig for LocalizedWorkflowStepWithProgress {
     }
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 15] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -111,6 +113,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
     WorkflowStepIden::PreviewToolConfig,
     WorkflowStepIden::Required,
     WorkflowStepIden::RequestUserSharePermission,
+    WorkflowStepIden::DataProtocol,
     WorkflowStepIden::CreatedAt,
     WorkflowStepIden::UpdatedAt,
 ];
@@ -253,6 +256,9 @@ impl PartialWorkflowStep {
         };
         if let Some(value) = self.request_user_share_permission {
             values.push((WorkflowStepIden::RequestUserSharePermission, value.into()))
+        };
+        if let Some(value) = &self.data_protocol {
+            values.push((WorkflowStepIden::DataProtocol, (*value).into()))
         };
         values
     }
@@ -841,6 +847,52 @@ mod tests {
         .await?;
 
         assert!(step.can_revisit, "incorrect can_revisit after update");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_update_data_protocol_field(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+        let steps_res = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                1,
+            )
+            .await?;
+        let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
+
+        assert!(
+            step.data_protocol.is_none(),
+            "new steps should fall back to the tool default"
+        );
+
+        let text = new_translation(
+            &pool,
+            "en",
+            "<p>Your votes are anonymous.</p>",
+            TextFormat::Rich,
+        )
+        .await?;
+        let step = update(
+            &pool,
+            &step.id,
+            &workflow.id,
+            &PartialWorkflowStep {
+                data_protocol: Some(text.id),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        assert_eq!(step.data_protocol, Some(text.id), "data_protocol not saved");
 
         Ok(())
     }
