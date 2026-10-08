@@ -21,38 +21,13 @@ use hmac::{Hmac, KeyInit, Mac};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
 use rand_core::OsRng;
 use regex::Regex;
-use sha2::Sha256;
-use time::Duration;
-
-/// Helper function to check if a user is admin
-pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
-    // Check if the user has the system admin role
-    if has_resource_permission(
-        state,
-        PermissionRole::Admin.system_triplet(),
-        &user.id,
-        user.organization_id.as_ref(),
-    )
-    .await
-    .unwrap_or(false)
-    {
-        return true;
-    }
-
-    let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
-    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
-        let downcase_admin_users: Vec<String> =
-            admin_users.iter().map(|a| a.to_lowercase()).collect();
-        return downcase_admin_users.contains(&email.to_lowercase())
-            || re.is_match(&email.to_lowercase());
-    }
-    false
-}
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
+use sha2::Sha256;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
+use time::Duration;
 use tower::util::option_layer;
 use tracing::{instrument, warn};
 use uuid::Uuid;
@@ -80,6 +55,45 @@ use fake::Dummy;
 /// This is the key that we use in the cookie for the JWT
 pub const AUTH_KEY: &str = "auth-token";
 const REFRESH_KEY: &str = "refresh-token";
+
+/// Helper function to check if a user is admin
+pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
+    // Check if the user has the system admin role
+    if has_resource_permission(
+        state,
+        PermissionRole::Admin.system_triplet(),
+        &user.id,
+        user.organization_id.as_ref(),
+    )
+    .await
+    .unwrap_or(false)
+    {
+        return true;
+    }
+
+    let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
+    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
+        let downcase_admin_users: Vec<String> =
+            admin_users.iter().map(|a| a.to_lowercase()).collect();
+        return downcase_admin_users.contains(&email.to_lowercase())
+            || re.is_match(&email.to_lowercase());
+    }
+    false
+}
+
+pub async fn is_user_super_admin(
+    state: &Arc<ComhairleState>,
+    user: &crate::models::users::User,
+) -> bool {
+    has_resource_permission(
+        state,
+        PermissionRole::SuperAdmin.system_triplet(),
+        &user.id,
+        user.organization_id.as_ref(),
+    )
+    .await
+    .unwrap_or(false)
+}
 
 /// Validate password strength according to security requirements
 ///
@@ -1016,6 +1030,26 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
             Ok(RequiredAdminUser(user.clone()))
         } else {
             Err(ComhairleError::RequiresAuthUser)
+        }
+    }
+}
+
+#[derive(OperationIo)]
+pub struct RequiredSuperAdminUser(pub User);
+
+impl FromRequestParts<Arc<ComhairleState>> for RequiredSuperAdminUser {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let user = resolve_user_from_request(parts, state).await?;
+
+        if is_user_super_admin(state, &user).await {
+            Ok(RequiredSuperAdminUser(user))
+        } else {
+            Err(ComhairleError::UserNotAuthorized)
         }
     }
 }

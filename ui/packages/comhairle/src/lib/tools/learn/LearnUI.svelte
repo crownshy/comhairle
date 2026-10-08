@@ -6,7 +6,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import type {
-		Page,
+		LearnPageEntry,
 		LocalizedConversationDto,
 		ComhairleDocument
 	} from '@crownshy/api-client/api';
@@ -28,7 +28,7 @@
 		hasKnowledgeBaseDocs = false,
 		isSubmitting = false
 	}: {
-		pages: Array<Page>;
+		pages: LearnPageEntry[];
 		onDone: () => void;
 		onNextAction?: (fn: () => void) => void;
 		onPrevAction?: (fn: (() => void) | undefined) => void;
@@ -51,7 +51,8 @@
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
 	let currentPageTranslation = $derived(
-		(currentPage ?? []).filter((p) => p.lang === getLocale())
+		// The editor only saves inline pages. A text_content_id page has nothing to render here yet.
+		Array.isArray(currentPage) ? currentPage.filter((p) => p.lang === getLocale()) : []
 	);
 	let content = $derived(currentPageTranslation[0]?.content);
 	// Glossary is stored on the conversation's metadata jsonb (edited in the admin Configure ->

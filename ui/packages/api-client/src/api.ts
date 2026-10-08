@@ -482,6 +482,7 @@ export const PolisStatementAux = z
     original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
     statement_text: z.string(),
     themes: z.array(z.string()),
     updated_at: z.string().datetime({ offset: true }),
@@ -501,6 +502,7 @@ export const CreatePolisStatementAux = z
     moderation_status: ModerationStatus.optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional().default(null),
     statement_text: z.string(),
     themes: z.array(z.string()),
     visible_statement_when_submitted: z
@@ -534,6 +536,40 @@ export const SyncStatementAuxResponse = z
   })
   .passthrough();
 export type SyncStatementAuxResponse = z.infer<typeof SyncStatementAuxResponse>;
+export const LocalizedStatement = z
+  .object({
+    ai_generated: z.boolean(),
+    display_locale: z.string(),
+    is_translation: z.boolean(),
+    original_text: z.string(),
+    polis_statement_id: z.number().int(),
+    requires_validation: z.boolean(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
+    text: z.string(),
+  })
+  .passthrough();
+export type LocalizedStatement = z.infer<typeof LocalizedStatement>;
+export const PolisStatementTranslation = z
+  .object({
+    ai_generated: z.boolean(),
+    content: z.string(),
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    locale: z.string(),
+    polis_statement_aux_id: z.string().uuid(),
+    requires_validation: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type PolisStatementTranslation = z.infer<
+  typeof PolisStatementTranslation
+>;
+export const UpdateStatementTranslationRequest = z
+  .object({ content: z.string() })
+  .passthrough();
+export type UpdateStatementTranslationRequest = z.infer<
+  typeof UpdateStatementTranslationRequest
+>;
 export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
@@ -2903,18 +2939,47 @@ export type RegionAreaLinksRequestDto = z.infer<
 >;
 export const RegionAreaDto = z
   .object({
+    areaGeometry: z.unknown().optional(),
+    areaSqm: z.union([z.number(), z.null()]).optional(),
+    bboxMaxLat: z.union([z.number(), z.null()]).optional(),
+    bboxMaxLng: z.union([z.number(), z.null()]).optional(),
+    bboxMinLat: z.union([z.number(), z.null()]).optional(),
+    bboxMinLng: z.union([z.number(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
-    zipPrefix: z.string(),
+    name: z.union([z.string(), z.null()]).optional(),
+    tags: z.array(z.string()),
+    zipPrefix: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type RegionAreaDto = z.infer<typeof RegionAreaDto>;
+export const PaginatedResults_for_RegionAreaDto = z
+  .object({ records: z.array(RegionAreaDto), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_RegionAreaDto = z.infer<
+  typeof PaginatedResults_for_RegionAreaDto
+>;
 export const CreateRegionArea = z
-  .object({ zip_prefix: z.string() })
+  .object({
+    area_geometry: z.unknown(),
+    name: z.union([z.string(), z.null()]),
+    tags: z.array(z.string()).default([]),
+    zip_prefix: z.union([z.string(), z.null()]),
+  })
+  .partial()
   .passthrough();
 export type CreateRegionArea = z.infer<typeof CreateRegionArea>;
+export const ImportRegionAreasRequest = z
+  .object({ areas: z.array(CreateRegionArea) })
+  .passthrough();
+export type ImportRegionAreasRequest = z.infer<typeof ImportRegionAreasRequest>;
 export const PartialRegionArea = z
-  .object({ zip_prefix: z.union([z.string(), z.null()]) })
+  .object({
+    area_geometry: z.unknown(),
+    name: z.union([z.string(), z.null()]),
+    tags: z.union([z.array(z.string()), z.null()]),
+    zip_prefix: z.union([z.string(), z.null()]),
+  })
   .partial()
   .passthrough();
 export type PartialRegionArea = z.infer<typeof PartialRegionArea>;
@@ -3333,6 +3398,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdatePolisStatementAux,
   SyncStatementAuxRequest,
   SyncStatementAuxResponse,
+  LocalizedStatement,
+  PolisStatementTranslation,
+  UpdateStatementTranslationRequest,
   ThemeStatistic,
   ThemeRequest,
   ModerationDecisionRequest,
@@ -3583,7 +3651,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   RegionAreaLinksDto,
   RegionAreaLinksRequestDto,
   RegionAreaDto,
+  PaginatedResults_for_RegionAreaDto,
   CreateRegionArea,
+  ImportRegionAreasRequest,
   PartialRegionArea,
   MediaContentType,
   content_type,
@@ -6121,7 +6191,64 @@ curl -X POST \
     path: "/region_areas",
     alias: "ListRegionAreas",
     requestFormat: "json",
-    response: z.array(RegionAreaDto),
+    parameters: [
+      {
+        name: "ids",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "include_geometry",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+      {
+        name: "min_area_ratio",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "tag",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "viewport_max_lat",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "viewport_max_lng",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "viewport_min_lat",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "viewport_min_lng",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_RegionAreaDto,
   },
   {
     method: "post",
@@ -6132,7 +6259,7 @@ curl -X POST \
       {
         name: "body",
         type: "Body",
-        schema: z.object({ zip_prefix: z.string() }).passthrough(),
+        schema: CreateRegionArea,
       },
     ],
     response: RegionAreaDto,
@@ -6164,6 +6291,39 @@ curl -X POST \
     alias: "DeleteRegionArea",
     requestFormat: "json",
     response: RegionAreaDto,
+  },
+  {
+    method: "post",
+    path: "/region_areas/import",
+    alias: "ImportRegionAreas",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: ImportRegionAreasRequest,
+      },
+    ],
+    response: z.array(RegionAreaDto),
+  },
+  {
+    method: "get",
+    path: "/region_areas/intersecting",
+    alias: "IntersectingRegionAreas",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "latitude",
+        type: "Query",
+        schema: z.number(),
+      },
+      {
+        name: "longitude",
+        type: "Query",
+        schema: z.number(),
+      },
+    ],
+    response: PaginatedResults_for_RegionAreaDto,
   },
   {
     method: "get",
@@ -6500,6 +6660,39 @@ Use a raw HTTP request and process the response body incrementally.
     response: PolisStatementAux,
   },
   {
+    method: "get",
+    path: "/tools/polis/statement_aux/:id/translations",
+    alias: "PolisListStatementTranslations",
+    description: `Returns the stored translations of a statement into the conversation&#x27;s supported languages. Each carries ai_generated and requires_validation flags.`,
+    requestFormat: "json",
+    response: z.array(PolisStatementTranslation),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/statement_aux/localized",
+    alias: "PolisGetLocalizedStatement",
+    description: `Returns the statement text to display for a live Polis statement in the requested locale: the stored translation when one exists, otherwise the original. Carries is_translation, original_text and source_locale so the UI can indicate a translation and reveal the source.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "locale",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "polis_conversation_id",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "polis_statement_id",
+        type: "Query",
+        schema: z.number().int(),
+      },
+    ],
+    response: LocalizedStatement,
+  },
+  {
     method: "post",
     path: "/tools/polis/statement_aux/moderate_batch",
     alias: "PolisModerateStatementAuxBatch",
@@ -6548,6 +6741,29 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.array(ThemeStatistic),
+  },
+  {
+    method: "put",
+    path: "/tools/polis/statement_translation/:id",
+    alias: "PolisUpdateStatementTranslation",
+    description: `Overwrites a translation&#x27;s content with an admin-provided correction. Clears ai_generated and requires_validation, since the text is no longer raw machine output and a human has just reviewed it.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ content: z.string() }).passthrough(),
+      },
+    ],
+    response: PolisStatementTranslation,
+  },
+  {
+    method: "put",
+    path: "/tools/polis/statement_translation/:id/verify",
+    alias: "PolisVerifyStatementTranslation",
+    description: `Clears requires_validation without changing the translation&#x27;s content, for when an admin reviews a machine translation and finds it&#x27;s already correct.`,
+    requestFormat: "json",
+    response: PolisStatementTranslation,
   },
   {
     method: "get",

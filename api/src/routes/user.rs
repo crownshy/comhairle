@@ -34,7 +34,7 @@ use crate::{
 
 pub mod dto;
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin, is_user_super_admin};
 use super::translations::LocaleExtractor;
 
 #[instrument(err(Debug), skip(state))]
@@ -176,10 +176,17 @@ pub async fn get_user_roles(
 ) -> Result<(StatusCode, Json<Vec<UserRoles>>), ComhairleError> {
     let mut roles = vec![];
 
+    let mut site_roles = vec![];
     if is_user_admin(&state, &user).await {
+        site_roles.push(ResourceRole::Admin);
+    }
+    if is_user_super_admin(&state, &user).await {
+        site_roles.push(ResourceRole::SuperAdmin);
+    }
+    if !site_roles.is_empty() {
         roles.push(UserRoles {
             resource: ResourceType::Site,
-            roles: vec![ResourceRole::Admin],
+            roles: site_roles,
         });
     }
 
