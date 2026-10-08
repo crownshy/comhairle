@@ -693,14 +693,16 @@ mod tests {
         let area_a = region_area::create(
             &pool,
             CreateRegionArea {
-                zip_prefix: "G1".to_string(),
+                zip_prefix: Some("G1".to_string()),
+                ..Default::default()
             },
         )
         .await?;
         let area_b = region_area::create(
             &pool,
             CreateRegionArea {
-                zip_prefix: "G2".to_string(),
+                zip_prefix: Some("G2".to_string()),
+                ..Default::default()
             },
         )
         .await?;
