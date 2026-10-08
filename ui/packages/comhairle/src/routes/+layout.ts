@@ -15,7 +15,7 @@ export const load: LayoutLoad = async ({ url, data, depends }) => {
 		loadUserActions(api, 'system')
 	]);
 	const userRoles = rolesResult.err === null ? rolesResult.ok : undefined;
-	const isSuperAdmin = userRoles.some(
+	const isSuperAdmin = (userRoles ?? []).some(
 		(role) => role.resource === 'Site' && role.roles.includes('SuperAdmin')
 	);
 	return { api, user, isSuperAdmin, userRoles, systemActions, isCommunity, themeName };
