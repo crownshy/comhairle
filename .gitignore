@@ -6,4 +6,5 @@
 node_modules/
 
 open-api-spec.json
+ui/packages/api-client/open-api-spec.generated.json
 .DS_Store
