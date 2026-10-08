@@ -28,7 +28,7 @@ export function areaFeatures(areas: RegionAreaDto[]): FeatureCollection<Polygon 
 export function toggleArea(selectedIds: string[], id: string): string[] {
 	const index = selectedIds.findIndex((selectedId) => selectedId === id);
 	if (index < 0) {
-		return selectedIds.slice().concat(id);
+		return selectedIds.concat(id);
 	}
 	return selectedIds.toSpliced(index, 1);
 }
