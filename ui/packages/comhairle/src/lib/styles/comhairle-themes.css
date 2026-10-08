@@ -169,6 +169,7 @@
 	--sidebar-ring: #7cb342;
 	--sidebar-secondary: #6b9b3a;
 	--sidebar-active-bg: #070b04;
+	--nav-background: var(--background);
 
 	--chat-primary: #7cb342;
 	--chat-neutral: #99a88a;
@@ -270,7 +271,7 @@
 	--chat-primary: #2978d1;
 	--chat-neutral: #6b7280;
 	--nav-text: hsla(79, 100%, 96%, 1);
-	--nav-background: hsla(79, 100%, 96%, 1);
+	--nav-background: #f9fafb;
 	--admin-background: #f9fafb;
 	--mutted: hsla(100, 29%, 10%, 1);
 	--sidebar-radius: 10px;
@@ -320,6 +321,7 @@
 	--sidebar-ring: #4b92ec;
 	--sidebar-secondary: #7dd3fc;
 	--sidebar-active-bg: #050912;
+	--nav-background: var(--background);
 
 	--chat-primary: #4b92ec;
 	--chat-neutral: #8b9bb5;

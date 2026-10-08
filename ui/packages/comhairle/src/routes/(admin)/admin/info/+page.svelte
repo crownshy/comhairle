@@ -15,7 +15,7 @@
 </script>
 
 <svelte:head>
-	<title>{guide?.title ?? 'Tools'} - Comhairle Tools Guide</title>
+	<title>Comhairle admin guide</title>
 </svelte:head>
 
 {#if guide}

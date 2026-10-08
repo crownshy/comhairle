@@ -243,8 +243,8 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 
 	online_group_conversation: {
 		key: 'online_group_conversation',
-		navLabel: 'Video call',
-		title: 'Video call',
+		navLabel: 'Group video call',
+		title: 'Group video call',
 		atAGlance: {
 			bestFor: 'Live deliberation',
 			participantTime: '45 to 120 minutes',
