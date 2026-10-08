@@ -214,13 +214,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 			},
 			{
 				heading: 'Data collection and analysis',
-				html: `<p>No personal data is traced in the Learn step. If the Learning Assistant is switched on, the questions participants ask are captured. Organisers should then decide and inform the data sharing protocol.</p>
-<ul>
-<li><strong>Private —</strong> only participants can access.</li>
-<li><strong>Limited —</strong> only participants and organisers can access.</li>
-<li><strong>Collaborative —</strong> participants themselves, organisers and other participants can access (not identifiable).</li>
-<li><strong>Open —</strong> everyone can access (not identifiable).</li>
-</ul>`
+				html: `<p>No personal data is traced in the Learn step. If the Learning Assistant is switched on, the questions participants ask are captured. Use the step's Data protocol to tell participants how those questions are used.</p>`
 			},
 			{
 				heading: 'A typical participant experience',
@@ -237,7 +231,7 @@ export const TOOL_GUIDES: Record<string, ToolGuide> = {
 </ul>
 <p>Organisers will also need to decide:</p>
 <ul>
-<li>Whether to switch on the Learning Assistant, and if so, configure the data sharing protocol for the Learning Assistant.</li>
+<li>Whether to switch on the Learning Assistant, and if so, write the step's Data protocol so participants know how their questions are used.</li>
 </ul>`
 			},
 			{

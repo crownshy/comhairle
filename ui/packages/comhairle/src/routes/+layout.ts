@@ -10,8 +10,11 @@ export const load: LayoutLoad = async ({ url, data }) => {
 
 	try {
 		const userRoles = await api.GetUserRoles();
-		return { api, user, userRoles, isCommunity, themeName };
+		const isSuperAdmin = userRoles.some(
+			(role) => role.resource === 'Site' && role.roles.includes('SuperAdmin')
+		);
+		return { api, user, isSuperAdmin, isCommunity, themeName };
 	} catch (e) {
-		return { api, user, isCommunity, themeName };
+		return { api, user, isSuperAdmin: false, isCommunity, themeName };
 	}
 };

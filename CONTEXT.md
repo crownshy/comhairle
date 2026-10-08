@@ -39,9 +39,9 @@ Creating a Conversation immediately (with an auto-generated title and an empty W
 _Avoid_: Empty workflow (that's the underlying template key)
 
 **Data protocol**:
-A per-Step declaration of who may see the data participants produce in that Step. Canonical four-level ladder, least-to-most open: **Confidential** (no one) → **Restricted** (organiser only) → **Collaborative** (organiser + other participants) → **Open** (everyone).
-_Avoid_: Private/Limited (stale Learn-guide wording for Confidential/Restricted), "data sharing", "data policy".
-_Status_: Only Confidential and Restricted are backed today — they map onto the existing `request_user_share_permission` boolean (`false`→Confidential, `true`→Restricted). Collaborative and Open appear in the UI for design fidelity but are disabled pending a team decision on introducing a real `data_protocol` enum column (flagged as an open question on the PR).
+Per-Step text telling participants how the data they produce in that Step is used: why it is collected, who sees it, and how it is reported. Stored as `workflow_step.data_protocol`, a translatable rich text field. Blank shows the tool's default text. Participants read it at the top of the Find out more Privacy tab.
+_Avoid_: "data sharing", "data policy", and the old Confidential/Restricted/Collaborative/Open ladder, which this replaced (ADR-0050).
+_Note_: Thinking Space's consent prompt is a separate switch on that tool (`request_user_share_permission`), not part of the Data protocol.
 
 **Role assignment**:
 An explicit grant that links an actor (user or organisation) to a named role on a resource (`resource_type` + `resource_id`). Role assignments are durable records and form the source of truth for authorization.
@@ -68,6 +68,34 @@ The per-Conversation setting (`allow_revisit_after_finishing`, default `true`) g
 
 **Revisitable step**:
 The per-Step `can_revisit` flag (default `false`), controlling whether a participant may navigate back to that Step once they have completed it. Governs mid-flow navigation only. Once a participant is [[#finished-a-participant-is-finished]] it is subordinate to [[#revisit-after-finishing]].
+
+### Participant step chrome
+
+The participant-facing frame around a Step, shared by both breakpoints. Replaces the old
+`StepHeader` chevrons plus `StepSelector` pair. See
+[ADR-0047](documentation/adr/0047-one-pager-innermost-first-navigation.md) and
+[ADR-0048](documentation/adr/0048-the-middle-is-the-move-the-corners-are-navigation.md).
+
+**Step shell**:
+The one-screen layout a Step renders in: a header on top, the tool scrolling in the middle,
+and a bar fixed at the bottom. The shell applies at every width; on desktop the header and
+bar sit at the window edges and the tool scrolls between them, with no card around it. Tools
+that scroll to the top after a page turn scroll the shell's container, not the window.
+_Avoid_: Card, page wrapper.
+
+**Progress bar**:
+The segmented bar at the top of the [[#step-shell]]: one stub per Step, the current Step a
+flexible track that fills. Completed stubs read filled. The bar is decoration for a screen
+reader; the "Step N of M" line beneath it carries the position.
+_Avoid_: Stepper (the old row of circles), step selector.
+
+**Pager**:
+The bar at the bottom of the [[#step-shell]]: back on the left, forward on the right, and
+nothing between them. Its arrows traverse the innermost open sequence first (a tool-internal
+sequence such as Learn's pages, then the Step boundary). The forward slot states one thing at
+a time: Next, or Skip on an optional Step that cannot yet advance.
+_Avoid_: Footer (that is the site-wide `Footer.svelte`, which the step route does not
+render), toolbar.
 
 ### Organizations and access
 

@@ -11,6 +11,7 @@
 		ComhairleDocument
 	} from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
+	import { scrollStepToTop } from '$lib/utils/stepScroll';
 	import { navigating } from '$app/state';
 	import LearningAssistant from '$lib/components/LearningAssistant/LearningAssistant.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
@@ -71,14 +72,14 @@
 	function nextPage() {
 		currentPageNo += 1;
 		tick().then(() => {
-			window.scrollTo(0, 0);
+			scrollStepToTop();
 		});
 	}
 
 	function prevPage() {
 		currentPageNo -= 1;
 		tick().then(() => {
-			window.scrollTo(0, 0);
+			scrollStepToTop();
 		});
 	}
 

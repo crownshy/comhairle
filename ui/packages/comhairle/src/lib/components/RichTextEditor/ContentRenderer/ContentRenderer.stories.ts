@@ -1,14 +1,14 @@
-import type { Meta, StoryObj } from '@storybook/svelte';
+import type { Meta, StoryObj } from '@storybook/sveltekit';
 import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 
 const meta = {
 	title: 'Components/ContentRenderer',
-	component: ContentRenderer as any,
+	component: ContentRenderer,
 	tags: ['autodocs'],
 	argTypes: {
 		content: {
 			control: 'text',
-			description: 'Content as Markdown or ProseMirror JSON string',
+			description: 'Content as Markdown or ProseMirror JSON string'
 		},
 		class: {
 			control: 'text',
@@ -44,7 +44,7 @@ A read-only renderer for rich text content using TipTap. Automatically detects a
 			}
 		}
 	}
-} satisfies Meta<any>;
+} satisfies Meta<typeof ContentRenderer>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -63,39 +63,44 @@ You can use **bold** and *italic* text.`
 export const WithJSONContent: Story = {
 	args: {
 		content: JSON.stringify({
-			"type": "doc",
-			"content": [
+			type: 'doc',
+			content: [
 				{
-					"type": "heading",
-					"attrs": { "level": 1 },
-					"content": [{ "type": "text", "text": "Content from JSON" }]
+					type: 'heading',
+					attrs: { level: 1 },
+					content: [{ type: 'text', text: 'Content from JSON' }]
 				},
 				{
-					"type": "paragraph",
-					"content": [
-						{ "type": "text", "text": "This content is loaded from " },
-						{ "type": "text", "marks": [{ "type": "bold" }], "text": "ProseMirror JSON" },
-						{ "type": "text", "text": " format, which is how RichTextEditor saves content." }
+					type: 'paragraph',
+					content: [
+						{ type: 'text', text: 'This content is loaded from ' },
+						{ type: 'text', marks: [{ type: 'bold' }], text: 'ProseMirror JSON' },
+						{
+							type: 'text',
+							text: ' format, which is how RichTextEditor saves content.'
+						}
 					]
 				},
 				{
-					"type": "bulletList",
-					"content": [
+					type: 'bulletList',
+					content: [
 						{
-							"type": "listItem",
-							"content": [
+							type: 'listItem',
+							content: [
 								{
-									"type": "paragraph",
-									"content": [{ "type": "text", "text": "Preserves formatting perfectly" }]
+									type: 'paragraph',
+									content: [
+										{ type: 'text', text: 'Preserves formatting perfectly' }
+									]
 								}
 							]
 						},
 						{
-							"type": "listItem",
-							"content": [
+							type: 'listItem',
+							content: [
 								{
-									"type": "paragraph",
-									"content": [{ "type": "text", "text": "More reliable than markdown" }]
+									type: 'paragraph',
+									content: [{ type: 'text', text: 'More reliable than markdown' }]
 								}
 							]
 						}
@@ -276,7 +281,6 @@ Here's a sample configuration:
 The \`features\` array determines which tools are available.`
 	}
 };
-
 
 export const CustomClass: Story = {
 	args: {
