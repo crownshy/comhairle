@@ -29,18 +29,18 @@
 			'/(public)/conversations/[conversation_id]/[[preview]]/workflow/[workflow_id]/s/[workflow_step_id]'
 	);
 
+	const viewportHeightClass = $derived.by(() => {
+		if (isStepPage) return 'h-dvh';
+		if (isLivePage) return 'min-h-dvh';
+		return 'min-h-screen';
+	});
+
 	let isAdmin = $derived(canAccessAdminPortal(data.userRoles));
 </script>
 
 <!-- The live call fills h-dvh. On mobile 100vh is taller than that while the browser
 	toolbar shows, so min-h-screen would leave a strip of blank page to scroll into. -->
-<div
-	class={cn(
-		'flex w-full flex-col',
-		isStepPage ? 'h-dvh' : isLivePage ? 'min-h-dvh' : 'min-h-screen',
-		isReportPage && 'bg-primary/10'
-	)}
->
+<div class={cn('flex w-full flex-col', viewportHeightClass, isReportPage && 'bg-primary/10')}>
 	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
