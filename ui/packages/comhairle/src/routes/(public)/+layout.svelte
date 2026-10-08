@@ -1,3 +1,4 @@
+<script lang="ts">
 	import Footer from '$lib/components/Footer.svelte';
 	import NavBar from '$lib/components/NavBar.svelte';
 	import type { LayoutProps } from './$types';
