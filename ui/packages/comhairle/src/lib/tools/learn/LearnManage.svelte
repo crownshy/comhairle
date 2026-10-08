@@ -1,7 +1,8 @@
 <script lang="ts">
 	import {
 		type ConversationWithTranslations,
-		type ComhairleDocument
+		type ComhairleDocument,
+		type LocalizedPage
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidate } from '$app/navigation';
@@ -15,7 +16,7 @@
 	import { onMount } from 'svelte';
 	import { GripVertical, Info, Trash2, TriangleAlert } from 'lucide-svelte';
 	import { dragHandle } from 'svelte-dnd-action';
-	import Pages, { type ExtendedLocalizedPage } from './Pages.svelte';
+	import Pages from './Pages.svelte';
 	import type {
 		InstancedToolConfig,
 		WorkflowStepWithTranslationsAndTool
@@ -42,7 +43,7 @@
 
 	// FIX: Remove this after the types have been fixed on the backend
 	type LearnToolConfig = Exclude<InstancedToolConfig<'learn'>, 'pages'> & {
-		pages: ExtendedLocalizedPage[][];
+		pages: LocalizedPage[][];
 	};
 	let sourceConfig: LearnToolConfig = $derived(
 		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
@@ -62,7 +63,7 @@
 	// until a save succeeds (and after a failed save), so this covers the mid-save refresh case.
 	guardUnsavedChanges(() => pages.areDirty);
 
-	async function save(pagesToSave: ExtendedLocalizedPage[][]) {
+	async function save(pagesToSave: LocalizedPage[][]) {
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
 			pages: pagesToSave
