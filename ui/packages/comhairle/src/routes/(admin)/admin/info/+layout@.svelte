@@ -2,24 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { ADMIN_GUIDE_NAV } from '$lib/admin_guides';
+	import { ADMIN_GUIDE_NAV, type AdminGuide } from '$lib/admin_guides';
 	import * as Select from '$lib/components/ui/select';
-	import { GUIDE_NAV } from '$lib/tool_guides';
+	import { GUIDE_NAV, type ToolGuide } from '$lib/tool_guides';
 	import * as Collapsible from '$lib/components/ui/collapsible';
 	import { ChevronDown, Folder, FolderOpen } from 'lucide-svelte';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
-
-	type NavGroup = {
-		label: string;
-		items: {
-			key: string;
-			label: string;
-			topics?: {
-				key: string;
-				label: string;
-			}[];
-		}[];
-	};
 
 	type MobileGroup = {
 		label: string;
@@ -57,7 +45,7 @@
 			?.label ?? 'Select a topic'
 	);
 
-	function isActiveItem(item: NavGroup['items'][number]) {
+	function isActiveItem(item: AdminGuide | ToolGuide) {
 		return 'topics' in item
 			? page.params.guide_id === item.key
 			: page.params.tool_id === item.key;
@@ -108,24 +96,14 @@
 					</Select.Content>
 				</Select.Root>
 			{:else}
-				{@const NAV_GROUPS: NavGroup[] = [
+				{@const NAV_GROUPS = [
 					{
 						label: 'Admin how-to',
-						items: ADMIN_GUIDE_NAV.map((guide) => ({
-							key: guide.key,
-							label: guide.navLabel,
-							topics: guide.topics.map((topic) => ({
-								key: topic.key,
-								label: topic.navLabel,
-							}))
-						}))
+						items: ADMIN_GUIDE_NAV
 					},
 					{
 						label: 'Engagement tools',
-						items: GUIDE_NAV.map((guide) => ({
-							key: guide.key,
-							label: guide.navLabel,
-						}))
+						items: GUIDE_NAV
 					}
 				]}
 				<nav
@@ -161,7 +139,7 @@
 																class="text-muted-foreground hidden size-4 shrink-0 group-data-[state=open]/guide:block"
 																aria-hidden="true"
 															/>
-															{item.label}
+															{item.navLabel}
 														</span>
 														<ChevronDown
 															class="size-4 shrink-0 transition-transform"
@@ -193,7 +171,7 @@
 																		? 'page'
 																		: undefined}
 																>
-																	{topic.label}
+																	{topic.navLabel}
 																</a>
 															</li>
 														{/each}
@@ -210,7 +188,7 @@
 													: 'text-foreground hover:bg-muted/60'}"
 												aria-current={isActiveItem(item)
 													? 'page'
-													: undefined}>{item.label}</a
+													: undefined}>{item.navLabel}</a
 											>
 										{/if}
 									{/each}
