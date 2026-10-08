@@ -6,12 +6,7 @@ import type { SaveState } from '$lib/components/Translation/translationUtils';
 
 type Id = string;
 export type Language = string;
-type IPages = Record<Id, Record<Language, ExtendedLocalizedPage>>;
-
-export interface ExtendedLocalizedPage extends LocalizedPage {
-	lang: Language;
-	requires_validation: boolean;
-}
+type IPages = Record<Id, Record<Language, LocalizedPage>>;
 
 type From = 'source' | 'target';
 type RawSave = () => Promise<void>;
@@ -125,7 +120,7 @@ class Pages {
 		const keys = Object.keys(this.items);
 		const latestId = Number(keys[keys.length - 1]);
 		const newId = (latestId + 1).toString();
-		const newPage: ExtendedLocalizedPage = {
+		const newPage: LocalizedPage = {
 			lang: primaryLocale,
 			content: '# New Page',
 			type: 'markdown',
@@ -137,20 +132,20 @@ class Pages {
 		return this.#saveNow();
 	}
 
-	load(source: ExtendedLocalizedPage[][]) {
+	load(source: LocalizedPage[][]) {
 		const order: Order = [];
 		source.forEach((page, i) => {
-			const extendedLocalizedPage: Record<Language, ExtendedLocalizedPage> = {};
+			const pageByLanguage: Record<Language, LocalizedPage> = {};
 			page.forEach((p) => {
-				extendedLocalizedPage[p.lang] = p;
+				pageByLanguage[p.lang] = p;
 			});
-			this.items[i] = extendedLocalizedPage;
+			this.items[i] = pageByLanguage;
 			order.push({ id: i.toString() });
 		});
 		this.order = order;
 	}
 
-	toLocalizedPages(): ExtendedLocalizedPage[][] {
+	toLocalizedPages(): LocalizedPage[][] {
 		return this.order.map((p) => Object.values(this.items[p.id]));
 	}
 
@@ -188,7 +183,7 @@ class Pages {
 			upsertContent: (
 				from: From,
 				lang: Language,
-				content: ExtendedLocalizedPage['content'] | undefined
+				content: LocalizedPage['content'] | undefined
 			) => {
 				const requires_validation = from === 'target';
 				const page = this.items[this.currentId];
