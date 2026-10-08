@@ -33,19 +33,16 @@
 			}))
 		}
 	];
-	const MOBILE_GROUPS = [
-		...ADMIN_GUIDE_NAV.map((guide) => ({
-			label: guide.navLabel,
-			options: guide.topics.map((topic) => ({
-				value: `how-to/${guide.key}/${topic.key}`,
-				label: topic.navLabel
-			}))
-		})),
-		{
-			label: 'Engagement tools',
-			options: GUIDE_NAV.map((tool) => ({ value: `tools/${tool.key}`, label: tool.navLabel }))
-		}
-	];
+	const MOBILE_GROUPS = ADMIN_GUIDE_NAV.map((guide) => ({
+		label: guide.navLabel,
+		options: guide.topics.map((topic) => ({
+			value: `how-to/${guide.key}/${topic.key}`,
+			label: topic.navLabel
+		}))
+	})).concat({
+		label: 'Engagement tools',
+		options: GUIDE_NAV.map((tool) => ({ value: `tools/${tool.key}`, label: tool.navLabel }))
+	});
 
 	let currentValue = $derived(
 		page.params.topic_id
@@ -60,7 +57,7 @@
 			?.label ?? 'Select a topic'
 	);
 
-	type NavItem = (typeof NAV_ITEMS)[number];
+	type NavItem = (typeof NAV_GROUPS)[number]['items'][number];
 
 	function isActiveItem(item: NavItem) {
 		return 'topics' in item
@@ -76,13 +73,13 @@
 		const [section, first, second] = value.split('/');
 		if (section === 'how-to') {
 			void goto(
-				resolve('/admin/info/how-to/[guide_id]/[topic_id]', {
+				resolve('/(admin)/admin/info/how-to/[guide_id]/[topic_id]', {
 					guide_id: first,
 					topic_id: second
 				})
 			);
 		} else {
-			void goto(resolve('/admin/info/tools/[tool_id]', { tool_id: first }));
+			void goto(resolve('/(admin)/admin/info/tools/[tool_id]', { tool_id: first }));
 		}
 	}
 </script>
