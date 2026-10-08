@@ -174,37 +174,7 @@
 			<Languages class="size-5" />
 		</button>
 		{#if editable}
-		{#if !row.is_seed}
-			<button
-				type="button"
-				disabled={pending || bulkWorking}
-				onclick={onSplit}
-				title="Split or reword"
-				class="text-muted-foreground hover:bg-muted inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
-			>
-				<Pencil class="size-5" />
-			</button>
-		{/if}
-		<button
-			type="button"
-			disabled={pending ||
-				bulkWorking ||
-				(!actsOnSelection && row.moderation_status === 'accepted')}
-			onclick={() => onModerate('accepted')}
-			title={acceptTitle}
-			class="text-primary hover:bg-primary/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
-		>
-			<Check class="size-6" />
-		</button>
-		<RejectReasonPopover
-			reasons={rejectReasons}
-			heading={rejectHeading}
-			disabled={pending ||
-				bulkWorking ||
-				(!actsOnSelection && row.moderation_status === 'rejected')}
-			onConfirm={(reason) => onModerate('rejected', reason)}
-		>
-			{#snippet trigger()}
+			{#if !row.is_seed}
 				<button
 					type="button"
 					disabled={pending || bulkWorking}
