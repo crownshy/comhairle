@@ -3,7 +3,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
-	import { STEP_COLUMN } from './stepColumn';
+	import { STEP_COLUMN_CLASS } from './styles';
 
 	interface StepHeaderProps {
 		currentStepNumber: number;
@@ -27,7 +27,7 @@
 </script>
 
 <!-- "Step N of M" stays visible because the progress bar is aria-hidden. -->
-<div class={cn(STEP_COLUMN, 'flex flex-col items-center pt-3 pb-2')}>
+<div class={cn(STEP_COLUMN_CLASS, 'flex flex-col items-center pt-3 pb-2')}>
 	<p class="text-primary text-center text-sm leading-5 font-semibold">
 		{m.step_x_of_y({ current: currentStepNumber, total: totalSteps })}
 	</p>

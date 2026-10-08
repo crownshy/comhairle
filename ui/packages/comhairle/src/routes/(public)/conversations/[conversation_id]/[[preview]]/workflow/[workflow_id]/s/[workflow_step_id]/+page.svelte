@@ -7,7 +7,6 @@
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import * as Prioritization from '$lib/tools/prioritization/index.js';
 	import type { ComponentProps } from 'svelte';
-	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import * as m from '$lib/paraglide/messages';
@@ -18,7 +17,7 @@
 	import StepHeader from './StepHeader.svelte';
 	import StepHeaderSkeleton from './StepHeaderSkeleton.svelte';
 	import type { StepItem } from './stepItems';
-	import { STEP_COLUMN } from './stepColumn';
+	import { STEP_COLUMN_CLASS } from './styles';
 
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
@@ -30,13 +29,17 @@
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
 
-	let { data }: PageProps = $props();
-	let user = $derived(data.user);
-	let isPreview = $derived(data.preview);
-	let workflow_id = $derived(data.workflow_id);
-	let workflowStep = $derived(data.workflowStep);
-	let conversation = $derived(data.conversation);
-	let workflowSteps = $derived(data.workflowSteps);
+	let { data } = $props();
+	let {
+		user,
+		preview: isPreview,
+		workflow_id,
+		workflowStep,
+		workflowSteps,
+		conversation,
+		availableDocuments,
+		hasKnowledgeBaseDocs
+	} = $derived(data);
 
 	let toolConfig = $derived(
 		conversation.isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig
@@ -44,7 +47,7 @@
 
 	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
 
-	let sortedSteps = $derived([...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder));
+	let sortedSteps = $derived(workflowSteps.toSorted((a, b) => a.stepOrder - b.stepOrder));
 
 	let actualCurrentStep = $derived(
 		conversation.isLive
@@ -53,10 +56,6 @@
 	);
 
 	let isRevisiting = $derived(workflowStep.progressStatus === 'done');
-
-	// Hoisted to the workflow +layout.ts so the support sidebar shares them.
-	let availableDocuments = $derived(data.availableDocuments);
-	let hasKnowledgeBaseDocs = $derived(data.hasKnowledgeBaseDocs);
 
 	let stepItems = $derived<StepItem[]>(
 		sortedSteps.map((ws) => {
@@ -260,7 +259,7 @@
 	<StepShell class="min-h-0 grow">
 		{#snippet header()}
 			<header class="bg-background pt-3 md:pt-4">
-				<div class={STEP_COLUMN}>
+				<div class={STEP_COLUMN_CLASS}>
 					<StepProgressBar steps={stepItems} currentIndex={viewedIndex} {fill} />
 				</div>
 				{#if showNavigationSkeleton.current}
@@ -279,7 +278,7 @@
 		{/snippet}
 
 		{#snippet content()}
-			<div class={cn(STEP_COLUMN, 'flex min-h-full flex-col pt-2')}>
+			<div class={cn(STEP_COLUMN_CLASS, 'flex min-h-full flex-col pt-2')}>
 				{#if showNavigationSkeleton.current}
 					{#if navigatingToToolType === HeyForm.TOOL_NAME}
 						<HeyForm.UserUISkeleton />

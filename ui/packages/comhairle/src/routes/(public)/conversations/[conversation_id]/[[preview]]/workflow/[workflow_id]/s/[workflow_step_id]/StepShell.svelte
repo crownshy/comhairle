@@ -15,8 +15,8 @@
 
 	// Measured so the scroll can reserve room for the bar, plus a gap above it.
 	let barHeight = $state(80);
-	const BAR_GAP = 24;
-	let scrollPadding = $derived(bar ? barHeight + BAR_GAP : 0);
+	const BAR_GAP_PX = 24;
+	let scrollPadding = $derived(bar ? barHeight + BAR_GAP_PX : 0);
 </script>
 
 <!-- minmax(0,1fr) stops a wide header row pushing the grid past the viewport. -->
