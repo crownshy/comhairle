@@ -3,6 +3,7 @@
 	import { Plus, Pencil } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { isBlankRichText } from '$lib/utils/isBlankRichText';
 
 	type Props = {
 		/** Field name, used in the empty-state call to action ("Add privacy policy"). */
@@ -19,17 +20,8 @@
 
 	let { label, content, open, onOpenChange, children }: Props = $props();
 
-	// Rich text counts as empty when it's null/blank or just an empty paragraph, so a
-	// never-set field shows the "Add …" call to action rather than an empty preview card.
-	let isEmpty = $derived.by(() => {
-		const raw = (content ?? '').trim();
-		if (!raw) return true;
-		const withoutTags = raw
-			.replace(/<[^>]*>/g, '')
-			.replace(/&nbsp;/g, '')
-			.trim();
-		return withoutTags.length === 0;
-	});
+	// A never-set field shows the "Add …" call to action rather than an empty preview card.
+	let isEmpty = $derived(isBlankRichText(content));
 </script>
 
 {#if open}

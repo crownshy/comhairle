@@ -39,9 +39,9 @@ Creating a Conversation immediately (with an auto-generated title and an empty W
 _Avoid_: Empty workflow (that's the underlying template key)
 
 **Data protocol**:
-A per-Step declaration of who may see the data participants produce in that Step. Canonical four-level ladder, least-to-most open: **Confidential** (no one) → **Restricted** (organiser only) → **Collaborative** (organiser + other participants) → **Open** (everyone).
-_Avoid_: Private/Limited (stale Learn-guide wording for Confidential/Restricted), "data sharing", "data policy".
-_Status_: Only Confidential and Restricted are backed today — they map onto the existing `request_user_share_permission` boolean (`false`→Confidential, `true`→Restricted). Collaborative and Open appear in the UI for design fidelity but are disabled pending a team decision on introducing a real `data_protocol` enum column (flagged as an open question on the PR).
+Per-Step text telling participants how the data they produce in that Step is used: why it is collected, who sees it, and how it is reported. Stored as `workflow_step.data_protocol`, a translatable rich text field. Blank shows the tool's default text. Participants read it at the top of the Find out more Privacy tab.
+_Avoid_: "data sharing", "data policy", and the old Confidential/Restricted/Collaborative/Open ladder, which this replaced (ADR-0050).
+_Note_: Thinking Space's consent prompt is a separate switch on that tool (`request_user_share_permission`), not part of the Data protocol.
 
 **Role assignment**:
 An explicit grant that links an actor (user or organisation) to a named role on a resource (`resource_type` + `resource_id`). Role assignments are durable records and form the source of truth for authorization.

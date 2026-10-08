@@ -7,6 +7,7 @@ import {
 	Bot,
 	type Icon
 } from 'lucide-svelte';
+import * as m from '$lib/paraglide/messages';
 
 /**
  * The discriminant used on a step's `toolConfig.type` / `previewToolConfig.type`.
@@ -50,6 +51,10 @@ export type ToolMeta = {
 	infoSlug: string;
 	/** Key passed to the add-step switch (see {@link import('./createWorkflowStep').createWorkflowStep}). */
 	creationKey: CreationKey;
+	/** Whether the step uses an AI model, so participants get a pointer to the AI FAQ. */
+	usesAI: boolean;
+	/** What participants read about how their data is used when the admin leaves it blank. */
+	dataProtocolDefault: () => string;
 	/**
 	 * Hardcoded typical duration in minutes shown on the "Estimated time" pill.
 	 * Placeholder until a real per-step `estimated_minutes` column lands (see CONTEXT.md).
@@ -86,6 +91,8 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		icon: BookOpen,
 		infoSlug: 'learn',
 		creationKey: 'Learn',
+		usesAI: true,
+		dataProtocolDefault: m.data_protocol_default_learn,
 		estimatedMinutes: 10,
 		description:
 			'Help participants build understanding before or during engagement. Use the Topic Onboarding step to share text, images, videos, audio, and other rich media that provide context, guidance, or key information.',
@@ -104,6 +111,8 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		icon: Bot,
 		infoSlug: 'thinking_space',
 		creationKey: 'Thinking Space',
+		usesAI: true,
+		dataProtocolDefault: m.data_protocol_default_thinkingspace,
 		estimatedMinutes: 12,
 		description:
 			'Help participants explore their views by asking them non-leading coaching questions that broaden and deepen their views.',
@@ -122,6 +131,8 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		icon: MessagesSquare,
 		infoSlug: 'polis',
 		creationKey: 'Polis',
+		usesAI: false,
+		dataProtocolDefault: m.data_protocol_default_polis,
 		estimatedMinutes: 12,
 		description:
 			"Show participants others' views and vote 'Agree', 'Disagree' or 'Pass'. Participants can also submit their own views.",
@@ -139,6 +150,8 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		icon: ListChecks,
 		infoSlug: 'heyform',
 		creationKey: 'Survey',
+		usesAI: false,
+		dataProtocolDefault: m.data_protocol_default_heyform,
 		estimatedMinutes: 9,
 		description: 'Ask participants a series of pre-planned questions.',
 		bestFor: ['Structured data collection and analysis', 'Pre- and post-engagement feedback'],
@@ -153,6 +166,8 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		icon: ListOrdered,
 		infoSlug: 'prioritization',
 		creationKey: 'Prioritization',
+		usesAI: false,
+		dataProtocolDefault: m.data_protocol_default_prioritization,
 		estimatedMinutes: 10,
 		// PLACEHOLDER copy (needs product/design review).
 		description:
@@ -169,6 +184,8 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		icon: Bot,
 		infoSlug: 'elicitation_bot',
 		creationKey: 'Elicitation Bot',
+		usesAI: true,
+		dataProtocolDefault: m.data_protocol_default_elicitationbot,
 		estimatedMinutes: 10,
 		// PLACEHOLDER copy (needs product/design review).
 		description:
@@ -187,6 +204,8 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		icon: Video,
 		infoSlug: 'lived_experience',
 		creationKey: 'Lived Experience',
+		usesAI: false,
+		dataProtocolDefault: m.data_protocol_default_stories,
 		estimatedMinutes: 8,
 		// PLACEHOLDER copy (needs product/design review).
 		description:
@@ -226,6 +245,7 @@ export function isEventPaletteItem(item: PaletteItem): item is EventPaletteMeta 
 	return !('creationKey' in item);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for when the palette brings it back
 const VIDEO_CONFERENCE: EventPaletteMeta = {
 	type: 'videoconference',
 	displayName: 'Online video conference',
@@ -272,51 +292,4 @@ export function toolMeta(type: string | undefined | null): ToolMeta | undefined 
 export function toolInfoUrl(type: string | undefined | null): string {
 	const meta = toolMeta(type);
 	return meta ? `/admin/info/tools/${meta.infoSlug}` : '/admin/info/tools';
-}
-
-/**
- * Data protocol ladder (least -> most open). Only Confidential and Restricted are
- * currently backed (mapped onto the `request_user_share_permission` boolean); the
- * other two render disabled pending a real enum column. See CONTEXT.md.
- */
-export type DataProtocol = 'confidential' | 'restricted' | 'collaborative' | 'open';
-
-export const DATA_PROTOCOLS: {
-	value: DataProtocol;
-	label: string;
-	blurb: string;
-	enabled: boolean;
-}[] = [
-	{
-		value: 'confidential',
-		label: 'Confidential',
-		blurb: 'User data will not be shared with anyone.',
-		enabled: true
-	},
-	{
-		value: 'restricted',
-		label: 'Restricted',
-		blurb: 'User data will be shared with the organiser only.',
-		enabled: true
-	},
-	{
-		value: 'collaborative',
-		label: 'Collaborative',
-		blurb: 'User data will be shared with the organiser and other participants.',
-		enabled: false
-	},
-	{
-		value: 'open',
-		label: 'Open',
-		blurb: 'User data will be shared with everyone.',
-		enabled: false
-	}
-];
-
-/** Map the existing boolean onto the two backed protocol levels. */
-export function protocolFromBool(share: boolean): DataProtocol {
-	return share ? 'restricted' : 'confidential';
-}
-export function boolFromProtocol(p: DataProtocol): boolean {
-	return p === 'restricted';
 }

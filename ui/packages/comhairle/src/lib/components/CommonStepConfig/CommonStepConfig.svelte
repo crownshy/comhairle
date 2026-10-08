@@ -16,14 +16,12 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Switch } from '../ui/switch';
 	import { Label } from '../ui/label';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import {
-		DATA_PROTOCOLS,
-		protocolFromBool,
-		boolFromProtocol,
-		type DataProtocol
-	} from '$lib/tool_meta';
-	import { Check, ChevronDown, Database } from 'lucide-svelte';
+		defaultDataProtocol,
+		defaultDataProtocolHtml,
+		hasDataProtocolText
+	} from '$lib/dataProtocol';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { useDebounce } from 'runed';
@@ -68,6 +66,48 @@
 		getPrimaryFallback: () => step?.description ?? '',
 		refresh: () => invalidate(key('admin/conversation/workflow'))
 	});
+	const dataProtocolSource = createTextContentSource({
+		getTranslation: () => step?.translations?.dataProtocol ?? undefined,
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLanguages,
+		getPrimaryFallback: () => step?.dataProtocol ?? '',
+		refresh: () => invalidate(key('admin/conversation/workflow')),
+		ensureTextContentId: createDataProtocol
+	});
+
+	let toolType = $derived(step?.previewToolConfig?.type);
+	let dataProtocolIsBlank = $derived(
+		!hasDataProtocolText(dataProtocolSource.contents[primaryLocale])
+	);
+
+	async function createDataProtocol(content: string): Promise<string | undefined> {
+		const textContent = await tryCatchAsync(() =>
+			apiClient.CreateTextContent({ content, format: 'rich', primary_locale: primaryLocale })
+		);
+		if (textContent.err !== null) {
+			notifications.send({ message: 'Failed to create data protocol', priority: 'ERROR' });
+			return;
+		}
+
+		const linked = await tryCatchAsync(() =>
+			apiClient.UpdateConversationWorkflowStep(
+				{ data_protocol: textContent.ok.id },
+				{
+					params: {
+						conversation_id,
+						workflow_id: step.workflowId,
+						workflow_step_id: step.id
+					}
+				}
+			)
+		);
+		if (linked.err !== null) {
+			notifications.send({ message: 'Failed to update data protocol', priority: 'ERROR' });
+			return;
+		}
+
+		return textContent.ok.id;
+	}
 
 	// Header / delete-dialog / preview read the live primary content straight from the sources.
 	let displayName = $derived(nameSource.contents[primaryLocale] ?? '');
@@ -88,17 +128,6 @@
 	let required = $derived(step?.required ?? false);
 	let revisitable = $derived(step?.canRevisit ?? false);
 	let requestUserSharePermission = $derived(step?.requestUserSharePermission ?? false);
-
-	// Data protocol maps onto the `requestUserSharePermission` boolean (only Confidential
-	// and Restricted are backed today; see tool_meta DATA_PROTOCOLS).
-	let dataProtocol = $derived(protocolFromBool(requestUserSharePermission));
-	let currentProtocol = $derived(
-		DATA_PROTOCOLS.find((d) => d.value === dataProtocol) ?? DATA_PROTOCOLS[0]
-	);
-	function setDataProtocol(protocol: DataProtocol) {
-		if (protocol === dataProtocol) return;
-		handleSwitchChange(boolFromProtocol(protocol), 'requestUserSharePermission');
-	}
 
 	const debouncedUpdateRequired = useDebounce(async (checked: boolean, field: string) => {
 		try {
@@ -186,6 +215,40 @@
 			/>
 		</div>
 	</div>
+
+	<div class="pt-4">
+		<div class="flex flex-col gap-1">
+			<span class="text-lg font-semibold">Data protocol</span>
+			<p class="text-muted-foreground text-sm">
+				Tells participants how their answers in this step are used. Leave blank to use the
+				default for this tool.
+			</p>
+		</div>
+		<div class="flex flex-col items-start gap-2 pt-4">
+			<div class="w-full">
+				<TranslatableField
+					source={dataProtocolSource}
+					{primaryLocale}
+					{supportedLanguages}
+					{availableDocuments}
+					conversationId={conversation_id}
+					editorType="rich"
+					placeholder={defaultDataProtocol(toolType)}
+					minHeight="100px"
+					maxHeight="150px"
+				/>
+			</div>
+			{#if dataProtocolIsBlank}
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => dataProtocolSource.saveSource(defaultDataProtocolHtml(toolType))}
+				>
+					Start from the default
+				</Button>
+			{/if}
+		</div>
+	</div>
 {/snippet}
 
 {#snippet switches()}
@@ -205,43 +268,18 @@
 		<Label class="text-base">Required step</Label>
 		<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
 	</div>
-	<div class="flex flex-col gap-2">
-		<div class="flex flex-col gap-1">
-			<Label class="text-base">Data protocol</Label>
-			<span class="text-muted-foreground text-sm">
-				Controls whether participants are asked to share their responses, and with whom.
+	{#if toolType === 'thinkingspace'}
+		<div class="flex items-center gap-2">
+			<Switch
+				checked={requestUserSharePermission}
+				onCheckedChange={(value) => handleSwitchChange(value, 'requestUserSharePermission')}
+			/>
+			<Label class="text-base">Ask before sharing summaries</Label>
+			<span class="text-muted-foreground ml-2 text-sm">
+				(Participants choose whether organisers see their summary)
 			</span>
 		</div>
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
-				class="border-input flex h-9 w-full max-w-sm items-center justify-between gap-2 rounded-md border px-3 text-sm"
-			>
-				<span class="flex items-center gap-2">
-					<Database class="size-4" />
-					{currentProtocol.label}
-				</span>
-				<ChevronDown class="size-4 opacity-50" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content class="max-w-sm">
-				{#each DATA_PROTOCOLS as protocol (protocol.value)}
-					<DropdownMenu.Item
-						disabled={!protocol.enabled}
-						onSelect={() => setDataProtocol(protocol.value)}
-					>
-						<span class="flex w-4 shrink-0 justify-center">
-							{#if dataProtocol === protocol.value}
-								<Check class="size-3" />
-							{/if}
-						</span>
-						<span class="flex flex-col">
-							<span>{protocol.label}{!protocol.enabled ? ' (soon)' : ''}</span>
-							<span class="text-muted-foreground text-xs">{protocol.blurb}</span>
-						</span>
-					</DropdownMenu.Item>
-				{/each}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	</div>
+	{/if}
 {/snippet}
 
 {#snippet dangerZone()}
