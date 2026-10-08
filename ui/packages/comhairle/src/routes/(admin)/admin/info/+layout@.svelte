@@ -111,7 +111,7 @@
 					aria-label="Admin guide"
 				>
 					{#each NAV_GROUPS as group (group.label)}
-						<Collapsible.Root open={group.items.some(isActiveItem)}>
+						<Collapsible.Root open={group.items.some(isActiveItem)} class="group">
 							<Collapsible.Trigger
 								class="text-foreground hover:bg-muted flex w-full items-center justify-between rounded-lg px-3 py-2 text-base font-semibold"
 							>
@@ -128,7 +128,7 @@
 											<Collapsible.Root open={isActiveItem(item)}>
 												<div class="flex items-center gap-1">
 													<Collapsible.Trigger
-														class="text-foreground hover:bg-muted flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium [&[data-state=closed]>svg]:-rotate-90"
+														class="group/guide text-foreground hover:bg-muted flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium [&[data-state=closed]>svg]:-rotate-90"
 													>
 														<span class="flex items-center gap-2">
 															<Folder
