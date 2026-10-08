@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
+	import TabContent from './TabContent.svelte';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -17,10 +18,17 @@
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
+	let canLaunch = $derived(
+		permissions.can('conversation', 'conversation_launch', conversation.id)
+	);
+	let canUpdate = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 	let displayTitle = $derived(
 		getTextInLocale(
 			conversation.translations?.title,
@@ -46,6 +54,13 @@
 			.replace(/\/+$/, '')
 			.startsWith(`/admin/conversations/${conversation.id}/design/step/`)
 	);
+
+	// Configure renders its own sub-tab strip above a TabContent, so it skips the padded wrapper.
+	let isConfigureSection = $derived.by(() => {
+		const base = `/admin/conversations/${conversation.id}/configure`;
+		const path = page.url.pathname.replace(/\/+$/, '');
+		return path === base || path.startsWith(`${base}/`);
+	});
 
 	// Recruit (invites) is the same shape as Configure: a static `?subtab=` strip over one page,
 	// so we server-render it here from INVITE_SUBTABS instead of a client `$effect`.
@@ -157,20 +172,27 @@
 					{#if !conversation.isComplete}
 						<DropdownMenu.Item
 							class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
+							disabled={!canLaunch}
 							onclick={() => (endModalOpen = true)}
 						>
 							<CircleX class="text-destructive size-4" />
 							End Conversation
 						</DropdownMenu.Item>
 					{:else}
-						<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
+						<DropdownMenu.Item
+							disabled={!canLaunch}
+							onclick={() => (endModalOpen = true)}
+						>
 							<Check class="size-4" />
 							Re-open Conversation
 						</DropdownMenu.Item>
 					{/if}
 				{:else}
 					<DropdownMenu.Separator />
-					<DropdownMenu.Item onclick={() => (launchModalOpen = true)}>
+					<DropdownMenu.Item
+						disabled={!canLaunch}
+						onclick={() => (launchModalOpen = true)}
+					>
 						<ArrowUpRight class="size-4" />
 						Launch Conversation
 					</DropdownMenu.Item>
@@ -226,13 +248,17 @@
 					{#if !conversation.isComplete}
 						<DropdownMenu.Item
 							class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
+							disabled={!canLaunch}
 							onclick={() => (endModalOpen = true)}
 						>
 							<CircleX class="text-destructive size-4" />
 							End Conversation
 						</DropdownMenu.Item>
 					{:else}
-						<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
+						<DropdownMenu.Item
+							disabled={!canLaunch}
+							onclick={() => (endModalOpen = true)}
+						>
 							<Check class="size-4" />
 							Re-open Conversation
 						</DropdownMenu.Item>
@@ -240,7 +266,12 @@
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 		{:else}
-			<Button variant="default" class="h-10" onclick={() => (launchModalOpen = true)}>
+			<Button
+				variant="default"
+				class="h-10"
+				disabled={!canLaunch}
+				onclick={() => (launchModalOpen = true)}
+			>
 				Launch Conversation
 			</Button>
 		{/if}
@@ -275,7 +306,7 @@
 		<WorkflowStepStrip
 			conversationId={conversation.id}
 			steps={data.workflowSteps}
-			onAddStep={() => (addStepDialog.open = true)}
+			onAddStep={canUpdate ? () => (addStepDialog.open = true) : undefined}
 		/>
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
@@ -321,7 +352,17 @@
 {:else}
 	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
 		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-admin-background">
-		{@render children()}
+	<div class="bg-admin-background grow">
+		{#if showSwitchingSkeleton.current}
+			<TabContent>
+				<TabContentSkeleton />
+			</TabContent>
+		{:else if isConfigureSection}
+			{@render children()}
+		{:else}
+			<TabContent>
+				{@render children()}
+			</TabContent>
+		{/if}
 	</div>
 {/if}

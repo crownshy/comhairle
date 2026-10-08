@@ -55,6 +55,9 @@ The short list. Full rationale for each is in [STYLE_GUIDE.md](STYLE_GUIDE.md).
   user leaves. See the Autosave section in [STYLE_GUIDE.md](STYLE_GUIDE.md).
 - **`text-base` is the floor** for content text. Tailwind utilities inline, flat shadcn
   tokens (`bg-card`, `text-muted-foreground`).
+- **Self-documenting code over comments.** Clear names and small functions first. Keep a
+  comment to a few plain lines saying why; anything longer goes in a colocated `NOTES.md`
+  or an ADR. No comment essays at the top of files.
 - **No em dashes** anywhere in code or prose.
 - Before finishing: `pnpm test:unit` and `pnpm check` pass; no `: any` where a real type
   fits; no stray `console.*`.

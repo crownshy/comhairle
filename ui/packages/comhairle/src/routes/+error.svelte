@@ -4,16 +4,13 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { ArrowLeft } from 'lucide-svelte';
+	import { canAccessAdminPortal } from '$lib/utils/permissions';
 
 	let status = $derived(page.status);
 	let message = $derived(page.error?.message ?? 'Something went wrong');
 
 	let user = $derived(page.data?.user);
-	let isAdmin = $derived(
-		page.data?.userRoles
-			? page.data.userRoles.find((ur: any) => ur.resource === 'Site')?.roles.includes('Admin')
-			: false
-	);
+	let isAdmin = $derived(canAccessAdminPortal(page.data?.userRoles));
 </script>
 
 <div class="flex min-h-screen w-full flex-col">

@@ -1,4 +1,4 @@
-use crate::models::permissions::{PermissionTriplet, ResourceType, Role};
+use crate::models::permissions::PermissionTriplet;
 use crate::redis_connection::RedisConnection;
 use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 use axum::extract::ConnectInfo;
@@ -145,24 +145,23 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     Ok(config)
 }
 
-pub const TEST_RESOURCE_TYPE: &str = "test";
+pub const TEST_RESOURCE_TYPE: &str = "conversation";
 pub const TEST_ROLE_NAME: &str = "tester";
 
-/// Test-only shim around [`Role::Test`] / [`ResourceType::Test`] so existing
-/// tests can keep using `TestRole::name()` / `resource_type()` / `make_triplet()`.
+/// Test role stored in the Conversation permission tables.
 pub struct TestRole;
 
 impl TestRole {
     pub fn name() -> &'static str {
-        Role::Tester.as_ref()
+        TEST_ROLE_NAME
     }
 
     pub fn resource_type() -> &'static str {
-        ResourceType::Test.as_ref()
+        TEST_RESOURCE_TYPE
     }
 
     pub fn make_triplet(resource_id: &Uuid) -> PermissionTriplet<'_> {
-        Role::Tester.triplet(resource_id)
+        PermissionTriplet(TEST_RESOURCE_TYPE, resource_id, TEST_ROLE_NAME)
     }
 }
 

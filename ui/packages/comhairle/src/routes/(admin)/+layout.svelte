@@ -13,6 +13,7 @@
 	let ownedConversations = $derived(data.ownedConversations);
 	let permittedConversations = $derived(data.permittedConversations);
 	let userOrganizations = $derived(data.userOrganizations);
+	let isSuperAdmin = $derived(data.isSuperAdmin);
 
 	if (!data.user) {
 		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
@@ -43,6 +44,7 @@
 			organizations: [],
 			canCreateOrganization: false
 		}}
+		{isSuperAdmin}
 		path={page.url.pathname}
 	/>
 	<SideBar.Inset class="min-h-0 min-w-0">

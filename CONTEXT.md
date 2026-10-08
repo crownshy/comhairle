@@ -39,18 +39,25 @@ Creating a Conversation immediately (with an auto-generated title and an empty W
 _Avoid_: Empty workflow (that's the underlying template key)
 
 **Data protocol**:
-A per-Step declaration of who may see the data participants produce in that Step. Canonical four-level ladder, least-to-most open: **Confidential** (no one) → **Restricted** (organiser only) → **Collaborative** (organiser + other participants) → **Open** (everyone).
-_Avoid_: Private/Limited (stale Learn-guide wording for Confidential/Restricted), "data sharing", "data policy".
-_Status_: Only Confidential and Restricted are backed today — they map onto the existing `request_user_share_permission` boolean (`false`→Confidential, `true`→Restricted). Collaborative and Open appear in the UI for design fidelity but are disabled pending a team decision on introducing a real `data_protocol` enum column (flagged as an open question on the PR).
+Per-Step text telling participants how the data they produce in that Step is used: why it is collected, who sees it, and how it is reported. Stored as `workflow_step.data_protocol`, a translatable rich text field. Blank shows the tool's default text. Participants read it at the top of the Find out more Privacy tab.
+_Avoid_: "data sharing", "data policy", and the old Confidential/Restricted/Collaborative/Open ladder, which this replaced (ADR-0050).
+_Note_: Thinking Space's consent prompt is a separate switch on that tool (`request_user_share_permission`), not part of the Data protocol.
 
 **Role assignment**:
-An explicit grant that links an actor (user or organisation) to a named role on a resource (`resource_type` + `resource_id`). Role assignments are durable records and form the source of truth for authorization.
+An explicit grant that links a recipient (User or User group) to a named role on a resource; changes to the assignment target that recipient, not individual users who inherit it. Granting a role to an Organization means granting it to that Organization's membership group.
+
+**Inherited role**:
+A role available to a User through current membership in a User group when access is checked, rather than a separate role assignment to that User. Leaving the group removes that inherited role without removing direct assignments or roles inherited through other groups.
+
+**Super Administrator**:
+A User with platform-wide authority through a direct or inherited Super Administrator role; at least one User must always retain that authority. Only a Super Administrator may grant that role to a User or User group, or add a User to a group holding it.
 
 **Permission action**:
-A single allowed operation (for example list, grant, revoke, read, update) that routes enforce. Roles grant sets of permission actions; authorization succeeds when any assigned role on the target resource grants the required action.
+A single allowed operation (for example list, grant, revoke, read, update) that routes enforce. Grants are additive: a recipient may hold multiple roles on a resource, and a User's allowed actions combine all direct and inherited roles on that resource.
+Resource owners may list, grant, revoke, and replace role assignments on their own resource without System permission-management authority. Ownership does not grant authority over System role assignments.
 
 **Authorization precedence**:
-Permission checks resolve in this order: resource ownership allows, then system admin grant allows globally, then role-action mapping on the target resource is evaluated. There are currently no explicit deny rules.
+Ownership of the target resource allows access without evaluating role assignments; otherwise, Super Administrator authority allows globally, followed by evaluation of direct and inherited roles on the target resource. Super Administrator grant and group-addition restrictions remain mandatory regardless of ownership; there are no explicit deny rules.
 
 ### Participant journey
 
@@ -69,14 +76,50 @@ The per-Conversation setting (`allow_revisit_after_finishing`, default `true`) g
 **Revisitable step**:
 The per-Step `can_revisit` flag (default `false`), controlling whether a participant may navigate back to that Step once they have completed it. Governs mid-flow navigation only. Once a participant is [[#finished-a-participant-is-finished]] it is subordinate to [[#revisit-after-finishing]].
 
+### Participant step chrome
+
+The participant-facing frame around a Step, shared by both breakpoints. Replaces the old
+`StepHeader` chevrons plus `StepSelector` pair. See
+[ADR-0047](documentation/adr/0047-one-pager-innermost-first-navigation.md) and
+[ADR-0048](documentation/adr/0048-the-middle-is-the-move-the-corners-are-navigation.md).
+
+**Step shell**:
+The one-screen layout a Step renders in: a header on top, the tool scrolling in the middle,
+and a bar fixed at the bottom. The shell applies at every width; on desktop the header and
+bar sit at the window edges and the tool scrolls between them, with no card around it. Tools
+that scroll to the top after a page turn scroll the shell's container, not the window.
+_Avoid_: Card, page wrapper.
+
+**Progress bar**:
+The segmented bar at the top of the [[#step-shell]]: one stub per Step, the current Step a
+flexible track that fills. Completed stubs read filled. The bar is decoration for a screen
+reader; the "Step N of M" line beneath it carries the position.
+_Avoid_: Stepper (the old row of circles), step selector.
+
+**Pager**:
+The bar at the bottom of the [[#step-shell]]: back on the left, forward on the right, and
+nothing between them. Its arrows traverse the innermost open sequence first (a tool-internal
+sequence such as Learn's pages, then the Step boundary). The forward slot states one thing at
+a time: Next, or Skip on an optional Step that cannot yet advance.
+_Avoid_: Footer (that is the site-wide `Footer.svelte`, which the step route does not
+render), toolbar.
+
 ### Organizations and access
 
+**User group**:
+A set of users to which roles can be assigned collectively. A user may belong to multiple User groups.
+_Avoid_: Organization (the entity that owns and manages its membership group), team (a possible future concept), opinion group (a Polis-derived cluster).
+
+**Organization membership group**:
+The single User group owned and managed by an Organization that determines its membership. Each Organization has exactly one Organization membership group for now.
+
 **Organization Administrator**:
-A user explicitly assigned elevated permissions on one Organization, including organization update, organization delete, and organization member add/remove.
+A user with an Organization Administrator role on one Organization, including authority to update or delete it, manage membership, and promote other members to Administrator or demote them to Member. Membership changes do not require resource-owner approval, but adding Users to a group holding the Super Administrator role requires Super Administrator authority.
+An Organization Administrator may not change their own Organization membership or Administrator role, including removing their inherited Administrator authority through group-grant changes; an existing Organization must retain at least one Administrator.
 _Avoid_: Org owner, org contact, organization user.
 
 **Organization Member**:
-A user associated with an Organization for membership purposes, without implied administrative permissions.
+A user who belongs to an Organization's Organization membership group; membership alone does not authorize permission changes, and a user may belong to multiple Organizations. Revoking a direct Administrator assignment preserves membership and does not change inherited roles.
 _Avoid_: Organization admin (unless they also hold Organization Administrator assignment).
 
 **Primary host organization**:
@@ -84,12 +127,35 @@ The single Organization linked directly on a Conversation as its primary institu
 _Avoid_: Co-host, conversation owner.
 
 **Co-hosting organization**:
-An Organization explicitly associated with a Conversation as an additional host beside the primary host organization. Co-hosting organizations are inferred by ownership of the Conversation co-host role.
+An Organization explicitly associated with a Conversation as an additional host beside the primary host organization. Co-hosting organizations are identified by a Conversation co-host role assignment to their Organization membership group.
 _Avoid_: Primary host organization, member organization.
 
 **Conversation co-host role**:
 A conversation-scoped role intended for organization actors, granting read-only access (`ConversationRead`) by default.
 _Avoid_: Content editor (that role implies update access).
+
+**Conversation Owner**:
+The User who owns a Conversation and has full authority over it, including launch and deletion. Ownership is distinct from an assigned Administrator role.
+
+**Conversation Administrator**:
+A User with full authority over one Conversation, including launch, deletion, role management, content editing, moderation, translation, and data export.
+_Avoid_: Organization Administrator, Super Administrator (those have different scopes).
+
+**Conversation Observer**:
+A User with read-only access to a Conversation. Observer access does not confer editing, moderation, translation, export, launch, or deletion authority.
+
+**Conversation Content Editor**:
+A User who can edit a Conversation's content, tool configuration, and Workflow design, but cannot launch or delete it. Moderation, translation, and data export are separate capabilities.
+
+**Conversation Moderator**:
+A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design.
+
+**System Translator**:
+A User with authority to create, edit, and delete text content in all formats and locales, including the primary locale, across all Conversations and system content. This authority includes text-content configuration but does not grant permission management or other administrative capabilities.
+_Avoid_: Conversation Translator (that role has a narrower scope), System Administrator.
+
+**Conversation Data Access**:
+Authority to export data belonging to a Conversation, without conferring content-editing, moderation, translation, launch, or deletion authority.
 
 **Organization contact email**:
 A communication address for the Organization entity itself. It is not a permission grant and is distinct from both member emails and Organization Administrator emails.
@@ -199,3 +265,48 @@ A composition of report components. There are exactly four, each a different aud
 4. **End of engagement report** — participant + public, final (frozen snapshot), conversation-level cross-tool; **human-authored**: auto-generated insights that an editor curates in a rich-text (TipTap) document, pulling component blocks in.
 _Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate concern, not one of the four).
 _Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
+
+### Room display
+
+**Room display**:
+The Polis Step's live face on a shared screen: a large-format, per-Step surface a facilitator projects in a room while a Polis conversation is running. Sits alongside [[#insights]] as a per-Step view (not conversation-level like [[#report]]), fed by the same `report_data` plus a live event feed.
+_Avoid_: "live event page" and "live view" (taken: `events/[event_id]/live` is the Jitsi meeting room with breakouts and an agenda). Avoid "presentation mode" for the surface as a whole; that names one [[#room-display-direction]].
+
+**Demo mode / Live mode**:
+The two sources a Room display can render from, chosen by `?mode=`. **Live** polls the Step's real `report_data`. **Demo** replays a scripted scenario with animated joins and votes, for showing the display without a room; it is the only source that carries per-participant votes, so only a demo colours each [[#opinion-map]] dot by its owner's own vote; live deals each group's counts across its dots instead ([[#apportioned-colouring]]).
+
+**Block / Layout / Board**:
+What a Room display is showing, and how it is arranged.
+
+A **block** is one switchable region of the display: question, counts, [[#opinion-map]], selected statement, statement strip, [[#statement-ticker|latest statements]], group controls, QR code. A block that is off is off wherever you are.
+
+A **layout** is how the space is spent, distinguished by _who does the interpreting_: **Split** (one full-width wall, facilitator controls along the bottom, the room interprets), **Console** (a calm wall beside a dense facilitator panel, interpretation split between the two), **Deck** (one idea per screen in sequence, advanced by hand, the facilitator interprets). Layouts are [[#report-view]]s, not separate products, and share one component set.
+
+A **board** is a layout, the set of blocks that are on, how the latest-statements block draws itself, and the room's lighting. It is spelled out by `?layout=`, `?blocks=`, `?latest=` and `?theme=`, named by `?variant=`, and edited live from the settings panel on the display itself, so any arrangement is a link you can send. A board a facilitator builds is remembered per display, but an explicit URL always wins over what the machine remembers.
+
+_Avoid_: "direction" (the earlier word for a layout, when there were three: Board, Deck and **Narrator**, a templated rolling commentary the machine interpreted; Narrator was cut and the one-screen Board became Split with every block on). Avoid "variant" for anything but a named board.
+
+**Room lighting**:
+Whether the display renders light or dark, set per display by `?theme=light|dark`; `auto` leaves the app's own setting alone. A property of the room rather than of the viewer: the same projector is unreadable dark in a bright hall and glaring light in a dim one. Drives the app-wide theme, because dark is a class on `<html>` and branded deployments key off it there, so it cannot be scoped to one page.
+
+**Ambient mode / Driven mode**:
+The Room display's two operating modes. **Ambient** is the default and has no pointer: it autoplays and must be legible across a room with no tooltips. **Driven** starts when the facilitator touches anything, making hover and click live. Every Room display component needs both behaviours.
+
+**Accent / Moment**:
+The two classes of live event on the Room display. An **accent** is in-place and non-blocking (a vote lands, the statement ticker scrolls) and must never take the screen; these fire constantly. A **moment** briefly takes the screen and is rare: people joining (anonymous, and burst-merged so a rush is one moment), a [[#reveal-stage]] unlocking, a new [[#opinion-group]] forming. Moments are rate-limited, and structural ones are stability-gated so Polis's oscillating cluster count cannot cry wolf. Vote-count milestones are deliberately not moments.
+
+**Reveal stage**:
+How much of the Room display is unlocked, gated on what Polis's math can actually support: **Empty** (no votes), **Warming** (votes arriving, no clusters yet, so only `overall_votes` bars plus the QR recruitment screen), **Shaped** (Polis has produced opinion groups, so [[#opinion-map]] and [[#consensus-continuum]] unlock), **Rich** (enough scored statements for consensus and divisiveness rankings to mean something). Stages **ratchet**: once reached, never re-locked, because Polis's group count genuinely oscillates. A demo shows the next threshold as a countdown; live does not, because the countdown counts voters and the live report only knows how many votes a statement got, not how many people cast them.
+
+**Opinion map**:
+One dot per **participant**, positioned by `ParticipantReportData.pca_position` and coloured by [[#opinion-group]]. The "who is in the room and where do they sit" view. Distinct from the [[#consensus-continuum]], where one dot is one **statement**.
+_Avoid_: "user clusters", "the beeswarm" (that is the continuum).
+
+**Statement ticker**:
+The Room display's running list of the most recently published statements, ordered by `polis_statement_aux.created_at` (the report payload carries no timestamp). A [[#block--layout--board|block]], and its own slide on a deck. Drawn four ways (`?latest=`): **row**, **column** and **aside** are still, moving only when a statement arrives, which is the default because moving text cannot be read across a room; **marquee** scrolls continuously and is kept only so the two can be judged in an actual room. **aside** says where rather than how, moving the block into the column under the statement strip in the one-wall layout, which is otherwise dead space. Deliberately **inert**: not clickable, not highlighted, not linked to anything else on the display. It is something the room watches. The only relationship on a Room display is [[#consensus-continuum]] dot to [[#opinion-map]] dot, and the continuum is the one surface a facilitator touches, so focus has a single origin.
+
+**Cross-highlight**:
+Hovering or selecting a statement on the [[#consensus-continuum]] recolours the dots on the [[#opinion-map]] by how the room voted on that statement. The continuum drives the map, which is why the display's statement strip (its room-scale continuum) takes an optional controlled `focusedTid`: in [[#ambient-mode--driven-mode|ambient mode]] nobody hovers, so something else has to decide what the swarm is pointing at. No live endpoint returns a per-participant vote matrix, so a live display deals each group's real counts across that group's dots ([[#apportioned-colouring]]): the proportions are exact and the dot-to-person mapping is not. A scripted scenario carries the real votes and colours each dot by its owner's.
+
+**Apportioned colouring**:
+How a live [[#room-display]] colours its [[#opinion-map]] for a [[#cross-highlight]]. `report_data` gives vote counts per statement per opinion group and no per-participant matrix, so each group's counts are dealt across that group's dots by largest remainder: 9 agrees in Group B colour 9 of Group B's dots. Exact within a group, between groups and overall; arbitrary only in which dot took which colour, and deliberately not stable from one statement to the next so no dot reads as a person who always agrees. Vote bars are read off the report rather than off the dots, so quotable numbers never round. See ADR-0040.

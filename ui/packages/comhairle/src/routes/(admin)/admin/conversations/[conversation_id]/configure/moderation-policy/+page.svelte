@@ -17,8 +17,12 @@
 	import SaveStatusPill from './SaveStatusPill.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import type { UpdateModerationPolicyReason } from '@crownshy/api-client/api';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { data, params } = $props();
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', data.conversation.id)
+	);
 
 	// `key` is a stable {#each} key: labels can be blank or repeated while editing, and a new
 	// reason has no id until its first save lands.
@@ -59,6 +63,7 @@
 	const pointedSteps = new Map<string, string | null>();
 
 	async function pointStepsAt(targetPolicyId: string | null) {
+		if (!canEdit) return;
 		const workflow = await data.streamedWorkflow;
 		if (workflow.err !== null) {
 			console.error(workflow.err);
@@ -89,6 +94,7 @@
 	// Steps are pointed at nothing before a delete, because the API refuses to delete a policy
 	// a step still uses.
 	async function save() {
+		if (!canEdit) return;
 		if (usingDefault) {
 			if (policyId === null) return;
 			await pointStepsAt(null);
@@ -144,12 +150,14 @@
 	});
 
 	function editRow(key: number, patch: Partial<Pick<Row, 'label' | 'description'>>) {
+		if (!canEdit) return;
 		rows = rows.map((row) => (row.key === key ? { ...row, ...patch } : row));
 		usingDefault = false;
 		autosave.schedule();
 	}
 
 	async function addRow() {
+		if (!canEdit) return;
 		const row: Row = { key: rows[rows.length - 1].key + 1, label: '', description: '' };
 		rows.push(row);
 		await tick();
@@ -157,6 +165,7 @@
 	}
 
 	function removeRow(key: number) {
+		if (!canEdit) return;
 		const index = rows.findIndex((row) => row.key === key);
 		if (index < 0) {
 			return;
@@ -167,6 +176,7 @@
 	}
 
 	function resetToDefault() {
+		if (!canEdit) return;
 		rows = toRows(data.defaultReasons);
 		usingDefault = true;
 		autosave.schedule();
@@ -177,7 +187,7 @@
 
 <div class="flex flex-col gap-6">
 	<div class="flex flex-wrap items-center gap-2">
-		<Button variant="outline" onclick={addRow}>
+		<Button variant="outline" onclick={addRow} disabled={!canEdit}>
 			<Plus class="mr-1.5 size-4" /> Add reason
 		</Button>
 		{#if !usingDefault}
@@ -185,6 +195,7 @@
 				variant="ghost"
 				onclick={resetToDefault}
 				title="Replace this list with the default reasons"
+				disabled={!canEdit}
 			>
 				<RotateCcw class="mr-1.5 size-4" /> Reset to default
 			</Button>
@@ -226,6 +237,7 @@
 								cells, matching the glossary editor. -->
 							<input
 								id="reject-reason-label-{row.key}"
+								disabled={!canEdit}
 								value={row.label}
 								oninput={(event) =>
 									editRow(row.key, { label: event.currentTarget.value })}
@@ -237,6 +249,7 @@
 							/>
 							<input
 								value={row.description}
+								disabled={!canEdit}
 								oninput={(event) =>
 									editRow(row.key, { description: event.currentTarget.value })}
 								placeholder="Shown to moderators when they pick this reason"
@@ -244,15 +257,17 @@
 								title={row.description}
 								class="text-foreground placeholder:text-muted-foreground/60 h-10 truncate bg-transparent px-3 text-base outline-none"
 							/>
-							<Button
-								variant="ghost"
-								size="icon"
-								onclick={() => removeRow(row.key)}
-								aria-label="Remove reason"
-								class="text-muted-foreground hover:text-destructive size-10 rounded-none"
-							>
-								<Trash2 class="size-4" />
-							</Button>
+							{#if canEdit}
+								<Button
+									variant="ghost"
+									size="icon"
+									onclick={() => removeRow(row.key)}
+									aria-label="Remove reason"
+									class="text-muted-foreground hover:text-destructive size-10 rounded-none"
+								>
+									<Trash2 class="size-4" />
+								</Button>
+							{/if}
 						</div>
 					{:else}
 						<p class="text-muted-foreground px-3 py-8 text-center text-base">

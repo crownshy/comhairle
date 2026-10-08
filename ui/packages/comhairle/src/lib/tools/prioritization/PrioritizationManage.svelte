@@ -25,6 +25,7 @@
 	import { useDebounce } from 'runed';
 	import { type ConversationWithTranslations } from '@crownshy/api-client/api';
 	import type { DraftTranslatableJsonField } from '$lib/components/Translation/translationUtils';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let {
 		workflowId,
@@ -35,6 +36,9 @@
 		workflowStep: WorkflowStepInput;
 		conversation: ConversationWithTranslations;
 	} = $props();
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 
 	/** The host page keys this component by step id, so the ids are stable for
 	 * the component's lifetime — capturing them once is intentional. */
@@ -94,6 +98,7 @@
 	let savingSectionOrder = $state(false);
 
 	async function commitQuestionOrder(next: DraftQuestion[]) {
+		if (!canEdit) return;
 		savingOrder = true;
 		try {
 			await store.saveToolConfig({ ...toolConfig, questions: next });
@@ -106,6 +111,7 @@
 	}
 
 	async function commitSectionQuestionOrder(next: DraftQuestion[]) {
+		if (!canEdit) return;
 		savingSectionOrder = true;
 		try {
 			await store.saveToolConfig({ ...toolConfig, sectionQuestions: next });
@@ -121,21 +127,25 @@
 	});
 
 	function openCreate() {
+		if (!canEdit) return;
 		selectedProposal = null;
 		editorOpen = true;
 	}
 
 	function openEdit(p: Proposal) {
+		if (!canEdit) return;
 		selectedProposal = p;
 		editorOpen = true;
 	}
 
 	function confirmDelete(p: Proposal) {
+		if (!canEdit) return;
 		selectedProposal = p;
 		deleteOpen = true;
 	}
 
 	async function runDelete() {
+		if (!canEdit) return;
 		if (!selectedProposal) return;
 		deleting = true;
 		try {
@@ -150,21 +160,25 @@
 	}
 
 	function openCreateQuestion() {
+		if (!canEdit) return;
 		selectedQuestionId = null;
 		questionEditorOpen = true;
 	}
 
 	function openEditQuestion(q: DraftQuestion) {
+		if (!canEdit) return;
 		selectedQuestionId = q.id;
 		questionEditorOpen = true;
 	}
 
 	function confirmDeleteQuestion(q: DraftQuestion) {
+		if (!canEdit) return;
 		selectedQuestionId = q.id;
 		questionDeleteOpen = true;
 	}
 
 	async function runDeleteQuestion() {
+		if (!canEdit) return;
 		if (!selectedQuestionId) return;
 		deletingQuestionInFlight = true;
 		try {
@@ -180,21 +194,25 @@
 	}
 
 	function openCreateSectionQuestion() {
+		if (!canEdit) return;
 		selectedSectionQuestionId = null;
 		sectionQuestionEditorOpen = true;
 	}
 
 	function openEditSectionQuestion(q: DraftQuestion) {
+		if (!canEdit) return;
 		selectedSectionQuestionId = q.id;
 		sectionQuestionEditorOpen = true;
 	}
 
 	function confirmDeleteSectionQuestion(q: DraftQuestion) {
+		if (!canEdit) return;
 		selectedSectionQuestionId = q.id;
 		sectionQuestionDeleteOpen = true;
 	}
 
 	async function runDeleteSectionQuestion() {
+		if (!canEdit) return;
 		if (!selectedSectionQuestionId) return;
 		deletingSectionQuestionInFlight = true;
 		try {
@@ -210,6 +228,7 @@
 	}
 
 	async function toggleRandomize(checked: boolean) {
+		if (!canEdit) return;
 		randomizeSaving = true;
 		try {
 			await store.saveToolConfig({ ...toolConfig, randomizeOrder: checked });
@@ -228,6 +247,7 @@
 	 * handles blank input differently: it returns early and keeps the previous value,
 	 * where clearing this one deliberately restores the default. */
 	const saveRequiredReviews = useDebounce(async (raw: string) => {
+		if (!canEdit) return;
 		const parsed = Number.parseInt(raw.trim(), 10);
 		const next = Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined;
 		try {
@@ -266,6 +286,7 @@
 
 	let savingAlignmentQuestion = $state(false);
 	async function setAlignmentQuestion(value: string) {
+		if (!canEdit) return;
 		savingAlignmentQuestion = true;
 		await store.saveToolConfig({ ...toolConfig, alignmentQuestionId: value });
 		savingAlignmentQuestion = false;
@@ -281,9 +302,11 @@
 					Participants will answer these for every proposal.
 				</p>
 			</div>
-			<Button onclick={openCreateQuestion}>
-				<Plus class="mr-2 h-4 w-4" /> Add question
-			</Button>
+			{#if canEdit}
+				<Button onclick={openCreateQuestion}>
+					<Plus class="mr-2 h-4 w-4" /> Add question
+				</Button>
+			{/if}
 		</header>
 
 		{#if questions.length === 0}
@@ -297,22 +320,26 @@
 		{:else}
 			<DraggableList
 				items={localQuestions}
-				onReorder={(next) => (localQuestions = next)}
+				onReorder={(next) => {
+					if (canEdit) localQuestions = next;
+				}}
 				onCommit={commitQuestionOrder}
-				dragDisabled={savingOrder}
+				dragDisabled={!canEdit || savingOrder}
 				class="space-y-3"
 			>
 				{#snippet children(q: DraftQuestion)}
 					<Card.Root>
 						<Card.Header class="flex flex-row items-start justify-between gap-4">
 							<div class="flex min-w-0 flex-1 items-start gap-3">
-								<button
-									type="button"
-									aria-label="Drag to reorder"
-									class="text-muted-foreground hover:text-foreground mt-1 cursor-grab active:cursor-grabbing"
-								>
-									<GripVertical class="h-4 w-4" />
-								</button>
+								{#if canEdit}
+									<button
+										type="button"
+										aria-label="Drag to reorder"
+										class="text-muted-foreground hover:text-foreground mt-1 cursor-grab active:cursor-grabbing"
+									>
+										<GripVertical class="h-4 w-4" />
+									</button>
+								{/if}
 								<div class="min-w-0 flex-1 space-y-2">
 									<Card.Title class="text-lg">
 										{q.text.localized || 'Untitled question'}
@@ -327,23 +354,25 @@
 									</div>
 								</div>
 							</div>
-							<div class="flex shrink-0 gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => openEditQuestion(q)}
-								>
-									<Pencil class="mr-2 h-3.5 w-3.5" /> Edit
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="text-destructive hover:text-destructive"
-									onclick={() => confirmDeleteQuestion(q)}
-								>
-									<Trash2 class="mr-2 h-3.5 w-3.5" /> Delete
-								</Button>
-							</div>
+							{#if canEdit}
+								<div class="flex shrink-0 gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => openEditQuestion(q)}
+									>
+										<Pencil class="mr-2 h-3.5 w-3.5" /> Edit
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="text-destructive hover:text-destructive"
+										onclick={() => confirmDeleteQuestion(q)}
+									>
+										<Trash2 class="mr-2 h-3.5 w-3.5" /> Delete
+									</Button>
+								</div>
+							{/if}
 						</Card.Header>
 					</Card.Root>
 				{/snippet}
@@ -356,6 +385,7 @@
 			<h3 class="text-lg font-bold">Select your alignment question</h3>
 			<Select.Root
 				type="single"
+				disabled={!canEdit}
 				value={toolConfig.alignmentQuestionId ?? questions[0].id}
 				onValueChange={setAlignmentQuestion}
 			>
@@ -391,9 +421,11 @@
 					Participants will answer these for every section of every proposal.
 				</p>
 			</div>
-			<Button onclick={openCreateSectionQuestion}>
-				<Plus class="mr-2 h-4 w-4" /> Add question
-			</Button>
+			{#if canEdit}
+				<Button onclick={openCreateSectionQuestion}>
+					<Plus class="mr-2 h-4 w-4" /> Add question
+				</Button>
+			{/if}
 		</header>
 
 		{#if sectionQuestions.length === 0}
@@ -407,22 +439,26 @@
 		{:else}
 			<DraggableList
 				items={localSectionQuestions}
-				onReorder={(next) => (localSectionQuestions = next)}
+				onReorder={(next) => {
+					if (canEdit) localSectionQuestions = next;
+				}}
 				onCommit={commitSectionQuestionOrder}
-				dragDisabled={savingSectionOrder}
+				dragDisabled={!canEdit || savingSectionOrder}
 				class="space-y-3"
 			>
-				{#snippet children(q: Question)}
+				{#snippet children(q: DraftQuestion)}
 					<Card.Root>
 						<Card.Header class="flex flex-row items-start justify-between gap-4">
 							<div class="flex min-w-0 flex-1 items-start gap-3">
-								<button
-									type="button"
-									aria-label="Drag to reorder"
-									class="text-muted-foreground hover:text-foreground mt-1 cursor-grab active:cursor-grabbing"
-								>
-									<GripVertical class="h-4 w-4" />
-								</button>
+								{#if canEdit}
+									<button
+										type="button"
+										aria-label="Drag to reorder"
+										class="text-muted-foreground hover:text-foreground mt-1 cursor-grab active:cursor-grabbing"
+									>
+										<GripVertical class="h-4 w-4" />
+									</button>
+								{/if}
 								<div class="min-w-0 flex-1 space-y-2">
 									<Card.Title class="text-lg">
 										{q.text.localized || 'Untitled question'}
@@ -437,23 +473,25 @@
 									</div>
 								</div>
 							</div>
-							<div class="flex shrink-0 gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => openEditSectionQuestion(q)}
-								>
-									<Pencil class="mr-2 h-3.5 w-3.5" /> Edit
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="text-destructive hover:text-destructive"
-									onclick={() => confirmDeleteSectionQuestion(q)}
-								>
-									<Trash2 class="mr-2 h-3.5 w-3.5" /> Delete
-								</Button>
-							</div>
+							{#if canEdit}
+								<div class="flex shrink-0 gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => openEditSectionQuestion(q)}
+									>
+										<Pencil class="mr-2 h-3.5 w-3.5" /> Edit
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="text-destructive hover:text-destructive"
+										onclick={() => confirmDeleteSectionQuestion(q)}
+									>
+										<Trash2 class="mr-2 h-3.5 w-3.5" /> Delete
+									</Button>
+								</div>
+							{/if}
 						</Card.Header>
 					</Card.Root>
 				{/snippet}
@@ -469,9 +507,11 @@
 					Add the proposals participants will rate against the questions above.
 				</p>
 			</div>
-			<Button onclick={openCreate}>
-				<Plus class="mr-2 h-4 w-4" /> Add proposal
-			</Button>
+			{#if canEdit}
+				<Button onclick={openCreate}>
+					<Plus class="mr-2 h-4 w-4" /> Add proposal
+				</Button>
+			{/if}
 		</header>
 
 		<div class="bg-card flex items-center justify-between rounded-md border p-3">
@@ -483,7 +523,7 @@
 			</div>
 			<Switch
 				checked={toolConfig.randomizeOrder}
-				disabled={randomizeSaving}
+				disabled={!canEdit || randomizeSaving}
 				onCheckedChange={toggleRandomize}
 			/>
 		</div>
@@ -499,6 +539,7 @@
 			</div>
 			<Input
 				id="requiredReviews"
+				disabled={!canEdit}
 				name="requiredReviews"
 				type="number"
 				min="1"
@@ -536,29 +577,35 @@
 								</Card.Title>
 								{#each proposal.sections as section (section.id)}
 									{#if section.body}
-										<div class="text-muted-foreground text-sm">
+										<div
+											class={canEdit
+												? 'text-muted-foreground text-sm'
+												: 'bg-card border-border rounded-lg border p-4 text-base'}
+										>
 											<ContentRenderer content={section.body} />
 										</div>
 									{/if}
 								{/each}
 							</div>
-							<div class="flex shrink-0 gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => openEdit(proposal)}
-								>
-									<Pencil class="mr-2 h-3.5 w-3.5" /> Edit
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="text-destructive hover:text-destructive"
-									onclick={() => confirmDelete(proposal)}
-								>
-									<Trash2 class="mr-2 h-3.5 w-3.5" /> Delete
-								</Button>
-							</div>
+							{#if canEdit}
+								<div class="flex shrink-0 gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => openEdit(proposal)}
+									>
+										<Pencil class="mr-2 h-3.5 w-3.5" /> Edit
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="text-destructive hover:text-destructive"
+										onclick={() => confirmDelete(proposal)}
+									>
+										<Trash2 class="mr-2 h-3.5 w-3.5" /> Delete
+									</Button>
+								</div>
+							{/if}
 						</Card.Header>
 					</Card.Root>
 				{/each}
@@ -567,132 +614,134 @@
 	</div>
 </section>
 
-<ProposalEditorDialog
-	open={editorOpen}
-	proposal={selectedProposal}
-	{store}
-	{primaryLocale}
-	{supportedLocales}
-	onOpenChange={(o) => {
-		editorOpen = o;
-		if (!o) {
-			selectedProposal = null;
-			// Silent reconcile: the dialog already flushed + reloaded on close, so a full refresh
-			// would only flip the list to its loading state, tearing it down and jumping scroll to top.
-			void store.reload();
-		}
-	}}
-/>
+{#if canEdit}
+	<ProposalEditorDialog
+		open={editorOpen}
+		proposal={selectedProposal}
+		{store}
+		{primaryLocale}
+		{supportedLocales}
+		onOpenChange={(o) => {
+			editorOpen = o;
+			if (!o) {
+				selectedProposal = null;
+				// Silent reconcile: the dialog already flushed + reloaded on close, so a full refresh
+				// would only flip the list to its loading state, tearing it down and jumping scroll to top.
+				void store.reload();
+			}
+		}}
+	/>
 
-<QuestionEditorDialog
-	open={questionEditorOpen}
-	question={selectedQuestion}
-	{store}
-	{toolConfig}
-	target="proposal"
-	onOpenChange={(o) => {
-		questionEditorOpen = o;
-		if (!o) selectedQuestionId = null;
-	}}
-	{primaryLocale}
-	{supportedLocales}
-/>
+	<QuestionEditorDialog
+		open={questionEditorOpen}
+		question={selectedQuestion}
+		{store}
+		{toolConfig}
+		target="proposal"
+		onOpenChange={(o) => {
+			questionEditorOpen = o;
+			if (!o) selectedQuestionId = null;
+		}}
+		{primaryLocale}
+		{supportedLocales}
+	/>
 
-<QuestionEditorDialog
-	open={sectionQuestionEditorOpen}
-	question={selectedSectionQuestion}
-	{store}
-	{toolConfig}
-	target="section"
-	onOpenChange={(o) => {
-		sectionQuestionEditorOpen = o;
-		if (!o) selectedSectionQuestionId = null;
-	}}
-	{primaryLocale}
-	{supportedLocales}
-/>
+	<QuestionEditorDialog
+		open={sectionQuestionEditorOpen}
+		question={selectedSectionQuestion}
+		{store}
+		{toolConfig}
+		target="section"
+		onOpenChange={(o) => {
+			sectionQuestionEditorOpen = o;
+			if (!o) selectedSectionQuestionId = null;
+		}}
+		{primaryLocale}
+		{supportedLocales}
+	/>
 
-<AlertDialog.Root
-	open={deleteOpen}
-	onOpenChange={(o) => {
-		deleteOpen = o;
-		if (!o) selectedProposal = null;
-	}}
->
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete proposal?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will permanently remove the proposal and any responses tied to it.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel disabled={deleting}>Cancel</AlertDialog.Cancel>
-			<AlertDialog.Action disabled={deleting} onclick={runDelete}>
-				{#if deleting}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				{/if}
-				Delete
-			</AlertDialog.Action>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+	<AlertDialog.Root
+		open={deleteOpen}
+		onOpenChange={(o) => {
+			deleteOpen = o;
+			if (!o) selectedProposal = null;
+		}}
+	>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Delete proposal?</AlertDialog.Title>
+				<AlertDialog.Description>
+					This will permanently remove the proposal and any responses tied to it.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel disabled={deleting}>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Action disabled={deleting} onclick={runDelete}>
+					{#if deleting}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					{/if}
+					Delete
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 
-<AlertDialog.Root
-	open={questionDeleteOpen}
-	onOpenChange={(o) => {
-		questionDeleteOpen = o;
-		if (!o) selectedQuestion = null;
-	}}
->
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete question?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will remove the question from this step. Existing responses to it will no
-				longer be collected.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel disabled={deletingQuestionInFlight}>Cancel</AlertDialog.Cancel>
-			<AlertDialog.Action disabled={deletingQuestionInFlight} onclick={runDeleteQuestion}>
-				{#if deletingQuestionInFlight}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				{/if}
-				Delete
-			</AlertDialog.Action>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+	<AlertDialog.Root
+		open={questionDeleteOpen}
+		onOpenChange={(o) => {
+			questionDeleteOpen = o;
+			if (!o) selectedQuestion = null;
+		}}
+	>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Delete question?</AlertDialog.Title>
+				<AlertDialog.Description>
+					This will remove the question from this step. Existing responses to it will no
+					longer be collected.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel disabled={deletingQuestionInFlight}>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Action disabled={deletingQuestionInFlight} onclick={runDeleteQuestion}>
+					{#if deletingQuestionInFlight}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					{/if}
+					Delete
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 
-<AlertDialog.Root
-	open={sectionQuestionDeleteOpen}
-	onOpenChange={(o) => {
-		sectionQuestionDeleteOpen = o;
-		if (!o) selectedSectionQuestion = null;
-	}}
->
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete per-section question?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will remove the question from every section in this step. Existing responses to
-				it will no longer be collected.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel disabled={deletingSectionQuestionInFlight}
-				>Cancel</AlertDialog.Cancel
-			>
-			<AlertDialog.Action
-				disabled={deletingSectionQuestionInFlight}
-				onclick={runDeleteSectionQuestion}
-			>
-				{#if deletingSectionQuestionInFlight}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				{/if}
-				Delete
-			</AlertDialog.Action>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+	<AlertDialog.Root
+		open={sectionQuestionDeleteOpen}
+		onOpenChange={(o) => {
+			sectionQuestionDeleteOpen = o;
+			if (!o) selectedSectionQuestion = null;
+		}}
+	>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Delete per-section question?</AlertDialog.Title>
+				<AlertDialog.Description>
+					This will remove the question from every section in this step. Existing
+					responses to it will no longer be collected.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel disabled={deletingSectionQuestionInFlight}
+					>Cancel</AlertDialog.Cancel
+				>
+				<AlertDialog.Action
+					disabled={deletingSectionQuestionInFlight}
+					onclick={runDeleteSectionQuestion}
+				>
+					{#if deletingSectionQuestionInFlight}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					{/if}
+					Delete
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+{/if}

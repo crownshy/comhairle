@@ -1,11 +1,13 @@
 import type { PageLoad } from './$types';
-import { apiClient } from '@crownshy/api-client/client';
+import { canPerformAction, loadUserActions } from '$lib/utils/permissions';
+import { loadRoleManagement } from '$lib/components/permissions/roleAssignments';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { key } from '$lib/utils/invalidationKey';
 
-export const load: PageLoad = async ({ parent, params, depends, fetch }) => {
+export const load: PageLoad = async ({ parent, params, depends }) => {
 	const { api, userOrganizations } = await parent();
-	depends('organization:details');
-	depends('organization:team');
-	depends('organization:regions');
+	depends(key('admin/organization/details'));
+	depends(key('admin/organization/permissions'));
 
 	try {
 		const organization = await api.GetOrganization({
@@ -16,40 +18,34 @@ export const load: PageLoad = async ({ parent, params, depends, fetch }) => {
 			(entry) => entry.organization.id === params.organization_id
 		);
 
-		let team: {
-			members: {
-				id: string;
-				username?: string | null;
-				email?: string | null;
-				role: 'member' | 'admin';
-			}[];
-		} = {
-			members: []
-		};
+		const organizationActions = await loadUserActions(api, 'organization', organization.id);
+		const canManageTeam =
+			canPerformAction(organizationActions, 'grant_permission') &&
+			canPerformAction(organizationActions, 'revoke_permission');
+		const roleManagement = canManageTeam
+			? await loadRoleManagement(api, 'organization', organization.id)
+			: null;
 
-		if (access?.canManageTeam) {
-			const teamResponse = await fetch(`/api/organizations/${params.organization_id}/team`);
-			if (teamResponse.ok) {
-				team = await teamResponse.json();
-			}
-		}
-
-		const regionsResponse = await apiClient.ListRegions({ queries: { limit: 500 } });
-		const regions = regionsResponse.records;
+		const regionsResponse = await tryCatchAsync(() =>
+			api.ListRegions({ queries: { limit: 500 } })
+		);
+		const regions = regionsResponse.err === null ? regionsResponse.ok.records : [];
 
 		return {
 			organization,
 			regions,
-			team,
+			organizationActions,
+			roleManagement,
 			canEdit: access?.canUpdate ?? false,
 			canDelete: access?.canDelete ?? false,
-			canManageTeam: access?.canManageTeam ?? false
+			canManageTeam
 		};
 	} catch (error) {
 		return {
 			organization: null,
 			regions: [],
-			team: { members: [] },
+			organizationActions: null,
+			roleManagement: null,
 			canEdit: false,
 			canDelete: false,
 			canManageTeam: false

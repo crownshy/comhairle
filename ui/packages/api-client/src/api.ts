@@ -92,6 +92,60 @@ export const PasswordResetUpdateRequest = z
 export type PasswordResetUpdateRequest = z.infer<
   typeof PasswordResetUpdateRequest
 >;
+export const ConversationAction = z.enum([
+  "conversation_read",
+  "conversation_update",
+  "conversation_admin",
+  "conversation_launch",
+  "conversation_delete",
+  "conversation_moderate",
+  "conversation_translate",
+  "conversation_export",
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+]);
+export type ConversationAction = z.infer<typeof ConversationAction>;
+export const OrganizationAction = z.enum([
+  "organization_read",
+  "organization_update",
+  "organization_delete",
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+  "organization_add_member",
+  "organization_remove_member",
+]);
+export type OrganizationAction = z.infer<typeof OrganizationAction>;
+export const SystemAction = z.enum([
+  "list_permission",
+  "grant_permission",
+  "revoke_permission",
+  "conversation_create",
+  "organization_create",
+  "translate",
+]);
+export type SystemAction = z.infer<typeof SystemAction>;
+export const UserAction = z.union([
+  ConversationAction,
+  OrganizationAction,
+  SystemAction,
+]);
+export type UserAction = z.infer<typeof UserAction>;
+export const PermissionResourceType = z.enum([
+  "system",
+  "conversation",
+  "organization",
+]);
+export type PermissionResourceType = z.infer<typeof PermissionResourceType>;
+export const UserActions = z
+  .object({
+    actions: z.array(UserAction),
+    resourceId: z.string().uuid(),
+    resourceType: PermissionResourceType,
+  })
+  .passthrough();
+export type UserActions = z.infer<typeof UserActions>;
 export const ResourceType = z.union([
   z.literal("Site"),
   z.object({ Conversation: z.string().uuid() }),
@@ -165,6 +219,7 @@ export const LocalizedOrganizationDto = z
     name: z.string(),
     orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
+    userGroupId: z.string().uuid(),
   })
   .passthrough();
 export type LocalizedOrganizationDto = z.infer<typeof LocalizedOrganizationDto>;
@@ -482,6 +537,7 @@ export const PolisStatementAux = z
     original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
     statement_text: z.string(),
     themes: z.array(z.string()),
     updated_at: z.string().datetime({ offset: true }),
@@ -501,6 +557,7 @@ export const CreatePolisStatementAux = z
     moderation_status: ModerationStatus.optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional().default(null),
     statement_text: z.string(),
     themes: z.array(z.string()),
     visible_statement_when_submitted: z
@@ -534,6 +591,40 @@ export const SyncStatementAuxResponse = z
   })
   .passthrough();
 export type SyncStatementAuxResponse = z.infer<typeof SyncStatementAuxResponse>;
+export const LocalizedStatement = z
+  .object({
+    ai_generated: z.boolean(),
+    display_locale: z.string(),
+    is_translation: z.boolean(),
+    original_text: z.string(),
+    polis_statement_id: z.number().int(),
+    requires_validation: z.boolean(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
+    text: z.string(),
+  })
+  .passthrough();
+export type LocalizedStatement = z.infer<typeof LocalizedStatement>;
+export const PolisStatementTranslation = z
+  .object({
+    ai_generated: z.boolean(),
+    content: z.string(),
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    locale: z.string(),
+    polis_statement_aux_id: z.string().uuid(),
+    requires_validation: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type PolisStatementTranslation = z.infer<
+  typeof PolisStatementTranslation
+>;
+export const UpdateStatementTranslationRequest = z
+  .object({ content: z.string() })
+  .passthrough();
+export type UpdateStatementTranslationRequest = z.infer<
+  typeof UpdateStatementTranslationRequest
+>;
 export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
@@ -1427,6 +1518,7 @@ export const WorkflowStep = z
     activation_rule: ActivationRule,
     can_revisit: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
+    data_protocol: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     id: z.string().uuid(),
     is_offline: z.boolean(),
@@ -1635,13 +1727,18 @@ export const Translation4 = z
   .passthrough();
 export type Translation4 = z.infer<typeof Translation4>;
 export const WorkflowStepTranslations = z
-  .object({ description: Translation4, name: Translation4 })
+  .object({
+    dataProtocol: z.union([Translation4, z.null()]).optional(),
+    description: Translation4,
+    name: Translation4,
+  })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
 export const WorkflowStepWithTranslationsDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1770,6 +1867,7 @@ export const LocalizedWorkflowStepWithProgressDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1790,6 +1888,7 @@ export const LocalizedWorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1905,6 +2004,7 @@ export const WorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1922,6 +2022,7 @@ export const PartialWorkflowStep = z
   .object({
     activation_rule: z.union([ActivationRule, z.null()]),
     can_revisit: z.union([z.boolean(), z.null()]),
+    data_protocol: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     is_offline: z.union([z.boolean(), z.null()]),
     name: z.union([z.string(), z.null()]),
@@ -2768,6 +2869,7 @@ export const OrganizationDto = z
     name: z.string(),
     orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
+    userGroupId: z.string().uuid(),
   })
   .passthrough();
 export type OrganizationDto = z.infer<typeof OrganizationDto>;
@@ -2893,18 +2995,47 @@ export type RegionAreaLinksRequestDto = z.infer<
 >;
 export const RegionAreaDto = z
   .object({
+    areaGeometry: z.unknown().optional(),
+    areaSqm: z.union([z.number(), z.null()]).optional(),
+    bboxMaxLat: z.union([z.number(), z.null()]).optional(),
+    bboxMaxLng: z.union([z.number(), z.null()]).optional(),
+    bboxMinLat: z.union([z.number(), z.null()]).optional(),
+    bboxMinLng: z.union([z.number(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
-    zipPrefix: z.string(),
+    name: z.union([z.string(), z.null()]).optional(),
+    tags: z.array(z.string()),
+    zipPrefix: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type RegionAreaDto = z.infer<typeof RegionAreaDto>;
+export const PaginatedResults_for_RegionAreaDto = z
+  .object({ records: z.array(RegionAreaDto), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_RegionAreaDto = z.infer<
+  typeof PaginatedResults_for_RegionAreaDto
+>;
 export const CreateRegionArea = z
-  .object({ zip_prefix: z.string() })
+  .object({
+    area_geometry: z.unknown(),
+    name: z.union([z.string(), z.null()]),
+    tags: z.array(z.string()).default([]),
+    zip_prefix: z.union([z.string(), z.null()]),
+  })
+  .partial()
   .passthrough();
 export type CreateRegionArea = z.infer<typeof CreateRegionArea>;
+export const ImportRegionAreasRequest = z
+  .object({ areas: z.array(CreateRegionArea) })
+  .passthrough();
+export type ImportRegionAreasRequest = z.infer<typeof ImportRegionAreasRequest>;
 export const PartialRegionArea = z
-  .object({ zip_prefix: z.union([z.string(), z.null()]) })
+  .object({
+    area_geometry: z.unknown(),
+    name: z.union([z.string(), z.null()]),
+    tags: z.union([z.array(z.string()), z.null()]),
+    zip_prefix: z.union([z.string(), z.null()]),
+  })
   .partial()
   .passthrough();
 export type PartialRegionArea = z.infer<typeof PartialRegionArea>;
@@ -3102,13 +3233,38 @@ export const PreviewEmailTemplateConfigResponse = z
 export type PreviewEmailTemplateConfigResponse = z.infer<
   typeof PreviewEmailTemplateConfigResponse
 >;
+export const InheritedRoles = z
+  .object({
+    group_id: z.string().uuid(),
+    group_name: z.string(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+    roles: z.array(z.string()),
+  })
+  .passthrough();
+export type InheritedRoles = z.infer<typeof InheritedRoles>;
+export const Snapshot = z
+  .object({
+    inherited: z.array(InheritedRoles),
+    roles: z.array(z.string()),
+    version: z.number().int(),
+  })
+  .passthrough();
+export type Snapshot = z.infer<typeof Snapshot>;
+export const SaveAssignments = z
+  .object({
+    expected_version: z.number().int(),
+    grant_reason: z.string(),
+    roles: z.array(z.string()),
+  })
+  .passthrough();
+export type SaveAssignments = z.infer<typeof SaveAssignments>;
 export const ResourcePermission = z
   .object({
     grant_reason: z.string(),
     granted_at: z.string().datetime({ offset: true }),
     granted_by: z.union([z.string(), z.null()]).optional(),
+    group_id: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    organization_id: z.union([z.string(), z.null()]).optional(),
     resource_id: z.string().uuid(),
     resource_type: z.string(),
     role_name: z.string(),
@@ -3270,6 +3426,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
   PasswordResetUpdateRequest,
+  ConversationAction,
+  OrganizationAction,
+  SystemAction,
+  UserAction,
+  PermissionResourceType,
+  UserActions,
   ResourceType,
   ResourceRole,
   UserRoles,
@@ -3323,6 +3485,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdatePolisStatementAux,
   SyncStatementAuxRequest,
   SyncStatementAuxResponse,
+  LocalizedStatement,
+  PolisStatementTranslation,
+  UpdateStatementTranslationRequest,
   ThemeStatistic,
   ThemeRequest,
   ModerationDecisionRequest,
@@ -3573,7 +3738,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   RegionAreaLinksDto,
   RegionAreaLinksRequestDto,
   RegionAreaDto,
+  PaginatedResults_for_RegionAreaDto,
   CreateRegionArea,
+  ImportRegionAreasRequest,
   PartialRegionArea,
   MediaContentType,
   content_type,
@@ -3597,6 +3764,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailTypeSchema,
   PreviewEmailTemplateConfigRequest,
   PreviewEmailTemplateConfigResponse,
+  InheritedRoles,
+  Snapshot,
+  SaveAssignments,
   ResourcePermission,
   PaginatedResults_for_ResourcePermission,
   GrantPermissionBody,
@@ -4068,7 +4238,7 @@ Use a raw HTTP request and process the response body incrementally.`,
     method: "get",
     path: "/conversation/:conversation_id/demographics/export",
     alias: "ExportConversationDemographics",
-    description: `Exports a CSV file containing demographic data for users participating in the conversation&#x27;s workflow. Only includes consented users. Requires conversation ownership.`,
+    description: `Exports consented participant demographics. Requires conversation data access.`,
     requestFormat: "json",
     response: z.void(),
   },
@@ -6038,6 +6208,69 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions/:resource_type/:resource_id/assignments/:recipient_type/:recipient_id",
+    alias: "GetPermissionAssignments",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "recipient_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "recipient_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: Snapshot,
+  },
+  {
+    method: "put",
+    path: "/permissions/:resource_type/:resource_id/assignments/:recipient_type/:recipient_id",
+    alias: "SavePermissionAssignments",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SaveAssignments,
+      },
+      {
+        name: "recipient_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "recipient_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: Snapshot,
+  },
+  {
+    method: "get",
     path: "/permissions/:resource_type/:resource_id/users",
     alias: "ListUsersWithPermission",
     description: `List users with a give permission (role + resource_type) for a given resource`,
@@ -6083,11 +6316,70 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/permissions/:resource_type/roles",
+    alias: "GetPermissionRoles",
+    requestFormat: "json",
+    response: z.array(z.string()),
+  },
+  {
+    method: "get",
     path: "/permissions/by-action/:action",
     alias: "ListPermissionsByAction",
     description: `Returns resources of the specified type that the caller can perform the specified action on. Optionally filter by user_id. Use the &#x60;offset&#x60; and &#x60;limit&#x60; query params to page through results.`,
     requestFormat: "json",
+    response: z.array(ResourcePermission),
+  },
+  {
+    method: "get",
+    path: "/region_areas",
+    alias: "ListRegionAreas",
+    requestFormat: "json",
     parameters: [
+      {
+        name: "ids",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "include_geometry",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+      {
+        name: "min_area_ratio",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "tag",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "viewport_max_lat",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "viewport_max_lng",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "viewport_min_lat",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "viewport_min_lng",
+        type: "Query",
+        schema: limit,
+      },
       {
         name: "limit",
         type: "Query",
@@ -6098,20 +6390,8 @@ curl -X POST \
         type: "Query",
         schema: limit,
       },
-      {
-        name: "user_id",
-        type: "Query",
-        schema: created_after,
-      },
     ],
-    response: z.array(ResourcePermission),
-  },
-  {
-    method: "get",
-    path: "/region_areas",
-    alias: "ListRegionAreas",
-    requestFormat: "json",
-    response: z.array(RegionAreaDto),
+    response: PaginatedResults_for_RegionAreaDto,
   },
   {
     method: "post",
@@ -6122,7 +6402,7 @@ curl -X POST \
       {
         name: "body",
         type: "Body",
-        schema: z.object({ zip_prefix: z.string() }).passthrough(),
+        schema: CreateRegionArea,
       },
     ],
     response: RegionAreaDto,
@@ -6154,6 +6434,39 @@ curl -X POST \
     alias: "DeleteRegionArea",
     requestFormat: "json",
     response: RegionAreaDto,
+  },
+  {
+    method: "post",
+    path: "/region_areas/import",
+    alias: "ImportRegionAreas",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: ImportRegionAreasRequest,
+      },
+    ],
+    response: z.array(RegionAreaDto),
+  },
+  {
+    method: "get",
+    path: "/region_areas/intersecting",
+    alias: "IntersectingRegionAreas",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "latitude",
+        type: "Query",
+        schema: z.number(),
+      },
+      {
+        name: "longitude",
+        type: "Query",
+        schema: z.number(),
+      },
+    ],
+    response: PaginatedResults_for_RegionAreaDto,
   },
   {
     method: "get",
@@ -6490,6 +6803,39 @@ Use a raw HTTP request and process the response body incrementally.
     response: PolisStatementAux,
   },
   {
+    method: "get",
+    path: "/tools/polis/statement_aux/:id/translations",
+    alias: "PolisListStatementTranslations",
+    description: `Returns the stored translations of a statement into the conversation&#x27;s supported languages. Each carries ai_generated and requires_validation flags.`,
+    requestFormat: "json",
+    response: z.array(PolisStatementTranslation),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/statement_aux/localized",
+    alias: "PolisGetLocalizedStatement",
+    description: `Returns the statement text to display for a live Polis statement in the requested locale: the stored translation when one exists, otherwise the original. Carries is_translation, original_text and source_locale so the UI can indicate a translation and reveal the source.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "locale",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "polis_conversation_id",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "polis_statement_id",
+        type: "Query",
+        schema: z.number().int(),
+      },
+    ],
+    response: LocalizedStatement,
+  },
+  {
     method: "post",
     path: "/tools/polis/statement_aux/moderate_batch",
     alias: "PolisModerateStatementAuxBatch",
@@ -6538,6 +6884,29 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.array(ThemeStatistic),
+  },
+  {
+    method: "put",
+    path: "/tools/polis/statement_translation/:id",
+    alias: "PolisUpdateStatementTranslation",
+    description: `Overwrites a translation&#x27;s content with an admin-provided correction. Clears ai_generated and requires_validation, since the text is no longer raw machine output and a human has just reviewed it.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ content: z.string() }).passthrough(),
+      },
+    ],
+    response: PolisStatementTranslation,
+  },
+  {
+    method: "put",
+    path: "/tools/polis/statement_translation/:id/verify",
+    alias: "PolisVerifyStatementTranslation",
+    description: `Clears requires_validation without changing the translation&#x27;s content, for when an admin reviews a machine translation and finds it&#x27;s already correct.`,
+    requestFormat: "json",
+    response: PolisStatementTranslation,
   },
   {
     method: "get",
@@ -7053,6 +7422,26 @@ This struct contains optional fields that can be updated on a TextTranslation re
     description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
     requestFormat: "json",
     response: TextContentWithTranslations,
+  },
+  {
+    method: "get",
+    path: "/user/actions/:resource_type/:resource_id",
+    alias: "GetUserActions",
+    description: `Gets the current user&#x27;s effective actions on a resource`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: UserActions,
   },
   {
     method: "get",

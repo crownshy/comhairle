@@ -11,6 +11,7 @@ use axum::{
     Json,
     extract::{FromRequestParts, Path, State},
     http::{StatusCode, request::Parts},
+    middleware::from_fn_with_state,
 };
 use tracing::instrument;
 use uuid::Uuid;
@@ -18,8 +19,10 @@ use uuid::Uuid;
 use crate::{
     ComhairleState,
     error::ComhairleError,
+    middleware::permissions::{PermissionRequirement, authorize as permission_middleware},
     models::{
         conversation::{self, PartialConversation},
+        permissions::{ConversationResource, conversation::Action},
         user_participation::{self, UserParticipation},
         user_profile::{self, DemographicReport},
         user_progress,
@@ -27,7 +30,7 @@ use crate::{
         workflow_step::{self, WorkflowStep},
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::RequiredUser,
         workflows::dto::{UserParticipationDto, WorkflowDto},
     },
 };
@@ -175,7 +178,7 @@ async fn get_user_participation(
 #[instrument(err(Debug), skip(state))]
 async fn create_workflow(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     SourcePathCtx {
         conversation_id,
         event_id,
@@ -237,7 +240,6 @@ async fn get_participation_report(
 async fn update_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflow>,
 ) -> Result<Json<WorkflowDto>, ComhairleError> {
     let workflow = workflow::update(&state.db, workflow_id, &workflow)
@@ -279,7 +281,6 @@ async fn get_workflow(
 async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
-    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
     let workflow = workflow::delete(&state.db, &workflow_id).await?.into();
     Ok((StatusCode::OK, Json(workflow)))
@@ -309,7 +310,11 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                     .security_requirement("JWT")
                     .summary("Create a new workflow on the conversation")
                     .response::<201, Json<WorkflowDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
         )
         .api_route(
             "/",
@@ -337,7 +342,11 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                     .security_requirement("JWT")
                     .summary("Update the workflow")
                     .response::<201, Json<WorkflowDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
         )
         .api_route(
             "/{workflow_id}",
@@ -347,7 +356,11 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                     .security_requirement("JWT")
                     .summary("Delete the workflow and it's associated workflow steps")
                     .response::<201, Json<WorkflowDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
         );
 
     let router = match ctx {

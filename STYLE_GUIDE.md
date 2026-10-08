@@ -171,6 +171,9 @@ Before hand-rolling UI or a helper, **check what already exists**: grep
 - Dialogs, selects, tables, command palette, skeletons, sonner toasts all live in
   `src/lib/components/ui/**`. Don't re-roll a shadcn primitive.
 - Class merging → `cn()` from `$lib/utils`. Never concatenate class strings by hand.
+- Search inputs with an icon → `$lib/components/SearchBar.svelte`. It uses a native
+  search input and the `pile` utility. Pass an accessible name (`aria-label` or
+  `aria-labelledby`); keep filtering and debounce logic in the caller.
 - Icons → `lucide-svelte`. Don't inline bespoke SVGs for common glyphs.
 - Never hand-roll what a proven library already does: charts → LayerCake / layerchart /
   `@carbon/charts-svelte`; rich text → TipTap / Carta; QR → `svelte-qrcode`;
@@ -183,6 +186,10 @@ If you copy a block a second time, stop and extract it.
 - **Spell it out.** Prefer full words for variables, functions, props, and types (see
   [Abbreviations in variable names](#abbreviations-in-variable-names) under General
   Principles, which applies here too).
+- **Constants in `SCREAMING_SNAKE_CASE`.** A fixed value that never changes at runtime,
+  such as a shared class string or a limit, reads as a constant when it's named like one:
+  `VOTE_BUTTON_CLASS`, not `voteButtonClass`. Keep it next to where it's used; if only one
+  template block needs it, a `{@const}` inside that block is fine.
 - **Name the props type; don't inline the annotation.** Declare a `type Props = { … }`
   (or `interface Props`) above the destructure and annotate with it, rather than inlining
   a large object literal after `}:`.
@@ -245,13 +252,26 @@ If you copy a block a second time, stop and extract it.
     use(res.ok);
     ```
 
-- Client-side data goes through `apiClient` (`@crownshy/api-client/client`); server-side
-  loads use `tryFetch` from the same util.
+- Client-side data goes through `apiClient` (`@crownshy/api-client/client`). Server-side
+  loads await `parent()` before using the request-scoped `locals.api`, provided lazily by
+  the server hook so it uses the session's current cookies. Wrap API calls with
+  `tryCatchAsync`.
 
 ### Comments
 
-- Use **hoverable doc comments** on anything exported. Editors surface these on hover, so
-  they earn their keep; reserve plain `//` for short inline notes on a tricky line.
+- **Let the code document itself; a comment is the exception.** Before writing a comment,
+  try a clearer name, a smaller function, or a named constant. Big comment blocks make a
+  file harder to scan, and nobody updates them when the code changes, so a stale one
+  misleads more than no comment would.
+    - **Keep comments short.** A few lines at most. If a file needs twenty lines of
+      explanation before the code starts, that explanation belongs in a colocated
+      `NOTES.md`, an ADR, or `CONTEXT.md`, and the code can name where to look.
+    - **Write them in plain sentences.** Terse shorthand full of internal terms often
+      leaves the reader more confused than no comment. If a newcomer couldn't follow it,
+      rewrite it or delete it.
+- Use **hoverable doc comments** on exported items whose name and type don't already say
+  what they do. Editors surface these on hover, so they earn their keep; reserve plain `//`
+  for short inline notes on a tricky line.
     - **TypeScript** → TSDoc on functions, component props, and non-obvious types.
       `errorHandling.ts` and `urlValidation.ts` show the house style (`@param`, a one-line
       summary). Mind the delimiter: a doc comment must open with a two-star delimiter. A
@@ -269,8 +289,8 @@ If you copy a block a second time, stop and extract it.
 - **State each rationale once.** If the same "why" is true in three files, explain it
   fully in the canonical spot (usually the exported helper's TSDoc) and have the others
   point to it by name rather than restating the paragraph.
-- **Density follows surface.** Exported functions, props, and non-obvious types get a
-  hoverable doc comment. Inside a function body, prefer self-explaining names and small
+- **Density follows surface.** Exported functions, props, and non-obvious types get a short
+  hoverable doc comment when the name alone doesn't carry it. Inside a function body, prefer self-explaining names and small
   functions over inline narration.
 - No em dashes (or long dashes) in comments or prose. Use commas, parentheses, or a full
   stop.
@@ -386,9 +406,10 @@ migrate them.
       runs at event time via a getter).
 
 ### SvelteKit
+
 - Use `depends()` in `load` functions to declare explicit cache keys for invalidation. Use
-the `key()` function from the `invalidationKeys` file to make sure that the keys are
-type safe
+  the `key()` function from the `invalidationKeys` file to make sure that the keys are
+  type safe
 - When sibling pages fetch the same resource, hoist the fetch to the nearest shared layout
   `load` and read it via `await parent()` in children.
 

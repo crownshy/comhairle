@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backfill system admin role into resource_permissions for existing admin users.
+# Backfill system admin role into system_user_permissions for existing admin users.
 #
 # Finds users in comhairle_user whose email matches ADMIN_USERS_REGEX and inserts
 # a system admin permission row for each one, skipping any that already have it.
@@ -28,10 +28,8 @@ FROM comhairle_user
 WHERE LOWER(email) ~* ${ADMIN_USERS_REGEX@Q}
   AND id NOT IN (
       SELECT user_id
-      FROM resource_permissions
-      WHERE resource_type = 'system'
-        AND resource_id   = '00000000-0000-0000-0000-000000000000'
-        AND role_name     = 'admin'
+        FROM system_user_permissions
+        WHERE role_name = 'admin'
         AND user_id IS NOT NULL
   );
 SQL
@@ -78,10 +76,8 @@ selected_grantor AS (
     ) AS id
 ),
 inserted AS (
-    INSERT INTO resource_permissions (
+    INSERT INTO system_user_permissions (
         user_id,
-        resource_id,
-        resource_type,
         role_name,
         granted_by,
         grant_reason,
@@ -89,8 +85,6 @@ inserted AS (
     )
     SELECT
         id,
-        '00000000-0000-0000-0000-000000000000'::UUID,
-        'system',
         'admin',
         (SELECT id FROM selected_grantor),
         'Backfilled by backfill-admin-permissions script',

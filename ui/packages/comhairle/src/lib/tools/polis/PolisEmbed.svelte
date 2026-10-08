@@ -1,16 +1,19 @@
 <script lang="ts">
-	import { Button, LoadingButton } from '$lib/components/ui/button';
+	import { Button, LoadingButton, buttonVariants } from '$lib/components/ui/button';
+	import * as Drawer from '$lib/components/ui/drawer';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import {
 		ThumbsUp,
 		ThumbsDown,
-		SkipForward,
 		PenLine,
 		X,
 		ChevronRight,
 		MessageSquare,
-		AlertTriangle
+		MessageSquarePlus,
+		AlertTriangle,
+		Lightbulb,
+		Languages
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
@@ -26,7 +29,11 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import StatementSourceLabel from './StatementSourceLabel.svelte';
+	import { statementSourceOf } from './statementSource';
+	import { cn } from '$lib/utils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { type LocalizedStatement } from '@crownshy/api-client/api';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		polis_id: string;
@@ -65,6 +72,57 @@
 	let polisRemaining = $state(0);
 	let polisTotal = $state(0);
 	let polisPid = $state<number | undefined>(undefined);
+
+	// The current statement resolved into the participant's active locale. When a
+	// stored translation exists it carries the translated `text` plus the original
+	// (`original_text`/`source_locale`) so we can show a "translated" affordance.
+	let localized = $state<LocalizedStatement | undefined>(undefined);
+	let showOriginal = $state(false);
+	let localizedReqToken = 0;
+	let lastLocalizedKey = '';
+
+	// Text to render: the translation when one is available, else the raw Polis text.
+	const displayText = $derived(localized?.text ?? polisCurrentStatement?.txt ?? '');
+	const isTranslated = $derived(localized?.is_translation ?? false);
+
+	// Resolve a locale code (e.g. "gd") to a language name in the viewer's locale,
+	// falling back to the raw code if the platform can't name it.
+	function languageName(locale: string | null | undefined): string {
+		if (!locale) return '';
+		try {
+			return new Intl.DisplayNames([getLocale()], { type: 'language' }).of(locale) ?? locale;
+		} catch {
+			return locale;
+		}
+	}
+
+	// Whenever the statement (or viewer locale) changes, fetch its localized form.
+	// A monotonic token drops stale responses so a slow lookup can't overwrite a
+	// newer statement. A missing aux row (e.g. just-submitted) falls back to raw text.
+	$effect(() => {
+		const tid = polisCurrentStatement?.tid;
+		const locale = getLocale();
+		// `polisCurrentStatement` is reassigned on every loading toggle; only act
+		// when the statement or viewer locale actually changed.
+		const key = `${tid ?? ''}:${locale}`;
+		if (key === lastLocalizedKey) return;
+		lastLocalizedKey = key;
+		showOriginal = false;
+		localized = undefined;
+		if (tid === undefined) return;
+		const token = ++localizedReqToken;
+		apiClient
+			.PolisGetLocalizedStatement({
+				queries: { polis_conversation_id: polis_id, polis_statement_id: tid, locale }
+			})
+			.then((res) => {
+				if (token === localizedReqToken) localized = res;
+			})
+			.catch((err) => {
+				if (token === localizedReqToken) localized = undefined;
+				console.debug('[PolisEmbed] localized statement unavailable:', err);
+			});
+	});
 
 	function handlePolisChange(s: PolisApiState) {
 		polisCurrentStatement = s.currentStatement;
@@ -146,6 +204,9 @@
 				polis_conversation_id: polis_id,
 				polis_statement_id: newStatement.tid,
 				statement_text: statementText,
+				// Hint the source language from the participant's active UI locale.
+				// The backend falls back to auto-detection when this is absent.
+				source_locale: getLocale(),
 				is_seed: false,
 				themes: [],
 				visible_statement_when_submitted: visibleTid?.toString() ?? null
@@ -300,13 +361,22 @@
 	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
-<div
-	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-4 md:py-0"
->
+{#snippet opinionTips()}
+	<ul class="list-outside list-disc space-y-2 ps-5">
+		<li>{m.polis_tip_agreeable()}</li>
+		<li>{m.polis_tip_one_idea()}</li>
+		<li>{m.polis_tip_max_length({ max: MAX_STATEMENT_LENGTH })}</li>
+		<li>{m.polis_tip_no_jargon()}</li>
+		<li>{m.polis_tip_many_statements()}</li>
+		<li>{m.polis_tip_come_back()}</li>
+	</ul>
+{/snippet}
+
+<div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-8 md:gap-6 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-4 sm:px-8 md:gap-6 md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
 			<!-- Opinion counter -->
@@ -314,7 +384,7 @@
 				<div class="flex h-6 items-center md:h-7">
 					<Skeleton class="h-4 w-32 rounded md:h-5" />
 				</div>
-				<Skeleton class="h-1.5 w-full rounded-none" />
+				<Skeleton class="h-1.5 w-full rounded-full" />
 			{:else if showRemainingStatementCount && !polisError && !poolExhausted}
 				<p class="text-muted-foreground text-base font-semibold md:text-lg">
 					{m.polis_opinion_counter({
@@ -322,9 +392,9 @@
 						total: opinionPosition.total
 					})}
 				</p>
-				<div class="bg-secondary/30 relative h-1.5 w-full">
+				<div class="bg-primary/20 relative h-1.5 w-full overflow-hidden rounded-full">
 					<div
-						class="bg-secondary absolute top-0 left-0 h-full transition-all duration-300"
+						class="bg-primary absolute inset-y-0 start-0 rounded-full transition-all duration-300"
 						style="width: {progress}%"
 					></div>
 				</div>
@@ -341,97 +411,127 @@
 						<p class="text-foreground text-lg font-medium">
 							{m.something_went_wrong()}
 						</p>
-						<p class="text-muted-foreground text-sm">
+						<p class="text-muted-foreground text-base">
 							{m.polis_error_description()}
 						</p>
 					</div>
 				{:else if !polisReady || waitingForNext || !polisCurrentStatement}
 					<!-- Loading, between statements, or briefly empty before the screen
-					     flips to "completed". Rows match the label, the statement box and its
-					     line heights so nothing below moves when the statement arrives. -->
+					     flips to "completed". Rows match a one-line source label, the statement
+					     box and its line heights so nothing below moves when the statement arrives. -->
 					<div in:fade={{ duration: 200 }} class="w-full">
-						<div class="mb-1 flex h-6 items-center">
-							<Skeleton class="h-5 w-64 max-w-full rounded" />
-						</div>
-						<div class="border-foreground/10 rounded-lg border px-4 py-3">
-							<div class="flex h-9 items-center">
+						<div class="border-foreground/10 rounded-2xl border p-3 sm:p-6">
+							<Skeleton class="mb-3 h-5 w-64 max-w-full rounded-md sm:mb-4 sm:h-6" />
+							<div class="flex h-7 items-center sm:h-9">
 								<Skeleton class="h-6 w-full rounded sm:h-7" />
 							</div>
-							<div class="flex h-9 items-center">
+							<div class="flex h-7 items-center sm:h-9">
 								<Skeleton class="h-6 w-3/5 rounded sm:h-7" />
 							</div>
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					<StatementSourceLabel isSeed={polisCurrentStatement.is_seed} />
+					{@const source = statementSourceOf(polisCurrentStatement.is_seed)}
 					<div
-						class="rounded-lg border px-4 py-3 transition-colors {polisCurrentStatement.is_seed
-							? 'bg-seed-highlight-bg border-seed-highlight'
-							: 'bg-participant-highlight-bg border-participant-highlight'}"
+						class={cn(
+							'rounded-2xl border p-3 transition-colors sm:p-6',
+							source.cardClass
+						)}
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
-						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
-							{polisCurrentStatement.txt}
+						<StatementSourceLabel {source} />
+						<p
+							class="text-card-foreground mt-3 text-xl leading-snug font-normal sm:mt-4 sm:text-3xl sm:leading-9"
+						>
+							{displayText}
 						</p>
+						{#if isTranslated}
+							<button
+								type="button"
+								onclick={() => (showOriginal = !showOriginal)}
+								class="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+								aria-expanded={showOriginal}
+							>
+								<Languages class="h-4 w-4" />
+								{localized?.source_locale
+									? m.polis_translated_from({
+											language: languageName(localized.source_locale)
+										})
+									: m.polis_translated_label()}
+							</button>
+							{#if showOriginal}
+								<div
+									class="border-border bg-muted/40 text-card-foreground mt-2 rounded-lg border p-4 text-left"
+									in:fade={{ duration: 150 }}
+								>
+									<p
+										class="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase"
+									>
+										{m.polis_original_statement()}
+									</p>
+									<p class="text-base leading-7">{localized?.original_text}</p>
+									<p class="text-muted-foreground mt-2 text-xs">
+										{m.polis_ai_translation_note()}
+									</p>
+								</div>
+							{/if}
+						{/if}
 					</div>
 				{/if}
 			</div>
 
 			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
 			{#if !polisError && (!polisReady || polisCurrentStatement)}
+				{@const VOTE_BUTTON_CLASS = 'h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none'}
 				<!-- Vote buttons -->
-				<div class="flex flex-wrap items-start gap-4 md:gap-6">
+				<div class="flex w-full flex-wrap items-center gap-3 md:gap-5">
 					<Button
-						variant="default"
 						size="lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('agree')}
-						class="text-lg"
+						class={VOTE_BUTTON_CLASS}
 					>
-						<ThumbsUp class="h-5 w-5" />
+						<ThumbsUp class="size-6" />
 						{m.polis_agree()}
 					</Button>
 					<Button
-						variant="default"
 						size="lg"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('disagree')}
-						class="gap-2 px-6 py-4 text-lg"
+						class={VOTE_BUTTON_CLASS}
 					>
-						<ThumbsDown class="h-5 w-5" />
+						<ThumbsDown class="size-6" />
 						{m.polis_disagree()}
 					</Button>
 					<Button
 						variant="ghost"
 						size="lg"
-						class="text-lg"
+						class="text-foreground/80 hover:text-foreground h-12 w-full px-0 text-lg hover:bg-transparent has-[>svg]:px-0 sm:w-auto sm:justify-start"
 						disabled={disabled || !polisReady}
 						onclick={() => doVote('pass')}
 					>
 						{m.polis_pass_unsure()}
-						<SkipForward class="h-5 w-5" />
+						<ChevronRight class="size-5 rtl:-scale-x-100" />
 					</Button>
 				</div>
 
-				<Separator orientation="horizontal" />
-
-				<!-- Add your own opinion -->
-				<p>{m.polis_dont_see_your_view()}</p>
-
 				<Button
-					variant="secondary"
-					class="text-foreground hover:text-foreground flex items-center gap-2 p-5 text-xl font-bold transition-colors"
+					variant="ghost"
+					class="text-muted-foreground hover:text-foreground mt-3 h-auto w-full px-0 py-1 text-center text-lg font-normal whitespace-normal hover:bg-transparent has-[>svg]:px-0 sm:mt-0 sm:w-auto sm:justify-start sm:text-start"
 					disabled={!polisReady}
 					onclick={openAddOpinion}
 				>
-					<MessageSquare fill="currentColor" class="h-5 w-5" />
-					{m.polis_add_opinion()}
+					<MessageSquarePlus class="size-6" />
+					{m.polis_add_your_own_opinion()}
 				</Button>
 			{/if}
 
 			<!-- Continue to next step (only after threshold) -->
 			{#if canContinue}
-				<div class="mt-4 w-full border-t pt-6" in:fade={{ duration: 300 }}>
+				<div
+					class="mt-4 flex w-full justify-center border-t pt-6 sm:justify-start"
+					in:fade={{ duration: 300 }}
+				>
 					<LoadingButton
 						variant="primaryDark"
 						size="lg"
@@ -440,7 +540,7 @@
 						class="gap-2 px-6 py-4 text-lg"
 					>
 						{m.polis_continue_to_next_step()}
-						{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+						{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
 					</LoadingButton>
 				</div>
 			{/if}
@@ -448,19 +548,22 @@
 	{:else if screen === 'add-opinion'}
 		<!-- Add Opinion Screen -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-8 py-8 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
-			<div class="flex w-full items-center justify-between">
-				<div class="flex items-center gap-4">
-					<MessageSquare fill="currentColor" class="text-card-foreground h-8 w-8" />
-					<h2 class="text-card-foreground text-3xl font-semibold">
+			<div class="flex w-full items-start justify-between gap-2 sm:items-center">
+				<div class="flex items-center gap-3 sm:gap-4">
+					<MessageSquare
+						fill="currentColor"
+						class="text-card-foreground size-6 shrink-0 sm:size-8"
+					/>
+					<h2 class="text-card-foreground text-xl font-semibold sm:text-3xl">
 						{m.polis_add_your_own_opinion()}
 					</h2>
 				</div>
 				<Button
 					variant="link"
-					class="text-foreground/80 hover:text-foreground/60 text-xl transition-colors"
+					class="text-foreground/80 hover:text-foreground/60 shrink-0 text-xl transition-colors"
 					onclick={closeAddOpinion}
 					aria-label={m.polis_close()}
 				>
@@ -468,16 +571,33 @@
 				</Button>
 			</div>
 
-			<div class="text-card-foreground flex flex-col px-4 text-base">
-				<ul class="list-inside list-disc space-y-2">
-					<li>{m.polis_tip_agreeable()}</li>
-					<li>{m.polis_tip_one_idea()}</li>
-					<li>{m.polis_tip_max_length({ max: MAX_STATEMENT_LENGTH })}</li>
-					<li>{m.polis_tip_no_jargon()}</li>
-					<li>{m.polis_tip_many_statements()}</li>
-					<li>{m.polis_tip_come_back()}</li>
-				</ul>
+			<!-- Phones open the tips in a sheet so the text box stays above the fold. -->
+			<div class="text-card-foreground hidden text-base sm:block sm:px-4">
+				{@render opinionTips()}
 			</div>
+			<Drawer.Root>
+				<Drawer.Trigger
+					class="text-primary inline-flex items-center gap-2 text-base font-medium underline-offset-4 hover:underline sm:hidden"
+				>
+					<Lightbulb class="size-5" aria-hidden="true" />
+					{m.polis_tips_for_your_opinion()}
+				</Drawer.Trigger>
+				<Drawer.Content>
+					<div class="flex flex-col gap-4 overflow-y-auto px-6 pt-4 pb-8">
+						<Drawer.Title class="text-card-foreground text-xl font-semibold">
+							{m.polis_tips_for_your_opinion()}
+						</Drawer.Title>
+						<div class="text-card-foreground text-base">
+							{@render opinionTips()}
+						</div>
+						<Drawer.Close
+							class={cn(buttonVariants({ size: 'lg' }), 'mt-2 w-full text-lg')}
+						>
+							{m.polis_close()}
+						</Drawer.Close>
+					</div>
+				</Drawer.Content>
+			</Drawer.Root>
 
 			{#if opinionSubmitted}
 				<div
@@ -493,7 +613,7 @@
 				</div>
 			{/if}
 
-			<div class="w-full pb-6">
+			<div class="w-full sm:pb-6">
 				<textarea
 					bind:value={opinionText}
 					oninput={() => (opinionError = false)}
@@ -504,7 +624,7 @@
 				></textarea>
 				<p
 					id="polis-opinion-characters-left"
-					class="mt-2 text-right text-base {charactersLeft === 0
+					class="mt-2 text-end text-base {charactersLeft === 0
 						? 'text-destructive'
 						: 'text-muted-foreground'}"
 				>
@@ -512,14 +632,16 @@
 				</p>
 			</div>
 
-			<div class="flex flex-wrap items-start gap-6">
+			<div
+				class="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-start sm:gap-6"
+			>
 				<LoadingButton
 					variant="default"
 					size="lg"
 					loading={submitBusy}
 					disabled={!opinionText.trim()}
 					onclick={handleSubmitOpinion}
-					class="gap-2 px-6 py-4 text-lg"
+					class="w-full gap-2 px-6 py-4 text-lg sm:w-auto"
 				>
 					{m.submit()}
 				</LoadingButton>
@@ -532,12 +654,12 @@
 					onclick={handleSubmitAndAddAnother}
 				>
 					{m.polis_submit_and_add_another()}
-					{#if !submitBusy}<ChevronRight class="h-5 w-5" />{/if}
+					{#if !submitBusy}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
 				</LoadingButton>
 			</div>
 
 			<button
-				class="text-muted-foreground hover:text-foreground mt-2 text-base font-medium transition-colors"
+				class="text-muted-foreground hover:text-foreground self-center text-base font-medium transition-colors sm:mt-2 sm:self-start"
 				onclick={closeAddOpinion}
 			>
 				&larr; {m.polis_back_to_voting()}
@@ -546,22 +668,24 @@
 	{:else if screen === 'continue-prompt'}
 		<!-- Do you want to continue? -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-8 py-8 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-center gap-6 px-4 py-8 text-center sm:items-start sm:px-8 sm:text-start md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
-			<div class="flex items-center gap-4">
+			<div class="flex flex-col items-center gap-4 sm:flex-row">
 				<PenLine class="text-card-foreground h-8 w-8" />
 				<h2 class="text-card-foreground text-3xl font-semibold">
 					{m.polis_do_you_want_to_continue()}
 				</h2>
 			</div>
 
-			<div class="flex flex-wrap items-start gap-6">
+			<div
+				class="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-start sm:gap-6"
+			>
 				<Button
 					variant="default"
 					size="lg"
 					onclick={resumeVoting}
-					class="w-72 gap-2 px-6 py-4 text-lg"
+					class="w-full max-w-72 gap-2 px-6 py-4 text-lg sm:w-72"
 				>
 					{m.polis_continue_voting()}
 				</Button>
@@ -573,14 +697,14 @@
 					onclick={handleContinue}
 				>
 					{m.polis_continue_to_next_step()}
-					{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+					{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
 				</LoadingButton>
 			</div>
 		</div>
 	{:else if screen === 'completed'}
 		<!-- Voted everything -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-8 py-8 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-center gap-6 px-4 py-8 text-center sm:items-start sm:px-8 sm:text-start md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
 			<p class="text-card-foreground text-3xl font-normal">
@@ -604,15 +728,17 @@
 			</Button>
 		</div>
 
-		<LoadingButton
-			variant="primaryDark"
-			size="lg"
-			loading={continuing}
-			onclick={handleContinue}
-			class="mb-5 gap-2 px-6 py-4 text-lg"
-		>
-			{m.continue_()}
-			{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
-		</LoadingButton>
+		<div class="mb-5 w-full px-4 sm:w-auto sm:px-0">
+			<LoadingButton
+				variant="primaryDark"
+				size="lg"
+				loading={continuing}
+				onclick={handleContinue}
+				class="w-full gap-2 px-6 py-4 text-lg sm:w-auto"
+			>
+				{m.continue_()}
+				{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
+			</LoadingButton>
+		</div>
 	{/if}
 </div>

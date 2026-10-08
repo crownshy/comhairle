@@ -28,9 +28,13 @@
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { key } from '$lib/utils/invalidationKey';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { data } = $props();
 	let { form: formDefaults, conversation, user } = data;
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 
 	if (user?.email && !(formDefaults.data.facilitators ?? []).includes(user.email)) {
 		formDefaults.data.facilitators = [user.email, ...(formDefaults.data.facilitators ?? [])];
@@ -77,7 +81,7 @@
 		// doesn't hit the page route, which has no server action (would 405).
 		cancel();
 
-		if (saving) return;
+		if (!canEdit || saving) return;
 
 		const result = await validateForm({ update: true });
 

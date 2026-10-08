@@ -7,6 +7,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		user: UserDto;
@@ -19,7 +20,7 @@
 		try {
 			await apiClient.LogoutUser(undefined);
 
-			await goto('/', { invalidate: ['user'] });
+			await goto('/', { invalidate: [key('user')] });
 		} catch (e) {
 			console.error(e);
 			notifications.send({

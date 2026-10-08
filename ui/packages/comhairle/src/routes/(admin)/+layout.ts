@@ -4,9 +4,9 @@ import type { LayoutLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: LayoutLoad = async ({ parent, data, depends }) => {
-	depends('admin:organizations');
+	depends(key('admin/organizations'));
 	depends(key('admin/conversations'));
-	const { api } = await parent();
+	const { api, isSuperAdmin } = await parent();
 
 	try {
 		const ownedConversations = await api
@@ -42,6 +42,7 @@ export const load: LayoutLoad = async ({ parent, data, depends }) => {
 			ownedConversations,
 			permittedConversations: nonOwnedPermittedConversations,
 			userOrganizations,
+			isSuperAdmin,
 			sidebarWidth: data.sidebarWidth
 		};
 	} catch (e) {

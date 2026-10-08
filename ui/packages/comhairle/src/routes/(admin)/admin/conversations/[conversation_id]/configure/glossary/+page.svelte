@@ -28,9 +28,13 @@
 	import type { LocalizedGlossary } from '$lib/glossary/types';
 	import type { Locale } from '$lib/paraglide/runtime';
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
+	import { permissions } from '$lib/permissions.svelte';
 
 	const { data } = $props();
 	const { conversation } = $derived(data);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 
 	let primaryLocale = $derived<Locale>((data.conversation.primaryLocale as Locale) ?? 'en');
 	let supportedLanguages = $derived<Locale[]>(
@@ -142,6 +146,7 @@
 
 	async function commit() {
 		saveTimer = undefined;
+		if (!canEdit) return;
 		saveState = 'saving';
 		const startedAt = performance.now();
 		const glossary = toLocalizedGlossary();
@@ -164,6 +169,7 @@
 	}
 
 	function scheduleSave() {
+		if (!canEdit) return;
 		dirty = true;
 		clearTimeout(saveTimer);
 		saveTimer = setTimeout(commit, 700);
@@ -180,16 +186,19 @@
 	});
 
 	function setTerms(row: Row, value: string) {
+		if (!canEdit) return;
 		row.terms[activeLocale] = value;
 		scheduleSave();
 	}
 
 	function setTooltip(row: Row, value: string) {
+		if (!canEdit) return;
 		row.tooltips[activeLocale] = value;
 		scheduleSave();
 	}
 
 	async function addRow() {
+		if (!canEdit) return;
 		const row = toRow({}, {});
 		rows = [...rows, row];
 		// Clear any filter so the new row is visible, then focus its term cell.
@@ -199,6 +208,7 @@
 	}
 
 	function removeRow(id: number) {
+		if (!canEdit) return;
 		rows = rows.filter((row) => row.id !== id);
 		if (rows.length === 0) rows = [toRow({}, {})];
 		scheduleSave();
@@ -209,6 +219,7 @@
 	 * explanation column, so both fill the language currently being edited. Autosaves after.
 	 */
 	async function importCsv(event: Event) {
+		if (!canEdit) return;
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file || importing) return;
@@ -218,7 +229,8 @@
 			async () => {
 				if (!file.name.toLowerCase().endsWith('.csv')) throw 'INCORRECT_FILE_TYPE';
 
-				const imported = parseGlossaryCsv(await file.text());
+				const imported = await parseGlossaryCsv(await file.text());
+				if (!canEdit) return 0;
 				if (imported.length === 0) throw 'NO_ENTRIES_FOUND';
 
 				const existing = rows.filter((row) => !isBlank(row));
@@ -235,6 +247,7 @@
 		importing = false;
 		// Reset so re-importing the same file fires onchange again.
 		input.value = '';
+		if (!canEdit) return;
 
 		if (result.err !== null) {
 			const message =
@@ -262,7 +275,7 @@
 	let translateTotal = $state(0);
 
 	async function translateActiveLanguage() {
-		if (translating || isPrimary) return;
+		if (!canEdit || translating || isPrimary) return;
 
 		const targets = rows.filter(needsTranslation);
 		if (targets.length === 0) {
@@ -362,7 +375,7 @@
 					variant="outline"
 					size="sm"
 					onclick={translateActiveLanguage}
-					disabled={translating}
+					disabled={!canEdit || translating}
 					title={`Fill empty ${activeName} terms and explanations by translating from ${primaryName}`}
 				>
 					{#if translating}
@@ -384,13 +397,13 @@
 			/>
 			<Input bind:value={query} placeholder="Search terms" class="pl-8" />
 		</div>
-		<Button variant="outline" onclick={addRow}>
+		<Button variant="outline" onclick={addRow} disabled={!canEdit}>
 			<Plus class="mr-1.5 size-4" /> Add term
 		</Button>
 		<Button
 			variant="secondary"
 			onclick={() => fileInput?.click()}
-			disabled={importing}
+			disabled={!canEdit || importing}
 			title="Import glossary terms from a CSV"
 		>
 			<Upload class="mr-1.5 size-4" />
@@ -421,6 +434,7 @@
 			accept=".csv"
 			class="hidden"
 			onchange={importCsv}
+			disabled={!canEdit}
 		/>
 
 		{#if saveState !== 'idle'}
@@ -490,6 +504,7 @@
 
 							<input
 								id="glossary-terms-{row.id}"
+								disabled={!canEdit}
 								value={termsOf(row, activeLocale)}
 								oninput={(e) => setTerms(row, e.currentTarget.value)}
 								placeholder={isPrimary
@@ -501,6 +516,7 @@
 							/>
 							<input
 								value={tipOf(row, activeLocale)}
+								disabled={!canEdit}
 								oninput={(e) => setTooltip(row, e.currentTarget.value)}
 								placeholder={isPrimary
 									? 'When your case is passed to another team that can help.'
@@ -509,14 +525,16 @@
 								title={tipOf(row, activeLocale)}
 								class="text-foreground placeholder:text-muted-foreground/60 bg-background h-10 truncate px-3 text-base outline-none"
 							/>
-							<button
-								type="button"
-								onclick={() => removeRow(row.id)}
-								aria-label="Remove term"
-								class="bg-background text-muted-foreground hover:text-destructive flex h-10 w-10 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-							>
-								<Trash2 class="size-4" />
-							</button>
+							{#if canEdit}
+								<button
+									type="button"
+									onclick={() => removeRow(row.id)}
+									aria-label="Remove term"
+									class="bg-background text-muted-foreground hover:text-destructive flex h-10 w-10 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+								>
+									<Trash2 class="size-4" />
+								</button>
+							{/if}
 						</div>
 					{:else}
 						<p class="text-muted-foreground px-3 py-8 text-center text-sm">

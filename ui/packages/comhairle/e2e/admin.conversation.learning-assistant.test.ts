@@ -1,8 +1,7 @@
 import { expect } from '@playwright/test';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
-import Textboxes from './utils/inputs/Textboxes';
-import Switches from './utils/inputs/Switches';
+import { Textboxes, Switches } from './utils/components';
 import { eventually, test } from './utils/testing';
 import { exists, sleep, testWithRefresh } from './utils';
 

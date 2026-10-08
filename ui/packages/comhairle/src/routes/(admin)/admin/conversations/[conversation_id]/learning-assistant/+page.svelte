@@ -34,6 +34,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { useDebounce } from 'runed';
 	import { key } from '$lib/utils/invalidationKey';
+	import { permissions } from '$lib/permissions.svelte';
 
 	const MAX_SIZE = 50 * MB;
 
@@ -48,6 +49,9 @@
 
 	let { data }: Props = $props();
 	let conversation = $derived(data.conversation);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 	let chat = $derived(data.chat);
 	let documents = $derived(data.documents);
 	let targetReadingAge = $derived(data.chatInstructions?.targetReadingAge ?? 9);
@@ -81,6 +85,7 @@
 	let enabled = $derived(conversation.enableQaChatBot);
 
 	async function saveEnabled(value: boolean) {
+		if (!canEdit) return;
 		enabled = value;
 		const res = await tryCatchAsync(() =>
 			apiClient.UpdateConversation(
@@ -172,6 +177,7 @@
 	// content, renders it to a text-bearing PDF, and uploads that; the backend owns the
 	// RAGFlow dedup + parse dance.
 	async function syncLearnContent() {
+		if (!canEdit || isSyncing) return;
 		isSyncing = true;
 
 		const res = await tryCatchAsync(async () => {
@@ -180,6 +186,7 @@
 			});
 
 			const blob = await generateLearnPdf(sections);
+			if (!canEdit) throw new Error('Conversation Edit access is required');
 
 			const media = new Media();
 			const formData = new FormData();
@@ -209,6 +216,7 @@
 	}
 
 	async function uploadFile(file: File) {
+		if (!canEdit) return;
 		const media = new Media();
 		const formData = new FormData();
 		formData.append('file', file);
@@ -251,6 +259,7 @@
 	);
 
 	async function handleCrossLanguagesChange(options: Option[]) {
+		if (!canEdit) return;
 		const result = await tryCatchAsync(() =>
 			apiClient.UpdateChat(
 				{ prompt: { cross_languages: [...options.map((o) => o.value)] } },
@@ -310,6 +319,7 @@
 	// }
 
 	const updateChatInstructions = useDebounce(async (e: Event) => {
+		if (!canEdit) return;
 		const target = e.target as HTMLInputElement;
 
 		const value = target.type === 'number' ? Number(target.value) : target.value;
@@ -362,6 +372,7 @@
 			<div class="flex items-start gap-3">
 				<Switch
 					id="enable-learning-assistant"
+					disabled={!canEdit}
 					class="mt-0.5"
 					checked={enabled}
 					onCheckedChange={saveEnabled}
@@ -406,7 +417,7 @@
 					variant="outline"
 					class="self-start"
 					onclick={syncLearnContent}
-					disabled={isSyncing}
+					disabled={!canEdit || isSyncing}
 				>
 					<RefreshCw class={isSyncing ? 'animate-spin' : ''} />
 					{isSyncing ? 'Syncing...' : 'Sync learn content'}
@@ -432,6 +443,7 @@
 			<section class="mt-4 flex w-full flex-col gap-4 border-t pt-6">
 				<FileInput
 					name="files"
+					disabled={!canEdit}
 					accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt"
 					maxSize={MAX_SIZE}
 					onfile={uploadFile}
@@ -459,10 +471,10 @@
 				<!-- </div> -->
 			</section>
 			{#if parsingDocuments?.length}
-				<ParsingFileList documents={parsingDocuments} {conversation} />
+				<ParsingFileList documents={parsingDocuments} {conversation} editable={canEdit} />
 			{/if}
 			{#if parsedDocuments?.length}
-				<ParsedFileList documents={parsedDocuments} {conversation} />
+				<ParsedFileList documents={parsedDocuments} {conversation} editable={canEdit} />
 			{/if}
 		</div>
 	</div>
@@ -481,6 +493,7 @@
 			</p>
 			<div class="flex max-w-md flex-col gap-3">
 				<MultiSelect
+					disabled={!canEdit}
 					defaultOptions={allLanguageOptions}
 					selected={selectedCrossLanguages}
 					onSelectedChange={handleCrossLanguagesChange}
@@ -508,6 +521,7 @@
 			<div class="flex max-w-md flex-col gap-3">
 				<Input
 					name="target_reading_age"
+					disabled={!canEdit}
 					type="number"
 					min="5"
 					max="18"

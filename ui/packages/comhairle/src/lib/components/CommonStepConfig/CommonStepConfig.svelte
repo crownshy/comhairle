@@ -16,20 +16,19 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Switch } from '../ui/switch';
 	import { Label } from '../ui/label';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import {
-		DATA_PROTOCOLS,
-		protocolFromBool,
-		boolFromProtocol,
-		type DataProtocol
-	} from '$lib/tool_meta';
-	import { Check, ChevronDown, Database } from 'lucide-svelte';
+		defaultDataProtocol,
+		defaultDataProtocolHtml,
+		hasDataProtocolText
+	} from '$lib/dataProtocol';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { useDebounce } from 'runed';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
 		conversation_id: string;
@@ -48,6 +47,9 @@
 		open = $bindable(false),
 		inline = false
 	}: Props = $props();
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation_id)
+	);
 
 	let primaryLocale = $derived<Locale>((conversation?.primaryLocale as Locale) ?? 'en');
 	let supportedLanguages = $derived<Locale[]>(
@@ -68,6 +70,48 @@
 		getPrimaryFallback: () => step?.description ?? '',
 		refresh: () => invalidate(key('admin/conversation/workflow'))
 	});
+	const dataProtocolSource = createTextContentSource({
+		getTranslation: () => step?.translations?.dataProtocol ?? undefined,
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLanguages,
+		getPrimaryFallback: () => step?.dataProtocol ?? '',
+		refresh: () => invalidate(key('admin/conversation/workflow')),
+		ensureTextContentId: createDataProtocol
+	});
+
+	let toolType = $derived(step?.previewToolConfig?.type);
+	let dataProtocolIsBlank = $derived(
+		!hasDataProtocolText(dataProtocolSource.contents[primaryLocale])
+	);
+
+	async function createDataProtocol(content: string): Promise<string | undefined> {
+		const textContent = await tryCatchAsync(() =>
+			apiClient.CreateTextContent({ content, format: 'rich', primary_locale: primaryLocale })
+		);
+		if (textContent.err !== null) {
+			notifications.send({ message: 'Failed to create data protocol', priority: 'ERROR' });
+			return;
+		}
+
+		const linked = await tryCatchAsync(() =>
+			apiClient.UpdateConversationWorkflowStep(
+				{ data_protocol: textContent.ok.id },
+				{
+					params: {
+						conversation_id,
+						workflow_id: step.workflowId,
+						workflow_step_id: step.id
+					}
+				}
+			)
+		);
+		if (linked.err !== null) {
+			notifications.send({ message: 'Failed to update data protocol', priority: 'ERROR' });
+			return;
+		}
+
+		return textContent.ok.id;
+	}
 
 	// Header / delete-dialog / preview read the live primary content straight from the sources.
 	let displayName = $derived(nameSource.contents[primaryLocale] ?? '');
@@ -96,11 +140,13 @@
 		DATA_PROTOCOLS.find((d) => d.value === dataProtocol) ?? DATA_PROTOCOLS[0]
 	);
 	function setDataProtocol(protocol: DataProtocol) {
+		if (!canEdit) return;
 		if (protocol === dataProtocol) return;
 		handleSwitchChange(boolFromProtocol(protocol), 'requestUserSharePermission');
 	}
 
 	const debouncedUpdateRequired = useDebounce(async (checked: boolean, field: string) => {
+		if (!canEdit) return;
 		try {
 			await apiClient.UpdateConversationWorkflowStep(
 				{ [camelToSnakeCase(field)]: checked },
@@ -119,6 +165,7 @@
 	}, 500);
 
 	function handleSwitchChange(checked: boolean, field: string) {
+		if (!canEdit) return;
 		debouncedUpdateRequired(checked, field);
 	}
 
@@ -127,6 +174,7 @@
 	let deleteError = $state<string | null>(null);
 
 	async function deleteStep() {
+		if (!canEdit || deleting) return;
 		deleting = true;
 		deleteError = null;
 		try {
@@ -163,7 +211,12 @@
 		<p class="text-muted-foreground mb-2 text-sm">
 			The name of the step that will be shown to participants.
 		</p>
-		<TranslatableField source={nameSource} {primaryLocale} {supportedLanguages} />
+		<TranslatableField
+			source={nameSource}
+			{primaryLocale}
+			{supportedLanguages}
+			disabled={!canEdit}
+		/>
 	</div>
 
 	<div class="pt-4">
@@ -174,16 +227,60 @@
 			</p>
 		</div>
 		<div class="pt-4">
-			<TranslatableField
-				source={descriptionSource}
-				{primaryLocale}
-				{supportedLanguages}
-				{availableDocuments}
-				conversationId={conversation_id}
-				editorType="rich"
-				minHeight="100px"
-				maxHeight="150px"
-			/>
+			{#if canEdit}
+				<TranslatableField
+					source={descriptionSource}
+					{primaryLocale}
+					{supportedLanguages}
+					{availableDocuments}
+					conversationId={conversation_id}
+					editorType="rich"
+					minHeight="100px"
+					maxHeight="150px"
+				/>
+			{:else}
+				<div class="bg-card border-border rounded-lg border p-4">
+					<ContentRenderer
+						content={displayDescription}
+						{availableDocuments}
+						conversationId={conversation_id}
+					/>
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	<div class="pt-4">
+		<div class="flex flex-col gap-1">
+			<span class="text-lg font-semibold">Data protocol</span>
+			<p class="text-muted-foreground text-sm">
+				Tells participants how their answers in this step are used. Leave blank to use the
+				default for this tool.
+			</p>
+		</div>
+		<div class="flex flex-col items-start gap-2 pt-4">
+			<div class="w-full">
+				<TranslatableField
+					source={dataProtocolSource}
+					{primaryLocale}
+					{supportedLanguages}
+					{availableDocuments}
+					conversationId={conversation_id}
+					editorType="rich"
+					placeholder={defaultDataProtocol(toolType)}
+					minHeight="100px"
+					maxHeight="150px"
+				/>
+			</div>
+			{#if dataProtocolIsBlank}
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => dataProtocolSource.saveSource(defaultDataProtocolHtml(toolType))}
+				>
+					Start from the default
+				</Button>
+			{/if}
 		</div>
 	</div>
 {/snippet}
@@ -192,6 +289,7 @@
 	<div class="flex items-center gap-2">
 		<Switch
 			checked={revisitable}
+			disabled={!canEdit}
 			onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
 		/>
 		<Label class="text-base">Revisitable step</Label>
@@ -200,20 +298,28 @@
 	<div class="flex items-center gap-2">
 		<Switch
 			checked={required}
+			disabled={!canEdit}
 			onCheckedChange={(value) => handleSwitchChange(value, 'required')}
 		/>
 		<Label class="text-base">Required step</Label>
 		<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
 	</div>
-	<div class="flex flex-col gap-2">
-		<div class="flex flex-col gap-1">
-			<Label class="text-base">Data protocol</Label>
-			<span class="text-muted-foreground text-sm">
-				Controls whether participants are asked to share their responses, and with whom.
+	{#if toolType === 'thinkingspace'}
+		<div class="flex items-center gap-2">
+			<Switch
+				checked={requestUserSharePermission}
+				onCheckedChange={(value) => handleSwitchChange(value, 'requestUserSharePermission')}
+			/>
+			<Label class="text-base">Ask before sharing summaries</Label>
+			<span class="text-muted-foreground ml-2 text-sm">
+				(Participants choose whether organisers see their summary)
 			</span>
 		</div>
+	{/if}
+	<div class="flex items-center gap-2">
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
+				disabled={!canEdit}
 				class="border-input flex h-9 w-full max-w-sm items-center justify-between gap-2 rounded-md border px-3 text-sm"
 			>
 				<span class="flex items-center gap-2">
@@ -225,7 +331,7 @@
 			<DropdownMenu.Content class="max-w-sm">
 				{#each DATA_PROTOCOLS as protocol (protocol.value)}
 					<DropdownMenu.Item
-						disabled={!protocol.enabled}
+						disabled={!canEdit || !protocol.enabled}
 						onSelect={() => setDataProtocol(protocol.value)}
 					>
 						<span class="flex w-4 shrink-0 justify-center">
@@ -245,68 +351,70 @@
 {/snippet}
 
 {#snippet dangerZone()}
-	<div class="border-destructive/30 flex flex-col gap-4 rounded-lg border p-6">
-		<div class="flex flex-col gap-1">
-			<span class="text-destructive text-lg font-semibold">Danger zone</span>
-			<p class="text-muted-foreground text-sm">
-				Deleting this step permanently removes it and its configuration. The remaining steps
-				will be renumbered. This action cannot be undone.
-			</p>
-		</div>
-		<div>
-			<Button
-				variant="destructive"
-				disabled={deleting}
-				onclick={() => {
-					deleteError = null;
-					deleteOpen = true;
-				}}
-			>
-				<Trash2 class="mr-2 h-4 w-4" />
-				Delete step
-			</Button>
-		</div>
-	</div>
-
-	<AlertDialog.Root bind:open={deleteOpen}>
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>Delete “{displayName || 'this step'}”?</AlertDialog.Title>
-				<AlertDialog.Description>
-					This permanently removes the step and its configuration along with any
-					associated data (e.g. user participation data), and renumbers the remaining
-					steps. This action cannot be undone.
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-
-			{#if deleteError}
-				<p
-					class="border-destructive/30 bg-destructive/10 text-destructive rounded-md border p-3 text-sm"
-					role="alert"
-				>
-					{deleteError}
+	{#if canEdit}
+		<div class="border-destructive/30 flex flex-col gap-4 rounded-lg border p-6">
+			<div class="flex flex-col gap-1">
+				<span class="text-destructive text-lg font-semibold">Danger zone</span>
+				<p class="text-muted-foreground text-sm">
+					Deleting this step permanently removes it and its configuration. The remaining
+					steps will be renumbered. This action cannot be undone.
 				</p>
-			{/if}
-			<AlertDialog.Footer class="flex-col-reverse sm:flex-row">
-				<AlertDialog.Cancel class="w-full sm:w-auto" disabled={deleting}>
-					Cancel
-				</AlertDialog.Cancel>
-				<AlertDialog.Action
-					class="bg-destructive hover:bg-destructive/90 w-full text-white sm:w-auto"
+			</div>
+			<div>
+				<Button
+					variant="destructive"
 					disabled={deleting}
-					onclick={(e) => {
-						e.preventDefault();
-						deleteStep();
+					onclick={() => {
+						deleteError = null;
+						deleteOpen = true;
 					}}
 				>
-					{#if deleting}
-						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					{/if}
+					<Trash2 class="mr-2 h-4 w-4" />
 					Delete step
-				</AlertDialog.Action>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Root>
+				</Button>
+			</div>
+		</div>
+
+		<AlertDialog.Root bind:open={deleteOpen}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Delete “{displayName || 'this step'}”?</AlertDialog.Title>
+					<AlertDialog.Description>
+						This permanently removes the step and its configuration along with any
+						associated data (e.g. user participation data), and renumbers the remaining
+						steps. This action cannot be undone.
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+
+				{#if deleteError}
+					<p
+						class="border-destructive/30 bg-destructive/10 text-destructive rounded-md border p-3 text-sm"
+						role="alert"
+					>
+						{deleteError}
+					</p>
+				{/if}
+				<AlertDialog.Footer class="flex-col-reverse sm:flex-row">
+					<AlertDialog.Cancel class="w-full sm:w-auto" disabled={deleting}>
+						Cancel
+					</AlertDialog.Cancel>
+					<AlertDialog.Action
+						class="bg-destructive hover:bg-destructive/90 w-full text-white sm:w-auto"
+						disabled={deleting}
+						onclick={(e) => {
+							e.preventDefault();
+							deleteStep();
+						}}
+					>
+						{#if deleting}
+							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						{/if}
+						Delete step
+					</AlertDialog.Action>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
+	{/if}
 {/snippet}
 
 {#if inline}
@@ -338,7 +446,9 @@
 					conversationId={conversation_id}
 				/>
 			</div>
-			<Button variant="default" onclick={() => (open = true)}>Edit Metadata</Button>
+			<Button variant="default" onclick={() => (open = true)}
+				>{canEdit ? 'Edit Metadata' : 'View Metadata'}</Button
+			>
 		</div>
 	{/if}
 
@@ -350,7 +460,9 @@
 	>
 		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">
 			<Dialog.Header class="shrink-0 border-b p-6 pb-4">
-				<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
+				<Dialog.Title class="text-2xl"
+					>{canEdit ? 'Edit Step Metadata' : 'Step Metadata'}</Dialog.Title
+				>
 				<Dialog.Description>
 					Configure the name and description shown to participants.
 				</Dialog.Description>
