@@ -1,11 +1,11 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
-	import { STEP_COLUMN } from './stepColumn';
+	import { STEP_COLUMN_CLASS } from './styles';
 </script>
 
 <div
-	class={cn(STEP_COLUMN, 'flex flex-col items-center pt-3 pb-2')}
+	class={cn(STEP_COLUMN_CLASS, 'flex flex-col items-center pt-3 pb-2')}
 	aria-busy="true"
 	aria-live="polite"
 >
