@@ -96,7 +96,6 @@
 	let hasJoinedCall = $state(false);
 	const jitsiRoom = new JitsiRoom();
 	let roomContext = $state<RoomContext>('plenary');
-	let jitsiModeratorStatus = $state<boolean>(false);
 	let currentJitsiRoomName = $state<string>('');
 	/** This client's own Jitsi participant id, used to detect our own rename events. */
 	let localParticipantId = $state<string | null>(null);
@@ -171,6 +170,19 @@
 	/** The agenda item the mobile strip is showing. Follows the live step, and holds
 	 *  wherever the arrows leave it until the step changes. */
 	let mobileAgendaViewIndex = $derived(currentStep);
+
+	const agendaChipColors = {
+		sidebar: {
+			current: 'bg-sidebar-accent text-sidebar-accent-foreground',
+			done: 'bg-sidebar-foreground/10 text-sidebar-foreground/70',
+			upcoming: 'bg-sidebar-foreground/10 text-sidebar-foreground'
+		},
+		sheet: {
+			current: 'bg-accent text-accent-foreground',
+			done: 'bg-muted-foreground/10 text-muted-foreground',
+			upcoming: 'bg-background text-card-foreground'
+		}
+	};
 
 	let currentAgendaItem = $derived(
 		currentStep >= 0 && currentStep < agendaItems.length ? agendaItems[currentStep] : null
@@ -626,10 +638,6 @@
 		}
 	}
 
-	function handleModeratorStatusChanged(isMod: boolean) {
-		jitsiModeratorStatus = isMod;
-	}
-
 	function handleVideoConferenceJoined(data: JitsiConferenceEvent) {
 		currentJitsiRoomName = data.roomName;
 		localParticipantId = data.id ?? null;
@@ -769,7 +777,6 @@
 						{jwt}
 						onApiReady={(api) => jitsiRoom.attach(api)}
 						onBreakoutRoomsUpdated={(rooms) => jitsiRoom.setRooms(rooms)}
-						onModeratorStatusChanged={handleModeratorStatusChanged}
 						onVideoConferenceJoined={handleVideoConferenceJoined}
 						onVideoConferenceLeft={handleVideoConferenceLeft}
 						onDisplayNameChange={handleDisplayNameChange}
@@ -985,7 +992,7 @@
 				>
 					<ChevronLeft class="h-5 w-5" />
 				</button>
-				{@render agendaChip(mobileAgendaViewIndex)}
+				{@render agendaChip(mobileAgendaViewIndex, 'sidebar')}
 				<button
 					type="button"
 					class="text-sidebar-foreground shrink-0 p-1 disabled:opacity-30"
@@ -1069,16 +1076,13 @@
 	{/if}
 {/snippet}
 
-{#snippet agendaChip(index: number)}
+{#snippet agendaChip(index: number, surface: 'sidebar' | 'sheet')}
 	{@const item = agendaItems[index]}
 	{@const status = index < currentStep ? 'done' : index === currentStep ? 'current' : 'upcoming'}
 	<div
-		class="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 {status ===
-		'current'
-			? 'bg-accent text-accent-foreground'
-			: status === 'done'
-				? 'bg-muted-foreground/10 text-muted-foreground'
-				: 'bg-background text-card-foreground'}"
+		class="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-2.5 {agendaChipColors[
+			surface
+		][status]}"
 	>
 		{#if status === 'done'}
 			<div
@@ -1099,7 +1103,7 @@
 				<span class="text-primary text-[10px] font-semibold">{index + 1}</span>
 			</div>
 		{/if}
-		<span class="truncate text-sm font-medium">
+		<span class="min-w-0 text-left text-base font-medium break-words">
 			{item?.title ?? 'Agenda'}
 		</span>
 	</div>
@@ -1125,7 +1129,7 @@
 				onclick={() => !isBreakoutActive && handleSetAgendaItem(mobileAgendaViewIndex)}
 				disabled={isBreakoutActive || mobileAgendaViewIndex === currentStep}
 			>
-				{@render agendaChip(mobileAgendaViewIndex)}
+				{@render agendaChip(mobileAgendaViewIndex, 'sheet')}
 			</button>
 			<button
 				type="button"
@@ -1302,14 +1306,17 @@
 <!-- Lightweight toast for confirmations -->
 {#if toastMessage}
 	<div
-		class="animate-in fade-in slide-in-from-top-2 pointer-events-auto fixed top-4 left-1/2 z-50 -translate-x-1/2 duration-300"
+		class="animate-in fade-in slide-in-from-top-2 pointer-events-none fixed inset-x-4 top-4 z-50 flex justify-center duration-300"
 	>
 		<div
-			class="bg-card border-border flex items-center gap-3 rounded-xl border px-4 py-3 shadow-lg"
+			class="bg-card border-border pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border px-4 py-3 shadow-lg"
 		>
-			<p class="text-foreground text-sm font-medium">{toastMessage}</p>
+			<p class="text-foreground min-w-0 flex-1 text-base font-medium break-words">
+				{toastMessage}
+			</p>
 			<button
-				class="text-muted-foreground hover:text-foreground shrink-0 text-sm"
+				class="text-muted-foreground hover:text-foreground shrink-0 text-base"
+				aria-label="Dismiss"
 				onclick={() => (toastMessage = null)}
 			>
 				✕

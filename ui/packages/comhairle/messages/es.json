@@ -126,6 +126,16 @@
 	"about_us": "Sobre Nosotros",
 	"support": "Soporte",
 	"faq": "Preguntas Frecuentes",
+	"data_protocol_step_heading": "Cómo se usan tus respuestas en este paso",
+	"data_protocol_ai_faq": "Lee cómo usamos la IA en las preguntas frecuentes",
+	"data_protocol_default_learn": "Este paso es para leer. No registramos lo que lees.\n\nSi usas el Asistente de aprendizaje, un modelo de IA responde a tus preguntas usando solo los documentos de esta conversación. Los organizadores pueden ver las preguntas que hace la gente, para detectar qué hace falta explicar mejor. Tus preguntas no se usan para entrenar modelos de IA.",
+	"data_protocol_default_polis": "Tus votos y las afirmaciones que añadas son anónimos para los demás participantes. Las afirmaciones que escribas pueden mostrarse a otras personas después de la moderación. Los organizadores ven los resultados combinados, incluidos los grupos de opinión, y los usan en el informe de esta conversación.",
+	"data_protocol_default_heyform": "Tus respuestas llegan a los organizadores de esta conversación. Los demás participantes nunca ven tus respuestas individuales. Los organizadores revisan las respuestas individuales y los patrones entre todas las personas, y comparten los resultados combinados en el informe. Pueden aparecer citas breves de tus respuestas escritas en el informe, sin tu nombre.",
+	"data_protocol_default_thinkingspace": "Un modelo de IA te hace preguntas de seguimiento y convierte tus respuestas en un resumen. Si aceptas compartirlo, los organizadores ven tu resumen y pueden usarlo en el informe. Si no, nadie más lo ve y no se usa. Tu conversación con la IA no se usa para entrenar modelos de IA.",
+	"data_protocol_default_prioritization": "Tus valoraciones y comentarios llegan a los organizadores. Los demás participantes no los ven. Los organizadores comparan el apoyo a cada propuesta y comparten los resultados combinados en el informe. Pueden aparecer citas breves de tus comentarios en el informe, sin tu nombre.",
+	"data_protocol_default_stories": "Tu vídeo se comparte con los demás participantes de esta conversación y con los organizadores. Los organizadores pueden usarlo, o fragmentos de él, en el informe. Puedes eliminar tu vídeo en cualquier momento antes de que se publique el informe.",
+	"data_protocol_default_elicitationbot": "Un modelo de IA te hace preguntas sobre el tema. Tus respuestas llegan a los organizadores de esta conversación, que las usan en el informe.",
+	"data_protocol_default_generic": "Tus respuestas llegan a los organizadores de esta conversación, que las usan en el informe.",
 	"notifications": "Notificaciones",
 	"settings": "Configuración",
 	"language": "Idioma",
@@ -343,5 +353,8 @@
 	"thinking_space_share_desc": "Esperamos que esta experiencia te haya resultado útil para aclarar tus ideas sobre el tema. Si deseas compartir estas respuestas con los organizadores, ayudarán a orientar futuras conversaciones. Puedes decidir compartirlas o no en cualquier momento.",
 	"thinking_space_lastest_label": "Tus reflexiones más recientes — edita cualquier cosa que no suene bien",
 	"thinking_space_lastest_thinking": "tus reflexiones más recientes",
-	"thinking_space_add_more": "Elige una pregunta a la que quieras añadir más reflexiones. Puedes volver aquí para elegir otra o finalizar para actualizar tus reflexiones más recientes."
+	"thinking_space_add_more": "Elige una pregunta a la que quieras añadir más reflexiones. Puedes volver aquí para elegir otra o finalizar para actualizar tus reflexiones más recientes.",
+	"image_lightbox_close": "Cerrar",
+	"image_lightbox_zoom": "Ampliar",
+	"image_lightbox_load_failed": "No se pudo abrir la imagen. Inténtalo de nuevo."
 }

@@ -7,6 +7,7 @@
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
 	import ComhairleFAQs from './ComhairleFAQs.svelte';
 	import LearningAssistant from './LearningAssistant/LearningAssistant.svelte';
+	import StepDataProtocol from './StepDataProtocol.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { page } from '$app/state';
 	import { useSupportDrawer } from './supportDrawerContext.svelte';
@@ -15,13 +16,16 @@
 		conversation,
 		hasKnowledgeBaseDocs = false,
 		availableDocuments = [],
-		currentStepTitle
+		currentStepTitle,
+		stepDataProtocol
 	}: {
 		conversation: LocalizedConversationDto;
 		hasKnowledgeBaseDocs?: boolean;
 		/** Parsed documents, so source-document badges in the FAQ/privacy tabs resolve + download. */
 		availableDocuments?: ComhairleDocument[];
 		currentStepTitle?: string;
+		/** Set while the participant is on a step, so the Privacy tab can say how that step's data is used. */
+		stepDataProtocol?: { text: string | null | undefined; toolType: string | undefined };
 	} = $props();
 
 	// The Learning Assistant only answers from parsed knowledge base documents, so it is hidden
@@ -102,6 +106,15 @@
 			<div class="flex min-h-0 flex-1 flex-col px-6 pt-6 md:px-8">
 				{#each tabs as tab (tab.value)}
 					<Tabs.Content value={tab.value} class="overflow-y-auto pe-2">
+						{#if tab.value === 'privacyPolicy' && stepDataProtocol}
+							<StepDataProtocol
+								text={stepDataProtocol.text}
+								toolType={stepDataProtocol.toolType}
+								onOpenFaq={() => (activeTab = 'faqs')}
+								{availableDocuments}
+								conversationId={conversation.id}
+							/>
+						{/if}
 						{#if tab.content}
 							<ContentRenderer
 								content={tab.content}
