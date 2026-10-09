@@ -19,6 +19,7 @@
 		defaultPlaceholder,
 		isChoiceKind,
 		selectionHint,
+		shortId,
 		QUESTION_KIND_LABELS,
 		TAG_OPTIONS,
 		type DemographicQuestion,
@@ -106,9 +107,13 @@
 		<div class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
 			<div class="-mx-2 flex min-h-0 flex-col gap-6 overflow-y-auto px-2">
 				<Sheet.Header class="border-border gap-1 border-b p-0 pb-4">
+					<span class="text-muted-foreground text-sm">{shortId('Q', draft.id)}</span>
 					<Sheet.Title class="line-clamp-3 text-2xl font-semibold">
 						{draft.text.trim() || 'New question'}
 					</Sheet.Title>
+					{#if draft.description.trim()}
+						<p class="text-muted-foreground text-base">{draft.description}</p>
+					{/if}
 					<Sheet.Description class="sr-only">
 						Edit the question settings. Changes apply to every form that uses it.
 					</Sheet.Description>
@@ -122,23 +127,24 @@
 						onValueChange={(value) => setKind(value as QuestionKind)}
 					>
 						<Select.Trigger id="question-kind" class="w-full">
-							{QUESTION_KIND_LABELS[draft.kind]}
+							<span class="truncate">{QUESTION_KIND_LABELS[draft.kind]}</span>
 						</Select.Trigger>
 						<Select.Content>
 							{#each kinds as kind (kind)}
 								<Select.Item value={kind} label={QUESTION_KIND_LABELS[kind]}>
-									{QUESTION_KIND_LABELS[kind]}
+									<span class="truncate">{QUESTION_KIND_LABELS[kind]}</span>
 								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
 				</div>
 
-				{#if !isChoiceKind(draft.kind)}
+				{#if !isChoiceKind(draft.kind) && draft.kind !== 'date_split'}
 					<div class="flex flex-col gap-2">
 						<Label for="question-placeholder" class="text-base">Placeholder text</Label>
 						<Input
 							id="question-placeholder"
+							class="text-foreground"
 							bind:value={draft.placeholder}
 							placeholder={defaultPlaceholder(draft.kind)}
 						/>
@@ -299,7 +305,7 @@
 					bind:value={draft.text}
 				/>
 				<input
-					class="placeholder:text-muted-foreground w-full bg-transparent text-base outline-none"
+					class="placeholder:text-muted-foreground text-muted-foreground w-full bg-transparent text-base outline-none"
 					placeholder="Add a description (optional)"
 					aria-label="Question description"
 					bind:value={draft.description}
@@ -314,10 +320,10 @@
 					<ul class="flex flex-col gap-2">
 						{#each draft.options as _, index (index)}
 							<li
-								class="border-border flex items-center gap-2 rounded-lg border px-3"
+								class="border-border flex h-[3.125rem] items-center gap-2 rounded-lg border px-4"
 							>
 								<input
-									class="placeholder:text-primary/50 w-full bg-transparent py-3 text-base outline-none"
+									class="placeholder:text-primary/50 h-full w-full bg-transparent text-base outline-none"
 									placeholder="Choice"
 									aria-label={`Choice ${index + 1}`}
 									bind:value={draft.options[index]}
@@ -335,14 +341,14 @@
 						{/each}
 						{#if draft.allowOther}
 							<li
-								class="text-muted-foreground border-border rounded-lg border border-dashed px-3 py-3 text-base"
+								class="text-muted-foreground border-border flex h-[3.125rem] items-center rounded-lg border border-dashed px-4 text-base"
 							>
 								Other (please specify)
 							</li>
 						{/if}
 						{#if draft.preferNotToSay}
 							<li
-								class="text-muted-foreground border-border rounded-lg border border-dashed px-3 py-3 text-base"
+								class="text-muted-foreground border-border flex h-[3.125rem] items-center rounded-lg border border-dashed px-4 text-base"
 							>
 								Prefer not to say
 							</li>

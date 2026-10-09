@@ -1,7 +1,7 @@
 import type { DemographicForm, DemographicQuestion } from './demographicPrototypeData';
 
 /**
- * The CrownShy starter set: five core questions and one basic form that uses them.
+ * The CrownShy starter set: four core questions and one basic form that uses them.
  *
  * PLACEHOLDER CONTENT. The final five core questions and their consent wording are still to be
  * supplied, so the wording below is only here to make the empty-organisation flow demonstrable.
@@ -29,13 +29,19 @@ const question = (
 });
 
 export const createStarterQuestions = (): DemographicQuestion[] => [
-	question('q-starter-age', 'What is your age?', { kind: 'number', tags: ['Age'] }),
+	question('q-starter-age', 'What is your birthday?', {
+		kind: 'date_split',
+		description: 'For example, 31st of January, 1980',
+		tags: ['Age']
+	}),
 	question('q-starter-gender', 'What is your gender?', {
+		description: 'Please select your gender',
 		tags: ['Gender'],
 		options: ['Woman', 'Man', 'Non-binary'],
 		allowOther: true
 	}),
 	question('q-starter-ethnic-group', 'What is your ethnic group?', {
+		description: 'Please select your ethnic group',
 		tags: ['Ethnicity'],
 		options: [
 			'White',
@@ -49,12 +55,8 @@ export const createStarterQuestions = (): DemographicQuestion[] => [
 	}),
 	question('q-starter-postcode', 'What is your postcode?', {
 		kind: 'postcode',
+		description: 'Please type your postcode',
 		tags: ['Postcode']
-	}),
-	question('q-starter-health', 'Do you have a long-term health condition?', {
-		options: ['Yes', 'No'],
-		specialCategory: true,
-		consentText: 'I consent to the collection of my health data.'
 	})
 ];
 
@@ -74,6 +76,13 @@ export const createStarterForm = (): DemographicForm => {
 		hasUnpublishedChanges: false,
 		isNewlyCreated: false,
 		questions,
-		versions: [{ version: 1, label: 'Provided by CrownShy', questions }]
+		versions: [
+			{
+				version: 1,
+				label: 'Provided by CrownShy',
+				name: 'Starter demographic form',
+				questions
+			}
+		]
 	};
 };

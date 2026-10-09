@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { createStarterForm, createStarterQuestions } from './starterSet';
 
 describe('starter set', () => {
-	it('has five core questions with unique ids', () => {
+	it('has four core questions with unique ids', () => {
 		const questions = createStarterQuestions();
-		expect(questions).toHaveLength(5);
-		expect(new Set(questions.map((q) => q.id)).size).toBe(5);
+		expect(questions).toHaveLength(4);
+		expect(new Set(questions.map((q) => q.id)).size).toBe(4);
 	});
 
 	it('gives every special category question its own consent wording', () => {

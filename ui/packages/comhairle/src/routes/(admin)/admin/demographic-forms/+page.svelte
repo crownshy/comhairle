@@ -131,6 +131,7 @@
 				{
 					version: draft.version + 1,
 					label: `Published just now by ${CURRENT_USER}`,
+					name: draft.name,
 					questions: draft.questions.map((q) => ({ ...q }))
 				},
 				...draft.versions

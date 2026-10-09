@@ -13,6 +13,8 @@
 		nextLabel?: string;
 		/** Shown at the bottom, above Next (for example a consent checkbox) */
 		footer?: Snippet;
+		/** Short caption shown under the device toggle */
+		note?: string;
 	};
 
 	let {
@@ -23,7 +25,8 @@
 		onNext,
 		nextDisabled = false,
 		nextLabel = 'Next',
-		footer
+		footer,
+		note
 	}: Props = $props();
 
 	let device = $state<'phone' | 'desktop'>('phone');
@@ -52,6 +55,9 @@
 			<AppWindow class="size-4" />
 		</Button>
 	</div>
+	{#if note}
+		<p class="text-background/70 -mt-3 text-center text-sm">{note}</p>
+	{/if}
 
 	<div
 		class="bg-card flex min-h-0 w-full flex-1 flex-col overflow-y-auto rounded-3xl p-5 {device ===
