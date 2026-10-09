@@ -371,5 +371,9 @@
 	"step_minutes": "({count} دقیقې)",
 	"step_not_found": "خبرې اترې ونه موندل شوې",
 	"step_one_minute": "(۱ دقیقه)",
-	"step_x_of_y": "ګام {current} له {total}"
+	"step_x_of_y": "ګام {current} له {total}",
+	"step_chrome_conversation_home": "د خبرو اترو پاڼې ته بېرته",
+	"conversation_preview_badge": "مخکتنه",
+	"theme_light_mode": "روښانه حالت",
+	"theme_dark_mode": "تیاره حالت"
 }
