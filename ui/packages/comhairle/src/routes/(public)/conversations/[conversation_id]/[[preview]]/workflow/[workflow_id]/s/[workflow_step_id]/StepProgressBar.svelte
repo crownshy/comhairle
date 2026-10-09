@@ -28,7 +28,7 @@
 	}
 </script>
 
-<!-- aria-hidden because the "Step N of M" line in the header carries the position. -->
+<!-- aria-hidden because the step menu's trigger reads out "Step N of M". -->
 <div class="flex items-center gap-1.5" aria-hidden="true">
 	{#each steps as step, index (step.id)}
 		{#if index === currentIndex}
