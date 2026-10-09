@@ -10,6 +10,7 @@
 		showNext?: boolean;
 		onNext?: () => void;
 		nextDisabled?: boolean;
+		nextLabel?: string;
 		/** Shown at the bottom, above Next (for example a consent checkbox) */
 		footer?: Snippet;
 	};
@@ -21,6 +22,7 @@
 		showNext = true,
 		onNext,
 		nextDisabled = false,
+		nextLabel = 'Next',
 		footer
 	}: Props = $props();
 
@@ -73,7 +75,9 @@
 			<div class="border-border mt-6 flex flex-col gap-4 border-t pt-4">
 				{@render footer?.()}
 				{#if showNext}
-					<Button class="w-full" disabled={nextDisabled} onclick={onNext}>Next</Button>
+					<Button class="w-full" disabled={nextDisabled} onclick={onNext}
+						>{nextLabel}</Button
+					>
 				{/if}
 			</div>
 		{/if}

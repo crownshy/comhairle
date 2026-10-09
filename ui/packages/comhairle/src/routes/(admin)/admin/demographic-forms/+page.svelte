@@ -137,6 +137,18 @@
 		}
 	}
 
+	function duplicateQuestion(questionId: string) {
+		const source = questions.find((q) => q.id === questionId);
+		if (!source) return;
+		const copy = $state.snapshot(source);
+		const index = questions.findIndex((q) => q.id === questionId);
+		questions.splice(index + 1, 0, {
+			...copy,
+			id: blankQuestion().id,
+			text: `${copy.text} (copy)`
+		});
+	}
+
 	function deleteQuestion() {
 		if (!questionEdit) return;
 		const id = questionEdit.question.id;
@@ -204,7 +216,12 @@
 				<FormsTab {forms} {questions} onNew={newForm} onEdit={editForm} onCopy={copyForm} />
 			</Tabs.Content>
 			<Tabs.Content value="questions" class="mt-6">
-				<QuestionBankTab {questions} {forms} onEdit={editQuestion} />
+				<QuestionBankTab
+					{questions}
+					{forms}
+					onEdit={editQuestion}
+					onDuplicate={duplicateQuestion}
+				/>
 			</Tabs.Content>
 		</Tabs.Root>
 	</div>

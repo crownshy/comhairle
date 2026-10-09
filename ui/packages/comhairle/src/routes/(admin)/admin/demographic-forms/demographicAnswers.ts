@@ -43,3 +43,17 @@ export function toggleChoice(
 		otherText: selected.includes(OTHER_CHOICE) ? answer.otherText : ''
 	};
 }
+
+export const isAnswered = (answer: Answer) =>
+	answer.selected.length > 0 || answer.text.trim() !== '';
+
+/** Readable one-line version of an answer, used in the test summary. */
+export const summariseAnswer = (answer: Answer) => {
+	const parts = answer.selected.map((choice) =>
+		choice === OTHER_CHOICE && answer.otherText.trim() !== ''
+			? `Other: ${answer.otherText.trim()}`
+			: choice
+	);
+	if (answer.text.trim() !== '') parts.push(answer.text.trim());
+	return parts.join(', ');
+};

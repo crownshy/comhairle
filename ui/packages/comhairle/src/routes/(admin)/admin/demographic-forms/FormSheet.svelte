@@ -1,8 +1,14 @@
 <script lang="ts">
-	import { EllipsisVertical, Plus, ShieldCheck, Trash2 } from 'lucide-svelte';
+	import { EllipsisVertical, Plus, RotateCcw, ShieldCheck, Trash2 } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from './TagBadge.svelte';
-	import { emptyAnswer, PREFER_NOT_TO_SAY, type Answer } from './demographicAnswers';
+	import {
+		emptyAnswer,
+		isAnswered,
+		PREFER_NOT_TO_SAY,
+		summariseAnswer,
+		type Answer
+	} from './demographicAnswers';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
@@ -58,6 +64,8 @@
 	let consents = $state<Record<string, boolean>>({});
 	let answers = $state<Record<string, Answer>>({});
 	let previewId = $state<string | null>(null);
+	let finished = $state(false);
+	let moveNote = $state('');
 
 	const rows = $derived(
 		form.questions.flatMap((formQuestion) => {
@@ -88,6 +96,33 @@
 			!consents[preview.id] &&
 			!answers[preview.id]?.selected.includes(PREFER_NOT_TO_SAY)
 	);
+
+	const isLast = $derived(previewIndex >= rows.length - 1);
+	const requiredMissing = $derived(
+		!!preview &&
+			(rows[previewIndex]?.required ?? false) &&
+			!isAnswered(answers[preview.id] ?? emptyAnswer())
+	);
+	const results = $derived(
+		rows.map((row) => ({
+			id: row.id,
+			text: row.question.text,
+			required: row.required,
+			summary: summariseAnswer(answers[row.id] ?? emptyAnswer())
+		}))
+	);
+
+	function resetTest() {
+		answers = {};
+		consents = {};
+		finished = false;
+		previewId = rows[0]?.question.id ?? null;
+	}
+
+	function advance() {
+		if (isLast) finished = true;
+		else showNextQuestion();
+	}
 
 	const hasName = $derived(form.name.trim() !== '');
 	const canPublish = $derived(
@@ -123,6 +158,7 @@
 			form.questions[target],
 			form.questions[index]
 		];
+		moveNote = `${rows[index]?.question.text ?? 'Question'} moved to position ${target + 1} of ${form.questions.length}`;
 	}
 
 	function addQuestions(ids: string[]) {
@@ -201,6 +237,7 @@
 					{#if rows.length === 0}
 						<p class="text-muted-foreground text-base">No questions yet.</p>
 					{/if}
+					<p class="sr-only" role="status" aria-live="polite">{moveNote}</p>
 					<DraggableList
 						items={dragRows ?? rows}
 						onReorder={reorderWhileDragging}
@@ -329,30 +366,61 @@
 					{/if}
 				{/snippet}
 				<Tabs.Content value="preview" class="min-h-0 flex-1">
-					<PhonePreview
-						step={previewIndex + 1}
-						steps={Math.max(rows.length, 1)}
-						onNext={showNextQuestion}
-						nextDisabled={previewIndex >= rows.length - 1 || consentMissing}
-						footer={preview?.specialCategory ? consentFooter : undefined}
-					>
-						{#if preview}
-							{@const current = preview}
-							<h2 class="text-2xl font-semibold">{preview.text}</h2>
-							{#if preview.description}
-								<p class="text-muted-foreground text-base">{preview.description}</p>
+					<div class="flex h-full min-h-0 flex-col gap-3">
+						<div class="flex items-center justify-between gap-3">
+							<span class="text-muted-foreground text-base">
+								Try it as a participant. Nothing is saved.
+							</span>
+							<Button variant="outline" size="sm" onclick={resetTest}>
+								<RotateCcw class="size-4" />Reset answers
+							</Button>
+						</div>
+						<PhonePreview
+							step={finished ? Math.max(rows.length, 1) : previewIndex + 1}
+							steps={Math.max(rows.length, 1)}
+							showNext={!finished}
+							onNext={advance}
+							nextLabel={isLast ? 'Finish test' : 'Next'}
+							nextDisabled={!preview || consentMissing || requiredMissing}
+							footer={!finished && preview?.specialCategory
+								? consentFooter
+								: undefined}
+						>
+							{#if finished}
+								<h2 class="text-2xl font-semibold">Test complete</h2>
+								<ul class="flex flex-col gap-3">
+									{#each results as result (result.id)}
+										<li class="flex flex-col">
+											<span class="text-base font-medium">
+												{result.text}{result.required ? ' *' : ''}
+											</span>
+											<span class="text-muted-foreground text-base">
+												{result.summary || 'Skipped'}
+											</span>
+										</li>
+									{/each}
+								</ul>
+								<Button variant="outline" onclick={resetTest}>Start again</Button>
+							{:else if preview}
+								{@const current = preview}
+								<h2 class="text-2xl font-semibold">{preview.text}</h2>
+								{#if preview.description}
+									<p class="text-muted-foreground text-base">
+										{preview.description}
+									</p>
+								{/if}
+								<QuestionAnswers
+									question={current}
+									answer={answers[current.id] ?? emptyAnswer()}
+									onAnswer={(next) => (answers[current.id] = next)}
+								/>
+							{:else}
+								<p class="text-muted-foreground text-base">
+									Add a question to see how participants will see it.
+								</p>
 							{/if}
-							<QuestionAnswers
-								question={current}
-								answer={answers[current.id] ?? emptyAnswer()}
-								onAnswer={(next) => (answers[current.id] = next)}
-							/>
-						{:else}
-							<p class="text-muted-foreground text-base">
-								Add a question to see how participants will see it.
-							</p>
-						{/if}
-					</PhonePreview>
+						</PhonePreview>
+					</div>
 				</Tabs.Content>
 				<Tabs.Content value="usage" class="min-h-0 flex-1">
 					<FormUsagePanel {form} hasUnsavedChanges={hasChanges && !isNew} />
