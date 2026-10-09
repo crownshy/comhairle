@@ -5,9 +5,9 @@
 		ChevronDown,
 		ChevronRight,
 		Check,
+		CircleHelp,
 		Languages,
 		Lock,
-		LogOut,
 		Moon,
 		Sun
 	} from 'lucide-svelte';
@@ -19,7 +19,7 @@
 	import { getLocale, type Locale } from '$lib/paraglide/runtime';
 	import { getLanguageName } from '$lib/config/languages';
 	import { switchLocale } from '$lib/utils/locale';
-	import { logOut } from '$lib/utils/logout';
+	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
 	import type { StepItem, StepStatus } from './stepItems';
 
 	type Props = {
@@ -63,6 +63,13 @@
 		'group data-[state=open]:bg-primary/10 min-w-0 justify-end'
 	);
 
+	// Opened in a new tab so reading them doesn't take the participant out of their step.
+	const LEGAL_LINKS = [
+		{ href: '/rights/privacy', label: m.privacy_policy },
+		{ href: '/rights/tos', label: m.terms_of_service },
+		{ href: '/rights/cookies', label: m.cookies_settings }
+	];
+
 	const SHEET_ROW_CLASS =
 		'hover:bg-muted active:bg-muted text-foreground flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left text-base transition-colors';
 
@@ -84,6 +91,13 @@
 
 	function chooseLanguage(locale: Locale) {
 		if (locale !== currentLocale) switchLocale(locale);
+	}
+
+	const supportDrawer = useSupportDrawer();
+
+	function openFaqs() {
+		open = false;
+		supportDrawer.openOn('faqs');
 	}
 
 	function ariaCurrent(step: StepItem) {
@@ -130,9 +144,9 @@
 	<span class="text-muted-foreground ml-auto">{currentLanguageName}</span>
 {/snippet}
 
-{#snippet logOutRowInner()}
-	<LogOut class="text-muted-foreground size-5 shrink-0" />
-	{m.logout()}
+{#snippet faqRowInner()}
+	<CircleHelp class="text-muted-foreground size-5 shrink-0" />
+	{m.faq()}
 {/snippet}
 
 {#snippet themeRowInner()}
@@ -179,7 +193,16 @@
 					{/if}
 				{/each}
 
-				<div class="border-border mt-2 border-t pt-2 pb-2">
+				<div class="border-border mt-2 border-t pt-2">
+					<p class="text-foreground px-3 pt-2 pb-1 text-base font-semibold">
+						{m.step_menu_about_heading()}
+					</p>
+					<button type="button" class={SHEET_ROW_CLASS} onclick={openFaqs}>
+						{@render faqRowInner()}
+					</button>
+				</div>
+
+				<div class="border-border mt-2 border-t pt-2">
 					<button
 						type="button"
 						class={SHEET_ROW_CLASS}
@@ -220,9 +243,19 @@
 							</div>
 						{/if}
 					{/if}
-					<button type="button" class={SHEET_ROW_CLASS} onclick={logOut}>
-						{@render logOutRowInner()}
-					</button>
+				</div>
+
+				<div class="border-border mt-2 border-t pt-2 pb-2">
+					{#each LEGAL_LINKS as link (link.href)}
+						<a
+							href={link.href}
+							target="_blank"
+							rel="noopener"
+							class={cn(SHEET_ROW_CLASS, 'text-muted-foreground min-h-12')}
+						>
+							{link.label()}
+						</a>
+					{/each}
 				</div>
 			</div>
 		</Drawer.Content>
@@ -276,6 +309,16 @@
 			</DropdownMenu.Group>
 
 			<DropdownMenu.Separator />
+			<DropdownMenu.Group>
+				<DropdownMenu.GroupHeading class="text-sm">
+					{m.step_menu_about_heading()}
+				</DropdownMenu.GroupHeading>
+				<DropdownMenu.Item class="cursor-pointer py-2.5 text-base" onSelect={openFaqs}>
+					{@render faqRowInner()}
+				</DropdownMenu.Item>
+			</DropdownMenu.Group>
+
+			<DropdownMenu.Separator />
 			<!-- Stays open so you can see the new mode and switch back. -->
 			<DropdownMenu.Item
 				class="cursor-pointer py-2.5 text-base"
@@ -308,9 +351,17 @@
 					</DropdownMenu.SubContent>
 				</DropdownMenu.Sub>
 			{/if}
-			<DropdownMenu.Item class="cursor-pointer py-2.5 text-base" onSelect={logOut}>
-				{@render logOutRowInner()}
-			</DropdownMenu.Item>
+
+			<DropdownMenu.Separator />
+			{#each LEGAL_LINKS as link (link.href)}
+				<DropdownMenu.Item class="text-muted-foreground cursor-pointer py-2 text-base">
+					{#snippet child({ props })}
+						<a {...props} href={link.href} target="_blank" rel="noopener">
+							{link.label()}
+						</a>
+					{/snippet}
+				</DropdownMenu.Item>
+			{/each}
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
 {/if}

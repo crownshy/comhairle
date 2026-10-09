@@ -10,7 +10,7 @@
 	import StepDataProtocol from './StepDataProtocol.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { page } from '$app/state';
-	import { useSupportDrawer } from './supportDrawerContext.svelte';
+	import { useSupportDrawer, type SupportTab } from './supportDrawerContext.svelte';
 
 	let {
 		conversation,
@@ -34,16 +34,15 @@
 		!!conversation?.chatBotId && !!conversation.enableQaChatBot && hasKnowledgeBaseDocs
 	);
 
-	let activeTab = $state(
-		conversation?.chatBotId && conversation.enableQaChatBot && hasKnowledgeBaseDocs
-			? 'learningAssistant'
-			: 'faqs'
+	const supportDrawer = useSupportDrawer();
+
+	let activeTab = $derived<SupportTab>(
+		supportDrawer.tabRequest?.tab ?? (learningAssistantAvailable ? 'learningAssistant' : 'faqs')
 	);
 
 	const TAB_TRIGGER_CLASS =
 		'text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-muted-foreground/40 active:bg-muted data-[state=active]:text-foreground data-[state=active]:border-primary dark:data-[state=active]:border-primary data-[state=active]:hover:bg-muted/60 dark:data-[state=active]:hover:bg-muted/60 h-11 flex-none cursor-pointer rounded-none rounded-t-md border-0 border-b-2 border-transparent bg-transparent px-3 text-base shadow-none transition-colors data-[state=active]:bg-transparent data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent';
 
-	const supportDrawer = useSupportDrawer();
 	// Embedded pages have no NavBar to hold the phone trigger, so they keep a floating one.
 	let isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
 
