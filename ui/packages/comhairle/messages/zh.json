@@ -292,6 +292,8 @@
 	"finding_answer": "正在查找答案...",
 	"sources": "来源",
 	"question": "问题",
+	"question_x_of_y": "第 {current} 题，共 {total} 题",
+	"video_x_of_y": "第 {current} 个视频，共 {total} 个",
 	"saving": "正在保存",
 	"not_saved": "未保存",
 	"confirm_and_save": "确认并保存",

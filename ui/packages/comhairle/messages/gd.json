@@ -293,6 +293,8 @@
 	"finding_answer": "A’ lorg freagairt...",
 	"sources": "Stòran",
 	"question": "Ceist",
+	"question_x_of_y": "Ceist {current} de {total}",
+	"video_x_of_y": "Bhidio {current} de {total}",
 	"saving": "A’ sàbhaladh",
 	"not_saved": "Gun a shàbhaladh",
 	"confirm_and_save": "Dearbhaich is Sàbhail",
