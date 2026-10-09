@@ -359,5 +359,12 @@
 	"thinking_space_add_more": "Elige una pregunta a la que quieras añadir más reflexiones. Puedes volver aquí para elegir otra o finalizar para actualizar tus reflexiones más recientes.",
 	"image_lightbox_close": "Cerrar",
 	"image_lightbox_zoom": "Ampliar",
-	"image_lightbox_load_failed": "No se pudo abrir la imagen. Inténtalo de nuevo."
+	"image_lightbox_load_failed": "No se pudo abrir la imagen. Inténtalo de nuevo.",
+	"pager_back": "Atrás",
+	"pager_skip": "Omitir",
+	"step_loading": "Cargando el paso…",
+	"step_minutes": "({count} minutos)",
+	"step_not_found": "No se encontró la conversación",
+	"step_one_minute": "(1 minuto)",
+	"step_x_of_y": "Paso {current} de {total}"
 }

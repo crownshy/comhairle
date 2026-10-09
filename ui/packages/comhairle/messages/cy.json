@@ -359,5 +359,12 @@
 	"thinking_space_add_more": "Dewiswch gwestiwn i ychwanegu mwy o'ch meddyliau ato. Gallwch ddychwelyd yma i ddewis un arall, neu orffen i ddiweddaru eich meddyliau diweddaraf.",
 	"image_lightbox_close": "Cau",
 	"image_lightbox_zoom": "Chwyddo",
-	"image_lightbox_load_failed": "Methu agor y ddelwedd. Rhowch gynnig arall arni."
+	"image_lightbox_load_failed": "Methu agor y ddelwedd. Rhowch gynnig arall arni.",
+	"pager_back": "Yn ôl",
+	"pager_skip": "Hepgor",
+	"step_loading": "Wrthi'n llwytho'r cam…",
+	"step_minutes": "({count} munud)",
+	"step_not_found": "Methu dod o hyd i'r sgwrs",
+	"step_one_minute": "(1 munud)",
+	"step_x_of_y": "Cam {current} o {total}"
 }

@@ -359,5 +359,12 @@
 	"thinking_space_add_more": "اختر سؤالاً لإضافة المزيد من أفكارك إليه. يمكنك العودة إلى هنا لاختيار سؤال آخر، أو الإنهاء لتحديث أحدث أفكارك.",
 	"image_lightbox_close": "إغلاق",
 	"image_lightbox_zoom": "تكبير",
-	"image_lightbox_load_failed": "تعذّر فتح الصورة. يرجى المحاولة مرة أخرى."
+	"image_lightbox_load_failed": "تعذّر فتح الصورة. يرجى المحاولة مرة أخرى.",
+	"pager_back": "رجوع",
+	"pager_skip": "تخطَّ",
+	"step_loading": "جارٍ تحميل الخطوة…",
+	"step_minutes": "({count} دقائق)",
+	"step_not_found": "تعذّر العثور على المحادثة",
+	"step_one_minute": "(دقيقة واحدة)",
+	"step_x_of_y": "الخطوة {current} من {total}"
 }

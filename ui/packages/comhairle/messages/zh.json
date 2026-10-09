@@ -358,5 +358,12 @@
 	"thinking_space_add_more": "选择一个问题，补充更多想法。你可以返回这里选择另一个问题，或者完成以更新你的最新想法。",
 	"image_lightbox_close": "关闭",
 	"image_lightbox_zoom": "缩放",
-	"image_lightbox_load_failed": "无法打开图片，请重试。"
+	"image_lightbox_load_failed": "无法打开图片，请重试。",
+	"pager_back": "返回",
+	"pager_skip": "跳过",
+	"step_loading": "正在加载步骤…",
+	"step_minutes": "（{count} 分钟）",
+	"step_not_found": "找不到该对话",
+	"step_one_minute": "（1 分钟）",
+	"step_x_of_y": "第 {current} 步，共 {total} 步"
 }

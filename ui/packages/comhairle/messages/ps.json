@@ -364,5 +364,12 @@
 	"thinking_space_add_more": "یوه پوښتنه وټاکئ چې نور فکرونه ورته اضافه کړئ. تاسو کولی شئ بېرته دلته راشئ او بله پوښتنه وټاکئ، یا پای ته یې ورسوئ ترڅو خپل وروستي فکرونه تازه کړئ.",
 	"image_lightbox_close": "بندول",
 	"image_lightbox_zoom": "لوی کول",
-	"image_lightbox_load_failed": "انځور پرانیستل نشو. مهرباني وکړئ بیا هڅه وکړئ."
+	"image_lightbox_load_failed": "انځور پرانیستل نشو. مهرباني وکړئ بیا هڅه وکړئ.",
+	"pager_back": "شاته",
+	"pager_skip": "تېرول",
+	"step_loading": "ګام بارېږي…",
+	"step_minutes": "({count} دقیقې)",
+	"step_not_found": "خبرې اترې ونه موندل شوې",
+	"step_one_minute": "(۱ دقیقه)",
+	"step_x_of_y": "ګام {current} له {total}"
 }

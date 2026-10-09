@@ -364,5 +364,12 @@
 	"thinking_space_add_more": "یک پرسش را انتخاب کنید تا دیدگاه‌های بیشتری به آن اضافه کنید. می‌توانید به اینجا برگردید و پرسش دیگری انتخاب کنید، یا پایان دهید تا تازه‌ترین دیدگاه‌های شما به‌روزرسانی شود.",
 	"image_lightbox_close": "بستن",
 	"image_lightbox_zoom": "بزرگ‌نمایی",
-	"image_lightbox_load_failed": "تصویر باز نشد. لطفاً دوباره کوشش کنید."
+	"image_lightbox_load_failed": "تصویر باز نشد. لطفاً دوباره کوشش کنید.",
+	"pager_back": "برگشت",
+	"pager_skip": "رد کردن",
+	"step_loading": "در حال بارگیری مرحله…",
+	"step_minutes": "({count} دقیقه)",
+	"step_not_found": "گفتگو پیدا نشد",
+	"step_one_minute": "(۱ دقیقه)",
+	"step_x_of_y": "مرحله {current} از {total}"
 }
