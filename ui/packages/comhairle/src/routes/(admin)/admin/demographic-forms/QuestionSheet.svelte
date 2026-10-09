@@ -1,0 +1,236 @@
+<script lang="ts">
+	import { untrack } from 'svelte';
+	import { GripVertical, Plus, X } from 'lucide-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
+	import * as Sheet from '$lib/components/ui/sheet';
+	import { Switch } from '$lib/components/ui/switch';
+	import PhonePreview from './PhonePreview.svelte';
+	import QuestionAnswers from './QuestionAnswers.svelte';
+	import {
+		defaultPlaceholder,
+		isChoiceKind,
+		QUESTION_KIND_LABELS,
+		TAG_OPTIONS,
+		type DemographicQuestion,
+		type QuestionKind
+	} from './demographicPrototypeData';
+
+	type Props = {
+		question: DemographicQuestion;
+		isNew: boolean;
+		addsToForm: boolean;
+		onSave: (question: DemographicQuestion) => void;
+		onClose: () => void;
+	};
+
+	let { question, isNew, addsToForm, onSave, onClose }: Props = $props();
+
+	let draft = $state(untrack(() => $state.snapshot(question)));
+
+	const kinds = Object.keys(QUESTION_KIND_LABELS) as QuestionKind[];
+	const unusedTags = $derived(TAG_OPTIONS.filter((tag) => !draft.tags.includes(tag)));
+	const title = $derived(isNew ? 'Create a new question' : 'Edit question');
+	const saveLabel = $derived(addsToForm ? 'Save and add to form' : 'Save');
+
+	function setKind(kind: QuestionKind) {
+		draft.kind = kind;
+		if (isChoiceKind(kind) && draft.options.length === 0) draft.options = ['', '', ''];
+	}
+</script>
+
+<Sheet.Root open onOpenChange={(open) => !open && onClose()}>
+	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem]">
+		<div class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
+			<div class="flex min-h-0 flex-col gap-6 overflow-y-auto">
+				<Sheet.Header class="border-border border-b p-0 pb-4">
+					<Sheet.Title class="text-2xl font-semibold">{title}</Sheet.Title>
+					<Sheet.Description>
+						{isNew
+							? 'Add a new question to your question bank.'
+							: 'Changes apply to every form that uses this question.'}
+					</Sheet.Description>
+				</Sheet.Header>
+
+				<div class="flex flex-col gap-2">
+					<Label for="question-kind" class="text-base">Question type</Label>
+					<Select.Root
+						type="single"
+						value={draft.kind}
+						onValueChange={(value) => setKind(value as QuestionKind)}
+					>
+						<Select.Trigger id="question-kind" class="w-full">
+							{QUESTION_KIND_LABELS[draft.kind]}
+						</Select.Trigger>
+						<Select.Content>
+							{#each kinds as kind (kind)}
+								<Select.Item value={kind} label={QUESTION_KIND_LABELS[kind]}>
+									{QUESTION_KIND_LABELS[kind]}
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+
+				{#if !isChoiceKind(draft.kind)}
+					<div class="flex flex-col gap-2">
+						<Label for="question-placeholder" class="text-base">Placeholder text</Label>
+						<Input
+							id="question-placeholder"
+							bind:value={draft.placeholder}
+							placeholder={defaultPlaceholder(draft.kind)}
+						/>
+					</div>
+				{/if}
+
+				<div class="flex flex-col gap-2">
+					<Label class="text-base">Tag</Label>
+					<div class="flex items-center justify-between gap-2">
+						<div class="flex flex-wrap gap-2">
+							{#each draft.tags as tag (tag)}
+								<Badge variant="secondary" class="gap-1">
+									{tag}
+									<button
+										type="button"
+										class="hover:text-foreground"
+										aria-label={`Remove tag ${tag}`}
+										onclick={() =>
+											(draft.tags = draft.tags.filter((t) => t !== tag))}
+									>
+										<X class="size-3" />
+									</button>
+								</Badge>
+							{/each}
+							{#if draft.specialCategory}
+								<Badge variant="destructive">Special category</Badge>
+							{/if}
+						</div>
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger
+								class={buttonVariants({ variant: 'default', size: 'icon' })}
+								aria-label="Add tag"
+								disabled={unusedTags.length === 0}
+							>
+								<Plus class="size-4" />
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content align="end">
+								{#each unusedTags as tag (tag)}
+									<DropdownMenu.Item
+										onSelect={() => (draft.tags = [...draft.tags, tag])}
+									>
+										{tag}
+									</DropdownMenu.Item>
+								{/each}
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					</div>
+				</div>
+
+				<div class="border-border mt-auto flex flex-col gap-4 border-t pt-4">
+					<h3 class="text-base font-semibold">Settings</h3>
+					{#if isChoiceKind(draft.kind)}
+						<div class="flex items-center justify-between gap-4">
+							<Label for="allow-other" class="text-base">Add "Other" option</Label>
+							<Switch id="allow-other" bind:checked={draft.allowOther} />
+						</div>
+					{/if}
+					<div class="flex items-center justify-between gap-4">
+						<Label for="prefer-not-to-say" class="text-base"
+							>Add "Prefer not to say"</Label
+						>
+						<Switch id="prefer-not-to-say" bind:checked={draft.preferNotToSay} />
+					</div>
+					<div class="flex items-center justify-between gap-4">
+						<div class="flex flex-col">
+							<Label for="special-category" class="text-base"
+								>Special category data</Label
+							>
+							<span class="text-muted-foreground text-sm">
+								Asks for explicit consent before answering
+							</span>
+						</div>
+						<Switch id="special-category" bind:checked={draft.specialCategory} />
+					</div>
+				</div>
+			</div>
+
+			<PhonePreview showNext={false} step={1} steps={2}>
+				<input
+					class="placeholder:text-muted-foreground w-full bg-transparent text-2xl font-semibold outline-none"
+					placeholder="Type a question"
+					aria-label="Question wording"
+					bind:value={draft.text}
+				/>
+				<input
+					class="placeholder:text-muted-foreground w-full bg-transparent text-base outline-none"
+					placeholder="Add a description (optional)"
+					aria-label="Question description"
+					bind:value={draft.description}
+				/>
+
+				{#if isChoiceKind(draft.kind)}
+					<ul class="flex flex-col gap-2">
+						{#each draft.options as _, index (index)}
+							<li
+								class="border-border flex items-center gap-2 rounded-lg border px-3"
+							>
+								<input
+									class="placeholder:text-primary/50 w-full bg-transparent py-3 text-base outline-none"
+									placeholder="Choice"
+									aria-label={`Choice ${index + 1}`}
+									bind:value={draft.options[index]}
+								/>
+								<GripVertical class="text-muted-foreground size-4 shrink-0" />
+								<button
+									type="button"
+									class="text-muted-foreground hover:text-foreground"
+									aria-label={`Remove choice ${index + 1}`}
+									onclick={() => draft.options.splice(index, 1)}
+								>
+									<X class="size-4" />
+								</button>
+							</li>
+						{/each}
+						{#if draft.allowOther}
+							<li
+								class="text-muted-foreground border-border rounded-lg border border-dashed px-3 py-3 text-base"
+							>
+								Other (please specify)
+							</li>
+						{/if}
+						{#if draft.preferNotToSay}
+							<li
+								class="text-muted-foreground border-border rounded-lg border border-dashed px-3 py-3 text-base"
+							>
+								Prefer not to say
+							</li>
+						{/if}
+					</ul>
+					<Button
+						variant="link"
+						class="self-start px-0"
+						onclick={() => draft.options.push('')}
+					>
+						Add choice
+					</Button>
+				{:else}
+					<QuestionAnswers question={draft} />
+				{/if}
+			</PhonePreview>
+		</div>
+
+		<Sheet.Footer class="border-border flex-row justify-end gap-2 border-t px-6 py-4">
+			<Button variant="outline" onclick={onClose}>Cancel</Button>
+			<Button
+				disabled={draft.text.trim() === ''}
+				onclick={() => onSave($state.snapshot(draft))}
+			>
+				{saveLabel}
+			</Button>
+		</Sheet.Footer>
+	</Sheet.Content>
+</Sheet.Root>

@@ -11,6 +11,7 @@
 		Home,
 		Mail,
 		Images,
+		ClipboardList,
 		Map,
 		PanelLeftClose,
 		PanelLeftOpen,
@@ -174,6 +175,16 @@
 								<a {...btnProps} href="/admin/media-library">
 									<Images class="size-4" />
 									Media library
+								</a>
+							{/snippet}
+						</SideBar.MenuButton>
+					</SideBar.MenuItem>
+					<SideBar.MenuItem>
+						<SideBar.MenuButton isActive={path.startsWith('/admin/demographic-forms')}>
+							{#snippet child({ props: btnProps })}
+								<a {...btnProps} href="/admin/demographic-forms">
+									<ClipboardList class="size-4" />
+									Demographic forms
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>
