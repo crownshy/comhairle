@@ -3,6 +3,7 @@ import type { Page } from '../types';
 import type { Refs } from './types';
 import { expect, type Locator } from '@playwright/test';
 import Textboxes from './inputs/Textboxes';
+import Design from '../navigation/Design';
 
 const MoveUpBtn = (locator: Locator) => locator.getByLabel('Move step up');
 const MoveDownBtn = (locator: Locator) => locator.getByLabel('Move step down');
@@ -46,76 +47,9 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 		}
 	});
 
-	// "tab" = Add button in the tab bar
-	// "new" = Add button that shows up when there are no steps currently
-	// "additional" = Add button that shows up after steps have already been added
-	async function add(
-		id: T,
-		from: 'tab' | 'new' | 'additional',
-		type:
-			| 'Learn'
-			| 'Poll'
-			| 'Survey'
-			| 'Individual view exploration'
-			| 'Prioritisation'
-			| 'Elicitation'
-			| 'Lived experience'
-	) {
-		let name;
-		let stepName;
-		switch (type) {
-			case 'Learn':
-				name = 'Topic onboarding Present';
-				stepName = 'New Learn Step';
-				break;
-			case 'Poll':
-				name = 'Participant-led poll Show';
-				stepName = 'New Polis Step';
-				break;
-			case 'Survey':
-				name = 'Survey Ask participants a';
-				stepName = 'New Survey Step';
-				break;
-			case 'Individual view exploration':
-				name = 'Individual view exploration';
-				stepName = 'Thinking Space';
-				break;
-			case 'Prioritisation':
-				name = 'Proposal prioritisation';
-				stepName = 'Rate the proposals';
-				break;
-			case 'Elicitation':
-				name = 'Elicitation Bot Help';
-				stepName = 'What do you think?';
-				break;
-			case 'Lived experience':
-				name = 'Lived Experience Let users';
-				stepName = 'New Lived Experience Step';
-				break;
-			default:
-				throw new Error(`Incorrect type: ${type}`);
-		}
-
-		let AddBtn;
-		switch (from) {
-			case 'tab':
-				AddBtn = refs.page
-					.getByRole('navigation', { name: 'Workflow steps' })
-					.getByRole('button', { name: 'Add step' });
-				break;
-			case 'new':
-			case 'additional':
-				AddBtn = refs.page.getByRole('button', { name: 'Add step' }).nth(1);
-				break;
-			default:
-				throw new Error(`Incorrect from: ${from}`);
-		}
-
-		await AddBtn.click();
-		await refs.page.getByRole('button', { name }).click();
-		await refs.page.getByRole('button', { name: '+ Add this step' }).click();
-		await sleep(1.5);
-
+	type params = Parameters<typeof Design.addStep>;
+	async function add(id: T, from: params[1], type: params[2]) {
+		const stepName = await Design.addStep(refs.page, from, type);
 		list.push({ id, name: stepName, position: list.length + 1 });
 	}
 

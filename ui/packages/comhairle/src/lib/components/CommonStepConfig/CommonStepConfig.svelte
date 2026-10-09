@@ -195,11 +195,12 @@
 
 {#snippet fields()}
 	<div class="flex flex-col gap-1">
-		<span class="text-lg font-semibold">Name</span>
+		<label for="name" class="text-lg font-semibold">Name</label>
 		<p class="text-muted-foreground mb-2 text-sm">
 			The name of the step that will be shown to participants.
 		</p>
 		<TranslatableField
+			id="name"
 			source={nameSource}
 			{primaryLocale}
 			{supportedLanguages}
@@ -277,20 +278,22 @@
 {#snippet switches()}
 	<div class="flex items-center gap-2">
 		<Switch
+			id="revisitable-step"
 			checked={revisitable}
 			disabled={!canEdit}
 			onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
 		/>
-		<Label class="text-base">Revisitable step</Label>
+		<Label for="revisitable-step" class="text-base">Revisitable step</Label>
 		<span class="text-muted-foreground ml-2 text-sm">(Can users revisit this step?)</span>
 	</div>
 	<div class="flex items-center gap-2">
 		<Switch
+			id="required-step"
 			checked={required}
 			disabled={!canEdit}
 			onCheckedChange={(value) => handleSwitchChange(value, 'required')}
 		/>
-		<Label class="text-base">Required step</Label>
+		<Label for="required-step" class="text-base">Required step</Label>
 		<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
 	</div>
 	{#if toolType === 'thinkingspace'}

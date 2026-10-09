@@ -4,7 +4,7 @@ import type { Page } from '../types';
 
 type Tabs = {
 	Configure: readonly ['Details', 'Content', 'Glossary', 'Moderation policy', 'Access', 'Team'];
-	'Process Design': readonly ['Add step'];
+	'Process Design': readonly ['Add step', string];
 	'Learning Assistant': undefined;
 	Events: readonly ['Add event'];
 	Recruit: readonly ['Email', 'Open Links'];
@@ -65,8 +65,12 @@ const Conversation = {
 				await page.getByRole('tab', { name: subtab }).click();
 				return;
 			case 'Process Design':
+				if (subtab === 'Add step') {
+					await page.getByRole('button', { name: 'Add step' }).click();
+					return;
+				}
 				// TODO:Add if statements here
-				await page.getByRole('button', { name: 'Add step' }).click();
+				await page.getByRole('link', { name: subtab }).click();
 				return;
 			case 'Events':
 				await page.getByRole('link', { name: 'Add event' }).click();

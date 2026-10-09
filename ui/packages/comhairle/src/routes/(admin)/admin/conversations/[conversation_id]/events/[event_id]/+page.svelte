@@ -431,14 +431,14 @@
 					</Form.Label>
 					<div class="flex-1">
 						{#if canEdit}
-						<Combobox
-							selectedItem={availableTimeZones.find(
-								(tz) => tz.value === $form.default_time_zone
-							)}
-							items={availableTimeZones}
-							placeholder="Select a default timezone"
-							onSelect={(item) => ($form.default_time_zone = item.value)}
-						/>
+							<Combobox
+								selectedItem={availableTimeZones.find(
+									(tz) => tz.value === $form.default_time_zone
+								)}
+								items={availableTimeZones}
+								placeholder="Select a default timezone"
+								onSelect={(item) => ($form.default_time_zone = item.value)}
+							/>
 						{:else}
 							<Input
 								value={$form.default_time_zone}
