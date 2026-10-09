@@ -12,6 +12,8 @@
 		Moon,
 		Sun
 	} from 'lucide-svelte';
+	import { tick } from 'svelte';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
@@ -84,11 +86,17 @@
 	let ThemeIcon = $derived(themeStore.isDark ? Sun : Moon);
 
 	const currentLocale = getLocale();
-	const currentLanguageName = getLanguageName(currentLocale, 'native');
 	let languageListOpen = $state(false);
+	let pendingLocale = $state<Locale | null>(null);
+	let shownLocale = $derived(pendingLocale ?? currentLocale);
 
-	function chooseLanguage(locale: Locale) {
-		if (locale !== currentLocale) switchLocale(locale);
+	// Switching reloads the whole page, so show the spinner first and let it paint.
+	async function chooseLanguage(locale: Locale) {
+		if (locale === currentLocale || pendingLocale) return;
+		pendingLocale = locale;
+		await tick();
+		await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+		switchLocale(locale);
 	}
 
 	const supportDrawer = useSupportDrawer();
@@ -139,7 +147,12 @@
 {#snippet languageRowInner()}
 	<Languages class="text-muted-foreground size-5 shrink-0" />
 	<span>{m.language()}</span>
-	<span class="text-muted-foreground ml-auto">{currentLanguageName}</span>
+	<span class="text-muted-foreground ml-auto flex items-center gap-2">
+		{#if pendingLocale}
+			<Spinner class="size-4" />
+		{/if}
+		{getLanguageName(shownLocale, 'native')}
+	</span>
 {/snippet}
 
 {#snippet faqRowInner()}
@@ -244,11 +257,14 @@
 								<button
 									type="button"
 									class={SHEET_ROW_CLASS}
-									aria-current={locale === currentLocale ? 'true' : undefined}
+									aria-current={locale === shownLocale ? 'true' : undefined}
+									disabled={pendingLocale !== null}
 									onclick={() => chooseLanguage(locale)}
 								>
 									{getLanguageName(locale, 'native')}
-									{#if locale === currentLocale}
+									{#if locale === pendingLocale}
+										<Spinner class="text-primary ml-auto size-5 shrink-0" />
+									{:else if locale === shownLocale}
 										<Check class="text-primary ml-auto size-5 shrink-0" />
 									{/if}
 								</button>
@@ -356,15 +372,20 @@
 				</DropdownMenu.SubTrigger>
 				<DropdownMenu.SubContent class="w-56 p-2">
 					<DropdownMenu.RadioGroup
-						value={currentLocale}
+						value={shownLocale}
 						onValueChange={(value) => chooseLanguage(value as Locale)}
 					>
 						{#each locales as locale (locale)}
 							<DropdownMenu.RadioItem
 								value={locale}
+								closeOnSelect={false}
+								disabled={pendingLocale !== null && locale !== pendingLocale}
 								class="cursor-pointer py-2.5 text-base"
 							>
 								{getLanguageName(locale, 'native')}
+								{#if locale === pendingLocale}
+									<Spinner class="ml-auto size-4" />
+								{/if}
 							</DropdownMenu.RadioItem>
 						{/each}
 					</DropdownMenu.RadioGroup>
