@@ -37,6 +37,13 @@ You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
 
+## Unit tests
+
+Run `pnpm test:unit`. Component tests that use `mount` need
+`// @vitest-environment jsdom` at the top of the test file. The
+[Vite configuration](./vite.config.ts) enables Svelte's browser export condition
+only in test mode, so mounting works in jsdom without changing application SSR.
+
 ## Loading data
 
 For testing it's useful to have some pre-generated conversations and users. You can use the data loader binary to do this

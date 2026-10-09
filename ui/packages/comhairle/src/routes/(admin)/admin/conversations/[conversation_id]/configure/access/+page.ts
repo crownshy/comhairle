@@ -1,82 +1,41 @@
 import type { PageLoad } from './$types';
-import { tryCatchAsync, type ErrorType, type Result } from '$lib/utils/errorHandling';
-import { typed } from '$lib/utils/types';
-import type { OrganizationDto, OrganizationWithPermissionDto } from '@crownshy/api-client/api';
-import BinaryTree from '$lib/data-structures/BinaryTree';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { canPerformAction } from '$lib/utils/permissions';
+import { key } from '$lib/utils/invalidationKey';
 
-type CohostOrganization = OrganizationWithPermissionDto;
-
-type AccessData = {
-	canManageCohosts: boolean;
-	streamedCohostOrganizations: Promise<Result<'ok', CohostOrganization[], ErrorType>>;
-};
-
-export const load: PageLoad = async ({ parent, params }) => {
-	const { api, user, conversation } = await parent();
-
-	const canManageCohosts = user.id === conversation.ownerId;
-	if (!canManageCohosts) {
-		return typed<AccessData>({
-			canManageCohosts: false,
-			streamedCohostOrganizations: tryCatchAsync<CohostOrganization[], ErrorType>(
-				async (ok) => ok<CohostOrganization[]>([])
-			)
-		});
+async function collectPages<RecordType>(loadPage: (offset: number) => Promise<RecordType[]>) {
+	const records: RecordType[] = [];
+	for (let offset = 0; ; offset += 100) {
+		const page = await loadPage(offset);
+		records.push(...page);
+		if (page.length < 100) return records;
 	}
+}
 
-	return typed<AccessData>({
-		canManageCohosts: true,
-		streamedCohostOrganizations: tryCatchAsync<CohostOrganization[], ErrorType>(
-			async (ok, err) => {
-				// NOTE: This logic should maybe be moved to the backend
-				const organizations = await tryCatchAsync(() =>
-					api
-						.ListOrganizations({
-							queries: { limit: 500 }
-						})
-						.then((result) => result.records)
-				);
-
-				if (organizations.err !== null) {
-					throw err(organizations.err);
-				}
-
-				const cohostOrganizations = await tryCatchAsync(() =>
-					api.ListConversationCoHostOrganizations({
-						params: { conversation_id: params.conversation_id }
-					})
-				);
-
-				if (cohostOrganizations.err !== null) {
-					throw err(cohostOrganizations.err);
-				}
-
-				const cohostOrganizationIds: OrganizationDto['id'][] = cohostOrganizations.ok.map(
-					(c) => c.id
-				);
-
-				const binaryTree = new BinaryTree<string, CohostOrganization>();
-
-				for (const organization of organizations.ok) {
-					if (
-						organization.id === conversation.organizationId ||
-						cohostOrganizationIds.includes(organization.id)
-					) {
-						continue;
-					}
-
-					const cohostOrganization = cohostOrganizations.ok.find(
-						(c) => c.id === organization.id
-					);
-					if (!cohostOrganization) {
-						continue;
-					}
-
-					binaryTree.insert(cohostOrganization.name, cohostOrganization);
-				}
-
-				return ok(binaryTree.toArray());
-			}
-		)
+export const load: PageLoad = async ({ parent, depends }) => {
+	depends(key('admin/conversation/permissions'));
+	const { api, conversation, conversationActions } = await parent();
+	if (!canPerformAction(conversationActions, 'conversation_admin'))
+		return { roleManagement: null };
+	const params = { resource_type: 'conversation', resource_id: conversation.id };
+	const roleManagement = await tryCatchAsync(async () => {
+		const [roles, assignments, users, organizations] = await Promise.all([
+			api.GetPermissionRoles({ params: { resource_type: 'conversation' } }),
+			collectPages((offset) =>
+				api
+					.ListResourcePermissions({ params, queries: { limit: 100, offset } })
+					.then((page) => page.records)
+			),
+			collectPages((offset) =>
+				api.ListUsersWithPermission({ params, queries: { limit: 100, offset } })
+			),
+			collectPages((offset) =>
+				api
+					.ListOrganizations({ queries: { limit: 100, offset } })
+					.then((page) => page.records)
+			)
+		]);
+		return { roles, assignments, users, organizations };
 	});
+	return { roleManagement };
 };

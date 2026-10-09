@@ -26,6 +26,7 @@
 <!-- Polis -->
 {#if data.polis && step && roomDisplayUrl}
 	<PolisInsights
+		conversationId={data.conversation.id}
 		workflowStepId={step.id}
 		reportData={data.polis.reportData ?? null}
 		statementAux={data.polis.statementAux ?? []}

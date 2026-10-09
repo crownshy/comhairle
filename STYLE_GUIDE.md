@@ -171,6 +171,9 @@ Before hand-rolling UI or a helper, **check what already exists**: grep
 - Dialogs, selects, tables, command palette, skeletons, sonner toasts all live in
   `src/lib/components/ui/**`. Don't re-roll a shadcn primitive.
 - Class merging → `cn()` from `$lib/utils`. Never concatenate class strings by hand.
+- Search inputs with an icon → `$lib/components/SearchBar.svelte`. It uses a native
+  search input and the `pile` utility. Pass an accessible name (`aria-label` or
+  `aria-labelledby`); keep filtering and debounce logic in the caller.
 - Icons → `lucide-svelte`. Don't inline bespoke SVGs for common glyphs.
 - Never hand-roll what a proven library already does: charts → LayerCake / layerchart /
   `@carbon/charts-svelte`; rich text → TipTap / Carta; QR → `svelte-qrcode`;
@@ -249,8 +252,10 @@ If you copy a block a second time, stop and extract it.
     use(res.ok);
     ```
 
-- Client-side data goes through `apiClient` (`@crownshy/api-client/client`); server-side
-  loads use `tryFetch` from the same util.
+- Client-side data goes through `apiClient` (`@crownshy/api-client/client`). Server-side
+  loads await `parent()` before using the request-scoped `locals.api`, provided lazily by
+  the server hook so it uses the session's current cookies. Wrap API calls with
+  `tryCatchAsync`.
 
 ### Comments
 

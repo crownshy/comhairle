@@ -8,6 +8,7 @@
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
 		conversationId: string;
@@ -16,6 +17,9 @@
 		isLive: boolean;
 	};
 	let { conversationId, workflowId, workflowStep, isLive }: Props = $props();
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversationId)
+	);
 
 	const elicitationBotSchema = z.object({
 		topic: z.string().min(3, 'Please provide at least 3 characters for your topic')
@@ -37,8 +41,9 @@
 
 	const { form: formData, enhance, message: errMessage, validateForm, submitting } = form;
 
-	async function handleSubmit(e: Event) {
-		// e.preventDefault();
+	async function handleSubmit({ cancel }: { cancel: () => void }) {
+		cancel();
+		if (!canEdit) return;
 		const result = await validateForm();
 		let update = isLive
 			? { tool_config: { ...workflowStep.toolConfig, ...result.data } }
@@ -89,6 +94,7 @@
 					>
 					<Input
 						{...props}
+						disabled={!canEdit}
 						bind:value={$formData.topic}
 						placeholder="Enter the main topic of the conversation you hope to gather opinions on..."
 					/>
@@ -97,8 +103,10 @@
 			<Form.FieldErrors />
 		</Form.Field>
 
-		<Button type="submit" disabled={$submitting} class="w-full">
-			{$submitting ? 'Saving...' : 'Save Configuration'}
-		</Button>
+		{#if canEdit}
+			<Button type="submit" disabled={$submitting} class="w-full">
+				{$submitting ? 'Saving...' : 'Save Configuration'}
+			</Button>
+		{/if}
 	</form>
 </div>

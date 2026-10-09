@@ -17,6 +17,7 @@
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import { moveItem } from '$lib/utils/reorder';
 	import { cn } from '$lib/utils';
+	import { permissions } from '$lib/permissions.svelte';
 	import {
 		Pencil,
 		Trash2,
@@ -33,6 +34,10 @@
 	let { data } = $props();
 
 	let conversation = $derived(data.conversation);
+	const canUpdate = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
+	const canTranslate = $derived(canUpdate && permissions.can('system', 'translate'));
 	let workflow = $derived(data.workflows[0]);
 	let workflowSteps = $derived<WorkflowStepWithTranslations[] | undefined>(data.workflowSteps);
 
@@ -76,6 +81,7 @@
 	 * past the replace-warning instead of asking about steps that don't exist.
 	 */
 	function chooseTemplate(choice: TemplateChoice) {
+		if (!canUpdate) return;
 		pendingChoice = choice;
 		templatePickerOpen = false;
 		if (reorderedSteps.length === 0) {
@@ -86,6 +92,7 @@
 	}
 
 	async function applyTemplate() {
+		if (!canUpdate) return;
 		const choice = pendingChoice;
 		if (!choice) return;
 		applyingTemplate = true;
@@ -140,6 +147,7 @@
 	}
 
 	async function patchStep(step: WorkflowStepWithTranslations, body: Record<string, unknown>) {
+		if (!canUpdate) return;
 		await apiClient.UpdateConversationWorkflowStep(body, {
 			params: {
 				conversation_id: conversation.id,
@@ -151,9 +159,11 @@
 
 	// --- Reorder (drag + buttons share the same commit) ---
 	function handleReorder(next: WorkflowStepWithTranslations[]) {
+		if (!canUpdate) return;
 		reorderedSteps = next;
 	}
 	async function handleCommit(next: WorkflowStepWithTranslations[]) {
+		if (!canUpdate) return;
 		for (let i = 0; i < next.length; i++) {
 			const step = next[i];
 			if (step.stepOrder !== i + 1) {
@@ -171,6 +181,7 @@
 	}
 	// Non-drag reorder: keyboard/click alternative for devices where drag is awkward.
 	function moveStep(index: number, direction: -1 | 1) {
+		if (!canUpdate) return;
 		const next = moveItem(reorderedSteps, index, direction);
 		if (next === reorderedSteps) return;
 		reorderedSteps = next;
@@ -179,10 +190,12 @@
 
 	// --- Inline name edit ---
 	function startEdit(step: WorkflowStepWithTranslations) {
+		if (!canTranslate) return;
 		editingId = step.id;
 		editValue = step.name;
 	}
 	async function commitEdit(step: WorkflowStepWithTranslations) {
+		if (!canTranslate) return;
 		const name = editValue.trim();
 		editingId = null;
 		if (!name || name === step.name) return;
@@ -204,6 +217,7 @@
 
 	// --- Delete ---
 	async function deleteStep(step: WorkflowStepWithTranslations) {
+		if (!canUpdate) return;
 		try {
 			await apiClient.DeleteConversationWorkflowStep(undefined, {
 				params: {
@@ -270,6 +284,7 @@
 				</div>
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
+						disabled={!canUpdate}
 						class="bg-card border-primary text-primary flex h-8 shrink-0 items-center gap-2 self-end rounded-full border px-3 py-4 text-sm font-medium shadow-sm sm:self-auto"
 					>
 						Choose from templates
@@ -293,7 +308,7 @@
 					class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 				>
 					<p class="text-sm">No steps yet. Add your first step to get started.</p>
-					<Button onclick={() => (addStepDialog.open = true)}>
+					<Button disabled={!canUpdate} onclick={() => (addStepDialog.open = true)}>
 						<Plus class="size-4" />
 						Add step
 					</Button>
@@ -303,7 +318,7 @@
 					items={reorderedSteps}
 					onReorder={handleReorder}
 					onCommit={handleCommit}
-					dragDisabled={editingId !== null}
+					dragDisabled={!canUpdate || editingId !== null}
 					dropTargetStyle={{}}
 					class="flex flex-col gap-2.5"
 					flipDurationMs={200}
@@ -370,7 +385,7 @@
 								<button
 									type="button"
 									aria-label="Move step up"
-									disabled={index === 0}
+									disabled={!canUpdate || index === 0}
 									onclick={() => moveStep(index, -1)}
 									class="text-muted-foreground hover:text-foreground hover:bg-accent flex size-8 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-30"
 								>
@@ -379,7 +394,7 @@
 								<button
 									type="button"
 									aria-label="Move step down"
-									disabled={index === reorderedSteps.length - 1}
+									disabled={!canUpdate || index === reorderedSteps.length - 1}
 									onclick={() => moveStep(index, 1)}
 									class="text-muted-foreground hover:text-foreground hover:bg-accent flex size-8 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-30"
 								>
@@ -401,18 +416,22 @@
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="end">
 										<DropdownMenu.Item
-											disabled={index === 0}
+											disabled={!canUpdate || index === 0}
 											onSelect={() => moveStep(index, -1)}
 										>
 											<ArrowUp class="size-4" /> Move up
 										</DropdownMenu.Item>
 										<DropdownMenu.Item
-											disabled={index === reorderedSteps.length - 1}
+											disabled={!canUpdate ||
+												index === reorderedSteps.length - 1}
 											onSelect={() => moveStep(index, 1)}
 										>
 											<ArrowDown class="size-4" /> Move down
 										</DropdownMenu.Item>
-										<DropdownMenu.Item onSelect={() => startEdit(step)}>
+										<DropdownMenu.Item
+											disabled={!canTranslate}
+											onSelect={() => startEdit(step)}
+										>
 											<Pencil class="size-4" /> Rename
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
@@ -428,6 +447,7 @@
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item
 											class="text-destructive"
+											disabled={!canUpdate}
 											onSelect={() => deleteStep(step)}
 										>
 											<Trash2 class="size-4" /> Delete
@@ -440,7 +460,11 @@
 				</DraggableList>
 
 				<div>
-					<Button variant="outline" onclick={() => (addStepDialog.open = true)}>
+					<Button
+						variant="outline"
+						disabled={!canUpdate}
+						onclick={() => (addStepDialog.open = true)}
+					>
 						<Plus class="size-4" />
 						Add step
 					</Button>
@@ -473,7 +497,7 @@
 			</AlertDialog.Cancel>
 			<AlertDialog.Action
 				class="bg-destructive hover:bg-destructive/90 w-full text-white sm:w-auto"
-				disabled={applyingTemplate}
+				disabled={!canUpdate || applyingTemplate}
 				onclick={(e) => {
 					e.preventDefault();
 					applyTemplate();

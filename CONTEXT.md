@@ -44,13 +44,20 @@ _Avoid_: "data sharing", "data policy", and the old Confidential/Restricted/Coll
 _Note_: Thinking Space's consent prompt is a separate switch on that tool (`request_user_share_permission`), not part of the Data protocol.
 
 **Role assignment**:
-An explicit grant that links an actor (user or organisation) to a named role on a resource (`resource_type` + `resource_id`). Role assignments are durable records and form the source of truth for authorization.
+An explicit grant that links a recipient (User or User group) to a named role on a resource; changes to the assignment target that recipient, not individual users who inherit it. Granting a role to an Organization means granting it to that Organization's membership group.
+
+**Inherited role**:
+A role available to a User through current membership in a User group when access is checked, rather than a separate role assignment to that User. Leaving the group removes that inherited role without removing direct assignments or roles inherited through other groups.
+
+**Super Administrator**:
+A User with platform-wide authority through a direct or inherited Super Administrator role; at least one User must always retain that authority. Only a Super Administrator may grant that role to a User or User group, or add a User to a group holding it.
 
 **Permission action**:
-A single allowed operation (for example list, grant, revoke, read, update) that routes enforce. Roles grant sets of permission actions; authorization succeeds when any assigned role on the target resource grants the required action.
+A single allowed operation (for example list, grant, revoke, read, update) that routes enforce. Grants are additive: a recipient may hold multiple roles on a resource, and a User's allowed actions combine all direct and inherited roles on that resource.
+Resource owners may list, grant, revoke, and replace role assignments on their own resource without System permission-management authority. Ownership does not grant authority over System role assignments.
 
 **Authorization precedence**:
-Permission checks resolve in this order: resource ownership allows, then system admin grant allows globally, then role-action mapping on the target resource is evaluated. There are currently no explicit deny rules.
+Ownership of the target resource allows access without evaluating role assignments; otherwise, Super Administrator authority allows globally, followed by evaluation of direct and inherited roles on the target resource. Super Administrator grant and group-addition restrictions remain mandatory regardless of ownership; there are no explicit deny rules.
 
 ### Participant journey
 
@@ -99,12 +106,20 @@ render), toolbar.
 
 ### Organizations and access
 
+**User group**:
+A set of users to which roles can be assigned collectively. A user may belong to multiple User groups.
+_Avoid_: Organization (the entity that owns and manages its membership group), team (a possible future concept), opinion group (a Polis-derived cluster).
+
+**Organization membership group**:
+The single User group owned and managed by an Organization that determines its membership. Each Organization has exactly one Organization membership group for now.
+
 **Organization Administrator**:
-A user explicitly assigned elevated permissions on one Organization, including organization update, organization delete, and organization member add/remove.
+A user with an Organization Administrator role on one Organization, including authority to update or delete it, manage membership, and promote other members to Administrator or demote them to Member. Membership changes do not require resource-owner approval, but adding Users to a group holding the Super Administrator role requires Super Administrator authority.
+An Organization Administrator may not change their own Organization membership or Administrator role, including removing their inherited Administrator authority through group-grant changes; an existing Organization must retain at least one Administrator.
 _Avoid_: Org owner, org contact, organization user.
 
 **Organization Member**:
-A user associated with an Organization for membership purposes, without implied administrative permissions.
+A user who belongs to an Organization's Organization membership group; membership alone does not authorize permission changes, and a user may belong to multiple Organizations. Revoking a direct Administrator assignment preserves membership and does not change inherited roles.
 _Avoid_: Organization admin (unless they also hold Organization Administrator assignment).
 
 **Primary host organization**:
@@ -112,12 +127,35 @@ The single Organization linked directly on a Conversation as its primary institu
 _Avoid_: Co-host, conversation owner.
 
 **Co-hosting organization**:
-An Organization explicitly associated with a Conversation as an additional host beside the primary host organization. Co-hosting organizations are inferred by ownership of the Conversation co-host role.
+An Organization explicitly associated with a Conversation as an additional host beside the primary host organization. Co-hosting organizations are identified by a Conversation co-host role assignment to their Organization membership group.
 _Avoid_: Primary host organization, member organization.
 
 **Conversation co-host role**:
 A conversation-scoped role intended for organization actors, granting read-only access (`ConversationRead`) by default.
 _Avoid_: Content editor (that role implies update access).
+
+**Conversation Owner**:
+The User who owns a Conversation and has full authority over it, including launch and deletion. Ownership is distinct from an assigned Administrator role.
+
+**Conversation Administrator**:
+A User with full authority over one Conversation, including launch, deletion, role management, content editing, moderation, translation, and data export.
+_Avoid_: Organization Administrator, Super Administrator (those have different scopes).
+
+**Conversation Observer**:
+A User with read-only access to a Conversation. Observer access does not confer editing, moderation, translation, export, launch, or deletion authority.
+
+**Conversation Content Editor**:
+A User who can edit a Conversation's content, tool configuration, and Workflow design, but cannot launch or delete it. Moderation, translation, and data export are separate capabilities.
+
+**Conversation Moderator**:
+A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design.
+
+**System Translator**:
+A User with authority to create, edit, and delete text content in all formats and locales, including the primary locale, across all Conversations and system content. This authority includes text-content configuration but does not grant permission management or other administrative capabilities.
+_Avoid_: Conversation Translator (that role has a narrower scope), System Administrator.
+
+**Conversation Data Access**:
+Authority to export data belonging to a Conversation, without conferring content-editing, moderation, translation, launch, or deletion authority.
 
 **Organization contact email**:
 A communication address for the Organization entity itself. It is not a permission grant and is distinct from both member emails and Organization Administrator emails.

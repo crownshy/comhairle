@@ -10,8 +10,10 @@
 	import { Plus, Upload } from '@lucide/svelte';
 	import SeedStatementsPreview, { type SeedDraft } from './SeedStatementsPreview.svelte';
 	import { parseSeedCsv, type ParsedSeedCsv } from '$lib/utils/seedCsv';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
+		conversationId: string;
 		workflowStepId: string;
 		/** Every statement already in the step, rejected ones included, for duplicate flags. */
 		existingStatements: string[];
@@ -19,7 +21,10 @@
 		onSeeded: () => void | Promise<void>;
 	};
 
-	let { workflowStepId, existingStatements, onSeeded }: Props = $props();
+	let { conversationId, workflowStepId, existingStatements, onSeeded }: Props = $props();
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversationId)
+	);
 
 	let open = $state(false);
 	let draftText = $state('');
@@ -66,6 +71,7 @@
 		totalCount = texts.length;
 
 		for (const statement_text of texts) {
+			if (!canEdit) return { posted: postedCount, failedText: statement_text };
 			const result = await tryCatchAsync(() =>
 				apiClient.PolisPostSeed({ workflow_step_id: workflowStepId, statement_text })
 			);
@@ -84,6 +90,7 @@
 	 * to the parent to refresh. Runs after a partial batch too, so whatever landed is visible.
 	 */
 	async function refreshAfterSeeding() {
+		if (!canEdit) return;
 		const synced = await tryCatchAsync(() =>
 			apiClient.PolisSyncStatementAux({ workflow_step_id: workflowStepId })
 		);
@@ -109,6 +116,7 @@
 	}
 
 	async function addSeed() {
+		if (!canEdit) return;
 		const text = draftText.trim();
 		if (!text || busy) return;
 		addingSeed = true;
@@ -186,6 +194,7 @@
 	}
 
 	async function confirmImport() {
+		if (!canEdit) return;
 		const texts = postable;
 		if (texts.length === 0 || busy) return;
 		importing = true;

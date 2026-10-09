@@ -844,7 +844,7 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
 
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
         let (_, value, _) = session
             .create_workflow_step(
                 &app,
@@ -891,7 +891,7 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
 
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
         let (_, value, _) = session
             .create_workflow_step(
                 &app,
@@ -976,7 +976,7 @@ mod tests {
     ) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
         let workflow_step = session
             .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
             .await?;
@@ -1034,7 +1034,7 @@ mod tests {
     async fn should_list_proposal_responses_via_api(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
         let workflow_step = session
             .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
             .await?;

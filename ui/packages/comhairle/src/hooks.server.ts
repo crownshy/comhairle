@@ -5,6 +5,7 @@ import { env } from '$env/dynamic/public';
 import { resolveThemeName, DEFAULT_THEME, THEMES } from '$lib/types/theme';
 import { getTextDirection } from '$lib/paraglide/runtime';
 import setCookieParser from 'set-cookie-parser';
+import { createApiClient } from '@crownshy/api-client/client';
 
 const isEmbeddable = (pathname: string) =>
 	EMBEDDABLE_PATHS.some((path) => pathname.startsWith(path));
@@ -79,7 +80,22 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle: Handle = sequence(handleTheme, handleParaglide, handleHeaders);
+const handleApi: Handle = async ({ event, resolve }) => {
+	let api: App.Locals['api'] | undefined;
+	// Read cookies on first use, after the root layout can refresh the session.
+	Object.defineProperty(event.locals, 'api', {
+		get: () =>
+			(api ??= createApiClient(
+				event.url.origin + '/api',
+				event.cookies.get('auth-token'),
+				'server',
+				event.cookies.get('COMHAIRLE_LOCALE')
+			))
+	});
+	return resolve(event);
+};
+
+export const handle: Handle = sequence(handleApi, handleTheme, handleParaglide, handleHeaders);
 
 // Server-side `event.fetch('/api/...')` calls (form actions, load funcs) originate
 // from the frontend pod, so without this the API records the NAT gateway IP instead

@@ -19,7 +19,7 @@
 </svelte:head>
 
 {#if guide}
-	<div class="max-w-6xl">
+	<div class="bg-muted max-w-6xl rounded-xl p-6">
 		<h1 class="text-primary text-4xl font-bold">{guide.title}</h1>
 
 		{#if guide.atAGlance}

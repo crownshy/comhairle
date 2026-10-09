@@ -15,9 +15,10 @@
 	type Props = {
 		document: ComhairleDocument;
 		conversationId: string;
+		editable?: boolean;
 	};
 
-	let { document, conversationId }: Props = $props();
+	let { document, conversationId, editable = true }: Props = $props();
 
 	let uploadingDoc: ComhairleDocument = $derived(document);
 	let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -74,6 +75,7 @@
 	onDestroy(stopPolling);
 
 	async function stopParsingDocument() {
+		if (!editable) return;
 		try {
 			await apiClient.StopParsingDocument(undefined, {
 				params: { document_id: document.id, conversation_id: conversationId }
@@ -105,13 +107,15 @@
 			<span class="text-base-muted-foreground">{formatFileSize(document.size)}</span>
 		</div>
 		<div class="flex gap-2">
-			<button
-				type="button"
-				class="rounded-full bg-gray-200 p-1"
-				onclick={stopParsingDocument}
-			>
-				<X class="h-4 w-4 text-gray-600" />
-			</button>
+			{#if editable}
+				<button
+					type="button"
+					class="rounded-full bg-gray-200 p-1"
+					onclick={stopParsingDocument}
+				>
+					<X class="h-4 w-4 text-gray-600" />
+				</button>
+			{/if}
 		</div>
 	</div>
 	<div>

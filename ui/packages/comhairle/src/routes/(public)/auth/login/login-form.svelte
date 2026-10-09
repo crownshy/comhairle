@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { canAccessAdminPortal } from '$lib/utils/permissions';
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { loginFormSchema } from '$lib/profile';
@@ -44,9 +45,7 @@
 					if (redirectTo === '/') {
 						try {
 							const userRoles = await apiClient.GetUserRoles();
-							const isAdmin = userRoles
-								?.find((ur) => ur.resource === 'Site')
-								?.roles.includes('Admin');
+							const isAdmin = canAccessAdminPortal(userRoles);
 							if (isAdmin) {
 								redirectTo = '/admin';
 							}
