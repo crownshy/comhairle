@@ -388,8 +388,7 @@
 		return {
 			next: proposalForward(),
 			previous: currentIndex > 0 ? goBack : undefined,
-			progress: submittedIds.size / proposals.length,
-			count: `Proposal ${currentIndex + 1} of ${proposals.length}`
+			progress: submittedIds.size / proposals.length
 		};
 	});
 
