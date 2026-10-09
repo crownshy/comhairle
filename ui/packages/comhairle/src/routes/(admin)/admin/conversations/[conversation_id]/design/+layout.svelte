@@ -1,87 +1,90 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import { createWorkflowStep } from '$lib/createWorkflowStep';
-	import type { CreationKey } from '$lib/tool_meta';
-	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
-	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import AddStepDialog from './AddStepDialog.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { Plus, Settings2 } from '@lucide/svelte';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import TabStripItem from '$lib/components/TabStripItem.svelte';
+	import TabStripShell from '$lib/components/TabStripShell.svelte';
+	import { setAddStepDialogContext } from './context';
+	import { max } from '$lib/utils/maths';
 
-	let { data, children } = $props();
+	const { data, children, params } = $props();
+	const { conversation_id } = $derived(params);
 
-	let conversation = $derived(data.conversation);
-	const canEdit = $derived(
-		permissions.can('conversation', 'conversation_update', conversation.id)
+	const hasPermission = $derived(
+		permissions.can('conversation', 'conversation_update', conversation_id) ||
+			permissions.can('conversation', 'conversation_update', conversation_id)
 	);
-	let workflow = $derived(data.workflows[0]);
-	let workflowSteps = $derived(data.workflowSteps ?? []);
 
-	let adding = $state(false);
+	const open = () => hasPermission && void (addStepDialogOpen = true);
 
-	// The workflow step strip (Row 3) is rendered by the shared conversation layout, not
-	// injected from here: rendering it there from `data.workflowSteps` puts it on the SSR
-	// path instead of a post-hydration `$effect`, so it no longer lags the page content.
-
-	// Deep link: /design?addStep=true opens the dialog, then drops the query param.
-	$effect(() => {
-		if (canEdit && page.url.searchParams.get('addStep') === 'true') {
-			addStepDialog.open = true;
-			goto(page.url.pathname, { replaceState: true });
-		}
-	});
-
-	async function addStep(creationKey: CreationKey) {
-		if (!canEdit || adding) return;
-		adding = true;
-		try {
-			const created = await createWorkflowStep({
-				conversation,
-				workflowId: workflow.id,
-				creationKey,
-				existingSteps: workflowSteps
-			});
-			if (!created) return;
-			await invalidate('conversation:workflow');
-			notifications.send({ priority: 'INFO', message: 'Step added' });
-			newStepHighlight.flag(created.id);
-			addStepDialog.open = false;
-
-			// Return to the design board (works from either entry point: the board's own Add step
-			// button or the workflow strip's while inside a step editor). The design page reacts to
-			// `newStepHighlight` by scrolling the new card into view and briefly highlighting it, so
-			// the operator sees exactly which step was just created instead of landing in its editor.
-			await goto(
-				resolve('/(admin)/admin/conversations/[conversation_id]/design', {
-					conversation_id: conversation.id
-				})
-			);
-		} catch (e) {
-			console.error(e);
-			notifications.send({ priority: 'ERROR', message: 'Failed to create step' });
-		} finally {
-			adding = false;
-		}
-	}
-
-	// The "Online video conference" palette entry has no backing workflow tool, so
-	// adding it creates a conversation Event instead. Hand off to the create-event
-	// flow, where the organiser sets the required date, time, and details.
-	function addEvent() {
-		if (!canEdit) return;
-		addStepDialog.open = false;
-		goto(
-			resolve('/(admin)/admin/conversations/[conversation_id]/events/new', {
-				conversation_id: conversation.id
-			})
-		);
-	}
+	let addStepDialogOpen = $state<boolean>(false);
+	setAddStepDialogContext({ open });
 </script>
 
-{#if canEdit}
-	<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
-{/if}
+<TabStripShell ariaLabel="Workflow steps">
+	{@const slug = 'design'}
+	<TabStripItem
+		href={resolve(`/(admin)/admin/conversations/[conversation_id]/${slug}`, {
+			conversation_id
+		})}
+		isActive={(pathname) => pathname.endsWith(slug)}
+	>
+		<Settings2 class="mr-1 size-4" />
+		Design
+	</TabStripItem>
+	{#await data.streamedWorkflows}
+		{#each { length: 3 }}
+			<li class="px-3.5 py-1.5">
+				<Skeleton class="h-5 w-24" />
+			</li>
+		{/each}
+	{:then workflows}
+		{#if workflows.err !== null}
+			{console.error(workflows.err)}
+			{notifications.addFlash({
+				message: 'Could not load workflows, please try again',
+				priority: 'ERROR'
+			})}
+		{:else}
+			{#each workflows.ok.current.steps as step (step.id)}
+				<TabStripItem
+					href={resolve(
+						'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
+						{ conversation_id, step_id: step.id }
+					)}
+					isActive={(pathname) => pathname.includes(step.id)}
+				>
+					<span class="truncate" title={step.name}>{step.name || 'Unnamed step'}</span>
+				</TabStripItem>
+			{/each}
+			<li>
+				<button
+					type="button"
+					disabled={!hasPermission}
+					title={hasPermission ? undefined : 'Edit permission required'}
+					onclick={open}
+					class="text-foreground/40 enabled:hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap disabled:cursor-not-allowed! disabled:opacity-50"
+				>
+					<Plus class="size-4" />
+					Add step
+				</button>
+			</li>
+		{/if}
+	{/await}
+</TabStripShell>
+
+{#await data.streamedWorkflows then workflows}
+	{#if workflows.ok !== null && hasPermission}
+		<AddStepDialog
+			workflowId={workflows.ok.current.workflow.id}
+			conversationId={conversation_id}
+			highestStepOrder={max(workflows.ok.current.steps, (s) => s.stepOrder)}
+			bind:open={addStepDialogOpen}
+		/>
+	{/if}
+{/await}
 
 {@render children()}

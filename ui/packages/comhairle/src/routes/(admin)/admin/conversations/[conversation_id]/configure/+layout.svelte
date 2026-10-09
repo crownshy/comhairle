@@ -22,7 +22,7 @@
 		isActive={(pathname) => pathname.endsWith(tab)}
 	>
 		{kebabToSentenceCase(tab)}
-	</TabStripItem>}
+	</TabStripItem>
 {/snippet}
 
 <TabStripShell ariaLabel="Configure sections">
