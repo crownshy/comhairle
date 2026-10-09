@@ -150,7 +150,7 @@ to Postgres; inability to validate against Postgres must not permit access based
 on unvalidated cached data. This requires database version lookups on permission
 checks, while still caching membership lists and role assignments.
 
-See [ADR-0047](adr/0047-permission-caches-use-database-backed-versions.md).
+See [ADR-0051](adr/0051-permission-caches-use-database-backed-versions.md).
 
 ## Assignment editing
 
