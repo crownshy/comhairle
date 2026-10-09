@@ -49,6 +49,7 @@
 	"prioritization_saving_changes": "Saving your changes…",
 	"prioritization_submitting": "Submitting…",
 	"prioritization_submit_or_skip_hint": "Press Next to submit this proposal and review the next one. You've reviewed enough to move on, so you can also skip the rest.",
+	"prioritization_proposal_x_of_y": "Proposal {current} of {total}",
 	"step_loading": "Loading step…",
 	"step_minutes": "({count} minutes)",
 	"step_not_found": "Failed to find conversation",

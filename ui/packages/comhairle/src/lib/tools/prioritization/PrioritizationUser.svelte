@@ -388,7 +388,11 @@
 		return {
 			next: proposalForward(),
 			previous: currentIndex > 0 ? goBack : undefined,
-			progress: submittedIds.size / proposals.length
+			progress: submittedIds.size / proposals.length,
+			position: m.prioritization_proposal_x_of_y({
+				current: currentIndex + 1,
+				total: proposals.length
+			})
 		};
 	});
 

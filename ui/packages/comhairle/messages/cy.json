@@ -366,6 +366,7 @@
 	"prioritization_saving_changes": "Wrthi'n cadw eich newidiadau…",
 	"prioritization_submitting": "Wrthi'n cyflwyno…",
 	"prioritization_submit_or_skip_hint": "Pwyswch Nesaf i gyflwyno'r cynnig hwn ac adolygu'r un nesaf. Rydych wedi adolygu digon i symud ymlaen, felly gallwch hefyd hepgor y gweddill.",
+	"prioritization_proposal_x_of_y": "Cynnig {current} o {total}",
 	"step_loading": "Wrthi'n llwytho'r cam…",
 	"step_minutes": "({count} munud)",
 	"step_not_found": "Methu dod o hyd i'r sgwrs",

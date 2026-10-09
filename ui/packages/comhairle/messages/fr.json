@@ -366,6 +366,7 @@
 	"prioritization_saving_changes": "Enregistrement de vos modifications…",
 	"prioritization_submitting": "Envoi en cours…",
 	"prioritization_submit_or_skip_hint": "Appuyez sur Suivant pour envoyer cette proposition et passer à la suivante. Vous en avez assez évalué pour continuer, vous pouvez donc aussi ignorer le reste.",
+	"prioritization_proposal_x_of_y": "Proposition {current} sur {total}",
 	"step_loading": "Chargement de l'étape…",
 	"step_minutes": "({count} minutes)",
 	"step_not_found": "Conversation introuvable",
