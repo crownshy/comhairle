@@ -155,8 +155,8 @@
 		stepCanAdvance || workflowStep.required ? 'next' : 'skip'
 	);
 
-	// Destinations come from the string helpers in $lib/urls, not typed route ids, so
-	// resolve() has nothing to check.
+	// Every destination keeps the current query string (such as ?embed=true), and the lint rule
+	// only accepts a bare resolve() call, so `resolve(...) + queryString` would still fail it.
 	function navigateTo(href: string, options?: Parameters<typeof goto>[1]) {
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		return goto(href, options);
