@@ -369,11 +369,13 @@
 	"theme_dark_mode": "Modo escuro",
 	"polis_votes_counted": "Você votou em {count} opiniões",
 	"polis_votes_counted_one": "Você votou em {count} opinião",
-	"polis_continue_prompt_body": "Todos os seus votos até agora estão salvos. Continue o quanto quiser ou toque em Próximo para seguir quando estiver pronto.",
-	"polis_nothing_left_to_vote_on": "Todos os seus votos estão salvos e não há mais opiniões para votar agora. Toque em Próximo para seguir.",
+	"polis_continue_prompt_body": "Todos os seus votos até agora estão salvos. Você pode continuar o quanto quiser ou terminar de votar aqui.",
+	"polis_nothing_left_to_vote_on": "Todos os seus votos estão salvos e não há mais opiniões para votar agora.",
 	"polis_keep_voting": "Continuar votando",
 	"polis_keep_voting_hint": "Mais {count} opiniões para votar",
 	"polis_keep_voting_hint_one": "Mais {count} opinião para votar",
 	"polis_vote_one_more_to_continue": "Vote em mais 1 opinião para continuar.",
-	"polis_vote_more_to_continue": "Vote em mais {count} opiniões para continuar."
+	"polis_vote_more_to_continue": "Vote em mais {count} opiniões para continuar.",
+	"polis_finish_voting": "Terminei de votar",
+	"polis_finish_voting_hint": "Concluir esta etapa e seguir"
 }

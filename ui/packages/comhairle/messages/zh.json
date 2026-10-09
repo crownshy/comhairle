@@ -368,11 +368,13 @@
 	"theme_dark_mode": "深色模式",
 	"polis_votes_counted": "您已对 {count} 条意见投票",
 	"polis_votes_counted_one": "您已对 {count} 条意见投票",
-	"polis_continue_prompt_body": "您到目前为止的每一票都已保存。您可以随意继续投票，或在准备好时点击“下一页”继续。",
-	"polis_nothing_left_to_vote_on": "每一票都已保存，目前没有可投票的意见了。点击“下一页”继续。",
+	"polis_continue_prompt_body": "您到目前为止的每一票都已保存。您可以随意继续投票，也可以在这里结束投票。",
+	"polis_nothing_left_to_vote_on": "每一票都已保存，目前没有可投票的意见了。",
 	"polis_keep_voting": "继续投票",
 	"polis_keep_voting_hint": "还有 {count} 条意见可投票",
 	"polis_keep_voting_hint_one": "还有 {count} 条意见可投票",
 	"polis_vote_one_more_to_continue": "再对 1 条意见投票即可继续。",
-	"polis_vote_more_to_continue": "再对 {count} 条意见投票即可继续。"
+	"polis_vote_more_to_continue": "再对 {count} 条意见投票即可继续。",
+	"polis_finish_voting": "我投完了",
+	"polis_finish_voting_hint": "完成此步骤并继续"
 }

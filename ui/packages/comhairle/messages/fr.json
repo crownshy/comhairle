@@ -369,11 +369,13 @@
 	"theme_dark_mode": "Mode sombre",
 	"polis_votes_counted": "Vous avez voté sur {count} opinions",
 	"polis_votes_counted_one": "Vous avez voté sur {count} opinion",
-	"polis_continue_prompt_body": "Tous vos votes sont enregistrés. Continuez aussi longtemps que vous le souhaitez, ou appuyez sur Suivant quand vous êtes prêt.",
-	"polis_nothing_left_to_vote_on": "Tous vos votes sont enregistrés et il n'y a plus d'opinions à voter pour le moment. Appuyez sur Suivant pour continuer.",
+	"polis_continue_prompt_body": "Tous vos votes sont enregistrés. Vous pouvez continuer aussi longtemps que vous le souhaitez, ou arrêter de voter ici.",
+	"polis_nothing_left_to_vote_on": "Tous vos votes sont enregistrés et il n'y a plus d'opinions à voter pour le moment.",
 	"polis_keep_voting": "Continuer à voter",
 	"polis_keep_voting_hint": "Encore {count} opinions à voter",
 	"polis_keep_voting_hint_one": "Encore {count} opinion à voter",
 	"polis_vote_one_more_to_continue": "Votez sur 1 opinion de plus pour continuer.",
-	"polis_vote_more_to_continue": "Votez sur {count} opinions de plus pour continuer."
+	"polis_vote_more_to_continue": "Votez sur {count} opinions de plus pour continuer.",
+	"polis_finish_voting": "J'ai fini de voter",
+	"polis_finish_voting_hint": "Terminer cette étape et continuer"
 }

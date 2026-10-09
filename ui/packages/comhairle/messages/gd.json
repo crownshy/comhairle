@@ -369,11 +369,13 @@
 	"theme_dark_mode": "Modh dorcha",
 	"polis_votes_counted": "Bhòt thu air {count} beachdan",
 	"polis_votes_counted_one": "Bhòt thu air {count} bheachd",
-	"polis_continue_prompt_body": "Tha gach bhòt gu ruige seo air a shàbhaladh. Cùm a' dol cho fada 's a thogras tu, no brùth Air adhart nuair a bhios tu deiseil.",
-	"polis_nothing_left_to_vote_on": "Tha gach bhòt air a shàbhaladh, agus chan eil beachd sam bith air fhàgail airson bhòtadh air an-dràsta. Brùth Air adhart airson gluasad air adhart.",
+	"polis_continue_prompt_body": "Tha gach bhòt gu ruige seo air a shàbhaladh. Faodaidh tu cumail a' dol cho fada 's a thogras tu, no crìochnachadh an seo.",
+	"polis_nothing_left_to_vote_on": "Tha gach bhòt air a shàbhaladh, agus chan eil beachd sam bith air fhàgail airson bhòtadh air an-dràsta.",
 	"polis_keep_voting": "Cùm a' bhòtadh",
 	"polis_keep_voting_hint": "{count} beachdan eile airson bhòtadh orra",
 	"polis_keep_voting_hint_one": "{count} bheachd eile airson bhòtadh air",
 	"polis_vote_one_more_to_continue": "Bhòt air 1 bheachd eile airson leantainn air adhart.",
-	"polis_vote_more_to_continue": "Bhòt air {count} beachdan eile airson leantainn air adhart."
+	"polis_vote_more_to_continue": "Bhòt air {count} beachdan eile airson leantainn air adhart.",
+	"polis_finish_voting": "Tha mi deiseil a' bhòtadh",
+	"polis_finish_voting_hint": "Crìochnaich an ceum seo agus gluais air adhart"
 }

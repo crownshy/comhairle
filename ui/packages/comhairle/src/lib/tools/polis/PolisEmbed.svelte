@@ -43,6 +43,8 @@
 		workflowStepId?: string;
 		isPreview?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
+		/** Completes the step from the threshold prompt's I'm done voting. */
+		onDone?: () => void;
 		onSequenceChange?: OnSequenceChange;
 	};
 
@@ -54,6 +56,7 @@
 		workflowStepId = polis_id,
 		isPreview = false,
 		onCanContinueChange,
+		onDone,
 		onSequenceChange
 	}: Props = $props();
 
@@ -628,39 +631,53 @@
 			</button>
 		</div>
 	{:else if screen === 'continue-prompt'}
-		<!-- The threshold is met, so this is a fork and not a gate: keep voting here, or move on
-		     with the pager's Next. -->
+		<!-- The threshold is met, so this is a fork and not a gate. Both ways on get the same weight,
+		     so finishing doesn't read as giving up. -->
 		<div
 			class="flex w-full max-w-[808px] flex-1 flex-col items-center justify-center gap-8 px-6 py-8 text-center md:px-16"
 			in:fade={{ duration: 300 }}
 		>
 			<div class="flex flex-col items-center gap-3">
 				<CheckCircle2 class="text-primary size-8" />
-				<h2 class="text-card-foreground max-w-[20ch] text-2xl leading-tight font-semibold">
+				<h2 class="text-card-foreground text-2xl leading-tight font-semibold">
 					{votesSoFar === 1
 						? m.polis_votes_counted_one({ count: votesSoFar })
 						: m.polis_votes_counted({ count: votesSoFar })}
 				</h2>
-				<p class="text-muted-foreground max-w-[36ch] text-base">
+				<p class="text-muted-foreground max-w-[44ch] text-base">
 					{opinionsLeft > 0
 						? m.polis_continue_prompt_body()
 						: m.polis_nothing_left_to_vote_on()}
 				</p>
 			</div>
 
-			{#if opinionsLeft > 0}
-				<Button
-					onclick={resumeVoting}
-					class="h-auto w-full max-w-[360px] flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
-				>
-					<span class="text-lg font-semibold">{m.polis_keep_voting()}</span>
-					<span class="text-primary-foreground/80 text-base font-normal">
-						{opinionsLeft === 1
-							? m.polis_keep_voting_hint_one({ count: opinionsLeft })
-							: m.polis_keep_voting_hint({ count: opinionsLeft })}
-					</span>
-				</Button>
-			{/if}
+			<div class="flex w-full max-w-[360px] flex-col items-stretch gap-3">
+				{#if opinionsLeft > 0}
+					<Button
+						onclick={resumeVoting}
+						class="h-auto w-full flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
+					>
+						<span class="text-lg font-semibold">{m.polis_keep_voting()}</span>
+						<span class="text-primary-foreground/80 text-base font-normal">
+							{opinionsLeft === 1
+								? m.polis_keep_voting_hint_one({ count: opinionsLeft })
+								: m.polis_keep_voting_hint({ count: opinionsLeft })}
+						</span>
+					</Button>
+				{/if}
+				{#if onDone}
+					<Button
+						variant={opinionsLeft > 0 ? 'outline' : 'default'}
+						onclick={onDone}
+						class="h-auto w-full flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
+					>
+						<span class="text-lg font-semibold">{m.polis_finish_voting()}</span>
+						<span class="text-base font-normal opacity-80"
+							>{m.polis_finish_voting_hint()}</span
+						>
+					</Button>
+				{/if}
+			</div>
 		</div>
 	{:else if screen === 'completed'}
 		<!-- Voted everything -->

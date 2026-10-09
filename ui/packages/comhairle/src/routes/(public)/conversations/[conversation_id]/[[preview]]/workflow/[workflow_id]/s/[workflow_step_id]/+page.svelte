@@ -317,6 +317,7 @@
 							{isPreview}
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
+							onDone={stepComplete}
 						/>
 					{/key}
 				{:else if toolConfig?.type === HeyForm.TOOL_NAME}
