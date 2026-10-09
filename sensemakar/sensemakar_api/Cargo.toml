@@ -1,0 +1,24 @@
+[package]
+name = "sensemakar_api"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[[bin]]
+name = "sensemakar_api"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+axum = "0.8.3"
+rig = "0.42.0"
+rig-core = "0.42.0"
+serde = { version = "1.0.229", features = ["serde_derive"] }
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["full"] }
+tower-http = { version = "0.6.2", features = ["trace"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+sensemakar = { path = "../sensemakar_core" }
+sensemakar_types = { path = "../sensemakar_types" }
