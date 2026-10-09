@@ -3,6 +3,8 @@ import type { UserActions } from '@crownshy/api-client/api';
 import {
 	canPerformAction,
 	createPermissions,
+	hasSiteAdminRole,
+	hasSuperAdminRole,
 	loadUserActions,
 	SYSTEM_RESOURCE_ID
 } from './permissions';
@@ -14,6 +16,49 @@ const editor: UserActions = {
 };
 
 describe('permissions', () => {
+	it('limits site-admin navigation to Site Admin and SuperAdmin roles', () => {
+		expect(hasSiteAdminRole([{ resource: 'Site', roles: ['Admin'] }])).toBe(true);
+		expect(hasSiteAdminRole([{ resource: 'Site', roles: ['SuperAdmin'] }])).toBe(true);
+		expect(hasSiteAdminRole([{ resource: 'Site', roles: ['translator'] }])).toBe(false);
+		expect(
+			hasSiteAdminRole([{ resource: { Organization: 'organization' }, roles: ['Admin'] }])
+		).toBe(false);
+		expect(
+			hasSiteAdminRole([{ resource: { Conversation: 'conversation' }, roles: ['Admin'] }])
+		).toBe(false);
+		expect(hasSiteAdminRole([])).toBe(false);
+		expect(hasSiteAdminRole(undefined)).toBe(false);
+		expect(hasSiteAdminRole(null)).toBe(false);
+	});
+
+	it('requires each creation action on the System resource independently', () => {
+		const system: UserActions = {
+			resourceType: 'system',
+			resourceId: SYSTEM_RESOURCE_ID,
+			actions: ['conversation_create']
+		};
+		const permissions = createPermissions(() => [editor, system]);
+		expect(permissions.can('system', 'conversation_create')).toBe(true);
+		expect(permissions.can('system', 'organization_create')).toBe(false);
+		system.actions = ['organization_create'];
+		expect(permissions.can('system', 'conversation_create')).toBe(false);
+		expect(permissions.can('system', 'organization_create')).toBe(true);
+	});
+
+	it('restricts super-admin authority to the site SuperAdmin role', () => {
+		expect(hasSuperAdminRole([{ resource: 'Site', roles: ['SuperAdmin'] }])).toBe(true);
+		expect(hasSuperAdminRole([{ resource: 'Site', roles: ['Admin', 'translator'] }])).toBe(
+			false
+		);
+		expect(
+			hasSuperAdminRole([
+				{ resource: { Conversation: 'conversation' }, roles: ['SuperAdmin'] }
+			])
+		).toBe(false);
+		expect(hasSuperAdminRole(undefined)).toBe(false);
+		expect(hasSuperAdminRole([])).toBe(false);
+	});
+
 	it('fails closed when actions are missing', () => {
 		expect(canPerformAction(null, 'conversation_update')).toBe(false);
 		expect(canPerformAction(undefined, 'conversation_read')).toBe(false);

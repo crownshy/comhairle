@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { ApiError, Snapshot } from '@crownshy/api-client/api';
 	import { Building2, UserRound, Plus, Search, Pencil } from 'lucide-svelte';
@@ -26,31 +27,30 @@
 		roleManagement: RoleManagement | null;
 	};
 	let { resourceType, resourceId, roleManagement }: Props = $props();
-	const canAdmin = $derived(
-		resourceType === 'conversation'
-			? permissions.can('conversation', 'conversation_admin', resourceId)
-			: permissions.can('organization', 'grant_permission', resourceId) &&
-					permissions.can('organization', 'revoke_permission', resourceId)
-	);
-	const permissionsKey = $derived(
-		key(
-			resourceType === 'conversation'
-				? 'admin/conversation/permissions'
-				: 'admin/organization/permissions'
-		)
-	);
-	const detailsKey = $derived(
-		key(
-			resourceType === 'conversation'
-				? 'admin/conversation/meta'
-				: 'admin/organization/details'
-		)
-	);
-	const grantReason = $derived(
-		resourceType === 'conversation'
-			? 'Conversation access configuration'
-			: 'Organization access configuration'
-	);
+	const canAdmin = $derived.by(() => {
+		if (resourceType === 'system') return page.data.isSuperAdmin === true;
+		if (resourceType === 'conversation')
+			return permissions.can('conversation', 'conversation_admin', resourceId);
+		return (
+			permissions.can('organization', 'grant_permission', resourceId) &&
+			permissions.can('organization', 'revoke_permission', resourceId)
+		);
+	});
+	const permissionsKey = $derived.by(() => {
+		if (resourceType === 'system') return key('admin/system/permissions');
+		if (resourceType === 'conversation') return key('admin/conversation/permissions');
+		return key('admin/organization/permissions');
+	});
+	const detailsKey = $derived.by(() => {
+		if (resourceType === 'system') return key('user');
+		if (resourceType === 'conversation') return key('admin/conversation/meta');
+		return key('admin/organization/details');
+	});
+	const grantReason = $derived.by(() => {
+		if (resourceType === 'system') return 'System access configuration';
+		if (resourceType === 'conversation') return 'Conversation access configuration';
+		return 'Organization access configuration';
+	});
 	const roleData = $derived(roleManagement?.err === null ? roleManagement.ok : null);
 	const recipients = $derived(
 		roleData ? roleRecipients(roleData.assignments, roleData.users, roleData.organizations) : []

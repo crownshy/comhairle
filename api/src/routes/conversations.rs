@@ -49,7 +49,7 @@ pub mod dto;
 #[instrument(err(Debug), skip(state))]
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(new_conversation): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::create(

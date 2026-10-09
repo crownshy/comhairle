@@ -4,12 +4,11 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Building2, Plus } from 'lucide-svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let props: PageProps = $props();
 	let organizationAccess = $derived(props.data.userOrganizations?.organizations ?? []);
-	let canCreateOrganization = $derived(
-		props.data.userOrganizations?.canCreateOrganization ?? false
-	);
+	let canCreateOrganization = $derived(permissions.can('system', 'organization_create'));
 </script>
 
 <svelte:head>

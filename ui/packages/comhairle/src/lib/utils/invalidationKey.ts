@@ -17,6 +17,7 @@ type InputKey =
 	| 'admin/organization/permissions'
 	| 'admin/organizations'
 	| 'admin/regions'
+	| 'admin/system/permissions'
 	| 'admin/workflow-steps'
 	| 'public/conversation'
 	| 'public/documents'

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadRoleManagement, roleRecipients } from './roleAssignments';
+import { SYSTEM_RESOURCE_ID } from '$lib/utils/permissions';
 
 type RoleManagementApi = Parameters<typeof loadRoleManagement>[0];
 
@@ -21,6 +22,24 @@ function createRoleManagementApi() {
 }
 
 describe('loadRoleManagement', () => {
+	it('loads system roles and assignments for the canonical system resource', async () => {
+		const api = createRoleManagementApi();
+		api.GetPermissionRoles.mockResolvedValue(['super_admin', 'admin', 'translator']);
+		const result = await loadRoleManagement(api, 'system', SYSTEM_RESOURCE_ID);
+
+		expect(result.err).toBeNull();
+		expect(result.ok?.roles).toEqual(['super_admin', 'admin', 'translator']);
+		expect(api.GetPermissionRoles).toHaveBeenCalledWith({
+			params: { resource_type: 'system' }
+		});
+		for (const load of [api.ListResourcePermissions, api.ListUsersWithPermission]) {
+			expect(load).toHaveBeenCalledWith({
+				params: { resource_type: 'system', resource_id: SYSTEM_RESOURCE_ID },
+				queries: { limit: 100, offset: 0 }
+			});
+		}
+	});
+
 	it('returns the existing success shape and resource parameters', async () => {
 		const api = createRoleManagementApi();
 		const result = await loadRoleManagement(api, 'organization', 'organization');

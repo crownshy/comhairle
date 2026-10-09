@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { UserRoles } from '@crownshy/api-client/api';
 import { adminReturnPath } from './adminAccess';
 import { canAccessAdminPortal } from '$lib/utils/permissions';
 
@@ -8,12 +9,19 @@ describe('admin portal access', () => {
 		expect(canAccessAdminPortal([{ resource: 'Site', roles: ['SuperAdmin'] }])).toBe(true);
 	});
 
-	it('denies participants and resource-scoped admins', () => {
+	it.each<UserRoles>([
+		{ resource: 'Site', roles: ['translator'] },
+		{ resource: { Conversation: 'conversation' }, roles: ['observer'] },
+		{ resource: { Organization: 'organization' }, roles: ['organization_admin'] }
+	])('allows any assigned role on $resource', (role) => {
+		expect(canAccessAdminPortal([role])).toBe(true);
+	});
+
+	it('denies participants and empty role lists', () => {
 		expect(canAccessAdminPortal([])).toBe(false);
 		expect(canAccessAdminPortal(undefined)).toBe(false);
-		expect(
-			canAccessAdminPortal([{ resource: { Conversation: 'conversation' }, roles: ['Admin'] }])
-		).toBe(false);
+		expect(canAccessAdminPortal(null)).toBe(false);
+		expect(canAccessAdminPortal([{ resource: 'Site', roles: [] }])).toBe(false);
 	});
 
 	it('returns to the public referrer including its query', () => {
