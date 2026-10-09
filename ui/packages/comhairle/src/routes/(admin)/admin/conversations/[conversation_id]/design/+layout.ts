@@ -27,7 +27,8 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 
 			const workflowSteps = await tryCatchAsync(() =>
 				api.ListConversationWorkflowSteps({
-					params: { conversation_id, workflow_id: workflows.ok[0].id }
+					params: { conversation_id, workflow_id: workflows.ok[0].id },
+					queries: { withTranslations: true }
 				})
 			);
 
