@@ -33,12 +33,7 @@
 	{#each steps as step, index (step.id)}
 		{#if index === currentIndex}
 			<progress
-				class={[
-					'bg-accent h-2 min-w-0 flex-1 appearance-none overflow-hidden rounded-full border-0',
-					'[&::-webkit-progress-bar]:bg-accent',
-					'[&::-webkit-progress-value]:bg-primary [&::-webkit-progress-value]:rounded-full',
-					'[&::-moz-progress-bar]:bg-primary [&::-moz-progress-bar]:rounded-full'
-				]}
+				class="bg-accent [&::-webkit-progress-bar]:bg-accent [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary h-2 min-w-0 flex-1 appearance-none overflow-hidden rounded-full border-0 [&::-moz-progress-bar]:rounded-full [&::-webkit-progress-value]:rounded-full"
 				value={tweenedFill.current}
 				max="1"
 			></progress>
