@@ -44,6 +44,7 @@ export default defineConfig({
 			use: { ...devices['Desktop Firefox'] }
 		}
 
+		// FIX: Get webkit working
 		// {
 		// 	name: 'webkit',
 		// 	use: { ...devices['Desktop Safari'] }
