@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Refs } from './types';
+import { exists } from '..';
 
 function Select<const T extends string[]>(inputs: T, refs: Refs) {
 	const originallySelected: T[number] = inputs[0];
@@ -7,7 +8,7 @@ function Select<const T extends string[]>(inputs: T, refs: Refs) {
 
 	async function getSelect() {
 		const locator = refs.page.getByRole('button', { name: selected });
-		if ((await locator.count()) === 0) {
+		if (await exists(locator)) {
 			throw new Error(`Could not find locator: ${selected}`);
 		}
 		return locator;
@@ -15,7 +16,7 @@ function Select<const T extends string[]>(inputs: T, refs: Refs) {
 
 	async function getMenuItem(option: T[number]) {
 		const locator = refs.page.getByRole('menuitem', { name: option });
-		if ((await locator.count()) === 0) {
+		if (await exists(locator)) {
 			throw new Error(`Could not find locator: ${option}`);
 		}
 		return locator;
