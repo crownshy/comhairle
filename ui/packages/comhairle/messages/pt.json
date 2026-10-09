@@ -386,5 +386,6 @@
 	"polis_vote_one_more_to_continue": "Vote em mais 1 opinião para continuar.",
 	"polis_vote_more_to_continue": "Vote em mais {count} opiniões para continuar.",
 	"polis_finish_voting": "Terminei de votar",
-	"polis_finish_voting_hint": "Concluir esta etapa e seguir"
+	"polis_finish_voting_hint": "Concluir esta etapa e seguir",
+	"step_menu_about_heading": "Sobre esta conversa"
 }
