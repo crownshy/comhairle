@@ -267,6 +267,7 @@
 					steps={stepItems}
 					currentIndex={viewedIndex}
 					{fill}
+					position={currentSequence?.position}
 					{introUrl}
 					preview={isPreview}
 				/>
