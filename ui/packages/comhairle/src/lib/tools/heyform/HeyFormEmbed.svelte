@@ -6,6 +6,7 @@
 	import { browser } from '$app/environment';
 	import { readEmbedTheme } from './embedTheme';
 	import { themeStore } from '$lib/stores/theme.svelte';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	type Props = {
 		onDone: () => void;
@@ -199,7 +200,11 @@
 
 	let fullUrl = $derived.by(() => {
 		// Caller params last: a step that wants a specific colour outranks the ambient palette.
-		const params = new URLSearchParams({ ...bootPalette, ...extraSurveyParams }).toString();
+		const params = new URLSearchParams({
+			locale: getLocale(),
+			...bootPalette,
+			...extraSurveyParams
+		}).toString();
 		return params ? url + '&' + params : url;
 	});
 </script>
