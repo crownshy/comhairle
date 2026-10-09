@@ -6,7 +6,7 @@
 	import {
 		ThumbsUp,
 		ThumbsDown,
-		PenLine,
+		CheckCircle2,
 		X,
 		ChevronRight,
 		MessageSquare,
@@ -23,7 +23,6 @@
 		reconcileServerVotes,
 		resetVoteCount
 	} from './polisVoteStore';
-	import { opinionCounter } from './polisCounter';
 	import { m } from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -43,7 +42,6 @@
 		requiredVotes?: number;
 		workflowStepId?: string;
 		isPreview?: boolean;
-		showRemainingStatementCount?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
 		onSequenceChange?: OnSequenceChange;
 	};
@@ -56,8 +54,7 @@
 		workflowStepId = polis_id,
 		isPreview = false,
 		onCanContinueChange,
-		onSequenceChange,
-		showRemainingStatementCount
+		onSequenceChange
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -150,6 +147,9 @@
 
 	const initialData = getVoteData(user_id, voteScopeKey);
 	let totalVotes = $state(initialData.totalVotes);
+	// `totalVotes` restarts at every prompt, because the threshold counts against it. The prompt
+	// shows everything this participant has voted on so far.
+	let votesSoFar = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
 
@@ -235,9 +235,7 @@
 		}
 	});
 
-	const opinionPosition = $derived(
-		opinionCounter(anchoredTotal ?? polisTotal, anchoredRemaining ?? polisRemaining)
-	);
+	const opinionsLeft = $derived(Math.max(0, anchoredRemaining ?? polisRemaining));
 
 	const poolExhausted = $derived(
 		polisReady && !polisLoading && !polisError && !polisCurrentStatement
@@ -263,6 +261,7 @@
 
 		polis.submitVote(type);
 		totalVotes++;
+		votesSoFar++;
 
 		if (anchoredRemaining !== null && anchoredRemaining > 0) {
 			anchoredRemaining--;
@@ -271,12 +270,11 @@
 		const data = incrementVotes(user_id, voteScopeKey, safeRequiredVotes);
 		hasMetThreshold = data.hasMetThreshold;
 
+		// Flip now: a delay shows the between-statements skeleton first, then swaps it out.
 		if (data.totalVotes === safeRequiredVotes) {
-			setTimeout(() => {
-				screen = 'continue-prompt';
-				voteCooldown = false;
-				waitingForNext = false;
-			}, 600);
+			screen = 'continue-prompt';
+			voteCooldown = false;
+			waitingForNext = false;
 			return;
 		}
 
@@ -348,17 +346,9 @@
 		}
 	}
 
-	// Polis reports to the chrome's bar and step header instead of drawing its own (ADR-0047).
+	// Polis reports to the chrome's bar instead of drawing its own (ADR-0047).
 	const progress = $derived(
 		canContinue ? 1 : Math.min(1, Math.max(0, totalVotes / safeRequiredVotes))
-	);
-	const opinionCount = $derived(
-		showRemainingStatementCount && polisReady && !polisError && !poolExhausted
-			? m.polis_opinion_counter({
-					current: opinionPosition.current,
-					total: opinionPosition.total
-				})
-			: undefined
 	);
 
 	const votesRemaining = $derived(Math.max(safeRequiredVotes - totalVotes, 1));
@@ -369,7 +359,7 @@
 	});
 
 	$effect(() => {
-		onSequenceChange?.({ progress, count: opinionCount, blockedReason });
+		onSequenceChange?.({ progress, blockedReason });
 	});
 </script>
 
@@ -638,30 +628,39 @@
 			</button>
 		</div>
 	{:else if screen === 'continue-prompt'}
-		<!-- Do you want to continue? -->
+		<!-- The threshold is met, so this is a fork and not a gate: keep voting here, or move on
+		     with the pager's Next. -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-center gap-6 px-4 py-8 text-center sm:items-start sm:px-8 sm:text-start md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-1 flex-col items-center justify-center gap-8 px-6 py-8 text-center md:px-16"
 			in:fade={{ duration: 300 }}
 		>
-			<div class="flex flex-col items-center gap-4 sm:flex-row">
-				<PenLine class="text-card-foreground h-8 w-8" />
-				<h2 class="text-card-foreground text-3xl font-semibold">
-					{m.polis_do_you_want_to_continue()}
+			<div class="flex flex-col items-center gap-3">
+				<CheckCircle2 class="text-primary size-8" />
+				<h2 class="text-card-foreground max-w-[20ch] text-2xl leading-tight font-semibold">
+					{votesSoFar === 1
+						? m.polis_votes_counted_one({ count: votesSoFar })
+						: m.polis_votes_counted({ count: votesSoFar })}
 				</h2>
+				<p class="text-muted-foreground max-w-[36ch] text-base">
+					{opinionsLeft > 0
+						? m.polis_continue_prompt_body()
+						: m.polis_nothing_left_to_vote_on()}
+				</p>
 			</div>
 
-			<div
-				class="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-start sm:gap-6"
-			>
+			{#if opinionsLeft > 0}
 				<Button
-					variant="default"
-					size="lg"
 					onclick={resumeVoting}
-					class="w-full max-w-72 gap-2 px-6 py-4 text-lg sm:w-72"
+					class="h-auto w-full max-w-[360px] flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
 				>
-					{m.polis_continue_voting()}
+					<span class="text-lg font-semibold">{m.polis_keep_voting()}</span>
+					<span class="text-primary-foreground/80 text-base font-normal">
+						{opinionsLeft === 1
+							? m.polis_keep_voting_hint_one({ count: opinionsLeft })
+							: m.polis_keep_voting_hint({ count: opinionsLeft })}
+					</span>
 				</Button>
-			</div>
+			{/if}
 		</div>
 	{:else if screen === 'completed'}
 		<!-- Voted everything -->
