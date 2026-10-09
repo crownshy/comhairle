@@ -202,6 +202,8 @@
 	"polis_do_you_want_to_continue": "Do you want to continue?",
 	"polis_continue_voting": "Continue voting",
 	"polis_voted_everything": "You have voted on everything. Thank you!",
+	"polis_vote_one_more_to_continue": "Vote on 1 more statement to continue.",
+	"polis_vote_more_to_continue": "Vote on {count} more statements to continue.",
 	"polis_come_back_later": "Come back later to see if new statements have been added.",
 	"polis_error_description": "We couldn't load the statements right now. This may be a temporary issue.",
 	"polis_seed_statement": "Conversation starter:",

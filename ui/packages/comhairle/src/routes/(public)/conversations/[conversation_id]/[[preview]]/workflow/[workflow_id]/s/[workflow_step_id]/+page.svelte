@@ -387,6 +387,7 @@
 				{canGoBack}
 				{canGoForward}
 				loading={isSubmitting}
+				blockedReason={currentSequence?.blockedReason}
 				onBack={goBack}
 				onForward={goForward}
 			/>
