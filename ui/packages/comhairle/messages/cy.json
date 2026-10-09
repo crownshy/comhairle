@@ -366,5 +366,14 @@
 	"step_chrome_conversation_home": "Yn ôl i dudalen y sgwrs",
 	"conversation_preview_badge": "Rhagolwg",
 	"theme_light_mode": "Modd golau",
-	"theme_dark_mode": "Modd tywyll"
+	"theme_dark_mode": "Modd tywyll",
+	"polis_votes_counted": "Rydych wedi pleidleisio ar {count} barn",
+	"polis_votes_counted_one": "Rydych wedi pleidleisio ar {count} farn",
+	"polis_continue_prompt_body": "Mae pob pleidlais hyd yma wedi'i chadw. Daliwch ati cyhyd ag y mynnwch, neu pwyswch Nesaf i symud ymlaen pan fyddwch yn barod.",
+	"polis_nothing_left_to_vote_on": "Mae pob pleidlais wedi'i chadw, a does dim barnau ar ôl i bleidleisio arnynt ar hyn o bryd. Pwyswch Nesaf i symud ymlaen.",
+	"polis_keep_voting": "Parhau i bleidleisio",
+	"polis_keep_voting_hint": "{count} barn arall i bleidleisio arnynt",
+	"polis_keep_voting_hint_one": "{count} farn arall i bleidleisio arni",
+	"polis_vote_one_more_to_continue": "Pleidleisiwch ar 1 farn arall i barhau.",
+	"polis_vote_more_to_continue": "Pleidleisiwch ar {count} barn arall i barhau."
 }

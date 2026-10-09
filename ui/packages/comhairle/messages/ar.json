@@ -366,5 +366,14 @@
 	"step_chrome_conversation_home": "العودة إلى صفحة المحادثة",
 	"conversation_preview_badge": "معاينة",
 	"theme_light_mode": "الوضع الفاتح",
-	"theme_dark_mode": "الوضع الداكن"
+	"theme_dark_mode": "الوضع الداكن",
+	"polis_votes_counted": "لقد صوّتت على {count} آراء",
+	"polis_votes_counted_one": "لقد صوّتت على {count} رأي",
+	"polis_continue_prompt_body": "تم حفظ جميع أصواتك حتى الآن. تابع التصويت كما تشاء، أو اضغط التالي للمتابعة عندما تكون مستعداً.",
+	"polis_nothing_left_to_vote_on": "تم حفظ جميع أصواتك، ولا توجد آراء متبقية للتصويت عليها حالياً. اضغط التالي للمتابعة.",
+	"polis_keep_voting": "تابع التصويت",
+	"polis_keep_voting_hint": "{count} آراء متبقية للتصويت عليها",
+	"polis_keep_voting_hint_one": "{count} رأي متبقٍ للتصويت عليه",
+	"polis_vote_one_more_to_continue": "صوّت على رأي واحد آخر للمتابعة.",
+	"polis_vote_more_to_continue": "صوّت على {count} آراء أخرى للمتابعة."
 }

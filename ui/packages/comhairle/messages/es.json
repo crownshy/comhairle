@@ -366,5 +366,14 @@
 	"step_chrome_conversation_home": "Volver a la página de la conversación",
 	"conversation_preview_badge": "Vista previa",
 	"theme_light_mode": "Modo claro",
-	"theme_dark_mode": "Modo oscuro"
+	"theme_dark_mode": "Modo oscuro",
+	"polis_votes_counted": "Has votado {count} opiniones",
+	"polis_votes_counted_one": "Has votado {count} opinión",
+	"polis_continue_prompt_body": "Todos tus votos están guardados. Sigue tanto como quieras, o pulsa Siguiente para continuar cuando estés listo.",
+	"polis_nothing_left_to_vote_on": "Todos tus votos están guardados y ahora mismo no quedan opiniones por votar. Pulsa Siguiente para continuar.",
+	"polis_keep_voting": "Seguir votando",
+	"polis_keep_voting_hint": "Quedan {count} opiniones por votar",
+	"polis_keep_voting_hint_one": "Queda {count} opinión por votar",
+	"polis_vote_one_more_to_continue": "Vota 1 opinión más para continuar.",
+	"polis_vote_more_to_continue": "Vota {count} opiniones más para continuar."
 }
