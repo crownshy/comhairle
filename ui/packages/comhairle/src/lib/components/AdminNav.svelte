@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -14,7 +15,8 @@
 		Map,
 		PanelLeftClose,
 		PanelLeftOpen,
-		Plus
+		Plus,
+		Shield
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
 	import NewConversationButton from './NewConversationButton.svelte';
@@ -143,6 +145,19 @@
 									<a {...btnProps} {href}>
 										<Map class="size-4" />
 										Regions
+									</a>
+								{/snippet}
+							</SideBar.MenuButton>
+						</SideBar.MenuItem>
+					{/if}
+					{#if isSuperAdmin}
+						{@const href = resolve('/(admin)/admin/system-roles')}
+						<SideBar.MenuItem>
+							<SideBar.MenuButton isActive={path.startsWith(href)}>
+								{#snippet child({ props: btnProps })}
+									<a {...btnProps} {href}>
+										<Shield class="size-4" />
+										System roles
 									</a>
 								{/snippet}
 							</SideBar.MenuButton>

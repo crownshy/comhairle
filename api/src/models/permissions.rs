@@ -1296,6 +1296,21 @@ pub async fn list_permissions_by_action(
     Ok(permissions)
 }
 
+#[instrument(err(Debug), skip(db))]
+pub async fn list_user_permissions(
+    db: &PgPool,
+    user_id: Uuid,
+) -> Result<Vec<ResourcePermission>, ComhairleError> {
+    let query = permission_select(None)?
+        .and_where(Expr::cust_with_values(
+            "(user_id = $1 OR group_id IN (SELECT group_id FROM user_group_member WHERE user_id = $1))",
+            [user_id],
+        ))
+        .to_owned();
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+    Ok(query_as_with(&sql, values).fetch_all(db).await?)
+}
+
 pub fn roles_for_action<A: PermissionAction>(action: A) -> Vec<String> {
     A::Role::iter()
         .filter(|role| role.allows(action))
@@ -1595,6 +1610,96 @@ mod tests {
     };
     use crate::redis_connection::{MockRedis, RedisConnection};
     use crate::test_helpers::{TEST_RESOURCE_TYPE, TEST_ROLE_NAME, TestRole, test_state};
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn admin_portal_roles_include_direct_and_current_inherited_assignments(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::routes::auth::RequiredUser;
+        use crate::routes::user::{ResourceType as UserResourceType, get_user_roles};
+        use axum::{Json, extract::State};
+
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let grantor = session.id.unwrap();
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let organization_id = get_random_organization_id(&app, &mut session).await?;
+        let user_id = get_random_user_id(&app, &mut session).await?;
+        let group_id = models::user_group::organization_group(&pool, organization_id).await?;
+        let state = Arc::new(test_state().db(pool).call()?);
+        let user = models::users::get_user_by_id(&user_id, &state.db).await?;
+        let (_, Json(roles)) =
+            get_user_roles(State(state.clone()), RequiredUser(user.clone())).await?;
+        assert!(roles.is_empty());
+
+        for (actor_id, resource_type, resource_id, role_name) in [
+            (
+                ActorId::User(user_id),
+                "conversation",
+                conversation_id,
+                "observer",
+            ),
+            (
+                ActorId::User(user_id),
+                "organization",
+                organization_id,
+                "organization_admin",
+            ),
+            (
+                ActorId::Group(group_id),
+                "system",
+                SYSTEM_RESOURCE_ID,
+                "translator",
+            ),
+        ] {
+            grant_role(
+                &state,
+                GrantRoleRequest {
+                    actor_id,
+                    granted_by: &grantor,
+                    grant_reason: "Admin UI access test",
+                    permission_triplet: PermissionTriplet(resource_type, &resource_id, role_name),
+                },
+            )
+            .await?;
+        }
+        assert_eq!(list_user_permissions(&state.db, user_id).await?.len(), 2);
+        sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $2)")
+            .bind(group_id)
+            .bind(user_id)
+            .execute(&state.db)
+            .await?;
+
+        let (_, Json(roles)) =
+            get_user_roles(State(state.clone()), RequiredUser(user.clone())).await?;
+        for (resource, role) in [
+            (UserResourceType::Conversation(conversation_id), "observer"),
+            (
+                UserResourceType::Organization(organization_id),
+                "organization_admin",
+            ),
+            (UserResourceType::Site, "translator"),
+        ] {
+            assert!(
+                roles
+                    .iter()
+                    .any(|entry| entry.resource == resource && entry.roles == [role])
+            );
+        }
+
+        sqlx::query("DELETE FROM user_group_member WHERE group_id = $1 AND user_id = $2")
+            .bind(group_id)
+            .bind(user_id)
+            .execute(&state.db)
+            .await?;
+        let (_, Json(roles)) = get_user_roles(State(state), RequiredUser(user)).await?;
+        assert_eq!(roles.len(), 2);
+        assert!(
+            roles
+                .iter()
+                .all(|entry| entry.resource != UserResourceType::Site)
+        );
+        Ok(())
+    }
 
     use sea_query::DeleteStatement;
     use sqlx::PgPool;

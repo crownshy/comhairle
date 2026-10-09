@@ -3,6 +3,7 @@ import type { UserActions } from '@crownshy/api-client/api';
 import {
 	canPerformAction,
 	createPermissions,
+	hasSuperAdminRole,
 	loadUserActions,
 	SYSTEM_RESOURCE_ID
 } from './permissions';
@@ -14,6 +15,20 @@ const editor: UserActions = {
 };
 
 describe('permissions', () => {
+	it('restricts super-admin authority to the site SuperAdmin role', () => {
+		expect(hasSuperAdminRole([{ resource: 'Site', roles: ['SuperAdmin'] }])).toBe(true);
+		expect(hasSuperAdminRole([{ resource: 'Site', roles: ['Admin', 'translator'] }])).toBe(
+			false
+		);
+		expect(
+			hasSuperAdminRole([
+				{ resource: { Conversation: 'conversation' }, roles: ['SuperAdmin'] }
+			])
+		).toBe(false);
+		expect(hasSuperAdminRole(undefined)).toBe(false);
+		expect(hasSuperAdminRole([])).toBe(false);
+	});
+
 	it('fails closed when actions are missing', () => {
 		expect(canPerformAction(null, 'conversation_update')).toBe(false);
 		expect(canPerformAction(undefined, 'conversation_read')).toBe(false);

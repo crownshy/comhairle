@@ -149,12 +149,11 @@ export type UserActions = z.infer<typeof UserActions>;
 export const ResourceType = z.union([
   z.literal("Site"),
   z.object({ Conversation: z.string().uuid() }),
+  z.object({ Organization: z.string().uuid() }),
 ]);
 export type ResourceType = z.infer<typeof ResourceType>;
-export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
-export type ResourceRole = z.infer<typeof ResourceRole>;
 export const UserRoles = z
-  .object({ resource: ResourceType, roles: z.array(ResourceRole) })
+  .object({ resource: ResourceType, roles: z.array(z.string()) })
   .passthrough();
 export type UserRoles = z.infer<typeof UserRoles>;
 export const LocalizedConversationDto = z
@@ -3433,7 +3432,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PermissionResourceType,
   UserActions,
   ResourceType,
-  ResourceRole,
   UserRoles,
   LocalizedConversationDto,
   created_after,
@@ -6104,7 +6102,7 @@ curl -X POST \
     method: "get",
     path: "/permissions/:resource_type/:resource_id",
     alias: "ListResourcePermissions",
-    description: `Returns role assignments for a specific resource using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. The caller must hold the Owner role on the resource.`,
+    description: `Returns role assignments for a specific resource using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. The caller must own the resource or have permission to list its role assignments.`,
     requestFormat: "json",
     parameters: [
       {
@@ -6149,7 +6147,7 @@ curl -X POST \
     method: "post",
     path: "/permissions/:resource_type/:resource_id",
     alias: "GrantPermission",
-    description: `Grants a role to a user or organisation on a resource. The caller must hold the Owner role on the resource.`,
+    description: `Grants a role to a user or organisation on a resource. The caller must own the resource or have permission to grant roles on it.`,
     requestFormat: "json",
     parameters: [
       {
@@ -6175,7 +6173,7 @@ curl -X POST \
     method: "delete",
     path: "/permissions/:resource_type/:resource_id",
     alias: "RevokePermission",
-    description: `Revokes a role from a user or organisation on a resource. The actor (user_id or organization_id) and role_name are provided as query parameters. The caller must hold the Owner role on the resource.`,
+    description: `Revokes a role from a user or organisation on a resource. The actor (user_id or organization_id) and role_name are provided as query parameters. The caller must own the resource or have permission to revoke roles on it.`,
     requestFormat: "json",
     parameters: [
       {
@@ -6327,6 +6325,23 @@ curl -X POST \
     alias: "ListPermissionsByAction",
     description: `Returns resources of the specified type that the caller can perform the specified action on. Optionally filter by user_id. Use the &#x60;offset&#x60; and &#x60;limit&#x60; query params to page through results.`,
     requestFormat: "json",
+    parameters: [
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: z.array(ResourcePermission),
   },
   {
@@ -6854,7 +6869,7 @@ Use a raw HTTP request and process the response body incrementally.
     method: "post",
     path: "/tools/polis/statement_aux/sync",
     alias: "PolisSyncStatementAux",
-    description: `Fetches comments and xid mappings from Polis and upserts a row per statement. Existing rows have their statement_text and is_seed refreshed; moderation_status, moderation_reason, themes, visible_statement_when_submitted and user_id are preserved.`,
+    description: `Fetches comments and xid mappings from Polis and upserts a row per statement. Existing rows have their statement_text and is_seed refreshed; moderation_status, moderation_reason, themes, visible_statement_when_submitted and user_id are preserved. Requires conversation update or moderation permission.`,
     requestFormat: "json",
     parameters: [
       {

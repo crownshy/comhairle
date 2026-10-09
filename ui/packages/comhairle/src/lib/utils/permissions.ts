@@ -13,12 +13,13 @@ import { tryCatchAsync } from './errorHandling';
 export const SYSTEM_RESOURCE_ID = '00000000-0000-0000-0000-000000000000';
 
 export function canAccessAdminPortal(roles: readonly UserRoles[] | null | undefined): boolean {
+	return roles?.some((role) => role.roles.length > 0) ?? false;
+}
+
+export function hasSuperAdminRole(roles: readonly UserRoles[] | null | undefined): boolean {
 	return (
-		roles?.some(
-			(role) =>
-				role.resource === 'Site' &&
-				(role.roles.includes('Admin') || role.roles.includes('SuperAdmin'))
-		) ?? false
+		roles?.some((role) => role.resource === 'Site' && role.roles.includes('SuperAdmin')) ??
+		false
 	);
 }
 

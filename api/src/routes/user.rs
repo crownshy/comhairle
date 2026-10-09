@@ -27,7 +27,7 @@ use crate::{
         permissions::{
             PermissionAction, PermissionRole, SYSTEM_RESOURCE_ID, can_perform_action,
             conversation as conversation_permissions, has_resource_permission,
-            organization as organization_permissions, system,
+            list_user_permissions, organization as organization_permissions, system,
         },
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
@@ -39,13 +39,13 @@ use crate::{
 
 pub mod dto;
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin, is_user_super_admin};
+use super::auth::{RequiredUser, is_user_admin, is_user_super_admin};
 use super::translations::LocaleExtractor;
 
 #[instrument(err(Debug), skip(state))]
 pub async fn get_user_owned_conversations(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
@@ -83,7 +83,7 @@ pub async fn get_user_owned_conversations(
 #[instrument(err(Debug), skip(state))]
 pub async fn get_user_permitted_conversations(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
@@ -123,22 +123,17 @@ pub async fn get_user_permitted_conversations(
     Ok((StatusCode::OK, Json(results_with_media)))
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-pub enum ResourceRole {
-    Admin,
-    SuperAdmin,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq)]
 pub enum ResourceType {
     Site,
     Conversation(Uuid),
+    Organization(Uuid),
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct UserRoles {
     pub resource: ResourceType,
-    pub roles: Vec<ResourceRole>,
+    pub roles: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -272,16 +267,39 @@ pub async fn get_user_roles(
 
     let mut site_roles = vec![];
     if is_user_admin(&state, &user).await {
-        site_roles.push(ResourceRole::Admin);
+        site_roles.push("Admin".to_string());
     }
     if is_user_super_admin(&state, &user).await {
-        site_roles.push(ResourceRole::SuperAdmin);
+        site_roles.push("SuperAdmin".to_string());
     }
     if !site_roles.is_empty() {
         roles.push(UserRoles {
             resource: ResourceType::Site,
             roles: site_roles,
         });
+    }
+
+    for permission in list_user_permissions(&state.db, user.id).await? {
+        let resource = match permission.resource_type.as_str() {
+            "system" => ResourceType::Site,
+            "conversation" => ResourceType::Conversation(permission.resource_id),
+            "organization" => ResourceType::Organization(permission.resource_id),
+            _ => {
+                return Err(ComhairleError::BadRequest(
+                    "Unknown permission resource type".into(),
+                ));
+            }
+        };
+        if let Some(existing) = roles.iter_mut().find(|entry| entry.resource == resource) {
+            if !existing.roles.contains(&permission.role_name) {
+                existing.roles.push(permission.role_name);
+            }
+        } else {
+            roles.push(UserRoles {
+                resource,
+                roles: vec![permission.role_name],
+            });
+        }
     }
 
     Ok((StatusCode::OK, Json(roles)))
@@ -307,7 +325,7 @@ pub struct UserOrganizationsResponse {
 #[instrument(err(Debug), skip(state))]
 pub async fn get_user_organizations(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<UserOrganizationsResponse>), ComhairleError> {
     let results = organization::list(

@@ -24,7 +24,10 @@ use crate::models::permissions::{
 use crate::models::translations;
 use crate::models::user_group;
 use crate::models::users;
-use crate::routes::auth::{EmailLinkClaims, RequiredAdminUser, RequiredUser, generate_jwt};
+use crate::routes::auth::{
+    EmailLinkClaims, RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin,
+    is_user_super_admin,
+};
 use crate::routes::organizations::dto::{LocalizedOrganizationDto, OrganizationDto};
 use crate::routes::translations::LocaleExtractor;
 
@@ -227,8 +230,11 @@ async fn list(
     Query(filter_options): Query<OrganizationFilterOptions>,
     Query(page_options): Query<PageOptions>,
     LocaleExtractor(locale): LocaleExtractor,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedOrganizationDto>>), ComhairleError> {
+    if !is_user_admin(&state, &user).await && !is_user_super_admin(&state, &user).await {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
     let organizations = organization::list(
         &state.db,
         page_options,
