@@ -274,7 +274,6 @@
 					<StepHeaderSkeleton />
 				{:else}
 					<StepHeader
-						count={currentSequence?.count}
 						title={workflowStep.name}
 						description={workflowStep.description}
 						{availableDocuments}
