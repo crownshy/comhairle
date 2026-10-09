@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { GripVertical, Plus, X } from 'lucide-svelte';
+	import { GripVertical, Plus, Trash2, X } from 'lucide-svelte';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from './TagBadge.svelte';
 	import { emptyAnswer } from './demographicAnswers';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -11,6 +12,8 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 	import { Switch } from '$lib/components/ui/switch';
 	import PhonePreview from './PhonePreview.svelte';
+	import ConsentCheck from './ConsentCheck.svelte';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import QuestionAnswers from './QuestionAnswers.svelte';
 	import {
 		defaultPlaceholder,
@@ -27,14 +30,30 @@
 		isNew: boolean;
 		addsToForm: boolean;
 		onSave: (question: DemographicQuestion) => void;
+		onSaveAsNew: (question: DemographicQuestion) => void;
+		onDelete: () => void;
+		/** How many forms currently include this question */
+		usedInForms: number;
 		onClose: () => void;
 	};
 
-	let { question, isNew, addsToForm, onSave, onClose }: Props = $props();
+	let {
+		question,
+		isNew,
+		addsToForm,
+		onSave,
+		onSaveAsNew,
+		onDelete,
+		usedInForms,
+		onClose
+	}: Props = $props();
 
 	let draft = $state(untrack(() => $state.snapshot(question)));
+	const original = untrack(() => JSON.stringify($state.snapshot(question)));
+	const hasChanges = $derived(JSON.stringify($state.snapshot(draft)) !== original);
 
 	let previewAnswer = $state(emptyAnswer());
+	let previewConsent = $state(false);
 
 	const kinds = Object.keys(QUESTION_KIND_LABELS) as QuestionKind[];
 	const unusedTags = $derived(TAG_OPTIONS.filter((tag) => !draft.tags.includes(tag)));
@@ -185,10 +204,59 @@
 						</div>
 						<Switch id="special-category" bind:checked={draft.specialCategory} />
 					</div>
+					{#if draft.specialCategory}
+						<div class="flex flex-col gap-2">
+							<Label for="consent-text" class="text-base">Consent wording</Label>
+							<Textarea id="consent-text" rows={3} bind:value={draft.consentText} />
+							<span class="text-muted-foreground text-sm">
+								Shown as a checkbox at the bottom of this question. Participants
+								tick it before answering, unless they choose Prefer not to say.
+							</span>
+						</div>
+					{/if}
 				</div>
+				{#if !isNew}
+					<AlertDialog.Root>
+						<AlertDialog.Trigger
+							class={buttonVariants({ variant: 'destructiveOutline' })}
+						>
+							<Trash2 class="size-4" />Delete this question
+						</AlertDialog.Trigger>
+						<AlertDialog.Content>
+							<AlertDialog.Header>
+								<AlertDialog.Title>Delete this question?</AlertDialog.Title>
+								<AlertDialog.Description>
+									{usedInForms > 0
+										? `This question is used in ${usedInForms} ${usedInForms === 1 ? 'form' : 'forms'}. It will be removed from ${usedInForms === 1 ? 'it' : 'them'}, and that counts as unpublished changes. Answers already collected are kept.`
+										: 'This question will be removed from your question bank. This cannot be undone.'}
+								</AlertDialog.Description>
+							</AlertDialog.Header>
+							<AlertDialog.Footer>
+								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+								<AlertDialog.Action onclick={onDelete}
+									>Delete question</AlertDialog.Action
+								>
+							</AlertDialog.Footer>
+						</AlertDialog.Content>
+					</AlertDialog.Root>
+				{/if}
 			</div>
 
-			<PhonePreview showNext={false} step={1} steps={2}>
+			{#snippet consentFooter()}
+				<ConsentCheck
+					id="preview-consent"
+					text={draft.consentText}
+					checked={previewConsent}
+					onChange={(checked) => (previewConsent = checked)}
+				/>
+			{/snippet}
+			<PhonePreview
+				showNext={draft.specialCategory}
+				nextDisabled={!previewConsent}
+				footer={draft.specialCategory ? consentFooter : undefined}
+				step={1}
+				steps={2}
+			>
 				<input
 					class="placeholder:text-muted-foreground w-full bg-transparent text-2xl font-semibold outline-none"
 					placeholder="Type a question"
@@ -264,6 +332,15 @@
 
 		<Sheet.Footer class="border-border flex-row justify-end gap-2 border-t px-6 py-4">
 			<Button variant="outline" onclick={onClose}>Cancel</Button>
+			{#if !isNew}
+				<Button
+					variant="outline"
+					disabled={draft.text.trim() === '' || !hasChanges}
+					onclick={() => onSaveAsNew($state.snapshot(draft))}
+				>
+					Save to new question
+				</Button>
+			{/if}
 			<Button
 				disabled={draft.text.trim() === ''}
 				onclick={() => onSave($state.snapshot(draft))}

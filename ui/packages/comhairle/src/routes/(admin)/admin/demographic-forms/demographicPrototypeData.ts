@@ -66,6 +66,8 @@ export type DemographicQuestion = {
 	maxSelections: number | null;
 	placeholder: string;
 	specialCategory: boolean;
+	/** Wording of the consent checkbox shown with special category questions */
+	consentText: string;
 };
 
 export type FormUsage = {
@@ -96,6 +98,8 @@ export const isChoiceKind = (kind: QuestionKind) =>
 
 const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 
+export const DEFAULT_CONSENT_TEXT = 'I consent to the collection of this information about me.';
+
 export const blankQuestion = (): DemographicQuestion => ({
 	id: newId('q'),
 	text: '',
@@ -107,7 +111,8 @@ export const blankQuestion = (): DemographicQuestion => ({
 	preferNotToSay: true,
 	maxSelections: null,
 	placeholder: '',
-	specialCategory: false
+	specialCategory: false,
+	consentText: DEFAULT_CONSENT_TEXT
 });
 
 export const blankForm = (): DemographicForm => ({
@@ -198,6 +203,7 @@ const choice = (
 	maxSelections: null,
 	placeholder: '',
 	specialCategory: false,
+	consentText: DEFAULT_CONSENT_TEXT,
 	...extra
 });
 
@@ -213,7 +219,11 @@ export const createInitialQuestions = (): DemographicQuestion[] => [
 		'What is your ethnic group?',
 		['Ethnicity'],
 		['White', 'Asian or Asian British', 'Black, Black British or African', 'Mixed or multiple'],
-		{ allowOther: true, specialCategory: true }
+		{
+			allowOther: true,
+			specialCategory: true,
+			consentText: 'I consent to the collection of my ethnic group data.'
+		}
 	),
 	choice('q-postcode', 'What is your postcode?', ['Postcode'], [], { kind: 'postcode' }),
 	choice(
@@ -228,7 +238,11 @@ export const createInitialQuestions = (): DemographicQuestion[] => [
 		'Caring responsibilities',
 		['Custom'],
 		['Child under 16', 'Adult family member', 'No caring responsibilities'],
-		{ kind: 'multiple_choice', specialCategory: true }
+		{
+			kind: 'multiple_choice',
+			specialCategory: true,
+			consentText: 'I consent to the collection of data about my caring responsibilities.'
+		}
 	)
 ];
 

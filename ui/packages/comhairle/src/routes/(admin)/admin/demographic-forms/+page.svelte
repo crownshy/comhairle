@@ -10,6 +10,7 @@
 		blankQuestion,
 		createInitialForms,
 		createInitialQuestions,
+		usedInFormsCount,
 		CURRENT_USER,
 		type DemographicForm,
 		type DemographicQuestion
@@ -136,6 +137,32 @@
 		}
 	}
 
+	function deleteQuestion() {
+		if (!questionEdit) return;
+		const id = questionEdit.question.id;
+		questions = questions.filter((q) => q.id !== id);
+		for (const form of forms) {
+			if (form.questions.some((q) => q.questionId === id)) {
+				form.questions = form.questions.filter((q) => q.questionId !== id);
+				if (form.version > 0) form.hasUnpublishedChanges = true;
+			}
+		}
+		if (formEdit)
+			formEdit.form.questions = formEdit.form.questions.filter((q) => q.questionId !== id);
+		questionEdit = null;
+	}
+
+	// Keeps the original question untouched and adds the edited version to the bank as a new one.
+	function saveQuestionAsNew(edited: DemographicQuestion) {
+		const original = questions.find((q) => q.id === edited.id);
+		const text =
+			original && edited.text.trim() === original.text.trim()
+				? `${edited.text.trim()} (copy)`
+				: edited.text;
+		questions.push({ ...edited, id: blankQuestion().id, text });
+		questionEdit = null;
+	}
+
 	function saveQuestion(saved: DemographicQuestion) {
 		const index = questions.findIndex((q) => q.id === saved.id);
 		if (index >= 0) questions[index] = saved;
@@ -205,6 +232,9 @@
 		isNew={questionEdit.isNew}
 		addsToForm={questionEdit.addsToForm}
 		onSave={saveQuestion}
+		onSaveAsNew={saveQuestionAsNew}
+		onDelete={deleteQuestion}
+		usedInForms={usedInFormsCount(questionEdit.question.id, forms)}
 		onClose={() => (questionEdit = null)}
 	/>
 {/if}
