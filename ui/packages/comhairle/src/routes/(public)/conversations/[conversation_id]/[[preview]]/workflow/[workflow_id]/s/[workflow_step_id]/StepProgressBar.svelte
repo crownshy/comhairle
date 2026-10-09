@@ -19,13 +19,6 @@
 		easing: cubicOut
 	});
 
-	const CURRENT_TRACK_CLASS = [
-		'h-2 min-w-0 flex-1 appearance-none overflow-hidden rounded-full border-0 bg-accent',
-		'[&::-webkit-progress-bar]:bg-accent',
-		'[&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-primary',
-		'[&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-primary'
-	].join(' ');
-
 	function isDone(step: StepItem, index: number) {
 		return (
 			index < currentIndex ||
@@ -39,7 +32,16 @@
 <div class="flex items-center gap-1.5" aria-hidden="true">
 	{#each steps as step, index (step.id)}
 		{#if index === currentIndex}
-			<progress class={CURRENT_TRACK_CLASS} value={tweenedFill.current} max="1"></progress>
+			<progress
+				class={[
+					'bg-accent h-2 min-w-0 flex-1 appearance-none overflow-hidden rounded-full border-0',
+					'[&::-webkit-progress-bar]:bg-accent',
+					'[&::-webkit-progress-value]:bg-primary [&::-webkit-progress-value]:rounded-full',
+					'[&::-moz-progress-bar]:bg-primary [&::-moz-progress-bar]:rounded-full'
+				]}
+				value={tweenedFill.current}
+				max="1"
+			></progress>
 		{:else}
 			<div
 				class={cn(
