@@ -1,4 +1,4 @@
-import { expect, Locator } from '@playwright/test';
+import { expect } from '@playwright/test';
 import type { Page } from '../../types';
 import type { Refs } from '../types';
 import { generateValue } from '../..';
@@ -28,7 +28,6 @@ const Tiptap = (refs: Refs) => {
 				await tiptap.fill('');
 			});
 		},
-		get: async (index: number = 0): Promise<Locator> => getTiptap(refs.page, index),
 		expect: async () => {
 			for (let i = 0; i < values.length; i++) {
 				const value = values[i];
