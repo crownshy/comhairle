@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { STEP_COLUMN_CLASS } from './styles';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
 	import { STEP_COLUMN_CLASS } from './styles';
 </script>

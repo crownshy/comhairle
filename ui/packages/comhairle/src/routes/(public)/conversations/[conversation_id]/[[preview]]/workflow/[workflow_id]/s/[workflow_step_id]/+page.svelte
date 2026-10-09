@@ -9,7 +9,7 @@
 	import type { ComponentProps } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
 	import StepShell from './StepShell.svelte';
 	import StepProgressBar from './StepProgressBar.svelte';
