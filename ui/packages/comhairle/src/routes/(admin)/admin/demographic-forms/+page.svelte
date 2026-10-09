@@ -321,7 +321,10 @@
 		onSaveAsNew={saveQuestionAsNew}
 		onDelete={deleteQuestion}
 		usedInForms={usedInFormsCount(questionEdit.question.id, forms)}
-		usedInFormNames={formsUsing(questionEdit.question.id).map((f) => f.name)}
+		usedInFormList={formsUsing(questionEdit.question.id).map((f) => ({
+			id: f.id,
+			name: f.name
+		}))}
 		onClose={() => (questionEdit = null)}
 	/>
 {/if}

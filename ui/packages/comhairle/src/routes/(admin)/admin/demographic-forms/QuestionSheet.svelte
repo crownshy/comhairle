@@ -1,6 +1,16 @@
 <script lang="ts">
+	// Grows a textarea to fit its text, for browsers without CSS `field-sizing`.
+	function autosize(node: HTMLTextAreaElement, _value: string) {
+		const fit = () => {
+			node.style.height = 'auto';
+			node.style.height = `${node.scrollHeight}px`;
+		};
+		fit();
+		return { update: fit };
+	}
+
 	import { untrack } from 'svelte';
-	import { GripVertical, Plus, Trash2, X } from 'lucide-svelte';
+	import { GripVertical, Plus, Trash2, TriangleAlert, X } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from './TagBadge.svelte';
 	import { emptyAnswer } from './demographicAnswers';
@@ -38,7 +48,7 @@
 		/** How many forms currently include this question */
 		usedInForms: number;
 		/** Names of the forms that include this question */
-		usedInFormNames: string[];
+		usedInFormList: { id: string; name: string }[];
 		onClose: () => void;
 	};
 
@@ -51,7 +61,7 @@
 		onSaveAsNew,
 		onDelete,
 		usedInForms,
-		usedInFormNames,
+		usedInFormList,
 		onClose
 	}: Props = $props();
 
@@ -80,7 +90,7 @@
 
 	// Editing a question that other forms already use affects all of them, so ask first.
 	function handleSave() {
-		if (!isNew && hasChanges && usedInFormNames.length > 0) {
+		if (!isNew && hasChanges && usedInFormList.length > 0) {
 			confirmOpen = true;
 			return;
 		}
@@ -298,18 +308,24 @@
 				step={1}
 				steps={2}
 			>
-				<input
-					class="placeholder:text-muted-foreground w-full bg-transparent text-2xl font-semibold outline-none"
+				<textarea
+					rows="1"
+					onkeydown={(event) => event.key === 'Enter' && event.preventDefault()}
+					use:autosize={draft.text}
+					class="placeholder:text-muted-foreground field-sizing-content w-full resize-none bg-transparent text-2xl font-semibold break-words outline-none"
 					placeholder="Type a question"
 					aria-label="Question wording"
 					bind:value={draft.text}
-				/>
-				<input
-					class="placeholder:text-muted-foreground text-muted-foreground w-full bg-transparent text-base outline-none"
+				></textarea>
+				<textarea
+					rows="1"
+					onkeydown={(event) => event.key === 'Enter' && event.preventDefault()}
+					use:autosize={draft.description}
+					class="placeholder:text-muted-foreground text-muted-foreground field-sizing-content w-full resize-none bg-transparent text-base break-words outline-none"
 					placeholder="Add a description (optional)"
 					aria-label="Question description"
 					bind:value={draft.description}
-				/>
+				></textarea>
 
 				{#if isChoiceKind(draft.kind)}
 					{#if draft.kind === 'multiple_choice'}
@@ -390,26 +406,52 @@
 </Sheet.Root>
 
 <AlertDialog.Root bind:open={confirmOpen}>
-	<AlertDialog.Content>
+	<AlertDialog.Content class=" max-h-[90vh]  overflow-y-auto sm:max-w-xl">
 		<AlertDialog.Header>
-			<AlertDialog.Title>
-				This question is used in {usedInFormNames.length}
-				{usedInFormNames.length === 1 ? 'form' : 'forms'}
-			</AlertDialog.Title>
-			<AlertDialog.Description>
-				Saving your changes updates it in {usedInFormNames.join(', ')}. Published forms will
-				show unpublished changes until you publish them again. To change it for one form
-				only, save it as a new question instead.
-			</AlertDialog.Description>
+			<div class="flex flex-col items-center gap-3 text-center">
+				<span
+					class="bg-destructive/10 text-destructive flex size-11 shrink-0 items-center justify-center rounded-full"
+					aria-hidden="true"
+				>
+					<TriangleAlert class="size-6" />
+				</span>
+				<div class="flex min-w-0 flex-col items-center gap-3">
+					<AlertDialog.Title>
+						This change affects {usedInFormList.length}
+						{usedInFormList.length === 1 ? 'form' : 'forms'}
+					</AlertDialog.Title>
+				</div>
+			</div>
 		</AlertDialog.Header>
-		<AlertDialog.Footer>
+		<AlertDialog.Description class="bg-muted  px-4 py-4 ">
+			<ul class="mb-4 flex flex-wrap gap-2">
+				{#each usedInFormList as usedForm (usedForm.id)}
+					<li
+						class="bg-primary/10 text-primary flex items-center gap-2 rounded-md px-2 py-1 text-base font-semibold"
+					>
+						<span class="text-sm font-medium opacity-80"
+							>{shortId('F', usedForm.id)}</span
+						>
+						{usedForm.name}
+					</li>
+				{/each}
+			</ul>
+			Published forms will show unpublished changes until republished. To change it for one form
+			only, save it as a new question.
+		</AlertDialog.Description>
+		<AlertDialog.Footer class="sm:flex-wrap sm:items-start">
 			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 			<Button variant="outline" onclick={() => onSaveAsNew($state.snapshot(draft))}>
 				Save as new question
 			</Button>
-			<AlertDialog.Action onclick={() => onSave($state.snapshot(draft))}>
-				Save and update {usedInFormNames.length === 1 ? 'the form' : 'all forms'}
-			</AlertDialog.Action>
+			<div class="flex flex-col items-end gap-1">
+				<AlertDialog.Action onclick={() => onSave($state.snapshot(draft))}>
+					Confirm, save this question.
+				</AlertDialog.Action>
+				<span class="text-destructive text-sm">
+					This will update {usedInFormList.length === 1 ? 'the form' : 'all forms'}.
+				</span>
+			</div>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
