@@ -366,6 +366,7 @@
 	"prioritization_saving_changes": "Guardando tus cambios…",
 	"prioritization_submitting": "Enviando…",
 	"prioritization_submit_or_skip_hint": "Pulsa Siguiente para enviar esta propuesta y revisar la siguiente. Ya has revisado suficientes para continuar, así que también puedes omitir el resto.",
+	"prioritization_proposal_x_of_y": "Propuesta {current} de {total}",
 	"step_loading": "Cargando el paso…",
 	"step_minutes": "({count} minutos)",
 	"step_not_found": "No se encontró la conversación",

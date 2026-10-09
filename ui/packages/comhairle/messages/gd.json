@@ -366,6 +366,7 @@
 	"prioritization_saving_changes": "A' sàbhaladh nan atharraichean agad…",
 	"prioritization_submitting": "Ga chur a-steach…",
 	"prioritization_submit_or_skip_hint": "Brùth Air adhart airson am moladh seo a chur a-steach agus sùil a thoirt air an ath fhear. Thug thu sùil air gu leòr airson gluasad air adhart, mar sin faodaidh tu an còrr a leum cuideachd.",
+	"prioritization_proposal_x_of_y": "Moladh {current} de {total}",
 	"step_loading": "A' luchdadh na ceuma…",
 	"step_minutes": "({count} mionaidean)",
 	"step_not_found": "Cha deach an còmhradh a lorg",

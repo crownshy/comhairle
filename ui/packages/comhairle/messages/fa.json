@@ -376,6 +376,7 @@
 	"prioritization_saving_changes": "در حال ذخیرهٔ تغییرات شما…",
 	"prioritization_submitting": "در حال ارسال…",
 	"prioritization_submit_or_skip_hint": "بعدی را بزنید تا این پیشنهاد ارسال شود و پیشنهاد بعدی را مرور کنید. به اندازهٔ کافی مرور کرده‌اید که ادامه دهید، پس می‌توانید بقیه را هم رد کنید.",
+	"prioritization_proposal_x_of_y": "پیشنهاد {current} از {total}",
 	"step_loading": "در حال بارگذاری مرحله…",
 	"step_minutes": "({count} دقیقه)",
 	"step_not_found": "گفت‌وگو یافت نشد",

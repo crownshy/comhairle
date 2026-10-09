@@ -366,6 +366,7 @@
 	"prioritization_saving_changes": "جارٍ حفظ تغييراتك…",
 	"prioritization_submitting": "جارٍ الإرسال…",
 	"prioritization_submit_or_skip_hint": "اضغط التالي لإرسال هذا المقترح ومراجعة المقترح التالي. لقد راجعت ما يكفي للمتابعة، لذا يمكنك أيضًا تخطي الباقي.",
+	"prioritization_proposal_x_of_y": "المقترح {current} من {total}",
 	"step_loading": "جارٍ تحميل الخطوة…",
 	"step_minutes": "({count} دقائق)",
 	"step_not_found": "تعذّر العثور على المحادثة",
