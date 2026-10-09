@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
-	import TagBadge from './TagBadge.svelte';
+	import CreatedBy from './CreatedBy.svelte';
+	import { Copy } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
@@ -17,10 +18,10 @@
 		questions: DemographicQuestion[];
 		onNew: () => void;
 		onEdit: (formId: string) => void;
-		onCopy: (formId: string) => void;
+		onDuplicate: (formId: string) => void;
 	};
 
-	let { forms, questions, onNew, onEdit, onCopy }: Props = $props();
+	let { forms, questions, onNew, onEdit, onDuplicate }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-8">
@@ -51,7 +52,7 @@
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="start">
 						{#each forms as form (form.id)}
-							<DropdownMenu.Item onSelect={() => onCopy(form.id)}
+							<DropdownMenu.Item onSelect={() => onDuplicate(form.id)}
 								>{form.name}</DropdownMenu.Item
 							>
 						{/each}
@@ -64,14 +65,13 @@
 	<section class="flex flex-col gap-3">
 		<h2 class="text-lg font-semibold">Your forms</h2>
 		<div
-			class="border-border bg-card overflow-hidden rounded-xl border [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4"
+			class="border-border bg-card overflow-hidden rounded-xl border [&_td]:py-3 [&_td]:align-middle [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4"
 		>
 			<Table.Root>
 				<Table.Header class="bg-muted">
 					<Table.Row>
 						<Table.Head>Form</Table.Head>
 						<Table.Head>Created by</Table.Head>
-						<Table.Head>Country</Table.Head>
 						<Table.Head>Questions</Table.Head>
 						<Table.Head>Used in</Table.Head>
 						<Table.Head>Status</Table.Head>
@@ -84,61 +84,90 @@
 						<Table.Row>
 							<Table.Cell>
 								<div class="flex flex-col">
-									<span class="flex items-center gap-2">
-										<span class="text-base font-medium">{form.name}</span>
-										{#if form.isNewlyCreated}<Badge variant="primary">New</Badge
-											>{/if}
+									<span class="flex h-8 items-center gap-2">
+										{#if form.status === 'draft'}
+											<button
+												type="button"
+												class="text-primary hover:text-primary/80 rounded text-left text-base font-medium hover:underline focus-visible:ring-2 focus-visible:outline-none"
+												title="Continue editing this draft"
+												onclick={() => onEdit(form.id)}
+											>
+												{form.name}
+											</button>
+										{:else}
+											<span class="text-base font-medium">{form.name}</span>
+										{/if}
 									</span>
-									<span class="text-muted-foreground text-sm"
+									<span class="text-muted-foreground text-sm leading-5"
 										>{form.editedLabel}</span
 									>
 								</div>
 							</Table.Cell>
-							<Table.Cell class="text-base">{form.createdBy}</Table.Cell>
-							<Table.Cell class="text-base">{form.country}</Table.Cell>
+							<Table.Cell><CreatedBy name={form.createdBy} /></Table.Cell>
 							<Table.Cell>
-								<div class="flex flex-col items-start gap-1">
-									<span class="text-base">{form.questions.length} questions</span>
+								<div class="flex flex-col">
+									<span class="text-base leading-8"
+										>{form.questions.length} questions</span
+									>
 									{#if special > 0}
-										<TagBadge
-											tag="Special category"
-											label="{special} special category"
-										/>
+										<span class="text-muted-foreground text-sm leading-5">
+											{special} special category
+										</span>
 									{/if}
 								</div>
 							</Table.Cell>
 							<Table.Cell>
 								<div class="flex flex-col">
-									<span class="text-base">
+									<span class="text-base leading-8">
 										{conversationCount(form) === 0
 											? 'Not used yet'
 											: `${conversationCount(form)} ${conversationCount(form) === 1 ? 'conversation' : 'conversations'}`}
 									</span>
 									{#if form.usage.length > 0}
-										<span class="text-muted-foreground text-sm"
+										<span class="text-muted-foreground text-sm leading-5"
 											>{usageSummary(form)}</span
 										>
 									{/if}
 								</div>
 							</Table.Cell>
 							<Table.Cell>
-								<div class="flex flex-col items-start gap-1">
-									<Badge
-										variant={form.status === 'published' ? 'primary' : 'draft'}
-									>
-										{form.status === 'published'
-											? `Published v${form.version}`
-											: 'Draft'}
-									</Badge>
+								<div class="flex flex-col items-start">
+									<span class="flex h-8 items-center">
+										<Badge
+											variant={form.status === 'published'
+												? 'primary'
+												: 'draft'}
+										>
+											{form.status === 'published'
+												? `Published v${form.version}`
+												: 'Draft'}
+										</Badge>
+									</span>
 									{#if form.hasUnpublishedChanges}
-										<Badge variant="draft">Unpublished changes</Badge>
+										<span class="text-muted-foreground text-sm leading-5">
+											Unpublished changes
+										</span>
 									{/if}
 								</div>
 							</Table.Cell>
 							<Table.Cell>
-								<Button variant="outline" size="sm" onclick={() => onEdit(form.id)}
-									>Edit</Button
-								>
+								<div class="flex items-center gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => onEdit(form.id)}>Edit</Button
+									>
+									<Button
+										variant="outline"
+										size="icon"
+										class="size-8"
+										title="Duplicate form"
+										aria-label={`Duplicate ${form.name}`}
+										onclick={() => onDuplicate(form.id)}
+									>
+										<Copy class="size-4" />
+									</Button>
+								</div>
 							</Table.Cell>
 						</Table.Row>
 					{/each}

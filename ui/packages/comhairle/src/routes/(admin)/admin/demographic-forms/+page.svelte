@@ -16,7 +16,12 @@
 		type DemographicQuestion
 	} from './demographicPrototypeData';
 
-	type QuestionEdit = { question: DemographicQuestion; isNew: boolean; addsToForm: boolean };
+	type QuestionEdit = {
+		question: DemographicQuestion;
+		isNew: boolean;
+		addsToForm: boolean;
+		focusConsent?: boolean;
+	};
 
 	let tab = $state('forms');
 	let forms = $state<DemographicForm[]>(createInitialForms());
@@ -44,21 +49,23 @@
 		}
 	}
 
-	function copyForm(formId: string) {
+	// Adds a draft copy straight to the table, marked "New", and leaves the original untouched.
+	function duplicateForm(formId: string) {
 		const source = forms.find((f) => f.id === formId);
 		if (!source) return;
-		const form: DemographicForm = {
+		forms.unshift({
 			...$state.snapshot(source),
 			id: blankForm().id,
 			name: `${source.name} (copy)`,
 			createdBy: CURRENT_USER,
 			status: 'draft',
 			version: 0,
-			usage: [],
 			hasUnpublishedChanges: false,
-			editedLabel: 'Not yet published'
-		};
-		formEdit = { form, original: $state.snapshot(form), isNew: true };
+			usage: [],
+			editedLabel: `Draft created just now by ${CURRENT_USER}`,
+			isNewlyCreated: true
+		});
+		tab = 'forms';
 	}
 
 	const formHasChanges = $derived(
@@ -71,7 +78,7 @@
 	function upsertForm(saved: DemographicForm) {
 		const index = forms.findIndex((f) => f.id === saved.id);
 		if (index >= 0) forms[index] = saved;
-		else forms.push(saved);
+		else forms.unshift(saved);
 		formEdit = null;
 	}
 
@@ -99,26 +106,6 @@
 		});
 	}
 
-	function saveFormAsNew() {
-		if (!formEdit) return;
-		const draft = $state.snapshot(formEdit.form);
-		const renamed = draft.name === formEdit.original.name;
-		forms.push({
-			...draft,
-			id: blankForm().id,
-			name: renamed ? `${draft.name} (copy)` : draft.name,
-			createdBy: CURRENT_USER,
-			status: 'draft',
-			version: 0,
-			hasUnpublishedChanges: false,
-			usage: [],
-			editedLabel: `Draft created just now by ${CURRENT_USER}`,
-			isNewlyCreated: true
-		});
-		formEdit = null;
-		tab = 'forms';
-	}
-
 	function deleteForm() {
 		if (!formEdit) return;
 		const id = formEdit.form.id;
@@ -130,10 +117,15 @@
 		questionEdit = { question: blankQuestion(), isNew: true, addsToForm };
 	}
 
-	function editQuestion(questionId: string) {
+	function editQuestion(questionId: string, focusConsent = false) {
 		const question = questions.find((q) => q.id === questionId);
 		if (question) {
-			questionEdit = { question: $state.snapshot(question), isNew: false, addsToForm: false };
+			questionEdit = {
+				question: $state.snapshot(question),
+				isNew: false,
+				addsToForm: false,
+				focusConsent
+			};
 		}
 	}
 
@@ -213,7 +205,13 @@
 				<Tabs.Trigger value="questions">Question bank ({questions.length})</Tabs.Trigger>
 			</Tabs.List>
 			<Tabs.Content value="forms" class="mt-6">
-				<FormsTab {forms} {questions} onNew={newForm} onEdit={editForm} onCopy={copyForm} />
+				<FormsTab
+					{forms}
+					{questions}
+					onNew={newForm}
+					onEdit={editForm}
+					onDuplicate={duplicateForm}
+				/>
 			</Tabs.Content>
 			<Tabs.Content value="questions" class="mt-6">
 				<QuestionBankTab
@@ -237,7 +235,6 @@
 		hasChanges={formHasChanges}
 		onSaveDraft={saveDraft}
 		onPublish={publishForm}
-		onSaveAsNew={saveFormAsNew}
 		onDelete={deleteForm}
 		onClose={() => (formEdit = null)}
 	/>
@@ -248,6 +245,7 @@
 		question={questionEdit.question}
 		isNew={questionEdit.isNew}
 		addsToForm={questionEdit.addsToForm}
+		focusConsent={questionEdit.focusConsent ?? false}
 		onSave={saveQuestion}
 		onSaveAsNew={saveQuestionAsNew}
 		onDelete={deleteQuestion}

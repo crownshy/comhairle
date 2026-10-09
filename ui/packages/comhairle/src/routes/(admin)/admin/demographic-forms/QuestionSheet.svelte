@@ -29,6 +29,8 @@
 		question: DemographicQuestion;
 		isNew: boolean;
 		addsToForm: boolean;
+		/** Scroll to and highlight the consent wording field on open */
+		focusConsent?: boolean;
 		onSave: (question: DemographicQuestion) => void;
 		onSaveAsNew: (question: DemographicQuestion) => void;
 		onDelete: () => void;
@@ -41,6 +43,7 @@
 		question,
 		isNew,
 		addsToForm,
+		focusConsent = false,
 		onSave,
 		onSaveAsNew,
 		onDelete,
@@ -54,6 +57,17 @@
 
 	let previewAnswer = $state(emptyAnswer());
 	let previewConsent = $state(false);
+	let highlightConsent = $state(untrack(() => focusConsent));
+
+	$effect(() => {
+		if (!focusConsent) return;
+		const timer = setTimeout(() => {
+			const field = document.getElementById('consent-text');
+			field?.scrollIntoView({ block: 'center' });
+			field?.focus();
+		}, 150);
+		return () => clearTimeout(timer);
+	});
 
 	const kinds = Object.keys(QUESTION_KIND_LABELS) as QuestionKind[];
 	const unusedTags = $derived(TAG_OPTIONS.filter((tag) => !draft.tags.includes(tag)));
@@ -207,7 +221,13 @@
 					{#if draft.specialCategory}
 						<div class="flex flex-col gap-2">
 							<Label for="consent-text" class="text-base">Consent wording</Label>
-							<Textarea id="consent-text" rows={3} bind:value={draft.consentText} />
+							<Textarea
+								id="consent-text"
+								rows={3}
+								bind:value={draft.consentText}
+								class={highlightConsent ? 'ring-primary ring-2' : ''}
+								onblur={() => (highlightConsent = false)}
+							/>
 							<span class="text-muted-foreground text-sm">
 								Shown as a checkbox at the bottom of this question. Participants
 								tick it before answering, unless they choose Prefer not to say.
