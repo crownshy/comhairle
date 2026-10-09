@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Copy } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import TagBadge from './TagBadge.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -15,11 +16,12 @@
 		questions: DemographicQuestion[];
 		forms: DemographicForm[];
 		onEdit: (questionId: string) => void;
+		onDuplicate: (questionId: string) => void;
 	};
 
 	const SPECIAL_FILTER = 'Special category';
 
-	let { questions, forms, onEdit }: Props = $props();
+	let { questions, forms, onEdit, onDuplicate }: Props = $props();
 
 	let search = $state('');
 	let filter = $state<string | null>(null);
@@ -110,9 +112,21 @@
 							</div>
 						</Table.Cell>
 						<Table.Cell>
-							<Button variant="outline" size="sm" onclick={() => onEdit(question.id)}
-								>Edit</Button
-							>
+							<div class="flex gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => onEdit(question.id)}>Edit</Button
+								>
+								<Button
+									variant="outline"
+									size="sm"
+									aria-label={`Duplicate ${question.text}`}
+									onclick={() => onDuplicate(question.id)}
+								>
+									<Copy class="size-4" />Duplicate
+								</Button>
+							</div>
 						</Table.Cell>
 					</Table.Row>
 				{/each}
