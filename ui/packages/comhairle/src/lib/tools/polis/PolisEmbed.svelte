@@ -361,8 +361,15 @@
 			: undefined
 	);
 
+	const votesRemaining = $derived(Math.max(safeRequiredVotes - totalVotes, 1));
+	const blockedReason = $derived.by(() => {
+		if (canContinue) return undefined;
+		if (votesRemaining === 1) return m.polis_vote_one_more_to_continue();
+		return m.polis_vote_more_to_continue({ count: votesRemaining });
+	});
+
 	$effect(() => {
-		onSequenceChange?.({ progress, count: opinionCount });
+		onSequenceChange?.({ progress, count: opinionCount, blockedReason });
 	});
 </script>
 
