@@ -15,6 +15,7 @@ test.beforeEach(async ({ page }) => {
 	await Design.subtab(page, 'Configure');
 });
 
+// FIX: Figure out why the test is failing when run at "full-speed" without the "--debug" flag
 test('Design/configure page', async ({ page, cleanup }) => {
 	const textboxes = Textboxes.new([['name', 'Name']], { page, cleanup });
 	const tiptap = Tiptap({ page, cleanup });
