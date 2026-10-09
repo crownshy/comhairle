@@ -391,5 +391,6 @@
 	"polis_vote_one_more_to_continue": "د دوام لپاره په ۱ بل نظر رایه ورکړئ.",
 	"polis_vote_more_to_continue": "د دوام لپاره په {count} نورو نظرونو رایه ورکړئ.",
 	"polis_finish_voting": "زما رایه ورکول بشپړ شول",
-	"polis_finish_voting_hint": "دا ګام بشپړ کړئ او مخ ته لاړ شئ"
+	"polis_finish_voting_hint": "دا ګام بشپړ کړئ او مخ ته لاړ شئ",
+	"step_menu_about_heading": "د دې خبرو اترو په اړه"
 }

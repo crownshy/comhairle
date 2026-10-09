@@ -386,5 +386,6 @@
 	"polis_vote_one_more_to_continue": "Vota 1 opinión más para continuar.",
 	"polis_vote_more_to_continue": "Vota {count} opiniones más para continuar.",
 	"polis_finish_voting": "He terminado de votar",
-	"polis_finish_voting_hint": "Termina este paso y continúa"
+	"polis_finish_voting_hint": "Termina este paso y continúa",
+	"step_menu_about_heading": "Sobre esta conversación"
 }

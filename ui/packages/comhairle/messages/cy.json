@@ -386,5 +386,6 @@
 	"polis_vote_one_more_to_continue": "Pleidleisiwch ar 1 farn arall i barhau.",
 	"polis_vote_more_to_continue": "Pleidleisiwch ar {count} barn arall i barhau.",
 	"polis_finish_voting": "Rwyf wedi gorffen pleidleisio",
-	"polis_finish_voting_hint": "Gorffen y cam hwn a symud ymlaen"
+	"polis_finish_voting_hint": "Gorffen y cam hwn a symud ymlaen",
+	"step_menu_about_heading": "Am y sgwrs hon"
 }

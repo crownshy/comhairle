@@ -1,4 +1,5 @@
 import { sequence } from '@sveltejs/kit/hooks';
+import { LOCALE_COOKIE } from '$lib/utils/locale';
 import type { Handle, HandleFetch } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { env } from '$env/dynamic/public';
@@ -52,17 +53,17 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 		);
 	} else {
 		// Deny framing everywhere else except ummami if active
-		let umami_url = env.PUBLIC_UMAMI_SRC;
+		const umami_url = env.PUBLIC_UMAMI_SRC;
 		let umami_domain = '';
 		if (umami_url) {
 			try {
 				umami_domain = `'${new URL(umami_url).host}'`;
-			} catch (e) {
+			} catch {
 				console.warn('Badly formatted umami domain');
 			}
 		}
 
-		let frameAncestors = "frame-ancestors 'self' " + umami_domain;
+		const frameAncestors = "frame-ancestors 'self' " + umami_domain;
 		response.headers.set('Content-Security-Policy', frameAncestors);
 		response.headers.set('X-Frame-Options', 'DENY');
 		response.headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
@@ -89,7 +90,7 @@ const handleApi: Handle = async ({ event, resolve }) => {
 				event.url.origin + '/api',
 				event.cookies.get('auth-token'),
 				'server',
-				event.cookies.get('COMHAIRLE_LOCALE')
+				event.cookies.get(LOCALE_COOKIE)
 			))
 	});
 	return resolve(event);
