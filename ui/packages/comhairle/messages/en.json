@@ -331,6 +331,8 @@
 	"finding_answer": "Finding an answer...",
 	"sources": "Sources",
 	"question": "Question",
+	"question_x_of_y": "Question {current} of {total}",
+	"video_x_of_y": "Video {current} of {total}",
 	"saving": "Saving",
 	"not_saved": "Not saved",
 	"confirm_and_save": "Confirm & Save",
