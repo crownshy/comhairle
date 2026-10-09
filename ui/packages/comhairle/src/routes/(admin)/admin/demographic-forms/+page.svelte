@@ -32,6 +32,12 @@
 		isNew: boolean;
 	} | null>(null);
 	let questionEdit = $state<QuestionEdit | null>(null);
+	// Id of the row added most recently. Shown highlighted until the next thing the user does.
+	let highlightId = $state<string | null>(null);
+
+	function clearHighlight() {
+		highlightId = null;
+	}
 
 	function newForm() {
 		const form = blankForm();
@@ -53,9 +59,10 @@
 	function duplicateForm(formId: string) {
 		const source = forms.find((f) => f.id === formId);
 		if (!source) return;
+		const id = blankForm().id;
 		forms.unshift({
 			...$state.snapshot(source),
-			id: blankForm().id,
+			id,
 			name: `${source.name} (copy)`,
 			createdBy: CURRENT_USER,
 			status: 'draft',
@@ -65,6 +72,7 @@
 			editedLabel: `Draft created just now by ${CURRENT_USER}`,
 			isNewlyCreated: true
 		});
+		highlightId = id;
 		tab = 'forms';
 	}
 
@@ -78,7 +86,10 @@
 	function upsertForm(saved: DemographicForm) {
 		const index = forms.findIndex((f) => f.id === saved.id);
 		if (index >= 0) forms[index] = saved;
-		else forms.unshift(saved);
+		else {
+			forms.unshift(saved);
+			highlightId = saved.id;
+		}
 		formEdit = null;
 	}
 
@@ -133,12 +144,9 @@
 		const source = questions.find((q) => q.id === questionId);
 		if (!source) return;
 		const copy = $state.snapshot(source);
-		const index = questions.findIndex((q) => q.id === questionId);
-		questions.splice(index + 1, 0, {
-			...copy,
-			id: blankQuestion().id,
-			text: `${copy.text} (copy)`
-		});
+		const id = blankQuestion().id;
+		questions.unshift({ ...copy, id, text: `${copy.text} (copy)` });
+		highlightId = id;
 	}
 
 	function deleteQuestion() {
@@ -163,20 +171,27 @@
 			original && edited.text.trim() === original.text.trim()
 				? `${edited.text.trim()} (copy)`
 				: edited.text;
-		questions.push({ ...edited, id: blankQuestion().id, text });
+		const id = blankQuestion().id;
+		questions.unshift({ ...edited, id, text });
+		highlightId = id;
 		questionEdit = null;
 	}
 
 	function saveQuestion(saved: DemographicQuestion) {
 		const index = questions.findIndex((q) => q.id === saved.id);
 		if (index >= 0) questions[index] = saved;
-		else questions.push(saved);
+		else {
+			questions.unshift(saved);
+			highlightId = saved.id;
+		}
 		if (questionEdit?.addsToForm && formEdit) {
 			formEdit.form.questions.push({ questionId: saved.id, required: false });
 		}
 		questionEdit = null;
 	}
 </script>
+
+<svelte:window onpointerdown={clearHighlight} onkeydown={clearHighlight} />
 
 <svelte:head>
 	<title>Demographic forms - Comhairle Admin</title>
@@ -208,6 +223,7 @@
 				<FormsTab
 					{forms}
 					{questions}
+					{highlightId}
 					onNew={newForm}
 					onEdit={editForm}
 					onDuplicate={duplicateForm}
@@ -217,6 +233,7 @@
 				<QuestionBankTab
 					{questions}
 					{forms}
+					{highlightId}
 					onEdit={editQuestion}
 					onDuplicate={duplicateQuestion}
 				/>

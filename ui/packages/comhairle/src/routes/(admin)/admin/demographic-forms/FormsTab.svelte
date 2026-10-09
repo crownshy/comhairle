@@ -16,12 +16,13 @@
 	type Props = {
 		forms: DemographicForm[];
 		questions: DemographicQuestion[];
+		highlightId?: string | null;
 		onNew: () => void;
 		onEdit: (formId: string) => void;
 		onDuplicate: (formId: string) => void;
 	};
 
-	let { forms, questions, onNew, onEdit, onDuplicate }: Props = $props();
+	let { forms, questions, highlightId = null, onNew, onEdit, onDuplicate }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-8">
@@ -81,7 +82,11 @@
 				<Table.Body>
 					{#each forms as form (form.id)}
 						{@const special = specialCategoryCount(form, questions)}
-						<Table.Row>
+						<Table.Row
+							class={form.id === highlightId
+								? 'bg-primary/15 hover:bg-primary/15'
+								: ''}
+						>
 							<Table.Cell>
 								<div class="flex flex-col">
 									<span class="flex h-8 items-center gap-2">
