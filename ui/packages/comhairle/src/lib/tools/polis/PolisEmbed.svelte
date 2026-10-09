@@ -24,7 +24,7 @@
 		resetVoteCount
 	} from './polisVoteStore';
 	import { opinionCounter } from './polisCounter';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';

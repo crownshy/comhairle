@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { AuthPage } from '$lib/profile';
 	import type { PageProps } from './$types';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import * as Form from '$lib/components/ui/form';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';

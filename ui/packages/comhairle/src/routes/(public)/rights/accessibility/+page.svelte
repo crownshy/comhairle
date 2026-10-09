@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import Highlight from '$lib/components/Highlight.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 
 	const sectionTitle = 'text-2xl font-bold text-foreground md:text-3xl';
 	const heading = 'text-xl font-semibold text-foreground md:text-2xl';

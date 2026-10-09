@@ -4,7 +4,7 @@
 	import ChevronRight from 'svelte-radix/ChevronRight.svelte';
 	import { cn } from '$lib/utils.js';
 
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { getPage, setPage, calcPageCount } from './utils';
 
 	const { url, pageSize, count }: { url: URL; pageSize: number; count: number } = $props();

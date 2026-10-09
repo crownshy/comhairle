@@ -11,7 +11,7 @@
 	import { userDetailsSchema } from './schema';
 	import type { User } from '@crownshy/api-client/api';
 	import { onMount } from 'svelte';
-	import * as m from '$lib/paraglide/messages.js';
+	import { m } from '$lib/paraglide/messages';
 	import { goto } from '$app/navigation';
 
 	let {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from './ui/button';
 	import UserAvatar from './UserAvatar.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import type { UserDto } from '@crownshy/api-client/api';
 	import { LoginButtons } from '$lib/profile';
 	import { apiClient } from '@crownshy/api-client/client';
