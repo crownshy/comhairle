@@ -94,7 +94,6 @@
 	);
 
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
-	let currentStepNumber = $derived(viewedIndex + 1);
 
 	let introUrl = $derived(conversation_url(conversation.id, isPreview) + queryString);
 
@@ -278,8 +277,6 @@
 					<StepHeaderSkeleton />
 				{:else}
 					<StepHeader
-						{currentStepNumber}
-						totalSteps={stepItems.length}
 						title={workflowStep.name}
 						description={workflowStep.description}
 						{availableDocuments}

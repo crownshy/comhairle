@@ -97,8 +97,8 @@ _Avoid_: Card, page wrapper.
 
 **Progress bar**:
 The segmented bar at the top of the [[#step-shell]]: one stub per Step, the current Step a
-flexible track that fills. Completed stubs read filled. The bar is decoration for a screen
-reader; the "Step N of M" line beneath it carries the position.
+flexible track that fills. Completed stubs read filled. The bar is hidden from screen
+readers; the [[#step-menu]] trigger's label ("Step N of M: name") carries the position.
 _Avoid_: Stepper (the old row of circles), step selector.
 
 **Step menu**:
