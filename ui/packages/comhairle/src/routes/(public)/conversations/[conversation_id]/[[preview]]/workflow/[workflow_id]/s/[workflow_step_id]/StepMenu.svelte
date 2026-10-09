@@ -1,20 +1,35 @@
 <script lang="ts">
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import { ChevronDown, Check, Lock, Moon, Sun } from 'lucide-svelte';
+	import {
+		ChevronDown,
+		ChevronRight,
+		Check,
+		Languages,
+		Lock,
+		LogOut,
+		Moon,
+		Sun
+	} from 'lucide-svelte';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
 	import { m } from '$lib/paraglide/messages';
 	import { HEADER_PILL_CLASS } from './styles';
+	import { getLocale, type Locale } from '$lib/paraglide/runtime';
+	import { getLanguageName } from '$lib/config/languages';
+	import { switchLocale } from '$lib/utils/locale';
+	import { logOut } from '$lib/utils/logout';
 	import type { StepItem, StepStatus } from './stepItems';
 
 	type Props = {
 		steps: StepItem[];
 		currentIndex: number;
+		/** The conversation's languages. The row is hidden when there is nothing to switch to. */
+		languages: Locale[];
 	};
 
-	let { steps, currentIndex }: Props = $props();
+	let { steps, currentIndex, languages }: Props = $props();
 
 	type RowStyle = { badge: string; name: string; done: boolean; locked: boolean };
 
@@ -48,6 +63,9 @@
 		'group data-[state=open]:bg-primary/10 min-w-0 justify-end'
 	);
 
+	const SHEET_ROW_CLASS =
+		'hover:bg-muted active:bg-muted text-foreground flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left text-base transition-colors';
+
 	const isMobile = new IsMobile();
 
 	let open = $state(false);
@@ -58,6 +76,15 @@
 
 	let themeLabel = $derived(themeStore.isDark ? m.theme_light_mode() : m.theme_dark_mode());
 	let ThemeIcon = $derived(themeStore.isDark ? Sun : Moon);
+
+	const currentLocale = getLocale();
+	const currentLanguageName = getLanguageName(currentLocale, 'native');
+	let showLanguages = $derived(languages.length > 1);
+	let languageListOpen = $state(false);
+
+	function chooseLanguage(locale: Locale) {
+		if (locale !== currentLocale) switchLocale(locale);
+	}
 
 	function ariaCurrent(step: StepItem) {
 		return step === viewedStep ? 'step' : undefined;
@@ -95,6 +122,17 @@
 			<Lock class="text-muted-foreground ml-auto size-4 shrink-0" />
 		{/if}
 	</span>
+{/snippet}
+
+{#snippet languageRowInner()}
+	<Languages class="text-muted-foreground size-5 shrink-0" />
+	<span>{m.language()}</span>
+	<span class="text-muted-foreground ml-auto">{currentLanguageName}</span>
+{/snippet}
+
+{#snippet logOutRowInner()}
+	<LogOut class="text-muted-foreground size-5 shrink-0" />
+	{m.logout()}
 {/snippet}
 
 {#snippet themeRowInner()}
@@ -144,10 +182,46 @@
 				<div class="border-border mt-2 border-t pt-2 pb-2">
 					<button
 						type="button"
-						class="hover:bg-muted active:bg-muted text-foreground flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left text-base transition-colors"
+						class={SHEET_ROW_CLASS}
 						onclick={() => themeStore.toggleMode()}
 					>
 						{@render themeRowInner()}
+					</button>
+					{#if showLanguages}
+						<button
+							type="button"
+							class={SHEET_ROW_CLASS}
+							aria-expanded={languageListOpen}
+							onclick={() => (languageListOpen = !languageListOpen)}
+						>
+							{@render languageRowInner()}
+							<ChevronRight
+								class={cn(
+									'text-muted-foreground size-5 shrink-0 transition-transform',
+									languageListOpen && 'rotate-90'
+								)}
+							/>
+						</button>
+						{#if languageListOpen}
+							<div class="pl-8">
+								{#each languages as locale (locale)}
+									<button
+										type="button"
+										class={SHEET_ROW_CLASS}
+										aria-current={locale === currentLocale ? 'true' : undefined}
+										onclick={() => chooseLanguage(locale)}
+									>
+										{getLanguageName(locale, 'native')}
+										{#if locale === currentLocale}
+											<Check class="text-primary ml-auto size-5 shrink-0" />
+										{/if}
+									</button>
+								{/each}
+							</div>
+						{/if}
+					{/if}
+					<button type="button" class={SHEET_ROW_CLASS} onclick={logOut}>
+						{@render logOutRowInner()}
 					</button>
 				</div>
 			</div>
@@ -211,6 +285,31 @@
 				}}
 			>
 				{@render themeRowInner()}
+			</DropdownMenu.Item>
+			{#if showLanguages}
+				<DropdownMenu.Sub>
+					<DropdownMenu.SubTrigger class="cursor-pointer gap-2 py-2.5 text-base">
+						{@render languageRowInner()}
+					</DropdownMenu.SubTrigger>
+					<DropdownMenu.SubContent class="w-56 p-2">
+						<DropdownMenu.RadioGroup
+							value={currentLocale}
+							onValueChange={(value) => chooseLanguage(value as Locale)}
+						>
+							{#each languages as locale (locale)}
+								<DropdownMenu.RadioItem
+									value={locale}
+									class="cursor-pointer py-2.5 text-base"
+								>
+									{getLanguageName(locale, 'native')}
+								</DropdownMenu.RadioItem>
+							{/each}
+						</DropdownMenu.RadioGroup>
+					</DropdownMenu.SubContent>
+				</DropdownMenu.Sub>
+			{/if}
+			<DropdownMenu.Item class="cursor-pointer py-2.5 text-base" onSelect={logOut}>
+				{@render logOutRowInner()}
 			</DropdownMenu.Item>
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>

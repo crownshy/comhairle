@@ -6,6 +6,7 @@
 	import StepMenu from './StepMenu.svelte';
 	import StepProgressBar from './StepProgressBar.svelte';
 	import type { StepItem } from './stepItems';
+	import type { Locale } from '$lib/paraglide/runtime';
 	import { HEADER_PILL_CLASS, STEP_COLUMN_CLASS } from './styles';
 	import { cn } from '$lib/utils';
 
@@ -15,13 +16,14 @@
 		fill: number;
 		/** The tool's position inside the step, read out on the progress bar. */
 		position?: string;
+		languages: Locale[];
 		/** Where the mark goes: this conversation's landing page. */
 		introUrl: string;
 		/** Marks an admin's preview here, in place of the full-width banner other pages get. */
 		preview?: boolean;
 	};
 
-	let { steps, currentIndex, fill, position, introUrl, preview = false }: Props = $props();
+	let { steps, currentIndex, fill, position, languages, introUrl, preview = false }: Props = $props();
 
 	const supportDrawer = useSupportDrawer();
 </script>
@@ -53,7 +55,7 @@
 				<CircleHelp class="size-5" aria-hidden="true" />
 				<span class="max-sm:hidden" aria-hidden="true">{m.support_find_out_more()}</span>
 			</button>
-			<StepMenu {steps} {currentIndex} />
+			<StepMenu {steps} {currentIndex} {languages} />
 		</div>
 	</div>
 	<div class={STEP_COLUMN_CLASS}>
