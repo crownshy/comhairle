@@ -18,13 +18,17 @@ use crate::models::organization::{
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{
-    PermissionResource, PermissionRole,
+    PermissionResource, PermissionRole, SystemResource,
     organization::{Action, Role},
+    system,
 };
 use crate::models::translations;
 use crate::models::user_group;
 use crate::models::users;
-use crate::routes::auth::{EmailLinkClaims, RequiredAdminUser, RequiredUser, generate_jwt};
+use crate::routes::auth::{
+    EmailLinkClaims, RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin,
+    is_user_super_admin,
+};
 use crate::routes::organizations::dto::{LocalizedOrganizationDto, OrganizationDto};
 use crate::routes::translations::LocaleExtractor;
 
@@ -227,8 +231,11 @@ async fn list(
     Query(filter_options): Query<OrganizationFilterOptions>,
     Query(page_options): Query<PageOptions>,
     LocaleExtractor(locale): LocaleExtractor,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedOrganizationDto>>), ComhairleError> {
+    if !is_user_admin(&state, &user).await && !is_user_super_admin(&state, &user).await {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
     let organizations = organization::list(
         &state.db,
         page_options,
@@ -382,7 +389,7 @@ async fn remove_member(
 #[instrument(err(Debug), skip(state))]
 async fn create(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
@@ -511,6 +518,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     use crate::models::permissions::organization::Action as OrganizationAction;
     use axum::middleware::{from_fn, from_fn_with_state};
     let requirement = PermissionRequirement::<OrganizationResource>::new;
+    let system_requirement = PermissionRequirement::<SystemResource>::new;
     ApiRouter::new()
         .api_route(
             "/",
@@ -592,7 +600,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Create a new organization")
                     .security_requirement("JWT")
                     .response::<201, Json<OrganizationDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                system_requirement(system::Action::OrganizationCreate),
+                permission_middleware::<SystemResource>,
+            )),
         )
         .api_route(
             "/{organization_id}",

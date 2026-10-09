@@ -1,12 +1,14 @@
 /**
- * Content for the Comhairle Admin Guide (/admin/info/how-to/<guide>/<topic>).
+ * Content for the Comhairle Handbook (/admin/info/how-to/<guide>/<topic>).
  *
  * Every topic follows the same template so readers know where to look:
  *   summary  – one or two sentences: what this is and why it matters
  *   steps    – numbered actions, in order
- *   terms    – definitions, for glossary-style topics instead of steps
  *   tips     – "Good to know": gotchas and advice
  * The "Next" link is worked out from the order of topics below.
+ *
+ * The glossary (/admin/info/glossary) is separate: ADMIN_GLOSSARY at the bottom of this file.
+ * Link to a term with [text](/admin/info/glossary#term-<term-in-kebab-case>).
  *
  * Inline formatting in any of these strings:
  *   **Launch**            bold – use for button, tab and field names as they appear on screen
@@ -34,6 +36,11 @@ import launchAConversationImage from './assets/admin-guide/launch-a-conversation
 import recruitImage from './assets/admin-guide/recruit.webp';
 import monitorImage from './assets/admin-guide/monitor.webp';
 import moderateImage from './assets/admin-guide/moderate.webp';
+import toggleRevisitAfterFinishImage from './assets/admin-guide/toggle-revisit-after-finish.webp';
+import rejectStatementImage from './assets/admin-guide/reject-statement.webp';
+import splitStatementImage from './assets/admin-guide/split-statement.webp';
+import findPreviewButtonImage from './assets/admin-guide/find-preview-button.webp';
+import findWorkspaceImage from './assets/admin-guide/find-workspace.webp';
 import reportImage from './assets/admin-guide/report.webp';
 import notifyImage from './assets/admin-guide/notify.webp';
 import logInImage from './assets/admin-guide/log-in.webp';
@@ -47,6 +54,50 @@ export type AdminGuideTerm = {
 export type AdminGuideImage = {
 	src: string;
 	alt: string;
+	/** Short visible caption shown under the image. */
+	caption?: string;
+	/** In a carousel: the step (1, 2, …) this screenshot illustrates. Hovering or
+	 * clicking that step shows this image, and the step is highlighted while it's shown. */
+	step?: number;
+	/** In a carousel: the Good to know tip (1, 2, …) this screenshot illustrates. Works like `step`. */
+	tip?: number;
+};
+
+/** One part of the screen, explained in the "environment" section of an Advanced topic. */
+export type AdminGuideScreenPart = {
+	/** Exactly as it appears on screen. */
+	name: string;
+	description: string;
+};
+
+/**
+ * A decision an admin makes, used by the Advanced category. Each one says when to
+ * choose it, how to carry it out, and what happens as a result.
+ */
+export type AdminGuideDecision = {
+	title: string;
+	when: string;
+	how: string[];
+	/** What happens next, including knock-on effects people tend to miss. */
+	result: string;
+	/** Optional screenshot showing where to make the change. */
+	image?: AdminGuideImage;
+};
+
+/** A titled reference list, e.g. an example moderation policy with codes. */
+export type AdminGuideReference = {
+	title: string;
+	intro?: string;
+	items: { code: string; name: string; description: string }[];
+};
+
+/** A pointer to another topic, shown as a sticky card beside the content. */
+export type AdminGuideRelated = {
+	title: string;
+	text: string;
+	/** Link text, e.g. the topic name. */
+	label: string;
+	href: string;
 };
 
 export type AdminGuideTopic = {
@@ -55,9 +106,17 @@ export type AdminGuideTopic = {
 	navLabel: string;
 	summary: string;
 	image?: AdminGuideImage;
+	/** Several screenshots shown as a carousel. Use instead of `image`. */
+	images?: AdminGuideImage[];
+	/** Advanced topics: introduce the screen before the decisions. */
+	environment?: { title: string; intro?: string; parts: AdminGuideScreenPart[] };
 	steps?: string[];
-	terms?: AdminGuideTerm[];
+	/** Advanced topics: the decisions to make and how to make them. */
+	decisions?: { title: string; intro?: string; options: AdminGuideDecision[] };
+	reference?: AdminGuideReference;
 	tips?: string[];
+	/** A card pinned to the right of the page pointing to a related topic. */
+	related?: AdminGuideRelated;
 };
 
 export type AdminGuide = {
@@ -84,7 +143,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					alt: 'The Create an account page, with Username, Email, Password and Confirm Password fields, a Sign Up button and a Sign up as guest button.'
 				},
 				steps: [
-					'Go to [Sign up](/auth/signup) and create an account.',
+					'Go to [Sign up](/auth/signup), fill in your details and select :signup: to create an account.',
 					'Email [team@crown-shy.com](mailto:team@crown-shy.com) from the email address you used to sign up and ask for the admin role to be added to your account.',
 					'Your request will usually be processed within one working day.'
 				],
@@ -98,17 +157,28 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Log in as an admin user',
 				navLabel: 'Log in as an admin user',
 				summary: 'Log in with your admin account to access the admin workspace.',
-				image: {
-					src: logInImage,
-					alt: 'The Log In page, with Email and Password fields, a Log In button and options to log in with a one-time passcode or a Guest ID.'
-				},
+				images: [
+					{
+						src: logInImage,
+						alt: 'The Log In page, with Email and Password fields, a Log In button and options to log in with a one-time passcode or a Guest ID.',
+						caption: 'The Log In page.',
+						step: 2
+					},
+					{
+						src: findWorkspaceImage,
+						alt: 'The Comhairle homepage while logged in as an admin. The top navigation bar shows Home, About, Participate, Your Rights, a language menu, a Workspace button and the account menu.',
+						caption:
+							'Admins see **Workspace** in the top navigation bar on the homepage.',
+						tip: 1
+					}
+				],
 				steps: [
-					'Go to [Login](/auth/login)',
-					'Enter your email address and password.',
+					'Go to [Log in](/auth/login).',
+					'Enter your email address and password, then select :login:.',
 					'If your account has the admin role, you will be taken to the admin workspace.'
 				],
 				tips: [
-					'If you’re taken to the homepage instead, select **Workspace** in the top navigation bar to enter the workspace.'
+					'If you’re taken to the homepage instead, select :workspace: in the top navigation bar to enter the workspace.'
 				]
 			},
 			{
@@ -116,14 +186,14 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Get familiar with the environment',
 				navLabel: 'Get familiar with the environment',
 				summary:
-					'The workspace is where you create and manage [conversations](/admin/info/how-to/getting-started/glossary#term-conversation), launch them to participants, and moderate participant contributions.',
+					'The workspace is where you create and manage [conversations](/admin/info/glossary#term-conversation), [launch](/admin/info/glossary#term-launch) them to participants, and moderate participant contributions.',
 				image: {
 					src: environmentImage,
 					alt: 'The workspace. The sidebar on the left lists Home, Workspace, Organisations, Emails, Media library and your conversations. On the right, Your conversations shows each conversation with its status, such as Draft or Live, and an Edit conversation button.'
 				},
 				steps: [
 					'Use the sidebar to navigate between different areas of the workspace. The content on the right updates based on your selection.',
-					'Select the **collapse icon** to collapse the sidebar. Select it again to reopen it.'
+					'Select the **collapse icon** :collapse: to collapse the sidebar. To reopen it, select the **expand icon** :expand:.'
 				],
 				tips: [
 					'Under **Your conversations**: **Owned Conversations** lists conversations you’ve created. **Permitted Conversations** lists conversations that have been shared with you.',
@@ -158,53 +228,6 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					"If a colleague can't find a Conversation, check they've been added in **Team**.",
 					"If you can't access something you expect to, contact your organisation administrator."
 				]
-			},
-			{
-				key: 'glossary',
-				title: 'Glossary',
-				navLabel: 'Glossary',
-				summary: 'These words come up throughout the admin area and this guide.',
-				terms: [
-					{
-						term: 'Conversation',
-						definition:
-							'A conversation is a public consultation on a particular topic that you create and manage in the workspace.'
-					},
-					{
-						term: 'Step',
-						definition:
-							'One stage of the participant journey, such as reading background material or answering a poll. Each step uses one engagement tool.'
-					},
-					{
-						term: 'Process design',
-						definition:
-							'Where you build the ordered list of steps (sometimes called the workflow) for a Conversation.'
-					},
-					{
-						term: 'Engagement tool',
-						definition:
-							'The tool providing an activity behind a step, for example Learn step, Participant-led Poll, Thinking space, Survey or Prioritization tool.'
-					},
-					{
-						term: 'Preview',
-						definition:
-							'A view of the Conversation exactly as participants will see it, without making it live.'
-					},
-					{
-						term: 'Launch',
-						definition:
-							'Making the Conversation live so participants can take part. After launch, the Conversation can no longer be edited.'
-					},
-					{
-						term: 'Moderation',
-						definition:
-							'Reviewing statements that participants write in a Participant-led Poll, and accepting or rejecting them.'
-					},
-					{
-						term: 'Insights',
-						definition: 'The responses and results collected in a step.'
-					}
-				]
 			}
 		]
 	},
@@ -218,7 +241,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Create a conversation',
 				navLabel: 'Create a conversation',
 				summary:
-					'Create a new conversation from scratch or start with a template that already contains a set of steps.',
+					'Create a new [conversation](/admin/info/glossary#term-conversation) from scratch or start with a template that already contains a set of [steps](/admin/info/glossary#term-step).',
 				image: {
 					src: createAConversationImage,
 					alt: "The Choose a template window, listing workflow templates such as Informed-participants survey, Understand opinion groups and Citizen workshop, with a preview of the selected template's steps."
@@ -269,7 +292,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'In **Description**, explain the topic, why you’re asking for input, and what might happen as a result.'
 				],
 				tips: [
-					'Select **Preview** in the top-right corner to see how the conversation will appear to participants.',
+					'Select :preview: in the top-right corner to see how the conversation will appear to participants.',
 					'To customise other participant-facing text, go to **Configure** → **Content**. Here you can edit the **Call to action**, **FAQs**, **Privacy policy**, and **Thank you message**.',
 					'If you leave fields under **Content** blank, Comhairle’s default text will be used.',
 					'If you use specialist or unfamiliar terms, explain them under **Configure** → **Glossary**. Their definitions will appear as tooltips when those terms are used in the conversation.'
@@ -324,19 +347,30 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Preview your page',
 				summary:
 					'See how your conversation will appear to participants without launching it.',
-				image: {
-					src: previewImage,
-					alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description and banner image.'
-				},
+				images: [
+					{
+						src: findPreviewButtonImage,
+						alt: 'The top of a conversation in the admin workspace, with the Preview button at the top right, next to the Launched button and the more actions menu.',
+						caption:
+							'The Preview button is at the top right of every conversation page.',
+						step: 1
+					},
+					{
+						src: previewImage,
+						alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description and banner image.',
+						caption: 'The preview shows your landing page as participants will see it.',
+						step: 2
+					}
+				],
 				steps: [
-					'Click **Preview** in the top-right corner. The preview opens in a new tab.',
+					'Click :preview: in the top-right corner. The preview opens in a new tab.',
 					'Check the **Title**, **Short description**, **Description**, and **Banner image** on the landing page.',
 					'Select the join button and go through the conversation steps as a participant would.',
 					'If you need to make changes, return to the admin tab and edit your conversation.',
 					'Refresh the preview tab to see your changes.'
 				],
 				tips: [
-					'Previewing does not launch your conversation or make it visible to participants, so you can preview it as often as you need.',
+					'Previewing does not [launch](/admin/info/glossary#term-launch) your conversation or make it visible to participants, so you can preview it as often as you need.',
 					'Go through the full conversation before launching to check that the content, steps, and participant journey work as expected.'
 				]
 			}
@@ -352,7 +386,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Choose a template',
 				navLabel: 'Choose a template',
 				summary:
-					'Start with a ready-made conversation flow, then adapt the steps to suit your topic and what you want participants to do.',
+					'Start with a ready-made conversation flow, then adapt the [steps](/admin/info/glossary#term-step) to suit your topic and what you want participants to do.',
 				image: {
 					src: chooseATemplateImage,
 					alt: "The Choose a template window. Templates such as Informed-participants survey and Citizen workshop are listed on the left, with the selected template's workflow steps on the right and an Apply template button."
@@ -381,7 +415,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				steps: [
 					'Before designing your steps, consider what you want to learn from the conversation, what you want participants to contribute, how they will contribute, and what they need to know first.',
 					'Go to **Process design** and choose **Start from blank**.',
-					'Click **Add step**. You’ll be asked to choose an **engagement tool** for the step, based on what you want participants to do.',
+					'Click **Add step**. You’ll be asked to choose an [engagement tool](/admin/info/glossary#term-engagement-tool) for the step, based on what you want participants to do.',
 					'Choose a tool to add the step to your conversation.',
 					'Repeat this for each stage of your conversation, then arrange the steps in the order you want participants to go through them.'
 				],
@@ -397,7 +431,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Arrange step order',
 				navLabel: 'Arrange step order',
 				summary:
-					'Set the order of your steps. Participants will go through them from top to bottom.',
+					'Set the order of your [steps](/admin/info/glossary#term-step). Participants will go through them from top to bottom.',
 				image: {
 					src: arrangeStepOrderImage,
 					alt: "The Process steps page with two step cards. A step's actions menu is open, showing Move up, Move down, Rename, Learn more and Delete."
@@ -405,7 +439,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				steps: [
 					'Go to **Process design**.',
 					'Drag a step card up or down to change its position.',
-					'Alternatively, open the step’s actions menu and select **Move up** or **Move down**.',
+					'Alternatively, open the step’s actions menu :actions: and select **Move up** or **Move down**.',
 					'You can also use this menu to **Rename** or **Delete** a step.'
 				],
 				tips: [
@@ -425,7 +459,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				},
 				steps: [
 					'In **Process design**, select the step you want to configure.',
-					'Open the **Setup** tab to add the content participants will interact with, such as learning materials or poll questions. The options available depend on the engagement tool you chose.',
+					'Open the **Setup** tab to add the content participants will interact with, such as learning materials or poll questions. The options available depend on the [engagement tool](/admin/info/glossary#term-engagement-tool) you chose.',
 					'Open the **Configure** tab to edit the step’s **Name** and **Description**.',
 					'Turn on **Required step** if participants must complete the step before moving on.',
 					'Turn on **Revisitable step** if participants should be able to return to the step later.'
@@ -448,14 +482,26 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Preview before launch',
 				summary:
 					'Go through the full conversation as a participant and check that everything is ready before you launch.',
-				image: {
-					src: previewBeforeLaunchImage,
-					alt: 'A conversation in preview, marked This is a preview of the conversation, showing the first step: a Learn page about waste management.'
-				},
+				images: [
+					{
+						src: findPreviewButtonImage,
+						alt: 'The top of a conversation in the admin workspace, with the Preview button at the top right, next to the Launched button and the more actions menu.',
+						caption:
+							'The Preview button is at the top right of every conversation page.',
+						step: 1
+					},
+					{
+						src: previewBeforeLaunchImage,
+						alt: 'A conversation in preview, marked This is a preview of the conversation, showing the first step: a Learn page about waste management.',
+						caption:
+							'Going through the conversation in preview, starting with its first step.',
+						step: 2
+					}
+				],
 				steps: [
-					'Click **Preview** in the top-right corner.',
+					'Click :preview: in the top-right corner.',
 					'Go through the conversation from beginning to end as a participant would.',
-					'Check that the content, steps, engagement tools, and participant journey work as expected.',
+					'Check that the content, steps, [engagement tools](/admin/info/glossary#term-engagement-tool), and participant journey work as expected.',
 					'Return to the admin workspace to make any final changes.'
 				],
 				tips: [
@@ -495,7 +541,8 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				key: 'launch-a-conversation',
 				title: 'Launch a conversation',
 				navLabel: 'Launch a conversation',
-				summary: 'Launch your conversation when it is ready for participants to take part.',
+				summary:
+					'[Launch](/admin/info/glossary#term-launch) your conversation when it is ready for participants to take part.',
 				image: {
 					src: launchAConversationImage,
 					alt: 'The launch confirmation window, warning that launching will make the conversation live for participants and that it can no longer be modified, with Launch and cancel buttons.'
@@ -604,8 +651,15 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				],
 				tips: [
 					'Check **Pending** regularly while the conversation is live, so new statements don’t wait long for review.',
-					'Moderation is only available for Participant-led poll steps.'
-				]
+					'Moderation is only available for Participant-led poll steps.',
+					'For when to accept, reject or split a statement, and an example moderation policy, see [Moderation in depth](/admin/info/how-to/advanced/moderation-in-depth).'
+				],
+				related: {
+					title: 'Not sure how to moderate?',
+					text: 'Learn when to accept, reject or split a statement, with an example moderation policy.',
+					label: 'Moderation in depth',
+					href: '/admin/info/how-to/advanced/moderation-in-depth'
+				}
 			},
 			{
 				key: 'report',
@@ -625,12 +679,401 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Turn on **Publish Report** to make the report public, then click **View Report** to see it as others will.'
 				],
 				tips: [
-					'To look at the responses to a single step, open the step in **Process design** and go to its **Insights** tab.',
+					'To look at the responses to a single step, open the step in **Process design** and go to its [Insights](/admin/info/glossary#term-insights) tab.',
 					'When the engagement period is over, open the more actions menu at the top right and choose **End Conversation**. Ending is reversible: choose **Re-open Conversation** to let people take part again.'
 				]
+			}
+		]
+	},
+	advanced: {
+		key: 'advanced',
+		title: 'Advanced',
+		navLabel: 'Advanced',
+		topics: [
+			{
+				key: 'moderation-in-depth',
+				title: 'Moderation in depth',
+				navLabel: 'Moderation in depth',
+				summary:
+					'Get to know the [moderation](/admin/info/glossary#term-moderation) screen for a Participant-led poll, then work through the decision each new statement needs and how to carry it out.',
+				image: {
+					src: moderateImage,
+					alt: 'The Statements moderation screen, with Download CSV, Sync from Polis and Add seed statements buttons above a search box, the All, Seeded, Accepted, Pending and Rejected tabs, and a list of statements with edit, accept and reject icons.',
+					caption: 'The moderation screen for a Participant-led poll step.'
+				},
+				environment: {
+					title: 'The moderation screen',
+					intro: 'Open your poll step in **Process design** and go to **Moderation**. Statements are grouped into tabs by where they came from and what has been decided about them.',
+					parts: [
+						{
+							name: 'Download CSV',
+							description:
+								'Downloads the moderation log: every statement, its status, and the reason and note recorded for each decision.'
+						},
+						{
+							name: 'Sync from Polis',
+							description:
+								'Pulls in new participant statements. The list does not update on its own, so click this before you start moderating.'
+						},
+						{
+							name: 'Add seed statements',
+							description:
+								'Adds your own statements to start the conversation. They go straight into **Seeded** and **Accepted**.'
+						},
+						{
+							name: 'All',
+							description:
+								'Every statement: seed statements, participant statements, edited statements, and those pending, accepted or rejected.'
+						},
+						{ name: 'Seeded', description: 'The conversation starters you added.' },
+						{
+							name: 'Accepted',
+							description:
+								'Seed statements and participant statements accepted for participants to see and vote on.'
+						},
+						{
+							name: 'Pending',
+							description: 'Participant statements waiting for a moderation decision.'
+						},
+						{ name: 'Rejected', description: 'Statements a moderator has rejected.' },
+						{
+							name: 'Row icons',
+							description:
+								'Each statement has a pencil :split: to split or reword it, a tick :accept: to accept it, and a cross :reject: to reject it.'
+						}
+					]
+				},
+				decisions: {
+					title: 'Decisions and how to make them',
+					intro: 'Each statement in **Pending** needs a decision and an action. Use your moderation policy to decide. Every action you take is recorded in the moderation log automatically.',
+					options: [
+						{
+							title: 'Publish as written',
+							when: 'The statement is clear, on topic, makes a single point and meets your moderation policy.',
+							how: ['Click the tick :accept: on the statement’s row.'],
+							result: 'The statement moves to **Accepted**. Participants can see and vote on it straight away.'
+						},
+						{
+							title: 'Reject and record a reason',
+							when: 'The statement breaks your moderation policy, for example it is harmful, off topic or a duplicate.',
+							how: [
+								'Click the cross :reject: on the statement’s row to open **Reject statement**.',
+								'Choose a **Reason** from your moderation policy (optional).',
+								'Add a **Note** (optional), for example the statement it duplicates, or your initials for the log.',
+								'Confirm to reject.'
+							],
+							result: 'The statement moves to **Rejected** and is hidden from participants. The reason and note are kept in the moderation log for your team; participants are not told why.',
+							image: {
+								src: rejectStatementImage,
+								alt: 'The Reject statement popover next to a pending statement about high street shops, with an empty Reason field, a Note reading "This statement isn’t about air quality, so it’s outside the scope of this conversation. - moderator: SL", and Cancel and Reject buttons.',
+								caption:
+									'Rejecting an off-topic statement, with a note for the moderation log.'
+							}
+						},
+						{
+							title: 'Split or reword',
+							when: 'The statement is unclear, or makes more than one point so participants can’t agree or disagree with it in one vote.',
+							how: [
+								'Click the pencil :split: on the statement’s row to open **Split or reword statement**.',
+								'Write the replacement statement. To split it, click **+ Add another statement** for each extra point.',
+								'Click **Split statement**.'
+							],
+							result: 'The new statements are posted and appear in **Accepted** with an **Edited** badge and **Edited from:** the original. The original is rejected. Votes do not carry over to the new statements.',
+							image: {
+								src: splitStatementImage,
+								alt: 'The Split or reword statement dialog. The original statement asks for air quality monitors outside every school and free buses for under-18s; below it are two replacement statements, one for each proposal, with Add another statement and Split statement buttons.',
+								caption:
+									'Splitting a statement that makes two proposals into two separate statements.'
+							}
+						},
+						{
+							title: 'Leave in Pending for discussion',
+							when: 'You are unsure, and the statement is borderline enough to need a second opinion.',
+							how: [
+								'Leave the statement in **Pending**.',
+								'Let your colleagues know which statement needs discussing, then come back and make the decision together.'
+							],
+							result: 'Participants don’t see the statement until someone accepts it, as long as the step requires approval (see **Good to know**).'
+						}
+					]
+				},
+				reference: {
+					title: 'Example moderation policy',
+					intro: 'Your reject reasons come from the moderation policy, set under **Configure** → **Moderation policy**. Here is an example you can adapt.',
+					items: [
+						{
+							code: 'A',
+							name: 'Harmful, abusive or discriminatory',
+							description:
+								'Abuse, threats, hate speech, or content that discriminates against a person or group.'
+						},
+						{
+							code: 'B',
+							name: 'Privacy and personal information',
+							description:
+								'Names, contact details or other information that could identify a person.'
+						},
+						{
+							code: 'C',
+							name: 'Advertising, campaigning or lobbying',
+							description: 'Promotes a product, service, campaign or organisation.'
+						},
+						{
+							code: 'D',
+							name: 'Illegal content',
+							description: 'Content that breaks the law.'
+						},
+						{
+							code: 'E',
+							name: 'Off-topic',
+							description: 'Not related to the conversation’s question.'
+						},
+						{
+							code: 'F',
+							name: 'Duplicate',
+							description:
+								'Says the same as a statement already accepted. Note which one in the **Note** field.'
+						},
+						{
+							code: 'G',
+							name: 'Unclear',
+							description:
+								'Hard to understand. Reject it, or reword it if the meaning is clear enough.'
+						},
+						{
+							code: 'H',
+							name: 'Multi-theme',
+							description:
+								'Makes more than one point. Reject it, or split it so each statement can be voted on with a single agree or disagree.'
+						}
+					]
+				},
+				tips: [
+					'Before you launch, decide whether statements need your approval. In the poll step’s **Setup**, **No comments shown without moderator approval** holds every participant statement in **Pending** until you accept it. Without it, statements are shown straight away and you can only remove them after people may have seen and voted on them.',
+					'If statements need approval, check **Pending** often while the conversation is live, or participants will have little to vote on.',
+					'A statement only appears in [Insights](/admin/info/glossary#term-insights) and its CSV once it is accepted and has at least one vote.',
+					'Preview and the live conversation use separate polls. Statements and votes from preview do not carry over when you launch.'
+				]
+			},
+			{
+				key: 'access-settings',
+				title: 'Access and participation settings',
+				navLabel: 'Access and participation settings',
+				summary:
+					'Get to know the **Access** page, then decide who can see your conversation, who can take part, and what people see when they finish. Make these decisions before you launch.',
+				image: {
+					src: configureAccessImage,
+					alt: 'The Access page under Configure, with toggles for who can see and take part in the conversation.',
+					caption: 'The Access page under Configure.'
+				},
+				environment: {
+					title: 'The Access page',
+					intro: 'Go to **Configure** → **Access**. Each setting is a toggle.',
+					parts: [
+						{
+							name: 'Show conversation publicly',
+							description:
+								'Off by default. Decides who can view the conversation’s documents and data.'
+						},
+						{
+							name: 'Only allow participation by invite',
+							description: 'Off by default. Decides who can take part.'
+						},
+						{
+							name: 'Automatically log in with an anonymous account',
+							description: 'Off by default. Decides whether people need an account.'
+						},
+						{
+							name: 'Allow revisit after finishing',
+							description:
+								'On by default. See [Step navigation](/admin/info/how-to/advanced/step-navigation).'
+						},
+						{
+							name: 'Thank-you page settings',
+							description:
+								'**Enable signup prompts**, **Show thank you page anonymous instructions** and **Show thank you page feedback button**. All on by default.'
+						}
+					]
+				},
+				decisions: {
+					title: 'Decisions and how to make them',
+					options: [
+						{
+							title: 'Make the conversation’s data public',
+							when: 'You want anyone to be able to read the conversation’s documents and results, for example for transparency.',
+							how: ['Turn on **Show conversation publicly**.'],
+							result: 'Once launched, anyone, even without an account, can open the conversation’s documents and data. This does not change who can take part; for that, see the next decision.'
+						},
+						{
+							title: 'Limit who can take part',
+							when: 'Only a specific group should take part, such as a panel or a recruited sample.',
+							how: [
+								'Turn on **Only allow participation by invite**.',
+								'After launch, create invites in **Recruit**.'
+							],
+							result: 'Only people you invite can take part. If you don’t create invites, no one will be able to join.'
+						},
+						{
+							title: 'Let people take part without an account',
+							when: 'You want as few barriers as possible, for example on a public link or a QR code at an event.',
+							how: [
+								'Turn on **Automatically log in with an anonymous account**.',
+								'Keep **Show thank you page anonymous instructions** on.'
+							],
+							result: 'Visitors get a temporary anonymous account and can upgrade it later. They see their temporary ID on the thank-you page; without it they may not be able to come back to their contributions.'
+						},
+						{
+							title: 'Choose what people see when they finish',
+							when: 'You want to adjust the thank-you page.',
+							how: [
+								'Turn **Enable signup prompts** off if you don’t want to encourage people to create an account.',
+								'Turn **Show thank you page feedback button** off if you don’t want feedback on the process.'
+							],
+							result: 'The thank-you page shows only what you leave on.'
+						}
+					]
+				}
+			},
+			{
+				key: 'step-navigation',
+				title: 'Step navigation',
+				navLabel: 'Step navigation',
+				summary:
+					'Three settings decide whether participants can skip steps, go back to them, and return after they have finished. Their effects overlap, so make these decisions together.',
+				image: {
+					src: configureAStepImage,
+					alt: 'A step’s Configure tab in Process design, showing its settings.',
+					caption:
+						'A step’s Configure tab, where Required step and Revisitable step are set.'
+				},
+				environment: {
+					title: 'Where the settings are',
+					parts: [
+						{
+							name: 'Required step',
+							description:
+								'In **Process design** → your step → **Configure**. On by default.'
+						},
+						{
+							name: 'Revisitable step',
+							description:
+								'In **Process design** → your step → **Configure**. Off by default. Applies while a participant is still working through the conversation.'
+						},
+						{
+							name: 'Allow revisit after finishing',
+							description:
+								'In **Configure** → **Access**. On by default. Applies to the whole conversation after a participant finishes every step.'
+						}
+					]
+				},
+				decisions: {
+					title: 'Decisions and how to make them',
+					options: [
+						{
+							title: 'Let participants skip a step',
+							when: 'The step is optional, such as extra background reading.',
+							how: ['Turn off **Required step** for that step.'],
+							result: 'Participants can move on without completing it. Keep steps that later steps depend on required.'
+						},
+						{
+							title: 'Let participants go back to a step',
+							when: 'Participants may want to check or change what they did earlier, such as re-reading background before voting.',
+							how: ['Turn on **Revisitable step** for that step.'],
+							result: 'Participants can return to the step while they are still working through the conversation. After they finish, **Allow revisit after finishing** decides instead.'
+						},
+						{
+							title: 'Close the conversation to people who have finished',
+							when: 'Contributions should be final once someone finishes, for example so results can’t shift after the fact.',
+							how: [
+								'Turn off **Allow revisit after finishing** in **Configure** → **Access**.'
+							],
+							result: 'Participants who finish can’t reach any step, the revisit links disappear, and further contributions are rejected. Adding a step to a live conversation re-opens it for everyone who had already finished.',
+							image: {
+								src: toggleRevisitAfterFinishImage,
+								alt: 'The Access page under Configure, with the Allow revisit after finishing toggle turned off, below the thank-you page settings.',
+								caption:
+									'Allow revisit after finishing, turned off, on the Access page.'
+							}
+						}
+					]
+				}
 			}
 		]
 	}
 };
 
 export const ADMIN_GUIDE_NAV = Object.values(ADMIN_GUIDES);
+
+/** The anchor id for a glossary term, e.g. 'Seed statement' → 'term-seed-statement'. */
+export function glossaryTermId(term: string) {
+	return `term-${term.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+}
+
+/** Reference page at /admin/info/glossary. Terms are shown A–Z whatever order they're written in. */
+export const ADMIN_GLOSSARY = {
+	title: 'Glossary',
+	summary: 'Words that come up throughout the admin area and this guide.',
+	terms: (
+		[
+			{
+				term: 'Conversation',
+				definition:
+					'A conversation is a public consultation on a particular topic that you create and manage in the workspace.'
+			},
+			{
+				term: 'Step',
+				definition:
+					'One stage of the participant journey, such as reading background material or answering a poll. Each step uses one engagement tool.'
+			},
+			{
+				term: 'Process design',
+				definition:
+					'Where you build the ordered list of steps (sometimes called the workflow) for a Conversation.'
+			},
+			{
+				term: 'Engagement tool',
+				definition:
+					'The tool providing an activity behind a step, for example Learn step, Participant-led Poll, Thinking space, Survey or Prioritization tool.'
+			},
+			{
+				term: 'Preview',
+				definition:
+					'A view of the Conversation exactly as participants will see it, without making it live.'
+			},
+			{
+				term: 'Launch',
+				definition:
+					'Making the Conversation live so participants can take part. After launch, the Conversation can no longer be edited.'
+			},
+			{
+				term: 'Participant-led poll',
+				definition:
+					'An engagement tool where participants agree, disagree or pass on short statements, and can write statements of their own for others to vote on.'
+			},
+			{
+				term: 'Statement',
+				definition:
+					'A short point in a Participant-led poll that participants vote on. A statement should make one point, so people can agree or disagree with it in a single vote.'
+			},
+			{
+				term: 'Seed statement',
+				definition:
+					'A statement you add yourself to start a Participant-led poll, so participants have something to vote on from the beginning. Seed statements are accepted automatically.'
+			},
+			{
+				term: 'Moderation',
+				definition:
+					'Reviewing statements that participants write in a Participant-led Poll, and accepting or rejecting them.'
+			},
+			{
+				term: 'Moderation policy',
+				definition:
+					'The list of reasons, such as Off-topic or Duplicate, that moderators choose from when rejecting a statement. Set it under **Configure** → **Moderation policy**.'
+			},
+			{
+				term: 'Insights',
+				definition: 'The responses and results collected in a step.'
+			}
+		] satisfies AdminGuideTerm[]
+	).sort((a, b) => a.term.localeCompare(b.term))
+};

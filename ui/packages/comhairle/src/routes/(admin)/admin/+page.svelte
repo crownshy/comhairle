@@ -5,6 +5,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { Home } from 'lucide-svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let props: PageProps = $props();
 	let ownedConversations = $derived(props.data.ownedConversations?.records ?? []);
@@ -33,7 +34,9 @@
 			<Home class="size-7 sm:size-9" />
 			<h1 class="text-2xl sm:text-4xl">Your conversations</h1>
 		</div>
-		<NewConversationButton class="w-full sm:w-auto" label="Create New Conversation" />
+		{#if permissions.can('system', 'conversation_create')}
+			<NewConversationButton class="w-full sm:w-auto" label="Create New Conversation" />
+		{/if}
 	</div>
 	<div class="flex w-full flex-col gap-11 overflow-y-auto">
 		<section class="flex flex-col gap-6">

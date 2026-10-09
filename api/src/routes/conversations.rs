@@ -49,7 +49,7 @@ pub mod dto;
 #[instrument(err(Debug), skip(state))]
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(new_conversation): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::create(
@@ -179,15 +179,14 @@ async fn get_conversation(
     // If this isn't a live conversation and the user is not the owner
     if !original_conversation.is_live {
         if let Some(user) = &user {
-            if user.id != original_conversation.owner_id
-                && !can_perform_action(
-                    &state,
-                    &original_conversation.id,
-                    Action::Read,
-                    &user.id,
-                    Some(&original_conversation.owner_id),
-                )
-                .await?
+            if !can_perform_action(
+                &state,
+                &original_conversation.id,
+                Action::Read,
+                &user.id,
+                Some(&original_conversation.owner_id),
+            )
+            .await?
             {
                 return Err(ComhairleError::UserNotAuthorized);
             }
@@ -880,8 +879,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Conversation")
                     .description("Get a conversation by id or slug. If user is admin and withTranslations=true, returns detailed translation data.")
                     .response::<200, Json<ConversationResponse>>()
-            })
-                .route_layer(from_fn_with_state(requirement(Action::Read), permission_middleware::<ConversationResource>)),
+            }),
         )
         .api_route(
             "/{conversation_id}",

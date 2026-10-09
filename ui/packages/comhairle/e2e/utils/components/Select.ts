@@ -8,7 +8,7 @@ function Select<const T extends string[]>(inputs: T, refs: Refs) {
 
 	async function getSelect() {
 		const locator = refs.page.getByRole('button', { name: selected });
-		if (await exists(locator)) {
+		if (!(await exists(locator))) {
 			throw new Error(`Could not find locator: ${selected}`);
 		}
 		return locator;
@@ -16,7 +16,7 @@ function Select<const T extends string[]>(inputs: T, refs: Refs) {
 
 	async function getMenuItem(option: T[number]) {
 		const locator = refs.page.getByRole('menuitem', { name: option });
-		if (await exists(locator)) {
+		if (!(await exists(locator))) {
 			throw new Error(`Could not find locator: ${option}`);
 		}
 		return locator;
