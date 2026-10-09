@@ -374,11 +374,13 @@
 	"theme_dark_mode": "حالت تاریک",
 	"polis_votes_counted": "شما به {count} نظر رأی دادید",
 	"polis_votes_counted_one": "شما به {count} نظر رأی دادید",
-	"polis_continue_prompt_body": "تمام رأی‌های شما تا حال ذخیره شده است. هر قدر که می‌خواهید ادامه دهید، یا وقتی آماده بودید بعدی را فشار دهید.",
-	"polis_nothing_left_to_vote_on": "تمام رأی‌های شما ذخیره شده و فعلاً نظری برای رأی دادن باقی نمانده است. برای ادامه، بعدی را فشار دهید.",
+	"polis_continue_prompt_body": "تمام رأی‌های شما تا حال ذخیره شده است. می‌توانید هر قدر که می‌خواهید ادامه دهید، یا رأی‌دهی را همین‌جا تمام کنید.",
+	"polis_nothing_left_to_vote_on": "تمام رأی‌های شما ذخیره شده و فعلاً نظری برای رأی دادن باقی نمانده است.",
 	"polis_keep_voting": "ادامهٔ رأی‌دهی",
 	"polis_keep_voting_hint": "{count} نظر دیگر برای رأی دادن",
 	"polis_keep_voting_hint_one": "{count} نظر دیگر برای رأی دادن",
 	"polis_vote_one_more_to_continue": "برای ادامه به ۱ نظر دیگر رأی دهید.",
-	"polis_vote_more_to_continue": "برای ادامه به {count} نظر دیگر رأی دهید."
+	"polis_vote_more_to_continue": "برای ادامه به {count} نظر دیگر رأی دهید.",
+	"polis_finish_voting": "رأی‌دهی من تمام شد",
+	"polis_finish_voting_hint": "این مرحله را تمام کنید و به مرحله بعد بروید"
 }

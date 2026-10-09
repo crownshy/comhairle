@@ -201,8 +201,8 @@
 	"polis_voted_everything": "You have voted on everything. Thank you!",
 	"polis_votes_counted": "You've voted on {count} opinions",
 	"polis_votes_counted_one": "You've voted on {count} opinion",
-	"polis_continue_prompt_body": "Every vote so far is saved. Keep going for as long as you like, or press Next to move on whenever you're ready.",
-	"polis_nothing_left_to_vote_on": "Every vote is saved, and there are no opinions left to vote on right now. Press Next to move on.",
+	"polis_continue_prompt_body": "Every vote so far is saved. You can keep going for as long as you like, or finish voting here.",
+	"polis_nothing_left_to_vote_on": "Every vote is saved, and there are no opinions left to vote on right now.",
 	"polis_keep_voting": "Keep voting",
 	"polis_keep_voting_hint": "{count} more opinions to vote on",
 	"polis_keep_voting_hint_one": "{count} more opinion to vote on",
@@ -394,5 +394,7 @@
 	"thinking_space_add_more": "Pick a question to add more thinking to. You can come back here to pick another, or finish to update your latest thinking.",
 	"image_lightbox_close": "Close",
 	"image_lightbox_zoom": "Zoom",
-	"image_lightbox_load_failed": "Couldn't open the image. Please try again."
+	"image_lightbox_load_failed": "Couldn't open the image. Please try again.",
+	"polis_finish_voting": "I'm done voting",
+	"polis_finish_voting_hint": "Finish this step and move on"
 }
