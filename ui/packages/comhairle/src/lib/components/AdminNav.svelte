@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { hasSiteAdminRole, hasSuperAdminRole } from '$lib/utils/permissions';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -34,6 +35,7 @@
 	} from '@crownshy/api-client/api';
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
 	import { m } from '$lib/paraglide/messages';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
 		ownedConversations: LocalizedConversationDto[];
@@ -43,7 +45,7 @@
 			canCreateOrganization: boolean;
 		};
 		user: UserDto;
-		isSuperAdmin: boolean;
+		userRoles: readonly UserRoles[] | undefined;
 		path: string;
 	};
 
@@ -60,7 +62,8 @@
 	let user = $derived(props.user);
 	let ownedConversations = $derived(props.ownedConversations);
 	let permittedConversations = $derived(props.permittedConversations);
-	let isSuperAdmin = $derived(props.isSuperAdmin);
+	let isSuperAdmin = $derived(hasSuperAdminRole(props.userRoles));
+	let isSiteAdmin = $derived(hasSiteAdminRole(props.userRoles));
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
 	function isConversationActive(conversationId: string): boolean {
@@ -167,35 +170,37 @@
 			</SideBar.GroupContent>
 		</SideBar.Group>
 
-		<SideBar.Group>
-			<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">
-				Configuration
-			</SideBar.GroupLabel>
-			<SideBar.GroupContent>
-				<SideBar.Menu>
-					<SideBar.MenuItem>
-						<SideBar.MenuButton>
-							{#snippet child({ props: btnProps })}
-								<a {...btnProps} href="/admin/email-template-configs">
-									<Mail class="size-4" />
-									Emails
-								</a>
-							{/snippet}
-						</SideBar.MenuButton>
-					</SideBar.MenuItem>
-					<SideBar.MenuItem>
-						<SideBar.MenuButton>
-							{#snippet child({ props: btnProps })}
-								<a {...btnProps} href="/admin/media-library">
-									<Images class="size-4" />
-									Media library
-								</a>
-							{/snippet}
-						</SideBar.MenuButton>
-					</SideBar.MenuItem>
-				</SideBar.Menu>
-			</SideBar.GroupContent>
-		</SideBar.Group>
+		{#if isSiteAdmin}
+			<SideBar.Group>
+				<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">
+					Configuration
+				</SideBar.GroupLabel>
+				<SideBar.GroupContent>
+					<SideBar.Menu>
+						<SideBar.MenuItem>
+							<SideBar.MenuButton>
+								{#snippet child({ props: btnProps })}
+									<a {...btnProps} href="/admin/email-template-configs">
+										<Mail class="size-4" />
+										Emails
+									</a>
+								{/snippet}
+							</SideBar.MenuButton>
+						</SideBar.MenuItem>
+						<SideBar.MenuItem>
+							<SideBar.MenuButton>
+								{#snippet child({ props: btnProps })}
+									<a {...btnProps} href="/admin/media-library">
+										<Images class="size-4" />
+										Media library
+									</a>
+								{/snippet}
+							</SideBar.MenuButton>
+						</SideBar.MenuItem>
+					</SideBar.Menu>
+				</SideBar.GroupContent>
+			</SideBar.Group>
+		{/if}
 
 		<!-- Conversations section (collapsed: dot list, active pill-highlighted) -->
 		<SideBar.Group class="hidden min-h-0 flex-1 group-data-[collapsible=icon]:flex">
@@ -355,12 +360,14 @@
 		{/if}
 	</SideBar.Content>
 
-	<div class="flex shrink-0 flex-col gap-2 px-7 group-data-[collapsible=icon]:px-2">
-		<NewConversationButton
-			class="w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0"
-			labelClass="group-data-[collapsible=icon]:hidden"
-		/>
-	</div>
+	{#if permissions.can('system', 'conversation_create')}
+		<div class="flex shrink-0 flex-col gap-2 px-7 group-data-[collapsible=icon]:px-2">
+			<NewConversationButton
+				class="w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0"
+				labelClass="group-data-[collapsible=icon]:hidden"
+			/>
+		</div>
+	{/if}
 
 	<SideBar.Footer>
 		<div class="flex flex-col items-center gap-2 p-2 group-data-[collapsible=icon]:hidden">

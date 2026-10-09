@@ -23,6 +23,13 @@ export function hasSuperAdminRole(roles: readonly UserRoles[] | null | undefined
 	);
 }
 
+export function hasSiteAdminRole(roles: readonly UserRoles[] | null | undefined): boolean {
+	return (
+		hasSuperAdminRole(roles) ||
+		(roles?.some((role) => role.resource === 'Site' && role.roles.includes('Admin')) ?? false)
+	);
+}
+
 type ResourceActions = {
 	conversation: ConversationAction;
 	organization: OrganizationAction;

@@ -14,7 +14,7 @@ function loadEvent(isSuperAdmin: boolean): Parameters<typeof load>[0] {
 		parent: vi.fn().mockResolvedValue({ isSuperAdmin }),
 		locals: { api: createApiClient('http://localhost/api', undefined, 'server') },
 		depends: vi.fn()
-	};
+	} as Parameters<typeof load>[0];
 }
 
 describe('system role management access', () => {

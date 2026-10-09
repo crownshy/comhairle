@@ -18,8 +18,9 @@ use crate::models::organization::{
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{
-    PermissionResource, PermissionRole,
+    PermissionResource, PermissionRole, SystemResource,
     organization::{Action, Role},
+    system,
 };
 use crate::models::translations;
 use crate::models::user_group;
@@ -388,7 +389,7 @@ async fn remove_member(
 #[instrument(err(Debug), skip(state))]
 async fn create(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<(StatusCode, Json<OrganizationDto>), ComhairleError> {
@@ -517,6 +518,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     use crate::models::permissions::organization::Action as OrganizationAction;
     use axum::middleware::{from_fn, from_fn_with_state};
     let requirement = PermissionRequirement::<OrganizationResource>::new;
+    let system_requirement = PermissionRequirement::<SystemResource>::new;
     ApiRouter::new()
         .api_route(
             "/",
@@ -598,7 +600,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Create a new organization")
                     .security_requirement("JWT")
                     .response::<201, Json<OrganizationDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                system_requirement(system::Action::OrganizationCreate),
+                permission_middleware::<SystemResource>,
+            )),
         )
         .api_route(
             "/{organization_id}",
