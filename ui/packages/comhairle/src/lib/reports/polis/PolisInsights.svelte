@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ReportComment, PolisReportData } from '$lib/tools/polis/reportTypes';
-	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import type { PolisStatementAux, WikiPollConversationSummary } from '@crownshy/api-client/api';
 	import {
 		getEngagementStats,
 		getConsensusStatements,
@@ -12,6 +12,7 @@
 	import ConsensusContinuum from './ConsensusContinuum.svelte';
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
 	import OpinionGroups from './OpinionGroups.svelte';
+	import PolisSummaryPanel from './PolisSummaryPanel.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
@@ -20,9 +21,11 @@
 
 	let {
 		conversationId,
+		workflowStepId,
 		reportData,
 		statementAux,
-		actions
+		actions,
+		summary
 	}: {
 		conversationId: string;
 		workflowStepId: string;
@@ -30,6 +33,7 @@
 		statementAux: PolisStatementAux[];
 		/** Extra page actions, shown beside Download CSV. */
 		actions?: Snippet;
+		summary: WikiPollConversationSummary | null;
 	} = $props();
 	const canExport = $derived(
 		permissions.can('conversation', 'conversation_export', conversationId)
@@ -206,6 +210,9 @@
 				</Button>
 			</div>
 		</div>
+
+		<!-- ===== AI summary ===== -->
+		<PolisSummaryPanel {workflowStepId} {summary} />
 
 		<!-- ===== Consensus continuum ===== -->
 		<ConsensusContinuum comments={report.comments} groups={report.groups} />

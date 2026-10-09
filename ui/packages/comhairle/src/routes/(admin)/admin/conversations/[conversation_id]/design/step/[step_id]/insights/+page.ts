@@ -14,6 +14,7 @@ export const load: PageLoad = async (event) => {
 	// TODO: change to tool-agnostic
 	event.depends('polis:statement-aux');
 	event.depends('polis:report');
+	event.depends('polis:summary');
 
 	const response = await tryCatchAsync(async () => {
 		switch (toolConfig?.type) {
