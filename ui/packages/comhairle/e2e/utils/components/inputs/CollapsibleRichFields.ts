@@ -10,7 +10,7 @@ type CollapsibleRichFields<T> = {
 	value: string;
 };
 
-const CollapisbleRichFields = <const T extends string, U extends CollapsibleRichFields<T>>(
+const CollapsibleRichFields = <const T extends string, U extends CollapsibleRichFields<T>>(
 	inputs: Locators<T>,
 	refs: Refs
 ) =>
@@ -50,4 +50,4 @@ const CollapisbleRichFields = <const T extends string, U extends CollapsibleRich
 		}
 	});
 
-export default CollapisbleRichFields;
+export default CollapsibleRichFields;
