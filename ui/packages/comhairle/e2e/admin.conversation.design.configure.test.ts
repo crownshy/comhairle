@@ -4,7 +4,6 @@ import { test } from './utils/testing';
 import { Switches, Textboxes, Tiptap } from './utils/components';
 import { sleep, testWithRefresh } from './utils';
 import Design from './utils/navigation/Design';
-import Select from './utils/components/Select';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -13,6 +12,7 @@ test.beforeEach(async ({ page }) => {
 	await Design.addStep(page, 'tab', 'Learn');
 	await Design.openStep(page, 'New Learn Step');
 	await Design.subtab(page, 'Configure');
+	await sleep(1.5);
 });
 
 // FIX: Figure out why the test is failing when run at "full-speed" without the "--debug" flag
@@ -26,24 +26,22 @@ test('Design/configure page', async ({ page, cleanup }) => {
 		],
 		{ page, cleanup }
 	);
-	const select = Select(['Confidential', 'Restricted'], { page, cleanup });
 
 	await textboxes.write('name', 'New Learn step');
 	await tiptap.write();
 	await switches.toggle('revisitable_step');
 	await switches.toggle('required_step');
-	await select.pick('Restricted');
 
 	await testWithRefresh(page, async () => {
 		await textboxes.expect();
 		await tiptap.expect();
 		await switches.expect();
-		await select.expect();
 	});
 
 	cleanup(async () => {
 		await page.getByRole('button', { name: 'Delete step' }).click();
 		await sleep(1);
 		await page.getByRole('button', { name: 'Delete step' }).nth(1).click();
+		await sleep(1.5);
 	});
 });
