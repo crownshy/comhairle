@@ -17,11 +17,23 @@
 		forms: DemographicForm[];
 		onEdit: (questionId: string) => void;
 		onDuplicate: (questionId: string) => void;
+		highlightId?: string | null;
 	};
 
 	const SPECIAL_FILTER = 'Special category';
 
-	let { questions, forms, onEdit, onDuplicate }: Props = $props();
+	let { questions, forms, highlightId = null, onEdit, onDuplicate }: Props = $props();
+
+	$effect(() => {
+		if (!highlightId) return;
+		const id = highlightId;
+		const timer = setTimeout(() => {
+			document
+				.querySelector(`[data-row-id="${id}"]`)
+				?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+		}, 50);
+		return () => clearTimeout(timer);
+	});
 
 	let search = $state('');
 	let filter = $state<string | null>(null);
@@ -93,7 +105,12 @@
 			</Table.Header>
 			<Table.Body>
 				{#each visible as question (question.id)}
-					<Table.Row>
+					<Table.Row
+						data-row-id={question.id}
+						class={question.id === highlightId
+							? 'bg-primary/15 hover:bg-primary/15'
+							: ''}
+					>
 						<Table.Cell class="text-base leading-8 font-medium"
 							>{question.text}</Table.Cell
 						>
@@ -122,11 +139,13 @@
 								>
 								<Button
 									variant="outline"
-									size="sm"
+									size="icon"
+									class="size-8"
+									title="Duplicate question"
 									aria-label={`Duplicate ${question.text}`}
 									onclick={() => onDuplicate(question.id)}
 								>
-									<Copy class="size-4" />Duplicate
+									<Copy class="size-4" />
 								</Button>
 							</div>
 						</Table.Cell>
