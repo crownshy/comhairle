@@ -5,7 +5,7 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { HEADER_PILL_CLASS } from './styles';
 	import type { StepItem, StepStatus } from './stepItems';
 
