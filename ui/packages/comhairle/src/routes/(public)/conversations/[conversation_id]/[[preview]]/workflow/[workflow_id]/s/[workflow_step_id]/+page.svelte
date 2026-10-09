@@ -317,6 +317,7 @@
 							workflowStepId={workflowStep.id}
 							{isPreview}
 							onCanContinueChange={handleCanContinueChange}
+							onSequenceChange={handleSequenceChange}
 							showRemainingStatementCount={toolConfig.show_remaining_statements}
 						/>
 					{/key}
