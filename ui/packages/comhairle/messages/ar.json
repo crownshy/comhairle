@@ -366,5 +366,9 @@
 	"step_minutes": "({count} دقائق)",
 	"step_not_found": "تعذّر العثور على المحادثة",
 	"step_one_minute": "(دقيقة واحدة)",
-	"step_x_of_y": "الخطوة {current} من {total}"
+	"step_x_of_y": "الخطوة {current} من {total}",
+	"step_chrome_conversation_home": "العودة إلى صفحة المحادثة",
+	"conversation_preview_badge": "معاينة",
+	"theme_light_mode": "الوضع الفاتح",
+	"theme_dark_mode": "الوضع الداكن"
 }

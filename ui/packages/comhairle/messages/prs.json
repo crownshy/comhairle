@@ -371,5 +371,9 @@
 	"step_minutes": "({count} دقیقه)",
 	"step_not_found": "گفتگو پیدا نشد",
 	"step_one_minute": "(۱ دقیقه)",
-	"step_x_of_y": "مرحله {current} از {total}"
+	"step_x_of_y": "مرحله {current} از {total}",
+	"step_chrome_conversation_home": "برگشت به صفحه گفتگو",
+	"conversation_preview_badge": "پیش‌نمایش",
+	"theme_light_mode": "حالت روشن",
+	"theme_dark_mode": "حالت تاریک"
 }

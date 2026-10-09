@@ -9,10 +9,7 @@
 	aria-busy="true"
 	aria-live="polite"
 >
-	<div class="flex w-full flex-col items-center gap-2">
-		<div class="bg-muted/60 h-3 w-20 animate-pulse rounded"></div>
-		<div class="bg-muted/60 h-6 w-3/5 animate-pulse rounded md:h-7"></div>
-	</div>
+	<div class="bg-muted/60 h-6 w-3/5 animate-pulse rounded md:h-7"></div>
 
 	<div class="mx-auto mt-4 flex w-full max-w-3xl flex-col items-center gap-2">
 		<div class="bg-muted/50 h-3 w-4/5 animate-pulse rounded"></div>
