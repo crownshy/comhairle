@@ -1,6 +1,5 @@
 <script lang="ts">
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import type {
 		LearnPageEntry,
@@ -88,18 +87,12 @@
 	// The segment fills as pages are left behind, so a single page stays empty until the step
 	// completes, like every other tool.
 	let progress = $derived(pages.length > 0 ? currentPageNo / pages.length : undefined);
-	let pageCount = $derived(
-		pages.length > 1
-			? m.learn_page_x_of_y({ current: currentPageNo + 1, total: pages.length })
-			: undefined
-	);
 
 	$effect(() => {
 		onSequenceChange?.({
 			next: isLastPage ? undefined : nextPage,
 			previous: currentPageNo > 0 ? prevPage : undefined,
-			progress,
-			count: pageCount
+			progress
 		});
 	});
 </script>
