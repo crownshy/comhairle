@@ -1,0 +1,26 @@
+[package]
+name = "sensemakar_cli"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[[bin]]
+name = "sensemakar"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+csv = "1.4.0"
+language-tags = { version = "0.3.2", features = ["serde"] }
+rig = "0.42.0"
+rig-core = "0.42.0"
+serde = { version = "1.0.229", features = ["serde_derive"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["full"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+sensemakar = { path = "../sensemakar_core" }
+sensemakar_types = { path = "../sensemakar_types" }
+
+[dev-dependencies]
+tempfile = "3.14.0"
