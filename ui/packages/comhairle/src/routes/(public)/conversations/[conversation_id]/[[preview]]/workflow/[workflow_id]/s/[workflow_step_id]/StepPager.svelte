@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
 	import { STEP_COLUMN_CLASS } from './styles';
 
