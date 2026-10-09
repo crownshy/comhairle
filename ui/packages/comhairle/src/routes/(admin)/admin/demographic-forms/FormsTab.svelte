@@ -7,6 +7,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import {
 		conversationCount,
+		shortId,
 		specialCategoryCount,
 		usageSummary,
 		type DemographicForm,
@@ -71,6 +72,7 @@
 			<Table.Root>
 				<Table.Header class="bg-muted">
 					<Table.Row>
+						<Table.Head>ID</Table.Head>
 						<Table.Head>Form</Table.Head>
 						<Table.Head>Created by</Table.Head>
 						<Table.Head>Questions</Table.Head>
@@ -87,6 +89,9 @@
 								? 'bg-primary/15 hover:bg-primary/15'
 								: ''}
 						>
+							<Table.Cell class="text-muted-foreground font-mono text-sm leading-8">
+								{shortId('F', form.id)}
+							</Table.Cell>
 							<Table.Cell>
 								<div class="flex flex-col">
 									<span class="flex h-8 items-center gap-2">

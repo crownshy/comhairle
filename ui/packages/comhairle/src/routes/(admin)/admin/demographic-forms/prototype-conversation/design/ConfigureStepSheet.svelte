@@ -41,7 +41,10 @@
 </script>
 
 <Sheet.Root open onOpenChange={(open) => !open && onClose()}>
-	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
+	<Sheet.Content
+		side="right"
+		class="flex w-full flex-col gap-0 p-0 sm:max-w-2xl [&>button.absolute]:hidden"
+	>
 		<Sheet.Header class="border-border border-b p-6">
 			<Sheet.Title class="text-2xl font-semibold">Configure {draft.name}</Sheet.Title>
 			<Sheet.Description class="text-base">
