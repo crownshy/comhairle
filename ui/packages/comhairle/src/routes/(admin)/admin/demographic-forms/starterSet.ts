@@ -31,7 +31,7 @@ const question = (
 export const createStarterQuestions = (): DemographicQuestion[] => [
 	question('q-starter-age', 'What is your birthday?', {
 		kind: 'date_split',
-		description: 'For example, 31st of January, 1980',
+		description: 'For example, 31 01 1988',
 		tags: ['Age']
 	}),
 	question('q-starter-gender', 'What is your gender?', {
