@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { logOut } from '$lib/utils/logout';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Button } from '$lib/components/ui/form';
@@ -8,13 +9,9 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
-	import { goto } from '$app/navigation';
 
 	import { notificationService } from '$lib/services/notifications.svelte';
-	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crownshy/api-client/client';
 	import type { UserDto } from '@crownshy/api-client/api';
-	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		user: UserDto;
@@ -23,20 +20,6 @@
 	const { user, triggerVariant = 'outline' }: Props = $props();
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
-
-	async function attemptLogout() {
-		try {
-			await apiClient.LogoutUser(undefined);
-
-			await goto('/', { invalidate: [key('user')] });
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				priority: 'ERROR',
-				message: 'An error occurred when attempting to logout '
-			});
-		}
-	}
 </script>
 
 {#if user}
@@ -90,7 +73,7 @@
 						method="POST"
 						onsubmit={(e) => {
 							e.preventDefault();
-							attemptLogout();
+							logOut();
 						}}
 					>
 						<Button type="submit" variant="ghost"><LogOut />Logout</Button>
