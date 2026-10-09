@@ -45,17 +45,10 @@
 		mode
 	});
 
-	// The chrome's bar and step header show progress (ADR-0047). Extension mode runs after the
-	// summary, so the segment stays full there.
+	// The chrome's bar shows progress (ADR-0047). Extension mode runs after the summary, so the
+	// segment stays full there.
 	$effect(() => {
-		onSequenceChange?.(
-			flow.mode === 'extension'
-				? { progress: 1 }
-				: {
-						progress: flow.progress / 100,
-						count: `${m.question()} ${flow.currentQuestionIndex + 1} ${m.of()} ${questions.length}`
-					}
-		);
+		onSequenceChange?.({ progress: flow.mode === 'extension' ? 1 : flow.progress / 100 });
 	});
 
 	let bottomEl = $state<HTMLDivElement | null>(null);
