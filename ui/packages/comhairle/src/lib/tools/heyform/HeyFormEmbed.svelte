@@ -7,16 +7,19 @@
 	import { readEmbedTheme } from './embedTheme';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { getLocale } from '$lib/paraglide/runtime';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
 	type Props = {
 		onDone: () => void;
+		onSequenceChange?: OnSequenceChange;
 		surveyId: string;
 		surveyURL: string;
 		serverURL: string;
 		userId: string;
 		extraSurveyParams?: Record<string, string>;
 	};
-	let { onDone, surveyId, userId, serverURL, extraSurveyParams }: Props = $props();
+	let { onDone, onSequenceChange, surveyId, userId, serverURL, extraSurveyParams }: Props =
+		$props();
 
 	// The renderer shows its own spinner for a moment after `load`, so uncovering the frame at
 	// `load` would flicker. Same grace as HeyFormManage.
@@ -139,6 +142,13 @@
 		alignTimer = setTimeout(alignFrameTop, ALIGN_AFTER_STEP_CHANGE_MS);
 	}
 
+	// Fills the chrome's segment by question position (ADR-0047). The form's own `percentage`
+	// is ignored because it moves on typing, not paging. An older fork sends no numbers.
+	function reportProgress(index: unknown, total: unknown) {
+		if (typeof index !== 'number' || typeof total !== 'number' || total <= 0) return;
+		onSequenceChange?.({ progress: Math.min(1, Math.max(0, index / total)) });
+	}
+
 	function onFrameMessage(e: MessageEvent) {
 		const data = e.data;
 		// HeyForm tags every message it posts; ignore anything else on the page.
@@ -161,6 +171,7 @@
 				break;
 			case 'FORM_STEP_CHANGE':
 				requestFrameTopAlign();
+				reportProgress(data.index, data.total);
 				break;
 		}
 	}

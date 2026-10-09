@@ -329,6 +329,7 @@
 							surveyURL={toolConfig.survey_url}
 							serverURL={toolConfig.server_url}
 							onDone={stepComplete}
+							onSequenceChange={handleSequenceChange}
 						/>
 					{/key}
 				{:else if toolConfig?.type === LivedExperience.TOOL_NAME}
