@@ -10,6 +10,8 @@
 		showNext?: boolean;
 		onNext?: () => void;
 		nextDisabled?: boolean;
+		/** Shown at the bottom, above Next (for example a consent checkbox) */
+		footer?: Snippet;
 	};
 
 	let {
@@ -18,7 +20,8 @@
 		steps = 5,
 		showNext = true,
 		onNext,
-		nextDisabled = false
+		nextDisabled = false,
+		footer
 	}: Props = $props();
 
 	let device = $state<'phone' | 'desktop'>('phone');
@@ -66,9 +69,12 @@
 		<div class="mt-8 flex flex-1 flex-col gap-4">
 			{@render children()}
 		</div>
-		{#if showNext}
-			<div class="border-border mt-6 border-t pt-4">
-				<Button class="w-full" disabled={nextDisabled} onclick={onNext}>Next</Button>
+		{#if showNext || footer}
+			<div class="border-border mt-6 flex flex-col gap-4 border-t pt-4">
+				{@render footer?.()}
+				{#if showNext}
+					<Button class="w-full" disabled={nextDisabled} onclick={onNext}>Next</Button>
+				{/if}
 			</div>
 		{/if}
 	</div>

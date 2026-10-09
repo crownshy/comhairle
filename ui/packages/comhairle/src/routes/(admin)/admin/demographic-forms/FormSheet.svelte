@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { EllipsisVertical, Plus, Trash2 } from 'lucide-svelte';
+	import { EllipsisVertical, Plus, ShieldCheck, Trash2 } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from './TagBadge.svelte';
-	import { emptyAnswer, type Answer } from './demographicAnswers';
+	import { emptyAnswer, PREFER_NOT_TO_SAY, type Answer } from './demographicAnswers';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
@@ -12,6 +12,7 @@
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import AddQuestionsDialog from './AddQuestionsDialog.svelte';
 	import PublishDialog from './PublishDialog.svelte';
+	import ConsentCheck from './ConsentCheck.svelte';
 	import FormUsagePanel from './FormUsagePanel.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import PhonePreview from './PhonePreview.svelte';
@@ -54,6 +55,7 @@
 	let rightTab = $state('preview');
 	let addOpen = $state(false);
 	let publishOpen = $state(false);
+	let consents = $state<Record<string, boolean>>({});
 	let answers = $state<Record<string, Answer>>({});
 	let previewId = $state<string | null>(null);
 
@@ -70,6 +72,22 @@
 		)
 	);
 	const preview = $derived(rows[previewIndex]?.question);
+
+	const specialQuestions = $derived(
+		rows.filter((row) => row.question.specialCategory).map((row) => row.question)
+	);
+
+	function showSpecialPreview() {
+		if (specialQuestions.length === 0) return;
+		previewId = specialQuestions[0].id;
+		rightTab = 'preview';
+	}
+
+	const consentMissing = $derived(
+		!!preview?.specialCategory &&
+			!consents[preview.id] &&
+			!answers[preview.id]?.selected.includes(PREFER_NOT_TO_SAY)
+	);
 
 	const hasName = $derived(form.name.trim() !== '');
 	const canPublish = $derived(
@@ -156,6 +174,30 @@
 
 				<div class="border-border flex flex-col gap-3 border-t pt-4">
 					<h3 class="text-base font-semibold">Questions in this form</h3>
+					{#if specialQuestions.length > 0}
+						<div class="bg-primary/10 flex items-start gap-3 rounded-lg px-4 py-3">
+							<ShieldCheck class="text-primary mt-0.5 size-5 shrink-0" />
+							<div class="flex flex-col items-start">
+								<span class="text-base font-medium">
+									Consent is asked on special category questions
+								</span>
+								<span class="text-base">
+									{specialQuestions.length}
+									{specialQuestions.length === 1
+										? 'question has'
+										: 'questions have'}
+									a consent checkbox that participants tick before answering.
+								</span>
+								<Button
+									variant="link"
+									class="h-auto p-0 text-base"
+									onclick={showSpecialPreview}
+								>
+									See it in the preview
+								</Button>
+							</div>
+						</div>
+					{/if}
 					{#if rows.length === 0}
 						<p class="text-muted-foreground text-base">No questions yet.</p>
 					{/if}
@@ -276,12 +318,23 @@
 					<Tabs.Trigger value="preview">Preview</Tabs.Trigger>
 					<Tabs.Trigger value="usage">Used in ({conversationCount(form)})</Tabs.Trigger>
 				</Tabs.List>
+				{#snippet consentFooter()}
+					{#if preview}
+						<ConsentCheck
+							id={`consent-${preview.id}`}
+							text={preview.consentText}
+							checked={consents[preview.id] ?? false}
+							onChange={(checked) => (consents[preview.id] = checked)}
+						/>
+					{/if}
+				{/snippet}
 				<Tabs.Content value="preview" class="min-h-0 flex-1">
 					<PhonePreview
 						step={previewIndex + 1}
 						steps={Math.max(rows.length, 1)}
 						onNext={showNextQuestion}
-						nextDisabled={previewIndex >= rows.length - 1}
+						nextDisabled={previewIndex >= rows.length - 1 || consentMissing}
+						footer={preview?.specialCategory ? consentFooter : undefined}
 					>
 						{#if preview}
 							{@const current = preview}
