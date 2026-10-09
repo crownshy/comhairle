@@ -293,6 +293,8 @@
 	"finding_answer": "Encontrando uma resposta...",
 	"sources": "Fontes",
 	"question": "Pergunta",
+	"question_x_of_y": "Pergunta {current} de {total}",
+	"video_x_of_y": "Vídeo {current} de {total}",
 	"saving": "A guardar",
 	"not_saved": "Não guardado",
 	"confirm_and_save": "Confirmar e guardar",

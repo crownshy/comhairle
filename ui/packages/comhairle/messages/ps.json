@@ -298,6 +298,8 @@
 	"finding_answer": "د ځواب په لټه کې یو...",
 	"sources": "سرچینې",
 	"question": "پوښتنه",
+	"question_x_of_y": "پوښتنه {current} له {total}",
+	"video_x_of_y": "ویډیو {current} له {total}",
 	"saving": "د خوندي کولو په حال کې",
 	"not_saved": "نه دی خوندي شوی",
 	"confirm_and_save": "تأیید او خوندي کول",

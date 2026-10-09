@@ -293,6 +293,8 @@
 	"finding_answer": "Wrthi'n dod o hyd i ateb...",
 	"sources": "Ffynonellau",
 	"question": "Cwestiwn",
+	"question_x_of_y": "Cwestiwn {current} o {total}",
+	"video_x_of_y": "Fideo {current} o {total}",
 	"saving": "Wrthi'n cadw",
 	"not_saved": "Heb ei gadw",
 	"confirm_and_save": "Cadarnhau a Chadw",

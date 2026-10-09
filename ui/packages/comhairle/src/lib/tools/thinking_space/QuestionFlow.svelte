@@ -48,7 +48,17 @@
 	// The chrome's bar shows progress (ADR-0047). Extension mode runs after the summary, so the
 	// segment stays full there.
 	$effect(() => {
-		onSequenceChange?.({ progress: flow.mode === 'extension' ? 1 : flow.progress / 100 });
+		if (flow.mode === 'extension') {
+			onSequenceChange?.({ progress: 1 });
+			return;
+		}
+		onSequenceChange?.({
+			progress: flow.progress / 100,
+			position: m.question_x_of_y({
+				current: flow.currentQuestionIndex + 1,
+				total: questions.length
+			})
+		});
 	});
 
 	let bottomEl = $state<HTMLDivElement | null>(null);

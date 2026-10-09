@@ -302,6 +302,8 @@
 	"finding_answer": "در حال یافتن پاسخ...",
 	"sources": "منابع",
 	"question": "سؤال",
+	"question_x_of_y": "پرسش {current} از {total}",
+	"video_x_of_y": "ویدیو {current} از {total}",
 	"saving": "در حال ذخیره",
 	"not_saved": "ذخیره نشده",
 	"confirm_and_save": "تأیید و ذخیره",

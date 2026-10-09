@@ -1,6 +1,7 @@
 <script lang="ts">
 	import VideoRecorder from '$lib/components/VideoRecorder.svelte';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { m } from '$lib/paraglide/messages';
 
 	type Props = {
 		onSequenceChange?: OnSequenceChange;
@@ -12,6 +13,9 @@
 	let phaseIndex = $state(0);
 	let phase = $derived(PHASES[phaseIndex]);
 
+	const VIDEO_PHASES: readonly string[] = ['FirstVideo', 'SecondVideo', 'ThirdVideo'];
+	let videoIndex = $derived(VIDEO_PHASES.indexOf(phase));
+
 	// Recording only moves on through the recorder, so forward there skips the step.
 	let canPageForward = $derived(phase !== 'Recording' && phase !== 'Done');
 
@@ -19,7 +23,11 @@
 		onSequenceChange?.({
 			next: canPageForward ? () => phaseIndex++ : undefined,
 			previous: phaseIndex > 0 ? () => phaseIndex-- : undefined,
-			progress: phaseIndex / PHASES.length
+			progress: phaseIndex / PHASES.length,
+			position:
+				videoIndex >= 0
+					? m.video_x_of_y({ current: videoIndex + 1, total: VIDEO_PHASES.length })
+					: undefined
 		});
 	});
 </script>
