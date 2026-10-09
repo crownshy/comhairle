@@ -3,7 +3,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { goto, invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';

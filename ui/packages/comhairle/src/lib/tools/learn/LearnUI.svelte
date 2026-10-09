@@ -3,7 +3,7 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { Progress } from '$lib/components/ui/progress';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import type {
 		LearnPageEntry,

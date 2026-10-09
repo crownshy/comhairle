@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
-	import * as m from '$lib/paraglide/messages.js';
+	import { m } from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Button, buttonVariants } from './ui/button';

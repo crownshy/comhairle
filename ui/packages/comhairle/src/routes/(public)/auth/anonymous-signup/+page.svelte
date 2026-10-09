@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import AuthLayout from '$lib/components/AuthLayout.svelte';

@@ -5,7 +5,7 @@
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import { zodClient, zod } from 'sveltekit-superforms/adapters';
 	import { signupFormSchema } from '$lib/profile';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
 	import { Button, LoadingButton } from '$lib/components/ui/button';

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { Sparkles } from 'lucide-svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 
 	const messages = [
 		m.thinking_space_follow_loading_1(),

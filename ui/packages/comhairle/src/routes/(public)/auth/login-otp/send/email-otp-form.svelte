@@ -4,7 +4,7 @@
 	import { sendOtpSchema } from '$lib/profile';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '@crownshy/api-client/client';

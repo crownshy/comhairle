@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { AuthPage } from '$lib/profile';
 	import type { PageProps } from './$types';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 
 	let { data }: PageProps = $props();

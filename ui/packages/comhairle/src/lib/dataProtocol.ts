@@ -1,4 +1,4 @@
-import * as m from '$lib/paraglide/messages';
+import { m } from '$lib/paraglide/messages';
 import { toolMeta } from '$lib/tool_meta';
 import { isBlankRichText } from '$lib/utils/isBlankRichText';
 

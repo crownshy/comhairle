@@ -8,7 +8,7 @@
 	import ComhairleFAQs from './ComhairleFAQs.svelte';
 	import LearningAssistant from './LearningAssistant/LearningAssistant.svelte';
 	import StepDataProtocol from './StepDataProtocol.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { page } from '$app/state';
 	import { useSupportDrawer } from './supportDrawerContext.svelte';
 
