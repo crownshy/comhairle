@@ -2,7 +2,7 @@ dev:
     cd api && bacon
 
 pg:
-    docker run -it --rm --name comhairle_postgres \
+    docker run -it --rm --platform linux/amd64 --name comhairle_postgres \
     -p 5434:5432 \
     -e POSTGRES_USER=comhairle \
     -e POSTGRES_PASSWORD=comhairle \
