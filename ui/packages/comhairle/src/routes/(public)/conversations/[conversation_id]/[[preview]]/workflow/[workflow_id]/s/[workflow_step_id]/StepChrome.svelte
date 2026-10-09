@@ -2,7 +2,7 @@
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
 	import { CircleHelp } from '@lucide/svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import StepMenu from './StepMenu.svelte';
 	import StepProgressBar from './StepProgressBar.svelte';
 	import type { StepItem } from './stepItems';
