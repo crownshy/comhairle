@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { EllipsisVertical, Plus, Trash2 } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Badge } from '$lib/components/ui/badge';
+	import TagBadge from './TagBadge.svelte';
+	import { emptyAnswer, type Answer } from './demographicAnswers';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
@@ -10,9 +11,13 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import AddQuestionsDialog from './AddQuestionsDialog.svelte';
+	import PublishDialog from './PublishDialog.svelte';
+	import FormUsagePanel from './FormUsagePanel.svelte';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import PhonePreview from './PhonePreview.svelte';
 	import QuestionAnswers from './QuestionAnswers.svelte';
 	import {
+		conversationCount,
 		COUNTRY_OPTIONS,
 		type DemographicForm,
 		type DemographicQuestion
@@ -25,7 +30,8 @@
 		onEditQuestion: (questionId: string) => void;
 		onCreateQuestion: () => void;
 		hasChanges: boolean;
-		onSave: () => void;
+		onSaveDraft: () => void;
+		onPublish: () => void;
 		onSaveAsNew: () => void;
 		onDelete: () => void;
 		onClose: () => void;
@@ -38,13 +44,17 @@
 		onEditQuestion,
 		onCreateQuestion,
 		hasChanges,
-		onSave,
+		onSaveDraft,
+		onPublish,
 		onSaveAsNew,
 		onDelete,
 		onClose
 	}: Props = $props();
 
+	let rightTab = $state('preview');
 	let addOpen = $state(false);
+	let publishOpen = $state(false);
+	let answers = $state<Record<string, Answer>>({});
 	let previewId = $state<string | null>(null);
 
 	const rows = $derived(
@@ -60,6 +70,13 @@
 		)
 	);
 	const preview = $derived(rows[previewIndex]?.question);
+
+	const hasName = $derived(form.name.trim() !== '');
+	const canPublish = $derived(
+		hasName &&
+			form.questions.length > 0 &&
+			(hasChanges || form.hasUnpublishedChanges || form.status === 'draft')
+	);
 
 	function toggleRequired(index: number) {
 		form.questions[index].required = !form.questions[index].required;
@@ -104,7 +121,7 @@
 <Sheet.Root open onOpenChange={(open) => !open && onClose()}>
 	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem]">
 		<div class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
-			<div class="flex min-h-0 flex-col gap-5 overflow-y-auto">
+			<div class="-mx-2 flex min-h-0 flex-col gap-5 overflow-y-auto px-2">
 				<Sheet.Header class="border-border border-b p-0 pb-4">
 					<Sheet.Title class="text-2xl font-semibold">
 						{isNew ? 'Create form' : 'Edit form'}
@@ -175,9 +192,7 @@
 									{/if}
 								</button>
 								{#if row.question.tags[0]}
-									<Badge variant="secondary" class="shrink-0"
-										>{row.question.tags[0]}</Badge
-									>
+									<TagBadge tag={row.question.tags[0]} class="shrink-0" />
 								{/if}
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger
@@ -240,8 +255,8 @@
 							<AlertDialog.Header>
 								<AlertDialog.Title>Delete this form?</AlertDialog.Title>
 								<AlertDialog.Description>
-									{form.usedInConversations > 0
-										? `${form.name} is used in ${form.usedInConversations} ${form.usedInConversations === 1 ? 'conversation' : 'conversations'}. Those conversations will lose their demographic step.`
+									{conversationCount(form) > 0
+										? `${form.name} is used in ${conversationCount(form)} ${conversationCount(form) === 1 ? 'conversation' : 'conversations'}. Those conversations will lose their demographic step.`
 										: `${form.name} will be removed. This cannot be undone.`}
 								</AlertDialog.Description>
 							</AlertDialog.Header>
@@ -256,44 +271,73 @@
 				{/if}
 			</div>
 
-			<PhonePreview
-				step={previewIndex + 1}
-				steps={Math.max(rows.length, 1)}
-				onNext={showNextQuestion}
-				nextDisabled={previewIndex >= rows.length - 1}
-			>
-				{#if preview}
-					<h2 class="text-2xl font-semibold">{preview.text}</h2>
-					{#if preview.description}
-						<p class="text-muted-foreground text-base">{preview.description}</p>
-					{/if}
-					<QuestionAnswers question={preview} />
-				{:else}
-					<p class="text-muted-foreground text-base">
-						Add a question to see how participants will see it.
-					</p>
-				{/if}
-			</PhonePreview>
+			<Tabs.Root bind:value={rightTab} class="flex h-full min-h-0 flex-col gap-3">
+				<Tabs.List class="self-start">
+					<Tabs.Trigger value="preview">Preview</Tabs.Trigger>
+					<Tabs.Trigger value="usage">Used in ({conversationCount(form)})</Tabs.Trigger>
+				</Tabs.List>
+				<Tabs.Content value="preview" class="min-h-0 flex-1">
+					<PhonePreview
+						step={previewIndex + 1}
+						steps={Math.max(rows.length, 1)}
+						onNext={showNextQuestion}
+						nextDisabled={previewIndex >= rows.length - 1}
+					>
+						{#if preview}
+							{@const current = preview}
+							<h2 class="text-2xl font-semibold">{preview.text}</h2>
+							{#if preview.description}
+								<p class="text-muted-foreground text-base">{preview.description}</p>
+							{/if}
+							<QuestionAnswers
+								question={current}
+								answer={answers[current.id] ?? emptyAnswer()}
+								onAnswer={(next) => (answers[current.id] = next)}
+							/>
+						{:else}
+							<p class="text-muted-foreground text-base">
+								Add a question to see how participants will see it.
+							</p>
+						{/if}
+					</PhonePreview>
+				</Tabs.Content>
+				<Tabs.Content value="usage" class="min-h-0 flex-1">
+					<FormUsagePanel {form} hasUnsavedChanges={hasChanges && !isNew} />
+				</Tabs.Content>
+			</Tabs.Root>
 		</div>
 
 		<Sheet.Footer
-			class="border-border flex-row items-center justify-end gap-2 border-t px-6 py-4"
+			class="border-border flex-row flex-wrap items-center justify-end gap-2 border-t px-6 py-4"
 		>
-			{#if hasChanges && !isNew}
-				<span class="text-muted-foreground mr-auto text-sm">
-					Saving publishes v{form.version + 1}
-				</span>
-			{/if}
+			<span class="text-muted-foreground mr-auto text-sm">
+				{#if form.hasUnpublishedChanges}Unpublished changes saved as draft.
+				{/if}Publishing creates v{form.version + 1}
+			</span>
 			<Button variant="outline" onclick={onClose}>Cancel</Button>
 			{#if !isNew}
 				<Button variant="outline" disabled={!hasChanges} onclick={onSaveAsNew}>
 					Save to new form
 				</Button>
 			{/if}
-			<Button disabled={form.name.trim() === '' || !hasChanges} onclick={onSave}>Save</Button>
+			<Button variant="outline" disabled={!hasName || !hasChanges} onclick={onSaveDraft}>
+				Save draft
+			</Button>
+			<Button disabled={!canPublish} onclick={() => (publishOpen = true)}>Publish</Button>
 		</Sheet.Footer>
 	</Sheet.Content>
 </Sheet.Root>
+
+{#if publishOpen}
+	<PublishDialog
+		{form}
+		onConfirm={() => {
+			publishOpen = false;
+			onPublish();
+		}}
+		onClose={() => (publishOpen = false)}
+	/>
+{/if}
 
 {#if addOpen}
 	<AddQuestionsDialog

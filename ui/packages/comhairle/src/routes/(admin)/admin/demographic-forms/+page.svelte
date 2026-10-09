@@ -53,7 +53,8 @@
 			createdBy: CURRENT_USER,
 			status: 'draft',
 			version: 0,
-			usedInConversations: 0,
+			usage: [],
+			hasUnpublishedChanges: false,
 			editedLabel: 'Not yet published'
 		};
 		formEdit = { form, original: $state.snapshot(form), isNew: true };
@@ -66,20 +67,35 @@
 					JSON.stringify($state.snapshot(formEdit.form)))
 	);
 
-	function saveForm() {
-		if (!formEdit) return;
-		const draft = $state.snapshot(formEdit.form);
-		const saved: DemographicForm = {
-			...draft,
-			status: 'published',
-			version: draft.version + 1,
-			editedLabel: `Edited just now by ${CURRENT_USER}`,
-			isNewlyCreated: formEdit.isNew || draft.isNewlyCreated
-		};
+	function upsertForm(saved: DemographicForm) {
 		const index = forms.findIndex((f) => f.id === saved.id);
 		if (index >= 0) forms[index] = saved;
 		else forms.push(saved);
 		formEdit = null;
+	}
+
+	function saveDraft() {
+		if (!formEdit) return;
+		const draft = $state.snapshot(formEdit.form);
+		upsertForm({
+			...draft,
+			hasUnpublishedChanges: draft.version > 0,
+			editedLabel: `Draft saved just now by ${CURRENT_USER}`,
+			isNewlyCreated: formEdit.isNew || draft.isNewlyCreated
+		});
+	}
+
+	function publishForm() {
+		if (!formEdit) return;
+		const draft = $state.snapshot(formEdit.form);
+		upsertForm({
+			...draft,
+			status: 'published',
+			version: draft.version + 1,
+			hasUnpublishedChanges: false,
+			editedLabel: `Published just now by ${CURRENT_USER}`,
+			isNewlyCreated: formEdit.isNew || draft.isNewlyCreated
+		});
 	}
 
 	function saveFormAsNew() {
@@ -91,10 +107,11 @@
 			id: blankForm().id,
 			name: renamed ? `${draft.name} (copy)` : draft.name,
 			createdBy: CURRENT_USER,
-			status: 'published',
-			version: 1,
-			usedInConversations: 0,
-			editedLabel: `Created just now by ${CURRENT_USER}`,
+			status: 'draft',
+			version: 0,
+			hasUnpublishedChanges: false,
+			usage: [],
+			editedLabel: `Draft created just now by ${CURRENT_USER}`,
 			isNewlyCreated: true
 		});
 		formEdit = null;
@@ -134,34 +151,36 @@
 	<title>Demographic forms - Comhairle Admin</title>
 </svelte:head>
 
-<div class="mx-auto w-11/12 max-w-6xl p-10">
-	<header class="flex flex-wrap items-start justify-between gap-4">
-		<div class="flex flex-col gap-2">
-			<h1 class="text-4xl font-bold">Demographic forms</h1>
-			<p class="text-muted-foreground max-w-2xl text-base">
-				Build questions, put them together into forms, then add a form to any conversation
-				as a demographic step.
-			</p>
-		</div>
-		{#if tab === 'forms'}
-			<Button onclick={newForm}>New form</Button>
-		{:else}
-			<Button onclick={() => newQuestion(false)}>New question</Button>
-		{/if}
-	</header>
+<div class="bg-nav-background min-h-full">
+	<div class="mx-auto w-11/12 max-w-6xl p-10">
+		<header class="flex flex-wrap items-start justify-between gap-4">
+			<div class="flex flex-col gap-2">
+				<h1 class="text-4xl font-bold">Demographic forms</h1>
+				<p class="text-muted-foreground max-w-2xl text-base">
+					Build questions, put them together into forms, then add a form to any
+					conversation as a demographic step.
+				</p>
+			</div>
+			{#if tab === 'forms'}
+				<Button onclick={newForm}>New form</Button>
+			{:else}
+				<Button onclick={() => newQuestion(false)}>New question</Button>
+			{/if}
+		</header>
 
-	<Tabs.Root bind:value={tab} class="mt-6">
-		<Tabs.List>
-			<Tabs.Trigger value="forms">Forms ({forms.length})</Tabs.Trigger>
-			<Tabs.Trigger value="questions">Question bank ({questions.length})</Tabs.Trigger>
-		</Tabs.List>
-		<Tabs.Content value="forms" class="mt-6">
-			<FormsTab {forms} {questions} onNew={newForm} onEdit={editForm} onCopy={copyForm} />
-		</Tabs.Content>
-		<Tabs.Content value="questions" class="mt-6">
-			<QuestionBankTab {questions} {forms} onEdit={editQuestion} />
-		</Tabs.Content>
-	</Tabs.Root>
+		<Tabs.Root bind:value={tab} class="mt-6">
+			<Tabs.List>
+				<Tabs.Trigger value="forms">Forms ({forms.length})</Tabs.Trigger>
+				<Tabs.Trigger value="questions">Question bank ({questions.length})</Tabs.Trigger>
+			</Tabs.List>
+			<Tabs.Content value="forms" class="mt-6">
+				<FormsTab {forms} {questions} onNew={newForm} onEdit={editForm} onCopy={copyForm} />
+			</Tabs.Content>
+			<Tabs.Content value="questions" class="mt-6">
+				<QuestionBankTab {questions} {forms} onEdit={editQuestion} />
+			</Tabs.Content>
+		</Tabs.Root>
+	</div>
 </div>
 
 {#if formEdit}
@@ -172,7 +191,8 @@
 		onEditQuestion={editQuestion}
 		onCreateQuestion={() => newQuestion(true)}
 		hasChanges={formHasChanges}
-		onSave={saveForm}
+		onSaveDraft={saveDraft}
+		onPublish={publishForm}
 		onSaveAsNew={saveFormAsNew}
 		onDelete={deleteForm}
 		onClose={() => (formEdit = null)}

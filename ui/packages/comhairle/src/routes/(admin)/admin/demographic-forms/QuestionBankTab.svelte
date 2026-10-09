@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
+	import TagBadge from './TagBadge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Table from '$lib/components/ui/table';
@@ -57,9 +58,13 @@
 					aria-pressed={filter === option}
 					onclick={() => (filter = option)}
 				>
-					<Badge variant={filter === option ? 'primary' : 'default'} class="px-3 py-1">
-						{option} ({countFor(option)})
-					</Badge>
+					<TagBadge
+						tag={option}
+						label={`${option} (${countFor(option)})`}
+						class="px-3 py-1 {filter === option
+							? 'ring-foreground font-semibold ring-2 ring-offset-2'
+							: 'opacity-80 hover:opacity-100'}"
+					/>
 				</button>
 			{/each}
 		</div>
@@ -71,9 +76,11 @@
 		/>
 	</div>
 
-	<div class="border-border bg-card rounded-xl border">
+	<div
+		class="border-border bg-card overflow-hidden rounded-xl border [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4"
+	>
 		<Table.Root>
-			<Table.Header>
+			<Table.Header class="bg-muted">
 				<Table.Row>
 					<Table.Head>Question</Table.Head>
 					<Table.Head>Question type</Table.Head>
@@ -95,10 +102,10 @@
 						<Table.Cell>
 							<div class="flex flex-wrap gap-1">
 								{#each question.tags as tag (tag)}
-									<Badge variant="secondary">{tag}</Badge>
+									<TagBadge {tag} />
 								{/each}
 								{#if question.specialCategory}
-									<Badge variant="destructive">Special category</Badge>
+									<TagBadge tag="Special category" />
 								{/if}
 							</div>
 						</Table.Cell>

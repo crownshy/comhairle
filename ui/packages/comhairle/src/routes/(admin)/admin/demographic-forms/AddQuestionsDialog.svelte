@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Plus } from 'lucide-svelte';
-	import { Badge } from '$lib/components/ui/badge';
+	import TagBadge from './TagBadge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -66,10 +66,10 @@
 					</label>
 					<span class="flex items-center gap-1">
 						{#each question.tags as tag (tag)}
-							<Badge variant="secondary">{tag}</Badge>
+							<TagBadge {tag} />
 						{/each}
 						{#if question.specialCategory}
-							<Badge variant="destructive">Special category</Badge>
+							<TagBadge tag="Special category" />
 						{/if}
 					</span>
 					{#if inForm}
