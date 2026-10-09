@@ -9338,6 +9338,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "sensemakar_api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "rig",
+ "rig-core",
+ "sensemakar",
+ "sensemakar_types",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "sensemakar_cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "csv",
+ "language-tags",
+ "rig",
+ "rig-core",
+ "sensemakar",
+ "sensemakar_types",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sensemakar_jobs"
 version = "0.1.0"
 dependencies = [
