@@ -365,5 +365,9 @@
 	"step_minutes": "（{count} 分钟）",
 	"step_not_found": "找不到该对话",
 	"step_one_minute": "（1 分钟）",
-	"step_x_of_y": "第 {current} 步，共 {total} 步"
+	"step_x_of_y": "第 {current} 步，共 {total} 步",
+	"step_chrome_conversation_home": "返回对话页面",
+	"conversation_preview_badge": "预览",
+	"theme_light_mode": "浅色模式",
+	"theme_dark_mode": "深色模式"
 }
