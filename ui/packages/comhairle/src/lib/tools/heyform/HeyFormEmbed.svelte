@@ -142,11 +142,12 @@
 		alignTimer = setTimeout(alignFrameTop, ALIGN_AFTER_STEP_CHANGE_MS);
 	}
 
-	// Fills the chrome's segment by question position (ADR-0047). The form's own `percentage`
-	// is ignored because it moves on typing, not paging. An older fork sends no numbers.
+	// Fills the chrome's segment by question position (ADR-0047). `total` counts the thank-you
+	// screen, so reaching it is full. The form's own `percentage` is ignored because it moves on
+	// typing, not paging. An older fork sends no numbers.
 	function reportProgress(index: unknown, total: unknown) {
-		if (typeof index !== 'number' || typeof total !== 'number' || total <= 0) return;
-		onSequenceChange?.({ progress: Math.min(1, Math.max(0, index / total)) });
+		if (typeof index !== 'number' || typeof total !== 'number' || total <= 1) return;
+		onSequenceChange?.({ progress: Math.min(1, Math.max(0, index / (total - 1))) });
 	}
 
 	function onFrameMessage(e: MessageEvent) {
@@ -160,6 +161,7 @@
 
 		switch (data.eventName) {
 			case 'HIDE_EMBED_MODAL':
+				onSequenceChange?.({ progress: 1 });
 				setTimeout(() => onDone(), 2000);
 				break;
 			case 'FORM_RESIZE':
