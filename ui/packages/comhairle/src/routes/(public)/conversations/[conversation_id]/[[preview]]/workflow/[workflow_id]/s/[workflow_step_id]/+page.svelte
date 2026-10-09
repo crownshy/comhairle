@@ -17,6 +17,7 @@
 	import StepHeader from './StepHeader.svelte';
 	import StepHeaderSkeleton from './StepHeaderSkeleton.svelte';
 	import type { StepItem } from './stepItems';
+	import type { ToolSequence } from '$lib/tools/toolSequence';
 	import { STEP_COLUMN_CLASS } from './styles';
 
 	import { goto } from '$app/navigation';
@@ -120,8 +121,7 @@
 	// the step we just left can never leak into the next one.
 	type StepScoped<T> = { stepId: string; value: T };
 
-	let toolNextAction = $state.raw<StepScoped<() => void>>();
-	let toolPrevAction = $state.raw<StepScoped<(() => void) | undefined>>();
+	let toolSequence = $state.raw<StepScoped<ToolSequence>>();
 	let toolCanContinue = $state.raw<StepScoped<boolean>>();
 	let submittingStepId = $state<string>();
 
@@ -129,8 +129,9 @@
 		return scoped?.stepId === workflowStep.id ? scoped.value : undefined;
 	}
 
-	let currentNextAction = $derived(forThisStep(toolNextAction));
-	let currentPrevAction = $derived(forThisStep(toolPrevAction));
+	let currentSequence = $derived(forThisStep(toolSequence));
+	let currentNextAction = $derived(currentSequence?.next);
+	let currentPrevAction = $derived(currentSequence?.previous);
 	let toolNeedsNoSignal = $derived.by(() => {
 		const type = toolConfig?.type;
 		return type === Learn.TOOL_NAME || type === LivedExperience.TOOL_NAME;
@@ -138,23 +139,19 @@
 	let canProceed = $derived(forThisStep(toolCanContinue) ?? toolNeedsNoSignal);
 	let isSubmitting = $derived(submittingStepId === workflowStep.id);
 
-	// Empty until the step is done, and full while it completes so the bar moves the moment
-	// Next is pressed. Filling within a step is ADR-0047 parts 2 and 3.
-	let fill = $derived(isRevisiting || isSubmitting ? 1 : 0);
+	// Empty until the tool reports progress, and full while the step completes so the bar moves
+	// the moment Next is pressed (ADR-0047).
+	let fill = $derived(isRevisiting || isSubmitting ? 1 : (currentSequence?.progress ?? 0));
 
-	function handleNextAction(fn: () => void) {
-		toolNextAction = { stepId: workflowStep.id, value: fn };
-	}
-
-	function handlePrevAction(fn: (() => void) | undefined) {
-		toolPrevAction = { stepId: workflowStep.id, value: fn };
+	function handleSequenceChange(sequence: ToolSequence) {
+		toolSequence = { stepId: workflowStep.id, value: sequence };
 	}
 
 	function handleCanContinueChange(value: boolean) {
 		toolCanContinue = { stepId: workflowStep.id, value };
 	}
 
-	// Learn's own pages come before the step boundary (ADR-0047).
+	// A tool's own pages come before the step boundary (ADR-0047).
 	let stepCanAdvance = $derived(currentNextAction !== undefined || canProceed || isRevisiting);
 	let canGoBack = $derived(currentPrevAction !== undefined || prevStepHref !== undefined);
 	let canGoForward = $derived(stepCanAdvance || !workflowStep.required);
@@ -270,6 +267,7 @@
 					steps={stepItems}
 					currentIndex={viewedIndex}
 					{fill}
+					position={currentSequence?.position}
 					{introUrl}
 					preview={isPreview}
 				/>
@@ -302,11 +300,8 @@
 				{:else if toolConfig?.type === Learn.TOOL_NAME}
 					{#key workflowStep.id}
 						<Learn.UserUI
-							onDone={stepComplete}
 							pages={toolConfig.pages}
-							user_id={user.id}
-							onNextAction={handleNextAction}
-							onPrevAction={handlePrevAction}
+							onSequenceChange={handleSequenceChange}
 							{conversation}
 							{availableDocuments}
 							{hasKnowledgeBaseDocs}
@@ -322,7 +317,8 @@
 							workflowStepId={workflowStep.id}
 							{isPreview}
 							onCanContinueChange={handleCanContinueChange}
-							showRemainingStatementCount={toolConfig.show_remaining_statements}
+							onSequenceChange={handleSequenceChange}
+							onDone={stepComplete}
 						/>
 					{/key}
 				{:else if toolConfig?.type === HeyForm.TOOL_NAME}
@@ -333,6 +329,7 @@
 							surveyURL={toolConfig.survey_url}
 							serverURL={toolConfig.server_url}
 							onDone={stepComplete}
+							onSequenceChange={handleSequenceChange}
 						/>
 					{/key}
 				{:else if toolConfig?.type === LivedExperience.TOOL_NAME}
@@ -390,6 +387,7 @@
 				{canGoBack}
 				{canGoForward}
 				loading={isSubmitting}
+				blockedReason={currentSequence?.blockedReason}
 				onBack={goBack}
 				onForward={goForward}
 			/>
