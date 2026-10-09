@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { prefersReducedMotion, Tween } from 'svelte/motion';
+	import { cubicOut } from 'svelte/easing';
 	import { cn } from '$lib/utils';
 	import type { StepItem } from './stepItems';
 
@@ -11,7 +13,18 @@
 
 	let { steps, currentIndex, fill }: Props = $props();
 
-	let fillPercent = $derived(Math.min(100, Math.max(0, fill * 100)));
+	// Browsers can't transition the fill of a native <progress>, so the value is tweened instead.
+	const tweenedFill = Tween.of(() => Math.min(1, Math.max(0, fill)), {
+		duration: () => (prefersReducedMotion.current ? 0 : 300),
+		easing: cubicOut
+	});
+
+	const CURRENT_TRACK_CLASS = [
+		'h-2 min-w-0 flex-1 appearance-none overflow-hidden rounded-full border-0 bg-accent',
+		'[&::-webkit-progress-bar]:bg-accent',
+		'[&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-primary',
+		'[&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-primary'
+	].join(' ');
 
 	function isDone(step: StepItem, index: number) {
 		return (
@@ -26,12 +39,7 @@
 <div class="flex items-center gap-1.5" aria-hidden="true">
 	{#each steps as step, index (step.id)}
 		{#if index === currentIndex}
-			<div class="bg-accent relative h-2 min-w-0 flex-1 rounded-full">
-				<div
-					class="bg-primary absolute inset-y-0 left-0 rounded-full transition-[width] duration-300"
-					style="width: {fillPercent}%"
-				></div>
-			</div>
+			<progress class={CURRENT_TRACK_CLASS} value={tweenedFill.current} max="1"></progress>
 		{:else}
 			<div
 				class={cn(
