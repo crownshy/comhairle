@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { GripVertical, Plus, X } from 'lucide-svelte';
-	import { Badge } from '$lib/components/ui/badge';
+	import TagBadge from './TagBadge.svelte';
+	import { emptyAnswer } from './demographicAnswers';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
@@ -14,6 +15,7 @@
 	import {
 		defaultPlaceholder,
 		isChoiceKind,
+		selectionHint,
 		QUESTION_KIND_LABELS,
 		TAG_OPTIONS,
 		type DemographicQuestion,
@@ -32,13 +34,21 @@
 
 	let draft = $state(untrack(() => $state.snapshot(question)));
 
+	let previewAnswer = $state(emptyAnswer());
+
 	const kinds = Object.keys(QUESTION_KIND_LABELS) as QuestionKind[];
 	const unusedTags = $derived(TAG_OPTIONS.filter((tag) => !draft.tags.includes(tag)));
 	const title = $derived(isNew ? 'Create a new question' : 'Edit question');
 	const saveLabel = $derived(addsToForm ? 'Save and add to form' : 'Save');
 
+	function setMaxSelections(event: Event & { currentTarget: HTMLInputElement }) {
+		const value = Number.parseInt(event.currentTarget.value, 10);
+		draft.maxSelections = Number.isNaN(value) ? null : Math.max(1, value);
+	}
+
 	function setKind(kind: QuestionKind) {
 		draft.kind = kind;
+		previewAnswer = emptyAnswer();
 		if (isChoiceKind(kind) && draft.options.length === 0) draft.options = ['', '', ''];
 	}
 </script>
@@ -46,7 +56,7 @@
 <Sheet.Root open onOpenChange={(open) => !open && onClose()}>
 	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem]">
 		<div class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
-			<div class="flex min-h-0 flex-col gap-6 overflow-y-auto">
+			<div class="-mx-2 flex min-h-0 flex-col gap-6 overflow-y-auto px-2">
 				<Sheet.Header class="border-border border-b p-0 pb-4">
 					<Sheet.Title class="text-2xl font-semibold">{title}</Sheet.Title>
 					<Sheet.Description>
@@ -92,7 +102,7 @@
 					<div class="flex items-center justify-between gap-2">
 						<div class="flex flex-wrap gap-2">
 							{#each draft.tags as tag (tag)}
-								<Badge variant="secondary" class="gap-1">
+								<TagBadge {tag} class="gap-1">
 									{tag}
 									<button
 										type="button"
@@ -103,10 +113,10 @@
 									>
 										<X class="size-3" />
 									</button>
-								</Badge>
+								</TagBadge>
 							{/each}
 							{#if draft.specialCategory}
-								<Badge variant="destructive">Special category</Badge>
+								<TagBadge tag="Special category" />
 							{/if}
 						</div>
 						<DropdownMenu.Root>
@@ -129,6 +139,26 @@
 						</DropdownMenu.Root>
 					</div>
 				</div>
+
+				{#if draft.kind === 'multiple_choice'}
+					<div class="flex flex-col gap-2">
+						<Label for="max-selections" class="text-base"
+							>Choices people can select</Label
+						>
+						<Input
+							id="max-selections"
+							type="number"
+							min="1"
+							max={Math.max(draft.options.length, 1)}
+							placeholder="No limit"
+							value={draft.maxSelections ?? ''}
+							oninput={setMaxSelections}
+						/>
+						<span class="text-muted-foreground text-sm">
+							Leave empty to let people select as many as they like.
+						</span>
+					</div>
+				{/if}
 
 				<div class="border-border mt-auto flex flex-col gap-4 border-t pt-4">
 					<h3 class="text-base font-semibold">Settings</h3>
@@ -173,6 +203,11 @@
 				/>
 
 				{#if isChoiceKind(draft.kind)}
+					{#if draft.kind === 'multiple_choice'}
+						<p class="text-muted-foreground text-sm">
+							{selectionHint(draft.kind, draft.maxSelections)}
+						</p>
+					{/if}
 					<ul class="flex flex-col gap-2">
 						{#each draft.options as _, index (index)}
 							<li
@@ -218,7 +253,11 @@
 						Add choice
 					</Button>
 				{:else}
-					<QuestionAnswers question={draft} />
+					<QuestionAnswers
+						question={draft}
+						answer={previewAnswer}
+						onAnswer={(next) => (previewAnswer = next)}
+					/>
 				{/if}
 			</PhonePreview>
 		</div>

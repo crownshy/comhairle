@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
+	import TagBadge from './TagBadge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
 	import {
+		conversationCount,
 		specialCategoryCount,
+		usageSummary,
 		type DemographicForm,
 		type DemographicQuestion
 	} from './demographicPrototypeData';
@@ -60,9 +63,11 @@
 
 	<section class="flex flex-col gap-3">
 		<h2 class="text-lg font-semibold">Your forms</h2>
-		<div class="border-border bg-card rounded-xl border">
+		<div
+			class="border-border bg-card overflow-hidden rounded-xl border [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4"
+		>
 			<Table.Root>
-				<Table.Header>
+				<Table.Header class="bg-muted">
 					<Table.Row>
 						<Table.Head>Form</Table.Head>
 						<Table.Head>Created by</Table.Head>
@@ -95,23 +100,40 @@
 								<div class="flex flex-col items-start gap-1">
 									<span class="text-base">{form.questions.length} questions</span>
 									{#if special > 0}
-										<Badge variant="destructive"
-											>{special} special category</Badge
+										<TagBadge
+											tag="Special category"
+											label="{special} special category"
+										/>
+									{/if}
+								</div>
+							</Table.Cell>
+							<Table.Cell>
+								<div class="flex flex-col">
+									<span class="text-base">
+										{conversationCount(form) === 0
+											? 'Not used yet'
+											: `${conversationCount(form)} ${conversationCount(form) === 1 ? 'conversation' : 'conversations'}`}
+									</span>
+									{#if form.usage.length > 0}
+										<span class="text-muted-foreground text-sm"
+											>{usageSummary(form)}</span
 										>
 									{/if}
 								</div>
 							</Table.Cell>
-							<Table.Cell class="text-base">
-								{form.usedInConversations === 0
-									? 'Not used yet'
-									: `${form.usedInConversations} ${form.usedInConversations === 1 ? 'conversation' : 'conversations'}`}
-							</Table.Cell>
 							<Table.Cell>
-								<Badge variant={form.status === 'published' ? 'primary' : 'draft'}>
-									{form.status === 'published'
-										? `Published v${form.version}`
-										: 'Draft'}
-								</Badge>
+								<div class="flex flex-col items-start gap-1">
+									<Badge
+										variant={form.status === 'published' ? 'primary' : 'draft'}
+									>
+										{form.status === 'published'
+											? `Published v${form.version}`
+											: 'Draft'}
+									</Badge>
+									{#if form.hasUnpublishedChanges}
+										<Badge variant="draft">Unpublished changes</Badge>
+									{/if}
+								</div>
 							</Table.Cell>
 							<Table.Cell>
 								<Button variant="outline" size="sm" onclick={() => onEdit(form.id)}

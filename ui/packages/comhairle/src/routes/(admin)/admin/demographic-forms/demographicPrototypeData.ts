@@ -24,7 +24,25 @@ const DEFAULT_PLACEHOLDERS: Record<QuestionKind, string> = {
 	open_text: 'Type your answer'
 };
 
+export const selectionHint = (kind: QuestionKind, maxSelections: number | null) => {
+	if (kind !== 'multiple_choice') return '';
+	if (maxSelections === null) return 'Select all that apply';
+	return maxSelections === 1 ? 'Select one' : `Select up to ${maxSelections}`;
+};
+
 export const defaultPlaceholder = (kind: QuestionKind) => DEFAULT_PLACEHOLDERS[kind];
+
+const TAG_COLOR_CLASSES: Record<string, string> = {
+	Age: 'bg-blue-100 text-blue-900 outline-blue-300 dark:bg-blue-950 dark:text-blue-100',
+	Gender: 'bg-purple-100 text-purple-900 outline-purple-300 dark:bg-purple-950 dark:text-purple-100',
+	Ethnicity:
+		'bg-amber-100 text-amber-900 outline-amber-300 dark:bg-amber-950 dark:text-amber-100',
+	Postcode: 'bg-green-100 text-green-900 outline-green-300 dark:bg-green-950 dark:text-green-100',
+	Custom: 'bg-slate-100 text-slate-800 outline-slate-300 dark:bg-slate-800 dark:text-slate-100',
+	'Special category': 'bg-red-100 text-red-900 outline-red-300 dark:bg-red-950 dark:text-red-100'
+};
+
+export const tagColorClass = (tag: string) => TAG_COLOR_CLASSES[tag] ?? TAG_COLOR_CLASSES.Custom;
 
 export const TAG_OPTIONS = ['Age', 'Gender', 'Ethnicity', 'Postcode', 'Custom'];
 export const COUNTRY_OPTIONS = [
@@ -45,8 +63,16 @@ export type DemographicQuestion = {
 	options: string[];
 	allowOther: boolean;
 	preferNotToSay: boolean;
+	maxSelections: number | null;
 	placeholder: string;
 	specialCategory: boolean;
+};
+
+export type FormUsage = {
+	conversationId: string;
+	title: string;
+	stage: 'draft' | 'live' | 'closed';
+	pinnedVersion: number | null;
 };
 
 export type FormQuestion = { questionId: string; required: boolean };
@@ -59,7 +85,8 @@ export type DemographicForm = {
 	version: number;
 	createdBy: string;
 	editedLabel: string;
-	usedInConversations: number;
+	usage: FormUsage[];
+	hasUnpublishedChanges: boolean;
 	isNewlyCreated: boolean;
 	questions: FormQuestion[];
 };
@@ -78,6 +105,7 @@ export const blankQuestion = (): DemographicQuestion => ({
 	options: ['', '', ''],
 	allowOther: false,
 	preferNotToSay: true,
+	maxSelections: null,
 	placeholder: '',
 	specialCategory: false
 });
@@ -90,10 +118,60 @@ export const blankForm = (): DemographicForm => ({
 	version: 0,
 	createdBy: CURRENT_USER,
 	editedLabel: 'Not yet published',
-	usedInConversations: 0,
+	usage: [],
+	hasUnpublishedChanges: false,
 	isNewlyCreated: false,
 	questions: []
 });
+
+export const conversationCount = (form: DemographicForm) => form.usage.length;
+
+export const versionInUse = (form: DemographicForm, usage: FormUsage) =>
+	usage.pinnedVersion ?? form.version;
+
+const followingLatest = (form: DemographicForm) =>
+	form.usage.filter((u) => u.pinnedVersion === null);
+const pinnedVersions = (form: DemographicForm) =>
+	[
+		...new Set(form.usage.flatMap((u) => (u.pinnedVersion === null ? [] : [u.pinnedVersion])))
+	].sort((a, b) => b - a);
+
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+export const usageSummary = (form: DemographicForm) => {
+	const parts: string[] = [];
+	if (followingLatest(form).length > 0) {
+		parts.push(`${followingLatest(form).length} follow latest`);
+	}
+	for (const version of pinnedVersions(form)) {
+		const count = form.usage.filter((u) => u.pinnedVersion === version).length;
+		parts.push(`${count} pinned to v${version}`);
+	}
+	return parts.join(', ');
+};
+
+export const publishImpact = (form: DemographicForm) => {
+	if (conversationCount(form) === 0) {
+		return 'No conversation uses this form yet, so nothing else changes.';
+	}
+	const parts: string[] = [];
+	const following = followingLatest(form).length;
+	if (following > 0) {
+		parts.push(
+			`${plural(following, 'conversation follows', 'conversations follow')} the latest version and will pick up this change.`
+		);
+	}
+	const pinned = form.usage.length - following;
+	if (pinned > 0) {
+		const versions = pinnedVersions(form)
+			.map((v) => `v${v}`)
+			.join(', ');
+		parts.push(
+			`${plural(pinned, 'conversation is', 'conversations are')} pinned to ${versions} and will not change.`
+		);
+	}
+	return parts.join(' ');
+};
 
 export const usedInFormsCount = (questionId: string, forms: DemographicForm[]) =>
 	forms.filter((form) => form.questions.some((q) => q.questionId === questionId)).length;
@@ -117,6 +195,7 @@ const choice = (
 	options,
 	allowOther: false,
 	preferNotToSay: true,
+	maxSelections: null,
 	placeholder: '',
 	specialCategory: false,
 	...extra
@@ -162,10 +241,36 @@ export const createInitialForms = (): DemographicForm[] => [
 		name: 'Standard Demographic form',
 		country: 'Scotland',
 		status: 'published',
-		version: 1,
+		version: 2,
 		createdBy: 'Shu',
 		editedLabel: 'Edited 28 Sep by Kimi',
-		usedInConversations: 4,
+		usage: [
+			{
+				conversationId: 'c-air',
+				title: 'Enhance Air quality ...',
+				stage: 'live',
+				pinnedVersion: null
+			},
+			{
+				conversationId: 'c-mock',
+				title: 'Mocked up conversation...',
+				stage: 'draft',
+				pinnedVersion: null
+			},
+			{
+				conversationId: 'c-ai',
+				title: 'Scotland AI Playbook',
+				stage: 'live',
+				pinnedVersion: null
+			},
+			{
+				conversationId: 'c-prs',
+				title: 'Private Rented Sector',
+				stage: 'live',
+				pinnedVersion: 1
+			}
+		],
+		hasUnpublishedChanges: false,
 		isNewlyCreated: false,
 		questions: formQuestions(['q-age', 'q-gender', 'q-birthday', 'q-postcode'], ['q-age'])
 	},
@@ -177,7 +282,15 @@ export const createInitialForms = (): DemographicForm[] => [
 		version: 2,
 		createdBy: 'Kimi',
 		editedLabel: 'Edited 2 Oct by Kimi',
-		usedInConversations: 1,
+		usage: [
+			{
+				conversationId: 'c-sp',
+				title: 'Social Prescribing pilot',
+				stage: 'live',
+				pinnedVersion: null
+			}
+		],
+		hasUnpublishedChanges: true,
 		isNewlyCreated: false,
 		questions: formQuestions([
 			'q-age',
@@ -197,7 +310,8 @@ export const createInitialForms = (): DemographicForm[] => [
 		version: 0,
 		createdBy: 'Shu',
 		editedLabel: 'Not yet published',
-		usedInConversations: 0,
+		usage: [],
+		hasUnpublishedChanges: false,
 		isNewlyCreated: false,
 		questions: formQuestions(['q-age', 'q-gender', 'q-postcode', 'q-employment'])
 	}
