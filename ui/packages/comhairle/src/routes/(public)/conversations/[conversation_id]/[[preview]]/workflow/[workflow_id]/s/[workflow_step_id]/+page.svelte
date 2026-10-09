@@ -378,6 +378,7 @@
 							participantId={user.id}
 							onDone={stepComplete}
 							onCanContinueChange={handleCanContinueChange}
+							onSequenceChange={handleSequenceChange}
 						/>
 					{/key}
 				{/if}
