@@ -158,7 +158,6 @@
 	"guest": "Aoigh",
 	"logout_failed": "Chaidh rudeigin ceàrr nuair a bha sinn gad logadh a-mach. Feuch a-rithist.",
 	"polis_add_opinion_long": "No cuir do bheachd fhèin ris airson feadhainn eile a bhòtadh air.",
-	"polis_continue_to_next_step": "Lean air adhart chun ath cheum",
 	"polis_close": "Dùin",
 	"polis_tips_for_your_opinion": "Molaidhean airson do bheachd a sgrìobhadh",
 	"polis_tip_agreeable": "Bu chòir gum bi e comasach freagairt le \"aontaich\" no \"eas-aontaich\"",
@@ -360,5 +359,12 @@
 	"thinking_space_add_more": "Tagh ceist airson barrachd bheachdan a chur rithe. Faodaidh tu tilleadh an seo gus tè eile a thaghadh, no crìochnachadh gus na beachdan as ùire agad ùrachadh.",
 	"image_lightbox_close": "Dùin",
 	"image_lightbox_zoom": "Meudaich",
-	"image_lightbox_load_failed": "Cha b' urrainn dhuinn an dealbh fhosgladh. Feuch a-rithist."
+	"image_lightbox_load_failed": "Cha b' urrainn dhuinn an dealbh fhosgladh. Feuch a-rithist.",
+	"pager_back": "Air ais",
+	"pager_skip": "Leum seachad",
+	"step_loading": "A' luchdadh na ceuma…",
+	"step_minutes": "({count} mionaidean)",
+	"step_not_found": "Cha deach an còmhradh a lorg",
+	"step_one_minute": "(1 mhionaid)",
+	"step_x_of_y": "Ceum {current} de {total}"
 }

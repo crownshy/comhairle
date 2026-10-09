@@ -158,7 +158,6 @@
 	"guest": "Gwestai",
 	"logout_failed": "Aeth rhywbeth o'i le wrth eich allgofnodi. Rhowch gynnig arall arni.",
 	"polis_add_opinion_long": "Neu ychwanegwch eich barn eich hun i eraill bleidleisio arni.",
-	"polis_continue_to_next_step": "Parhau i'r cam nesaf",
 	"polis_close": "Cau",
 	"polis_tips_for_your_opinion": "Awgrymiadau ar gyfer ysgrifennu eich barn",
 	"polis_tip_agreeable": "Dylai barn fod yn atebadwy gyda \"cytuno\" neu \"anghytuno\"",
@@ -360,5 +359,12 @@
 	"thinking_space_add_more": "Dewiswch gwestiwn i ychwanegu mwy o'ch meddyliau ato. Gallwch ddychwelyd yma i ddewis un arall, neu orffen i ddiweddaru eich meddyliau diweddaraf.",
 	"image_lightbox_close": "Cau",
 	"image_lightbox_zoom": "Chwyddo",
-	"image_lightbox_load_failed": "Methu agor y ddelwedd. Rhowch gynnig arall arni."
+	"image_lightbox_load_failed": "Methu agor y ddelwedd. Rhowch gynnig arall arni.",
+	"pager_back": "Yn ôl",
+	"pager_skip": "Hepgor",
+	"step_loading": "Wrthi'n llwytho'r cam…",
+	"step_minutes": "({count} munud)",
+	"step_not_found": "Methu dod o hyd i'r sgwrs",
+	"step_one_minute": "(1 munud)",
+	"step_x_of_y": "Cam {current} o {total}"
 }

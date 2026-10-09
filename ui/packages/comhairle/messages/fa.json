@@ -167,7 +167,6 @@
 	"guest": "مهمان",
 	"logout_failed": "هنگام خروج شما مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",
 	"polis_add_opinion_long": "یا دیدگاه خود را اضافه کنید تا دیگران به آن رأی دهند.",
-	"polis_continue_to_next_step": "ادامه به مرحله بعد",
 	"polis_close": "بستن",
 	"polis_tips_for_your_opinion": "نکاتی برای نوشتن نظر شما",
 	"polis_tip_agreeable": "یک دیدگاه باید با «موافقم» یا «مخالفم» پاسخ‌پذیر باشد",
@@ -370,5 +369,12 @@
 	"thinking_space_add_more": "یک سؤال را انتخاب کنید تا دیدگاه‌های بیشتری به آن اضافه کنید. می‌توانید به اینجا برگردید و سؤال دیگری انتخاب کنید، یا کار را تمام کنید تا آخرین دیدگاه‌هایتان به‌روزرسانی شود.",
 	"image_lightbox_close": "بستن",
 	"image_lightbox_zoom": "بزرگ‌نمایی",
-	"image_lightbox_load_failed": "تصویر باز نشد. لطفاً دوباره تلاش کنید."
+	"image_lightbox_load_failed": "تصویر باز نشد. لطفاً دوباره تلاش کنید.",
+	"pager_back": "بازگشت",
+	"pager_skip": "رد شدن",
+	"step_loading": "در حال بارگذاری مرحله…",
+	"step_minutes": "({count} دقیقه)",
+	"step_not_found": "گفت‌وگو یافت نشد",
+	"step_one_minute": "(۱ دقیقه)",
+	"step_x_of_y": "مرحله {current} از {total}"
 }
