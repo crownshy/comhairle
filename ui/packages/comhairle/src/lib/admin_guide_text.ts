@@ -4,13 +4,32 @@
  *
  *   **Launch**                bold
  *   [Sign up](/auth/signup)   link
+ *   :accept: :reject: :split:  the moderation action buttons, drawn as icons
+ *   :collapse: :expand:        the admin sidebar's collapse and expand buttons
+ *   :login: :signup: :preview: the Log In, Sign Up and Preview buttons
+ *   :actions:                  a step's actions menu (three dots)
+ *   :workspace:                the Workspace button in the public site's top navigation
  */
 export type GuideTextPart =
 	| { kind: 'text'; text: string }
 	| { kind: 'bold'; text: string }
-	| { kind: 'link'; text: string; href: string };
+	| { kind: 'link'; text: string; href: string }
+	| { kind: 'icon'; name: GuideIconName };
 
-const TOKEN = /\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
+export type GuideIconName =
+	| 'accept'
+	| 'reject'
+	| 'split'
+	| 'collapse'
+	| 'expand'
+	| 'login'
+	| 'signup'
+	| 'preview'
+	| 'actions'
+	| 'workspace';
+
+const TOKEN =
+	/\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|:(accept|reject|split|collapse|expand|login|signup|preview|actions|workspace):/g;
 
 export function parseGuideText(source: string): GuideTextPart[] {
 	const parts: GuideTextPart[] = [];
@@ -20,6 +39,8 @@ export function parseGuideText(source: string): GuideTextPart[] {
 		if (index > last) parts.push({ kind: 'text', text: source.slice(last, index) });
 		if (match[1] !== undefined) {
 			parts.push({ kind: 'bold', text: match[1] });
+		} else if (match[4] !== undefined) {
+			parts.push({ kind: 'icon', name: match[4] as GuideIconName });
 		} else {
 			parts.push({ kind: 'link', text: match[2], href: match[3] });
 		}
