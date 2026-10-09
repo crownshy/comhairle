@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::models::polis_statement_aux;
@@ -11,6 +12,8 @@ use axum::{
     http::StatusCode,
 };
 use schemars::JsonSchema;
+use sensemakar_jobs::WikiPollSummaryJob;
+use sensemakar_types::{WikiPollData, WikiPollStatement, WikiPollVoteSummary};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{info, instrument};
@@ -21,11 +24,14 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
+        job::CreateJob,
+        pagination::{PageOptions, PaginatedResults},
         polis_statement_aux::{
             CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
             PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux,
             UpsertFromPolis,
         },
+        wikipoll_conversation_summary::WikiPollConversationSummary,
     },
     routes::auth::{RequiredAdminUser, RequiredUser},
     wiki_poll_service::{
@@ -332,6 +338,47 @@ impl ToolImpl for PolisTool {
                              step. Returns the updated rows plus any per-row failures.",
                         )
                         .response::<200, Json<ModerateStatementAuxBatchResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/summary",
+                post_with(request_summary, |op| {
+                    op.id("PolisRequestSummary")
+                        .tag("Tools")
+                        .summary("Kick off a Polis conversation summary")
+                        .description(
+                            "Fetches the current Polis report data for a workflow step and \
+                             queues a background job that generates a group/consensus/ \
+                             disagreement summary with the sensemaking worker. Returns the \
+                             id of the job used to track progress (GET /jobs/{job_id}).",
+                        )
+                        .response::<202, Json<RequestSummaryResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/summary/latest",
+                get_with(get_latest_summary, |op| {
+                    op.id("PolisGetLatestSummary")
+                        .tag("Tools")
+                        .summary("Get the most recent Polis summary for a step")
+                        .description(
+                            "Returns the most recently generated wiki_poll_conversation_summary \
+                             row for the given workflow step, or 404 if none exists yet.",
+                        )
+                        .response::<200, Json<WikiPollConversationSummary>>()
+                }),
+            )
+            .api_route(
+                "/polis/summary/history",
+                get_with(list_summaries, |op| {
+                    op.id("PolisListSummaries")
+                        .tag("Tools")
+                        .summary("List previous Polis summaries for a step")
+                        .description(
+                            "Returns past wiki_poll_conversation_summary rows for the given \
+                             workflow step, newest first, paginated.",
+                        )
+                        .response::<200, Json<PaginatedResults<WikiPollConversationSummary>>>()
                 }),
             )
             .api_route(
@@ -659,6 +706,159 @@ async fn post_seed(
         StatusCode::CREATED,
         Json(PostSeedResponse { polis_statement_id }),
     ))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct RequestSummaryRequest {
+    pub workflow_step_id: Uuid,
+    pub context: Option<String>,
+    pub additional_instructions: Option<String>,
+    pub reading_age_target: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct RequestSummaryResponse {
+    pub job_id: Uuid,
+}
+
+/// Maps the live Polis report data into the shape the sensemaking describer
+/// expects, so the worker gets an exact, reproducible snapshot of what was
+/// summarized.
+fn wiki_poll_data_from_report(title: String, report: WikiPollReport) -> WikiPollData {
+    let statements = report
+        .comments
+        .into_iter()
+        .map(|comment| WikiPollStatement {
+            statement: comment.text,
+            total_votes: WikiPollVoteSummary {
+                agree: comment.overall_votes.agrees,
+                disagree: comment.overall_votes.disagrees,
+                pass: comment.overall_votes.passes,
+            },
+            group_votes: comment
+                .group_votes
+                .into_iter()
+                .map(|group| {
+                    (
+                        group.group_id.to_string(),
+                        WikiPollVoteSummary {
+                            agree: group.agrees,
+                            disagree: group.disagrees,
+                            pass: group.passes,
+                        },
+                    )
+                })
+                .collect::<HashMap<_, _>>(),
+        })
+        .collect();
+
+    WikiPollData { title, statements }
+}
+
+/// Fetches the current Polis report for a step and queues a background job
+/// that generates a summary with the sensemaking worker. Progress is tracked
+/// through the returned job id via the existing `GET /jobs/{job_id}`.
+#[instrument(err(Debug), skip(state))]
+async fn request_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Json(request): Json<RequestSummaryRequest>,
+) -> Result<(StatusCode, Json<RequestSummaryResponse>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
+    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let report = state
+        .wiki_poll_service
+        .get_report_data(&config.poll_id)
+        .await?;
+
+    let title = config.topic.clone().unwrap_or_default();
+    let poll_data = wiki_poll_data_from_report(title, report);
+
+    let created_job = models::job::create(
+        &state.db,
+        CreateJob {
+            step: Some("wiki_poll_summary".to_string()),
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    let worker_service = state.required_worker_service()?;
+    worker_service
+        .push_wiki_poll_summary_job(WikiPollSummaryJob {
+            job_id: created_job.id,
+            workflow_step_id: request.workflow_step_id,
+            context: request.context,
+            additional_instructions: request.additional_instructions,
+            reading_age_target: request.reading_age_target,
+            poll_data,
+        })
+        .await?;
+
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(RequestSummaryResponse {
+            job_id: created_job.id,
+        }),
+    ))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct SummaryQuery {
+    pub workflow_step_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_latest_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(SummaryQuery { workflow_step_id }): Query<SummaryQuery>,
+) -> Result<(StatusCode, Json<WikiPollConversationSummary>), ComhairleError> {
+    let summary = models::wikipoll_conversation_summary::get_latest_by_workflow_step_id(
+        &state.db,
+        &workflow_step_id,
+    )
+    .await?
+    .ok_or_else(|| ComhairleError::ResourceNotFound("Polis summary".into()))?;
+
+    Ok((StatusCode::OK, Json(summary)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct SummaryHistoryQuery {
+    pub workflow_step_id: Uuid,
+    #[serde(flatten)]
+    pub page: PageOptions,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_summaries(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(query): Query<SummaryHistoryQuery>,
+) -> Result<
+    (
+        StatusCode,
+        Json<PaginatedResults<WikiPollConversationSummary>>,
+    ),
+    ComhairleError,
+> {
+    let summaries = models::wikipoll_conversation_summary::list_by_workflow_step_id(
+        &state.db,
+        &query.workflow_step_id,
+        query.page,
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(summaries)))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -1727,6 +1927,129 @@ mod tests {
             ModerationStatus::Pending,
             "a forbidden request must not change any row"
         );
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn request_summary_queues_job_and_fetches_report_data(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::wiki_poll_service::polis_service::{
+            CommentReportData, VoteCounts, WikiPollReport,
+        };
+
+        let mut service = MockWikiPollService::new();
+        service
+            .expect_create_random_admin_user()
+            .returning(|| Box::pin(async { Ok(("u@mock.com".to_string(), "pw".to_string())) }));
+        service
+            .expect_login()
+            .returning(|_| Box::pin(async { Ok("cookie".to_string()) }));
+        service
+            .expect_create_poll()
+            .returning(|_| Box::pin(async { Ok("test_poll_id".to_string()) }));
+        service.expect_get_report_data().returning(|_| {
+            Box::pin(async {
+                Ok(WikiPollReport {
+                    comments: vec![CommentReportData {
+                        tid: 1,
+                        text: "a statement".into(),
+                        overall_votes: VoteCounts {
+                            agrees: 3,
+                            disagrees: 1,
+                            passes: 0,
+                        },
+                        group_votes: vec![],
+                        group_informed_consensus: None,
+                        divisiveness: None,
+                        is_seed: false,
+                    }],
+                    groups: vec![],
+                    participants: vec![],
+                })
+            })
+        });
+
+        let state = test_state()
+            .db(pool.clone())
+            .wiki_poll_service(Arc::new(service) as Arc<dyn WikiPollService>)
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let workflow_step_id = setup_polis_step(&app, &mut session).await?;
+
+        let (status, value, _) = session
+            .post(
+                &app,
+                "/tools/polis/summary",
+                json!({ "workflow_step_id": workflow_step_id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::ACCEPTED);
+        let response: RequestSummaryResponse = serde_json::from_value(value)?;
+
+        let job = models::job::get_id_id(&pool, &response.job_id).await?;
+        assert_eq!(job.step.as_deref(), Some("wiki_poll_summary"));
+        assert_eq!(job.status.as_deref(), Some("pending"));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn latest_summary_404s_until_one_exists_then_history_lists_it(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::wikipoll_conversation_summary::{
+            CreateWikiPollConversationSummary, create,
+        };
+
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut session).await?;
+
+        let (status, _, _) = session
+            .get(
+                &app,
+                &format!("/tools/polis/summary/latest?workflow_step_id={workflow_step_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::NOT_FOUND, "no summary exists yet");
+
+        create(
+            &pool,
+            &CreateWikiPollConversationSummary {
+                workflow_step_id,
+                job_id: None,
+                poll_data: json!({ "title": "t", "statements": [] }),
+                result: json!({ "consensus_description": "agreed on things" }),
+            },
+        )
+        .await?;
+
+        let (status, value, _) = session
+            .get(
+                &app,
+                &format!("/tools/polis/summary/latest?workflow_step_id={workflow_step_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let latest: WikiPollConversationSummary = serde_json::from_value(value)?;
+        assert_eq!(latest.workflow_step_id, workflow_step_id);
+
+        let (status, value, _) = session
+            .get(
+                &app,
+                &format!("/tools/polis/summary/history?workflow_step_id={workflow_step_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let history: PaginatedResults<WikiPollConversationSummary> = serde_json::from_value(value)?;
+        assert_eq!(history.total, 1);
+
         Ok(())
     }
 

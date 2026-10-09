@@ -23,6 +23,9 @@ pub enum WorkerServiceError {
     #[error("No categorization service configured")]
     NoCategorizationServiceError,
 
+    #[error("No sensemaker model configured")]
+    NoSensemakerModelConfigured,
+
     #[error("Serde json error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
@@ -64,7 +67,8 @@ impl Into<StatusCode> for &WorkerServiceError {
             | WorkerServiceError::NoTranscriptionServiceConfigured
             | WorkerServiceError::NoBulkStorageServiceConfigured
             | WorkerServiceError::NoBotServiceConfigured
-            | WorkerServiceError::NoCategorizationServiceError => StatusCode::SERVICE_UNAVAILABLE,
+            | WorkerServiceError::NoCategorizationServiceError
+            | WorkerServiceError::NoSensemakerModelConfigured => StatusCode::SERVICE_UNAVAILABLE,
 
             WorkerServiceError::SerdeJsonError(_)
             | WorkerServiceError::DbError(_)
