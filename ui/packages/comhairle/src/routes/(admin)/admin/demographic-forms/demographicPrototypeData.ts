@@ -3,6 +3,7 @@ export type QuestionKind =
 	| 'multiple_choice'
 	| 'number'
 	| 'date'
+	| 'date_split'
 	| 'open_text'
 	| 'postcode';
 
@@ -11,6 +12,7 @@ export const QUESTION_KIND_LABELS: Record<QuestionKind, string> = {
 	multiple_choice: 'Multiple choice',
 	number: 'Number',
 	date: 'Date (YYYY/MM/DD)',
+	date_split: 'Date (YYYY MM DD), spread',
 	open_text: 'Open text',
 	postcode: 'Postcode, by region'
 };
@@ -20,6 +22,7 @@ const DEFAULT_PLACEHOLDERS: Record<QuestionKind, string> = {
 	multiple_choice: '',
 	number: 'Enter a number',
 	date: 'YYYY/MM/DD',
+	date_split: '',
 	postcode: 'Enter your postcode',
 	open_text: 'Type your answer'
 };
@@ -29,6 +32,20 @@ export const selectionHint = (kind: QuestionKind, maxSelections: number | null) 
 	if (maxSelections === null) return 'Select all that apply';
 	return maxSelections === 1 ? 'Select one' : `Select up to ${maxSelections}`;
 };
+
+const INPUT_LABELS: Record<QuestionKind, string> = {
+	single_choice: '',
+	multiple_choice: '',
+	number: 'Number',
+	date: 'Date',
+	date_split: '',
+	postcode: 'Postcode',
+	open_text: 'Your answer'
+};
+
+/** The small label shown above a typed answer field. */
+export const inputLabel = (kind: QuestionKind, tags: string[] = []) =>
+	kind === 'number' && tags.includes('Age') ? 'Age' : INPUT_LABELS[kind];
 
 export const defaultPlaceholder = (kind: QuestionKind) => DEFAULT_PLACEHOLDERS[kind];
 
@@ -88,7 +105,13 @@ export type FormUsage = {
 export type FormQuestion = { questionId: string; required: boolean };
 
 /** What a published version of a form contained, kept so editors can look back at it. */
-export type FormVersion = { version: number; label: string; questions: FormQuestion[] };
+export type FormVersion = {
+	version: number;
+	label: string;
+	/** The form's name when this version was published. Falls back to the current name. */
+	name?: string;
+	questions: FormQuestion[];
+};
 
 export type DemographicForm = {
 	id: string;
@@ -247,7 +270,7 @@ const initialQuestions = (): DemographicQuestion[] => [
 		allowOther: true
 	}),
 	choice('q-birth-year', 'What is your year of birth?', ['Age'], [], { kind: 'date' }),
-	choice('q-birthday', 'What is your birthday?', ['Age'], [], { kind: 'date' }),
+	choice('q-birthday', 'What is your birthday?', ['Age'], [], { kind: 'date_split' }),
 	choice(
 		'q-ethnic-group',
 		'What is your ethnic group?',

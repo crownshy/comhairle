@@ -80,6 +80,8 @@
 	const viewedVersion = $derived(
 		viewing === 'draft' ? undefined : form.versions.find((v) => v.version === viewing)
 	);
+	// An older version shows the name it was published under.
+	const displayName = $derived(viewedVersion?.name ?? form.name);
 	const previewRows = $derived(viewedVersion ? toRows(viewedVersion.questions) : rows);
 	const hasDraftEdits = $derived(hasChanges || form.hasUnpublishedChanges);
 
@@ -200,10 +202,10 @@
 				? 'bg-primary/5'
 				: ''}"
 		>
-			<div class="-mx-2 flex min-h-0 flex-col gap-5 overflow-y-auto px-2">
+			<div class="-mx-3 -my-1 flex min-h-0 flex-col gap-5 overflow-y-auto px-3 py-1">
 				<Sheet.Header class="border-border gap-3 border-b p-0 pb-4">
 					<Sheet.Title class="sr-only">
-						{form.name.trim() || (isNew ? 'New form' : 'Form')}
+						{displayName.trim() || (isNew ? 'New form' : 'Form')}
 					</Sheet.Title>
 					<Sheet.Description class="sr-only">
 						Edit the form name and questions. Save a draft or publish a new version.
@@ -211,7 +213,8 @@
 					<Input
 						id="form-name"
 						aria-label="Form name"
-						bind:value={form.name}
+						value={displayName}
+						oninput={(event) => (form.name = event.currentTarget.value)}
 						placeholder="Name this form"
 						disabled={!!viewedVersion}
 						class="placeholder:text-muted-foreground hover:border-input focus-visible:border-ring -mx-2 h-auto border-transparent bg-transparent px-2 py-1 text-2xl font-semibold shadow-none md:text-2xl"
@@ -452,14 +455,14 @@
 					{/if}
 				</div>
 
-				{#if !isNew}
+				{#if !isNew && conversationCount(form) > 0}
 					<VersionUsage
 						{form}
 						viewing={viewedVersion ? viewedVersion.version : 'draft'}
 					/>
 				{/if}
 
-				<div class="mt-auto flex flex-col gap-1">
+				<div class="mt-auto flex items-center gap-2">
 					<span class="text-base font-semibold">Created by</span>
 					<CreatedBy name={form.createdBy} />
 				</div>
@@ -504,17 +507,15 @@
 				{/snippet}
 				<div class="min-h-0 flex-1">
 					<div class="flex h-full min-h-0 flex-col gap-3">
-						<div class="flex items-center justify-between gap-3">
-							<span class="text-muted-foreground text-base">
-								{viewedVersion
-									? `Trying v${viewedVersion.version} as a participant.`
-									: 'Try it as a participant. Nothing is saved.'}
-							</span>
+						<div class="flex items-center justify-end gap-3">
 							<Button variant="outline" size="sm" onclick={resetTest}>
 								<RotateCcw class="size-4" />Reset answers
 							</Button>
 						</div>
 						<PhonePreview
+							note={viewedVersion
+								? `Trying v${viewedVersion.version} as a participant.`
+								: 'Try it as a participant. Nothing is saved.'}
 							step={finished ? Math.max(previewRows.length, 1) : previewIndex + 1}
 							steps={Math.max(previewRows.length, 1)}
 							showNext={!finished}
