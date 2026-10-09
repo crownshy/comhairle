@@ -371,5 +371,14 @@
 	"step_chrome_conversation_home": "د خبرو اترو پاڼې ته بېرته",
 	"conversation_preview_badge": "مخکتنه",
 	"theme_light_mode": "روښانه حالت",
-	"theme_dark_mode": "تیاره حالت"
+	"theme_dark_mode": "تیاره حالت",
+	"polis_votes_counted": "تاسو په {count} نظرونو رایه ورکړې",
+	"polis_votes_counted_one": "تاسو په {count} نظر رایه ورکړې",
+	"polis_continue_prompt_body": "تر اوسه ستاسو ټولې رایې خوندي شوې دي. څومره چې غواړئ دوام ورکړئ، یا کله چې چمتو یاست راتلونکی کېکاږئ.",
+	"polis_nothing_left_to_vote_on": "ستاسو ټولې رایې خوندي شوې، او اوس د رایې ورکولو لپاره نور نظرونه نشته. د دوام لپاره راتلونکی کېکاږئ.",
+	"polis_keep_voting": "رایه ورکول جاري وساتئ",
+	"polis_keep_voting_hint": "د رایې لپاره {count} نور نظرونه",
+	"polis_keep_voting_hint_one": "د رایې لپاره {count} بل نظر",
+	"polis_vote_one_more_to_continue": "د دوام لپاره په ۱ بل نظر رایه ورکړئ.",
+	"polis_vote_more_to_continue": "د دوام لپاره په {count} نورو نظرونو رایه ورکړئ."
 }

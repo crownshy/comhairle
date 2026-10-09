@@ -376,5 +376,14 @@
 	"step_chrome_conversation_home": "بازگشت به صفحهٔ گفت‌وگو",
 	"conversation_preview_badge": "پیش‌نمایش",
 	"theme_light_mode": "حالت روشن",
-	"theme_dark_mode": "حالت تیره"
+	"theme_dark_mode": "حالت تیره",
+	"polis_votes_counted": "به {count} دیدگاه رأی داده‌اید",
+	"polis_votes_counted_one": "به {count} دیدگاه رأی داده‌اید",
+	"polis_continue_prompt_body": "همهٔ رأی‌های شما تا اینجا ذخیره شده است. هر قدر که بخواهید ادامه دهید، یا هر وقت آماده بودید بعدی را بزنید.",
+	"polis_nothing_left_to_vote_on": "همهٔ رأی‌های شما ذخیره شده و فعلاً دیدگاهی برای رأی دادن باقی نمانده است. برای ادامه، بعدی را بزنید.",
+	"polis_keep_voting": "ادامهٔ رأی‌دادن",
+	"polis_keep_voting_hint": "{count} دیدگاه دیگر برای رأی دادن",
+	"polis_keep_voting_hint_one": "{count} دیدگاه دیگر برای رأی دادن",
+	"polis_vote_one_more_to_continue": "برای ادامه به ۱ دیدگاه دیگر رأی دهید.",
+	"polis_vote_more_to_continue": "برای ادامه به {count} دیدگاه دیگر رأی دهید."
 }
