@@ -36,6 +36,8 @@
 		onDelete: () => void;
 		/** How many forms currently include this question */
 		usedInForms: number;
+		/** Names of the forms that include this question */
+		usedInFormNames: string[];
 		onClose: () => void;
 	};
 
@@ -48,6 +50,7 @@
 		onSaveAsNew,
 		onDelete,
 		usedInForms,
+		usedInFormNames,
 		onClose
 	}: Props = $props();
 
@@ -57,6 +60,7 @@
 
 	let previewAnswer = $state(emptyAnswer());
 	let previewConsent = $state(false);
+	let confirmOpen = $state(false);
 	let highlightConsent = $state(untrack(() => focusConsent));
 
 	$effect(() => {
@@ -71,8 +75,16 @@
 
 	const kinds = Object.keys(QUESTION_KIND_LABELS) as QuestionKind[];
 	const unusedTags = $derived(TAG_OPTIONS.filter((tag) => !draft.tags.includes(tag)));
-	const title = $derived(isNew ? 'Create a new question' : 'Edit question');
 	const saveLabel = $derived(addsToForm ? 'Save and add to form' : 'Save');
+
+	// Editing a question that other forms already use affects all of them, so ask first.
+	function handleSave() {
+		if (!isNew && hasChanges && usedInFormNames.length > 0) {
+			confirmOpen = true;
+			return;
+		}
+		onSave($state.snapshot(draft));
+	}
 
 	function setMaxSelections(event: Event & { currentTarget: HTMLInputElement }) {
 		const value = Number.parseInt(event.currentTarget.value, 10);
@@ -87,15 +99,18 @@
 </script>
 
 <Sheet.Root open onOpenChange={(open) => !open && onClose()}>
-	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem]">
+	<Sheet.Content
+		side="right"
+		class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem] [&>button.absolute]:hidden"
+	>
 		<div class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
 			<div class="-mx-2 flex min-h-0 flex-col gap-6 overflow-y-auto px-2">
-				<Sheet.Header class="border-border border-b p-0 pb-4">
-					<Sheet.Title class="text-2xl font-semibold">{title}</Sheet.Title>
-					<Sheet.Description>
-						{isNew
-							? 'Add a new question to your question bank.'
-							: 'Changes apply to every form that uses this question.'}
+				<Sheet.Header class="border-border gap-1 border-b p-0 pb-4">
+					<Sheet.Title class="line-clamp-3 text-2xl font-semibold">
+						{draft.text.trim() || 'New question'}
+					</Sheet.Title>
+					<Sheet.Description class="sr-only">
+						Edit the question settings. Changes apply to every form that uses it.
 					</Sheet.Description>
 				</Sheet.Header>
 
@@ -361,12 +376,34 @@
 					Save to new question
 				</Button>
 			{/if}
-			<Button
-				disabled={draft.text.trim() === ''}
-				onclick={() => onSave($state.snapshot(draft))}
-			>
+			<Button disabled={draft.text.trim() === ''} onclick={handleSave}>
 				{saveLabel}
 			</Button>
 		</Sheet.Footer>
 	</Sheet.Content>
 </Sheet.Root>
+
+<AlertDialog.Root bind:open={confirmOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>
+				This question is used in {usedInFormNames.length}
+				{usedInFormNames.length === 1 ? 'form' : 'forms'}
+			</AlertDialog.Title>
+			<AlertDialog.Description>
+				Saving your changes updates it in {usedInFormNames.join(', ')}. Published forms will
+				show unpublished changes until you publish them again. To change it for one form
+				only, save it as a new question instead.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<Button variant="outline" onclick={() => onSaveAsNew($state.snapshot(draft))}>
+				Save as new question
+			</Button>
+			<AlertDialog.Action onclick={() => onSave($state.snapshot(draft))}>
+				Save and update {usedInFormNames.length === 1 ? 'the form' : 'all forms'}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

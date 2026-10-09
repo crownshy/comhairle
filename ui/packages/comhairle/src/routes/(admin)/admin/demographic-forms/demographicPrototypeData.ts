@@ -87,6 +87,9 @@ export type FormUsage = {
 
 export type FormQuestion = { questionId: string; required: boolean };
 
+/** What a published version of a form contained, kept so editors can look back at it. */
+export type FormVersion = { version: number; label: string; questions: FormQuestion[] };
+
 export type DemographicForm = {
 	id: string;
 	name: string;
@@ -99,6 +102,8 @@ export type DemographicForm = {
 	hasUnpublishedChanges: boolean;
 	isNewlyCreated: boolean;
 	questions: FormQuestion[];
+	/** Published versions, newest first. Empty until the first publish. */
+	versions: FormVersion[];
 };
 
 export const isChoiceKind = (kind: QuestionKind) =>
@@ -106,10 +111,30 @@ export const isChoiceKind = (kind: QuestionKind) =>
 
 const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 
+// Short two-digit references (F-01, Q-07) handed out in creation order. The real build would
+// use the real id or a database sequence.
+const refs = new Map<string, number>();
+const nextRef = { F: 1, Q: 1 };
+
+const assignRef = (prefix: 'F' | 'Q', id: string) => {
+	if (!refs.has(id)) refs.set(id, nextRef[prefix]++);
+};
+
+const newRefId = (prefix: 'F' | 'Q', idPrefix: string) => {
+	const id = newId(idPrefix);
+	assignRef(prefix, id);
+	return id;
+};
+
+export const shortId = (prefix: 'F' | 'Q', id: string) => {
+	assignRef(prefix, id);
+	return `${prefix}-${String(refs.get(id)).padStart(2, '0')}`;
+};
+
 export const DEFAULT_CONSENT_TEXT = 'I consent to the collection of this information about me.';
 
 export const blankQuestion = (): DemographicQuestion => ({
-	id: newId('q'),
+	id: newRefId('Q', 'q'),
 	text: '',
 	description: '',
 	kind: 'single_choice',
@@ -124,7 +149,7 @@ export const blankQuestion = (): DemographicQuestion => ({
 });
 
 export const blankForm = (): DemographicForm => ({
-	id: newId('f'),
+	id: newRefId('F', 'f'),
 	name: '',
 	country: 'Scotland',
 	status: 'draft',
@@ -134,7 +159,8 @@ export const blankForm = (): DemographicForm => ({
 	usage: [],
 	hasUnpublishedChanges: false,
 	isNewlyCreated: false,
-	questions: []
+	questions: [],
+	versions: []
 });
 
 export const conversationCount = (form: DemographicForm) => form.usage.length;
@@ -215,7 +241,7 @@ const choice = (
 	...extra
 });
 
-export const createInitialQuestions = (): DemographicQuestion[] => [
+const initialQuestions = (): DemographicQuestion[] => [
 	choice('q-age', 'What is your age?', ['Age'], [], { kind: 'number' }),
 	choice('q-gender', 'What is your gender?', ['Gender'], ['Woman', 'Man', 'Non-binary'], {
 		allowOther: true
@@ -257,7 +283,7 @@ export const createInitialQuestions = (): DemographicQuestion[] => [
 const formQuestions = (ids: string[], required: string[] = []): FormQuestion[] =>
 	ids.map((questionId) => ({ questionId, required: required.includes(questionId) }));
 
-export const createInitialForms = (): DemographicForm[] => [
+const initialForms = (): DemographicForm[] => [
 	{
 		id: 'f-standard',
 		name: 'Standard Demographic form',
@@ -294,7 +320,22 @@ export const createInitialForms = (): DemographicForm[] => [
 		],
 		hasUnpublishedChanges: false,
 		isNewlyCreated: false,
-		questions: formQuestions(['q-age', 'q-gender', 'q-birthday', 'q-postcode'], ['q-age'])
+		questions: formQuestions(['q-age', 'q-gender', 'q-birthday', 'q-postcode'], ['q-age']),
+		versions: [
+			{
+				version: 2,
+				label: 'Published 28 Sep by Andy',
+				questions: formQuestions(
+					['q-age', 'q-gender', 'q-birthday', 'q-postcode'],
+					['q-age']
+				)
+			},
+			{
+				version: 1,
+				label: 'Published 14 Sep by Andy',
+				questions: formQuestions(['q-age', 'q-gender', 'q-postcode'], ['q-age'])
+			}
+		]
 	},
 	{
 		id: 'f-social-prescribing',
@@ -322,7 +363,32 @@ export const createInitialForms = (): DemographicForm[] => [
 			'q-employment',
 			'q-housing',
 			'q-caring'
-		])
+		]),
+		versions: [
+			{
+				version: 2,
+				label: 'Published 2 Oct by Andy',
+				questions: formQuestions(
+					[
+						'q-age',
+						'q-gender',
+						'q-ethnic-group',
+						'q-postcode',
+						'q-employment',
+						'q-housing'
+					],
+					['q-age']
+				)
+			},
+			{
+				version: 1,
+				label: 'Published 20 Sep by Andy',
+				questions: formQuestions(
+					['q-age', 'q-gender', 'q-postcode', 'q-employment'],
+					['q-age']
+				)
+			}
+		]
 	},
 	{
 		id: 'f-youth',
@@ -335,6 +401,27 @@ export const createInitialForms = (): DemographicForm[] => [
 		usage: [],
 		hasUnpublishedChanges: false,
 		isNewlyCreated: false,
-		questions: formQuestions(['q-age', 'q-gender', 'q-postcode', 'q-employment'])
+		questions: formQuestions(['q-age', 'q-gender', 'q-postcode', 'q-employment']),
+		versions: []
 	}
 ];
+
+/** Conversations that currently run this exact version of the form. */
+export const usageForVersion = (form: DemographicForm, version: number) =>
+	form.usage.filter((usage) => versionInUse(form, usage) === version);
+
+/** Conversations that would pick up the next publish: the ones that follow latest. */
+export const usageFollowingLatest = (form: DemographicForm) =>
+	form.usage.filter((usage) => usage.pinnedVersion === null);
+
+export const createInitialQuestions = (): DemographicQuestion[] => {
+	const list = initialQuestions();
+	list.forEach((question) => assignRef('Q', question.id));
+	return list;
+};
+
+export const createInitialForms = (): DemographicForm[] => {
+	const list = initialForms();
+	list.forEach((form) => assignRef('F', form.id));
+	return list;
+};

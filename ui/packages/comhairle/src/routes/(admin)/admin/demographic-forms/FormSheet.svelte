@@ -20,16 +20,17 @@
 	import PublishDialog from './PublishDialog.svelte';
 	import ConsentCheck from './ConsentCheck.svelte';
 	import CreatedBy from './CreatedBy.svelte';
-	import FormUsagePanel from './FormUsagePanel.svelte';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import VersionUsage from './VersionUsage.svelte';
 	import PhonePreview from './PhonePreview.svelte';
 	import QuestionAnswers from './QuestionAnswers.svelte';
 	import {
 		conversationCount,
 		COUNTRY_FLAGS,
 		COUNTRY_OPTIONS,
+		usageForVersion,
 		type DemographicForm,
-		type DemographicQuestion
+		type DemographicQuestion,
+		type FormQuestion
 	} from './demographicPrototypeData';
 
 	type Props = {
@@ -58,7 +59,6 @@
 		onClose
 	}: Props = $props();
 
-	let rightTab = $state('preview');
 	let addOpen = $state(false);
 	let publishOpen = $state(false);
 	let consents = $state<Record<string, boolean>>({});
@@ -67,19 +67,29 @@
 	let finished = $state(false);
 	let moveNote = $state('');
 
-	const rows = $derived(
-		form.questions.flatMap((formQuestion) => {
+	const toRows = (list: FormQuestion[]) =>
+		list.flatMap((formQuestion) => {
 			const question = questions.find((q) => q.id === formQuestion.questionId);
 			return question ? [{ id: question.id, question, required: formQuestion.required }] : [];
-		})
+		});
+
+	const rows = $derived(toRows(form.questions));
+
+	// The preview shows the working draft by default, or any published version (read-only).
+	let viewing = $state<'draft' | number>('draft');
+	const viewedVersion = $derived(
+		viewing === 'draft' ? undefined : form.versions.find((v) => v.version === viewing)
 	);
+	const previewRows = $derived(viewedVersion ? toRows(viewedVersion.questions) : rows);
+	const hasDraftEdits = $derived(hasChanges || form.hasUnpublishedChanges);
+
 	const previewIndex = $derived(
 		Math.max(
 			0,
-			rows.findIndex((row) => row.question.id === previewId)
+			previewRows.findIndex((row) => row.question.id === previewId)
 		)
 	);
-	const preview = $derived(rows[previewIndex]?.question);
+	const preview = $derived(previewRows[previewIndex]?.question);
 
 	const consentMissing = $derived(
 		!!preview?.specialCategory &&
@@ -87,14 +97,14 @@
 			!answers[preview.id]?.selected.includes(PREFER_NOT_TO_SAY)
 	);
 
-	const isLast = $derived(previewIndex >= rows.length - 1);
+	const isLast = $derived(previewIndex >= previewRows.length - 1);
 	const requiredMissing = $derived(
 		!!preview &&
-			(rows[previewIndex]?.required ?? false) &&
+			(previewRows[previewIndex]?.required ?? false) &&
 			!isAnswered(answers[preview.id] ?? emptyAnswer())
 	);
 	const results = $derived(
-		rows.map((row) => ({
+		previewRows.map((row) => ({
 			id: row.id,
 			text: row.question.text,
 			required: row.required,
@@ -106,7 +116,25 @@
 		answers = {};
 		consents = {};
 		finished = false;
-		previewId = rows[0]?.question.id ?? null;
+		previewId = previewRows[0]?.question.id ?? null;
+	}
+
+	const draftLabel = $derived(
+		hasDraftEdits ? 'Draft (unpublished changes)' : `Current draft (v${form.version})`
+	);
+	const versionLabel = (version: number) => {
+		const count = usageForVersion(form, version).length;
+		return `v${version}${version === form.version ? ' (latest)' : ''} · ${count} ${count === 1 ? 'conversation' : 'conversations'}`;
+	};
+
+	function viewVersion(value: string) {
+		viewing = value === 'draft' ? 'draft' : Number(value);
+		resetTest();
+	}
+
+	function selectQuestion(id: string) {
+		finished = false;
+		previewId = id;
 	}
 
 	function advance() {
@@ -137,7 +165,7 @@
 	}
 
 	function showNextQuestion() {
-		const next = rows[previewIndex + 1];
+		const next = previewRows[previewIndex + 1];
 		if (next) previewId = next.question.id;
 	}
 
@@ -163,27 +191,85 @@
 </script>
 
 <Sheet.Root open onOpenChange={(open) => !open && onClose()}>
-	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem]">
-		<div class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
+	<Sheet.Content
+		side="right"
+		class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem] [&>button.absolute]:hidden"
+	>
+		<div
+			class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr] {viewedVersion
+				? 'bg-primary/5'
+				: ''}"
+		>
 			<div class="-mx-2 flex min-h-0 flex-col gap-5 overflow-y-auto px-2">
-				<Sheet.Header class="border-border border-b p-0 pb-4">
-					<Sheet.Title class="text-2xl font-semibold">
-						{isNew ? 'Create form' : 'Edit form'}
+				<Sheet.Header class="border-border gap-3 border-b p-0 pb-4">
+					<Sheet.Title class="sr-only">
+						{form.name.trim() || (isNew ? 'New form' : 'Form')}
 					</Sheet.Title>
-					<Sheet.Description>
-						{isNew ? 'Create a form' : 'Update this form'}
+					<Sheet.Description class="sr-only">
+						Edit the form name and questions. Save a draft or publish a new version.
 					</Sheet.Description>
+					<Input
+						id="form-name"
+						aria-label="Form name"
+						bind:value={form.name}
+						placeholder="Name this form"
+						disabled={!!viewedVersion}
+						class="placeholder:text-muted-foreground hover:border-input focus-visible:border-ring -mx-2 h-auto border-transparent bg-transparent px-2 py-1 text-2xl font-semibold shadow-none md:text-2xl"
+					/>
+					{#if form.versions.length > 0}
+						<Select.Root
+							type="single"
+							value={viewedVersion ? String(viewedVersion.version) : 'draft'}
+							onValueChange={viewVersion}
+						>
+							<Select.Trigger
+								size="sm"
+								aria-label="Version"
+								class="w-fit max-w-full text-sm font-medium {viewedVersion
+									? 'bg-primary text-primary-foreground border-primary [&_svg]:text-primary-foreground'
+									: 'bg-primary/15 border-primary/30'}"
+							>
+								<span class="truncate">
+									{viewedVersion
+										? versionLabel(viewedVersion.version)
+										: draftLabel}
+								</span>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="draft" label={draftLabel}>
+									{draftLabel}
+								</Select.Item>
+								{#each form.versions as version (version.version)}
+									<Select.Item
+										value={String(version.version)}
+										label={versionLabel(version.version)}
+									>
+										{versionLabel(version.version)}
+									</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						{#if viewedVersion}
+							<p class="text-muted-foreground text-sm">
+								Read-only. {viewedVersion.label}. Question wording shown is the
+								current wording.
+								<Button
+									variant="link"
+									class="h-auto p-0 text-sm"
+									onclick={() => viewVersion('draft')}
+								>
+									Back to draft
+								</Button>
+							</p>
+						{/if}
+					{/if}
 				</Sheet.Header>
-
-				<div class="flex flex-col gap-2">
-					<Label for="form-name" class="text-base">Form name</Label>
-					<Input id="form-name" bind:value={form.name} placeholder="Name this form" />
-				</div>
 
 				<div class="flex flex-col gap-2">
 					<Label for="form-country" class="text-base">Country</Label>
 					<Select.Root
 						type="single"
+						disabled={!!viewedVersion}
 						value={form.country}
 						onValueChange={(value) => (form.country = value)}
 					>
@@ -205,35 +291,30 @@
 				</div>
 
 				<div class="border-border flex flex-col gap-3 border-t pt-4">
-					<h3 class="text-base font-semibold">Questions in this form</h3>
-					{#if rows.length === 0}
-						<p class="text-muted-foreground text-base">No questions yet.</p>
-					{/if}
-					<p class="sr-only" role="status" aria-live="polite">{moveNote}</p>
-					<DraggableList
-						items={dragRows ?? rows}
-						onReorder={reorderWhileDragging}
-						onCommit={commitReorder}
-						class="flex flex-col gap-2"
-					>
-						{#snippet children(row, index)}
-							<div
-								class="bg-card rounded-lg border {index === previewIndex
-									? 'border-primary'
-									: 'border-border'}"
-							>
-								<div class="flex items-center gap-2 py-1 pr-1 pl-3">
+					<h3 class="text-base font-semibold">
+						Questions in {viewedVersion ? `v${viewedVersion.version}` : 'this form'}
+					</h3>
+					{#if viewedVersion}
+						<ul class="flex flex-col gap-2">
+							{#each previewRows as row, index (row.id)}
+								<li
+									class="bg-card rounded-lg border {index === previewIndex
+										? 'border-primary'
+										: 'border-border'}"
+								>
 									<button
 										type="button"
-										class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left"
-										onclick={() => (previewId = row.question.id)}
+										class="flex w-full items-center gap-2 px-3 py-3 text-left"
+										onclick={() => selectQuestion(row.question.id)}
 									>
 										<span
 											class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
 										>
 											{index + 1}
 										</span>
-										<span class="truncate text-base">{row.question.text}</span>
+										<span class="min-w-0 flex-1 truncate text-base">
+											{row.question.text}
+										</span>
 										{#if row.required}
 											<span
 												class="text-destructive font-semibold"
@@ -241,89 +322,149 @@
 											>
 											<span class="sr-only">Required</span>
 										{/if}
+										{#if row.question.tags[0]}
+											<TagBadge tag={row.question.tags[0]} class="shrink-0" />
+										{/if}
 									</button>
-									{#if row.question.tags[0]}
-										<TagBadge tag={row.question.tags[0]} class="shrink-0" />
+									{#if row.question.specialCategory}
+										<div class="pr-3 pb-2 pl-11">
+											<TagBadge tag="Special category" />
+										</div>
 									{/if}
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger
-											class={buttonVariants({
-												variant: 'ghost',
-												size: 'icon'
-											})}
-											aria-label={`Actions for ${row.question.text}`}
+								</li>
+							{/each}
+						</ul>
+					{:else}
+						{#if rows.length === 0}
+							<p class="text-muted-foreground text-base">No questions yet.</p>
+						{/if}
+						<p class="sr-only" role="status" aria-live="polite">{moveNote}</p>
+						<DraggableList
+							items={dragRows ?? rows}
+							onReorder={reorderWhileDragging}
+							onCommit={commitReorder}
+							class="flex flex-col gap-2"
+						>
+							{#snippet children(row, index)}
+								<div
+									class="bg-card rounded-lg border {!viewedVersion &&
+									index === previewIndex
+										? 'border-primary'
+										: 'border-border'}"
+								>
+									<div class="flex items-center gap-2 py-1 pr-1 pl-3">
+										<button
+											type="button"
+											class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left"
+											onclick={() => selectQuestion(row.question.id)}
 										>
-											<EllipsisVertical class="size-4" />
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end" class="w-52">
-											<DropdownMenu.Item
-												onSelect={() => toggleRequired(index)}
+											<span
+												class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
 											>
-												{row.required
-													? 'Set to optional'
-													: 'Set to required'}
-											</DropdownMenu.Item>
-											<DropdownMenu.Item
-												onSelect={() => onEditQuestion(row.question.id)}
+												{index + 1}
+											</span>
+											<span class="truncate text-base"
+												>{row.question.text}</span
 											>
-												Edit question
-											</DropdownMenu.Item>
-											{#if row.question.specialCategory}
-												<DropdownMenu.Item
-													onSelect={() =>
-														onEditQuestion(row.question.id, true)}
+											{#if row.required}
+												<span
+													class="text-destructive font-semibold"
+													title="Required">*</span
 												>
-													Edit consent wording
-												</DropdownMenu.Item>
+												<span class="sr-only">Required</span>
 											{/if}
-											<DropdownMenu.Item
-												disabled={index === 0}
-												onSelect={() => move(index, -1)}
+										</button>
+										{#if row.question.tags[0]}
+											<TagBadge tag={row.question.tags[0]} class="shrink-0" />
+										{/if}
+										<DropdownMenu.Root>
+											<DropdownMenu.Trigger
+												class={buttonVariants({
+													variant: 'ghost',
+													size: 'icon'
+												})}
+												aria-label={`Actions for ${row.question.text}`}
 											>
-												Move up
-											</DropdownMenu.Item>
-											<DropdownMenu.Item
-												disabled={index === rows.length - 1}
-												onSelect={() => move(index, 1)}
-											>
-												Move down
-											</DropdownMenu.Item>
-											<DropdownMenu.Separator />
-											<DropdownMenu.Item
-												class="text-destructive"
-												onSelect={() => form.questions.splice(index, 1)}
-											>
-												Remove from form
-											</DropdownMenu.Item>
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
-								</div>
-								{#if row.question.specialCategory}
-									<div class="flex items-center gap-2 pr-3 pb-2 pl-11">
-										<TagBadge tag="Special category" />
-										<Button
-											variant="link"
-											class="h-auto p-0 text-sm"
-											onclick={() => onEditQuestion(row.question.id, true)}
-										>
-											Edit consent
-										</Button>
+												<EllipsisVertical class="size-4" />
+											</DropdownMenu.Trigger>
+											<DropdownMenu.Content align="end" class="w-52">
+												<DropdownMenu.Item
+													onSelect={() => toggleRequired(index)}
+												>
+													{row.required
+														? 'Set to optional'
+														: 'Set to required'}
+												</DropdownMenu.Item>
+												<DropdownMenu.Item
+													onSelect={() => onEditQuestion(row.question.id)}
+												>
+													Edit question
+												</DropdownMenu.Item>
+												{#if row.question.specialCategory}
+													<DropdownMenu.Item
+														onSelect={() =>
+															onEditQuestion(row.question.id, true)}
+													>
+														Edit consent wording
+													</DropdownMenu.Item>
+												{/if}
+												<DropdownMenu.Item
+													disabled={index === 0}
+													onSelect={() => move(index, -1)}
+												>
+													Move up
+												</DropdownMenu.Item>
+												<DropdownMenu.Item
+													disabled={index === rows.length - 1}
+													onSelect={() => move(index, 1)}
+												>
+													Move down
+												</DropdownMenu.Item>
+												<DropdownMenu.Separator />
+												<DropdownMenu.Item
+													class="text-destructive"
+													onSelect={() => form.questions.splice(index, 1)}
+												>
+													Remove from form
+												</DropdownMenu.Item>
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
 									</div>
-								{/if}
-							</div>
-						{/snippet}
-					</DraggableList>
-					<Button onclick={() => (addOpen = true)}
-						><Plus class="size-4" />Add question</Button
-					>
+									{#if row.question.specialCategory}
+										<div class="flex items-center gap-2 pr-3 pb-2 pl-11">
+											<TagBadge tag="Special category" />
+											<Button
+												variant="link"
+												class="h-auto p-0 text-sm"
+												onclick={() =>
+													onEditQuestion(row.question.id, true)}
+											>
+												Edit consent
+											</Button>
+										</div>
+									{/if}
+								</div>
+							{/snippet}
+						</DraggableList>
+						<Button onclick={() => (addOpen = true)}
+							><Plus class="size-4" />Add question</Button
+						>
+					{/if}
 				</div>
+
+				{#if !isNew}
+					<VersionUsage
+						{form}
+						viewing={viewedVersion ? viewedVersion.version : 'draft'}
+					/>
+				{/if}
 
 				<div class="mt-auto flex flex-col gap-1">
 					<span class="text-base font-semibold">Created by</span>
 					<CreatedBy name={form.createdBy} />
 				</div>
 
-				{#if !isNew}
+				{#if !isNew && !viewedVersion}
 					<AlertDialog.Root>
 						<AlertDialog.Trigger
 							class={buttonVariants({ variant: 'destructiveOutline' })}
@@ -350,11 +491,7 @@
 				{/if}
 			</div>
 
-			<Tabs.Root bind:value={rightTab} class="flex h-full min-h-0 flex-col gap-3">
-				<Tabs.List class="self-start">
-					<Tabs.Trigger value="preview">Preview</Tabs.Trigger>
-					<Tabs.Trigger value="usage">Used in ({conversationCount(form)})</Tabs.Trigger>
-				</Tabs.List>
+			<div class="flex h-full min-h-0 flex-col gap-3">
 				{#snippet consentFooter()}
 					{#if preview}
 						<ConsentCheck
@@ -365,19 +502,21 @@
 						/>
 					{/if}
 				{/snippet}
-				<Tabs.Content value="preview" class="min-h-0 flex-1">
+				<div class="min-h-0 flex-1">
 					<div class="flex h-full min-h-0 flex-col gap-3">
 						<div class="flex items-center justify-between gap-3">
 							<span class="text-muted-foreground text-base">
-								Try it as a participant. Nothing is saved.
+								{viewedVersion
+									? `Trying v${viewedVersion.version} as a participant.`
+									: 'Try it as a participant. Nothing is saved.'}
 							</span>
 							<Button variant="outline" size="sm" onclick={resetTest}>
 								<RotateCcw class="size-4" />Reset answers
 							</Button>
 						</div>
 						<PhonePreview
-							step={finished ? Math.max(rows.length, 1) : previewIndex + 1}
-							steps={Math.max(rows.length, 1)}
+							step={finished ? Math.max(previewRows.length, 1) : previewIndex + 1}
+							steps={Math.max(previewRows.length, 1)}
 							showNext={!finished}
 							onNext={advance}
 							nextLabel={isLast ? 'Finish test' : 'Next'}
@@ -421,25 +560,30 @@
 							{/if}
 						</PhonePreview>
 					</div>
-				</Tabs.Content>
-				<Tabs.Content value="usage" class="min-h-0 flex-1">
-					<FormUsagePanel {form} hasUnsavedChanges={hasChanges && !isNew} />
-				</Tabs.Content>
-			</Tabs.Root>
+				</div>
+			</div>
 		</div>
 
 		<Sheet.Footer
 			class="border-border flex-row flex-wrap items-center justify-end gap-2 border-t px-6 py-4"
 		>
 			<span class="text-muted-foreground mr-auto text-sm">
-				{#if form.hasUnpublishedChanges}Unpublished changes saved as draft.
-				{/if}Publishing creates v{form.version + 1}
+				{#if viewedVersion}Viewing v{viewedVersion.version}. Go back to the draft to save or
+					publish.{:else}{#if form.hasUnpublishedChanges}Unpublished changes saved as
+						draft.
+					{/if}Publishing creates v{form.version + 1}{/if}
 			</span>
 			<Button variant="outline" onclick={onClose}>Cancel</Button>
-			<Button variant="outline" disabled={!hasName || !hasChanges} onclick={onSaveDraft}>
+			<Button
+				variant="outline"
+				disabled={!hasName || !hasChanges || !!viewedVersion}
+				onclick={onSaveDraft}
+			>
 				Save draft
 			</Button>
-			<Button disabled={!canPublish} onclick={() => (publishOpen = true)}>Publish</Button>
+			<Button disabled={!canPublish || !!viewedVersion} onclick={() => (publishOpen = true)}
+				>Publish</Button
+			>
 		</Sheet.Footer>
 	</Sheet.Content>
 </Sheet.Root>

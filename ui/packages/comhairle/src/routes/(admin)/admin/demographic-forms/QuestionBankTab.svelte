@@ -7,6 +7,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import {
 		QUESTION_KIND_LABELS,
+		shortId,
 		usedInFormsCount,
 		type DemographicForm,
 		type DemographicQuestion
@@ -96,6 +97,7 @@
 		<Table.Root>
 			<Table.Header class="bg-muted">
 				<Table.Row>
+					<Table.Head>ID</Table.Head>
 					<Table.Head>Question</Table.Head>
 					<Table.Head>Question type</Table.Head>
 					<Table.Head>Used in forms</Table.Head>
@@ -111,6 +113,9 @@
 							? 'bg-primary/15 hover:bg-primary/15'
 							: ''}
 					>
+						<Table.Cell class="text-muted-foreground font-mono text-sm leading-8">
+							{shortId('Q', question.id)}
+						</Table.Cell>
 						<Table.Cell class="text-base leading-8 font-medium"
 							>{question.text}</Table.Cell
 						>

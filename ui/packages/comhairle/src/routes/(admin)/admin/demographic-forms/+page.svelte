@@ -5,6 +5,7 @@
 	import FormsTab from './FormsTab.svelte';
 	import QuestionBankTab from './QuestionBankTab.svelte';
 	import QuestionSheet from './QuestionSheet.svelte';
+	import { createStarterForm, createStarterQuestions } from './starterSet';
 	import {
 		blankForm,
 		blankQuestion,
@@ -24,6 +25,9 @@
 	};
 
 	let tab = $state('forms');
+
+	// Prototype only: lets you show the app with sample data or as a brand new organisation.
+	let dataState = $state<'sample' | 'new'>('sample');
 	let forms = $state<DemographicForm[]>(createInitialForms());
 	let questions = $state<DemographicQuestion[]>(createInitialQuestions());
 	let formEdit = $state<{
@@ -34,6 +38,17 @@
 	let questionEdit = $state<QuestionEdit | null>(null);
 	// Id of the row added most recently. Shown highlighted until the next thing the user does.
 	let highlightId = $state<string | null>(null);
+
+	function setDataState(next: 'sample' | 'new') {
+		if (next === dataState) return;
+		dataState = next;
+		forms = next === 'sample' ? createInitialForms() : [createStarterForm()];
+		questions = next === 'sample' ? createInitialQuestions() : createStarterQuestions();
+		formEdit = null;
+		questionEdit = null;
+		highlightId = null;
+		tab = 'forms';
+	}
 
 	function clearHighlight() {
 		highlightId = null;
@@ -69,6 +84,7 @@
 			version: 0,
 			hasUnpublishedChanges: false,
 			usage: [],
+			versions: [],
 			editedLabel: `Draft created just now by ${CURRENT_USER}`,
 			isNewlyCreated: true
 		});
@@ -111,6 +127,14 @@
 			...draft,
 			status: 'published',
 			version: draft.version + 1,
+			versions: [
+				{
+					version: draft.version + 1,
+					label: `Published just now by ${CURRENT_USER}`,
+					questions: draft.questions.map((q) => ({ ...q }))
+				},
+				...draft.versions
+			],
 			hasUnpublishedChanges: false,
 			editedLabel: `Published just now by ${CURRENT_USER}`,
 			isNewlyCreated: formEdit.isNew || draft.isNewlyCreated
@@ -177,10 +201,18 @@
 		questionEdit = null;
 	}
 
+	const formsUsing = (questionId: string) =>
+		forms.filter((f) => f.questions.some((q) => q.questionId === questionId));
+
 	function saveQuestion(saved: DemographicQuestion) {
 		const index = questions.findIndex((q) => q.id === saved.id);
-		if (index >= 0) questions[index] = saved;
-		else {
+		if (index >= 0) {
+			questions[index] = saved;
+			// Published forms now differ from what participants see, so flag them.
+			for (const form of formsUsing(saved.id)) {
+				if (form.version > 0) form.hasUnpublishedChanges = true;
+			}
+		} else {
 			questions.unshift(saved);
 			highlightId = saved.id;
 		}
@@ -199,6 +231,27 @@
 
 <div class="bg-nav-background min-h-full">
 	<div class="mx-auto w-11/12 max-w-6xl p-10">
+		<div
+			class="border-border mb-6 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-dashed px-3 py-2"
+		>
+			<span class="text-muted-foreground mr-2 text-sm">Prototype data</span>
+			<Button
+				size="sm"
+				variant={dataState === 'sample' ? 'default' : 'outline'}
+				aria-pressed={dataState === 'sample'}
+				onclick={() => setDataState('sample')}
+			>
+				Sample organisation
+			</Button>
+			<Button
+				size="sm"
+				variant={dataState === 'new' ? 'default' : 'outline'}
+				aria-pressed={dataState === 'new'}
+				onclick={() => setDataState('new')}
+			>
+				New organisation
+			</Button>
+		</div>
 		<header class="flex flex-wrap items-start justify-between gap-4">
 			<div class="flex flex-col gap-2">
 				<h1 class="text-4xl font-bold">Demographic forms</h1>
@@ -267,6 +320,7 @@
 		onSaveAsNew={saveQuestionAsNew}
 		onDelete={deleteQuestion}
 		usedInForms={usedInFormsCount(questionEdit.question.id, forms)}
+		usedInFormNames={formsUsing(questionEdit.question.id).map((f) => f.name)}
 		onClose={() => (questionEdit = null)}
 	/>
 {/if}
