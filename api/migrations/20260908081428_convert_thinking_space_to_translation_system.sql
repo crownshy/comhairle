@@ -29,7 +29,7 @@ BEGIN
     INSERT INTO text_translation (
         content_id, locale, content, ai_generated, requires_validation
     ) VALUES (
-        v_content_id, p_locale, p_content, false, false
+        v_content_id, p_locale, COALESCE(p_content, ''), false, false
     );
 
     RETURN v_content_id;
