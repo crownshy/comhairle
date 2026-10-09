@@ -91,9 +91,6 @@
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
 	let currentStepNumber = $derived(viewedIndex + 1);
 
-	// Empty until the step is done. Filling within a step is ADR-0047 parts 2 and 3.
-	let fill = $derived(isRevisiting ? 1 : 0);
-
 	// Mid-navigation `data` still describes the step we're leaving, so the skeleton is picked
 	// from the destination's tool.
 	let navigatingToToolType = $derived.by(() => {
@@ -134,6 +131,10 @@
 	});
 	let canProceed = $derived(forThisStep(toolCanContinue) ?? toolNeedsNoSignal);
 	let isSubmitting = $derived(submittingStepId === workflowStep.id);
+
+	// Empty until the step is done, and full while it completes so the bar moves the moment
+	// Next is pressed. Filling within a step is ADR-0047 parts 2 and 3.
+	let fill = $derived(isRevisiting || isSubmitting ? 1 : 0);
 
 	function handleNextAction(fn: () => void) {
 		toolNextAction = { stepId: workflowStep.id, value: fn };
