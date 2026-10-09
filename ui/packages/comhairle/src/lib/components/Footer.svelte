@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Input } from '$lib/components/ui/input';
@@ -49,7 +49,8 @@
 			<!-- Bottom row: Copyright + Legal links -->
 			<div class="flex flex-col items-center gap-4 md:flex-row md:justify-between">
 				<p class="text-sidebar-foreground/50 order-2 text-base font-normal md:order-1">
-					{m.copyright()} {new Date().getFullYear()} &copy; CrownShy
+					{m.copyright()}
+					{new Date().getFullYear()} &copy; CrownShy
 				</p>
 				<div class="order-1 flex flex-wrap items-center justify-center gap-8 md:order-2">
 					{#each legalLinks as link (link.href)}

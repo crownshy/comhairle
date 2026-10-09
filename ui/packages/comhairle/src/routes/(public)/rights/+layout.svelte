@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { cn } from '$lib/utils.js';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();

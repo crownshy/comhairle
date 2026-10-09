@@ -1,5 +1,5 @@
 import { Megaphone, User } from 'lucide-svelte';
-import * as m from '$lib/paraglide/messages';
+import { m } from '$lib/paraglide/messages';
 
 const seedSource = {
 	// The organiser offers seed statements to start discussion, not as views they

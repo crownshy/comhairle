@@ -135,18 +135,6 @@
 	let revisitable = $derived(step?.canRevisit ?? false);
 	let requestUserSharePermission = $derived(step?.requestUserSharePermission ?? false);
 
-	// Data protocol maps onto the `requestUserSharePermission` boolean (only Confidential
-	// and Restricted are backed today; see tool_meta DATA_PROTOCOLS).
-	let dataProtocol = $derived(protocolFromBool(requestUserSharePermission));
-	let currentProtocol = $derived(
-		DATA_PROTOCOLS.find((d) => d.value === dataProtocol) ?? DATA_PROTOCOLS[0]
-	);
-	function setDataProtocol(protocol: DataProtocol) {
-		if (!canEdit) return;
-		if (protocol === dataProtocol) return;
-		handleSwitchChange(boolFromProtocol(protocol), 'requestUserSharePermission');
-	}
-
 	const debouncedUpdateRequired = useDebounce(async (checked: boolean, field: string) => {
 		if (!canEdit) return;
 		try {
@@ -271,11 +259,12 @@
 					conversationId={conversation_id}
 					editorType="rich"
 					placeholder={defaultDataProtocol(toolType)}
+					disabled={!canEdit}
 					minHeight="100px"
 					maxHeight="150px"
 				/>
 			</div>
-			{#if dataProtocolIsBlank}
+			{#if canEdit && dataProtocolIsBlank}
 				<Button
 					type="button"
 					variant="outline"
@@ -313,6 +302,7 @@
 		<div class="flex items-center gap-2">
 			<Switch
 				checked={requestUserSharePermission}
+				disabled={!canEdit}
 				onCheckedChange={(value) => handleSwitchChange(value, 'requestUserSharePermission')}
 			/>
 			<Label class="text-base">Ask before sharing summaries</Label>
@@ -321,38 +311,6 @@
 			</span>
 		</div>
 	{/if}
-	<div class="flex items-center gap-2">
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
-				disabled={!canEdit}
-				class="border-input flex h-9 w-full max-w-sm items-center justify-between gap-2 rounded-md border px-3 text-sm"
-			>
-				<span class="flex items-center gap-2">
-					<Database class="size-4" />
-					{currentProtocol.label}
-				</span>
-				<ChevronDown class="size-4 opacity-50" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content class="max-w-sm">
-				{#each DATA_PROTOCOLS as protocol (protocol.value)}
-					<DropdownMenu.Item
-						disabled={!canEdit || !protocol.enabled}
-						onSelect={() => setDataProtocol(protocol.value)}
-					>
-						<span class="flex w-4 shrink-0 justify-center">
-							{#if dataProtocol === protocol.value}
-								<Check class="size-3" />
-							{/if}
-						</span>
-						<span class="flex flex-col">
-							<span>{protocol.label}{!protocol.enabled ? ' (soon)' : ''}</span>
-							<span class="text-muted-foreground text-xs">{protocol.blurb}</span>
-						</span>
-					</DropdownMenu.Item>
-				{/each}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	</div>
 {/snippet}
 
 {#snippet dangerZone()}

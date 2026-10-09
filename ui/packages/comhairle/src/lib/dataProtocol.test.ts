@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as m from '$lib/paraglide/messages';
+import { m } from '$lib/paraglide/messages';
 import {
 	defaultDataProtocol,
 	defaultDataProtocolHtml,

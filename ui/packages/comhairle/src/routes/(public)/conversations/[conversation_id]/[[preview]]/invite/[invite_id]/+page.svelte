@@ -2,7 +2,7 @@
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 
 	import { loginRedirectClient, signupRedirect, signupGuestRedirect } from '$lib/urls.js';
 
