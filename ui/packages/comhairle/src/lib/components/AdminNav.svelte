@@ -240,6 +240,29 @@
 				<ScrollArea.Root class="h-full pr-3" type="always">
 					{#if ownedConversations}
 						<SideBar.Menu>
+							<!-- Static prototype conversation for the demographic forms prototype -->
+							<SideBar.MenuItem>
+								<SideBar.MenuButton
+									class="text-sidebar-foreground/80 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground h-8 w-full overflow-hidden rounded-lg p-2 data-[active=true]:font-semibold"
+									isActive={path.startsWith(
+										'/admin/demographic-forms/prototype-conversation'
+									)}
+								>
+									{#snippet child({ props: btnProps })}
+										<a
+											{...btnProps}
+											href="/admin/demographic-forms/prototype-conversation/design"
+											class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center rounded-lg px-2 py-1.5"
+										>
+											<span
+												class="flex-1 truncate text-left text-sm leading-4 font-medium"
+											>
+												Hybrid works (prototype)
+											</span>
+										</a>
+									{/snippet}
+								</SideBar.MenuButton>
+							</SideBar.MenuItem>
 							{#each ownedConversations as conversation (conversation.id)}
 								{@const active = isConversationActive(conversation.id)}
 								<SideBar.MenuItem>
