@@ -40,12 +40,12 @@
 		disabled={!canGoBack || loading}
 		onclick={onBack}
 	>
-		<ChevronLeft class="size-6 shrink-0" />
+		<ChevronLeft class="size-6 shrink-0 rtl:-scale-x-100" />
 	</button>
 
 	<button
 		type="button"
-		class={cn(PAGER_BUTTON_CLASS, 'ml-auto')}
+		class={cn(PAGER_BUTTON_CLASS, 'ms-auto')}
 		disabled={!canGoForward || loading}
 		aria-busy={loading}
 		onclick={onForward}
@@ -54,6 +54,6 @@
 			<Spinner class="size-5" />
 		{/if}
 		<span class="text-base font-medium">{forwardLabel}</span>
-		<ChevronRight class="size-6 shrink-0" />
+		<ChevronRight class="size-6 shrink-0 rtl:-scale-x-100" />
 	</button>
 </div>
