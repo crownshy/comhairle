@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { FileText, ChevronDown, AlertTriangle, RefreshCw } from 'lucide-svelte';
 	import { getChatSession, type ChatMessage } from '$lib/api/chatSession.svelte';
 	import type { ChatReference, ReferenceChunk } from '$lib/api/chatClient.svelte';

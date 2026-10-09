@@ -7,7 +7,7 @@ import type {
 import type { createApiClient } from '@crownshy/api-client/client';
 import { tryCatchAsync, type ErrorType, type Result } from '$lib/utils/errorHandling';
 
-export type RoleResourceType = Extract<PermissionResourceType, 'conversation' | 'organization'>;
+export type RoleResourceType = PermissionResourceType;
 
 type RoleManagementApi = Pick<
 	ReturnType<typeof createApiClient>,

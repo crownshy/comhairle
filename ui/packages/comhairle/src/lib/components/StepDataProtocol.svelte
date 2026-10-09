@@ -5,7 +5,7 @@
 		hasDataProtocolText,
 		toolUsesAI
 	} from '$lib/dataProtocol';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	type Props = {

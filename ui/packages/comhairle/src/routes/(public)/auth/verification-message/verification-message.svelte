@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 
 	let { user, backTo }: { user: any; backTo?: string } = $props();

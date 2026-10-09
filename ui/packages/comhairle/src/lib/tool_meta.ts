@@ -7,7 +7,7 @@ import {
 	Bot,
 	type Icon
 } from 'lucide-svelte';
-import * as m from '$lib/paraglide/messages';
+import { m } from '$lib/paraglide/messages';
 
 /**
  * The discriminant used on a step's `toolConfig.type` / `previewToolConfig.type`.

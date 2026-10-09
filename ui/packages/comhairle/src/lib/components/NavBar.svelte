@@ -3,7 +3,7 @@
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { ProfileMenu } from '$lib/profile';
 	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Badge } from '$lib/components/ui/badge';

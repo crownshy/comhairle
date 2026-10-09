@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Highlight from '$lib/components/Highlight.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 
 	// Shared type scale for the Your Rights pages (matches the Jazz Up designs).
 	const sectionTitle = 'text-2xl font-bold text-foreground md:text-3xl';

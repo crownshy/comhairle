@@ -59,6 +59,10 @@ Resource owners may list, grant, revoke, and replace role assignments on their o
 **Authorization precedence**:
 Ownership of the target resource allows access without evaluating role assignments; otherwise, Super Administrator authority allows globally, followed by evaluation of direct and inherited roles on the target resource. Super Administrator grant and group-addition restrictions remain mandatory regardless of ownership; there are no explicit deny rules.
 
+**Admin UI access**:
+Any User with at least one direct or inherited role assignment may enter the admin UI.
+Entry does not grant additional permissions.
+
 ### Participant journey
 
 **Finished** (a participant is finished):

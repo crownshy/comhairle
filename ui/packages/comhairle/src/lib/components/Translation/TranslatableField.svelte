@@ -21,6 +21,7 @@
 
 	export type TranslatableFieldBaseProps = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
+		id?: string;
 		source: TranslationSource;
 		primaryLocale: Locale;
 		supportedLanguages: Locale[];
@@ -53,6 +54,7 @@
 		);
 
 	let {
+		id,
 		source,
 		primaryLocale,
 		supportedLanguages,
@@ -147,6 +149,7 @@
 		<div class="relative">
 			{#if inputType === 'textarea'}
 				<Textarea
+					{id}
 					class="pr-12"
 					{value}
 					oninput={handlePlainInput}
@@ -156,6 +159,7 @@
 				/>
 			{:else}
 				<Input
+					{id}
 					class="pr-12"
 					{value}
 					oninput={handlePlainInput}

@@ -1,5 +1,5 @@
 import type { ZoomLevelOption } from 'photoswipe';
-import * as m from '$lib/paraglide/messages';
+import { m } from '$lib/paraglide/messages';
 import { notifications } from '$lib/notifications.svelte';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 

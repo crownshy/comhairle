@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import * as Form from '$lib/components/ui/form';
 
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import { passwordResetCreateFormSchema } from '$lib/profile/schema';

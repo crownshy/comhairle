@@ -15,7 +15,7 @@
 </script>
 
 <svelte:head>
-	<title>Comhairle admin guide</title>
+	<title>Comhairle Handbook</title>
 </svelte:head>
 
 {#if guide}

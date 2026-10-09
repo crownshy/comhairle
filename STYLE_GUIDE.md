@@ -235,6 +235,8 @@ If you copy a block a second time, stop and extract it.
   its `*.svelte.ts`, its `*.test.ts`) uses a plain relative path (`./Child.svelte`). Rule
   of thumb: crossing out of the current feature folder → `$lib`; staying inside it →
   relative.
+- **Messages: `import { m } from '$lib/paraglide/messages'`.** This is the form the
+  paraglide docs use. `* as m` also works, but pick one so files read the same.
 - **Import ordering is not automated.** Prettier is our only formatter and it does not
   reorder imports; there is no import-sort plugin in the toolchain today. Keep imports
   tidy by hand (external packages, then `$lib`, then relative). **Open question: adopt a
