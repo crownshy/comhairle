@@ -34,6 +34,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { type LocalizedStatement } from '@crownshy/api-client/api';
 	import { getLocale } from '$lib/paraglide/runtime';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
 	type Props = {
 		polis_id: string;
@@ -44,6 +45,7 @@
 		isPreview?: boolean;
 		showRemainingStatementCount?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -54,6 +56,7 @@
 		workflowStepId = polis_id,
 		isPreview = false,
 		onCanContinueChange,
+		onSequenceChange,
 		showRemainingStatementCount
 	}: Props = $props();
 
@@ -345,7 +348,22 @@
 		}
 	}
 
-	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
+	// Polis reports to the chrome's bar and step header instead of drawing its own (ADR-0047).
+	const progress = $derived(
+		canContinue ? 1 : Math.min(1, Math.max(0, totalVotes / safeRequiredVotes))
+	);
+	const opinionCount = $derived(
+		showRemainingStatementCount && polisReady && !polisError && !poolExhausted
+			? m.polis_opinion_counter({
+					current: opinionPosition.current,
+					total: opinionPosition.total
+				})
+			: undefined
+	);
+
+	$effect(() => {
+		onSequenceChange?.({ progress, count: opinionCount });
+	});
 </script>
 
 {#snippet opinionTips()}
@@ -366,27 +384,6 @@
 			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-4 sm:px-8 md:gap-6 md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
-			<!-- Opinion counter -->
-			{#if showRemainingStatementCount && !polisReady}
-				<div class="flex h-6 items-center md:h-7">
-					<Skeleton class="h-4 w-32 rounded md:h-5" />
-				</div>
-				<Skeleton class="h-1.5 w-full rounded-full" />
-			{:else if showRemainingStatementCount && !polisError && !poolExhausted}
-				<p class="text-muted-foreground text-base font-semibold md:text-lg">
-					{m.polis_opinion_counter({
-						current: opinionPosition.current,
-						total: opinionPosition.total
-					})}
-				</p>
-				<div class="bg-primary/20 relative h-1.5 w-full overflow-hidden rounded-full">
-					<div
-						class="bg-primary absolute inset-y-0 start-0 rounded-full transition-all duration-300"
-						style="width: {progress}%"
-					></div>
-				</div>
-			{/if}
-
 			<!-- Statement text -->
 			<div class="w-full pt-2 pb-6">
 				{#if polisReady && polisError}
