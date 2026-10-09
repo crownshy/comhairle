@@ -65,8 +65,10 @@
 <Drawer.Root direction="right" bind:open={supportDrawer.open}>
 	<!-- The sideways tab covers the step header below lg, so smaller screens open the drawer
 	     from a NavBar button instead. -->
+	<!-- Vertical writing mode rather than a rotation, so the tab stays flush with the edge
+	     however long the translated label is. -->
 	<Drawer.Trigger
-		class="bg-primary text-primary-foreground fixed top-1/5 right-0 translate-x-12 -rotate-90 p-3 font-bold max-lg:hidden"
+		class="bg-primary text-primary-foreground fixed top-1/5 right-0 rotate-180 p-3 font-bold [writing-mode:vertical-rl] max-lg:hidden"
 		>{m.support_find_out_more()}</Drawer.Trigger
 	>
 	{#if isEmbed}

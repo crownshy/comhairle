@@ -10,7 +10,6 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { m } from '$lib/paraglide/messages';
-	import { isLocale } from '$lib/paraglide/runtime';
 	import { cn } from '$lib/utils';
 	import StepShell from './StepShell.svelte';
 	import StepChrome from './StepChrome.svelte';
@@ -96,8 +95,6 @@
 	);
 
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
-
-	let conversationLanguages = $derived(conversation.supportedLanguages.filter(isLocale));
 
 	let introUrl = $derived(conversation_url(conversation.id, isPreview) + queryString);
 
@@ -271,7 +268,6 @@
 					currentIndex={viewedIndex}
 					{fill}
 					position={currentSequence?.position}
-					languages={conversationLanguages}
 					{introUrl}
 					preview={isPreview}
 				/>

@@ -6,6 +6,7 @@
 		ChevronRight,
 		Check,
 		CircleHelp,
+		ShieldCheck,
 		Languages,
 		Lock,
 		Moon,
@@ -16,20 +17,18 @@
 	import { cn } from '$lib/utils';
 	import { m } from '$lib/paraglide/messages';
 	import { HEADER_PILL_CLASS } from './styles';
-	import { getLocale, type Locale } from '$lib/paraglide/runtime';
+	import { getLocale, locales, type Locale } from '$lib/paraglide/runtime';
 	import { getLanguageName } from '$lib/config/languages';
 	import { switchLocale } from '$lib/utils/locale';
-	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
+	import { useSupportDrawer, type SupportTab } from '$lib/components/supportDrawerContext.svelte';
 	import type { StepItem, StepStatus } from './stepItems';
 
 	type Props = {
 		steps: StepItem[];
 		currentIndex: number;
-		/** The conversation's languages. The row is hidden when there is nothing to switch to. */
-		languages: Locale[];
 	};
 
-	let { steps, currentIndex, languages }: Props = $props();
+	let { steps, currentIndex }: Props = $props();
 
 	type RowStyle = { badge: string; name: string; done: boolean; locked: boolean };
 
@@ -63,9 +62,9 @@
 		'group data-[state=open]:bg-primary/10 min-w-0 justify-end'
 	);
 
-	// Opened in a new tab so reading them doesn't take the participant out of their step.
+	// Opened in a new tab so reading them doesn't take the participant out of their step. The
+	// privacy policy is the conversation's own, so it lives in Find out more instead.
 	const LEGAL_LINKS = [
-		{ href: '/rights/privacy', label: m.privacy_policy },
 		{ href: '/rights/tos', label: m.terms_of_service },
 		{ href: '/rights/cookies', label: m.cookies_settings }
 	];
@@ -86,7 +85,6 @@
 
 	const currentLocale = getLocale();
 	const currentLanguageName = getLanguageName(currentLocale, 'native');
-	let showLanguages = $derived(languages.length > 1);
 	let languageListOpen = $state(false);
 
 	function chooseLanguage(locale: Locale) {
@@ -95,9 +93,9 @@
 
 	const supportDrawer = useSupportDrawer();
 
-	function openFaqs() {
+	function openSupport(tab: SupportTab) {
 		open = false;
-		supportDrawer.openOn('faqs');
+		supportDrawer.openOn(tab);
 	}
 
 	function ariaCurrent(step: StepItem) {
@@ -149,6 +147,11 @@
 	{m.faq()}
 {/snippet}
 
+{#snippet privacyRowInner()}
+	<ShieldCheck class="text-muted-foreground size-5 shrink-0" />
+	{m.privacy_policy()}
+{/snippet}
+
 {#snippet themeRowInner()}
 	<ThemeIcon class="text-muted-foreground size-5 shrink-0 stroke-current" />
 	{themeLabel}
@@ -197,8 +200,19 @@
 					<p class="text-foreground px-3 pt-2 pb-1 text-base font-semibold">
 						{m.step_menu_about_heading()}
 					</p>
-					<button type="button" class={SHEET_ROW_CLASS} onclick={openFaqs}>
+					<button
+						type="button"
+						class={SHEET_ROW_CLASS}
+						onclick={() => openSupport('faqs')}
+					>
 						{@render faqRowInner()}
+					</button>
+					<button
+						type="button"
+						class={SHEET_ROW_CLASS}
+						onclick={() => openSupport('privacyPolicy')}
+					>
+						{@render privacyRowInner()}
 					</button>
 				</div>
 
@@ -210,38 +224,36 @@
 					>
 						{@render themeRowInner()}
 					</button>
-					{#if showLanguages}
-						<button
-							type="button"
-							class={SHEET_ROW_CLASS}
-							aria-expanded={languageListOpen}
-							onclick={() => (languageListOpen = !languageListOpen)}
-						>
-							{@render languageRowInner()}
-							<ChevronRight
-								class={cn(
-									'text-muted-foreground size-5 shrink-0 transition-transform',
-									languageListOpen && 'rotate-90'
-								)}
-							/>
-						</button>
-						{#if languageListOpen}
-							<div class="pl-8">
-								{#each languages as locale (locale)}
-									<button
-										type="button"
-										class={SHEET_ROW_CLASS}
-										aria-current={locale === currentLocale ? 'true' : undefined}
-										onclick={() => chooseLanguage(locale)}
-									>
-										{getLanguageName(locale, 'native')}
-										{#if locale === currentLocale}
-											<Check class="text-primary ml-auto size-5 shrink-0" />
-										{/if}
-									</button>
-								{/each}
-							</div>
-						{/if}
+					<button
+						type="button"
+						class={SHEET_ROW_CLASS}
+						aria-expanded={languageListOpen}
+						onclick={() => (languageListOpen = !languageListOpen)}
+					>
+						{@render languageRowInner()}
+						<ChevronRight
+							class={cn(
+								'text-muted-foreground size-5 shrink-0 transition-transform',
+								languageListOpen && 'rotate-90'
+							)}
+						/>
+					</button>
+					{#if languageListOpen}
+						<div class="pl-8">
+							{#each locales as locale (locale)}
+								<button
+									type="button"
+									class={SHEET_ROW_CLASS}
+									aria-current={locale === currentLocale ? 'true' : undefined}
+									onclick={() => chooseLanguage(locale)}
+								>
+									{getLanguageName(locale, 'native')}
+									{#if locale === currentLocale}
+										<Check class="text-primary ml-auto size-5 shrink-0" />
+									{/if}
+								</button>
+							{/each}
+						</div>
 					{/if}
 				</div>
 
@@ -313,8 +325,17 @@
 				<DropdownMenu.GroupHeading class="text-sm">
 					{m.step_menu_about_heading()}
 				</DropdownMenu.GroupHeading>
-				<DropdownMenu.Item class="cursor-pointer py-2.5 text-base" onSelect={openFaqs}>
+				<DropdownMenu.Item
+					class="cursor-pointer py-2.5 text-base"
+					onSelect={() => openSupport('faqs')}
+				>
 					{@render faqRowInner()}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item
+					class="cursor-pointer py-2.5 text-base"
+					onSelect={() => openSupport('privacyPolicy')}
+				>
+					{@render privacyRowInner()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 
@@ -329,28 +350,26 @@
 			>
 				{@render themeRowInner()}
 			</DropdownMenu.Item>
-			{#if showLanguages}
-				<DropdownMenu.Sub>
-					<DropdownMenu.SubTrigger class="cursor-pointer gap-2 py-2.5 text-base">
-						{@render languageRowInner()}
-					</DropdownMenu.SubTrigger>
-					<DropdownMenu.SubContent class="w-56 p-2">
-						<DropdownMenu.RadioGroup
-							value={currentLocale}
-							onValueChange={(value) => chooseLanguage(value as Locale)}
-						>
-							{#each languages as locale (locale)}
-								<DropdownMenu.RadioItem
-									value={locale}
-									class="cursor-pointer py-2.5 text-base"
-								>
-									{getLanguageName(locale, 'native')}
-								</DropdownMenu.RadioItem>
-							{/each}
-						</DropdownMenu.RadioGroup>
-					</DropdownMenu.SubContent>
-				</DropdownMenu.Sub>
-			{/if}
+			<DropdownMenu.Sub>
+				<DropdownMenu.SubTrigger class="cursor-pointer gap-2 py-2.5 text-base">
+					{@render languageRowInner()}
+				</DropdownMenu.SubTrigger>
+				<DropdownMenu.SubContent class="w-56 p-2">
+					<DropdownMenu.RadioGroup
+						value={currentLocale}
+						onValueChange={(value) => chooseLanguage(value as Locale)}
+					>
+						{#each locales as locale (locale)}
+							<DropdownMenu.RadioItem
+								value={locale}
+								class="cursor-pointer py-2.5 text-base"
+							>
+								{getLanguageName(locale, 'native')}
+							</DropdownMenu.RadioItem>
+						{/each}
+					</DropdownMenu.RadioGroup>
+				</DropdownMenu.SubContent>
+			</DropdownMenu.Sub>
 
 			<DropdownMenu.Separator />
 			{#each LEGAL_LINKS as link (link.href)}
