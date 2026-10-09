@@ -52,6 +52,14 @@ export const COUNTRY_OPTIONS = [
 	'Northern Ireland',
 	'United States'
 ];
+/** Emoji flags shown next to the country name. Northern Ireland has no emoji flag, so it uses the UK flag. */
+export const COUNTRY_FLAGS: Record<string, string> = {
+	Scotland: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+	England: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+	Wales: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+	'Northern Ireland': '🇬🇧',
+	'United States': '🇺🇸'
+};
 export const CURRENT_USER = 'Shu';
 
 export type DemographicQuestion = {
@@ -257,7 +265,7 @@ export const createInitialForms = (): DemographicForm[] => [
 		status: 'published',
 		version: 2,
 		createdBy: 'Shu',
-		editedLabel: 'Edited 28 Sep by Kimi',
+		editedLabel: 'Edited 28 Sep by Andy',
 		usage: [
 			{
 				conversationId: 'c-air',
@@ -294,8 +302,8 @@ export const createInitialForms = (): DemographicForm[] => [
 		country: 'Scotland',
 		status: 'published',
 		version: 2,
-		createdBy: 'Kimi',
-		editedLabel: 'Edited 2 Oct by Kimi',
+		createdBy: 'Andy',
+		editedLabel: 'Edited 2 Oct by Andy',
 		usage: [
 			{
 				conversationId: 'c-sp',

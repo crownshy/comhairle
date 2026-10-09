@@ -37,7 +37,9 @@
 	</div>
 
 	{#if conversationCount(form) > 0}
-		<div class="border-border overflow-hidden rounded-xl border [&_tr>*:first-child]:pl-4">
+		<div
+			class="border-border overflow-hidden rounded-xl border [&_td]:align-middle [&_tr>*:first-child]:pl-4"
+		>
 			<Table.Root>
 				<Table.Header class="bg-muted">
 					<Table.Row>

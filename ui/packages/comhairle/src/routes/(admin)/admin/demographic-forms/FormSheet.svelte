@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { EllipsisVertical, Plus, RotateCcw, ShieldCheck, Trash2 } from 'lucide-svelte';
+	import { EllipsisVertical, Plus, RotateCcw, Trash2 } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from './TagBadge.svelte';
 	import {
@@ -19,12 +19,14 @@
 	import AddQuestionsDialog from './AddQuestionsDialog.svelte';
 	import PublishDialog from './PublishDialog.svelte';
 	import ConsentCheck from './ConsentCheck.svelte';
+	import CreatedBy from './CreatedBy.svelte';
 	import FormUsagePanel from './FormUsagePanel.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import PhonePreview from './PhonePreview.svelte';
 	import QuestionAnswers from './QuestionAnswers.svelte';
 	import {
 		conversationCount,
+		COUNTRY_FLAGS,
 		COUNTRY_OPTIONS,
 		type DemographicForm,
 		type DemographicQuestion
@@ -34,12 +36,11 @@
 		form: DemographicForm;
 		isNew: boolean;
 		questions: DemographicQuestion[];
-		onEditQuestion: (questionId: string) => void;
+		onEditQuestion: (questionId: string, focusConsent?: boolean) => void;
 		onCreateQuestion: () => void;
 		hasChanges: boolean;
 		onSaveDraft: () => void;
 		onPublish: () => void;
-		onSaveAsNew: () => void;
 		onDelete: () => void;
 		onClose: () => void;
 	};
@@ -53,7 +54,6 @@
 		hasChanges,
 		onSaveDraft,
 		onPublish,
-		onSaveAsNew,
 		onDelete,
 		onClose
 	}: Props = $props();
@@ -80,16 +80,6 @@
 		)
 	);
 	const preview = $derived(rows[previewIndex]?.question);
-
-	const specialQuestions = $derived(
-		rows.filter((row) => row.question.specialCategory).map((row) => row.question)
-	);
-
-	function showSpecialPreview() {
-		if (specialQuestions.length === 0) return;
-		previewId = specialQuestions[0].id;
-		rightTab = 'preview';
-	}
 
 	const consentMissing = $derived(
 		!!preview?.specialCategory &&
@@ -197,12 +187,18 @@
 						value={form.country}
 						onValueChange={(value) => (form.country = value)}
 					>
-						<Select.Trigger id="form-country" class="w-full"
-							>{form.country}</Select.Trigger
-						>
+						<Select.Trigger id="form-country" class="w-full">
+							<span class="flex items-center gap-2">
+								<span aria-hidden="true">{COUNTRY_FLAGS[form.country]}</span>
+								<span class="text-muted-foreground text-sm">{form.country}</span>
+							</span>
+						</Select.Trigger>
 						<Select.Content>
 							{#each COUNTRY_OPTIONS as country (country)}
-								<Select.Item value={country} label={country}>{country}</Select.Item>
+								<Select.Item value={country} label={country}>
+									<span aria-hidden="true">{COUNTRY_FLAGS[country]}</span>
+									<span class="text-muted-foreground text-sm">{country}</span>
+								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
@@ -210,30 +206,6 @@
 
 				<div class="border-border flex flex-col gap-3 border-t pt-4">
 					<h3 class="text-base font-semibold">Questions in this form</h3>
-					{#if specialQuestions.length > 0}
-						<div class="bg-primary/10 flex items-start gap-3 rounded-lg px-4 py-3">
-							<ShieldCheck class="text-primary mt-0.5 size-5 shrink-0" />
-							<div class="flex flex-col items-start">
-								<span class="text-base font-medium">
-									Consent is asked on special category questions
-								</span>
-								<span class="text-base">
-									{specialQuestions.length}
-									{specialQuestions.length === 1
-										? 'question has'
-										: 'questions have'}
-									a consent checkbox that participants tick before answering.
-								</span>
-								<Button
-									variant="link"
-									class="h-auto p-0 text-base"
-									onclick={showSpecialPreview}
-								>
-									See it in the preview
-								</Button>
-							</div>
-						</div>
-					{/if}
 					{#if rows.length === 0}
 						<p class="text-muted-foreground text-base">No questions yet.</p>
 					{/if}
@@ -246,70 +218,98 @@
 					>
 						{#snippet children(row, index)}
 							<div
-								class="bg-card flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3 {index ===
-								previewIndex
+								class="bg-card rounded-lg border {index === previewIndex
 									? 'border-primary'
 									: 'border-border'}"
 							>
-								<button
-									type="button"
-									class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left"
-									onclick={() => (previewId = row.question.id)}
-								>
-									<span
-										class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+								<div class="flex items-center gap-2 py-1 pr-1 pl-3">
+									<button
+										type="button"
+										class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left"
+										onclick={() => (previewId = row.question.id)}
 									>
-										{index + 1}
-									</span>
-									<span class="truncate text-base">{row.question.text}</span>
-									{#if row.required}
 										<span
-											class="text-destructive font-semibold"
-											title="Required">*</span
+											class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
 										>
-										<span class="sr-only">Required</span>
+											{index + 1}
+										</span>
+										<span class="truncate text-base">{row.question.text}</span>
+										{#if row.required}
+											<span
+												class="text-destructive font-semibold"
+												title="Required">*</span
+											>
+											<span class="sr-only">Required</span>
+										{/if}
+									</button>
+									{#if row.question.tags[0]}
+										<TagBadge tag={row.question.tags[0]} class="shrink-0" />
 									{/if}
-								</button>
-								{#if row.question.tags[0]}
-									<TagBadge tag={row.question.tags[0]} class="shrink-0" />
+									<DropdownMenu.Root>
+										<DropdownMenu.Trigger
+											class={buttonVariants({
+												variant: 'ghost',
+												size: 'icon'
+											})}
+											aria-label={`Actions for ${row.question.text}`}
+										>
+											<EllipsisVertical class="size-4" />
+										</DropdownMenu.Trigger>
+										<DropdownMenu.Content align="end" class="w-52">
+											<DropdownMenu.Item
+												onSelect={() => toggleRequired(index)}
+											>
+												{row.required
+													? 'Set to optional'
+													: 'Set to required'}
+											</DropdownMenu.Item>
+											<DropdownMenu.Item
+												onSelect={() => onEditQuestion(row.question.id)}
+											>
+												Edit question
+											</DropdownMenu.Item>
+											{#if row.question.specialCategory}
+												<DropdownMenu.Item
+													onSelect={() =>
+														onEditQuestion(row.question.id, true)}
+												>
+													Edit consent wording
+												</DropdownMenu.Item>
+											{/if}
+											<DropdownMenu.Item
+												disabled={index === 0}
+												onSelect={() => move(index, -1)}
+											>
+												Move up
+											</DropdownMenu.Item>
+											<DropdownMenu.Item
+												disabled={index === rows.length - 1}
+												onSelect={() => move(index, 1)}
+											>
+												Move down
+											</DropdownMenu.Item>
+											<DropdownMenu.Separator />
+											<DropdownMenu.Item
+												class="text-destructive"
+												onSelect={() => form.questions.splice(index, 1)}
+											>
+												Remove from form
+											</DropdownMenu.Item>
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
+								</div>
+								{#if row.question.specialCategory}
+									<div class="flex items-center gap-2 pr-3 pb-2 pl-11">
+										<TagBadge tag="Special category" />
+										<Button
+											variant="link"
+											class="h-auto p-0 text-sm"
+											onclick={() => onEditQuestion(row.question.id, true)}
+										>
+											Edit consent
+										</Button>
+									</div>
 								{/if}
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger
-										class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-										aria-label={`Actions for ${row.question.text}`}
-									>
-										<EllipsisVertical class="size-4" />
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="end" class="w-52">
-										<DropdownMenu.Item onSelect={() => toggleRequired(index)}>
-											{row.required ? 'Set to optional' : 'Set to required'}
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											onSelect={() => onEditQuestion(row.question.id)}
-										>
-											Edit question
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											disabled={index === 0}
-											onSelect={() => move(index, -1)}
-										>
-											Move up
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											disabled={index === rows.length - 1}
-											onSelect={() => move(index, 1)}
-										>
-											Move down
-										</DropdownMenu.Item>
-										<DropdownMenu.Separator />
-										<DropdownMenu.Item
-											class="text-destructive"
-											onSelect={() => form.questions.splice(index, 1)}
-										>
-											Remove from form
-										</DropdownMenu.Item>
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
 							</div>
 						{/snippet}
 					</DraggableList>
@@ -320,7 +320,7 @@
 
 				<div class="mt-auto flex flex-col gap-1">
 					<span class="text-base font-semibold">Created by</span>
-					<span class="text-base">{form.createdBy}</span>
+					<CreatedBy name={form.createdBy} />
 				</div>
 
 				{#if !isNew}
@@ -436,11 +436,6 @@
 				{/if}Publishing creates v{form.version + 1}
 			</span>
 			<Button variant="outline" onclick={onClose}>Cancel</Button>
-			{#if !isNew}
-				<Button variant="outline" disabled={!hasChanges} onclick={onSaveAsNew}>
-					Save to new form
-				</Button>
-			{/if}
 			<Button variant="outline" disabled={!hasName || !hasChanges} onclick={onSaveDraft}>
 				Save draft
 			</Button>

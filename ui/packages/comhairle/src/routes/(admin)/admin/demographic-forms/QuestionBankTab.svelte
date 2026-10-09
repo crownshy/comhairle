@@ -43,8 +43,8 @@
 
 <div class="flex flex-col gap-4">
 	<p class="bg-primary/10 rounded-lg px-4 py-3 text-base">
-		Add your own demographic questions to the question bank, then use them in any of your
-		demographic forms. Select a question to edit it.
+		Build your demographic questions by adding your own or duplicating existing ones. Use them
+		in any of your demographic forms.
 	</p>
 
 	<div class="flex flex-wrap items-center justify-between gap-3">
@@ -79,7 +79,7 @@
 	</div>
 
 	<div
-		class="border-border bg-card overflow-hidden rounded-xl border [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4"
+		class="border-border bg-card overflow-hidden rounded-xl border [&_td]:py-3 [&_td]:align-middle [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4"
 	>
 		<Table.Root>
 			<Table.Header class="bg-muted">
@@ -94,11 +94,13 @@
 			<Table.Body>
 				{#each visible as question (question.id)}
 					<Table.Row>
-						<Table.Cell class="text-base font-medium">{question.text}</Table.Cell>
-						<Table.Cell class="text-base"
+						<Table.Cell class="text-base leading-8 font-medium"
+							>{question.text}</Table.Cell
+						>
+						<Table.Cell class="text-muted-foreground text-sm leading-8"
 							>{QUESTION_KIND_LABELS[question.kind]}</Table.Cell
 						>
-						<Table.Cell class="text-base"
+						<Table.Cell class="text-muted-foreground text-sm leading-8"
 							>{usedInFormsCount(question.id, forms)}</Table.Cell
 						>
 						<Table.Cell>
