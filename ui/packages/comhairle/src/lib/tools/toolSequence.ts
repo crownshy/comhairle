@@ -9,8 +9,6 @@ export type ToolSequence = {
 	previous?: () => void;
 	/** Fill of this step's progress segment, 0 to 1. */
 	progress?: number;
-	/** A short position label such as "Page 3 of 12" for the step header. */
-	count?: string;
 	/** Why forward is closed, such as "Vote on 3 more statements", shown when it is pressed. */
 	blockedReason?: string;
 };
