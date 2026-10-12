@@ -17,10 +17,10 @@
 		permissions.can('conversation', 'conversation_update', conversation_id)
 	);
 
-	const open = () => {
+	function open() {
 		if (!hasPermission) return;
 		addStepDialogOpen = true;
-	};
+	}
 
 	let addStepDialogOpen = $state<boolean>(false);
 	setAddStepDialogContext({ open });
