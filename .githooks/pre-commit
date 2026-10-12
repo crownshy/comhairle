@@ -45,3 +45,12 @@ format_rust() {
 format_rust "${REPO_BASE}" "adaptors"
 format_rust "${REPO_BASE}" "api"
 format_rust "${REPO_BASE}" "comhairle_macros"
+
+RUST_PATHS_REGEX='^(api|api_spec_gen|adaptors|comhairle_macros)/|^Cargo\.(toml|lock)$'
+if git diff --cached --name-only | grep -qE "${RUST_PATHS_REGEX}"; then
+  echo "pre-commit: running cargo clippy..."
+  if ! cargo clippy --manifest-path "${REPO_BASE}/Cargo.toml" --workspace --all-targets -- -D warnings; then
+    echo "pre-commit: clippy failed. Fix the warnings above, or bypass with 'git commit --no-verify'."
+    exit 1
+  fi
+fi
