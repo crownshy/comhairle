@@ -130,6 +130,7 @@ pub fn test_state(
             .map(Some)
             .unwrap_or_else(mock_bulk_storage),
         redis_conn,
+        sensemakar_service: None,
     };
     Ok(state)
 }

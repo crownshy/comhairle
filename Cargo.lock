@@ -2126,6 +2126,7 @@ dependencies = [
  "schemars 0.8.22",
  "sea-query",
  "sea-query-binder",
+ "sensemakar",
  "sensemakar_jobs",
  "sensemakar_types",
  "serde",

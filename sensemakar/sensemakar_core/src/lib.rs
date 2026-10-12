@@ -1,3 +1,4 @@
+pub mod model_config;
 pub mod statement_classifier;
 pub mod statement_theme_assigner;
 pub mod theme_extraction;

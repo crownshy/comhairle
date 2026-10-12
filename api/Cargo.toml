@@ -130,7 +130,8 @@ futures-util = "0.3.31"
 dashmap = "6.1.0"
 moka = { version = "0.12", features = ["future"] }
 
-# sensemaking 
+# sensemaking
+sensemakar ={path="../sensemakar/sensemakar_core"}
 sensemakar_jobs ={path="../sensemakar/sensemakar_jobs"}
 sensemakar_types ={path="../sensemakar/sensemakar_types"}
 

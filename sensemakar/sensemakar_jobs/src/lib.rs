@@ -25,10 +25,11 @@ pub struct ThinkingSpaceSummaryJob {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct WikiPollSummaryJob {
     pub job_id: Uuid,
+    pub workflow_step_id: Uuid,
     pub context: Option<String>,
     pub additional_instructions: Option<String>,
     pub reading_age_target: Option<String>,
-    pub poll_data: WikiPollData 
+    pub poll_data: WikiPollData,
 }
 
 pub async fn redis_conn() -> apalis_redis::ConnectionManager {

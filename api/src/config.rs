@@ -51,6 +51,13 @@ pub struct MailerConfig {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct SensemakerModelConfig {
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct VideoCallConfig {
     pub jwt_app_id: String,
     pub jwt_app_secret: String,
@@ -80,6 +87,7 @@ pub struct ComhairleConfig {
     pub video_call_service: Option<VideoCallConfig>,
     pub transcription_service: Option<TranscriptionServiceConfig>,
     pub worker_service: Option<WorkerConfig>,
+    pub sensemaker_model: Option<SensemakerModelConfig>,
     pub categorization_service: Option<CategorizationConfig>,
     pub bulk_storage_service: Option<BulkStorageServiceConfig>,
     pub websocket_service: Option<WebsocketConfig>,
