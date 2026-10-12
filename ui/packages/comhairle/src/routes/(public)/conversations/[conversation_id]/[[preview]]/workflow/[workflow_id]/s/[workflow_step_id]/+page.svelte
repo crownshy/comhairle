@@ -20,7 +20,7 @@
 	import type { ToolSequence } from '$lib/tools/toolSequence';
 	import { STEP_COLUMN_CLASS } from './styles';
 
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import {
 		thank_you_page,
 		next_workflow_step_url,
@@ -124,6 +124,12 @@
 	let toolSequence = $state.raw<StepScoped<ToolSequence>>();
 	let toolCanContinue = $state.raw<StepScoped<boolean>>();
 	let submittingStepId = $state<string>();
+
+	// This page stays mounted between steps, so a finished submit has to be cleared here or
+	// coming Back to that step finds its pager still spinning and locked.
+	afterNavigate(() => {
+		submittingStepId = undefined;
+	});
 
 	function forThisStep<T>(scoped: StepScoped<T> | undefined): T | undefined {
 		return scoped?.stepId === workflowStep.id ? scoped.value : undefined;
