@@ -71,6 +71,9 @@ pub enum ComhairleError {
     #[error("Invalid uuid error: {0}")]
     InvalidUuidError(#[from] uuid::Error),
 
+    #[error("Url parse error: {0}")]
+    UrlParseError(#[from] url::ParseError),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
@@ -91,6 +94,9 @@ pub enum ComhairleError {
 
     #[error("No categorization service configured")]
     NoCategorizationServiceConfigured,
+
+    #[error("No redis configured")]
+    NoRedisConfigured,
 
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),

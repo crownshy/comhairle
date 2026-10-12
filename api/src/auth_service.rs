@@ -39,6 +39,7 @@ pub trait AuthService: Send + Sync {
         &self,
         code: &str,
         redirect_uri: &str,
+        code_verifier: &str,
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError>;
 
     async fn refresh_session(
@@ -117,7 +118,7 @@ impl MockAuthService {
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
         auth_service
             .expect_get_authorization_tokens()
-            .returning(|_, _| {
+            .returning(|_, _, _| {
                 Box::pin(async move { Ok(GetAuthorizationTokensResponse::default()) })
             });
         auth_service

@@ -30,6 +30,9 @@ pub trait RedisConnection: Send + Sync {
 
     /// Delete the entry at `key`.
     async fn del(&self, key: &str) -> Result<(), RedisError>;
+
+    /// Retrieve the value stored at `key` and delete entry
+    async fn get_del(&self, key: &str) -> Result<Option<String>, RedisError>;
 }
 
 /// Production Redis connection backed by a [`redis::aio::ConnectionManager`].
@@ -94,6 +97,14 @@ impl RedisConnection for RedisImpl {
             e
         })
     }
+
+    async fn get_del(&self, key: &str) -> Result<Option<String>, RedisError> {
+        let mut conn = (*self).clone();
+        conn.get_del::<_, Option<String>>(key).await.map_err(|e| {
+            tracing::error!("Redis get_del error for key {key}: {e}");
+            e
+        })
+    }
 }
 
 /// In-memory Redis mock backed by a `HashMap<String, String>`.
@@ -144,5 +155,9 @@ impl RedisConnection for MockRedis {
     async fn del(&self, key: &str) -> Result<(), RedisError> {
         self.lock().await.remove(key);
         Ok(())
+    }
+
+    async fn get_del(&self, key: &str) -> Result<Option<String>, RedisError> {
+        Ok(self.lock().await.remove(key))
     }
 }

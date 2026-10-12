@@ -160,6 +160,7 @@ struct OpenidTokenRequest<'a> {
     client_secret: &'a str,
     code: &'a str,
     redirect_uri: &'a str,
+    code_verifier: &'a str,
 }
 
 #[derive(Serialize, Debug)]
@@ -337,6 +338,7 @@ impl AuthService for KeycloakClient {
         &self,
         code: &str,
         redirect_uri: &str,
+        code_verifier: &str,
     ) -> Result<GetAuthorizationTokensResponse, AuthServiceError> {
         let form_body = OpenidTokenRequest {
             grant_type: "authorization_code",
@@ -344,6 +346,7 @@ impl AuthService for KeycloakClient {
             client_secret: &self.client_secret,
             redirect_uri,
             code,
+            code_verifier,
         };
 
         self.auth_tokens(&form_body).await

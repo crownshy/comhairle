@@ -59,7 +59,12 @@ sqlx-postgres = { version = "0.8.3", features = [
 ] }
 thiserror = "2.0.11"
 tokio = { workspace = true, features = ["full"] }
-tower-http = { version = "0.6.2", features = ["trace", "cors", "auth", "normalize-path"] }
+tower-http = { version = "0.6.2", features = [
+    "trace",
+    "cors",
+    "auth",
+    "normalize-path",
+] }
 tower_governor = "0.8"
 governor = "0.10"
 tracing = "0.1.41"
@@ -95,6 +100,7 @@ apalis-redis = "0.7.4"
 apalis-cron = "0.7.4"
 strum = "0.28"
 strum_macros = "0.28"
+url = "2.5.8"
 
 #API documentation
 

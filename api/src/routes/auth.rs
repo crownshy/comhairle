@@ -22,25 +22,27 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
 };
 use axum_keycloak_auth::instance::KeycloakAuthInstance;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
 use governor::middleware::StateInformationMiddleware;
 use hmac::{Hmac, KeyInit, Mac};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
-use rand_core::OsRng;
+use rand_core::{OsRng, RngCore};
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use time::Duration;
 use tower::layer::util::Identity;
 use tower::util::Either;
 use tower_governor::GovernorLayer;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::{instrument, warn};
+use url::Url;
 use uuid::Uuid;
 
 use crate::auth_service::GetAuthorizationTokensResponse;
@@ -71,6 +73,9 @@ const REFRESH_KEY: &str = "refresh-token";
 pub const KC_ACCESS_KEY: &str = "kc-access-token";
 pub const KC_IDENTITY_KEY: &str = "kc-id-token";
 pub const KC_REFRESH_KEY: &str = "kc-refresh-token";
+
+pub const LOGIN_TTL_SECS: u64 = 600;
+pub const LOGIN_STATE_KEY: &str = "oauth_state";
 
 /// Helper function to check if a user is admin
 pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &UserDto) -> bool {
@@ -207,7 +212,7 @@ pub fn hash_pw(password: &str) -> Result<String, ComhairleError> {
 
 /// Expected payload for a login request
 #[derive(Deserialize, JsonSchema)]
-struct LoginRequest {
+struct LegacyLoginRequest {
     email: String,
     password: String,
 }
@@ -443,7 +448,7 @@ async fn legacy_login(
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
-    Json(payload): Json<LoginRequest>,
+    Json(payload): Json<LegacyLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = get_user_by_email(&payload.email, &state.db).await?;
 
@@ -1258,41 +1263,342 @@ pub async fn current_user(
     }
 }
 
-#[instrument(err(Debug), skip(state))]
-async fn login(State(state): State<Arc<ComhairleState>>) -> Result<Redirect, ComhairleError> {
+#[derive(Debug)]
+enum AuthFlowError {
+    /// User cancelled or denied at Keycloak
+    Cancelled,
+    /// Keycloak reported it is down or overloaded
+    Unavailable,
+    /// State missing, mismatched, expired or already used
+    InvalidState,
+    /// Callback arrived with neither `code` nor `error`
+    MissingCode,
+    /// Anything else (Redis, token exchange, serialization...)
+    Internal(ComhairleError),
+}
+
+impl AuthFlowError {
+    fn reason(&self) -> &'static str {
+        match self {
+            Self::Cancelled => "cancelled",
+            Self::Unavailable => "unavailable",
+            _ => "failed",
+        }
+    }
+}
+
+impl<E: Into<ComhairleError>> From<E> for AuthFlowError {
+    fn from(e: E) -> Self {
+        Self::Internal(e.into())
+    }
+}
+
+fn auth_flow_error_redirect(domain: &str, reason: &str) -> Redirect {
+    let url = format!("{domain}?authError={reason}");
+
+    Redirect::to(&url)
+}
+
+/// Ensure `back_to` path from login request is safe and won't attempt to redirect
+/// user to different domain (phishing).
+// TODO: unit tests
+fn safe_back_to_path(back_to: Option<&str>) -> String {
+    match back_to {
+        Some(path)
+            if path.starts_with('/')
+                && !path.starts_with("//")
+                && !path.starts_with("/\\")
+                && !path.contains('\\')
+                && !path.chars().any(|char| char.is_control()) =>
+        {
+            path.to_string()
+        }
+        _ => "/".to_string(),
+    }
+}
+
+/// Generate random 32 byte string value
+fn random_token() -> String {
+    let mut bytes = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    URL_SAFE_NO_PAD.encode(bytes)
+}
+
+fn code_challenge(verifier: &str) -> String {
+    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+}
+
+fn pending_login_redis_key(rand_token: &str) -> String {
+    format!("auth:pending:{rand_token}")
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+struct LoginRequest {
+    #[serde(rename = "backTo")]
+    back_to: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PendingLogin {
+    back_to: String,
+    code_verifier: String,
+}
+
+/// This handler deliberately returns `(CookieJar, Redirect)` rather than
+/// `Result<_, ComhairleError>`, unlike most handlers in this codebase.
+///
+/// Users reach this endpoint through a full-page browser navigation (a link
+/// or button), not a `fetch` call from the frontend. If it returned an error,
+/// axum would render the JSON error body (e.g. `{ "err": "No redis
+/// configured" }`) as the whole page, leaving the user stranded with no way
+/// back into the app and no frontend code running to handle it.
+///
+/// So the real functionality lives in [`begin_login`], which returns
+/// `Result<_, AuthFlowError>` so that `?` works normally. This wrapper turns
+/// any `Err` into a redirect to the homepage with an `?authError=<reason>`
+/// query param, which the frontend can render as a notification. The detailed
+/// cause is logged by `#[instrument(err)]` on the inner function, while the
+/// user only ever sees one of a few fixed reasons (see
+/// [`AuthFlowError::reason`]).
+///
+/// Because this function can't fail, any new fallible step belongs in
+/// [`begin_login`], not here.
+#[instrument(skip(state, jar))]
+async fn login(
+    State(state): State<Arc<ComhairleState>>,
+    Query(query): Query<LoginRequest>,
+    jar: CookieJar,
+) -> (CookieJar, Redirect) {
+    // Capture errors and redirect user to homepage with error reason
+    match begin_login(&state, query, jar.clone()).await {
+        Ok(response) => response,
+        Err(e) => (
+            jar,
+            auth_flow_error_redirect(&state.config.domain, e.reason()),
+        ),
+    }
+}
+
+/// Starts the OIDC authorization code flow with PKCE.
+///
+/// Generates a random `state` and a PKCE `code_verifier`, and stores both
+/// (along with the sanitised `back_to` path) in Redis as a [`PendingLogin`]
+/// under the `state` key with a short TTL. The returned jar carries a
+/// short-lived `oauth_state` cookie containing the same `state`, which binds
+/// the flow to this browser so that [`complete_login`] can reject callbacks
+/// that this browser didn't initiate (login CSRF).
+///
+/// The `code_verifier` never leaves the server. Only its SHA-256 hash
+/// (`code_challenge`, method `S256`) is sent to Keycloak.
+///
+/// # Returns
+///
+/// The jar with the `oauth_state` cookie added, and a redirect to Keycloak's
+/// `/protocol/openid-connect/auth` endpoint.
+///
+/// # Errors
+///
+/// Returns [`AuthFlowError::Internal`] if Redis isn't configured or the write
+/// fails, or if the pending login can't be serialised or the auth URL can't
+/// be built. The caller ([`login`]) turns every error into a redirect to the
+/// homepage with an `authError` query param.
+#[instrument(err(Debug), skip(state, jar))]
+async fn begin_login(
+    state: &ComhairleState,
+    query: LoginRequest,
+    jar: CookieJar,
+) -> Result<(CookieJar, Redirect), AuthFlowError> {
     let auth_config = &state.config.auth_service;
+    let redis = state
+        .redis_conn
+        .as_ref()
+        .ok_or_else(|| ComhairleError::NoRedisConfigured)?;
 
     let redirect_url = format!("{}/api/auth/callback", state.config.domain);
-    let authentication_url = format!(
-        "{}/realms/{}/protocol/openid-connect/auth?client_id={}&response_type=code&scope=openid&redirect_uri={}",
-        auth_config.url, auth_config.realm, auth_config.client_id, redirect_url
-    );
 
-    Ok(Redirect::to(&authentication_url))
+    let oauth_state = random_token();
+    let pending = PendingLogin {
+        back_to: safe_back_to_path(query.back_to.as_deref()),
+        code_verifier: random_token(),
+    };
+
+    redis
+        .set_ex(
+            &pending_login_redis_key(&oauth_state),
+            &serde_json::to_string(&pending)?,
+            LOGIN_TTL_SECS,
+        )
+        .await
+        .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+
+    let authentication_url = Url::parse_with_params(
+        &format!(
+            "{}/realms/{}/protocol/openid-connect/auth",
+            auth_config.url, auth_config.realm
+        ),
+        &[
+            ("client_id", auth_config.client_id.as_str()),
+            ("response_type", "code"),
+            ("scope", "openid"),
+            ("redirect_uri", &redirect_url),
+            ("state", &oauth_state),
+            (
+                "code_challenge",
+                code_challenge(&pending.code_verifier).as_str(),
+            ),
+            ("code_challenge_method", "S256"),
+        ],
+    )?;
+
+    // Bind login flow to the browser to prevent CSRF logging user in as
+    // malicious actor and potentially exposing sensitive data.
+    let state_cookie = Cookie::build((LOGIN_STATE_KEY, oauth_state))
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::Lax)
+        .path("/api/auth/callback")
+        .max_age(Duration::seconds(LOGIN_TTL_SECS as i64))
+        .build();
+
+    Ok((
+        jar.add(state_cookie),
+        Redirect::to(authentication_url.as_str()),
+    ))
+}
+
+fn clear_state_cookie(jar: CookieJar) -> CookieJar {
+    jar.remove(
+        Cookie::build(LOGIN_STATE_KEY)
+            .path("/api/auth/callback")
+            .build(),
+    )
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
 struct KeycloakCallbackQuery {
-    code: String,
+    code: Option<String>,
+    state: Option<String>,
+    error: Option<String>,
 }
 
-#[instrument(err(Debug), skip(state))]
+/// Like [`login`], this handler never returns an error response, for the same
+/// reason: the request is a top-level browser navigation, so an error body
+/// would be displayed as a raw JSON page. Instead the work is done in
+/// [`complete_login`], and this wrapper maps the result to a redirect:
+///
+/// * `Ok`: redirect to the validated `backTo` destination, with the auth
+///   cookies set.
+/// * `Err`: redirect to the homepage with `?authError=<reason>`, with no auth
+///   cookies set.
+///
+/// This wrapper also clears the `oauth_state` cookie on both paths. Doing it
+/// here, rather than inside [`complete_login`], means no early `?` return
+/// can leave a stale cookie behind.
+///
+/// Keep the user-facing `reason` coarse. Anything derived from the callback's
+/// query string (e.g. `error_description`) is attacker-controllable and mustn't
+/// be forwarded to the frontend.
+#[instrument(skip(state, jar))]
 async fn authentication_callback(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
     Query(query): Query<KeycloakCallbackQuery>,
-) -> Result<(CookieJar, Redirect), ComhairleError> {
-    let redirect_url = format!("{}/api/auth/callback", state.config.domain);
+) -> (CookieJar, Redirect) {
+    // Capture errors and redirect user to homepage with error reason
+    match complete_login(&state, jar.clone(), query).await {
+        Ok((jar, destination)) => (clear_state_cookie(jar), Redirect::to(&destination)),
+        Err(e) => (
+            clear_state_cookie(jar),
+            auth_flow_error_redirect(&state.config.domain, e.reason()),
+        ),
+    }
+}
 
+/// Completes the authorization code flow after Keycloak redirects back.
+///
+/// The steps run in a deliberate order:
+///
+/// 1. **Browser binding:** the `oauth_state` cookie and the `state` query
+///    param must both be present and equal. This prevents login CSRF, where
+///    an attacker gets a victim's browser to complete the attacker's login.
+/// 2. **Consume the pending login:** the Redis entry is fetched and deleted
+///    atomically (`GETDEL`), so a `state` can only be used once. This happens
+///    before inspecting `error` or `code`, so failed attempts don't leave
+///    entries behind and `error` is only trusted for flows this browser
+///    started.
+/// 3. **Keycloak errors:** an `error` param (e.g. `access_denied`) is mapped
+///    to a fixed [`AuthFlowError`] variant. The raw value is logged, never
+///    forwarded to the user.
+/// 4. **Token exchange:** the `code` is exchanged for tokens together with
+///    the stored `code_verifier`, proving this server started the flow.
+///
+/// This function does not clear the `oauth_state` cookie. That's done by the
+/// caller ([`authentication_callback`]) on both success and failure.
+///
+/// # Returns
+///
+/// The jar with the auth token cookies set, and the absolute URL to redirect
+/// to (the configured domain plus the validated `backTo` path).
+///
+/// # Errors
+///
+/// * [`AuthFlowError::InvalidState`]: cookie or `state` missing, mismatched,
+///   expired, or already used.
+/// * [`AuthFlowError::Cancelled`] / [`AuthFlowError::Unavailable`]: Keycloak
+///   reported `access_denied`, or `server_error` / `temporarily_unavailable`.
+/// * [`AuthFlowError::MissingCode`]: Keycloak reported any other error, or
+///   sent neither `code` nor `error`.
+/// * [`AuthFlowError::Internal`]: Redis, deserialisation or token exchange
+///   failures.
+#[instrument(err(Debug), skip(state, jar))]
+async fn complete_login(
+    state: &ComhairleState,
+    jar: CookieJar,
+    query: KeycloakCallbackQuery,
+) -> Result<(CookieJar, String), AuthFlowError> {
+    let redis = state
+        .redis_conn
+        .as_ref()
+        .ok_or_else(|| ComhairleError::NoRedisConfigured)?;
+
+    // Browser binding. State must be present and equal in cookie and request.
+    let cookie_state = jar
+        .get(LOGIN_STATE_KEY)
+        .map(|cookie| cookie.value().to_owned());
+    let (Some(cookie_state), Some(query_state)) = (cookie_state, query.state) else {
+        return Err(AuthFlowError::InvalidState);
+    };
+    if cookie_state != query_state {
+        return Err(AuthFlowError::InvalidState);
+    }
+
+    // Consume pending login
+    let raw_login = redis
+        .get_del(&pending_login_redis_key(&query_state))
+        .await
+        .map_err(|e| ComhairleError::RedisError(e.to_string()))?
+        .ok_or_else(|| AuthFlowError::InvalidState)?;
+    let pending_login: PendingLogin = serde_json::from_str(&raw_login)?;
+
+    if let Some(error) = query.error {
+        tracing::warn!(%error, "auth callback returned error");
+        return Err(match error.as_str() {
+            "access_denied" => AuthFlowError::Cancelled,
+            "temporarily_unavailable" | "server_error" => AuthFlowError::Unavailable,
+            _ => AuthFlowError::MissingCode,
+        });
+    }
+    let auth_code = query.code.ok_or(AuthFlowError::MissingCode)?;
+
+    let redirect_url = format!("{}/api/auth/callback", state.config.domain);
     let token_result = state
         .auth_service
-        .get_authorization_tokens(&query.code, &redirect_url)
+        .get_authorization_tokens(&auth_code, &redirect_url, &pending_login.code_verifier)
         .await?;
 
     let jar = build_auth_service_token_cookies(jar, token_result);
-
-    // TODO: handle backTo paths, maybe via redis
-    Ok((jar, Redirect::to(&state.config.domain)))
+    let destination = format!("{}{}", state.config.domain, pending_login.back_to);
+    Ok((jar, destination))
 }
 
 /// Handler for testing RequiresRole
