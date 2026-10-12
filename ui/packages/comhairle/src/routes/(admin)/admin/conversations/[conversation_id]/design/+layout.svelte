@@ -14,11 +14,13 @@
 	const { conversation_id } = $derived(params);
 
 	const hasPermission = $derived(
-		permissions.can('conversation', 'conversation_update', conversation_id) ||
-			permissions.can('conversation', 'conversation_update', conversation_id)
+		permissions.can('conversation', 'conversation_update', conversation_id)
 	);
 
-	const open = () => hasPermission && void (addStepDialogOpen = true);
+	function open() {
+		if (!hasPermission) return;
+		addStepDialogOpen = true;
+	}
 
 	let addStepDialogOpen = $state<boolean>(false);
 	setAddStepDialogContext({ open });

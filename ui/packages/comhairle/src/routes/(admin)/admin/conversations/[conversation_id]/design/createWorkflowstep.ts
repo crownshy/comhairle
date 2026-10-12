@@ -79,32 +79,26 @@ export const createWorkflowStep = async (
 
 		const toolDefaults = defaultStepCreationParams(params.creationKey);
 
-		const createWorkflowStep = await tryCatchAsync(() =>
-			apiClient.CreateConversationWorkflowStep(
-				{
-					name: toolDefaults.name,
-					description: toolDefaults.description,
-					is_offline: false,
-					activation_rule: 'manual',
-					step_order: params.highestStepOrder + 1,
-					// The basic_*_config objects are structurally looser than the endpoint's
-					// zod-inferred union (string vs literal `type`); this matches how the
-					// previous inline add-step code passed them.
-					tool_setup: tool_setup as CreateStepBody['tool_setup'],
-					required: true
-				},
-				{
-					params: {
-						conversation_id: params.conversationId,
-						workflow_id: params.workflowId
-					}
+		const createConversationWorkflowStep = await apiClient.CreateConversationWorkflowStep(
+			{
+				name: toolDefaults.name,
+				description: toolDefaults.description,
+				is_offline: false,
+				activation_rule: 'manual',
+				step_order: params.highestStepOrder + 1,
+				// The basic_*_config objects are structurally looser than the endpoint's
+				// zod-inferred union (string vs literal `type`); this matches how the
+				// previous inline add-step code passed them.
+				tool_setup: tool_setup as CreateStepBody['tool_setup'],
+				required: true
+			},
+			{
+				params: {
+					conversation_id: params.conversationId,
+					workflow_id: params.workflowId
 				}
-			)
+			}
 		);
 
-		if (createWorkflowStep.err !== null) {
-			throw err(createWorkflowStep.err);
-		}
-
-		return ok(createWorkflowStep.ok);
+		return ok(createConversationWorkflowStep);
 	});
