@@ -79,7 +79,7 @@ export const createWorkflowStep = async (
 
 		const toolDefaults = defaultStepCreationParams(params.creationKey);
 
-		apiClient.CreateConversationWorkflowStep(
+		const createConversationWorkflowStep = await apiClient.CreateConversationWorkflowStep(
 			{
 				name: toolDefaults.name,
 				description: toolDefaults.description,
@@ -99,4 +99,6 @@ export const createWorkflowStep = async (
 				}
 			}
 		);
+
+		return ok(createConversationWorkflowStep);
 	});
