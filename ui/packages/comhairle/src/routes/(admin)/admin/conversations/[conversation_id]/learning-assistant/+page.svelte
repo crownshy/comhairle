@@ -380,7 +380,7 @@
 						<Skeleton class="h-29.5 w-full" />
 					{:then documents}
 						{#if documents.err !== null}
-							<span class="text-destructive text-bold"
+							<span class="text-destructive font-semibold"
 								>Error loading documents, please try again</span
 							>
 						{:else if documents.ok.length === 0}
@@ -445,7 +445,7 @@
 					<Skeleton class="h-29.5 w-full" />
 				{:then documents}
 					{#if documents.err !== null}
-						<span class="text-destructive text-bold"
+						<span class="text-destructive font-semibold"
 							>Error loading documents, please try again</span
 						>
 					{:else if documents.ok.length === 0}
@@ -493,7 +493,7 @@
 					{:then chat}
 						{#if chat.err !== null}
 							{console.error(chat.err)}
-							<span class="text-destructive text-bold"
+							<span class="text-destructive font-semibold"
 								>Could not load chat data, please try again</span
 							>
 						{:else}
