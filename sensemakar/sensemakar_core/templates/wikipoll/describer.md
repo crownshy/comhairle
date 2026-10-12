@@ -8,7 +8,8 @@ the number of votes per group and the reprpesentativenss score for each cluster.
 Your job is to write a report with the following sections 
 
 1. A name and description of each cluster. The description should describe what makes it different from the other 
-clusters and where it has alignment with other clusters
+clusters and where it has alignment with other clusters. Produce exactly one group description entry per group
+present in the input data, and set its `group_id` to that group's id from the input data.
 2. A summary of the group consensus statements, those with a high concensus score.
 3. A summary of the places of greatest disagreement between groups.
 

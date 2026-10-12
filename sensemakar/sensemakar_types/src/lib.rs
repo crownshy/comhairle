@@ -57,6 +57,8 @@ pub struct WikiPollVoteSummary {
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 /// A description of a WikiPoll Group
 pub struct WikiPollGroupDescription {
+    /// The id of the group this description belongs to, exactly as given in the input data
+    group_id: String,
     /// An appropriate human readable name for the group
     name: String,
     /// An longer description of the group and how it
@@ -68,8 +70,9 @@ pub struct WikiPollGroupDescription {
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct WikiPollReportResult {
-    /// A description of each group with the keys being the group
-    group_descriptions: HashMap<String, WikiPollGroupDescription>,
+    /// A description of each group. There must be exactly one entry per group
+    /// in the input data, with `group_id` set to that group's id
+    group_descriptions: Vec<WikiPollGroupDescription>,
     /// A description of the censensus statements
     consensus_description: String,
     /// Disagreement description
