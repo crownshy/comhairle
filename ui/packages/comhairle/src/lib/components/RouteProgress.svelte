@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { navigating } from '$app/state';
-	import { routeProgress } from '$lib/stores/routeProgress.svelte';
+	import { pendingWork } from '$lib/stores/pendingWork.svelte';
 
-	/**
-	 * A page load can be slow enough that a tap on "Join the conversation" looks
-	 * like nothing happened. This bar appears on the same frame as the click, for
-	 * both client-side navigation and the API calls that precede it.
-	 */
-	let active = $derived(navigating.to !== null || routeProgress.busy);
+	// A slow page load can make a tap on "Join the conversation" look like it did nothing,
+	// so the bar shows on the same frame as the click.
+	let active = $derived(navigating.to !== null || pendingWork.busy);
 </script>
 
 {#if active}
@@ -16,28 +13,8 @@
 		role="progressbar"
 		aria-label="Loading"
 	>
-		<div class="bg-primary sweep h-full w-2/5 rounded-full"></div>
+		<div
+			class="bg-primary animate-progress-sweep h-full w-2/5 rounded-full motion-reduce:w-full motion-reduce:animate-none"
+		></div>
 	</div>
 {/if}
-
-<style>
-	.sweep {
-		animation: sweep 1.1s ease-in-out infinite;
-	}
-
-	@keyframes sweep {
-		from {
-			transform: translateX(-100%);
-		}
-		to {
-			transform: translateX(350%);
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.sweep {
-			width: 100%;
-			animation: none;
-		}
-	}
-</style>

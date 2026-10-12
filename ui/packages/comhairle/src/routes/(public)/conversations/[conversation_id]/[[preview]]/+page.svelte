@@ -13,7 +13,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { HttpStatus } from '$lib/utils/constants';
 	import type { ApiError } from '@crownshy/api-client/api';
-	import { routeProgress } from '$lib/stores/routeProgress.svelte';
+	import { pendingWork } from '$lib/stores/pendingWork.svelte';
 
 	let { data } = $props();
 	let { conversation, workflows, participation, preview } = data;
@@ -22,7 +22,6 @@
 
 	let privacyPolicyOpen = $state(false);
 	let isSubmitting = $state(false);
-	let privacyAccepted = $state(false);
 
 	let emailStep = $state<'closed' | 'email' | 'code'>('closed');
 	let emailValue = $state('');
@@ -37,37 +36,33 @@
 		if (isSubmitting) return;
 		isSubmitting = true;
 		if (conversation.shortPrivacyPolicy) {
-			privacyAccepted = false;
 			privacyPolicyOpen = true;
 		} else {
 			doJoin();
 		}
 	}
 
-	// The join is API calls and then a page load, so the global bar covers the whole of it.
+	// Joining is API calls and then a page load. Both are awaited so the progress bar stays
+	// up until the step page has loaded.
 	async function doJoin() {
-		routeProgress.start();
-		try {
-			if (!user && firstWorkflow.autoLogin) {
-				await registerGuestUserSignupAndRedirect();
-			} else {
-				await registerUser();
-			}
-		} finally {
-			routeProgress.stop();
-		}
-	}
+		pendingWork.start();
+		const joined = await tryCatchAsync<void, ApiError>(() =>
+			!user && firstWorkflow.autoLogin ? registerGuestUserSignupAndRedirect() : registerUser()
+		);
+		pendingWork.stop();
 
-	function handlePrivacyPolicyAccept() {
-		privacyAccepted = true;
-		doJoin();
-	}
-
-	$effect(() => {
-		if (!privacyPolicyOpen && !privacyAccepted && isSubmitting) {
+		if (joined.err !== null) {
+			notifications.send({
+				message: 'Failed to sign you up for the conversation, try again later',
+				priority: 'ERROR'
+			});
 			isSubmitting = false;
 		}
-	});
+	}
+
+	function handlePrivacyPolicyDismiss() {
+		isSubmitting = false;
+	}
 
 	let firstWorkflow = $derived(workflows[0]);
 
@@ -87,7 +82,8 @@
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 
-		goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		await goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
 	}
 
 	function openGuestChoice() {
@@ -207,30 +203,16 @@
 	}
 
 	async function registerUser() {
-		try {
-			await apiClient.RegisterUserForConversationWorkflow(undefined, {
-				params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
-			});
+		await apiClient.RegisterUserForConversationWorkflow(undefined, {
+			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
+		});
 
-			notifications.addFlash({
-				message: `You are part of the "${conversation.title}" conversation!`
-			});
+		notifications.addFlash({
+			message: `You are part of the "${conversation.title}" conversation!`
+		});
 
-			goto(firstWorkflowPath);
-		} catch (e) {
-			let message;
-
-			if (e instanceof Error) message = e.message;
-			else message = String(e);
-
-			console.warn(`Failed to register user for workflow ${message}`);
-
-			notifications.send({
-				message: 'Failed to sign you up for the conversation, try again later',
-				priority: 'ERROR'
-			});
-			isSubmitting = false;
-		}
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		await goto(firstWorkflowPath);
 	}
 </script>
 
@@ -392,7 +374,8 @@
 				{conversation}
 				availableDocuments={data.availableDocuments}
 				bind:open={privacyPolicyOpen}
-				onAccept={handlePrivacyPolicyAccept}
+				onAccept={doJoin}
+				onDismiss={handlePrivacyPolicyDismiss}
 			/>
 		{/if}
 	{:else}
