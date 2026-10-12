@@ -38,6 +38,7 @@ impl WikiPollGroupDescriber {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<WikiPollReportResult>::new(model)
             .preamble(&template)
+            .retries(2)
             .build();
 
         let statement_json: String = serde_json::to_string(wiki_poll_report)?;

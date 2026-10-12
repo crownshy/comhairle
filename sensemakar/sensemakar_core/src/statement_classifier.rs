@@ -40,6 +40,7 @@ impl StatementTypeClassifier {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<StatementList>::new(model)
             .preamble(&template)
+            .retries(2)
             .build();
 
         let list: StatementList = statement_list.into();
@@ -65,6 +66,7 @@ impl StatementTypeClassifier {
 
         let extractor = ExtractorBuilder::<StatementList>::new(model)
             .preamble(&template)
+            .retries(2)
             .build();
 
         let list: StatementList = statement_list.into();

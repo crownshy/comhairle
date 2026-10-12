@@ -48,6 +48,7 @@ impl StatementThemeAssigner {
         println!("Template is {template}");
         let extractor = ExtractorBuilder::<ThemeAssignmentResult>::new(model)
             .preamble(&template)
+            .retries(2)
             .build();
 
         let list: StatementList = statement_list.into();

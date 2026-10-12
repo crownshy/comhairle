@@ -58,6 +58,7 @@ impl FollowUpQuestionGenerator {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<FollowUpQuestions>::new(model)
             .preamble(&template)
+            .retries(2)
             .build();
         let question_list = serde_json::to_string(&question_chain)?;
         let follow_ups: FollowUpQuestions = extractor.extract(question_list).await?;
@@ -88,6 +89,7 @@ impl SummaryGenerator {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<InterviewSummary>::new(model)
             .preamble(&template)
+            .retries(2)
             .build();
         let question_list = serde_json::to_string(&question_chain)?;
         let summary: InterviewSummary = extractor.extract(question_list).await?;

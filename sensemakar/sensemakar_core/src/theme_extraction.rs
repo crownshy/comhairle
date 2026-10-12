@@ -44,6 +44,7 @@ impl ThemeExtractor {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<ThemeList>::new(model)
             .preamble(&template)
+            .retries(2)
             .build();
 
         let list: StatementList = statement_list.into();
