@@ -39,6 +39,26 @@
 		permissions.can('conversation', 'conversation_export', conversationId)
 	);
 
+	// The sensemaker's Polis summary result, carrying per-group name/description
+	// alongside the consensus/disagreement text PolisSummaryPanel renders.
+	type SummaryResult = {
+		group_descriptions?: Array<{
+			group_id: string;
+			name?: string;
+			description?: string;
+		}>;
+	};
+
+	const groupSummaries = $derived.by<Record<number, { name: string; summary: string }>>(() => {
+		const result = summary?.result as SummaryResult | undefined;
+		const map: Record<number, { name: string; summary: string }> = {};
+		for (const g of result?.group_descriptions ?? []) {
+			if (!g.name || !g.description) continue;
+			map[Number(g.group_id)] = { name: g.name, summary: g.description };
+		}
+		return map;
+	});
+
 	// "aux" = PolisStatementAux: our supplementary per-statement record (themes,
 	// moderation status/reason, step id, seed flag) that Polis itself doesn't store.
 	//
@@ -232,6 +252,6 @@
 		/>
 
 		<!-- ===== Opinion groups ===== -->
-		<OpinionGroups comments={report.comments} groups={report.groups} />
+		<OpinionGroups comments={report.comments} groups={report.groups} {groupSummaries} />
 	</div>
 {/if}

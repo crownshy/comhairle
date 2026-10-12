@@ -27,14 +27,16 @@
 	type SummaryResult = {
 		consensus_description?: string;
 		disagrement_description?: string;
-		group_descriptions?: Record<
-			string,
-			{ name?: string; description?: string; unique_statement?: string }
-		>;
+		group_descriptions?: Array<{
+			group_id: string;
+			name?: string;
+			description?: string;
+			unique_statement?: string;
+		}>;
 	};
 
 	const result = $derived((summary?.result ?? null) as SummaryResult | null);
-	const groupEntries = $derived(Object.entries(result?.group_descriptions ?? {}));
+	const groupEntries = $derived(result?.group_descriptions ?? []);
 
 	let requesting = $state(false);
 	let jobId = $state<string | null>(null);
@@ -131,10 +133,10 @@
 			{#if groupEntries.length > 0}
 				<div class="flex flex-col gap-3">
 					<p class="text-muted-foreground text-sm">OPINION GROUPS</p>
-					{#each groupEntries as [groupId, description] (groupId)}
+					{#each groupEntries as description (description.group_id)}
 						<div class="bg-accent border-border rounded-[10px] border p-3">
 							<p class="text-foreground font-medium">
-								{description.name ?? `Group ${groupId}`}
+								{description.name ?? `Group ${description.group_id}`}
 							</p>
 							{#if description.description}
 								<p class="text-primary text-base leading-6">
