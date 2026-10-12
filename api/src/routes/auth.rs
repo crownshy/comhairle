@@ -1012,7 +1012,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
     ) -> Result<Self, Self::Rejection> {
         let user = resolve_user_from_request(parts, state).await?;
 
-        if is_user_admin(&state, &user).await {
+        if is_user_admin(state, &user).await {
             Ok(RequiredAdminUser(user.clone()))
         } else {
             Err(ComhairleError::RequiresAuthUser)

@@ -1444,7 +1444,7 @@ mod tests {
             .create_conversation(
                 &app,
                 json! ({
-                    "title" : format!("this is the target"),
+                    "title" : "this is the target".to_string(),
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
@@ -1452,7 +1452,7 @@ mod tests {
                     "is_public" : true,
                     "is_live" : true,
                     "is_invite_only" : false,
-                    "slug" : format!("target_slug"),
+                    "slug" : "target_slug".to_string(),
                     "primary_locale" : "en",
                     "supported_languages" : ["en"]
                 }),
@@ -2776,7 +2776,7 @@ mod tests {
                 actor_id: ActorId::User(other_user_session.id.unwrap()),
                 permission_triplet: system::Role::SuperAdmin.system_triplet()?,
                 granted_by: &owner_session.id.unwrap(),
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;

@@ -36,6 +36,7 @@ impl RateLimitConfig {
 
     /// Creates a lenient rate limit config for less sensitive endpoints
     /// 300 requests per minute with a burst of 50
+    #[expect(dead_code, reason = "For future use")]
     pub fn lenient() -> Self {
         Self {
             per_minute: 300,
@@ -44,6 +45,7 @@ impl RateLimitConfig {
     }
 
     /// Creates a custom rate limit config
+    #[cfg_attr(not(test), expect(dead_code, reason = "For future use"))]
     pub fn custom(per_minute: u32, burst_size: u32) -> Self {
         Self {
             per_minute,

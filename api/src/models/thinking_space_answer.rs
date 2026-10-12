@@ -293,6 +293,10 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, Comha
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::needless_update,
+    reason = "test fixtures use ..Default::default() so adding struct fields doesn't break every test)"
+)]
 mod tests {
     use serde_json::json;
 

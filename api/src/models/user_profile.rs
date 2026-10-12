@@ -381,6 +381,10 @@ pub async fn get_demographic_report(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::needless_update,
+    reason = "test fixtures use ..Default::default() so adding struct fields doesn't break every test)"
+)]
 mod tests {
     use super::*;
 
@@ -398,7 +402,7 @@ mod tests {
         user_id: Uuid,
     ) -> Result<Option<DemographicsResponse>, Box<dyn Error>> {
         let record = get_demographics_responses(
-            &pool,
+            pool,
             DemographicsResponsesFilterOptions {
                 question_slug: Some(question_slug),
                 user_id: Some(user_id),
@@ -420,10 +424,10 @@ mod tests {
         value: Option<String>,
     ) -> Result<(), Box<dyn Error>> {
         crate::models::demographics::update_demographics_response(
-            &pool,
+            pool,
             question_slug,
             user_id,
-            crate::models::demographics::PartialDemographicsResponse { value: value },
+            crate::models::demographics::PartialDemographicsResponse { value },
         )
         .await?;
         Ok(())
@@ -440,7 +444,7 @@ mod tests {
         let default_questions = vec!["age", "ethnicity", "gender", "zipcode", "political_party"];
         for question_slug in default_questions {
             let _ = create_conversation_demographics(
-                &pool,
+                pool,
                 CreateConversationDemographics {
                     conversation_id,
                     question_slug: question_slug.to_string(),
@@ -974,14 +978,14 @@ mod tests {
         assert_eq!(ethnicities.len(), 2, "incorrect ethnicity count");
         let asian_count = ethnicities
             .iter()
-            .find(|e| e.value == "Asian".to_string())
+            .find(|e| e.value == "Asian")
             .map(|e| e.count)
             .unwrap_or(0);
         assert_eq!(asian_count, 2, "incorrect Asian count");
 
         let hispanic_count = ethnicities
             .iter()
-            .find(|e| e.value == "Hispanic".to_string())
+            .find(|e| e.value == "Hispanic")
             .map(|e| e.count)
             .unwrap_or(0);
         assert_eq!(hispanic_count, 1, "incorrect Hispanic count");
@@ -989,14 +993,14 @@ mod tests {
         // Verify age ranges (user1=25, user2=30, user3=45)
         let age_25_34 = ages
             .iter()
-            .find(|a| a.value == "25-34".to_string())
+            .find(|a| a.value == "25-34")
             .map(|a| a.count)
             .unwrap_or(0);
         assert_eq!(age_25_34, 2, "incorrect 25-34 age range count");
 
         let age_45_54 = ages
             .iter()
-            .find(|a| a.value == "45-54".to_string())
+            .find(|a| a.value == "45-54")
             .map(|a| a.count)
             .unwrap_or(0);
         assert_eq!(age_45_54, 1, "incorrect 45-54 age range count");

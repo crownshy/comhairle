@@ -57,9 +57,9 @@ pub enum WorkerServiceError {
     JobFailure(String),
 }
 
-impl Into<StatusCode> for &WorkerServiceError {
-    fn into(self) -> StatusCode {
-        match self {
+impl From<&WorkerServiceError> for StatusCode {
+    fn from(val: &WorkerServiceError) -> Self {
+        match val {
             WorkerServiceError::NoWorkerServiceConfigured
             | WorkerServiceError::NoTranscriptionServiceConfigured
             | WorkerServiceError::NoBulkStorageServiceConfigured

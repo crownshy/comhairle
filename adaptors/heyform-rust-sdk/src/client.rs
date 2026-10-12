@@ -384,7 +384,7 @@ impl HeyFormClient {
     pub async fn get_form_report(&self, form_id: String) -> Result<FormReport> {
         let variables = serde_json::json!({
             "input": FormDetailInput {
-                form_id: form_id,
+                form_id,
             }
         });
 

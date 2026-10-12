@@ -178,7 +178,7 @@ pub async fn launch(
     )
     .await?;
     let (primary_locale, supported_languages) =
-        conversation_locales(&state, &workflow_step.workflow_id).await?;
+        conversation_locales(state, &workflow_step.workflow_id).await?;
 
     // When a Polis poll goes live, seed the aux statement table from the new
     // live poll so moderation/theming has rows to work with immediately.

@@ -324,8 +324,8 @@ mod tests {
         session.signup(&app).await?;
 
         let body = MultipartBodyBuilder::new(boundary.to_string())
-            .add_field("name", &name)
-            .add_field("alt", &alt)
+            .add_field("name", name)
+            .add_field("alt", alt)
             .add_file(filename, Some(content_type), "test-content")
             .build();
 

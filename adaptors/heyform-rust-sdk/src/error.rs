@@ -27,9 +27,9 @@ pub enum HeyFormError {
     NotFound(String),
 }
 
-impl Into<StatusCode> for &HeyFormError {
-    fn into(self) -> StatusCode {
-        match self {
+impl From<&HeyFormError> for StatusCode {
+    fn from(val: &HeyFormError) -> Self {
+        match val {
             HeyFormError::Http(err) => {
                 if let Some(status) = err.status() {
                     status

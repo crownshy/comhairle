@@ -200,8 +200,8 @@ impl MediaContentType {
                 file.filename.clone(),
             ));
         };
-        let extension = MediaContentType::try_from_extension(extension);
-        extension
+
+        MediaContentType::try_from_extension(extension)
     }
 }
 
