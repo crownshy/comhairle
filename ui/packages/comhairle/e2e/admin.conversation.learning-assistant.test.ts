@@ -27,30 +27,31 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 
 	// Learn Content
 	await page.getByRole('button', { name: 'Sync learn content' }).click();
-	await sleep(1.5);
-	await expect(page.getByText('Processing synced learn')).toBeVisible();
-	await eventually(async () => {
-		await expect(page.getByText('Learn content synced and ready')).toBeVisible();
-	});
+	await eventually(() => expect(page.getByText('Processing synced learn')).toBeVisible());
+	await eventually(() => expect(page.getByText('Learn content synced and ready')).toBeVisible());
 
 	// Documents
+	// Can't do it, because can't upload documents?
 
 	// Cross-language Search
 	await page.getByRole('textbox', { name: 'Supported languages' }).click();
 	await page.getByRole('button', { name: 'English' }).click();
 	await page.getByRole('button', { name: 'Gaelic' }).click();
-	await testWithRefresh(page, async () => {
-		expect(await exists(page.getByText('English'))).toBe(true);
-		expect(await exists(page.getByText('Gaelic'))).toBe(true);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => {
+			expect(await exists(page.getByText('English'))).toBe(true);
+			expect(await exists(page.getByText('Gaelic'))).toBe(true);
+		})
+	);
 
 	await page.getByRole('button', { name: 'Remove' }).first().click();
 	await page.getByRole('button', { name: 'Remove' }).first().click();
-	await sleep(1.5);
-	await testWithRefresh(page, async () => {
-		expect(await exists(page.getByText('English'))).toBe(false);
-		expect(await exists(page.getByText('Gaelic'))).toBe(false);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => {
+			expect(await exists(page.getByText('English'))).toBe(false);
+			expect(await exists(page.getByText('Gaelic'))).toBe(false);
+		})
+	);
 
 	// Target reading age
 	const TargetReadingAge = page.getByRole('spinbutton');
