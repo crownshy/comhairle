@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 	await login(page);
 	await Conversation.open(page);
 	await Conversation.openTab(page, 'Learning Assistant', undefined);
-	await sleep(1.5);
+	await sleep(1);
 });
 
 test('Learning Assistant page', async ({ page, cleanup }) => {
@@ -34,8 +34,11 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 	// Can't do it, because can't upload documents?
 
 	// Cross-language Search
-	await page.getByRole('textbox', { name: 'Supported languages' }).click();
+	const SupportedLanguages = page.getByRole('textbox', { name: 'Supported languages' });
+	await SupportedLanguages.click();
 	await page.getByRole('button', { name: 'English' }).click();
+	await sleep(0.5);
+	await SupportedLanguages.click();
 	await page.getByRole('button', { name: 'Gaelic' }).click();
 	await testWithRefresh(page, () =>
 		eventually(async () => {
