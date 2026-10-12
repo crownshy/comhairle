@@ -491,22 +491,30 @@
 					{#await data.streamedChat}
 						<Skeleton class="h-10 w-full" />
 					{:then chat}
-						<MultiSelect
-							defaultOptions={allLanguageOptions}
-							selected={((chat.ok ?? {}).prompt?.cross_languages ?? []).length > 0
-								? allLanguageOptions.filter(
-										(langOption) =>
-											!!chat.ok?.prompt?.cross_languages?.find(
-												(lang) => lang === langOption.value
-											)
-									)
-								: []}
-							onSelectedChange={handleCrossLanguagesChange}
-							placeholder="Select languages..."
-							ariaLabel="Supported languages"
-							emptyMessage="No languages found"
-							class="w-full"
-						/>
+						{#if chat.err !== null}
+							{console.error(chat.err)}
+							<span class="text-destructive text-bold"
+								>Could not load chat data, please try again</span
+							>
+						{:else}
+							{@const crossLanguages = (chat.ok ?? {})?.prompt?.cross_languages ?? []}
+							<MultiSelect
+								defaultOptions={allLanguageOptions}
+								selected={crossLanguages.length > 0
+									? allLanguageOptions.filter(
+											(langOption) =>
+												!!crossLanguages.find(
+													(lang) => lang === langOption.value
+												)
+										)
+									: []}
+								onSelectedChange={handleCrossLanguagesChange}
+								placeholder="Select languages..."
+								ariaLabel="Supported languages"
+								emptyMessage="No languages found"
+								class="w-full"
+							/>
+						{/if}
 					{/await}
 				</div>
 			</div>
