@@ -4,33 +4,41 @@ use std::sync::Arc;
 use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{delete_with, get_with, post_with, put_with};
-use axum::Json;
-use axum::extract::{FromRequestParts, Path, Query, State};
-use axum::http::StatusCode;
+
 use axum::http::request::Parts;
-use axum::middleware::from_fn_with_state;
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    middleware::from_fn_with_state,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::auth::RequiredUser;
-use crate::ComhairleState;
-use crate::error::ComhairleError;
-use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
-use crate::models::permissions::ConversationResource;
-use crate::models::permissions::conversation::Action;
+use crate::models::demographics;
 use crate::models::translations::{
     CollectTextContentIds, TextContentId, get_text_content_with_translations, localize_translations,
 };
-use crate::models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WithToolConfig};
-use crate::models::{self, conversation, user_participation};
+use crate::models::workflow_step::WithToolConfig;
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
     LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
     WorkflowStepWithTranslationsDto,
 };
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
+use crate::{
+    ComhairleState,
+    error::ComhairleError,
+    middleware::permissions::{PermissionRequirement, authorize as permission_middleware},
+    models::permissions::{ConversationResource, conversation::Action},
+    models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep},
+};
+
+use super::auth::RequiredUser;
+use crate::models::{self, conversation, user_participation};
+use axum::extract::{FromRequestParts, Query};
 
 #[derive(Deserialize, JsonSchema, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -114,10 +122,28 @@ async fn create_workflow_step(
         workflow_id,
         &conversation.primary_locale,
         conversation.is_live,
+        conversation.organization_id,
     )
     .await?
     .into();
     Ok((StatusCode::CREATED, Json(workflow)))
+}
+
+/// Checks demographic references in whichever tool configs an update replaces.
+async fn validate_update_references(
+    state: &Arc<ComhairleState>,
+    organization_id: Option<Uuid>,
+    update: &PartialWorkflowStep,
+) -> Result<(), ComhairleError> {
+    let configs = [
+        update.tool_config.as_ref(),
+        update.preview_tool_config.as_ref(),
+    ];
+    let mut conn = state.db.acquire().await?;
+    for config in configs.into_iter().flatten() {
+        demographics::steps::validate_tool_config(&mut conn, organization_id, config).await?;
+    }
+    Ok(())
 }
 
 /// Update workflow handler
@@ -125,15 +151,21 @@ async fn create_workflow_step(
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     SourcePathCtx {
-        conversation_id: _,
+        conversation_id,
         event_id: _,
     }: SourcePathCtx,
     WorkflowStepPathCtx {
         workflow_id,
         workflow_step_id,
     }: WorkflowStepPathCtx,
-    Json(workflow): Json<PartialWorkflowStep>,
+    Json(mut workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+    validate_update_references(&state, conversation.organization_id, &workflow).await?;
+    if let Some(live_tool_config) = workflow.tool_config.take() {
+        workflow.tool_config =
+            Some(demographics::steps::freeze_tool_config(&state.db, live_tool_config).await?);
+    }
     let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
         .await?
         .into();
@@ -408,23 +440,20 @@ Use query param withUserProgress=true to get the active user's progress status f
 #[cfg(test)]
 mod tests {
 
-    use std::error::Error;
-    use std::sync::Arc;
-
+    use crate::{
+        models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+        routes::{
+            events::dto::EventDto,
+            workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto},
+            workflows::dto::WorkflowDto,
+        },
+        setup_server,
+        test_helpers::{UserSession, extract, learn_tool_config, polis_tool_config, test_state},
+    };
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
-
-    use crate::models::model_test_helpers::{
-        get_random_conversation_id, setup_default_app_and_session,
-    };
-    use crate::routes::events::dto::EventDto;
-    use crate::routes::workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto};
-    use crate::routes::workflows::dto::WorkflowDto;
-    use crate::setup_server;
-    use crate::test_helpers::{
-        UserSession, extract, learn_tool_config, polis_tool_config, test_state,
-    };
+    use std::{error::Error, sync::Arc};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_create_a_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {

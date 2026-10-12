@@ -3,26 +3,25 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import {
+		emptyAnswer,
 		isChoiceDisabled,
 		OTHER_CHOICE,
 		PREFER_NOT_TO_SAY,
 		toggleChoice,
-		emptyAnswer,
 		type Answer
 	} from './demographicAnswers';
 	import {
 		defaultPlaceholder,
-		inputLabel,
 		isChoiceKind,
 		selectionHint,
 		type DemographicQuestion
-	} from './demographicPrototypeData';
+	} from './demographicModel';
 
 	type Props = {
 		question: Pick<
 			DemographicQuestion,
-			'kind' | 'options' | 'allowOther' | 'preferNotToSay' | 'placeholder' | 'maxSelections'
-		> & { tags?: string[] };
+			'kind' | 'options' | 'allowOther' | 'preferNotToSay' | 'maxSelections' | 'datePrecision'
+		>;
 		answer: Answer;
 		onAnswer: (next: Answer) => void;
 	};
@@ -35,8 +34,7 @@
 		...(question.preferNotToSay ? [PREFER_NOT_TO_SAY] : [])
 	]);
 	const declined = $derived(answer.selected.includes(PREFER_NOT_TO_SAY));
-	const label = $derived(inputLabel(question.kind, question.tags));
-	const placeholder = $derived(question.placeholder || defaultPlaceholder(question.kind));
+	const placeholder = $derived(defaultPlaceholder(question.kind, question.datePrecision));
 
 	function pick(choice: string) {
 		onAnswer(toggleChoice(answer, choice, question.kind, question.maxSelections));
@@ -44,15 +42,6 @@
 
 	function toggleDeclined() {
 		onAnswer(declined ? emptyAnswer() : { ...emptyAnswer(), selected: [PREFER_NOT_TO_SAY] });
-	}
-
-	// Dates are typed as day, month and year, and kept together as "DD/MM/YYYY".
-	const dateParts = $derived([0, 1, 2].map((i) => answer.text.split('/')[i] ?? ''));
-
-	function setDatePart(index: number, value: string) {
-		const parts = [...dateParts];
-		parts[index] = value.replace(/\D/g, '');
-		onAnswer({ ...answer, text: parts.every((part) => part === '') ? '' : parts.join('/') });
 	}
 
 	function setText(event: Event & { currentTarget: HTMLInputElement | HTMLTextAreaElement }) {
@@ -104,44 +93,25 @@
 	</ul>
 {:else}
 	<div class="flex flex-col gap-3">
-		{#if question.kind === 'date_split'}
-			<div class="grid grid-cols-2 gap-3">
-				{#each [{ name: 'Day', placeholder: 'DD', index: 0 }, { name: 'Month', placeholder: 'MM', index: 1 }, { name: 'Year', placeholder: 'YYYY', index: 2 }] as part (part.name)}
-					<label class="flex flex-col gap-1.5 {part.index === 2 ? 'col-span-2' : ''}">
-						<span class="text-muted-foreground text-sm">{part.name}</span>
-						<Input
-							class="h-[3.125rem] px-4 text-base"
-							inputmode="numeric"
-							placeholder={part.placeholder}
-							disabled={declined}
-							value={dateParts[part.index]}
-							oninput={(event) => setDatePart(part.index, event.currentTarget.value)}
-						/>
-					</label>
-				{/each}
-			</div>
+		{#if question.kind === 'open_text'}
+			<Textarea
+				class="min-h-32 px-4 py-3 text-base"
+				{placeholder}
+				aria-label="Your answer"
+				disabled={declined}
+				value={answer.text}
+				oninput={setText}
+			/>
 		{:else}
-			<label class="flex flex-col gap-1.5">
-				<span class="text-muted-foreground text-sm">{label}</span>
-				{#if question.kind === 'open_text'}
-					<Textarea
-						class="min-h-32 px-4 py-3 text-base"
-						{placeholder}
-						disabled={declined}
-						value={answer.text}
-						oninput={setText}
-					/>
-				{:else}
-					<Input
-						class="h-[3.125rem] px-4 text-base"
-						type={question.kind === 'number' ? 'number' : 'text'}
-						{placeholder}
-						disabled={declined}
-						value={answer.text}
-						oninput={setText}
-					/>
-				{/if}
-			</label>
+			<Input
+				class="h-[3.125rem] px-4 text-base"
+				type={question.kind === 'number' ? 'number' : 'text'}
+				{placeholder}
+				aria-label="Your answer"
+				disabled={declined}
+				value={answer.text}
+				oninput={setText}
+			/>
 		{/if}
 		{#if question.preferNotToSay}
 			<button

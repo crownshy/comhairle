@@ -1,18 +1,10 @@
 <script lang="ts">
-	// Grows a textarea to fit its text, for browsers without CSS `field-sizing`.
-	function autosize(node: HTMLTextAreaElement, _value: string) {
-		const fit = () => {
-			node.style.height = 'auto';
-			node.style.height = `${node.scrollHeight}px`;
-		};
-		fit();
-		return { update: fit };
-	}
-
 	import { untrack } from 'svelte';
+	import type { DatePrecision } from '@crownshy/api-client/api';
 	import { GripVertical, Plus, Trash2, TriangleAlert, X } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from './TagBadge.svelte';
+	import ConsentCheck from './ConsentCheck.svelte';
 	import { emptyAnswer } from './demographicAnswers';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -21,20 +13,23 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import { Switch } from '$lib/components/ui/switch';
-	import PhonePreview from './PhonePreview.svelte';
-	import ConsentCheck from './ConsentCheck.svelte';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import PhonePreview from './PhonePreview.svelte';
 	import QuestionAnswers from './QuestionAnswers.svelte';
 	import {
-		defaultPlaceholder,
+		DATE_PRECISION_LABELS,
 		isChoiceKind,
+		nextVersionNumber,
+		QUESTION_KIND_LABELS,
+		SPECIAL_CATEGORY_TAG,
 		selectionHint,
 		shortId,
-		QUESTION_KIND_LABELS,
-		TAG_OPTIONS,
 		type DemographicQuestion,
-		type QuestionKind
-	} from './demographicPrototypeData';
+		type QuestionKind,
+		type Tag
+	} from './demographicModel';
+
+	type SaveOptions = { publish: boolean; asNew: boolean };
 
 	type Props = {
 		question: DemographicQuestion;
@@ -42,13 +37,12 @@
 		addsToForm: boolean;
 		/** Scroll to and highlight the consent wording field on open */
 		focusConsent?: boolean;
-		onSave: (question: DemographicQuestion) => void;
-		onSaveAsNew: (question: DemographicQuestion) => void;
-		onDelete: () => void;
-		/** How many forms currently include this question */
-		usedInForms: number;
-		/** Names of the forms that include this question */
+		tags: Tag[];
+		/** Forms that already include this question, used to warn before publishing changes */
 		usedInFormList: { id: string; name: string }[];
+		onCreateTag: (name: string) => Promise<Tag | null>;
+		onSave: (question: DemographicQuestion, options: SaveOptions) => void;
+		onDelete: () => void;
 		onClose: () => void;
 	};
 
@@ -57,20 +51,19 @@
 		isNew,
 		addsToForm,
 		focusConsent = false,
-		onSave,
-		onSaveAsNew,
-		onDelete,
-		usedInForms,
+		tags,
 		usedInFormList,
+		onCreateTag,
+		onSave,
+		onDelete,
 		onClose
 	}: Props = $props();
 
 	let draft = $state(untrack(() => $state.snapshot(question)));
-	const original = untrack(() => JSON.stringify($state.snapshot(question)));
-	const hasChanges = $derived(JSON.stringify($state.snapshot(draft)) !== original);
-
 	let previewAnswer = $state(emptyAnswer());
 	let previewConsent = $state(false);
+	let newTagName = $state('');
+	let creatingTag = $state(false);
 	let confirmOpen = $state(false);
 	let highlightConsent = $state(untrack(() => focusConsent));
 
@@ -84,17 +77,43 @@
 		return () => clearTimeout(timer);
 	});
 
-	const kinds = Object.keys(QUESTION_KIND_LABELS) as QuestionKind[];
-	const unusedTags = $derived(TAG_OPTIONS.filter((tag) => !draft.tags.includes(tag)));
-	const saveLabel = $derived(addsToForm ? 'Save and add to form' : 'Save');
+	const KIND_OPTIONS: QuestionKind[] = [
+		'single_choice',
+		'multiple_choice',
+		'number',
+		'date',
+		'open_text',
+		'postcode',
+		'lat_long',
+		'country'
+	];
+	const DATE_PRECISIONS = Object.keys(DATE_PRECISION_LABELS) as DatePrecision[];
 
-	// Editing a question that other forms already use affects all of them, so ask first.
-	function handleSave() {
-		if (!isNew && hasChanges && usedInFormList.length > 0) {
+	const kinds: QuestionKind[] = $derived(
+		draft.kind === 'custom' ? KIND_OPTIONS.concat('custom') : KIND_OPTIONS
+	);
+	const unusedTags = $derived(tags.filter((tag) => !draft.tags.some((t) => t.id === tag.id)));
+	const title = $derived(isNew ? 'Create a new question' : 'Edit question');
+	const publishLabel = $derived(
+		addsToForm ? 'Publish and add to form' : `Publish v${nextVersionNumber(draft)}`
+	);
+
+	const isChoice = $derived(isChoiceKind(draft.kind));
+	const isSupported = $derived(draft.kind !== 'custom');
+	const hasText = $derived(draft.text.trim() !== '');
+	const hasChoices = $derived(!isChoice || draft.options.some((o) => o.trim() !== ''));
+	const hasConsent = $derived(!draft.specialCategory || draft.consentText.trim() !== '');
+	const isValid = $derived(isSupported && hasText && hasChoices && hasConsent);
+	const canPublish = $derived(isValid && draft.tags.length > 0);
+	const usedInForms = $derived(usedInFormList.length);
+
+	// Publishing a question that forms already use changes those forms, so confirm first.
+	function handlePublish() {
+		if (!isNew && usedInForms > 0) {
 			confirmOpen = true;
 			return;
 		}
-		onSave($state.snapshot(draft));
+		onSave($state.snapshot(draft), { publish: true, asNew: false });
 	}
 
 	function setMaxSelections(event: Event & { currentTarget: HTMLInputElement }) {
@@ -107,27 +126,48 @@
 		previewAnswer = emptyAnswer();
 		if (isChoiceKind(kind) && draft.options.length === 0) draft.options = ['', '', ''];
 	}
+
+	async function addNewTag() {
+		const name = newTagName.trim();
+		if (name === '') return;
+		const existing = tags.find((tag) => tag.name.toLowerCase() === name.toLowerCase());
+		if (existing) {
+			draft.tags = [...draft.tags, existing];
+			newTagName = '';
+			return;
+		}
+		creatingTag = true;
+		const tag = await onCreateTag(name);
+		creatingTag = false;
+		if (tag) {
+			draft.tags = [...draft.tags, tag];
+			newTagName = '';
+		}
+	}
 </script>
 
 <Sheet.Root open onOpenChange={(open) => !open && onClose()}>
-	<Sheet.Content
-		side="right"
-		class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem] [&>button.absolute]:hidden"
-	>
+	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem]">
 		<div class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
 			<div class="-mx-2 flex min-h-0 flex-col gap-6 overflow-y-auto px-2">
-				<Sheet.Header class="border-border gap-1 border-b p-0 pb-4">
+				<Sheet.Header class="border-border border-b p-0 pb-4">
 					<span class="text-muted-foreground text-sm">{shortId('Q', draft.id)}</span>
-					<Sheet.Title class="line-clamp-3 text-2xl font-semibold">
-						{draft.text.trim() || 'New question'}
-					</Sheet.Title>
-					{#if draft.description.trim()}
-						<p class="text-muted-foreground text-base">{draft.description}</p>
-					{/if}
-					<Sheet.Description class="sr-only">
-						Edit the question settings. Changes apply to every form that uses it.
+					<Sheet.Title class="text-2xl font-semibold">{title}</Sheet.Title>
+					<Sheet.Description>
+						{isNew
+							? 'Add a new question to your question bank.'
+							: 'Publishing creates a new version. Forms keep the version they were published with.'}
 					</Sheet.Description>
 				</Sheet.Header>
+
+				<div class="flex flex-col gap-2">
+					<Label for="question-text" class="text-base">Question wording</Label>
+					<Input
+						id="question-text"
+						bind:value={draft.text}
+						placeholder="Type a question"
+					/>
+				</div>
 
 				<div class="flex flex-col gap-2">
 					<Label for="question-kind" class="text-base">Question type</Label>
@@ -137,70 +177,102 @@
 						onValueChange={(value) => setKind(value as QuestionKind)}
 					>
 						<Select.Trigger id="question-kind" class="w-full">
-							<span class="truncate">{QUESTION_KIND_LABELS[draft.kind]}</span>
+							{QUESTION_KIND_LABELS[draft.kind]}
 						</Select.Trigger>
 						<Select.Content>
 							{#each kinds as kind (kind)}
 								<Select.Item value={kind} label={QUESTION_KIND_LABELS[kind]}>
-									<span class="truncate">{QUESTION_KIND_LABELS[kind]}</span>
+									{QUESTION_KIND_LABELS[kind]}
 								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
+					{#if draft.kind === 'custom'}
+						<span class="text-muted-foreground text-sm">
+							This question uses a custom JSON schema. It can be viewed here but not
+							edited.
+						</span>
+					{/if}
 				</div>
 
-				{#if !isChoiceKind(draft.kind) && draft.kind !== 'date_split'}
+				{#if draft.kind === 'date'}
 					<div class="flex flex-col gap-2">
-						<Label for="question-placeholder" class="text-base">Placeholder text</Label>
-						<Input
-							id="question-placeholder"
-							class="text-foreground"
-							bind:value={draft.placeholder}
-							placeholder={defaultPlaceholder(draft.kind)}
-						/>
+						<Label for="date-precision" class="text-base">Date format</Label>
+						<Select.Root
+							type="single"
+							value={draft.datePrecision}
+							onValueChange={(value) =>
+								(draft.datePrecision = value as DatePrecision)}
+						>
+							<Select.Trigger id="date-precision" class="w-full">
+								{DATE_PRECISION_LABELS[draft.datePrecision]}
+							</Select.Trigger>
+							<Select.Content>
+								{#each DATE_PRECISIONS as precision (precision)}
+									<Select.Item
+										value={precision}
+										label={DATE_PRECISION_LABELS[precision]}
+									>
+										{DATE_PRECISION_LABELS[precision]}
+									</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
 					</div>
 				{/if}
 
 				<div class="flex flex-col gap-2">
-					<Label class="text-base">Tag</Label>
-					<div class="flex items-center justify-between gap-2">
-						<div class="flex flex-wrap gap-2">
-							{#each draft.tags as tag (tag)}
-								<TagBadge {tag} class="gap-1">
-									{tag}
-									<button
-										type="button"
-										class="hover:text-foreground"
-										aria-label={`Remove tag ${tag}`}
-										onclick={() =>
-											(draft.tags = draft.tags.filter((t) => t !== tag))}
-									>
-										<X class="size-3" />
-									</button>
-								</TagBadge>
-							{/each}
-							{#if draft.specialCategory}
-								<TagBadge tag="Special category" />
-							{/if}
-						</div>
+					<Label class="text-base">Category</Label>
+					<div class="flex flex-wrap gap-2">
+						{#each draft.tags as tag (tag.id)}
+							<TagBadge tag={tag.name} class="gap-1">
+								{tag.name}
+								<button
+									type="button"
+									class="hover:text-foreground"
+									aria-label={`Remove category ${tag.name}`}
+									onclick={() =>
+										(draft.tags = draft.tags.filter((t) => t.id !== tag.id))}
+								>
+									<X class="size-3" />
+								</button>
+							</TagBadge>
+						{/each}
+						{#if draft.specialCategory}
+							<TagBadge tag={SPECIAL_CATEGORY_TAG} />
+						{/if}
+					</div>
+					<div class="flex items-center gap-2">
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger
-								class={buttonVariants({ variant: 'default', size: 'icon' })}
-								aria-label="Add tag"
+								class={buttonVariants({ variant: 'outline', size: 'icon' })}
+								aria-label="Add category"
 								disabled={unusedTags.length === 0}
 							>
 								<Plus class="size-4" />
 							</DropdownMenu.Trigger>
-							<DropdownMenu.Content align="end">
-								{#each unusedTags as tag (tag)}
+							<DropdownMenu.Content align="start">
+								{#each unusedTags as tag (tag.id)}
 									<DropdownMenu.Item
 										onSelect={() => (draft.tags = [...draft.tags, tag])}
 									>
-										{tag}
+										{tag.name}
 									</DropdownMenu.Item>
 								{/each}
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
+						<Input
+							class="flex-1"
+							bind:value={newTagName}
+							placeholder="New category"
+							aria-label="New category name"
+							onkeydown={(event) => event.key === 'Enter' && addNewTag()}
+						/>
+						<Button
+							variant="outline"
+							disabled={newTagName.trim() === '' || creatingTag}
+							onclick={addNewTag}>Add</Button
+						>
 					</div>
 				</div>
 
@@ -226,18 +298,18 @@
 
 				<div class="border-border mt-auto flex flex-col gap-4 border-t pt-4">
 					<h3 class="text-base font-semibold">Settings</h3>
-					{#if isChoiceKind(draft.kind)}
+					{#if isChoice}
 						<div class="flex items-center justify-between gap-4">
 							<Label for="allow-other" class="text-base">Add "Other" option</Label>
 							<Switch id="allow-other" bind:checked={draft.allowOther} />
 						</div>
+						<div class="flex items-center justify-between gap-4">
+							<Label for="prefer-not-to-say" class="text-base"
+								>Add "Prefer not to say"</Label
+							>
+							<Switch id="prefer-not-to-say" bind:checked={draft.preferNotToSay} />
+						</div>
 					{/if}
-					<div class="flex items-center justify-between gap-4">
-						<Label for="prefer-not-to-say" class="text-base"
-							>Add "Prefer not to say"</Label
-						>
-						<Switch id="prefer-not-to-say" bind:checked={draft.preferNotToSay} />
-					</div>
 					<div class="flex items-center justify-between gap-4">
 						<div class="flex flex-col">
 							<Label for="special-category" class="text-base"
@@ -256,6 +328,7 @@
 								id="consent-text"
 								rows={3}
 								bind:value={draft.consentText}
+								placeholder="Explain why this data is collected and how it will be used"
 								class={highlightConsent ? 'ring-primary ring-2' : ''}
 								onblur={() => (highlightConsent = false)}
 							/>
@@ -284,9 +357,7 @@
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
 								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-								<AlertDialog.Action onclick={onDelete}
-									>Delete question</AlertDialog.Action
-								>
+								<AlertDialog.Action onclick={onDelete}>Delete question</AlertDialog.Action>
 							</AlertDialog.Footer>
 						</AlertDialog.Content>
 					</AlertDialog.Root>
@@ -308,26 +379,11 @@
 				step={1}
 				steps={2}
 			>
-				<textarea
-					rows="1"
-					onkeydown={(event) => event.key === 'Enter' && event.preventDefault()}
-					use:autosize={draft.text}
-					class="placeholder:text-muted-foreground field-sizing-content w-full resize-none bg-transparent text-2xl font-semibold break-words outline-none"
-					placeholder="Type a question"
-					aria-label="Question wording"
-					bind:value={draft.text}
-				></textarea>
-				<textarea
-					rows="1"
-					onkeydown={(event) => event.key === 'Enter' && event.preventDefault()}
-					use:autosize={draft.description}
-					class="placeholder:text-muted-foreground text-muted-foreground field-sizing-content w-full resize-none bg-transparent text-base break-words outline-none"
-					placeholder="Add a description (optional)"
-					aria-label="Question description"
-					bind:value={draft.description}
-				></textarea>
+				<p class="text-2xl font-semibold">
+					{draft.text.trim() === '' ? 'Type a question' : draft.text}
+				</p>
 
-				{#if isChoiceKind(draft.kind)}
+				{#if isChoice}
 					{#if draft.kind === 'multiple_choice'}
 						<p class="text-muted-foreground text-sm">
 							{selectionHint(draft.kind, draft.maxSelections)}
@@ -336,10 +392,10 @@
 					<ul class="flex flex-col gap-2">
 						{#each draft.options as _, index (index)}
 							<li
-								class="border-border flex h-[3.125rem] items-center gap-2 rounded-lg border px-4"
+								class="border-border flex items-center gap-2 rounded-lg border px-3"
 							>
 								<input
-									class="placeholder:text-primary/50 h-full w-full bg-transparent text-base outline-none"
+									class="placeholder:text-primary/50 w-full bg-transparent py-3 text-base outline-none"
 									placeholder="Choice"
 									aria-label={`Choice ${index + 1}`}
 									bind:value={draft.options[index]}
@@ -357,14 +413,14 @@
 						{/each}
 						{#if draft.allowOther}
 							<li
-								class="text-muted-foreground border-border flex h-[3.125rem] items-center rounded-lg border border-dashed px-4 text-base"
+								class="text-muted-foreground border-border rounded-lg border border-dashed px-3 py-3 text-base"
 							>
 								Other (please specify)
 							</li>
 						{/if}
 						{#if draft.preferNotToSay}
 							<li
-								class="text-muted-foreground border-border flex h-[3.125rem] items-center rounded-lg border border-dashed px-4 text-base"
+								class="text-muted-foreground border-border rounded-lg border border-dashed px-3 py-3 text-base"
 							>
 								Prefer not to say
 							</li>
@@ -377,7 +433,7 @@
 					>
 						Add choice
 					</Button>
-				{:else}
+				{:else if isSupported}
 					<QuestionAnswers
 						question={draft}
 						answer={previewAnswer}
@@ -387,26 +443,42 @@
 			</PhonePreview>
 		</div>
 
-		<Sheet.Footer class="border-border flex-row justify-end gap-2 border-t px-6 py-4">
+		<Sheet.Footer
+			class="border-border flex-row items-center justify-end gap-2 border-t px-6 py-4"
+		>
+			{#if !canPublish}
+				<span class="text-muted-foreground mr-auto text-sm">
+					{draft.tags.length === 0 ? 'Add a category to publish.' : ''}
+				</span>
+			{/if}
 			<Button variant="outline" onclick={onClose}>Cancel</Button>
+			{#if !addsToForm}
+				<Button
+					variant="outline"
+					disabled={!isValid}
+					onclick={() => onSave($state.snapshot(draft), { publish: false, asNew: false })}
+				>
+					Save draft
+				</Button>
+			{/if}
 			{#if !isNew}
 				<Button
 					variant="outline"
-					disabled={draft.text.trim() === '' || !hasChanges}
-					onclick={() => onSaveAsNew($state.snapshot(draft))}
+					disabled={!isValid}
+					onclick={() => onSave($state.snapshot(draft), { publish: false, asNew: true })}
 				>
-					Save to new question
+					Save as new question
 				</Button>
 			{/if}
-			<Button disabled={draft.text.trim() === ''} onclick={handleSave}>
-				{saveLabel}
+			<Button disabled={!canPublish} onclick={handlePublish}>
+				{publishLabel}
 			</Button>
 		</Sheet.Footer>
 	</Sheet.Content>
 </Sheet.Root>
 
 <AlertDialog.Root bind:open={confirmOpen}>
-	<AlertDialog.Content class=" max-h-[90vh]  overflow-y-auto sm:max-w-xl">
+	<AlertDialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-xl">
 		<AlertDialog.Header>
 			<div class="flex flex-col items-center gap-3 text-center">
 				<span
@@ -415,23 +487,19 @@
 				>
 					<TriangleAlert class="size-6" />
 				</span>
-				<div class="flex min-w-0 flex-col items-center gap-3">
-					<AlertDialog.Title>
-						This change affects {usedInFormList.length}
-						{usedInFormList.length === 1 ? 'form' : 'forms'}
-					</AlertDialog.Title>
-				</div>
+				<AlertDialog.Title>
+					This change affects {usedInForms}
+					{usedInForms === 1 ? 'form' : 'forms'}
+				</AlertDialog.Title>
 			</div>
 		</AlertDialog.Header>
-		<AlertDialog.Description class="bg-muted  px-4 py-4 ">
+		<AlertDialog.Description class="bg-muted px-4 py-4">
 			<ul class="mb-4 flex flex-wrap gap-2">
 				{#each usedInFormList as usedForm (usedForm.id)}
 					<li
 						class="bg-primary/10 text-primary flex items-center gap-2 rounded-md px-2 py-1 text-base font-semibold"
 					>
-						<span class="text-sm font-medium opacity-80"
-							>{shortId('F', usedForm.id)}</span
-						>
+						<span class="text-sm font-medium opacity-80">{shortId('F', usedForm.id)}</span>
 						{usedForm.name}
 					</li>
 				{/each}
@@ -441,15 +509,20 @@
 		</AlertDialog.Description>
 		<AlertDialog.Footer class="sm:flex-wrap sm:items-start">
 			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<Button variant="outline" onclick={() => onSaveAsNew($state.snapshot(draft))}>
+			<Button
+				variant="outline"
+				onclick={() => onSave($state.snapshot(draft), { publish: true, asNew: true })}
+			>
 				Save as new question
 			</Button>
 			<div class="flex flex-col items-end gap-1">
-				<AlertDialog.Action onclick={() => onSave($state.snapshot(draft))}>
-					Confirm, save this question.
+				<AlertDialog.Action
+					onclick={() => onSave($state.snapshot(draft), { publish: true, asNew: false })}
+				>
+					Confirm, publish this question.
 				</AlertDialog.Action>
 				<span class="text-destructive text-sm">
-					This will update {usedInFormList.length === 1 ? 'the form' : 'all forms'}.
+					This will update {usedInForms === 1 ? 'the form' : 'all forms'}.
 				</span>
 			</div>
 		</AlertDialog.Footer>
