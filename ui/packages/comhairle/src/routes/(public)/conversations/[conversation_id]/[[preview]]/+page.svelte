@@ -13,6 +13,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { HttpStatus } from '$lib/utils/constants';
 	import type { ApiError } from '@crownshy/api-client/api';
+	import { routeProgress } from '$lib/stores/routeProgress.svelte';
 
 	let { data } = $props();
 	let { conversation, workflows, participation, preview } = data;
@@ -43,11 +44,17 @@
 		}
 	}
 
-	function doJoin() {
-		if (!user && firstWorkflow.autoLogin) {
-			registerGuestUserSignupAndRedirect();
-		} else {
-			registerUser();
+	// The join is API calls and then a page load, so the global bar covers the whole of it.
+	async function doJoin() {
+		routeProgress.start();
+		try {
+			if (!user && firstWorkflow.autoLogin) {
+				await registerGuestUserSignupAndRedirect();
+			} else {
+				await registerUser();
+			}
+		} finally {
+			routeProgress.stop();
 		}
 	}
 
