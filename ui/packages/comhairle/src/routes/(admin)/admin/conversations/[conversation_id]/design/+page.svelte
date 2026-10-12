@@ -101,19 +101,26 @@
 		applyingTemplate = true;
 
 		const result = await tryCatchAsync(async (ok, err) => {
-			const deleteSteps = await tryCatchAsync(() =>
-				Promise.all(
-					reorderedSteps!.map((s) =>
+			const deleteSteps = await tryCatchAsync(async () => {
+				for (let i = 0; i < reorderedSteps!.length; i++) {
+					const step = reorderedSteps![i];
+					const response = await tryCatchAsync(() =>
 						apiClient.DeleteConversationWorkflowStep(undefined, {
 							params: {
 								conversation_id: conversation.id,
 								workflow_id: workflow.id,
-								workflow_step_id: s.id
+								workflow_step_id: step.id
 							}
 						})
-					)
-				)
-			);
+					);
+
+					if (response.err !== null) {
+						throw err(response.err);
+					}
+				}
+
+				return ok(true);
+			});
 
 			if (deleteSteps.err !== null) {
 				console.error(deleteSteps.err);
@@ -128,9 +135,10 @@
 			// creation; re-templating an existing conversation only touches its steps.
 			const steps = choice.kind === 'blank' ? [] : choice.template.creationSteps;
 
-			const createConversationWorkflowSteps = await tryCatchAsync(() =>
-				Promise.all(
-					steps.map((step, i) =>
+			const createConversationWorkflowSteps = await tryCatchAsync(async (ok, err) => {
+				for (let i = 0; i < steps.length; i++) {
+					const step = steps[i];
+					const response = await tryCatchAsync(() =>
 						apiClient.CreateConversationWorkflowStep(
 							{
 								name: step.name,
@@ -152,9 +160,15 @@
 								}
 							}
 						)
-					)
-				)
-			);
+					);
+
+					if (response.err !== null) {
+						throw err(response.err);
+					}
+				}
+
+				return ok(true);
+			});
 
 			if (createConversationWorkflowSteps.err !== null) {
 				console.error(createConversationWorkflowSteps.err);
