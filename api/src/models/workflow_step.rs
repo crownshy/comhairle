@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::models::{
-    SqlxResultExt, moderation_policy,
+    SqlxResultExt, demographics, moderation_policy,
     user_progress::{self, ProgressStatus, UserProgressIden},
 };
 use crate::tools::{ToolConfig, ToolSetup};
@@ -606,6 +606,7 @@ pub async fn create(
     workflow_id: Uuid,
     primary_locale: &str,
     is_live: bool,
+    organization_id: Option<Uuid>,
 ) -> Result<WorkflowStep, ComhairleError> {
     // Generate Translations
     let name_translation = new_translation(
@@ -635,6 +636,11 @@ pub async fn create(
 
     let preview_tool_config =
         setup_tool(&new_workflow_step.tool_setup, state, primary_locale).await?;
+
+    let mut conn = state.db.acquire().await?;
+    demographics::steps::validate_tool_config(&mut conn, organization_id, &preview_tool_config)
+        .await?;
+    drop(conn);
 
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());

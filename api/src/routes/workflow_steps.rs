@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::models::demographics;
 use crate::models::translations::{
     CollectTextContentIds, TextContentId, get_text_content_with_translations, localize_translations,
 };
@@ -121,10 +122,28 @@ async fn create_workflow_step(
         workflow_id,
         &conversation.primary_locale,
         conversation.is_live,
+        conversation.organization_id,
     )
     .await?
     .into();
     Ok((StatusCode::CREATED, Json(workflow)))
+}
+
+/// Checks demographic references in whichever tool configs an update replaces.
+async fn validate_update_references(
+    state: &Arc<ComhairleState>,
+    organization_id: Option<Uuid>,
+    update: &PartialWorkflowStep,
+) -> Result<(), ComhairleError> {
+    let configs = [
+        update.tool_config.as_ref(),
+        update.preview_tool_config.as_ref(),
+    ];
+    let mut conn = state.db.acquire().await?;
+    for config in configs.into_iter().flatten() {
+        demographics::steps::validate_tool_config(&mut conn, organization_id, config).await?;
+    }
+    Ok(())
 }
 
 /// Update workflow handler
@@ -132,7 +151,7 @@ async fn create_workflow_step(
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     SourcePathCtx {
-        conversation_id: _,
+        conversation_id,
         event_id: _,
     }: SourcePathCtx,
     WorkflowStepPathCtx {
@@ -141,6 +160,8 @@ async fn update_workflow_step(
     }: WorkflowStepPathCtx,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+    validate_update_references(&state, conversation.organization_id, &workflow).await?;
     let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
         .await?
         .into();

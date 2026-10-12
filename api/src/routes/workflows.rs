@@ -22,15 +22,16 @@ use crate::{
     middleware::permissions::{PermissionRequirement, authorize as permission_middleware},
     models::{
         conversation::{self, PartialConversation},
+        demographics::{self, report::WorkflowDemographics},
         permissions::{ConversationResource, conversation::Action},
         user_participation::{self, UserParticipation},
-        user_profile::{self, DemographicReport},
         user_progress,
         workflow::{self, CreateWorkflow, PartialWorkflow, WorkflowStats},
         workflow_step::{self, WorkflowStep},
     },
     routes::{
         auth::RequiredUser,
+        translations::LocaleExtractor,
         workflows::dto::{UserParticipationDto, WorkflowDto},
     },
 };
@@ -229,9 +230,10 @@ async fn get_workflow_stats(
 #[instrument(err(Debug), skip(state))]
 async fn get_participation_report(
     State(state): State<Arc<ComhairleState>>,
+    LocaleExtractor(locale): LocaleExtractor,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
-) -> Result<(StatusCode, Json<DemographicReport>), ComhairleError> {
-    let report = user_profile::get_demographic_report(&state.db, &workflow_id).await?;
+) -> Result<(StatusCode, Json<WorkflowDemographics>), ComhairleError> {
+    let report = demographics::report::for_workflow(&state.db, &workflow_id, &locale).await?;
     Ok((StatusCode::OK, Json(report)))
 }
 
@@ -390,7 +392,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                     op.id(&format!("Get{ctx}WorkflowParticipationReport"))
                         .tag("Workflow")
                         .summary("Gets demographic report for workflow participants")
-                        .response::<200, Json<DemographicReport>>()
+                        .response::<200, Json<WorkflowDemographics>>()
                 }),
             )
             .api_route(

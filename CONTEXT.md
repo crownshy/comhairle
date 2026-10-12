@@ -173,6 +173,64 @@ _Avoid_: OTP-only bootstrap, manual pre-provisioning.
 The first-access email sent to newly created Organization Administrators at creation time, containing a one-time password reset link with 24-hour validity so they set their own password before first login.
 _Avoid_: Magic-link sign-in email, plaintext password email.
 
+### Demographics
+
+**Demographic question**:
+A UUID-identified question asked of participants, with translatable question text, one or more Question categories, one Question type, and a Question version history. Owned by an Organization, or a system Default demographic question.
+_Avoid_: Demographic (ambiguous), field, attribute, slug.
+
+**Question version**:
+An immutable snapshot of a Demographic question's text, type, options and validation, numbered v1, v2, v3 and so on. Numbers are never reused. Publishing a new version is the only way to change what participants are asked.
+
+**Question draft**:
+The editable, unpublished state of a Demographic question. Publishing a draft creates the next Question version. A Question draft is not visible to participants and does not change any Demographic form that uses the question.
+
+**Question type**:
+The kind of answer a Demographic question takes: Number, Single select, Multiple select, Date, Any string, Location, or Custom.
+_Avoid_: Response type, kind.
+
+**Date precision**:
+The granularity of a Date question's answer, chosen per question as YYYY/MM/DD, YYYY/MM or YYYY.
+
+**Location format**:
+The form a Location question's answer takes: Postcode (with a country), Lat-Long, or Country.
+_Avoid_: Zipcode (folded into Postcode).
+
+**Custom question**:
+A Question type whose only validation is an admin-authored JSON Schema. Participants answer it through a form generated from that schema.
+
+**Question category**:
+A label on a Demographic question, drawn from the Organization's tag catalogue. A question may have several.
+_Avoid_: Tag (the catalogue entry is a tag, but the category is the question's link to it).
+
+**Special category question**:
+A Demographic question that collects sensitive data, such as ethnicity, pregnancy status or caring responsibilities. Participants must give Consent before it is asked.
+
+**Consent**:
+A participant's recorded agreement to a Special category question, given to the admin's consent text for one Question version. Declining skips the question even when it is required, and no answer is stored.
+
+**Default demographic question**:
+A Demographic question defined by a Super Administrator for the whole system. Organizations inherit it into their question bank by its shared UUID. Editing it in an Organization creates an Organization-owned copy with a new UUID.
+
+**Demographic form**:
+A UUID-identified, named collection of Demographic questions drawn from one Organization's question bank. It starts as a Draft and becomes v1 when first published.
+
+**Form version**:
+An immutable snapshot of a Demographic form, numbered v1, v2 and so on. Each Form version pins the Question versions it contained when published. A later Question draft does not change a Form version that has not been re-published.
+
+**Demographic response**:
+A participant's answer to one Question version. It belongs to the participant and is reused by any Conversation that asks the same Question version, so the question is skipped. It is anonymised when the user is deleted.
+_Avoid_: Answer when referring to the stored record.
+
+**Form step**:
+A Workflow step that asks a whole Demographic form, pinned to the latest Form version or to a specific one. It may turn individual questions off or change their required flag for that Conversation only, without changing the form.
+
+**Question step**:
+A Workflow step that asks one Demographic question from the question bank.
+
+**Archive (demographics)**:
+The retirement of a published Demographic question or form. Archived items are hidden from pickers for new use, but Conversations that already use them keep their pinned versions. Published items are never hard deleted.
+
 ### Polis admin (Discuss step)
 
 The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Moderation · Insights`** (civic_os's "Participants" tab is dropped — see Insights/Report and the Participants note).

@@ -20,6 +20,7 @@ use crate::models::conversation::{
 use crate::models::conversation_email_notification_recipients::{
     self as email_recipients_model, CreateConversationEmailNotificationRecipients,
 };
+use crate::models::demographics;
 use crate::models::media::{FromWithMedia, MediaResolver};
 use crate::models::notification::{
     self as notification_model, CreateNotification, NotificationContextType,
@@ -37,7 +38,6 @@ use crate::models::permissions::{
 };
 use crate::models::user_conversation_preferences;
 use crate::models::user_participation::{self};
-use crate::models::user_profile;
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
 use crate::routes::translations::LocaleExtractor;
 
@@ -759,73 +759,60 @@ async fn export_conversation_contacts(
     ))
 }
 
-#[instrument(err(Debug), skip(state))]
-async fn export_conversation_demographics(
-    State(state): State<Arc<ComhairleState>>,
-    Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
-    // Get demographic data for export
-    let demographics =
-        user_profile::get_demographics_for_export(&state.db, &conversation_id).await?;
-
-    // Generate CSV
+fn render_demographics_csv(
+    export: &demographics::report::ConversationDemographicsExport,
+) -> Result<String, ComhairleError> {
     let mut csv_output = Vec::new();
     {
         let mut writer = csv::Writer::from_writer(&mut csv_output);
 
-        // Write headers
-        writer.write_record([
-            "User ID",
-            "Ethnicity",
-            "Age",
-            "Gender",
-            "Zipcode",
-            "Political Party",
-            "Profile Created At",
-        ])?;
+        let headers = ["User ID".to_string(), "Profile Created At".to_string()]
+            .into_iter()
+            .chain(
+                export
+                    .questions
+                    .iter()
+                    .map(|question| question.text.clone()),
+            );
+        writer.write_record(headers)?;
 
-        // Write data rows
-        for profile in demographics {
-            writer.write_record(&[
-                profile.user_id.to_string(),
-                profile
-                    .demographics
-                    .get("ethnicity")
-                    .map(|d| d.value.clone())
-                    .flatten()
-                    .unwrap_or_default(),
-                profile
-                    .demographics
-                    .get("age")
-                    .map(|d| d.value.clone())
-                    .flatten()
-                    .unwrap_or_default(),
-                profile
-                    .demographics
-                    .get("gender")
-                    .map(|d| d.value.clone())
-                    .flatten()
-                    .unwrap_or_default(),
-                profile
-                    .demographics
-                    .get("zipcode")
-                    .map(|d| d.value.clone())
-                    .flatten()
-                    .unwrap_or_default(),
-                profile
-                    .demographics
-                    .get("political_party")
-                    .map(|d| d.value.clone())
-                    .flatten()
-                    .unwrap_or_default(),
-                profile.created_at.to_rfc3339(),
-            ])?;
+        for participant in &export.participants {
+            let cells = [
+                participant.user_id.to_string(),
+                participant.profile_created_at.to_rfc3339(),
+            ]
+            .into_iter()
+            .chain(export.questions.iter().map(|question| {
+                participant
+                    .answers
+                    .get(&question.question_id)
+                    .map(render_answer_cell)
+                    .unwrap_or_default()
+            }));
+            writer.write_record(cells)?;
         }
 
         writer.flush()?;
     }
+    Ok(String::from_utf8(csv_output)?)
+}
 
-    let csv_string = String::from_utf8(csv_output)?;
+fn render_answer_cell(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn export_conversation_demographics(
+    State(state): State<Arc<ComhairleState>>,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(conversation_id): Path<Uuid>,
+) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
+    let export =
+        demographics::report::export_for_conversation(&state.db, &conversation_id, &locale).await?;
+    let csv_string = render_demographics_csv(&export)?;
     let filename = format!(
         "conversation-demographics-{}.csv",
         chrono::Utc::now().format("%Y-%m-%d")
@@ -1034,9 +1021,6 @@ mod tests {
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
     use crate::models::conversation::PartialConversation;
-    use crate::models::demographics::{
-        CreateConversationDemographics, create_conversation_demographics,
-    };
     use crate::models::permissions::{
         ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole,
         conversation::Role, grant_role, system,
@@ -1055,6 +1039,7 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
+    use uuid::Uuid;
 
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
@@ -2015,8 +2000,31 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_export_conversation_demographics(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        use crate::models::demographics::defaults::{
+            AGE_VERSION_ID, ETHNICITY_VERSION_ID, GENDER_VERSION_ID,
+        };
+        use crate::models::demographics::responses::{set_consent, upsert_response};
         use crate::models::{user_participation, user_profile};
         use crate::routes::auth::SignupRequest;
+
+        const DEFAULT_QUESTION_IDS: [Uuid; 5] = [
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000001),
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000002),
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000003),
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000004),
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000005),
+        ];
+
+        async fn answer(
+            pool: &PgPool,
+            user_id: Uuid,
+            version_id: Uuid,
+            value: serde_json::Value,
+        ) -> Result<(), Box<dyn Error>> {
+            let mut conn = pool.acquire().await?;
+            upsert_response(&mut conn, user_id, version_id, None, &value).await?;
+            Ok(())
+        }
 
         let state = Arc::new(test_state().db(pool.clone()).call()?);
         let app = setup_server(state.clone()).await?;
@@ -2051,20 +2059,30 @@ mod tests {
         let workflow: crate::routes::workflows::dto::WorkflowDto =
             serde_json::from_value(workflow)?;
 
-        // Add default demographics to conversation
-        let default_questions = vec!["age", "ethnicity", "gender", "zipcode", "political_party"];
-        for question_slug in default_questions {
-            let _ = create_conversation_demographics(
-                &pool,
-                CreateConversationDemographics {
-                    conversation_id: conversation.id,
-                    question_slug: question_slug.to_string(),
-                },
-            )
-            .await?;
+        for question_id in DEFAULT_QUESTION_IDS {
+            let (status, _, _) = admin_session
+                .create_workflow_step(
+                    &app,
+                    &conversation.id.to_string(),
+                    &workflow.id.to_string(),
+                    json!({
+                        "name": "Demographic question",
+                        "step_order": 1,
+                        "activation_rule": "manual",
+                        "description": "Demographic question",
+                        "is_offline": false,
+                        "required": false,
+                        "tool_setup": {
+                            "type": "demographicquestion",
+                            "question_id": question_id,
+                            "version": { "type": "latest" }
+                        },
+                    }),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::CREATED);
         }
 
-        // Create test users with profiles
         let user1 = crate::models::users::create_user(
             &SignupRequest {
                 username: "demo_user1".to_string(),
@@ -2081,14 +2099,18 @@ mod tests {
             &user_profile::CreateUserProfile {
                 user_id: user1.id,
                 consented: true,
-                ethnicity: Some("Asian".to_string()),
-                age: Some(25),
-                gender: Some("Female".to_string()),
-                zipcode: Some("12345".to_string()),
-                political_party: Some("Independent".to_string()),
+                ethnicity: None,
+                age: None,
+                gender: None,
+                zipcode: None,
+                political_party: None,
             },
         )
         .await?;
+        answer(&pool, user1.id, AGE_VERSION_ID, json!(25)).await?;
+        answer(&pool, user1.id, GENDER_VERSION_ID, json!("Female")).await?;
+        set_consent(&pool, user1.id, ETHNICITY_VERSION_ID, true, "en").await?;
+        answer(&pool, user1.id, ETHNICITY_VERSION_ID, json!("Asian")).await?;
 
         let user2 = crate::models::users::create_user(
             &SignupRequest {
@@ -2106,14 +2128,16 @@ mod tests {
             &user_profile::CreateUserProfile {
                 user_id: user2.id,
                 consented: false, // This user should not appear in export
-                ethnicity: Some("Hispanic".to_string()),
-                age: Some(30),
-                gender: Some("Male".to_string()),
-                zipcode: Some("67890".to_string()),
-                political_party: Some("Democrat".to_string()),
+                ethnicity: None,
+                age: None,
+                gender: None,
+                zipcode: None,
+                political_party: None,
             },
         )
         .await?;
+        answer(&pool, user2.id, AGE_VERSION_ID, json!(30)).await?;
+        answer(&pool, user2.id, GENDER_VERSION_ID, json!("Male")).await?;
 
         // Register users to workflow
         user_participation::create(&pool, &user1.id, &workflow.id).await?;
@@ -2147,13 +2171,16 @@ mod tests {
             "CSV should have User ID header"
         );
         assert!(
-            csv_string.contains("Ethnicity"),
-            "CSV should have Ethnicity header"
+            csv_string.contains("What is your ethnicity?"),
+            "CSV should have Ethnicity question header"
         );
-        assert!(csv_string.contains("Age"), "CSV should have Age header");
         assert!(
-            csv_string.contains("Gender"),
-            "CSV should have Gender header"
+            csv_string.contains("What is your age?"),
+            "CSV should have Age question header"
+        );
+        assert!(
+            csv_string.contains("What is your gender?"),
+            "CSV should have Gender question header"
         );
 
         // Verify only consented user appears

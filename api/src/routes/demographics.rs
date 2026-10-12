@@ -1,26 +1,30 @@
 use std::sync::Arc;
 
 use aide::axum::ApiRouter;
-use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use aide::axum::routing::{get_with, post_with, put_with};
 use axum::Json;
-use axum::extract::{Path, Query, State};
+use axum::extract::{Path, State};
 use hyper::StatusCode;
+use schemars::JsonSchema;
+use serde::Deserialize;
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::conversation;
-use crate::models::demographics::{
-    self, ConversationDemographics, ConversationDemographicsFilterOptions,
-    CreateConversationDemographics, CreateDemographicsQuestion, CreateDemographicsResponse,
-    DemographicsQuestion, DemographicsQuestionsFilterOptions, DemographicsResponse,
-    DemographicsResponsesFilterOptions, PartialDemographicsQuestion, PartialDemographicsResponse,
+use crate::models::demographics::forms::{self, FormDraftInput, FormDto};
+use crate::models::demographics::questions::{self, QuestionDraftInput, QuestionDto, TagDto};
+use crate::models::demographics::responses::{
+    self, ConsentInput, ConsentState, ResponseDto, ResponseInput,
 };
-use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::demographics::steps::{self, PendingQuestion};
 use crate::models::permissions::{can_perform_action, conversation::Action};
 use crate::models::users::User;
-use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::models::workflow;
+use crate::models::workflow_step;
+use crate::routes::auth::{RequiredAdminUser, RequiredSuperAdminUser, RequiredUser};
+use crate::routes::translations::LocaleExtractor;
 
 /// Whether `user` is allowed to view `conversation_id`: admins, the owner, anyone
 /// with `ConversationRead`, or anyone at all once the conversation is live.
@@ -53,300 +57,558 @@ async fn can_view_conversation(
     .await
 }
 
-// ============================================================================
-// Conversation-demographics associations - CR.D
-// ============================================================================
-
-/// Get all associations between conversations and demographics questions, with optional filters for conversation ID and question slug.
-/// A `conversation_id` filter is required for non-admins.
-#[instrument(err(Debug), skip(state))]
-pub async fn get_conversation_demographics(
-    State(state): State<Arc<ComhairleState>>,
-    OptionalUser(user): OptionalUser,
-    Query(filters): Query<ConversationDemographicsFilterOptions>,
-    Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<ConversationDemographics>>), ComhairleError> {
-    let is_admin = match &user {
-        Some(user) => is_user_admin(&state, user).await,
-        None => false,
-    };
-
-    if !is_admin {
-        let conversation_id = filters
-            .conversation_id
-            .ok_or(ComhairleError::UserNotAuthorized)?;
-
-        if !can_view_conversation(&state, user.as_ref(), conversation_id).await? {
-            return Err(ComhairleError::UserNotAuthorized);
-        }
-    }
-
-    demographics::get_conversation_demographics(&state.db, filters, page_options)
-        .await
-        .map(|results| (StatusCode::OK, Json(results)))
+/// The organization whose question bank an admin is managing.
+fn admin_organization(user: &User) -> Result<Uuid, ComhairleError> {
+    user.organization_id
+        .ok_or(ComhairleError::UserNotAuthorized)
 }
 
-/// Create a new association between a conversation and a demographics question.
-#[instrument(err(Debug), skip(state))]
-pub async fn create_conversation_demographics(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Json(payload): Json<CreateConversationDemographics>,
-) -> Result<(StatusCode, Json<ConversationDemographics>), ComhairleError> {
-    demographics::create_conversation_demographics(&state.db, payload)
-        .await
-        .map(|result| (StatusCode::CREATED, Json(result)))
+#[derive(Deserialize, JsonSchema)]
+struct CreateTagInput {
+    name: String,
 }
 
-/// Remove an association between a conversation and a demographics question.
-#[instrument(err(Debug), skip(state))]
-pub async fn delete_conversation_demographics(
+// Organization question bank
+
+#[instrument(skip(state, admin))]
+async fn list_tags(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Path((conversation_id, question_slug)): Path<(Uuid, String)>,
-) -> Result<(StatusCode, Json<Option<ConversationDemographics>>), ComhairleError> {
-    demographics::delete_conversation_demographics(&state.db, conversation_id, question_slug)
-        .await
-        .map(|result| (StatusCode::OK, Json(result)))
+    RequiredAdminUser(admin): RequiredAdminUser,
+) -> Result<Json<Vec<TagDto>>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    Ok(Json(questions::list_tags(&state.db, Some(org)).await?))
 }
 
-// ============================================================================
-// Demographics questions - CRUD
-// ============================================================================
-
-/// Get a demographics question by its slug.
-#[instrument(err(Debug), skip(state))]
-pub async fn get_demographics_questions(
+#[instrument(skip(state, admin, body))]
+async fn create_tag(
     State(state): State<Arc<ComhairleState>>,
-    Query(filters): Query<DemographicsQuestionsFilterOptions>,
-    Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<DemographicsQuestion>>), ComhairleError> {
-    demographics::get_demographics_questions(&state.db, filters, page_options)
-        .await
-        .map(|result| (StatusCode::OK, Json(result)))
+    RequiredAdminUser(admin): RequiredAdminUser,
+    Json(body): Json<CreateTagInput>,
+) -> Result<(StatusCode, Json<TagDto>), ComhairleError> {
+    let org = admin_organization(&admin)?;
+    let tag = questions::create_tag(&state.db, Some(org), &body.name).await?;
+    Ok((StatusCode::CREATED, Json(tag)))
 }
 
-/// Create a new demographics question. Admin-only.
-#[instrument(err(Debug), skip(state))]
-pub async fn create_demographics_question(
+#[instrument(skip(state, admin, locale))]
+async fn list_questions(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Json(payload): Json<CreateDemographicsQuestion>,
-) -> Result<(StatusCode, Json<DemographicsQuestion>), ComhairleError> {
-    demographics::create_demographics_question(&state.db, payload)
-        .await
-        .map(|result| (StatusCode::CREATED, Json(result)))
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Json<Vec<QuestionDto>>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    Ok(Json(
+        questions::list_questions(&state.db, Some(org), &locale).await?,
+    ))
 }
 
-/// Update a demographics question. Admin-only.
-#[instrument(err(Debug), skip(state))]
-pub async fn update_demographics_question(
+#[instrument(skip(state, admin, locale, body))]
+async fn create_question(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Path(question_slug): Path<String>,
-    Json(payload): Json<PartialDemographicsQuestion>,
-) -> Result<(StatusCode, Json<DemographicsQuestion>), ComhairleError> {
-    demographics::update_demographics_question(&state.db, question_slug, payload)
-        .await
-        .map(|result| (StatusCode::OK, Json(result)))
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Json(body): Json<QuestionDraftInput>,
+) -> Result<(StatusCode, Json<QuestionDto>), ComhairleError> {
+    let org = admin_organization(&admin)?;
+    let question = questions::create_question(&state.db, Some(org), &body, &locale).await?;
+    Ok((StatusCode::CREATED, Json(question)))
 }
 
-/// Delete a demographics question. Admin-only.
-#[instrument(err(Debug), skip(state))]
-pub async fn delete_demographics_question(
+#[instrument(skip(state, admin, locale))]
+async fn get_question(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Path(question_slug): Path<String>,
-) -> Result<(StatusCode, Json<Option<DemographicsQuestion>>), ComhairleError> {
-    demographics::delete_demographics_question(&state.db, question_slug)
-        .await
-        .map(|result| (StatusCode::OK, Json(result)))
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(question_id): Path<Uuid>,
+) -> Result<Json<QuestionDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    let question = questions::get_question(&state.db, Some(org), question_id, &locale).await?;
+    Ok(Json(question))
 }
 
-// ============================================================================
-// Demographics responses - CRUD
-// ============================================================================
+#[instrument(skip(state, admin, locale))]
+async fn start_question_draft(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(question_id): Path<Uuid>,
+) -> Result<Json<QuestionDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    let question = questions::start_draft(&state.db, Some(org), question_id, &locale).await?;
+    Ok(Json(question))
+}
 
-/// Get all responses for a specific demographics question.
-///
-/// Non-admins get their `user_id` filter forced to themselves and cannot query
-/// for other users.
-#[instrument(err(Debug), skip(state))]
-pub async fn get_demographics_responses(
+#[instrument(skip(state, admin, locale, body))]
+async fn update_question_draft(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(question_id): Path<Uuid>,
+    Json(body): Json<QuestionDraftInput>,
+) -> Result<Json<QuestionDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    let question =
+        questions::update_draft(&state.db, Some(org), question_id, &body, &locale).await?;
+    Ok(Json(question))
+}
+
+#[instrument(skip(state, admin))]
+async fn discard_question_draft(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    Path(question_id): Path<Uuid>,
+) -> Result<StatusCode, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    questions::discard_draft(&state.db, Some(org), question_id).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[instrument(skip(state, admin, locale))]
+async fn publish_question(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(question_id): Path<Uuid>,
+) -> Result<Json<QuestionDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    let question = questions::publish_question(&state.db, Some(org), question_id, &locale).await?;
+    Ok(Json(question))
+}
+
+#[instrument(skip(state, admin, locale))]
+async fn archive_question(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(question_id): Path<Uuid>,
+) -> Result<Json<QuestionDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    let question = questions::archive_question(&state.db, Some(org), question_id, &locale).await?;
+    Ok(Json(question))
+}
+
+#[instrument(skip(state, admin, locale))]
+async fn list_forms(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Json<Vec<FormDto>>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    Ok(Json(forms::list_forms(&state.db, org, &locale).await?))
+}
+
+#[instrument(skip(state, admin, locale, body))]
+async fn create_form(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Json(body): Json<FormDraftInput>,
+) -> Result<(StatusCode, Json<FormDto>), ComhairleError> {
+    let org = admin_organization(&admin)?;
+    let form = forms::create_form(&state.db, org, &body, &locale).await?;
+    Ok((StatusCode::CREATED, Json(form)))
+}
+
+#[instrument(skip(state, admin, locale))]
+async fn get_form(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(form_id): Path<Uuid>,
+) -> Result<Json<FormDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    Ok(Json(
+        forms::get_form(&state.db, org, form_id, &locale).await?,
+    ))
+}
+
+#[instrument(skip(state, admin, locale))]
+async fn start_form_draft(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(form_id): Path<Uuid>,
+) -> Result<Json<FormDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    Ok(Json(
+        forms::start_form_draft(&state.db, org, form_id, &locale).await?,
+    ))
+}
+
+#[instrument(skip(state, admin, locale, body))]
+async fn update_form_draft(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(form_id): Path<Uuid>,
+    Json(body): Json<FormDraftInput>,
+) -> Result<Json<FormDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    Ok(Json(
+        forms::update_form_draft(&state.db, org, form_id, &body, &locale).await?,
+    ))
+}
+
+#[instrument(skip(state, admin))]
+async fn discard_form_draft(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    Path(form_id): Path<Uuid>,
+) -> Result<StatusCode, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    forms::discard_form_draft(&state.db, org, form_id).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[instrument(skip(state, admin, locale))]
+async fn publish_form(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(form_id): Path<Uuid>,
+) -> Result<Json<FormDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    Ok(Json(
+        forms::publish_form(&state.db, org, form_id, &locale).await?,
+    ))
+}
+
+#[instrument(skip(state, admin, locale))]
+async fn archive_form(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(admin): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(form_id): Path<Uuid>,
+) -> Result<Json<FormDto>, ComhairleError> {
+    let org = admin_organization(&admin)?;
+    Ok(Json(
+        forms::archive_form(&state.db, org, form_id, &locale).await?,
+    ))
+}
+
+// System defaults (super admin)
+
+#[instrument(skip(state, _admin, locale))]
+async fn list_defaults(
+    State(state): State<Arc<ComhairleState>>,
+    _admin: RequiredSuperAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Json<Vec<QuestionDto>>, ComhairleError> {
+    Ok(Json(
+        questions::list_questions(&state.db, None, &locale).await?,
+    ))
+}
+
+#[instrument(skip(state, _admin, locale, body))]
+async fn create_default(
+    State(state): State<Arc<ComhairleState>>,
+    _admin: RequiredSuperAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Json(body): Json<QuestionDraftInput>,
+) -> Result<(StatusCode, Json<QuestionDto>), ComhairleError> {
+    let question = questions::create_question(&state.db, None, &body, &locale).await?;
+    Ok((StatusCode::CREATED, Json(question)))
+}
+
+#[instrument(skip(state, _admin, locale, body))]
+async fn update_default_draft(
+    State(state): State<Arc<ComhairleState>>,
+    _admin: RequiredSuperAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(question_id): Path<Uuid>,
+    Json(body): Json<QuestionDraftInput>,
+) -> Result<Json<QuestionDto>, ComhairleError> {
+    let question = questions::update_draft(&state.db, None, question_id, &body, &locale).await?;
+    Ok(Json(question))
+}
+
+#[instrument(skip(state, _admin, locale))]
+async fn publish_default(
+    State(state): State<Arc<ComhairleState>>,
+    _admin: RequiredSuperAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(question_id): Path<Uuid>,
+) -> Result<Json<QuestionDto>, ComhairleError> {
+    let question = questions::publish_question(&state.db, None, question_id, &locale).await?;
+    Ok(Json(question))
+}
+
+// Participant runtime
+
+#[instrument(skip(state, user, locale))]
+async fn pending_step_questions(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Query(mut filters): Query<DemographicsResponsesFilterOptions>,
-    Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<DemographicsResponse>>), ComhairleError> {
-    if !is_user_admin(&state, &user).await {
-        if filters.user_id.is_some_and(|user_id| user_id != user.id) {
-            return Err(ComhairleError::UserNotAuthorized);
-        }
-        filters.user_id = Some(user.id);
-    }
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(step_id): Path<Uuid>,
+) -> Result<Json<Vec<PendingQuestion>>, ComhairleError> {
+    let step = workflow_step::get_by_id(&state.db, &step_id).await?;
+    let workflow = workflow::get_by_id(&state.db, &step.workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or_else(|| {
+        ComhairleError::ResourceNotFound("workflow is not attached to a conversation".into())
+    })?;
 
-    demographics::get_demographics_responses(&state.db, filters, page_options)
-        .await
-        .map(|result| (StatusCode::OK, Json(result)))
-}
-
-/// Add a new response for a specific demographics question and user.
-#[instrument(err(Debug), skip(state))]
-pub async fn create_demographics_response(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Json(payload): Json<CreateDemographicsResponse>,
-) -> Result<(StatusCode, Json<DemographicsResponse>), ComhairleError> {
-    if payload.user_id != user.id && !is_user_admin(&state, &user).await {
+    if !can_view_conversation(&state, Some(&user), conversation_id).await? {
         return Err(ComhairleError::UserNotAuthorized);
     }
 
-    demographics::create_demographics_response(&state.db, payload)
-        .await
-        .map(|result| (StatusCode::CREATED, Json(result)))
+    let pending = steps::pending_questions(&state.db, user.id, &step, &locale).await?;
+    Ok(Json(pending))
 }
 
-/// Update a response for a specific demographics question and user.
-#[instrument(err(Debug), skip(state))]
-pub async fn update_demographics_response(
+#[instrument(skip(state, user, locale, body))]
+async fn set_question_consent(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((question_slug, user_id)): Path<(String, Uuid)>,
-    Json(payload): Json<PartialDemographicsResponse>,
-) -> Result<(StatusCode, Json<DemographicsResponse>), ComhairleError> {
-    if user_id != user.id && !is_user_admin(&state, &user).await {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-
-    demographics::update_demographics_response(&state.db, question_slug, user_id, payload)
-        .await
-        .map(|result| (StatusCode::OK, Json(result)))
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(version_id): Path<Uuid>,
+    Json(body): Json<ConsentInput>,
+) -> Result<Json<ConsentState>, ComhairleError> {
+    let consent =
+        responses::set_consent(&state.db, user.id, version_id, body.granted, &locale).await?;
+    Ok(Json(consent))
 }
 
-/// Delete a response for a specific demographics question and user.
-#[instrument(err(Debug), skip(state))]
-pub async fn delete_demographics_response(
+#[instrument(skip(state, user, locale, body))]
+async fn put_my_response(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((question_slug, user_id)): Path<(String, Uuid)>,
-) -> Result<(StatusCode, Json<Option<DemographicsResponse>>), ComhairleError> {
-    if user_id != user.id && !is_user_admin(&state, &user).await {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-
-    demographics::delete_demographics_response(&state.db, question_slug, user_id)
-        .await
-        .map(|result| (StatusCode::OK, Json(result)))
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(version_id): Path<Uuid>,
+    Json(body): Json<ResponseInput>,
+) -> Result<Json<ResponseDto>, ComhairleError> {
+    let response = responses::put_response(&state.db, user.id, version_id, &body, &locale).await?;
+    Ok(Json(response))
 }
 
-// ============================================================================
-// Routes for demographics
-// ============================================================================
+#[instrument(skip(state, user))]
+async fn list_my_responses(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+) -> Result<Json<Vec<ResponseDto>>, ComhairleError> {
+    Ok(Json(responses::my_responses(&state.db, user.id).await?))
+}
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-    .nest_api_service(
-        "/conversations_questions",
-        ApiRouter::new()
-            .api_route("/", get_with(get_conversation_demographics, |op| {
-                op.id("GetConversationDemographics")
+        .api_route(
+            "/tags",
+            get_with(list_tags, |op| {
+                op.id("ListDemographicTags")
                     .tag("Demographics")
-                    .summary("Get conversation demographics")
-                    .description("Retrieve demographics responses for a specific conversation and question")
                     .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<ConversationDemographics>>>()
-            }))
-            .api_route("/", post_with(create_conversation_demographics, |op| {
-                op.id("CreateConversationDemographics")
+                    .response::<200, Json<Vec<TagDto>>>()
+            })
+            .post_with(create_tag, |op| {
+                op.id("CreateDemographicTag")
                     .tag("Demographics")
-                    .summary("Create a conversation demographics response")
-                    .description("Create a new demographics response for a specific conversation and question")
                     .security_requirement("JWT")
-                    .response::<201, Json<ConversationDemographics>>()
-            }))
-            .api_route("/{conversation_id}/{question_slug}/", delete_with(delete_conversation_demographics, |op| {
-                op.id("DeleteConversationDemographicsByQuestion")
-                    .tag("Demographics")
-                    .summary("Delete conversation demographics by question")
-                    .description("Delete demographics responses for a specific conversation and question")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Option<ConversationDemographics>>>()
-            }))
-            .with_state(state.clone())
-    )
-    .nest_api_service(
-        "/questions",
-        ApiRouter::new()
-            .api_route("/", get_with(get_demographics_questions, |op| {
-                op.id("GetDemographicsQuestions")
-                    .tag("Demographics")
-                    .summary("List of demographics questions")
-                    .description("Paginated list of demographics questions with optional filtering and ordering")
-                    .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<DemographicsQuestion>>>()
-            }))
-            .api_route("/", post_with(create_demographics_question, |op| {
-                op.id("CreateDemographicsQuestion")
-                    .tag("Demographics")
-                    .summary("Create a demographics question")
-                    .description("Create a new demographics question")
-                    .security_requirement("JWT")
-                    .response::<201, Json<DemographicsQuestion>>()
-            }))
-            .api_route("/{question_slug}", put_with(update_demographics_question, |op| {
-                op.id("UpdateDemographicsQuestion")
-                    .tag("Demographics")
-                    .summary("Update a demographics question")
-                    .description("Update a specific demographics question")
-                    .security_requirement("JWT")
-                    .response::<200, Json<DemographicsQuestion>>()
-            }))
-            .api_route("/{question_slug}", delete_with(delete_demographics_question, |op| {
-                op.id("DeleteDemographicsQuestion")
-                    .tag("Demographics")
-                    .summary("Delete a demographics question")
-                    .description("Delete a specific demographics question")
-                    .security_requirement("JWT")
-                    .response::<200, Json<Option<DemographicsQuestion>>>()
-            }))
-            .with_state(state.clone())
+                    .response::<201, Json<TagDto>>()
+            }),
         )
-        .nest_api_service(
-            "/responses",
-            ApiRouter::new()
-                .api_route("/", get_with(get_demographics_responses, |op| {
-                    op.id("GetDemographicsResponses")
-                        .tag("Demographics")
-                        .summary("List of demographics responses")
-                        .description("Paginated list of demographics responses with optional filtering and ordering")
-                        .security_requirement("JWT")
-                        .response::<200, Json<PaginatedResults<DemographicsResponse>>>()
-                }))
-                .api_route("/", post_with(create_demographics_response, |op| {
-                    op.id("CreateDemographicsResponse")
-                        .tag("Demographics")
-                        .summary("Create a demographics response")
-                        .description("Create a new response for a specific demographics question and user")
-                        .security_requirement("JWT")
-                        .response::<201, Json<DemographicsResponse>>()
-                }))
-                .api_route("/{question_slug}/{user_id}", put_with(update_demographics_response, |op| {
-                    op.id("UpdateDemographicsResponse")
-                        .tag("Demographics")
-                        .summary("Update a demographics response")
-                        .description("Update a response for a specific demographics question and user")
-                        .security_requirement("JWT")
-                        .response::<200, Json<DemographicsResponse>>()
-                }))
-                .api_route("/{question_slug}/{user_id}", delete_with(delete_demographics_response, |op| {
-                    op.id("DeleteDemographicsResponse")
-                        .tag("Demographics")
-                        .summary("Delete a demographics response")
-                        .description("Delete a response for a specific demographics question and user")
-                        .security_requirement("JWT")
-                        .response::<200, Json<Option<DemographicsResponse>>>()
-                }))
-                .with_state(state.clone())
+        .api_route(
+            "/questions",
+            get_with(list_questions, |op| {
+                op.id("ListDemographicQuestions")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<QuestionDto>>>()
+            })
+            .post_with(create_question, |op| {
+                op.id("CreateDemographicQuestion")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<201, Json<QuestionDto>>()
+            }),
+        )
+        .api_route(
+            "/questions/{question_id}",
+            get_with(get_question, |op| {
+                op.id("GetDemographicQuestion")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<QuestionDto>>()
+            }),
+        )
+        .api_route(
+            "/questions/{question_id}/draft",
+            post_with(start_question_draft, |op| {
+                op.id("StartDemographicQuestionDraft")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<QuestionDto>>()
+            })
+            .put_with(update_question_draft, |op| {
+                op.id("UpdateDemographicQuestionDraft")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<QuestionDto>>()
+            })
+            .delete_with(discard_question_draft, |op| {
+                op.id("DiscardDemographicQuestionDraft")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response_with::<204, (), _>(|res| res.description("Draft discarded"))
+            }),
+        )
+        .api_route(
+            "/questions/{question_id}/publish",
+            post_with(publish_question, |op| {
+                op.id("PublishDemographicQuestion")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<QuestionDto>>()
+            }),
+        )
+        .api_route(
+            "/questions/{question_id}/archive",
+            post_with(archive_question, |op| {
+                op.id("ArchiveDemographicQuestion")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<QuestionDto>>()
+            }),
+        )
+        .api_route(
+            "/forms",
+            get_with(list_forms, |op| {
+                op.id("ListDemographicForms")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<FormDto>>>()
+            })
+            .post_with(create_form, |op| {
+                op.id("CreateDemographicForm")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<201, Json<FormDto>>()
+            }),
+        )
+        .api_route(
+            "/forms/{form_id}",
+            get_with(get_form, |op| {
+                op.id("GetDemographicForm")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<FormDto>>()
+            }),
+        )
+        .api_route(
+            "/forms/{form_id}/draft",
+            post_with(start_form_draft, |op| {
+                op.id("StartDemographicFormDraft")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<FormDto>>()
+            })
+            .put_with(update_form_draft, |op| {
+                op.id("UpdateDemographicFormDraft")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<FormDto>>()
+            })
+            .delete_with(discard_form_draft, |op| {
+                op.id("DiscardDemographicFormDraft")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response_with::<204, (), _>(|res| res.description("Draft discarded"))
+            }),
+        )
+        .api_route(
+            "/forms/{form_id}/publish",
+            post_with(publish_form, |op| {
+                op.id("PublishDemographicForm")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<FormDto>>()
+            }),
+        )
+        .api_route(
+            "/forms/{form_id}/archive",
+            post_with(archive_form, |op| {
+                op.id("ArchiveDemographicForm")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<FormDto>>()
+            }),
+        )
+        .api_route(
+            "/defaults",
+            get_with(list_defaults, |op| {
+                op.id("ListDemographicDefaults")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<QuestionDto>>>()
+            })
+            .post_with(create_default, |op| {
+                op.id("CreateDemographicDefault")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<201, Json<QuestionDto>>()
+            }),
+        )
+        .api_route(
+            "/defaults/{question_id}/draft",
+            put_with(update_default_draft, |op| {
+                op.id("UpdateDemographicDefaultDraft")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<QuestionDto>>()
+            }),
+        )
+        .api_route(
+            "/defaults/{question_id}/publish",
+            post_with(publish_default, |op| {
+                op.id("PublishDemographicDefault")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<QuestionDto>>()
+            }),
+        )
+        .api_route(
+            "/steps/{step_id}/pending",
+            get_with(pending_step_questions, |op| {
+                op.id("GetPendingDemographicQuestions")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<PendingQuestion>>>()
+            }),
+        )
+        .api_route(
+            "/question-versions/{version_id}/consent",
+            put_with(set_question_consent, |op| {
+                op.id("SetDemographicConsent")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ConsentState>>()
+            }),
+        )
+        .api_route(
+            "/question-versions/{version_id}/response",
+            put_with(put_my_response, |op| {
+                op.id("PutDemographicResponse")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ResponseDto>>()
+            }),
+        )
+        .api_route(
+            "/me/responses",
+            get_with(list_my_responses, |op| {
+                op.id("ListMyDemographicResponses")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<ResponseDto>>>()
+            }),
+        )
+        .api_route(
+            "/me/responses/{version_id}",
+            put_with(put_my_response, |op| {
+                op.id("PutMyDemographicResponse")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ResponseDto>>()
+            }),
         )
         .with_state(state.clone())
 }

@@ -18,6 +18,7 @@ use crate::models::SqlxResultExt;
 use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::routes::feedback::dto::FeedbackDto;
 use crate::routes::report_impacts::dto::ReportImpactDto;
+use crate::tools::demographics::DemographicReport;
 use crate::tools::elicitation_bot::ElicitationBotReport;
 use crate::tools::heyform::HeyFormReport;
 use crate::tools::learn::LearnReport;
@@ -227,6 +228,12 @@ pub async fn create_for_conversation(
                     }
                     ToolConfig::ThinkingSpace(_) => {
                         ReportConfig::ThinkingSpace(ThinkingSpaceReport)
+                    }
+                    ToolConfig::DemographicQuestion(_) => {
+                        ReportConfig::DemographicQuestion(DemographicReport)
+                    }
+                    ToolConfig::DemographicForm(_) => {
+                        ReportConfig::DemographicForm(DemographicReport)
                     }
                 };
 
