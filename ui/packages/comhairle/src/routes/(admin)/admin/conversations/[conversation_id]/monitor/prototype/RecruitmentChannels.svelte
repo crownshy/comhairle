@@ -1,19 +1,26 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import * as Card from '$lib/components/ui/card';
 	import type { RecruitmentChannel } from './sampleMonitorData';
 
-	type Props = { channels: RecruitmentChannel[]; manageHref: string };
+	type Props = { channels: RecruitmentChannel[]; conversationId: string };
 
-	let { channels, manageHref }: Props = $props();
+	let { channels, conversationId }: Props = $props();
 
 	let mostJoined = $derived(Math.max(1, ...channels.map((channel) => channel.joined)));
 </script>
 
 <Card.Root>
 	<Card.Header class="flex flex-row flex-wrap items-center justify-between gap-3">
-		<Card.Title>Where people came from</Card.Title>
-		<a href={manageHref} class="text-primary text-base font-semibold hover:underline"
-			>Manage in Recruit</a
+		<div class="flex flex-col gap-2">
+			<Card.Title>Recruitment channel</Card.Title>
+			<Card.Description>Where people came from</Card.Description>
+		</div>
+		<a
+			href={resolve('/(admin)/admin/conversations/[conversation_id]/invites', {
+				conversation_id: conversationId
+			})}
+			class="text-primary text-base font-semibold hover:underline">Manage in Recruit</a
 		>
 	</Card.Header>
 	<Card.Content>

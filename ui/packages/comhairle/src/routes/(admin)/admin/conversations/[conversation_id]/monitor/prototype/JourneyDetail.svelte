@@ -41,16 +41,11 @@
 		return `${visit.startedAt}–${addMinutes(visit.startedAt, visit.minutes)}`;
 	}
 
-	/** Steps they reached, in order; the rest are listed separately as not reached. */
+	/** Steps they reached, in order. */
 	let reached = $derived(
 		journey.visits
 			.map((visit, index) => ({ visit, index, step: steps[index] }))
 			.filter((entry) => entry.visit.minutes > 0)
-	);
-	let notReached = $derived(
-		journey.visits
-			.map((visit, index) => ({ visit, index, step: steps[index] }))
-			.filter((entry) => entry.visit.status === 'not_reached')
 	);
 </script>
 
@@ -68,7 +63,7 @@
 					<span
 						class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-sm font-semibold text-green-800"
 					>
-						<Smile class="size-4" aria-hidden="true" />Finished
+						<Smile class="size-4" aria-hidden="true" />Completed
 					</span>
 				{:else if leftIndex >= 0}
 					<span
@@ -98,7 +93,6 @@
 			</p>
 		</div>
 
-		<!-- Step through people without scrolling the list -->
 		<nav aria-label="Browse journeys" class="flex items-center gap-2">
 			<Button
 				variant="outline"

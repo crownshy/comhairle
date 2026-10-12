@@ -7,11 +7,9 @@
 		slots: string[];
 		/** counts[dayIndex][slotIndex] */
 		counts: number[][];
-		/** AI mode only: the written recommendation after the busiest slot. */
-		showAdvice: boolean;
 	};
 
-	let { days, slots, counts, showAdvice }: Props = $props();
+	let { days, slots, counts }: Props = $props();
 
 	let busiest = $derived.by(() => {
 		let best = { day: 0, slot: 0, count: -1 };
@@ -32,7 +30,7 @@
 	}
 </script>
 
-<!-- New data viz component: when participants are active, to time reminders. -->
+<!-- When participants are active, by weekday and time of day, to help time reminders. -->
 <Card.Root>
 	<Card.Header>
 		<Card.Title>When people take part</Card.Title>
@@ -40,7 +38,6 @@
 			Busiest: <strong class="text-foreground"
 				>{days[busiest.day]}, {slots[busiest.slot]}</strong
 			>.
-			{#if showAdvice}A good time to send reminders.{/if}
 		</Card.Description>
 	</Card.Header>
 	<Card.Content class="overflow-x-auto">

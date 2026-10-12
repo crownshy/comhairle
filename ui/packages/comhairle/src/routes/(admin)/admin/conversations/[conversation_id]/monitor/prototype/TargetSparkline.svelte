@@ -76,7 +76,7 @@
 			xScale={scaleUtc()}
 			xDomain={[launchDate, closingDate]}
 			y="total"
-			yDomain={[0, target]}
+			yDomain={[0, Math.max(target, ...signups.map((point) => point.total))]}
 			padding={{ top: 22, bottom: 2, left: 2, right: 2 }}
 			axis={false}
 			grid={false}

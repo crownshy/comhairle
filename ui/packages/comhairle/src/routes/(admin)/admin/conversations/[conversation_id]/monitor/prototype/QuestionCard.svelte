@@ -3,9 +3,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { LineChart } from 'layerchart';
-	import { CircleCheck, TriangleAlert, ArrowRight } from 'lucide-svelte';
+	import { ArrowRight } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
-	import AiInsight from './AiInsight.svelte';
 
 	type Bar = {
 		label: string;
@@ -22,9 +21,6 @@
 		question: string;
 		value: string;
 		unit: string;
-		/** A judgement on the metric. Optional: only shown in AI mode for now. */
-		status?: 'healthy' | 'attention';
-		statusLabel?: string;
 		/** Line sparkline. Ignored when `bars` is given. */
 		trend?: number[];
 		trendLabel: string;
@@ -32,8 +28,6 @@
 		bars?: Bar[];
 		/** Any custom visual; replaces both the sparkline and the bars. */
 		visual?: Snippet;
-		/** AI mode only: a model-written interpretation, shown with an "AI summary" label. */
-		aiInsight?: string;
 		actionLabel: string;
 		actionHref: string;
 		/** Opens the tab with the full detail for this question. */
@@ -47,13 +41,10 @@
 		question,
 		value,
 		unit,
-		status,
-		statusLabel,
 		trend,
 		trendLabel,
 		bars,
 		visual,
-		aiInsight,
 		actionLabel,
 		actionHref,
 		onShowDetails,
@@ -68,23 +59,6 @@
 		<div class="flex items-center justify-between gap-2">
 			<span class="text-primary text-sm font-semibold tracking-wide uppercase">{eyebrow}</span
 			>
-			{#if status && statusLabel}
-				<span
-					class={cn(
-						'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold',
-						status === 'healthy'
-							? 'bg-primary/10 text-primary'
-							: 'bg-amber-100 text-amber-900'
-					)}
-				>
-					{#if status === 'healthy'}
-						<CircleCheck class="size-4" aria-hidden="true" />
-					{:else}
-						<TriangleAlert class="size-4" aria-hidden="true" />
-					{/if}
-					{statusLabel}
-				</span>
-			{/if}
 		</div>
 		<Card.Title class="text-muted-foreground text-sm">{question}</Card.Title>
 	</Card.Header>
@@ -150,16 +124,9 @@
 				/>
 			</div>
 		{/if}
-		{#if aiInsight}
-			<AiInsight>
-				<p class="text-base leading-relaxed">{aiInsight}</p>
-			</AiInsight>
-		{/if}
 	</Card.Content>
 	<Card.Footer class="mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-		<!-- The action to take now -->
 		<Button href={actionHref} variant="secondary" class="rounded-full">{actionLabel}</Button>
-		<!-- Where the full detail lives -->
 		<button
 			type="button"
 			onclick={onShowDetails}

@@ -30,11 +30,7 @@
 	);
 </script>
 
-<!--
-	Follow-up panel: one surface for everything an admin can do next with the people in
-	this conversation, grouped into messaging and exports. Replaces the two loose download
-	buttons at the bottom of the current Monitor page.
--->
+<!-- Next steps for people in this conversation, grouped into messaging and exports. -->
 <section aria-label="Follow up" class="bg-card flex flex-col gap-6 rounded-3xl border p-6">
 	{#each groups as group (group.title)}
 		<div class="flex flex-col gap-2">

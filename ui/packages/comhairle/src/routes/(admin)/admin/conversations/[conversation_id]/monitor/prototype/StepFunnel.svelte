@@ -11,7 +11,7 @@
 		showAs: 'people' | 'percent';
 	};
 
-	let { steps, joined, worstStep, showAs }: Props = $props();
+	let { steps, joined, worstStep, showAs = $bindable('people') }: Props = $props();
 
 	type Row = {
 		label: string;
@@ -34,7 +34,7 @@
 		{ label: 'Reached this step', value: (step) => count(step.reached) },
 		{ label: 'Completed', value: (step) => count(step.finished) },
 		{
-			label: 'Finish rate',
+			label: 'Completion rate',
 			value: (step) => `${percentOf(step.finished, step.reached)}%`,
 			bar: (step) => percentOf(step.finished, step.reached)
 		},
@@ -59,12 +59,35 @@
 </script>
 
 <!--
-	New data viz component (candidate for src/lib/components once agreed). One column per
-	step; every measure is one row, so values line up horizontally across steps. In the bar,
-	the dashed box is everyone who joined, the striped fill who reached the step, the
-	solid fill who completed it.
+	One column per step, one row per measure, so values line up across steps. In each bar the
+	dashed box is everyone who joined, the striped fill who reached the step, the solid fill
+	who completed it.
 -->
 <Card.Root>
+	<Card.Header class="flex flex-wrap items-center justify-between gap-4">
+		<Card.Title>Step funnel</Card.Title>
+		<div
+			role="group"
+			aria-label="Show counts as"
+			class="bg-card inline-flex rounded-lg border p-1"
+		>
+			{#each [{ value: 'people', label: 'People' }, { value: 'percent', label: '% of joiners' }] as option (option.value)}
+				<button
+					type="button"
+					aria-pressed={showAs === option.value}
+					onclick={() => (showAs = option.value as 'people' | 'percent')}
+					class={cn(
+						'min-h-9 rounded-md px-3 text-sm',
+						showAs === option.value
+							? 'bg-sidebar text-sidebar-foreground'
+							: 'text-muted-foreground'
+					)}
+				>
+					{option.label}
+				</button>
+			{/each}
+		</div>
+	</Card.Header>
 	<Card.Content class="flex flex-col gap-6">
 		<ul class="flex flex-wrap gap-5 text-sm" aria-label="Legend">
 			<li class="inline-flex items-center gap-2">
@@ -72,7 +95,7 @@
 			</li>
 			<li class="inline-flex items-center gap-2">
 				<span class="size-3.5 rounded-sm" style:background-image={IN_PROGRESS_FILL}
-				></span>Started, not finished
+				></span>Started, not completed
 			</li>
 			<li class="inline-flex items-center gap-2">
 				<span class="border-muted-foreground/50 size-3.5 rounded-sm border border-dashed"
@@ -86,7 +109,6 @@
 				aria-label="Progress through each step"
 				class="grid min-w-[860px] grid-cols-[10rem_repeat(5,minmax(9rem,1fr))] tabular-nums"
 			>
-				<!-- Step names -->
 				<div role="row" class="contents">
 					<div role="columnheader" class={LABEL_CELL}>
 						<span class="sr-only">Measure</span>
@@ -109,7 +131,6 @@
 					{/each}
 				</div>
 
-				<!-- Bars -->
 				<div role="row" class="contents">
 					<div role="rowheader" class={cn(LABEL_CELL, 'items-end')}>
 						Of {joined} who joined
@@ -119,7 +140,7 @@
 							<div
 								class="border-muted-foreground/40 flex h-56 w-full items-end rounded-md border border-dashed"
 								role="img"
-								aria-label="{step.reached} of {joined} reached {step.name}, {step.finished} finished"
+								aria-label="{step.reached} of {joined} reached {step.name}, {step.finished} completed"
 							>
 								<div
 									class="flex w-full items-end overflow-hidden rounded-md"
@@ -136,7 +157,6 @@
 					{/each}
 				</div>
 
-				<!-- One row per measure -->
 				{#each rows as row (row.label)}
 					<div role="row" class="contents">
 						<div role="rowheader" class={cn(LABEL_CELL, 'border-t')}>{row.label}</div>

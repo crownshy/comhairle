@@ -1,11 +1,8 @@
 <!--
-	Local copy of $lib/components/StatsBar.svelte for redesigning the Monitor stat bar.
-	Changes here don't affect other pages that use the shared StatsBar.
-
-	Two variants:
-	- primary: the headline numbers (At a glance). Solid brand surface.
-	- secondary: supporting, live numbers (Pulse). Light card surface, so it doesn't
-	  compete with the primary bar or the content around it.
+	Fork of $lib/components/StatsBar.svelte with an explanation popover per stat and two variants:
+	- primary: headline numbers (At a glance), solid brand surface.
+	- secondary: live numbers (Live pulse), light card surface.
+	TODO(frontend): fold these into the shared StatsBar, or replace it.
 -->
 <script lang="ts">
 	import * as Popover from '$lib/components/ui/popover';
@@ -20,8 +17,6 @@
 		from?: string;
 		/** Extra lines under the number, e.g. "100 people recruited". */
 		details?: string[];
-		/** Shows a green dot before the label for a live count. */
-		live?: boolean;
 		/** One plain-English line under the number saying what it counts. */
 		meaning?: string;
 		/** Longer explanation behind an info button next to the label. */

@@ -1,26 +1,23 @@
 <script lang="ts">
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import { Badge } from '$lib/components/ui/badge';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { cn } from '$lib/utils';
 	import { permissions } from '$lib/permissions.svelte';
-	import AiInsight from './AiInsight.svelte';
 	import MonitorStatsBar from './MonitorStatsBar.svelte';
-	import MonitorTimeline from './MonitorTimeline.svelte';
 	import FirstVisitHint from './FirstVisitHint.svelte';
-	import MonitorSummary from './MonitorSummary.svelte';
 	import QuestionCard from './QuestionCard.svelte';
 	import TargetSparkline from './TargetSparkline.svelte';
+	import ActionCalendar from './ActionCalendar.svelte';
 	import ReachMini from './ReachMini.svelte';
 	import StepFunnel from './StepFunnel.svelte';
-	import DropOffCallout from './DropOffCallout.svelte';
 	import RecruitmentTarget from './RecruitmentTarget.svelte';
 	import SignupsOverTimeChart from './SignupsOverTimeChart.svelte';
+	import RepresentationHint from './RepresentationHint.svelte';
+	import ActionHint from './ActionHint.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import RecruitmentChannels from './RecruitmentChannels.svelte';
 	import RepresentationBars from './RepresentationBars.svelte';
-	import LivePulse from './LivePulse.svelte';
+	import RecentActivity from './RecentActivity.svelte';
 	import ActivityHeatmap from './ActivityHeatmap.svelte';
 	import TodayJourneys from './TodayJourneys.svelte';
 	import FollowUpActions from './FollowUpActions.svelte';
@@ -28,8 +25,8 @@
 
 	import type { PageProps } from './$types';
 
-	// Design prototype for the Monitor tab. Every number on this page is sample data from
-	// ./sampleMonitorData.ts; links point at the real sibling tabs.
+	// Prototype of the redesigned Monitor tab. All numbers come from ./sampleMonitorData.ts;
+	// links point at the real sibling tabs. See README.md in this folder for the handoff notes.
 	let { data }: PageProps = $props();
 
 	const MONITOR_TABS = [
@@ -50,28 +47,12 @@
 	const initialTab = page.url.searchParams.get('tab');
 	let activeTab = $state<MonitorTab>(isMonitorTab(initialTab) ? initialTab : 'glance');
 
-	// Simple shows only what is counted or calculated from data. AI adds model-written
-	// interpretation, each piece labelled "AI summary". Cool is Simple with the experimental
-	// timeline header on At a glance. Lives in `?mode=` like the tab.
-	const MODES = [
-		{ value: 'simple', label: 'Simple' },
-		{ value: 'ai', label: 'AI' },
-		{ value: 'cool', label: 'Cool' }
-	] as const;
-	type Mode = (typeof MODES)[number]['value'];
-	const initialMode = page.url.searchParams.get('mode');
-	let mode = $state<Mode>(
-		MODES.find((option) => option.value === initialMode)?.value ?? 'simple'
-	);
-	let isAi = $derived(mode === 'ai');
-
-	// Cool mode only: preview the running timeline or the day-one empty state.
-	let timelinePreview = $state<'running' | 'dayOne'>('running');
-
 	/** Updates the address bar without a SvelteKit navigation (shallow routing). */
 	function writeSearchParam(key: string, value: string) {
 		const url = new URL(window.location.href);
 		url.searchParams.set(key, value);
+		// Only the query string of the current page changes, so there is nothing for `resolve()` to do.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		replaceState(url, page.state);
 	}
 
@@ -81,11 +62,6 @@
 		writeSearchParam('tab', value);
 	}
 
-	function setMode(value: Mode) {
-		mode = value;
-		writeSearchParam('mode', value);
-	}
-
 	let base = $derived(`/admin/conversations/${data.conversation.id}`);
 	let canExport = $derived(
 		permissions.can('conversation', 'conversation_export', data.conversation.id)
@@ -93,23 +69,38 @@
 
 	let showFunnelAs = $state<'people' | 'percent'>('people');
 
+	// The Recruitment hint opens Demographic analysis on the demographic it names.
+	let representationTab = $state(sample.SAMPLE_REPRESENTATION[0]?.name ?? '');
+	/** Scrolls to a card on the page and moves focus to it. */
+	function scrollToCard(id: string) {
+		const card = document.getElementById(id);
+		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		card?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+		card?.focus({ preventScroll: true });
+	}
+
+	function viewRepresentation(dimensionName: string) {
+		representationTab = dimensionName;
+		scrollToCard('demographic-analysis');
+	}
+
 	let worstStep = $derived(
 		sample.SAMPLE_STEPS.reduce((worst, step) =>
 			step.reached - step.finished > worst.reached - worst.finished ? step : worst
 		)
 	);
-	let typicalMinutes = $derived.by(() => {
-		const others = sample.SAMPLE_STEPS.filter((step) => step.name !== worstStep.name);
-		const sorted = others.map((step) => step.medianMinutes).sort((a, b) => a - b);
-		return sorted[Math.floor(sorted.length / 2)];
-	});
+	// TODO(backend): load and save the target with the conversation. Here it lives in page state.
+	let target = $state(sample.SAMPLE_TARGET);
+	let targetPace = $derived([
+		sample.SAMPLE_TARGET_PACE[0],
+		{ day: sample.SAMPLE_CLOSING_DATE, total: target }
+	]);
 	let evenPaceToday = $derived(
 		Math.round(
-			(sample.SAMPLE_TARGET * sample.SAMPLE_DAY_OF_CONVERSATION) /
-				sample.SAMPLE_CONVERSATION_LENGTH_DAYS
+			(target * sample.SAMPLE_DAY_OF_CONVERSATION) / sample.SAMPLE_CONVERSATION_LENGTH_DAYS
 		)
 	);
-	// Reach card: which demographic the admin is looking at.
+	// At a glance Reach card: which demographic is selected.
 	let reachDimensionName = $state(sample.SAMPLE_REPRESENTATION[0].name);
 	let reachDimension = $derived(
 		sample.SAMPLE_REPRESENTATION.find((dimension) => dimension.name === reachDimensionName) ??
@@ -124,37 +115,6 @@
 	<title>Monitor prototype - Comhairle Admin</title>
 </svelte:head>
 
-<PageHeader
-	title="Monitor"
-	description="See how your conversation is working, monitor recruitment and user progress and check out your reach"
->
-	{#snippet actions()}
-		<div class="flex flex-wrap items-center gap-3">
-			<div
-				role="group"
-				aria-label="Summary mode"
-				class="bg-card inline-flex rounded-full border p-1"
-			>
-				{#each MODES as option (option.value)}
-					<button
-						type="button"
-						aria-pressed={mode === option.value}
-						onclick={() => setMode(option.value)}
-						class={cn(
-							'min-h-9 rounded-full px-4 text-sm font-medium',
-							mode === option.value
-								? 'bg-sidebar text-sidebar-foreground'
-								: 'text-muted-foreground'
-						)}
-					>
-						{option.label}
-					</button>
-				{/each}
-			</div>
-		</div>
-	{/snippet}
-</PageHeader>
-
 <Tabs.Root value={activeTab} onValueChange={showTab} class="flex flex-col gap-8 pb-16">
 	<Tabs.List class="w-fit max-w-full" aria-label="Monitor sections">
 		{#each MONITOR_TABS as tab (tab.value)}
@@ -165,124 +125,53 @@
 	<!-- At a glance: verdict and the three questions -->
 	<Tabs.Content value="glance" class="flex flex-col gap-12">
 		<section aria-label="Overview" class="flex flex-col gap-6">
-			{#if isAi}
-				<MonitorSummary
-					dayOfConversation={sample.SAMPLE_DAY_OF_CONVERSATION}
-					conversationLengthDays={sample.SAMPLE_CONVERSATION_LENGTH_DAYS}
-					joined={sample.SAMPLE_JOINED}
-					finished={sample.SAMPLE_FINISHED}
-					biggestDropOffStep={worstStep.name}
-					notifyHref="{base}/notifications"
-					stepHref="{base}/design"
-				/>
-			{:else if mode === 'cool'}
-				<div class="flex flex-col gap-3">
-					<div
-						role="group"
-						aria-label="Preview timeline state"
-						class="bg-card inline-flex self-start rounded-lg border p-1"
-					>
-						{#each [{ value: 'running', label: `Day ${sample.SAMPLE_DAY_OF_CONVERSATION}` }, { value: 'dayOne', label: 'Day 1 (no one yet)' }] as option (option.value)}
-							<button
-								type="button"
-								aria-pressed={timelinePreview === option.value}
-								onclick={() =>
-									(timelinePreview = option.value as 'running' | 'dayOne')}
-								class={cn(
-									'min-h-9 rounded-md px-3 text-sm',
-									timelinePreview === option.value
-										? 'bg-sidebar text-sidebar-foreground'
-										: 'text-muted-foreground'
-								)}
-							>
-								{option.label}
-							</button>
-						{/each}
-					</div>
-					<MonitorTimeline
-						state={timelinePreview}
-						day={sample.SAMPLE_DAY_OF_CONVERSATION}
-						totalDays={sample.SAMPLE_CONVERSATION_LENGTH_DAYS}
-						launchDate={sample.SAMPLE_LAUNCH_DATE}
-						closingDate={sample.SAMPLE_CLOSING_DATE}
-						events={sample.SAMPLE_RECRUITMENT_EVENTS}
-						activeNow={sample.SAMPLE_ACTIVE_NOW}
-						recruitHref="{base}/invites"
-						stats={[
-							{
-								label: 'Recruited',
-								value: String(sample.SAMPLE_RECRUITED),
-								detail: '+12 this week'
-							},
-							{
-								label: 'Joined',
-								value: String(sample.SAMPLE_JOINED),
-								detail: `${Math.round((sample.SAMPLE_JOINED / sample.SAMPLE_RECRUITED) * 100)}% of recruited`
-							},
-							{
-								label: 'Finished',
-								value: String(sample.SAMPLE_FINISHED),
-								detail: `${Math.round((sample.SAMPLE_FINISHED / sample.SAMPLE_JOINED) * 100)}% of joined`
-							},
-							{
-								label: 'Time to finish',
-								value: `${sample.SAMPLE_MEDIAN_MINUTES_TO_FINISH} min`,
-								detail: 'Typical, first to last step'
-							}
-						]}
-					/>
-				</div>
-			{:else}
-				<MonitorStatsBar
-					variant="primary"
-					caption="Day {sample.SAMPLE_DAY_OF_CONVERSATION} of {sample.SAMPLE_CONVERSATION_LENGTH_DAYS}"
-					captionEnd="Updated 2 minutes ago"
-					stats={[
-						{
-							name: 'Joined',
-							amount: sample.SAMPLE_JOINED,
-							unit: null,
-							meaning: 'People who opened the conversation',
-							explanation:
-								'Counts everyone who opened the conversation at least once, through any link, email or QR code. People who were invited but never opened it are not counted.'
-						},
-						{
-							name: 'Finished',
-							amount: sample.SAMPLE_FINISHED,
-							unit: null,
-							meaning: `Completed every step. ${Math.round((sample.SAMPLE_FINISHED / sample.SAMPLE_JOINED) * 100)}% of everyone who joined`,
-							explanation:
-								'Counts people who reached the end of the last step. Someone who skipped an optional step still counts as finished.'
-						},
-						{
-							name: 'Active now',
-							amount: sample.SAMPLE_ACTIVE_NOW,
-							unit: null,
-							meaning: 'Taking part right now, in any step',
-							explanation:
-								'People who did something in the conversation in the last 5 minutes.'
-						},
-						{
-							name: 'Time to finish',
-							amount: sample.SAMPLE_MEDIAN_MINUTES_TO_FINISH,
-							unit: 'min',
-							meaning: 'Typical time from first step to last',
-							explanation:
-								'The median: half of the people who finished took less time than this, half took longer. Time away from the page is not counted.'
-						}
-					]}
-				/>
-				<FirstVisitHint tourHref="/admin/info/tools" />
-			{/if}
+			<MonitorStatsBar
+				variant="primary"
+				caption="Day {sample.SAMPLE_DAY_OF_CONVERSATION} of {sample.SAMPLE_CONVERSATION_LENGTH_DAYS}"
+				captionEnd="Updated 2 minutes ago"
+				stats={[
+					{
+						name: 'Joined',
+						amount: sample.SAMPLE_JOINED,
+						unit: null,
+						meaning: 'People who opened the conversation',
+						explanation:
+							'Counts everyone who opened the conversation at least once, through any link, email or QR code. People who were invited but never opened it are not counted.'
+					},
+					{
+						name: 'Completed',
+						amount: sample.SAMPLE_FINISHED,
+						unit: null,
+						meaning: `Completed every step. ${Math.round((sample.SAMPLE_FINISHED / sample.SAMPLE_JOINED) * 100)}% of everyone who joined`,
+						explanation:
+							'Counts people who reached the end of the last step. Someone who skipped an optional step still counts as completed.'
+					},
+					{
+						name: 'Active now',
+						amount: sample.SAMPLE_ACTIVE_NOW,
+						unit: null,
+						meaning: 'Taking part right now, in any step',
+						explanation:
+							'People who did something in the conversation in the last 5 minutes.'
+					},
+					{
+						name: 'Time to complete',
+						amount: sample.SAMPLE_MEDIAN_MINUTES_TO_FINISH,
+						unit: 'min',
+						meaning: 'Typical time from first step to last',
+						explanation:
+							'The median: half of the people who completed took less time than this, half took longer. Time away from the page is not counted.'
+					}
+				]}
+			/>
+			<FirstVisitHint tourHref="/admin/info/tools" />
 			<div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
 				<QuestionCard
 					eyebrow="Working"
-					question="Are people finishing?"
+					question="Are people completing?"
 					value="{Math.round((sample.SAMPLE_FINISHED / sample.SAMPLE_JOINED) * 100)}%"
-					unit="of joiners finished"
-					status={isAi ? 'healthy' : undefined}
-					statusLabel={isAi ? 'Healthy' : undefined}
-					trendLabel="Finish rate per step"
+					unit="of joiners completed"
+					trendLabel="Completion rate per step"
 					bars={sample.SAMPLE_STEPS.map((step) => ({
 						label: step.shortName,
 						fullLabel: step.name,
@@ -292,7 +181,6 @@
 								: Math.round((step.finished / step.reached) * 100),
 						flagged: step.name === worstStep.name
 					}))}
-					aiInsight={isAi ? sample.SAMPLE_AI_TEXT.working : undefined}
 					actionLabel="Review {worstStep.name}"
 					actionHref="{base}/design"
 					onShowDetails={() => showTab('journey')}
@@ -302,11 +190,8 @@
 					eyebrow="Recruitment"
 					question="Are enough people joining?"
 					value={String(sample.SAMPLE_JOINED)}
-					unit="of {sample.SAMPLE_TARGET} target"
-					status={isAi ? 'attention' : undefined}
-					statusLabel={isAi ? 'Behind pace' : undefined}
+					unit="of {target} target"
 					trendLabel="Running total of signups against the target"
-					aiInsight={isAi ? sample.SAMPLE_AI_TEXT.recruitment : undefined}
 					actionLabel="Open Recruit"
 					actionHref="{base}/invites"
 					onShowDetails={() => showTab('recruitment')}
@@ -315,7 +200,7 @@
 					{#snippet visual()}
 						<TargetSparkline
 							signups={sample.SAMPLE_SIGNUPS}
-							target={sample.SAMPLE_TARGET}
+							{target}
 							launchDate={sample.SAMPLE_LAUNCH_DATE}
 							closingDate={sample.SAMPLE_CLOSING_DATE}
 						/>
@@ -327,18 +212,7 @@
 					value="{reachDimension.rows.length - underRepresentedCount} of {reachDimension
 						.rows.length}"
 					unit="{reachDimension.groupNoun} well covered"
-					status={isAi
-						? underRepresentedCount > 0
-							? 'attention'
-							: 'healthy'
-						: undefined}
-					statusLabel={isAi
-						? underRepresentedCount > 0
-							? 'Gaps'
-							: 'Well covered'
-						: undefined}
 					trendLabel="Share of participants compared with the local population"
-					aiInsight={isAi ? sample.SAMPLE_AI_TEXT.reach : undefined}
 					actionLabel="Open Recruit"
 					actionHref="{base}/invites"
 					onShowDetails={() => showTab('recruitment')}
@@ -352,11 +226,29 @@
 					{/snippet}
 				</QuestionCard>
 			</div>
+			<ActionCalendar
+				entries={sample.SAMPLE_ACTIVITY_LOG}
+				launchDate={sample.SAMPLE_LAUNCH_DATE}
+				closingDate={sample.SAMPLE_CLOSING_DATE}
+				today={sample.SAMPLE_TODAY}
+				conversationId={data.conversation.id}
+			/>
 		</section>
 	</Tabs.Content>
 
 	<!-- Pulse: what's happening right now, and who to follow up with -->
-	<Tabs.Content value="pulse" class="flex flex-col gap-2">
+	<Tabs.Content value="pulse" class="flex flex-col gap-6">
+		<ActionHint>
+			Most people who stop leave at <strong>{worstStep.name}</strong>:
+			{worstStep.reached - worstStep.finished} of the {worstStep.reached} who reached it didn't
+			complete it.
+			{#snippet actions()}
+				<Button
+					class="rounded-full bg-orange-700 text-white hover:bg-orange-800"
+					onclick={() => scrollToCard('today-journeys')}>See more</Button
+				>
+			{/snippet}
+		</ActionHint>
 		<MonitorStatsBar
 			variant="secondary"
 			stats={[
@@ -364,25 +256,34 @@
 					name: 'Active now',
 					amount: sample.SAMPLE_ACTIVE_NOW,
 					unit: null,
-					live: true,
-					details: [
-						`${sample.SAMPLE_RECRUITED} people recruited`,
-						'2 in Thinking space, 1 in Survey'
-					]
+					explanation:
+						'People who did something in the conversation in the last 5 minutes, in any step.'
 				},
-				{ name: 'Joined today', amount: 10, unit: null },
-				{ name: 'Finished today', amount: 3, unit: null }
+				{
+					name: 'Joined today',
+					amount: 10,
+					unit: null,
+					explanation:
+						'People who opened the conversation for the first time today, through any link, email or QR code. Counts reset at midnight.'
+				},
+				{
+					name: 'Completed today',
+					amount: 3,
+					unit: null,
+					explanation:
+						'People who reached the end of the last step today, whenever they first joined. Counts reset at midnight.'
+				}
 			]}
-		/><TodayJourneys steps={sample.SAMPLE_STEPS} journeys={sample.SAMPLE_TODAY_JOURNEYS} />
+		/>
+		<TodayJourneys steps={sample.SAMPLE_STEPS} journeys={sample.SAMPLE_TODAY_JOURNEYS} />
 		<ActivityHeatmap
 			days={sample.HEATMAP_DAYS}
 			slots={sample.HEATMAP_SLOTS}
 			counts={sample.SAMPLE_HEATMAP}
-			showAdvice={isAi}
 		/>
 
 		<div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-			<LivePulse activity={sample.SAMPLE_ACTIVITY} />
+			<RecentActivity activity={sample.SAMPLE_ACTIVITY} />
 			<FollowUpActions
 				actions={[
 					{
@@ -391,34 +292,26 @@
 						why: "Started but haven't been back for 3+ days.",
 						label: 'Send a reminder',
 						href: `${base}/notifications`,
-						kind: 'message',
-						primary: true
+						kind: 'message'
 					},
 					{
 						count: sample.SAMPLE_FINISHED,
-						who: 'finished',
+						who: 'completed',
 						why: 'Thank them, and let them know when the report is out.',
 						label: 'Send a thank-you',
 						href: `${base}/notifications`,
 						kind: 'message'
 					},
+
 					{
-						count: sample.SAMPLE_OPTED_IN_CONTACT,
-						who: 'agreed to be contacted',
-						why: 'Contact details for people who opted in.',
-						label: 'Download contacts',
-						href: `/api/conversation/${data.conversation.id}/contacts/export`,
-						kind: 'download',
-						disabled: !canExport
-					},
-					{
-						count: sample.SAMPLE_DEMOGRAPHICS_SHARED,
-						who: 'shared demographics',
-						why: 'Profile data for participants in this conversation.',
-						label: 'Download demographics',
+						count: sample.USED_THINKING_SPACE,
+						who: 'download "Thinking Space" summary',
+						why: 'Get a sense of how people think.',
+						label: 'Download summaries',
 						href: `/api/conversation/${data.conversation.id}/demographics/export`,
 						kind: 'download',
-						disabled: !canExport
+						disabled: !canExport,
+						primary: true
 					}
 				]}
 			/>
@@ -427,97 +320,53 @@
 
 	<!-- Journey: where people get stuck -->
 	<Tabs.Content value="journey" class="flex flex-col gap-6">
-		<div class="flex flex-wrap items-end justify-between gap-4">
-			<div class="flex flex-col gap-1">
-				<h2 class="text-2xl font-semibold">Journey</h2>
-				<p class="text-muted-foreground text-base">
-					How people move through your steps, and where they stop.
-				</p>
-			</div>
-			<div
-				role="group"
-				aria-label="Show counts as"
-				class="bg-card inline-flex rounded-lg border p-1"
-			>
-				{#each [{ value: 'people', label: 'People' }, { value: 'percent', label: '% of joiners' }] as option (option.value)}
-					<button
-						type="button"
-						aria-pressed={showFunnelAs === option.value}
-						onclick={() => (showFunnelAs = option.value as 'people' | 'percent')}
-						class={cn(
-							'min-h-9 rounded-md px-3 text-sm',
-							showFunnelAs === option.value
-								? 'bg-sidebar text-sidebar-foreground'
-								: 'text-muted-foreground'
-						)}
-					>
-						{option.label}
-					</button>
-				{/each}
-			</div>
-		</div>
-		{#if isAi}
-			<DropOffCallout
-				step={worstStep}
-				aiExplanation={sample.SAMPLE_AI_TEXT.dropOff}
-				{typicalMinutes}
-				notifyHref="{base}/notifications"
-				stepHref="{base}/design"
-			/>
-		{/if}
+		<ActionHint tone="info">
+			{worstStep.inactiveThreeDays} people started <strong>{worstStep.name}</strong> but
+			haven't been back for 3 days or more. A short reminder can bring them back.
+			{#snippet actions()}
+				<Button href="{base}/notifications" class="rounded-full">Message them</Button>
+			{/snippet}
+		</ActionHint>
 		<StepFunnel
 			steps={sample.SAMPLE_STEPS}
 			joined={sample.SAMPLE_JOINED}
 			worstStep={worstStep.name}
-			showAs={showFunnelAs}
+			bind:showAs={showFunnelAs}
 		/>
 	</Tabs.Content>
 
 	<!-- Recruitment: who is joining, from where, and whether they reflect the population -->
 	<Tabs.Content value="recruitment" class="flex flex-col gap-12">
 		<section aria-labelledby="recruitment-heading" class="flex flex-col gap-6">
-			<div class="flex flex-col gap-1">
-				<h2 id="recruitment-heading" class="text-2xl font-semibold">Recruitment</h2>
-				<p class="text-muted-foreground text-base">
-					Are enough people joining, and which recruitment efforts brought them in?
-				</p>
-			</div>
+			<RepresentationHint
+				dimensions={sample.SAMPLE_REPRESENTATION}
+				onView={viewRepresentation}
+			/>
 			<RecruitmentTarget
-				showForecast={isAi}
 				joined={sample.SAMPLE_JOINED}
-				target={sample.SAMPLE_TARGET}
+				completed={sample.SAMPLE_FINISHED}
+				{target}
 				{evenPaceToday}
 				closingDate={sample.SAMPLE_CLOSING_DATE}
 				daysLeft={sample.SAMPLE_CONVERSATION_LENGTH_DAYS -
 					sample.SAMPLE_DAY_OF_CONVERSATION}
-				projectedAtClose={sample.SAMPLE_PROJECTED_AT_CLOSE}
-				editTargetHref="{base}/configure"
+				onTargetChange={(value) => (target = value)}
 			/>
-			{#if isAi}
-				<AiInsight class="bg-card rounded-xl border p-5">
-					<p class="text-base leading-relaxed">{sample.SAMPLE_AI_TEXT.signups}</p>
-				</AiInsight>
-			{/if}
+			<RepresentationBars
+				bind:selected={representationTab}
+				dimensions={sample.SAMPLE_REPRESENTATION}
+			/>
 			<SignupsOverTimeChart
 				signups={sample.SAMPLE_SIGNUPS}
-				targetPace={sample.SAMPLE_TARGET_PACE}
+				completions={sample.SAMPLE_COMPLETIONS}
+				{targetPace}
 				projection={sample.SAMPLE_PROJECTION}
-				events={sample.SAMPLE_RECRUITMENT_EVENTS}
-				target={sample.SAMPLE_TARGET}
+				actions={sample.SAMPLE_ACTIVITY_LOG}
+				{target}
 			/>
-			<RecruitmentChannels channels={sample.SAMPLE_CHANNELS} manageHref="{base}/invites" />
-		</section>
-
-		<section aria-labelledby="reach-heading" class="flex flex-col gap-6">
-			<div class="flex flex-col gap-1">
-				<h2 id="reach-heading" class="text-2xl font-semibold">Reach</h2>
-				<p class="text-muted-foreground text-base">
-					Who you're hearing from, compared with the population you want to hear from.
-				</p>
-			</div>
-			<RepresentationBars
-				dimensions={sample.SAMPLE_REPRESENTATION}
-				participantCount={sample.SAMPLE_JOINED}
+			<RecruitmentChannels
+				channels={sample.SAMPLE_CHANNELS}
+				conversationId={data.conversation.id}
 			/>
 		</section>
 	</Tabs.Content>

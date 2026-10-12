@@ -5,12 +5,12 @@
 
 	type Props = {
 		dimensions: RepresentationDimension[];
-		participantCount: number;
+		/** The demographic tab that's open; bindable so other parts of the page can switch it. */
+		selected?: string;
 	};
 
-	let { dimensions, participantCount }: Props = $props();
+	let { dimensions, selected = $bindable(dimensions[0]?.name ?? '') }: Props = $props();
 
-	let selected = $state(dimensions[0]?.name ?? '');
 	let current = $derived(
 		dimensions.find((dimension) => dimension.name === selected) ?? dimensions[0]
 	);
@@ -26,12 +26,16 @@
 </script>
 
 <!--
-	New data viz component: share of participants in each group (bar) against the share
-	of the population you want to hear from (black tick), one demographic at a time.
+	Share of participants in each group (bar) against the population share (tick), one
+	demographic at a time. id="demographic-analysis" is the scroll target for RepresentationHint.
 -->
-<Card.Root>
+<Card.Root id="demographic-analysis" tabindex={-1} class="scroll-mt-6 focus:outline-none">
 	<Card.Header class="flex flex-row flex-wrap items-center justify-between gap-3">
-		<div role="tablist" aria-label="Demographic" class="flex flex-wrap gap-1">
+		<Card.Title>Demographic analysis</Card.Title>
+	</Card.Header>
+
+	<Card.Content class="flex flex-col gap-4"
+		><div role="tablist" aria-label="Demographic" class="flex flex-wrap gap-1">
 			{#each dimensions as dimension (dimension.name)}
 				<button
 					type="button"
@@ -54,11 +58,10 @@
 				<span class="bg-primary h-2.5 w-3.5 rounded-sm"></span>Your participants
 			</li>
 			<li class="inline-flex items-center gap-2">
-				<span class="bg-foreground h-4 w-0.5"></span>Local population
+				<span class="h-4 w-0.5 bg-gray-500 opacity-30"></span>
+				<span class="text-muted-foreground">Baseline</span>
 			</li>
 		</ul>
-	</Card.Header>
-	<Card.Content class="flex flex-col gap-4">
 		{#each current.rows as row (row.group)}
 			{@const under = isUnderRepresented(row)}
 			<div
@@ -78,24 +81,20 @@
 						style:width={widthOf(row.participantPercent)}
 					></div>
 					<div
-						class="bg-foreground absolute -inset-y-1 w-0.5"
+						class="absolute -inset-y-1 w-0.5 bg-gray-500 opacity-30"
 						style:left={widthOf(row.populationPercent)}
 					></div>
 				</div>
 				<span
 					class={cn(
 						'col-start-2 text-sm md:col-start-auto',
-						under && 'font-semibold text-amber-900'
+						under && 'font-semibold text-amber-500'
 					)}
 				>
-					{#if under}▼ Under-represented ·{/if}
-					{row.participantPercent}% vs {row.populationPercent}%
+					{#if under}▼ Under-represented{/if}
+					({row.participantPercent}% vs {row.populationPercent}%)
 				</span>
 			</div>
 		{/each}
 	</Card.Content>
-	<Card.Footer class="text-muted-foreground border-t pt-4 text-sm">
-		Based on {current.shared} of {participantCount} participants who answered the {current.name.toLowerCase()}
-		question. Population baseline would be set in Configure.
-	</Card.Footer>
 </Card.Root>

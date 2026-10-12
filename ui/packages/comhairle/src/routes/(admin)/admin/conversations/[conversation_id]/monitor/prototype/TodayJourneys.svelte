@@ -82,16 +82,15 @@
 		if (visits.some((visit) => visit.status === 'in_progress')) {
 			return { label: 'Still going', tone: 'text-muted-foreground', face: null };
 		}
-		return { label: 'Finished', tone: 'text-foreground', face: 'happy' };
+		return { label: 'Completed', tone: 'text-foreground', face: 'happy' };
 	}
 </script>
 
 <!--
-	New component: today's participation journeys. Each row is one (anonymous) participant;
-	each segment is a step, as wide as the time they spent on it. Select a row to see that
-	person's day step by step.
+	Today's journeys. Each row is one anonymous participant, each segment a step as wide as
+	the time spent on it. Selecting a row shows that person's day in JourneyDetail above.
 -->
-<Card.Root>
+<Card.Root id="today-journeys" tabindex={-1} class="scroll-mt-6 focus:outline-none">
 	<Card.Header>
 		<Card.Title>Live pulse</Card.Title>
 		<Card.Description class="text-base">
@@ -130,13 +129,12 @@
 					<span class="size-3.5 rounded-sm bg-amber-500"></span>Left at this step
 				</li>
 				<li class="inline-flex items-center gap-2">
-					<span class="size-3.5 rounded-sm bg-green-500"></span>Finished
+					<span class="size-3.5 rounded-sm bg-green-500"></span>Completed
 				</li>
 			</ul>
 			<span class="text-primary text-sm font-semibold">{journeys.length} people today</span>
 		</div>
 
-		<!-- Swimlanes -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<ul
 			bind:this={listElement}

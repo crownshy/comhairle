@@ -20,9 +20,6 @@ export type StepProgress = {
 /** Running total of signups per day. Derivable from today's `DailySignupStats`. */
 export type SignupPoint = { day: Date; total: number };
 
-/** New: admin-entered recruitment activity, used as markers on the signups chart. */
-export type RecruitmentEvent = { day: Date; label: string };
-
 /** New: needs the signup source (invite, open link, QR) stored per participant. */
 export type RecruitmentChannel = {
 	type: 'Email' | 'Open link' | 'Physical';
@@ -48,8 +45,7 @@ export const SAMPLE_TARGET = 200;
 export const SAMPLE_CLOSING_DATE = new Date('2026-10-26');
 export const SAMPLE_PROJECTED_AT_CLOSE = 155;
 export const SAMPLE_ACTIVE_NOW = 3;
-/** Signed up through any recruitment channel; 86 of them have started the conversation. */
-export const SAMPLE_RECRUITED = 100;
+export const USED_THINKING_SPACE = 15;
 
 export const SAMPLE_STEPS: StepProgress[] = [
 	{
@@ -109,6 +105,14 @@ export const SAMPLE_SIGNUPS: SignupPoint[] = RUNNING_TOTALS.map((total, index) =
 	total
 }));
 
+/** Running total of people who finished every step, one point per day. */
+const COMPLETED_TOTALS = [0, 1, 4, 7, 9, 11, 13, 18, 22, 26, 29, 33, 37, 41];
+
+export const SAMPLE_COMPLETIONS: SignupPoint[] = COMPLETED_TOTALS.map((total, index) => ({
+	day: dayOffset(index),
+	total
+}));
+
 /** Straight line from zero on day one to the target on the closing day. */
 export const SAMPLE_TARGET_PACE: SignupPoint[] = [
 	{ day: dayOffset(-1), total: 0 },
@@ -118,12 +122,6 @@ export const SAMPLE_TARGET_PACE: SignupPoint[] = [
 export const SAMPLE_PROJECTION: SignupPoint[] = [
 	SAMPLE_SIGNUPS[SAMPLE_SIGNUPS.length - 1],
 	{ day: SAMPLE_CLOSING_DATE, total: SAMPLE_PROJECTED_AT_CLOSE }
-];
-
-export const SAMPLE_RECRUITMENT_EVENTS: RecruitmentEvent[] = [
-	{ day: dayOffset(1), label: 'Email invite' },
-	{ day: dayOffset(7), label: 'Community event (QR)' },
-	{ day: dayOffset(11), label: 'Reminder' }
 ];
 
 export const SAMPLE_CHANNELS: RecruitmentChannel[] = [
@@ -146,7 +144,6 @@ export const SAMPLE_AGE_REPRESENTATION: RepresentationRow[] = [
 	{ group: '55–64', participantPercent: 21, populationPercent: 16 },
 	{ group: '65+', participantPercent: 10, populationPercent: 21 }
 ];
-export const SAMPLE_DEMOGRAPHICS_SHARED = 71;
 
 /** One demographic the admin can switch to in the Reach views. */
 export type RepresentationDimension = {
@@ -213,7 +210,7 @@ export const SAMPLE_REPRESENTATION: RepresentationDimension[] = [
 ];
 
 export const SAMPLE_ACTIVITY: ActivityItem[] = [
-	{ text: 'Someone finished the whole conversation', when: '2 min ago', kind: 'progress' },
+	{ text: 'Someone completed the whole conversation', when: '2 min ago', kind: 'progress' },
 	{
 		text: '3 people joined via the Council newsletter link',
 		when: '25 min ago',
@@ -238,25 +235,7 @@ export const SAMPLE_HEATMAP: number[][] = [
 	[0, 5, 14, 9, 7, 2]
 ];
 
-export const SAMPLE_OPTED_IN_CONTACT = 34;
-
 export const SAMPLE_MEDIAN_MINUTES_TO_FINISH = 7;
-
-/**
- * Text that would be written by a model in AI mode. Fixed strings here so the team can
- * judge tone and usefulness before anything is built.
- */
-export const SAMPLE_AI_TEXT = {
-	working:
-		'People are finishing at a steady rate, but Thinking space is slowing them down: most who stop there leave within the first 3 minutes.',
-	recruitment:
-		'The community event brought in more people per day than the email invite. Another in-person session is likely to work better than a second email.',
-	reach: 'Under-25s and over-65s are under-represented. Youth groups and older people’s centres near the green spaces are good places to recruit.',
-	dropOff:
-		'Most people who stop leave within the first 3 minutes, before writing anything. The opening question may be too open: try adding an example answer.',
-	signups:
-		'Each recruitment push gave a short spike, then signups settled back to about 5 a day. Most people take part on Tuesday and Wednesday evenings, so send the next push then.'
-};
 
 /**
  * New: one participant's activity today, step by step. Needs per-step start and end
@@ -276,7 +255,6 @@ export type ParticipantJourney = {
 	visits: JourneyStepVisit[];
 };
 
-/** Kept short on purpose: nobody spends more than 20 minutes in a day here. */
 export const SAMPLE_TODAY_JOURNEYS: ParticipantJourney[] = [
 	{
 		code: 'P-0371',
@@ -378,4 +356,59 @@ export const SAMPLE_TODAY_JOURNEYS: ParticipantJourney[] = [
 			{ minutes: 1, status: 'in_progress', startedAt: '16:37' }
 		]
 	}
+];
+
+/** Kinds of admin activity logged on the At a glance calendar. */
+export type ActivityKind = 'launch' | 'email' | 'qr' | 'event' | 'reminder' | 'close';
+
+/**
+ * New: a log of what the team did and when (launch, invites, QR codes, events,
+ * reminders, closing). Most of these already happen in Recruit and Notify; they'd need
+ * to be recorded with a date so they can be shown here.
+ */
+export type ActivityLogEntry = {
+	date: Date;
+	kind: ActivityKind;
+	title: string;
+	detail?: string;
+	/** True for things planned but not happened yet. */
+	scheduled?: boolean;
+};
+
+export const SAMPLE_TODAY = new Date('2026-10-12');
+
+export const SAMPLE_ACTIVITY_LOG: ActivityLogEntry[] = [
+	{ date: new Date('2026-09-29'), kind: 'launch', title: 'Conversation launched' },
+	{
+		date: new Date('2026-09-30'),
+		kind: 'email',
+		title: 'Email invite sent',
+		detail: 'To 240 people on the invite list'
+	},
+	{
+		date: new Date('2026-10-05'),
+		kind: 'qr',
+		title: 'QR codes generated',
+		detail: 'For the community centre event'
+	},
+	{
+		date: new Date('2026-10-06'),
+		kind: 'event',
+		title: 'Community event',
+		detail: '31 QR scans, 18 people joined'
+	},
+	{
+		date: new Date('2026-10-10'),
+		kind: 'reminder',
+		title: 'Reminder sent',
+		detail: 'To 31 people who had not completed'
+	},
+	{
+		date: new Date('2026-10-20'),
+		kind: 'reminder',
+		title: 'Reminder scheduled',
+		detail: 'To everyone still in progress',
+		scheduled: true
+	},
+	{ date: new Date('2026-10-26'), kind: 'close', title: 'Conversation closes', scheduled: true }
 ];
