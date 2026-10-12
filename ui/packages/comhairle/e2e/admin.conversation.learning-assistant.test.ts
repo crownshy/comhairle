@@ -9,6 +9,7 @@ test.beforeEach(async ({ page }) => {
 	await login(page);
 	await Conversation.open(page);
 	await Conversation.openTab(page, 'Learning Assistant', undefined);
+	await sleep(1.5);
 });
 
 test('Learning Assistant page', async ({ page, cleanup }) => {
@@ -45,6 +46,7 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 
 	await page.getByRole('button', { name: 'Remove' }).first().click();
 	await page.getByRole('button', { name: 'Remove' }).first().click();
+	await sleep(1.5);
 	await testWithRefresh(page, async () => {
 		expect(await exists(page.getByText('English'))).toBe(false);
 		expect(await exists(page.getByText('Gaelic'))).toBe(false);
