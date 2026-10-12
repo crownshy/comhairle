@@ -21,13 +21,13 @@ pub struct ThemeExtractor {
 
 #[derive(Error, Debug)]
 pub enum ThemeExtractorError {
-    #[error("model error (0)")]
+    #[error("model error {0}")]
     RigError(#[from] rig::ProviderResponseError),
-    #[error("Template Error ()")]
+    #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
-    #[error("extractor error (0)")]
+    #[error("extractor error {0}")]
     RigExtractorError(#[from] ExtractionError),
-    #[error("Statement serialization error(0)")]
+    #[error("Statement serialization error {0}")]
     StatementSeializationError(#[from] StatementError),
 }
 

@@ -9,13 +9,13 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum WikiPollGroupDescriberError {
-    #[error("model error (0)")]
+    #[error("model error {0}")]
     RigError(#[from] rig::ProviderResponseError),
-    #[error("Template Error ()")]
+    #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
-    #[error("extractor error (0)")]
+    #[error("extractor error {0}")]
     RigExtractorError(#[from] ExtractionError),
-    #[error("json error error (0)")]
+    #[error("json error error {0}")]
     StatementFormatError(#[from] serde_json::Error),
 }
 
