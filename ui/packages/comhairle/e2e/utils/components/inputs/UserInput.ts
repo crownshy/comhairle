@@ -8,7 +8,7 @@ type UserInputReturn = {
 
 type UserInputParams = {
 	originalValue?: string;
-	focus: (currentValue: string) => Promise<void>;
+	focus: () => Promise<void>;
 	update: (value: string) => Promise<void>;
 	expector: (currentValue: string) => Promise<unknown>;
 };
@@ -26,7 +26,7 @@ const UserInput = async ({
 		},
 		async write(value = generateValue()) {
 			currentValue = value;
-			await focus(currentValue);
+			await focus();
 			await update(currentValue);
 		},
 		async expect() {

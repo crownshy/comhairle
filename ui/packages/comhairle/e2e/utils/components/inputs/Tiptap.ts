@@ -13,7 +13,7 @@ const getTiptap = async (page: Page, index: number = 0) => {
 	return page.locator('.tiptap').nth(index);
 };
 
-const Tiptap = (index: number, refs: Refs) => {
+function Tiptap(index: number, refs: Refs) {
 	let value: string | undefined;
 
 	refs.cleanup?.(async () => {
@@ -34,6 +34,6 @@ const Tiptap = (index: number, refs: Refs) => {
 			await expect(await getTiptap(refs.page, index)).toContainText(value);
 		}
 	} as const;
-};
+}
 
 export default Tiptap;

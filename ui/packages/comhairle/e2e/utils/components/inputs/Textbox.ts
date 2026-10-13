@@ -1,4 +1,4 @@
-import { expect, type Locator } from '@playwright/test';
+import { expect } from '@playwright/test';
 import UserInput from './UserInput';
 import type { Refs } from '../types';
 
@@ -12,15 +12,13 @@ const Textbox = async (name: string | undefined, refs: Refs, options: Options = 
 	const locator = () =>
 		refs.page.getByRole(options?.overrideRole ?? 'textbox', { name }).nth(options.index ?? 0);
 
-	const initialValue = await locator().inputValue();
-
 	const userInputs = await UserInput({
 		focus: () => locator().click(),
 		update: (value) => locator().fill(value),
 		expector: (currentValue) => expect(locator()).toHaveValue(currentValue)
 	});
 
-	refs.cleanup?.(() => userInputs.write(options.resetTo ?? initialValue));
+	refs.cleanup?.(() => userInputs.write(options.resetTo ?? ''));
 
 	return {
 		...userInputs,

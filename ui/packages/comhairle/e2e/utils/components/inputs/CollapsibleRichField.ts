@@ -14,23 +14,16 @@ const CollapsibleRichField = async (
 	options: Options = {}
 ) => {
 	const userInput = await UserInput({
-		async focus(currentValue) {
+		async focus() {
 			const btn = refs.page.getByRole('button', { name });
 			if (await exists(btn)) {
-				btn.click();
-				return;
-			}
-			const EditWithValue = refs.page.getByRole('button', {
-				name: currentValue
-			});
-			if (await exists(EditWithValue)) {
-				EditWithValue.click();
+				await btn.click();
 				return;
 			}
 			await refs.page.getByRole('button', { name: 'Edit' }).nth(fallbackIndex).click();
 		},
 		async update(value) {
-			const tiptap = Tiptap(fallbackIndex, refs);
+			const tiptap = Tiptap(fallbackIndex, { page: refs.page });
 			await tiptap.write(value);
 			await refs.page.getByRole('button', { name: 'Done' }).click();
 		},
