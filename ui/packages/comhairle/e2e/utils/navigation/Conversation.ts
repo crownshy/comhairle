@@ -19,11 +19,11 @@ type Subtabs<T extends keyof Tabs> = Tabs[T] extends readonly string[]
 
 const Conversation = {
 	open: async (page: Page) => {
-		const conversation = page.getByRole('link', { name: TEST_CONVERSATION_TITLE }).first();
+		const conversation = page.getByText(`${TEST_CONVERSATION_TITLE} Edit`).first();
 
 		// Conversation already exists
 		if (await exists(conversation)) {
-			conversation.click();
+			conversation.getByRole('link', { name: 'Edit conversation' }).click();
 			return;
 		}
 

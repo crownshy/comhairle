@@ -8,6 +8,7 @@ type InputKey =
 	| 'admin/conversation/permissions'
 	| 'admin/conversation/report'
 	| 'admin/conversation/workflow'
+	| 'admin/conversation/design/workflow'
 	| 'admin/conversations'
 	| 'admin/documents'
 	| 'admin/email-template-config'
