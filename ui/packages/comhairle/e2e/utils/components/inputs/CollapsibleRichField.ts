@@ -1,4 +1,4 @@
-import { exists } from '../..';
+import { exists, sleep } from '../..';
 import UserInput from './UserInput';
 import type { Refs } from '../types';
 import Tiptap from './Tiptap';
@@ -23,6 +23,8 @@ const CollapsibleRichField = async (
 			await refs.page.getByRole('button', { name: 'Edit' }).nth(fallbackIndex).click();
 		},
 		async update(value) {
+			// Wait for tiptap to load
+			await sleep(0.2);
 			const tiptap = Tiptap(fallbackIndex, { page: refs.page });
 			await tiptap.write(value);
 			await refs.page.getByRole('button', { name: 'Done' }).click();

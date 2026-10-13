@@ -14,8 +14,8 @@ test.beforeEach(async ({ page }) => {
 
 test('Configure/Details page', async ({ page, cleanup }) => {
 	const Title = await Textbox('Title', { page, cleanup }, { resetTo: TEST_CONVERSATION_TITLE });
-	const ShortDescription = await Textbox('Short Description', { page, cleanup });
-	const Description = await Textbox('Description', { page, cleanup });
+	const ShortDescription = await Textbox('Short description', { page, cleanup }, { exact: true });
+	const Description = await Textbox('Description', { page, cleanup }, { exact: true });
 
 	// const primary_language = page.getByRole('button', { name: 'English' });
 	// const supported_languages = page.getByRole('textbox', { name: 'Supported languages' });
