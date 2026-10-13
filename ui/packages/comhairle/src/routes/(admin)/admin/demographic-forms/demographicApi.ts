@@ -65,6 +65,7 @@ export function questionFromDto(dto: QuestionDto): SavedQuestion {
 	const choice = isChoiceKind(kind);
 	return {
 		id: dto.id,
+		isDefault: dto.organization_id == null,
 		text: content?.text ?? '',
 		kind,
 		datePrecision: content?.date_precision ?? 'day',
@@ -152,6 +153,9 @@ export function persistQuestion(
 	publish: boolean
 ) {
 	return tryCatchAsync<string, ErrorType>(async () => {
+		if (question.isDefault) {
+			throw new Error('Duplicate the default question before editing it.');
+		}
 		const body = questionDraftInput(question);
 		const queries = { organization: organizationId };
 		let questionId = question.id;

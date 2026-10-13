@@ -210,7 +210,7 @@ A Demographic question that collects sensitive data, such as ethnicity, pregnanc
 A participant's recorded agreement to a Special category question, given to the admin's consent text for one Question version. Declining skips the question even when it is required, and no answer is stored.
 
 **Default demographic question**:
-A Demographic question defined by a Super Administrator for the whole system. Organizations inherit it into their question bank by its shared UUID. Editing it in an Organization creates an Organization-owned copy with a new UUID.
+A Demographic question defined by a Super Administrator for the whole system. Organizations inherit it into their question bank by its shared UUID. In the admin UI, Organizations must explicitly duplicate it before editing. The duplicate is an Organization-owned question with a new UUID and starts at v1 when first published.
 
 **Demographic form**:
 A UUID-identified, named collection of Demographic questions drawn from one Organization's question bank. It starts as a Draft and becomes v1 when first published.

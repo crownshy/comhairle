@@ -76,6 +76,7 @@ export type Tag = { id: string; name: string };
 
 export type DemographicQuestion = {
 	id: string | null;
+	isDefault: boolean;
 	text: string;
 	kind: QuestionKind;
 	datePrecision: DatePrecision;
@@ -121,6 +122,7 @@ export const formsUsingQuestion = (questionId: string, forms: SavedForm[]) =>
 
 export const blankQuestion = (): DemographicQuestion => ({
 	id: null,
+	isDefault: false,
 	text: '',
 	kind: 'single_choice',
 	datePrecision: 'day',
@@ -132,6 +134,18 @@ export const blankQuestion = (): DemographicQuestion => ({
 	maxSelections: null,
 	specialCategory: false,
 	consentText: '',
+	archived: false,
+	publishedVersion: null,
+	draftVersion: null
+});
+
+export const duplicateQuestionDraft = (question: DemographicQuestion): DemographicQuestion => ({
+	...question,
+	id: null,
+	isDefault: false,
+	text: `${question.text} (copy)`,
+	tags: question.tags.map((tag) => ({ ...tag })),
+	options: [...question.options],
 	archived: false,
 	publishedVersion: null,
 	draftVersion: null

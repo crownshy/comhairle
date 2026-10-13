@@ -58,7 +58,7 @@
 <div class="flex flex-col gap-4">
 	<p class="bg-primary/10 rounded-lg px-4 py-3 text-base">
 		Build your demographic questions by adding your own or duplicating existing ones. Use them
-		in any of your demographic forms.
+		in any of your demographic forms. Default questions must be duplicated before editing.
 	</p>
 
 	<div class="flex flex-wrap items-center justify-between gap-3">
@@ -150,11 +150,15 @@
 						{#if canEdit}
 							<Table.Cell>
 								<div class="flex gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={() => onEdit(question.id)}>Edit</Button
-									>
+									{#if question.isDefault}
+										<Badge variant="secondary" class="text-sm">Default</Badge>
+									{:else}
+										<Button
+											variant="outline"
+											size="sm"
+											onclick={() => onEdit(question.id)}>Edit</Button
+										>
+									{/if}
 									<Button
 										variant="outline"
 										size="icon"

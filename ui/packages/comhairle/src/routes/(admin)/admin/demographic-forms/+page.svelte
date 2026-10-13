@@ -21,6 +21,7 @@
 	import {
 		blankForm,
 		blankQuestion,
+		duplicateQuestionDraft,
 		formsUsingQuestion,
 		type DemographicForm,
 		type DemographicQuestion,
@@ -160,6 +161,10 @@
 
 	function editQuestion(questionId: string, focusConsent = false) {
 		const question = data.questions.find((q) => q.id === questionId);
+		if (question?.isDefault) {
+			notifyError('Duplicate the default question in the question bank before editing it.');
+			return;
+		}
 		if (question) {
 			questionEdit = {
 				question: $state.snapshot(question),
@@ -175,7 +180,7 @@
 		const source = data.questions.find((q) => q.id === questionId);
 		if (!source) return;
 		questionEdit = {
-			question: { ...$state.snapshot(source), id: null, text: `${source.text} (copy)` },
+			question: duplicateQuestionDraft($state.snapshot(source)),
 			isNew: true,
 			addsToForm: false,
 			focusConsent: false

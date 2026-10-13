@@ -839,7 +839,10 @@ mod tests {
         let (status, questions, _) = member.get(&app, &scoped_questions).await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(
-            questions.as_array().ok_or("questions should be a list")?.len(),
+            questions
+                .as_array()
+                .ok_or("questions should be a list")?
+                .len(),
             DEFAULT_QUESTION_COUNT
         );
 
@@ -847,11 +850,7 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(forms, json!([]));
 
-        let mut outsider = UserSession::new(
-            "test_admin",
-            TEST_PASSWORD,
-            "test@crown-shy.com",
-        );
+        let mut outsider = UserSession::new("test_admin", TEST_PASSWORD, "test@crown-shy.com");
         outsider.signup(&app).await?;
 
         let (status, _, _) = outsider.get(&app, &scoped_questions).await?;
@@ -876,7 +875,10 @@ mod tests {
         let (status, questions, _) = outsider.get(&app, "/demographics/questions").await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(
-            questions.as_array().ok_or("questions should be a list")?.len(),
+            questions
+                .as_array()
+                .ok_or("questions should be a list")?
+                .len(),
             DEFAULT_QUESTION_COUNT,
             "system defaults stay readable without a selected organization"
         );

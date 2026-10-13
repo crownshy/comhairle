@@ -29,6 +29,7 @@ use crate::{
             conversation as conversation_permissions, has_resource_permission,
             organization as organization_permissions, system,
         },
+        user_group,
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{
@@ -332,7 +333,8 @@ pub async fn get_user_organizations(
     for organization in &all_organizations {
         let is_associated = user
             .organization_id
-            .is_some_and(|organization_id| organization_id == organization.id);
+            .is_some_and(|organization_id| organization_id == organization.id)
+            || user_group::is_organization_member(&state.db, organization.id, user.id).await?;
 
         let can_update = can_perform_action(
             &state,

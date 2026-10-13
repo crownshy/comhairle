@@ -11,6 +11,7 @@
 		type Answer
 	} from './demographicAnswers';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -86,7 +87,9 @@
 	);
 	const isLast = $derived(previewIndex >= rows.length - 1);
 	const requiredMissing = $derived(
-		!!preview && (rows[previewIndex]?.required ?? false) && !isAnswered(answers[preview.id] ?? emptyAnswer())
+		!!preview &&
+			(rows[previewIndex]?.required ?? false) &&
+			!isAnswered(answers[preview.id] ?? emptyAnswer())
 	);
 	const results = $derived(
 		rows.map((row) => ({
@@ -198,87 +201,114 @@
 					>
 						{#snippet children(row, index)}
 							<div class="flex flex-col gap-1">
-							<div
-								class="bg-card flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3 {index ===
-								previewIndex
-									? 'border-primary'
-									: 'border-border'}"
-							>
-								<button
-									type="button"
-									class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left"
-									onclick={() => selectQuestion(row.id)}
+								<div
+									class="bg-card flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3 {index ===
+									previewIndex
+										? 'border-primary'
+										: 'border-border'}"
 								>
-									<span
-										class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+									<button
+										type="button"
+										class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left"
+										onclick={() => selectQuestion(row.id)}
 									>
-										{index + 1}
-									</span>
-									<span class="truncate text-base">{row.question.text}</span>
-									{#if row.required}
 										<span
-											class="text-destructive font-semibold"
-											title="Required">*</span
+											class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
 										>
-										<span class="sr-only">Required</span>
-									{/if}
-								</button>
-								{#if row.question.tags[0]}
-									<TagBadge tag={row.question.tags[0].name} class="shrink-0" />
-								{/if}
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger
-										class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-										aria-label={`Actions for ${row.question.text}`}
-									>
-										<EllipsisVertical class="size-4" />
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="end" class="w-52">
-										<DropdownMenu.Item onSelect={() => toggleRequired(index)}>
-											{row.required ? 'Set to optional' : 'Set to required'}
-										</DropdownMenu.Item>
-										<DropdownMenu.Item onSelect={() => onEditQuestion(row.id)}>
-											Edit question
-										</DropdownMenu.Item>
-										{#if row.question.specialCategory}
-											<DropdownMenu.Item onSelect={() => onEditQuestion(row.id, true)}>
-												Edit consent wording
-											</DropdownMenu.Item>
+											{index + 1}
+										</span>
+										<span class="truncate text-base">{row.question.text}</span>
+										{#if row.required}
+											<span
+												class="text-destructive font-semibold"
+												title="Required">*</span
+											>
+											<span class="sr-only">Required</span>
 										{/if}
-										<DropdownMenu.Item
-											disabled={index === 0}
-											onSelect={() => move(index, -1)}
+									</button>
+									{#if row.question.tags[0]}
+										<TagBadge
+											tag={row.question.tags[0].name}
+											class="shrink-0"
+										/>
+									{/if}
+									<DropdownMenu.Root>
+										<DropdownMenu.Trigger
+											class={buttonVariants({
+												variant: 'ghost',
+												size: 'icon'
+											})}
+											aria-label={`Actions for ${row.question.text}`}
 										>
-											Move up
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											disabled={index === rows.length - 1}
-											onSelect={() => move(index, 1)}
-										>
-											Move down
-										</DropdownMenu.Item>
-										<DropdownMenu.Separator />
-										<DropdownMenu.Item
-											class="text-destructive"
-											onSelect={() => form.questions.splice(index, 1)}
-										>
-											Remove from form
-										</DropdownMenu.Item>
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
-							</div>
-							{#if row.question.specialCategory}
-								<div class="flex items-center gap-2 pr-3 pb-2 pl-11">
-									<TagBadge tag="Special category" />
-									<Button
-										variant="link"
-										class="h-auto p-0 text-sm"
-										onclick={() => onEditQuestion(row.id, true)}
-									>
-										Edit consent
-									</Button>
+											<EllipsisVertical class="size-4" />
+										</DropdownMenu.Trigger>
+										<DropdownMenu.Content align="end" class="w-52">
+											<DropdownMenu.Item
+												onSelect={() => toggleRequired(index)}
+											>
+												{row.required
+													? 'Set to optional'
+													: 'Set to required'}
+											</DropdownMenu.Item>
+											{#if row.question.isDefault}
+												<DropdownMenu.Label
+													>Default question</DropdownMenu.Label
+												>
+											{:else}
+												<DropdownMenu.Item
+													onSelect={() => onEditQuestion(row.id)}
+												>
+													Edit question
+												</DropdownMenu.Item>
+												{#if row.question.specialCategory}
+													<DropdownMenu.Item
+														onSelect={() =>
+															onEditQuestion(row.id, true)}
+													>
+														Edit consent wording
+													</DropdownMenu.Item>
+												{/if}
+											{/if}
+											<DropdownMenu.Item
+												disabled={index === 0}
+												onSelect={() => move(index, -1)}
+											>
+												Move up
+											</DropdownMenu.Item>
+											<DropdownMenu.Item
+												disabled={index === rows.length - 1}
+												onSelect={() => move(index, 1)}
+											>
+												Move down
+											</DropdownMenu.Item>
+											<DropdownMenu.Separator />
+											<DropdownMenu.Item
+												class="text-destructive"
+												onSelect={() => form.questions.splice(index, 1)}
+											>
+												Remove from form
+											</DropdownMenu.Item>
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
 								</div>
-							{/if}
+								{#if row.question.specialCategory}
+									<div class="flex items-center gap-2 pr-3 pb-2 pl-11">
+										<TagBadge tag="Special category" />
+										{#if row.question.isDefault}
+											<Badge variant="secondary" class="text-sm"
+												>Default</Badge
+											>
+										{:else}
+											<Button
+												variant="link"
+												class="h-auto p-0 text-sm"
+												onclick={() => onEditQuestion(row.id, true)}
+											>
+												Edit consent
+											</Button>
+										{/if}
+									</div>
+								{/if}
 							</div>
 						{/snippet}
 					</DraggableList>

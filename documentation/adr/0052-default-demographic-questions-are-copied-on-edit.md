@@ -26,6 +26,15 @@ on, and the original is never changed by an Organization.
 **3. Default questions are changed only by Super Administrators,** and their new versions
 are shared with Organizations that have not forked them.
 
+### Admin UI clarification (2026-10-13)
+
+Organizations must explicitly duplicate a default question before editing it in the admin
+UI. Default questions show a "Default" marker instead of edit actions, including consent
+editing within a form. The duplicate is a new Organization-owned question, with no draft
+or published version inherited from the source, and first publishes as v1. Forms using
+the default continue to reference it unless the Organization replaces it with the duplicate.
+The API's implicit fork behavior remains available for existing callers.
+
 ## Consequences
 
 - Existing data for the five migrated defaults (age, ethnicity, gender, zipcode and political
