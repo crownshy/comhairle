@@ -76,7 +76,7 @@
 	}
 
 	$effect(() => {
-		if (!jobId || jobStatus === 'completed') return;
+		if (!jobId || jobStatus !== 'pending') return;
 		const timeout = setTimeout(poll, 5000);
 		return () => clearTimeout(timeout);
 	});
