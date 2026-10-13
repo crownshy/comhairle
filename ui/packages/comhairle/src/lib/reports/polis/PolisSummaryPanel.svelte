@@ -1,11 +1,10 @@
 <!--
-	@component Trigger + result panel for the sensemaking-generated Polis summary
-	(consensus / disagreement / per-group descriptions). Kicks off POST
-	/tools/polis/summary, polls the returned job via GET /jobs/{job_id}, and on
-	completion invalidates `polis:summary` so the parent loader re-fetches the
-	persisted result through `summary`. `summary` is the last-generated row (or
-	null if none exists yet); this component never fabricates a result, it only
-	renders what the server already generated.
+	@component Trigger for the sensemaking-generated Polis summary (consensus /
+	disagreement / per-group descriptions). Kicks off POST /tools/polis/summary,
+	polls the returned job via GET /jobs/{job_id}, and on completion invalidates
+	`polis:summary` so the parent loader re-fetches the persisted result. Button-only:
+	the generated text itself is rendered by the parent (AreaOfConsensus cards,
+	OpinionGroups), not here.
 -->
 <script lang="ts">
 	import type { WikiPollConversationSummary } from '@crownshy/api-client/api';
@@ -13,9 +12,9 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
-	import * as Card from '$lib/components/ui/card';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import { Sparkles } from '@lucide/svelte';
+	import { formatDistanceToNow } from 'date-fns';
 
 	type Props = {
 		workflowStepId: string;
@@ -23,20 +22,6 @@
 	};
 
 	let { workflowStepId, summary }: Props = $props();
-
-	type SummaryResult = {
-		consensus_description?: string;
-		disagrement_description?: string;
-		group_descriptions?: Array<{
-			group_id: string;
-			name?: string;
-			description?: string;
-			unique_statement?: string;
-		}>;
-	};
-
-	const result = $derived((summary?.result ?? null) as SummaryResult | null);
-	const groupEntries = $derived(result?.group_descriptions ?? []);
 
 	let requesting = $state(false);
 	let jobId = $state<string | null>(null);
@@ -97,60 +82,18 @@
 	});
 </script>
 
-<div class="flex flex-col gap-4">
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<h2 class="text-foreground text-xl font-semibold">AI summary</h2>
-		<LoadingButton size="sm" loading={isWorking} onclick={requestSummary}>
-			<Sparkles class="size-4" />
-			{summary ? 'Regenerate summary' : 'Generate summary'}
-		</LoadingButton>
-	</div>
-
+<div class="flex flex-col items-stretch gap-1">
+	<LoadingButton class="w-full" size="sm" loading={isWorking} onclick={requestSummary}>
+		<Sparkles class="size-4" />
+		{summary ? 'Regenerate summary' : 'Generate summary'}
+	</LoadingButton>
 	{#if isWorking}
-		<p class="text-muted-foreground text-base">
+		<p class="text-muted-foreground text-center text-xs">
 			Generating summary{jobStatus ? ` (${jobStatus})` : ''}…
 		</p>
-	{/if}
-
-	{#if result}
-		<Card.Root class="gap-4 rounded-md p-4 shadow-none">
-			{#if result.consensus_description}
-				<div>
-					<p class="text-muted-foreground text-sm">AREA OF CONSENSUS</p>
-					<p class="text-foreground text-base leading-7">
-						{result.consensus_description}
-					</p>
-				</div>
-			{/if}
-			{#if result.disagrement_description}
-				<div>
-					<p class="text-muted-foreground text-sm">AREA OF DISAGREEMENT</p>
-					<p class="text-foreground text-base leading-7">
-						{result.disagrement_description}
-					</p>
-				</div>
-			{/if}
-			{#if groupEntries.length > 0}
-				<div class="flex flex-col gap-3">
-					<p class="text-muted-foreground text-sm">OPINION GROUPS</p>
-					{#each groupEntries as description (description.group_id)}
-						<div class="bg-accent border-border rounded-[10px] border p-3">
-							<p class="text-foreground font-medium">
-								{description.name ?? `Group ${description.group_id}`}
-							</p>
-							{#if description.description}
-								<p class="text-primary text-base leading-6">
-									{description.description}
-								</p>
-							{/if}
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</Card.Root>
-	{:else if !isWorking}
-		<p class="text-muted-foreground text-base">
-			No AI summary yet. Generate one once there are enough votes and statements.
+	{:else if summary}
+		<p class="text-muted-foreground text-center text-xs">
+			Last generated {formatDistanceToNow(summary.created_at, { addSuffix: true })}
 		</p>
 	{/if}
 </div>

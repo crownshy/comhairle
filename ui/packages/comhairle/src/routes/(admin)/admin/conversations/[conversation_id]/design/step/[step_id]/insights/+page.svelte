@@ -34,6 +34,7 @@
 	>
 		{#snippet actions()}
 			<Button
+				class="w-full"
 				href={roomDisplayUrl}
 				target="_blank"
 				rel="noopener"
