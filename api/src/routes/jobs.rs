@@ -1,25 +1,17 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with},
-};
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
-        pagination::{OrderParams, PageOptions, PaginatedResults},
-    },
-    routes::auth::RequiredAdminUser,
-};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions};
+use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
+use crate::routes::auth::RequiredAdminUser;
 
 #[instrument(err(Debug), skip(state))]
 async fn list(
@@ -120,11 +112,9 @@ mod tests {
     use serde_json::json;
     use std::error::Error;
 
-    use crate::{
-        models::job::CreateJob,
-        setup_server,
-        test_helpers::{UserSession, test_state},
-    };
+    use crate::models::job::CreateJob;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_new_job(pool: PgPool) -> Result<(), Box<dyn Error>> {

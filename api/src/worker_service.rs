@@ -5,7 +5,10 @@ pub mod process_video_call_transcriptions;
 pub mod process_wiki_poll_summary;
 pub mod scheduled_emails;
 
-use std::{future::Future, str::FromStr, sync::Arc, time::Duration};
+use std::future::Future;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 
 use apalis::prelude::*;
 use apalis_cron::{CronStream, Schedule};

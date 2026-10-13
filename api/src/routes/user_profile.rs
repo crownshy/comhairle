@@ -1,21 +1,18 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, put_with},
-};
-use axum::{Json, extract::State, http::StatusCode};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, put_with};
+use axum::Json;
+use axum::extract::State;
+use axum::http::StatusCode;
 use tracing::instrument;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        user_profile::{CreateUserProfile, PartialUserProfile},
-    },
-    routes::{auth::RequiredUser, user_profile::dto::UserProfileDto},
-};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::user_profile::{CreateUserProfile, PartialUserProfile};
+use crate::models::{self};
+use crate::routes::auth::RequiredUser;
+use crate::routes::user_profile::dto::UserProfileDto;
 
 pub mod dto;
 
@@ -103,9 +100,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        models::model_test_helpers::setup_default_app_and_session, test_helpers::UserSession,
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::test_helpers::UserSession;
     use serde_json::json;
     use sqlx::PgPool;
     use std::error::Error;

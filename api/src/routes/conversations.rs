@@ -27,17 +27,14 @@ use crate::models::notification::{
 use crate::models::notification_delivery::{
     self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
 };
-use crate::models::organization;
 use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
+use crate::models::permissions::conversation::{Action, Role};
 use crate::models::permissions::{
     self, ActorId, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
-    PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action,
-    conversation::{Action, Role},
-    grant_role,
+    PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action, grant_role,
 };
-use crate::models::user_conversation_preferences;
 use crate::models::user_participation::{self};
-use crate::models::user_profile;
+use crate::models::{organization, user_conversation_preferences, user_profile};
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
 use crate::routes::translations::LocaleExtractor;
 
@@ -1040,17 +1037,18 @@ mod tests {
     use crate::models::demographics::{
         CreateConversationDemographics, create_conversation_demographics,
     };
+    use crate::models::permissions::conversation::Role;
     use crate::models::permissions::{
-        ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole,
-        conversation::Role, grant_role, system,
+        ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole, grant_role,
+        system,
     };
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::{CohostInfo, ConversationResponse};
     use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{MultipartBodyBuilder, test_config, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
+    use crate::setup_server;
+    use crate::test_helpers::{MultipartBodyBuilder, UserSession, test_config, test_state};
     use axum::body::Body;
     use axum::http::StatusCode;
     use serde_json::json;

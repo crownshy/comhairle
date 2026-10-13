@@ -8,20 +8,17 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Expr, Order, Query, enum_def};
-use sea_query::{JoinType, PostgresQueryBuilder};
+use sea_query::{Expr, JoinType, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::PgConnection;
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
+use sqlx::{PgConnection, PgPool};
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
-use crate::models::{
-    SqlxResultExt, moderation_policy,
-    user_progress::{self, ProgressStatus, UserProgressIden},
-};
+use crate::models::user_progress::{self, ProgressStatus, UserProgressIden};
+use crate::models::{SqlxResultExt, moderation_policy};
 use crate::tools::{ToolConfig, ToolSetup};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum, PartialEq)]
@@ -786,18 +783,15 @@ pub async fn get_current_active_step_for_user_localised(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{
-            self,
-            conversation::{self, PartialConversation},
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            user_progress::UpdateUserProgress,
-            workflow,
-        },
-        routes::{
-            auth::SignupRequest, workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto,
-        },
+    use crate::models::conversation::{self, PartialConversation};
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
     };
+    use crate::models::user_progress::UpdateUserProgress;
+    use crate::models::{self, workflow};
+    use crate::routes::auth::SignupRequest;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     use super::*;
     use std::error::Error;

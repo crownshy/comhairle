@@ -5,22 +5,19 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
 #[cfg(test)]
 use fake::Dummy;
 
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        organization::OrganizationIden,
-        pagination::{Order, PageOptions, PaginatedResults},
-        translations::{TextContentId, TextFormat, new_translation},
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::organization::OrganizationIden;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "region")]
@@ -446,13 +443,9 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
 mod tests {
     use serde_json::json;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            region_area::{self, CreateRegionArea},
-        },
-        routes::organizations::dto::OrganizationDto,
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::region_area::{self, CreateRegionArea};
+    use crate::routes::organizations::dto::OrganizationDto;
 
     use super::*;
     use std::error::Error;

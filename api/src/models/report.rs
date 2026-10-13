@@ -5,19 +5,19 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    Decode, Encode, PgPool, Postgres,
-    encode::IsNull,
-    prelude::{FromRow, Type},
-};
+use sqlx::encode::IsNull;
+use sqlx::prelude::{FromRow, Type};
+use sqlx::{Decode, Encode, PgPool, Postgres};
 use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::routes::feedback::dto::FeedbackDto;
 use crate::routes::report_impacts::dto::ReportImpactDto;
+use crate::routes::reports::ReportView;
 use crate::tools::elicitation_bot::ElicitationBotReport;
 use crate::tools::heyform::HeyFormReport;
 use crate::tools::learn::LearnReport;
@@ -26,13 +26,10 @@ use crate::tools::prioritization::PrioritizationReport;
 use crate::tools::stories::StoriesReport;
 use crate::tools::thinking_space::ThinkingSpaceReport;
 use crate::tools::{ReportConfig, ToolConfig};
-use crate::{error::ComhairleError, routes::reports::ReportView};
 
-use super::{
-    feedback::{self},
-    report_impact::{self},
-    workflow, workflow_step,
-};
+use super::feedback::{self};
+use super::report_impact::{self};
+use super::{workflow, workflow_step};
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

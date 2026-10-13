@@ -5,14 +5,16 @@ use async_trait::async_trait;
 use comhairle_macros::{DbJsonBEnum, TranslatableJson};
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 use crate::models::translations::TextContentId;
 use crate::tools::thinking_space::{
     ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup,
 };
-use crate::{ComhairleState, error::ComhairleError};
 
 pub mod elicitation_bot;
 pub mod heyform;

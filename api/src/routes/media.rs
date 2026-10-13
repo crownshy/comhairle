@@ -2,29 +2,24 @@ pub mod dto;
 
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, patch_with, post_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, patch_with, post_with};
 use axum::extract::{Json, Multipart, Path, Query, State};
 use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    bulk_storage_service::FileMetadata,
-    error::ComhairleError,
-    models::{
-        media::{
-            self, CreateMedia, File, MediaContentType, MediaEditableFields, MediaFilterOptions,
-            MediaOrderOptions, UploadMediaForm,
-        },
-        pagination::{PageOptions, PaginatedResults},
-    },
-    routes::{auth::RequiredAdminUser, media::dto::MediaDto},
-    tools::id::gen_id,
+use crate::ComhairleState;
+use crate::bulk_storage_service::FileMetadata;
+use crate::error::ComhairleError;
+use crate::models::media::{
+    self, CreateMedia, File, MediaContentType, MediaEditableFields, MediaFilterOptions,
+    MediaOrderOptions, UploadMediaForm,
 };
+use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::routes::auth::RequiredAdminUser;
+use crate::routes::media::dto::MediaDto;
+use crate::tools::id::gen_id;
 
 #[instrument(err(Debug), skip(state))]
 async fn list(
@@ -265,15 +260,12 @@ mod tests {
 
     use std::error::Error;
 
-    use crate::{
-        bulk_storage_service::{MockBulkStorageService, UploadResult},
-        models::{
-            media::Media, model_test_helpers::setup_default_app_and_session,
-            pagination::PaginatedResults,
-        },
-        setup_server,
-        test_helpers::{MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_state},
-    };
+    use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
+    use crate::models::media::Media;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::pagination::PaginatedResults;
+    use crate::setup_server;
+    use crate::test_helpers::{MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_state};
 
     use sqlx::PgPool;
 

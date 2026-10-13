@@ -1,17 +1,17 @@
 use super::notification::{Notification, NotificationIden};
 use super::pagination::{Order, PageOptions, PaginatedResults};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::notification::DEFAULT_COLUMNS as NOTIFICATION_DEFAULT_COLUMNS;
 use crate::routes::notifications::dto::{NotificationDeliveryDto, NotificationDto};
-use crate::{
-    error::ComhairleError,
-    models::{SqlxResultExt, notification::DEFAULT_COLUMNS as NOTIFICATION_DEFAULT_COLUMNS},
-};
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 

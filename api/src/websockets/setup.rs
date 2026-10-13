@@ -3,9 +3,8 @@ use tracing::info;
 
 use crate::ComhairleState;
 
-use super::handlers::{
-    notifications::NotificationMessageHandler, workflow::WorkflowMessageHandler,
-};
+use super::handlers::notifications::NotificationMessageHandler;
+use super::handlers::workflow::WorkflowMessageHandler;
 
 /// Register all WebSocket message handlers with the application state.
 ///

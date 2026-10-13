@@ -6,7 +6,8 @@ use schemars::JsonSchema;
 use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgConnection, PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
+use sqlx::{PgConnection, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -342,13 +343,12 @@ pub async fn is_sealed(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            users,
-        },
-        routes::{workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto},
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
     };
+    use crate::models::users;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     use super::*;
 

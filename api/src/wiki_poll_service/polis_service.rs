@@ -6,11 +6,10 @@ use async_trait::async_trait;
 use cookie::Cookie;
 use hyper::StatusCode;
 use moka::future::Cache;
-use rand::{Rng, distributions::Alphanumeric};
-use reqwest::{
-    Client,
-    header::{COOKIE, SET_COOKIE},
-};
+use rand::Rng;
+use rand::distributions::Alphanumeric;
+use reqwest::Client;
+use reqwest::header::{COOKIE, SET_COOKIE};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

@@ -1,4 +1,5 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
+use std::time::Duration;
 
 use apalis::prelude::Data;
 use serde::{Deserialize, Serialize};
@@ -6,14 +7,10 @@ use tokio::time::sleep;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    bot_service::UpdateChatRequest,
-    models::{
-        self,
-        job::{self, UpdateJob},
-    },
-};
+use crate::ComhairleState;
+use crate::bot_service::UpdateChatRequest;
+use crate::models::job::{self, UpdateJob};
+use crate::models::{self};
 
 use super::error::{RecordWorkerError, Result, WorkerServiceError};
 

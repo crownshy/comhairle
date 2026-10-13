@@ -7,9 +7,8 @@ use super::{Transcriber, TranscriptEvent, Transcription};
 use async_trait::async_trait;
 use aws_config;
 use aws_sdk_transcribe;
-use aws_sdk_transcribe::types::{
-    LanguageCode, Media, MediaFormat, TranscriptionJobStatus, builders::SettingsBuilder,
-};
+use aws_sdk_transcribe::types::builders::SettingsBuilder;
+use aws_sdk_transcribe::types::{LanguageCode, Media, MediaFormat, TranscriptionJobStatus};
 use aws_sdk_transcribestreaming;
 use aws_sdk_transcribestreaming::primitives::Blob;
 use aws_sdk_transcribestreaming::types::{AudioEvent, AudioStream, MediaEncoding};
@@ -764,7 +763,8 @@ mod tests {
     use aws_config::BehaviorVersion;
     use sqlx::PgPool;
 
-    use crate::{bulk_storage_service::s3_storage::S3StorageService, test_helpers::test_state};
+    use crate::bulk_storage_service::s3_storage::S3StorageService;
+    use crate::test_helpers::test_state;
 
     use super::*;
 

@@ -1,10 +1,12 @@
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 

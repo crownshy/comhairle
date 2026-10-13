@@ -1,26 +1,23 @@
-use std::{fmt, sync::Arc};
+use std::fmt;
+use std::sync::Arc;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        pagination::{Order, PageOptions, PaginatedResults},
-        permissions::{
-            self, GrantRoleRequest, PermissionRole, ResourcePermissionIden, grant_role,
-            system::Role as SystemRole,
-        },
-    },
-    routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
-    tools::id::gen_id,
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::models::permissions::system::Role as SystemRole;
+use crate::models::permissions::{
+    self, GrantRoleRequest, PermissionRole, ResourcePermissionIden, grant_role,
 };
+use crate::routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength};
+use crate::tools::id::gen_id;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{
-    Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def, extension::postgres::PgExpr,
-};
+use sea_query::extension::postgres::PgExpr;
+use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
@@ -785,15 +782,14 @@ pub async fn list(
 mod tests {
     use super::*;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            users::{Resource, Role, add_user_resource_role, create_user, user_has_resource_role},
-        },
-        routes::{auth::SignupRequest, organizations::dto::OrganizationDto},
-        setup_server,
-        test_helpers::{UserSession, test_state},
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::users::{
+        Resource, Role, add_user_resource_role, create_user, user_has_resource_role,
     };
+    use crate::routes::auth::SignupRequest;
+    use crate::routes::organizations::dto::OrganizationDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
     use sqlx::PgPool;
     use std::error::Error;
     use std::sync::Arc;

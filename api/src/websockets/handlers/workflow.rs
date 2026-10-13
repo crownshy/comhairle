@@ -3,13 +3,10 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;
 
-use crate::{
-    ComhairleState,
-    websockets::{
-        WebSocketConnection, WebSocketMessageHandler, error::WebsocketError,
-        messages::WebSocketMessage,
-    },
-};
+use crate::ComhairleState;
+use crate::websockets::error::WebsocketError;
+use crate::websockets::messages::WebSocketMessage;
+use crate::websockets::{WebSocketConnection, WebSocketMessageHandler};
 
 #[derive(Error, Debug)]
 pub enum WorkflowWSError {}

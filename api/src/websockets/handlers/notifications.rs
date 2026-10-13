@@ -4,14 +4,11 @@ use thiserror::Error;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    models::{notification, notification_delivery},
-    websockets::{
-        WebSocketConnection, WebSocketMessageHandler, error::WebsocketError,
-        messages::WebSocketMessage,
-    },
-};
+use crate::ComhairleState;
+use crate::models::{notification, notification_delivery};
+use crate::websockets::error::WebsocketError;
+use crate::websockets::messages::WebSocketMessage;
+use crate::websockets::{WebSocketConnection, WebSocketMessageHandler};
 
 #[derive(Error, Debug)]
 pub enum NotificationWSError {

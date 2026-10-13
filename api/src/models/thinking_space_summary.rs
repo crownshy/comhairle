@@ -5,14 +5,14 @@ use sea_query::{
 };
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{SqlxResultExt, user_progress::UserProgressIden},
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::user_progress::UserProgressIden;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "thinking_space_summary")]
@@ -267,17 +267,13 @@ pub async fn delete(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, Comha
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{
-            model_test_helpers::{
-                get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-            },
-            user_progress::{self, ProgressStatus, UpdateUserProgress},
-            users,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::thinking_space_tool_config,
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
+    use crate::models::user_progress::{self, ProgressStatus, UpdateUserProgress};
+    use crate::models::users;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::thinking_space_tool_config;
 
     use super::*;
 

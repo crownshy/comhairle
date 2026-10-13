@@ -109,8 +109,9 @@ mod tests {
 
     use aide::axum::ApiRouter;
     use aide::axum::routing::get_with;
+    use axum::extract::Query;
+    use axum::http::StatusCode;
     use axum::middleware::from_fn_with_state;
-    use axum::{extract::Query, http::StatusCode};
 
     use crate::models::permissions::{SystemResource, system};
     use crate::routes::permissions::ListPermissionsByActionQuery;

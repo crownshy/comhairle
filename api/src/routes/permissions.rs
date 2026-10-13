@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-    middleware::{from_fn, from_fn_with_state},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
+use axum::middleware::{from_fn, from_fn_with_state};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -21,11 +17,10 @@ use crate::middleware::permissions::{
     PermissionRequirement, PermissionUserFilter, authenticate, authorize, authorize_or_self,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::system;
 use crate::models::permissions::{
     self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionManagementAction,
     PermissionTargetResource, PermissionTriplet, RevokeRoleRequest, SystemResource,
-    UserWithPermissionDto, grant_role, list_permissions, revoke_role,
+    UserWithPermissionDto, grant_role, list_permissions, revoke_role, system,
 };
 use crate::models::users;
 use crate::routes::auth::RequiredUser;
@@ -551,15 +546,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use crate::models::model_test_helpers::get_random_conversation_id;
     use crate::models::pagination::PaginatedResults;
+    use crate::models::permissions::system::Role;
     use crate::models::permissions::{
         self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionRole, PermissionTriplet,
-        ResourcePermission, grant_role, has_resource_permission, list_permissions, system::Role,
+        ResourcePermission, grant_role, has_resource_permission, list_permissions,
     };
     use crate::routes::permissions::{
         GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
     };
-    use crate::test_helpers::{test_config, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_config, test_state};
 
     use axum::body::Body;
     use hyper::StatusCode;

@@ -3,11 +3,13 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 
 #[cfg(test)]
 use fake::Dummy;
@@ -300,16 +302,12 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, Comha
 mod tests {
     use serde_json::json;
 
-    use crate::{
-        models::{
-            model_test_helpers::{
-                get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-            },
-            users,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::thinking_space_tool_config,
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
+    use crate::models::users;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::thinking_space_tool_config;
 
     use super::*;
 

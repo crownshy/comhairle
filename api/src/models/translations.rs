@@ -1,17 +1,19 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::str::FromStr;
-use std::{fmt, sync::Arc};
+use std::sync::Arc;
 
-use crate::{
-    error::ComhairleError, models::SqlxResultExt, translation_service::TranslationService,
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::translation_service::TranslationService;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Alias, Expr, Func, JoinType, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 

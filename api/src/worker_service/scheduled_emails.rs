@@ -4,13 +4,9 @@ use std::sync::Arc;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    models::{
-        job::{self, CreateJob},
-        scheduled_email::{ScheduledEmail, list_upcoming_scheduled_emails},
-    },
-};
+use crate::ComhairleState;
+use crate::models::job::{self, CreateJob};
+use crate::models::scheduled_email::{ScheduledEmail, list_upcoming_scheduled_emails};
 
 use super::error::{RecordWorkerError, Result, WorkerServiceError};
 

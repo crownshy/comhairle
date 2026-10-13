@@ -5,8 +5,8 @@
 
 use clap::Parser;
 use comhairle::hash_pw;
-use comhairle::models::conversation::ConversationIden;
-use comhairle::models::{conversation::Conversation, users::UserIden};
+use comhairle::models::conversation::{Conversation, ConversationIden};
+use comhairle::models::users::UserIden;
 
 use comhairle::models::users::User;
 use comhairle::models::workflow::{Workflow, WorkflowIden};

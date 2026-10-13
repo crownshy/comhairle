@@ -23,9 +23,8 @@ use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use sqlx::prelude::FromRow;
-use sqlx::{Decode, Postgres, Type};
+use sqlx::{Decode, PgPool, Postgres, Type};
 use tracing::instrument;
 use uuid::Uuid;
 
