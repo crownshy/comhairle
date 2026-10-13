@@ -1,5 +1,4 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import { notifications } from '$lib/notifications.svelte';
 import type { LayoutLoad } from './$types';
 import type { WorkflowStepWithTranslationsDto } from '@crownshy/api-client/api';
 import { key } from '$lib/utils/invalidationKey';
@@ -18,10 +17,6 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 
 			if (workflows.err !== null) {
 				console.error(workflows.err);
-				notifications.addFlash({
-					message: 'Problem loading workflows',
-					priority: 'WARNING'
-				});
 				throw err(workflows.err);
 			}
 
@@ -33,10 +28,6 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 			);
 
 			if (workflowSteps.err !== null) {
-				notifications.addFlash({
-					message: 'Could not load workflow steps',
-					priority: 'WARNING'
-				});
 				console.error(workflowSteps.err);
 				throw err(workflowSteps.err);
 			}
