@@ -95,11 +95,8 @@ impl Display for ThemeList {
 impl ThemeList {
     /// Serializes the statement list to JSON for the model
     pub fn to_model_embed(&self) -> Result<String, ThemeError> {
-        let results: Result<Vec<String>, serde_json::Error> = self
-            .themes
-            .iter()
-            .map(|s| serde_json::to_string(s))
-            .collect();
+        let results: Result<Vec<String>, serde_json::Error> =
+            self.themes.iter().map(serde_json::to_string).collect();
         let strings = results.map_err(ThemeError::from)?;
         Ok(strings.join("\n"))
     }
@@ -197,11 +194,8 @@ pub enum ThemeError {
 impl StatementList {
     /// Serializes the statement list to JSON for the model
     pub fn to_model_embed(&self) -> Result<String, StatementError> {
-        let results: Result<Vec<String>, serde_json::Error> = self
-            .statements
-            .iter()
-            .map(|s| serde_json::to_string(s))
-            .collect();
+        let results: Result<Vec<String>, serde_json::Error> =
+            self.statements.iter().map(serde_json::to_string).collect();
         let strings = results.map_err(StatementError::from)?; // or StatementError::Serde(e), etc.
         Ok(strings.join("\n"))
     }
