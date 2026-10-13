@@ -31,6 +31,7 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { useDebounce } from 'runed';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	const MAX_SIZE = 50 * MB;
 
@@ -380,9 +381,7 @@
 						<Skeleton class="h-29.5 w-full" />
 					{:then documents}
 						{#if documents.err !== null}
-							<span class="text-destructive font-semibold"
-								>Error loading documents, please try again</span
-							>
+							<ErrorMessage>Error loading documents, please try again</ErrorMessage>
 						{:else if documents.ok.length === 0}
 							<span class="text-muted-foreground">No documents</span>
 						{:else}
@@ -445,9 +444,7 @@
 					<Skeleton class="h-29.5 w-full" />
 				{:then documents}
 					{#if documents.err !== null}
-						<span class="text-destructive font-semibold"
-							>Error loading documents, please try again</span
-						>
+						<ErrorMessage>Error loading documents, please try again</ErrorMessage>
 					{:else if documents.ok.length === 0}
 						<span class="text-muted-foreground">No documents</span>
 					{:else}
@@ -493,11 +490,9 @@
 					{:then chat}
 						{#if chat.err !== null}
 							{console.error(chat.err)}
-							<span class="text-destructive font-semibold"
-								>Could not load chat data, please try again</span
-							>
+							<ErrorMessage>Could not load chat data, please try again</ErrorMessage>
 						{:else}
-							{@const crossLanguages = (chat.ok ?? {})?.prompt?.cross_languages ?? []}
+							{@const crossLanguages = chat.ok.prompt?.cross_languages ?? []}
 							<MultiSelect
 								defaultOptions={allLanguageOptions}
 								selected={crossLanguages.length > 0
