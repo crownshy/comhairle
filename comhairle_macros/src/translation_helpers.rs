@@ -134,6 +134,7 @@ pub fn derive_translatable_enum_struct(
                 let mut localize_inits = Vec::new();
                 let mut with_translations_fields = Vec::new();
                 let mut with_translations_inits = Vec::new();
+                let mut translatable_idents = Vec::new();
 
                 let mut collect_body = Vec::new();
 
@@ -143,6 +144,7 @@ pub fn derive_translatable_enum_struct(
                     field_idents.push(quote! { #ident });
 
                     if has_translatable_attr(&field.attrs) {
+                        translatable_idents.push(quote! { #ident });
                         localized_fields.push(quote! {
                             #ident: <#ty as crate::models::translations::LocalizeTranslations>::Localized
                         });
@@ -174,7 +176,7 @@ pub fn derive_translatable_enum_struct(
                 });
 
                 collect_arms.push(quote! {
-                    Self::#variant_ident { #(#field_idents),* } => { #(#collect_body)* }
+                    Self::#variant_ident { #(#translatable_idents,)* .. } => { #(#collect_body)* }
                 });
             }
             Fields::Unnamed(fields) => {
