@@ -84,6 +84,9 @@ jobs:
       -
         name: Rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
       -
         name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
