@@ -2545,6 +2545,9 @@ mod tests {
         service
             .expect_create_poll()
             .returning(|_| Box::pin(async { Ok("test_poll_id".to_string()) }));
+        service
+            .expect_update_poll_config()
+            .returning(|_, _, _| Box::pin(async { Ok(WikiPoll::default()) }));
         service.expect_get_report_data().returning(|_, _| {
             Box::pin(async {
                 Ok(WikiPollReport {
