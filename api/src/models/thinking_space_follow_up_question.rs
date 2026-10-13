@@ -209,8 +209,11 @@ pub async fn delete(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::error::Error;
 
+    use serde_json::json;
+
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
@@ -219,9 +222,6 @@ mod tests {
     use crate::test_helpers::thinking_space_tool_config;
     use crate::tools::ToolConfig;
     use crate::tools::thinking_space::ThinkingSpaceToolConfig;
-
-    use serde_json::json;
-    use std::error::Error;
 
     async fn create_thinking_space_resources(
         pool: &PgPool,

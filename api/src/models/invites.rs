@@ -1,5 +1,3 @@
-use crate::error::ComhairleError;
-use crate::models::SqlxResultExt;
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};
 use partially::Partial;
@@ -14,6 +12,8 @@ use uuid::Uuid;
 
 use super::invite_response;
 use super::users::User;
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "invite")]
@@ -392,6 +392,13 @@ pub async fn get_stats_for_invite(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+    use std::sync::Arc;
+
+    use fake::{Fake, Faker};
+    use sqlx::PgPool;
+
+    use super::*;
     use crate::bot_service::{ComhairleBotService, MockComhairleBotService};
     use crate::models::conversation::{self, CreateConversation, PartialConversation};
     use crate::models::model_test_helpers::{
@@ -401,12 +408,6 @@ mod tests {
     use crate::models::workflow::{self, CreateWorkflow};
     use crate::routes::events::dto::EventDto;
     use crate::test_helpers::test_config;
-
-    use super::*;
-    use fake::{Fake, Faker};
-    use sqlx::PgPool;
-    use std::error::Error;
-    use std::sync::Arc;
 
     #[test]
     fn invite_check_for_user_should_be_case_insensitive() -> Result<(), Box<dyn Error>> {

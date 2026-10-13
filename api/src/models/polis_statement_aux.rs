@@ -773,10 +773,9 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::test_helpers::{extract, polis_tool_config};
-
-    use super::*;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn upsert_from_polis_refreshes_moderation_status(

@@ -9,11 +9,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use uuid::Uuid;
 
+use super::auth::RequiredUser;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::routes::user_conversation_preferences::dto::UserConversationPreferencesDto;
-
-use super::auth::RequiredUser;
 
 pub mod dto;
 

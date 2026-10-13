@@ -1,6 +1,8 @@
 use std::fmt;
 use std::time::Duration;
 
+use aws_sdk_s3::Client;
+use aws_sdk_s3::presigning::PresigningConfig;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
@@ -10,9 +12,6 @@ use sqlx::PgPool;
 use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
-
-use aws_sdk_s3::Client;
-use aws_sdk_s3::presigning::PresigningConfig;
 
 use crate::error::ComhairleError;
 

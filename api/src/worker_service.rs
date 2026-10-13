@@ -15,28 +15,22 @@ use apalis_cron::{CronStream, Schedule};
 use apalis_redis::RedisStorage;
 use async_trait::async_trait;
 use sensemakar_jobs::WikiPollSummaryJob;
-use tokio::{sync::Mutex, time::timeout};
+use tokio::sync::Mutex;
+use tokio::time::timeout;
 use tracing::{error, instrument};
 
-use crate::{
-    ComhairleState,
-    config::WorkerConfig,
-    error::ComhairleError,
-    worker_service::{
-        process_documents::{DocumentJob, process_document_handler},
-        process_video_call_transcriptions::{
-            TranscribeRecording, generate_sensemaking_report, transcribe_recording,
-        },
-        process_wiki_poll_summary::wiki_poll_summary_handler,
-        scheduled_emails::{
-            ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
-            send_scheduled_email,
-        },
-    },
+use crate::ComhairleState;
+use crate::config::WorkerConfig;
+use crate::error::ComhairleError;
+use crate::worker_service::process_documents::{DocumentJob, process_document_handler};
+use crate::worker_service::process_video_call_transcriptions::{
+    TranscribeRecording, generate_sensemaking_report, transcribe_recording,
 };
-
-#[cfg(test)]
-use mockall::{automock, predicate::*};
+use crate::worker_service::process_wiki_poll_summary::wiki_poll_summary_handler;
+use crate::worker_service::scheduled_emails::{
+    ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
+    send_scheduled_email,
+};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -275,5 +269,4 @@ impl MockWorkerService {
 
         worker_service
     }
-
 }

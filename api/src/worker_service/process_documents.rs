@@ -7,12 +7,11 @@ use tokio::time::sleep;
 use tracing::{error, info};
 use uuid::Uuid;
 
+use super::error::{RecordWorkerError, Result, WorkerServiceError};
 use crate::ComhairleState;
 use crate::bot_service::UpdateChatRequest;
 use crate::models::job::{self, UpdateJob};
 use crate::models::{self};
-
-use super::error::{RecordWorkerError, Result, WorkerServiceError};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct DocumentJob {

@@ -1,6 +1,5 @@
-use crate::error::ComhairleError;
-use crate::models::SqlxResultExt;
-use crate::models::demographics::{self, ValueBuckets};
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
@@ -10,9 +9,12 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::prelude::FromRow;
 use sqlx::types::Json;
-use std::collections::HashMap;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::demographics::{self, ValueBuckets};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_profile")]
@@ -381,11 +383,11 @@ pub async fn get_demographic_report(
     reason = "test fixtures use ..Default::default() so adding struct fields doesn't break every test)"
 )]
 mod tests {
-    use super::*;
-
-    use sqlx::PgPool;
     use std::error::Error;
 
+    use sqlx::PgPool;
+
+    use super::*;
     use crate::models::demographics::{
         DemographicsResponse, DemographicsResponsesFilterOptions, get_demographics_responses,
     };

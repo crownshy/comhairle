@@ -10,24 +10,16 @@ use tower::util::option_layer;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    middleware::{
-        rate_limit::RateLimitLayers,
-        request_logging::{ClientIp, ClientUserAgent},
-    },
-    models::{
-        self, breakout_plan, conversation, event,
-        event_attendance::{self, CreateEventAttendance},
-        invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite},
-        users::{self, get_or_create_user_by_email},
-        workflow,
-    },
-    routes::{auth::create_session_cookie, invites::dto::InviteDto},
-};
-
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::middleware::rate_limit::RateLimitLayers;
+use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
+use crate::models::event_attendance::{self, CreateEventAttendance};
+use crate::models::invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite};
+use crate::models::users::{self, get_or_create_user_by_email};
+use crate::models::{self, breakout_plan, conversation, event, workflow};
+use crate::routes::auth::create_session_cookie;
+use crate::routes::invites::dto::InviteDto;
 
 pub mod dto;
 
@@ -484,6 +476,7 @@ mod tests {
     use sqlx::PgPool;
     use tracing_test::traced_test;
 
+    use super::*;
     use crate::mailer::MockComhairleMailer;
     use crate::models::invites::{InviteStatus, LoginBehaviour};
     use crate::models::model_test_helpers::get_random_conversation_id;
@@ -492,8 +485,6 @@ mod tests {
     use crate::routes::user::dto::UserDto;
     use crate::setup_server;
     use crate::test_helpers::{UserSession, extract, test_state};
-
-    use super::*;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn admin_should_be_able_to_create_invitation(pool: PgPool) -> Result<(), Box<dyn Error>> {

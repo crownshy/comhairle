@@ -11,14 +11,13 @@ use serde::Serialize;
 use tracing::instrument;
 use uuid::Uuid;
 
+use super::auth::RequiredUser;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::notification_delivery::{
     self, NotificationDelivery, NotificationDeliveryOrderOptions, NotificationWithDelivery,
 };
 use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
-
-use super::auth::RequiredUser;
 
 pub mod dto;
 

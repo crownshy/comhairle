@@ -255,18 +255,17 @@ curl -X POST \\
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
 
+    use sqlx::PgPool;
+
+    use super::*;
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::models::media::Media;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::pagination::PaginatedResults;
     use crate::setup_server;
     use crate::test_helpers::{MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_state};
-
-    use sqlx::PgPool;
 
     async fn create_random_image_record(
         db: &PgPool,

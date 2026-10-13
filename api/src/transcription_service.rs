@@ -1,13 +1,13 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use error::{Result, TranscriptionServiceError};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::mpsc::Receiver;
-
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::Receiver;
 
 use crate::bulk_storage_service::BulkStorageService;
 use crate::models::audio_recording::AudioFormat;

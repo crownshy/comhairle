@@ -158,11 +158,10 @@ pub async fn accept(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use crate::routes::auth::OtpSignupRequest;
-
     use std::error::Error;
+
+    use super::*;
+    use crate::routes::auth::OtpSignupRequest;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_otp_for_user_with_expiry(pool: PgPool) -> Result<(), Box<dyn Error>> {

@@ -1,1 +1,3 @@
 edition = "2024"
+reorder_modules = true
+reorder_imports = true

@@ -1,6 +1,10 @@
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
 use comhairle_macros::{DbJsonBEnum, Translatable};
+#[cfg(test)]
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, Query, enum_def};
@@ -9,12 +13,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::{FromRow, Type};
 use sqlx::{Decode, Encode, PgPool, Postgres};
 use sqlx_postgres::{PgArgumentBuffer, PgValueRef};
-use std::str::FromStr;
 use tracing::{instrument, warn};
 use uuid::Uuid;
-
-#[cfg(test)]
-use fake::Dummy;
 
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
@@ -638,8 +638,9 @@ impl EventOrderOptions {
         &self,
         mut query: sea_query::SelectStatement,
     ) -> sea_query::SelectStatement {
-        use crate::models::translations::TextTranslationIden;
         use sea_query::Alias;
+
+        use crate::models::translations::TextTranslationIden;
 
         if let Some(order) = &self.name {
             let tt_name_alias = Alias::new("tt_name");
@@ -849,15 +850,15 @@ fn add_current_attendance(mut query: sea_query::SelectStatement) -> sea_query::S
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use chrono::Duration;
 
+    use super::*;
     use crate::models::event_attendance::{self, CreateEventAttendance};
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
     };
-
-    use super::*;
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_and_return_new_event(pool: PgPool) -> Result<(), Box<dyn Error>> {

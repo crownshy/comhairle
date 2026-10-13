@@ -22,12 +22,12 @@ pub mod worker_service;
 
 pub mod sensemakar_service;
 
-use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
-use axum::{
-    Extension, Router,
-    extract::DefaultBodyLimit,
-    http::{HeaderValue, Method, header},
-};
+use aide::axum::ApiRouter;
+use aide::openapi::OpenApi;
+use aide::transform::TransformOpenApi;
+use axum::extract::DefaultBodyLimit;
+use axum::http::{HeaderValue, Method, header};
+use axum::{Extension, Router};
 use bot_service::ComhairleBotService;
 use clap::Parser;
 use config::ComhairleConfig;
@@ -38,22 +38,23 @@ use mailer::ComhairleMailer;
 use routes::auth::AUTH_KEY;
 pub use routes::auth::hash_pw;
 use sqlx_postgres::PgPool;
-use std::sync::Arc;
 use tokio::fs;
-use tower::{Layer, util::option_layer};
+use tower::Layer;
+use tower::util::option_layer;
 use tower_http::cors::CorsLayer;
 use tower_http::normalize_path::{NormalizePath, NormalizePathLayer};
 use translation_service::TranslationService;
 use websockets::WebSocketService;
 use websockets::handlers::video_call::VideoCallMessageHandler;
 
+use crate::bulk_storage_service::BulkStorageService;
 use crate::categorization_service::CategorizationService;
+use crate::middleware::rate_limit::RateLimitLayers;
 use crate::redis_connection::RedisConnection;
 use crate::routes::workflows::WorkflowRouterContext;
 use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;
-use crate::{bulk_storage_service::BulkStorageService, middleware::rate_limit::RateLimitLayers};
 
 pub type App = NormalizePath<Router<()>>;
 

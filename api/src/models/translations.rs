@@ -3,9 +3,6 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::error::ComhairleError;
-use crate::models::SqlxResultExt;
-use crate::translation_service::TranslationService;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -16,6 +13,10 @@ use sqlx::prelude::FromRow;
 use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::translation_service::TranslationService;
 
 /// A type-safe wrapper around Uuid for referencing text content.
 ///
@@ -1407,11 +1408,11 @@ pub async fn get_text_content_with_translations(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use comhairle_macros::TranslatableJson;
 
     use super::*;
-
-    use std::error::Error;
 
     struct TestWithTranslations {
         title: TextContentId,

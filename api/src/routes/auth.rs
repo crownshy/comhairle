@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
@@ -26,8 +29,6 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::Sha256;
-use std::collections::HashMap;
-use std::sync::Arc;
 use time::Duration;
 use tower::util::option_layer;
 use tracing::{instrument, warn};
@@ -1301,8 +1302,17 @@ pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Co
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::error::Error;
+    use std::sync::Arc;
 
+    use argon2::{Argon2, PasswordHash, PasswordVerifier};
+    use axum::http::StatusCode;
+    use mockall::predicate::{always, eq};
+    use serde_json::json;
+    use sqlx::PgPool;
+    use uuid::Uuid;
+
+    use super::*;
     use crate::mailer::MockComhairleMailer;
     use crate::models::api_key::CreateApiKeyRequest;
     use crate::models::model_test_helpers::setup_default_app_and_session;
@@ -1312,15 +1322,6 @@ mod tests {
     use crate::routes::user::dto::UserDto;
     use crate::setup_server;
     use crate::test_helpers::{TEST_PASSWORD, UserSession, test_state};
-
-    use argon2::{Argon2, PasswordHash, PasswordVerifier};
-    use axum::http::StatusCode;
-    use mockall::predicate::{always, eq};
-    use serde_json::json;
-    use sqlx::PgPool;
-    use std::error::Error;
-    use std::sync::Arc;
-    use uuid::Uuid;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {

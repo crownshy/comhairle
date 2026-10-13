@@ -357,8 +357,8 @@ mod tests {
     use chrono::{DateTime, Utc};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
 
+    use super::*;
     use crate::mailer::MockComhairleMailer;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
@@ -370,8 +370,6 @@ mod tests {
     use crate::routes::events::dto::EventDto;
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_state};
-
-    use super::*;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_event_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {

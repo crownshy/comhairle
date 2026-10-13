@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
@@ -16,9 +18,6 @@ use crate::config::ComhairleConfig;
 use crate::error::ComhairleError;
 use crate::models::{conversation, workflow_step};
 use crate::tools::ToolConfig;
-
-#[cfg(test)]
-use fake::Dummy;
 
 #[derive(Serialize, Deserialize, FromRow, JsonSchema, Debug, Clone)]
 #[enum_def(table_name = "bot_service_user_session")]

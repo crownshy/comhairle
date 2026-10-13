@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
+#[cfg(test)]
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def};
@@ -9,9 +11,6 @@ use sqlx::prelude::FromRow;
 use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
-
-#[cfg(test)]
-use fake::Dummy;
 
 use crate::error::ComhairleError;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
@@ -495,13 +494,13 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::users::{self, create_user};
     use crate::routes::auth::SignupRequest;
     use crate::routes::regions::dto::RegionDto;
-
-    use super::*;
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {

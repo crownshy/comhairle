@@ -243,13 +243,12 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::polis_statement_aux::{self, UpsertFromPolis};
     use crate::test_helpers::{extract, polis_tool_config};
     use crate::translation_service::{MockTranslationService, TranslationService};
     use crate::wiki_poll_service::ModerationStatus;
-
-    use super::*;
 
     async fn seed_aux(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(pool).await?;

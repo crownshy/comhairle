@@ -1,19 +1,19 @@
+use std::sync::Arc;
+
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, put_with};
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use std::sync::Arc;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use super::auth::RequiredUser;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::user_progress::{self, UpdateUserProgress};
 use crate::models::workflow_step;
 use crate::routes::user_progress::dto::UserProgressDto;
-
-use super::auth::RequiredUser;
 
 pub mod dto;
 

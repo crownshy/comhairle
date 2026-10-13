@@ -591,17 +591,19 @@ curl -X POST \\
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::error::Error;
+    use std::sync::Arc;
 
-    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::test_helpers::{MultipartBodyBuilder, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
-    use axum::{body::Body, http::StatusCode};
+    use axum::body::Body;
+    use axum::http::StatusCode;
     use mockall::predicate::eq;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-    use std::sync::Arc;
+
+    use super::*;
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::setup_server;
+    use crate::test_helpers::{MultipartBodyBuilder, UserSession, test_state};
 
     fn mock_bot_service_for_conversation(kb_id: String) -> MockComhairleBotService {
         let mut bot_service = MockComhairleBotService::new();

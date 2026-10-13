@@ -543,6 +543,12 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use hyper::StatusCode;
+    use sqlx::PgPool;
+
     use crate::models::model_test_helpers::get_random_conversation_id;
     use crate::models::pagination::PaginatedResults;
     use crate::models::permissions::system::Role;
@@ -555,11 +561,6 @@ mod tests {
     };
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_config, test_state};
-
-    use axum::body::Body;
-    use hyper::StatusCode;
-    use sqlx::PgPool;
-    use std::sync::Arc;
 
     // Role definitions for testing
     const RESOURCE_TYPE: &str = "conversation";

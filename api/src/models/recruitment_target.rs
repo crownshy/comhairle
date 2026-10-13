@@ -194,12 +194,14 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, Comhair
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use sqlx::PgPool;
+
     use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::workflows::dto::WorkflowDto;
-    use sqlx::PgPool;
-    use std::error::Error;
 
     async fn make_workflow(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(pool).await?;

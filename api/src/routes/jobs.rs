@@ -105,12 +105,12 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use serde_json::json;
     use sqlx::PgPool;
 
     use super::*;
-    use serde_json::json;
-    use std::error::Error;
-
     use crate::models::job::CreateJob;
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_state};

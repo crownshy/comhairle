@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
@@ -11,9 +13,6 @@ use sqlx::{Decode, Encode, PgPool, Postgres, query_as_with};
 use sqlx_postgres::{PgArgumentBuffer, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
-
-#[cfg(test)]
-use fake::Dummy;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
@@ -369,9 +368,9 @@ pub async fn delete(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, ComhairleEr
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
+
+    use super::*;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_scheduled_email(pool: PgPool) -> Result<(), Box<dyn Error>> {

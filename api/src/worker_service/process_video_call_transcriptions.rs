@@ -1,16 +1,16 @@
+use std::sync::Arc;
+
 use apalis::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tracing::info;
 use uuid::Uuid;
 
+use super::error::{RecordWorkerError, Result, WorkerServiceError};
 use crate::ComhairleState;
 use crate::categorization_service::Comment;
 use crate::models::audio_recording::{self, AudioRecordingStatus};
 use crate::models::job;
 use crate::transcription_service::Transcription;
-
-use super::error::{RecordWorkerError, Result, WorkerServiceError};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranscribeRecording {
@@ -221,9 +221,13 @@ async fn generate_sensemaking_report_inner(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+    use std::str::FromStr;
+
     use aws_config::BehaviorVersion;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::bulk_storage_service::BulkStorageService;
     use crate::bulk_storage_service::s3_storage::S3StorageService;
     use crate::categorization_service::CategorizationService;
@@ -231,11 +235,6 @@ mod tests {
     use crate::config::TranscriptionServiceConfig;
     use crate::test_helpers::{test_config, test_state};
     use crate::transcription_service::amazon_transcriber::AmazonTranscriber;
-
-    use super::*;
-
-    use std::error::Error;
-    use std::str::FromStr;
 
     async fn worker_state(
         pool: PgPool,

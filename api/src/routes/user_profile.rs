@@ -98,12 +98,14 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use serde_json::json;
+    use sqlx::PgPool;
+
     use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::test_helpers::UserSession;
-    use serde_json::json;
-    use sqlx::PgPool;
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_user_profile_via_api(pool: PgPool) -> Result<(), Box<dyn Error>> {

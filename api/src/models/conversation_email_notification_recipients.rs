@@ -1,5 +1,3 @@
-use crate::error::ComhairleError;
-use crate::models::SqlxResultExt;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
@@ -9,6 +7,9 @@ use sqlx::PgPool;
 use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "conversation_email_notification_recipients")]

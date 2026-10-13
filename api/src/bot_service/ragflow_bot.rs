@@ -1381,9 +1381,9 @@ impl From<SseEvent> for BotServiceSseEvent {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
+
+    use super::*;
 
     #[tokio::test]
     async fn should_parse_sse_event_str_to_json() -> Result<(), Box<dyn Error>> {

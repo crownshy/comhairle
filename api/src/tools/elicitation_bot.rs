@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
+use super::{ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::bot_service::{AgentConversationRequest, ComhairleAgentSession};
 use crate::error::ComhairleError;
@@ -20,8 +21,6 @@ use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::workflow_step;
 use crate::routes::auth::RequiredUser;
 use crate::tools::ToolConfig;
-
-use super::{ToolConfigSanitize, ToolImpl};
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct ElicitationBotToolConfig {
@@ -253,19 +252,19 @@ async fn converse(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::setup_server;
-    use crate::test_helpers::{UserSession, elicitation_bot_tool_config, test_state};
+    use std::error::Error;
+    use std::pin::Pin;
 
     use axum::body::{Bytes, to_bytes};
     use futures::{Stream, stream};
     use mockall::predicate::always;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-    use std::pin::Pin;
+
+    use super::*;
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, elicitation_bot_tool_config, test_state};
 
     fn mock_bot_service_for_workflow_step() -> MockComhairleBotService {
         let mut bot_service = MockComhairleBotService::new();

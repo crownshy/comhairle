@@ -1,27 +1,9 @@
 use std::sync::Arc;
 
-use super::{
-    pagination::{Order, PageOptions, PaginatedResults},
-    translations::{TextContentId, TextFormat, new_translation},
-    user_participation::UserParticipationIden,
-    workflow::WorkflowIden,
-};
-use crate::bot_service::{
-    ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
-    DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT, Variable,
-};
-use crate::config::ComhairleConfig;
-use crate::error::ComhairleError;
-use crate::models::permissions::{
-    ResourcePermissionIden, conversation as conversation_permissions, roles_for_action,
-};
-use crate::models::{self, SqlxResultExt};
-use crate::{
-    ComhairleState,
-    models::workflow::{self},
-};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
+#[cfg(test)]
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::extension::postgres::PgExpr;
@@ -34,8 +16,22 @@ use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[cfg(test)]
-use fake::Dummy;
+use super::pagination::{Order, PageOptions, PaginatedResults};
+use super::translations::{TextContentId, TextFormat, new_translation};
+use super::user_participation::UserParticipationIden;
+use super::workflow::WorkflowIden;
+use crate::ComhairleState;
+use crate::bot_service::{
+    ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
+    DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT, Variable,
+};
+use crate::config::ComhairleConfig;
+use crate::error::ComhairleError;
+use crate::models::permissions::{
+    ResourcePermissionIden, conversation as conversation_permissions, roles_for_action,
+};
+use crate::models::workflow::{self};
+use crate::models::{self, SqlxResultExt};
 
 /// For extracting an id or slug from Path
 #[derive(Deserialize, Debug, JsonSchema)]
@@ -348,8 +344,9 @@ impl ConversationFilterOptions {
         &self,
         mut query: sea_query::SelectStatement,
     ) -> sea_query::SelectStatement {
-        use crate::models::translations::TextTranslationIden;
         use sea_query::Alias;
+
+        use crate::models::translations::TextTranslationIden;
 
         if let Some(value) = &self.keyword {
             // Filter on the actual translation table column, not the alias
@@ -408,8 +405,9 @@ impl ConversationOrderOptions {
         &self,
         mut query: sea_query::SelectStatement,
     ) -> sea_query::SelectStatement {
-        use crate::models::translations::TextTranslationIden;
         use sea_query::Alias;
+
+        use crate::models::translations::TextTranslationIden;
 
         if let Some(order) = &self.title {
             // Order by the actual translation table column, not the alias
@@ -1022,9 +1020,12 @@ pub async fn list_for_permitted_user(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use fake::{Fake, Faker};
     use serde_json::json;
 
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::permissions::conversation::Role;
     use crate::models::permissions::{ActorId, GrantRoleRequest, PermissionRole, grant_role};
@@ -1034,9 +1035,6 @@ mod tests {
     use crate::routes::organizations::dto::OrganizationDto;
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_state};
-
-    use super::*;
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_conversation_with_oranganization_id(

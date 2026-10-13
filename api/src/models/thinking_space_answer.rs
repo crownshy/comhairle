@@ -1,4 +1,6 @@
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
@@ -10,9 +12,6 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
-
-#[cfg(test)]
-use fake::Dummy;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "thinking_space_answer")]
@@ -300,18 +299,17 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, Comha
     reason = "test fixtures use ..Default::default() so adding struct fields doesn't break every test)"
 )]
 mod tests {
+    use std::error::Error;
+
     use serde_json::json;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
     use crate::models::users;
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::test_helpers::thinking_space_tool_config;
-
-    use super::*;
-
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_new_thinking_space_answer(pool: PgPool) -> Result<(), Box<dyn Error>> {

@@ -1,29 +1,23 @@
-use crate::models::permissions::PermissionTriplet;
-use crate::redis_connection::RedisConnection;
-use crate::websockets::handlers::video_call::VideoCallMessageHandler;
-use axum::extract::ConnectInfo;
-use chrono::Utc;
-use hyper::header::AUTHORIZATION;
 use std::collections::HashMap;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use uuid::Uuid;
 
-use axum::{
-    body::Body,
-    http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header::COOKIE},
-    response::Response,
-};
+use axum::body::Body;
+use axum::http::header::COOKIE;
+use axum::http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode};
+use axum::response::Response;
 use bon::builder;
+use chrono::Utc;
 use fake::Fake;
 use fake::faker::lorem::en::{Paragraph, Sentence, Words};
 use http_body_util::BodyExt;
+use hyper::header::AUTHORIZATION;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-
 use sqlx::PgPool;
 use tower::ServiceExt;
+use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::bot_service::{ComhairleBotService, MockComhairleBotService};
@@ -31,11 +25,14 @@ use crate::bulk_storage_service::{BulkStorageService, MockBulkStorageService};
 use crate::categorization_service::{CategorizationService, MockCategorizationService};
 use crate::config::ComhairleConfig;
 use crate::mailer::MockComhairleMailer;
+use crate::models::permissions::PermissionTriplet;
 use crate::models::users::UpdateUserRequest;
+use crate::redis_connection::RedisConnection;
 use crate::routes::user::dto::UserDto;
 use crate::routes::workflow_steps::dto::WorkflowStepDto;
 use crate::transcription_service::{MockTranscriber, Transcriber};
 use crate::translation_service::{MockTranslationService, TranslationService};
+use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 use crate::websockets::{MockWebSocketService, WebSocketService};
 use crate::wiki_poll_service::{MockWikiPollService, WikiPollService};
 use crate::worker_service::{MockWorkerService, WorkerService};

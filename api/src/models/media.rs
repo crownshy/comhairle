@@ -1,18 +1,17 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use sqlx::{PgPool, query_as_with};
-use std::path::Path;
 use tracing::instrument;
 use uuid::Uuid;
-
-#[cfg(test)]
-use fake::Dummy;
 
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
@@ -541,13 +540,12 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::users;
     use crate::test_helpers::TEST_PASSWORD;
-
-    use super::*;
-
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {

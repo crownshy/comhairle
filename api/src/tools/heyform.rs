@@ -21,14 +21,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
-use crate::models;
-use crate::models::permissions::{ConversationResource, conversation::Action};
+use crate::models::permissions::ConversationResource;
+use crate::models::permissions::conversation::Action;
 use crate::routes::auth::RequiredAdminUser;
 use crate::{ComhairleState, models};
-
-use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
 /// `(status, headers, body)` for a CSV download response.
 type CsvExportResponse = (StatusCode, [(String, String); 2], String);
@@ -1112,15 +1111,12 @@ mod tests {
     use sqlx::PgPool;
     use tokio::net::TcpListener;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::test_helpers::heyform_tool_config;
-
-    use super::*;
-
-    use std::error::Error;
 
     #[derive(Clone)]
     struct MockHeyFormState {

@@ -16,6 +16,7 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::bot_service::AgentConversationRequest;
 use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::thinking_space_answer::{
@@ -36,8 +37,6 @@ use crate::models::workflow_step;
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
 use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleError, ComhairleState};
-
-use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq, TranslatableJson)]
 pub struct ThinkingSpaceQuestion {
@@ -910,18 +909,17 @@ async fn get_thinking_space_insights(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::test_helpers::thinking_space_tool_config;
-
-    use super::*;
-
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_thinking_space_answer_via_api(

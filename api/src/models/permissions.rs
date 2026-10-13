@@ -12,9 +12,6 @@ pub mod conversation;
 pub mod organization;
 pub mod system;
 
-use crate::models::organization::OrganizationIden;
-use crate::models::users::UserIden;
-use crate::redis_connection::RedisConnection;
 use aide::OperationIo;
 use axum::extract::{FromRequestParts, Path};
 use chrono::{DateTime, Utc};
@@ -34,8 +31,11 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::models::organization::OrganizationIden;
 use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::users::UserIden;
 use crate::models::{self};
+use crate::redis_connection::RedisConnection;
 
 // ---------- //
 // * MACROS * //
@@ -1611,10 +1611,11 @@ mod tests {
     async fn admin_portal_roles_include_direct_and_current_inherited_assignments(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::routes::auth::RequiredUser;
-        use crate::routes::user::{ResourceType as UserResourceType, get_user_roles};
         use axum::Json;
         use axum::extract::State;
+
+        use crate::routes::auth::RequiredUser;
+        use crate::routes::user::{ResourceType as UserResourceType, get_user_roles};
 
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let grantor = session.id.unwrap();

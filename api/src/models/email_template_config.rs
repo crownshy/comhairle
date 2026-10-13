@@ -649,11 +649,10 @@ pub async fn delete(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Comhai
 
 #[cfg(test)]
 mod tests {
-    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use std::error::Error;
 
     use super::*;
-
-    use std::error::Error;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_email_config(pool: PgPool) -> Result<(), Box<dyn Error>> {

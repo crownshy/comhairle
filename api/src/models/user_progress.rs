@@ -11,10 +11,9 @@ use sqlx::{PgConnection, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
-
 use super::user_participation::UserParticipationIden;
 use super::workflow_step::WorkflowStepIden;
+use crate::error::ComhairleError;
 
 /// Defines the type of authentication has been used to create
 /// The user
@@ -343,18 +342,19 @@ pub async fn is_sealed(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use axum::Router;
+
+    use super::*;
+    use crate::models::conversation::{self, PartialConversation};
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
     use crate::models::users;
+    use crate::models::users::User;
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::routes::workflows::dto::WorkflowDto;
-
-    use super::*;
-
-    use crate::models::conversation::{self, PartialConversation};
-    use crate::models::users::User;
-    use std::error::Error;
 
     /// A conversation with one workflow of `step_count` steps and one participant. The app and
     /// session are kept so a test can add more steps afterwards.

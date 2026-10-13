@@ -172,6 +172,9 @@ pub async fn list(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
@@ -180,10 +183,6 @@ mod tests {
     use crate::routes::user::dto::UserDto;
     use crate::test_helpers::TEST_PASSWORD;
     use crate::tools::ToolConfig;
-
-    use super::*;
-
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_new_proposal_response(pool: PgPool) -> Result<(), Box<dyn Error>> {

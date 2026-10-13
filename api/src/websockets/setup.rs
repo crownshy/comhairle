@@ -1,10 +1,10 @@
 use std::sync::Arc;
-use tracing::info;
 
-use crate::ComhairleState;
+use tracing::info;
 
 use super::handlers::notifications::NotificationMessageHandler;
 use super::handlers::workflow::WorkflowMessageHandler;
+use crate::ComhairleState;
 
 /// Register all WebSocket message handlers with the application state.
 ///

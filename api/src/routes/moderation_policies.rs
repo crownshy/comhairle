@@ -191,10 +191,6 @@ mod tests {
     use sqlx::PgPool;
 
     use super::*;
-
-    use std::error::Error;
-    use std::time::Duration;
-
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
