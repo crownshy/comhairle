@@ -3,12 +3,11 @@ pub mod error;
 pub mod tttc_categorizer;
 
 use async_trait::async_trait;
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 use serde::{Deserialize, Serialize};
 
 use crate::categorization_service::error::Result;
-
-#[cfg(test)]
-use mockall::{automock, predicate::*};
 
 #[cfg_attr(test, automock)]
 #[async_trait]

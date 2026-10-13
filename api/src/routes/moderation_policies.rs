@@ -188,15 +188,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+    use std::time::Duration;
+
     use axum::Router;
     use serde_json::{Value, json};
     use sqlx::PgPool;
 
     use super::*;
-
-    use std::error::Error;
-    use std::time::Duration;
-
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };

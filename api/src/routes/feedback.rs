@@ -8,13 +8,12 @@ use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
+use super::auth::{RequiredAdminUser, RequiredUser};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::feedback::{CreateFeedbackDTO, PartialFeedback};
 use crate::models::{self};
 use crate::routes::feedback::dto::FeedbackDto;
-
-use super::auth::{RequiredAdminUser, RequiredUser};
 
 pub mod dto;
 

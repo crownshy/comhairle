@@ -519,13 +519,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
 
     use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_organization_id,
     };

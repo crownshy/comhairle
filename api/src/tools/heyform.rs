@@ -21,6 +21,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
 use crate::models;
@@ -1119,6 +1120,7 @@ pub async fn submissions_csv(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::error::Error;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -1133,15 +1135,12 @@ mod tests {
     use sqlx::PgPool;
     use tokio::net::TcpListener;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::test_helpers::heyform_tool_config;
-
-    use super::*;
-
-    use std::error::Error;
 
     #[derive(Clone)]
     struct MockHeyFormState {

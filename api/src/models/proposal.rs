@@ -187,17 +187,16 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> 
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use serde_json::json;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::test_helpers::prioritization_tool_config;
-
-    use super::*;
-
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_new_proposal(pool: PgPool) -> Result<(), Box<dyn Error>> {

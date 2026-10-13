@@ -10,10 +10,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::{ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-
-use super::{ToolConfigSanitize, ToolImpl};
 
 #[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone, PartialEq)]
 pub struct StoriesToolConfig {

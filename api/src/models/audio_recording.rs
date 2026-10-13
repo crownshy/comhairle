@@ -353,10 +353,9 @@ pub async fn update_status(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::sync::Arc;
 
+    use super::*;
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
     use crate::setup_server;

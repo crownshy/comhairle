@@ -347,13 +347,13 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhairle
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use super::*;
     use crate::models::event::{self, CreateEvent, SignupMode};
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
     };
-
-    use super::*;
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_attendance_for_event_without_capacity(

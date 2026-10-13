@@ -952,9 +952,8 @@ pub struct LoginResp {
 
 #[cfg(test)]
 mod tests {
-    use crate::wiki_poll_service::polis_service::PolisClient;
-
     use super::*;
+    use crate::wiki_poll_service::polis_service::PolisClient;
 
     #[tokio::test]
     #[ignore]

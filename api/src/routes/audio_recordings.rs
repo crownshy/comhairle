@@ -398,11 +398,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use serde_json::json;
     use std::sync::Arc;
 
+    use serde_json::json;
+
+    use super::*;
     use crate::models::audio_recording::AudioFormat;
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
@@ -722,12 +722,14 @@ mod tests {
     async fn test_submit_report_marks_both_available(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::bulk_storage_service::UploadResult;
-        use crate::routes::auth::build_webhook_signature;
+        use std::str::FromStr;
+
         use axum::body::Body;
         use axum::http::{HeaderName, HeaderValue};
         use chrono::Utc;
-        use std::str::FromStr;
+
+        use crate::bulk_storage_service::UploadResult;
+        use crate::routes::auth::build_webhook_signature;
 
         let mut config = test_config()?;
         if config.categorization_service.is_none() {

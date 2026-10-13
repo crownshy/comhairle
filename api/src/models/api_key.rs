@@ -108,11 +108,10 @@ pub async fn get_matching_user_id(db: &PgPool, key: &str) -> Result<Uuid, Comhai
 
 #[cfg(test)]
 mod tests {
-    use crate::models::users;
+    use std::error::Error;
 
     use super::*;
-
-    use std::error::Error;
+    use crate::models::users;
 
     #[test]
     fn same_keys_produce_same_hashes() {

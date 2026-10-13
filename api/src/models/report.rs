@@ -12,6 +12,9 @@ use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
 
+use super::feedback::{self};
+use super::report_impact::{self};
+use super::{workflow, workflow_step};
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::translations::{TextContentId, TextFormat, new_translation};
@@ -26,10 +29,6 @@ use crate::tools::prioritization::PrioritizationReport;
 use crate::tools::stories::StoriesReport;
 use crate::tools::thinking_space::ThinkingSpaceReport;
 use crate::tools::{ReportConfig, ToolConfig};
-
-use super::feedback::{self};
-use super::report_impact::{self};
-use super::{workflow, workflow_step};
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -333,12 +332,11 @@ pub async fn get_localized_for_conversation(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
 
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };

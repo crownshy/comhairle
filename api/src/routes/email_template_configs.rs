@@ -233,17 +233,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use sqlx::PgPool;
+
+    use super::*;
     use crate::mailer::MockComhairleMailer;
     use crate::models::email_template_config::{DefaultEmailSlots, EmailType};
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_state};
-
-    use super::*;
-
-    use std::error::Error;
-
-    use sqlx::PgPool;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_email_template_config(pool: PgPool) -> Result<(), Box<dyn Error>> {

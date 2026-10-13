@@ -1,9 +1,6 @@
-use crate::bulk_storage_service::{BulkStorageService, FileMetadata};
-use crate::models::audio_recording::AudioFormat;
-use crate::transcription_service::TranscribeFromBulkResponse;
+use std::process::Stdio;
+use std::sync::Arc;
 
-use super::error::{Result, TranscriptionServiceError};
-use super::{Transcriber, TranscriptEvent, Transcription};
 use async_trait::async_trait;
 use aws_config;
 use aws_sdk_transcribe;
@@ -16,14 +13,18 @@ use aws_smithy_http::event_stream::EventStreamSender;
 use bytes::Bytes;
 use chrono::Utc;
 use serde::Deserialize;
-use std::process::Stdio;
-use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::mpsc::{self, Receiver};
 use tracing::{error, info, warn};
 use uuid::Uuid;
+
+use super::error::{Result, TranscriptionServiceError};
+use super::{Transcriber, TranscriptEvent, Transcription};
+use crate::bulk_storage_service::{BulkStorageService, FileMetadata};
+use crate::models::audio_recording::AudioFormat;
+use crate::transcription_service::TranscribeFromBulkResponse;
 
 async fn write_stream(mut rx: Receiver<Bytes>, filename: &str) -> std::io::Result<()> {
     let mut file = File::create(filename).await?;
@@ -760,15 +761,14 @@ impl From<AwsTranscriptionAudioSegment> for TranscriptEvent {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use aws_config::BehaviorVersion;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::bulk_storage_service::s3_storage::S3StorageService;
     use crate::test_helpers::test_state;
-
-    use super::*;
-
-    use std::error::Error;
 
     fn create_event(
         text: &str,

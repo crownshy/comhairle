@@ -345,17 +345,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use chrono::Utc;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
 
+    use super::*;
     use crate::models::event::SignupMode;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
-
-    use super::*;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {

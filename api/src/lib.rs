@@ -38,7 +38,6 @@ use mailer::ComhairleMailer;
 use routes::auth::AUTH_KEY;
 pub use routes::auth::hash_pw;
 use sqlx_postgres::PgPool;
-use std::sync::Arc;
 use tokio::fs;
 use tower_http::cors::CorsLayer;
 use translation_service::TranslationService;

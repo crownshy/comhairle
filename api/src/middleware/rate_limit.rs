@@ -1,10 +1,12 @@
-use crate::config::ComhairleConfig;
+use std::sync::Arc;
+
 use axum::body::Body;
 use governor::middleware::StateInformationMiddleware;
-use std::sync::Arc;
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
+
+use crate::config::ComhairleConfig;
 
 /// Configuration for rate limiting
 #[derive(Clone)]

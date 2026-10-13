@@ -130,10 +130,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::setup_server;
-    use crate::test_helpers::{UserSession, test_state};
     use std::collections::HashMap;
     use std::error::Error;
     use std::pin::Pin;
@@ -144,6 +140,11 @@ mod tests {
     use mockall::predicate::{always, eq};
     use serde_json::json;
     use sqlx::PgPool;
+
+    use super::*;
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_single_chat_session(pool: PgPool) -> Result<(), Box<dyn Error>> {

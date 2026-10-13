@@ -267,6 +267,11 @@ pub async fn delete(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, Comha
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use serde_json::json;
+
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
@@ -274,11 +279,6 @@ mod tests {
     use crate::models::users;
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::test_helpers::thinking_space_tool_config;
-
-    use super::*;
-
-    use serde_json::json;
-    use std::error::Error;
 
     async fn create_thinking_space_resources(
         pool: &PgPool,

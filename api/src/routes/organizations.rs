@@ -507,11 +507,12 @@ async fn delete(
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    use axum::middleware::{from_fn, from_fn_with_state};
+
     use crate::middleware::permissions::{
         PermissionRequirement, authenticate, authorize as permission_middleware,
     };
     use crate::models::permissions::organization::Action as OrganizationAction;
-    use axum::middleware::{from_fn, from_fn_with_state};
     let requirement = PermissionRequirement::<OrganizationResource>::new;
     let system_requirement = PermissionRequirement::<SystemResource>::new;
     ApiRouter::new()
@@ -660,14 +661,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-    use sqlx::PgPool;
     use std::error::Error;
 
-    use crate::models::model_test_helpers::setup_default_app_and_session;
-    use crate::models::organization::OrganizationType;
+    use serde_json::json;
+    use sqlx::PgPool;
 
     use super::*;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::organization::OrganizationType;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {

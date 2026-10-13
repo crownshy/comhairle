@@ -305,9 +305,9 @@ pub async fn list(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
+
+    use super::*;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_job(pool: PgPool) -> Result<(), Box<dyn Error>> {

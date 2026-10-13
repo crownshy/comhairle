@@ -333,15 +333,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-    use sqlx::PgPool;
     use std::error::Error;
 
+    use serde_json::json;
+    use sqlx::PgPool;
+
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::region::RegionType;
     use crate::models::region_area;
-
-    use super::*;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_a_region(pool: PgPool) -> Result<(), Box<dyn Error>> {

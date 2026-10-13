@@ -35,9 +35,6 @@ use crate::{
     },
 };
 
-#[cfg(test)]
-use mockall::{automock, predicate::*};
-
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait WorkerService: Send + Sync {

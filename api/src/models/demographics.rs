@@ -791,10 +791,9 @@ pub async fn delete_demographics_response(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::test_helpers::UserSession;
-
-    use super::*;
 
     // Test can create, get, update and delete a demographics question.
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]

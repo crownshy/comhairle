@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::sync::Arc;
+
 use aws_config::BehaviorVersion;
 use comhairle::bot_service::{ComhairleBotService, ComhairleRagBotService};
 use comhairle::bulk_storage_service::BulkStorageService;
@@ -16,8 +19,6 @@ use comhairle::wiki_poll_service::polis_service::PolisClient;
 use comhairle::worker_service::{init_monitor, init_worker_service};
 use comhairle::{ComhairleState, setup_server};
 use redis::aio::ConnectionManagerConfig;
-use std::error::Error;
-use std::sync::Arc;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 

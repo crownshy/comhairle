@@ -494,8 +494,9 @@ fn geometry_error(error: sqlx::Error) -> ComhairleError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn rejects_invalid_area_locations() {

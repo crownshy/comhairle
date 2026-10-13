@@ -18,6 +18,7 @@ use thiserror::Error;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::permissions::conversation::Action;
@@ -36,8 +37,6 @@ use crate::routes::auth::{RequiredAdminUser, RequiredUser};
 use crate::wiki_poll_service::{
     ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
 };
-
-use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
 #[derive(Deserialize)]
 struct PolisWorkflowStepPermissionBody {
@@ -1988,14 +1987,13 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::polis_statement_aux::{self, CreatePolisStatementAux};
     use crate::setup_server;
     use crate::test_helpers::{UserSession, extract, polis_tool_config, test_state};
     use crate::wiki_poll_service::error::WikiPollServiceError;
     use crate::wiki_poll_service::{MockWikiPollService, WikiPollService};
-
-    use super::*;
 
     async fn setup_polis_aux(
         app: &Router,

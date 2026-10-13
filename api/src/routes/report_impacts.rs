@@ -8,13 +8,12 @@ use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
+use super::auth::RequiredAdminUser;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::report_impact::{CreateImpactDTO, PartialReportImpact};
 use crate::models::{self};
 use crate::routes::report_impacts::dto::ReportImpactDto;
-
-use super::auth::RequiredAdminUser;
 
 pub mod dto;
 
