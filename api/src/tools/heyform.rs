@@ -563,10 +563,10 @@ fn extract_field_title(title: &serde_json::Value) -> Option<String> {
                 if let Some(s) = content.as_str() {
                     return Some(s.to_owned());
                 }
-                if let Some(inner) = content.as_array() {
-                    if let Some(s) = inner.first().and_then(|v| v.as_str()) {
-                        return Some(s.to_owned());
-                    }
+                if let Some(inner) = content.as_array()
+                    && let Some(s) = inner.first().and_then(|v| v.as_str())
+                {
+                    return Some(s.to_owned());
                 }
                 return None;
             }
@@ -693,21 +693,21 @@ pub fn build_survey_insights(
             None
         };
         for answer in &submission.answers {
-            if let Some(field_id) = answer.get("id").and_then(|v| v.as_str()) {
-                if let Some(val) = answer.get("value") {
-                    if !val.is_null() && !is_empty_value(val) {
-                        let key = (field_id.to_string(), sub_id.clone());
-                        if seen_answers.insert(key) {
-                            submissions_by_field
-                                .entry(field_id.to_string())
-                                .or_default()
-                                .push(InsightSubmission {
-                                    submission_id: sub_id.clone(),
-                                    value: val.clone(),
-                                    submitted_at,
-                                });
-                        }
-                    }
+            if let Some(field_id) = answer.get("id").and_then(|v| v.as_str())
+                && let Some(val) = answer.get("value")
+                && !val.is_null()
+                && !is_empty_value(val)
+            {
+                let key = (field_id.to_string(), sub_id.clone());
+                if seen_answers.insert(key) {
+                    submissions_by_field
+                        .entry(field_id.to_string())
+                        .or_default()
+                        .push(InsightSubmission {
+                            submission_id: sub_id.clone(),
+                            value: val.clone(),
+                            submitted_at,
+                        });
                 }
             }
         }
@@ -717,24 +717,25 @@ pub fn build_survey_insights(
     for report_sub in &report.submissions {
         let field_id = &report_sub.id;
         for answer in &report_sub.answers {
-            if let Some(val) = &answer.value {
-                if !val.is_null() && !is_empty_value(val) {
-                    let key = (field_id.clone(), answer.submission_id.clone());
-                    if seen_answers.insert(key) {
-                        let submitted_at = if answer.end_at != 0 {
-                            Some(answer.end_at)
-                        } else {
-                            None
-                        };
-                        submissions_by_field
-                            .entry(field_id.clone())
-                            .or_default()
-                            .push(InsightSubmission {
-                                submission_id: answer.submission_id.clone(),
-                                value: val.clone(),
-                                submitted_at,
-                            });
-                    }
+            if let Some(val) = &answer.value
+                && !val.is_null()
+                && !is_empty_value(val)
+            {
+                let key = (field_id.clone(), answer.submission_id.clone());
+                if seen_answers.insert(key) {
+                    let submitted_at = if answer.end_at != 0 {
+                        Some(answer.end_at)
+                    } else {
+                        None
+                    };
+                    submissions_by_field
+                        .entry(field_id.clone())
+                        .or_default()
+                        .push(InsightSubmission {
+                            submission_id: answer.submission_id.clone(),
+                            value: val.clone(),
+                            submitted_at,
+                        });
                 }
             }
         }
@@ -744,9 +745,7 @@ pub fn build_survey_insights(
         .responses
         .iter()
         .filter_map(|response| {
-            let Some(field) = fields_by_id.get(&response.id) else {
-                return None;
-            };
+            let field = fields_by_id.get(&response.id)?;
 
             // Resolve the question title from the form field, falling back to
             // the field ID when no plain-text title is available.
@@ -767,9 +766,8 @@ pub fn build_survey_insights(
                     choices
                         .iter()
                         .filter_map(|choice| {
-                            let Some(choice) = choice.as_object() else {
-                                return None;
-                            };
+                            let choice = choice.as_object()?;
+
                             let id = choice
                                 .get("id")
                                 .and_then(|id| id.as_str())
@@ -805,7 +803,7 @@ pub fn build_survey_insights(
 
             Some(InsightQuestion {
                 id: response.id.clone(),
-                kind: Some(String::from(field.kind.clone())),
+                kind: Some(field.kind.clone()),
                 title,
                 answered,
                 total: response.total,

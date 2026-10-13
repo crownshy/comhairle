@@ -930,7 +930,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -995,7 +995,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1010,7 +1010,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1056,7 +1056,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1067,14 +1067,14 @@ mod tests {
         // Grant additional permissions
         for i in 0..5 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1139,7 +1139,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1151,14 +1151,14 @@ mod tests {
         // Grant additional permissions
         for i in 0..5 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1166,14 +1166,14 @@ mod tests {
 
         for i in 0..3 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id_2, &format!("OtherRole{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id_2, &format!("OtherRole{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1246,7 +1246,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1265,7 +1265,7 @@ mod tests {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1278,7 +1278,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: PermissionTriplet(RESOURCE_TYPE, &resource_2_id, "Role1"),
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1330,7 +1330,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1374,7 +1374,7 @@ mod tests {
         )
         .await?;
 
-        assert!(permissions.records.len() > 0);
+        assert!(!permissions.records.is_empty());
 
         let permission = &permissions.records[0];
         assert_eq!(

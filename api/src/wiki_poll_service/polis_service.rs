@@ -576,7 +576,7 @@ impl WikiPollService for PolisClient {
             password: password.clone(),
             password2: password,
             email,
-            gatekeeperTosPrivacy: true,
+            gatekeeper_tos_privacy: true,
         };
 
         let _res = self
@@ -929,7 +929,8 @@ struct NewAdminUser {
     pub password: String,
     pub password2: String,
     pub email: String,
-    pub gatekeeperTosPrivacy: bool,
+    #[serde(rename = "gatekeeperTosPrivacy")]
+    pub gatekeeper_tos_privacy: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

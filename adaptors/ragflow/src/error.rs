@@ -18,9 +18,9 @@ pub enum RagflowError {
     NotFound(String),
 }
 
-impl Into<StatusCode> for &RagflowError {
-    fn into(self) -> StatusCode {
-        match self {
+impl From<&RagflowError> for StatusCode {
+    fn from(val: &RagflowError) -> Self {
+        match val {
             RagflowError::Http(err) => {
                 if let Some(status) = err.status() {
                     status

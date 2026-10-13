@@ -53,7 +53,7 @@ impl HeyFormClient {
     }
 
     /// Create a client with default HeyForm URL
-    pub fn default() -> Result<Self> {
+    pub fn with_default_url() -> Result<Self> {
         Self::new("https://app.heyform.net")
     }
 
@@ -384,7 +384,7 @@ impl HeyFormClient {
     pub async fn get_form_report(&self, form_id: String) -> Result<FormReport> {
         let variables = serde_json::json!({
             "input": FormDetailInput {
-                form_id: form_id,
+                form_id,
             }
         });
 

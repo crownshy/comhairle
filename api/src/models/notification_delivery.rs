@@ -432,6 +432,7 @@ pub async fn list(
 }
 
 #[instrument(err(Debug), skip(db))]
+#[expect(deprecated, reason = "Requires sea_query version upgrade")]
 pub async fn get_unread_count_for_user(db: &PgPool, user_id: &Uuid) -> Result<i64, ComhairleError> {
     let (sql, values) = Query::select()
         .expr(Expr::count(Expr::asterisk()))
