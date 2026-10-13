@@ -23,7 +23,7 @@ pub enum StatementThemeAssignerError {
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] StructuredOutputError),
+    RigExtractorError(#[from] Box<StructuredOutputError>),
     #[error("Statement serialization error {0}")]
     StatementSeializationError(#[from] StatementError),
     #[error("Theme serialization error {0}")]
@@ -51,12 +51,12 @@ impl StatementThemeAssigner {
         let mut pending_ids: HashSet<String> =
             list.statements.iter().map(|s| s.id.clone()).collect();
 
-        while pending_ids.len() > 0 {
+        while !pending_ids.is_empty() {
             let filtered_statement_list: Vec<Statement> = list
                 .statements
                 .iter()
                 .filter(|statement| pending_ids.contains(&statement.id))
-                .map(|s| s.clone())
+                .cloned()
                 .collect();
 
             let statement_text = StatementList {
@@ -64,7 +64,7 @@ impl StatementThemeAssigner {
             }
             .to_model_embed()?;
 
-            let result = extractor.extract(statement_text).await?.output;
+            let result = extractor.extract(statement_text).await.map_err(Box::new)?.output;
 
             for entry in &result.statement_assignments {
                 pending_ids.remove(&entry.statement_id);

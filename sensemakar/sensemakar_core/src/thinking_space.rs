@@ -37,7 +37,7 @@ pub enum ThinkingSpaceError {
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] StructuredOutputError),
+    RigExtractorError(#[from] Box<StructuredOutputError>),
     #[error("Statement serialization error {0}")]
     QuestionChainSeializationError(#[from] serde_json::Error),
 }
@@ -54,7 +54,7 @@ impl FollowUpQuestionGenerator {
             .retries(2)
             .build();
         let question_list = serde_json::to_string(&question_chain)?;
-        let follow_ups = extractor.extract(question_list).await?.output;
+        let follow_ups = extractor.extract(question_list).await.map_err(Box::new)?.output;
 
         Ok(follow_ups.questions)
     }
@@ -82,7 +82,7 @@ impl SummaryGenerator {
             .retries(2)
             .build();
         let question_list = serde_json::to_string(&question_chain)?;
-        let summary = extractor.extract(question_list).await?.output;
+        let summary = extractor.extract(question_list).await.map_err(Box::new)?.output;
 
         Ok(summary)
     }
@@ -121,7 +121,7 @@ mod tests {
             )
             .await;
         assert!(result.is_ok(), "model should run");
-        let result = result.unwrap();
+        result.unwrap();
     }
 
     #[tokio::test]
@@ -156,6 +156,6 @@ mod tests {
 
         let result = generator.run_with_model(question_chain, model).await;
         assert!(result.is_ok(), "model should run");
-        let result = result.unwrap();
+        result.unwrap();
     }
 }

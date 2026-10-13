@@ -20,7 +20,7 @@ pub enum StatementTypeClassifierError {
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] StructuredOutputError),
+    RigExtractorError(#[from] Box<StructuredOutputError>),
     #[error("Statement serialization error {0}")]
     StatementSeializationError(#[from] StatementError),
 }
@@ -43,7 +43,7 @@ impl StatementTypeClassifier {
         let list: StatementList = statement_list.into();
         let statement_text = list.to_model_embed()?;
 
-        let result = extractor.extract(statement_text).await?.output;
+        let result = extractor.extract(statement_text).await.map_err(Box::new)?.output;
 
         Ok(result.statements)
     }
@@ -70,7 +70,7 @@ impl StatementTypeClassifier {
         for chunk in list.statements.chunks(batch_size) {
             let statement_text = StatementList::from(chunk.to_vec()).to_model_embed()?;
 
-            let result = extractor.extract(statement_text).await?.output;
+            let result = extractor.extract(statement_text).await.map_err(Box::new)?.output;
             results.extend(result.statements);
         }
         Ok(results)

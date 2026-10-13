@@ -12,7 +12,7 @@ pub enum WikiPollGroupDescriberError {
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] StructuredOutputError),
+    RigExtractorError(#[from] Box<StructuredOutputError>),
     #[error("json error error {0}")]
     StatementFormatError(#[from] serde_json::Error),
 }
@@ -38,7 +38,7 @@ impl WikiPollGroupDescriber {
 
         let statement_json: String = serde_json::to_string(wiki_poll_report)?;
 
-        let result = extractor.extract(statement_json).await?.output;
+        let result = extractor.extract(statement_json).await.map_err(Box::new)?.output;
         Ok(result)
     }
 }
@@ -64,10 +64,10 @@ mod tests {
         let describer = WikiPollGroupDescriber::builder()
             .context("Thesse are statements from a polis conv with the title 'What should be the futrue of south staffisher".into())
             .build();
-        for i in 0..10 {
+        for _ in 0..10 {
             let result = describer.run_with_model(&data, model.clone()).await;
             assert!(result.is_ok(), "The extractor should run ");
-            let result = result.unwrap();
+            result.unwrap();
         }
     }
 }

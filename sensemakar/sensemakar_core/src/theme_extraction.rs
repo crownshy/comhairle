@@ -12,10 +12,14 @@ use thiserror::Error;
 #[template(path = "themes/extract_themes.md")]
 pub struct ThemeExtractor {
     existing_themes: Option<Vec<Theme>>,
+    // Not yet read by the template; plumbed through from CLI/API for a future constraint.
+    #[allow(dead_code)]
     allow_additional_themes: bool,
     context: Option<String>,
     additional_instructions: Option<String>,
+    #[allow(dead_code)]
     max_themes: Option<u32>,
+    #[allow(dead_code)]
     min_themes: Option<u32>,
 }
 
@@ -24,7 +28,7 @@ pub enum ThemeExtractorError {
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] StructuredOutputError),
+    RigExtractorError(#[from] Box<StructuredOutputError>),
     #[error("Statement serialization error {0}")]
     StatementSeializationError(#[from] StatementError),
 }
@@ -47,7 +51,7 @@ impl ThemeExtractor {
         let list: StatementList = statement_list.into();
         let statement_text = list.to_model_embed()?;
 
-        let result = extractor.extract(statement_text).await?.output;
+        let result = extractor.extract(statement_text).await.map_err(Box::new)?.output;
 
         Ok(result.themes)
     }
@@ -65,15 +69,12 @@ impl ThemeExtractor {
 
         for group in list.statements.chunks(batch_size) {
             let new_themes = self.run_with_model(group.to_vec(), model.clone()).await?;
-            match !new_themes.is_empty() {
-                true => {
-                    if let Some(existing_themes) = &mut self.existing_themes {
-                        existing_themes.extend(new_themes);
-                    } else {
-                        self.existing_themes = Some(new_themes);
-                    }
+            if !new_themes.is_empty() {
+                if let Some(existing_themes) = &mut self.existing_themes {
+                    existing_themes.extend(new_themes);
+                } else {
+                    self.existing_themes = Some(new_themes);
                 }
-                false => (),
             }
         }
 
