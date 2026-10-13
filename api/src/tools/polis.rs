@@ -638,7 +638,8 @@ struct NewAdminUser {
     pub password: String,
     pub password2: String,
     pub email: String,
-    pub gatekeeperTosPrivacy: bool,
+    #[serde(rename = "gatekeeperTosPrivacy")]
+    pub gatekeeper_tos_privacy: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -2355,6 +2356,7 @@ mod tests {
     }
 
     /// A Polis mock that records every config update it is sent.
+    #[allow(clippy::type_complexity, reason = "Only features in test helper")]
     fn poll_service_recording_updates() -> (
         Arc<dyn WikiPollService>,
         Arc<std::sync::Mutex<Vec<(String, WikiPollConfigUpdate)>>>,

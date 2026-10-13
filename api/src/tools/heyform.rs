@@ -745,9 +745,7 @@ pub fn build_survey_insights(
         .responses
         .iter()
         .filter_map(|response| {
-            let Some(field) = fields_by_id.get(&response.id) else {
-                return None;
-            };
+            let field = fields_by_id.get(&response.id)?;
 
             // Resolve the question title from the form field, falling back to
             // the field ID when no plain-text title is available.
@@ -768,9 +766,8 @@ pub fn build_survey_insights(
                     choices
                         .iter()
                         .filter_map(|choice| {
-                            let Some(choice) = choice.as_object() else {
-                                return None;
-                            };
+                            let choice = choice.as_object()?;
+
                             let id = choice
                                 .get("id")
                                 .and_then(|id| id.as_str())

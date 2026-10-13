@@ -53,7 +53,7 @@ impl HeyFormClient {
     }
 
     /// Create a client with default HeyForm URL
-    pub fn default() -> Result<Self> {
+    pub fn with_default_url() -> Result<Self> {
         Self::new("https://app.heyform.net")
     }
 

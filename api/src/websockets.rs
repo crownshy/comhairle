@@ -1053,7 +1053,7 @@ mod tests {
             redis_url = "redis://localhost:6379/".to_string();
         } else {
             // Try to start a temporary server for local development
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| RedisServer::new())) {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(RedisServer::new)) {
                 Ok(server) => {
                     let addr = server.connection_info().addr().to_string();
                     redis_url = format!("redis://{}/", addr);

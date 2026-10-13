@@ -95,7 +95,10 @@ pub type Result<T> = std::result::Result<T, WorkerServiceError>;
 ///     .await?;
 /// ```
 ///
-#[allow(async_fn_in_trait)]
+#[allow(
+    async_fn_in_trait,
+    reason = "extension trait only called on concrete types, no Send-ness of the future is inferred"
+)]
 pub trait RecordWorkerError<T> {
     /// Records a job failure in the database and propagates the error.
     ///

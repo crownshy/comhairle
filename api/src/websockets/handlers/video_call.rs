@@ -80,6 +80,7 @@ pub struct VideoCallState {
 ///
 /// Manages the state of all active video calls and handles incoming
 /// WebSocket messages related to video call operations.
+#[derive(Default)]
 pub struct VideoCallMessageHandler {
     /// Thread-safe map of event IDs to their video call states
     pub video_calls: RwLock<HashMap<Uuid, VideoCallState>>,

@@ -51,7 +51,7 @@ impl Transcription {
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait Transcriber: Sync + Send {
-    async fn transcribe(&self, audio: &Vec<u8>) -> Result<String>;
+    async fn transcribe(&self, audio: &[u8]) -> Result<String>;
     async fn transcribe_from_bulk_store(
         &self,
         store: &str,

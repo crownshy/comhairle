@@ -79,16 +79,17 @@ pub enum AudioRecordingStatus {
     CategorizationFailed,
 }
 
-impl ToString for AudioRecordingStatus {
-    fn to_string(&self) -> String {
-        match self {
+impl std::fmt::Display for AudioRecordingStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
             AudioRecordingStatus::AwaitingUpload => "awaiting_upload".to_string(),
             AudioRecordingStatus::Transcribing => "transcribing".to_string(),
             AudioRecordingStatus::Categorizing => "categorizing".to_string(),
             AudioRecordingStatus::Complete => "complete".to_string(),
             AudioRecordingStatus::TranscriptionFailed => "transcription_failed".to_string(),
             AudioRecordingStatus::CategorizationFailed => "categorization_failed".to_string(),
-        }
+        };
+        write!(f, "{}", value)
     }
 }
 

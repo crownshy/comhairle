@@ -347,9 +347,7 @@ pub async fn get_demographic_report(
                 .as_deref()
                 .map(|value| demographics::resolve_category_bucket(value, &bucket_config.0))
                 .unwrap_or_default();
-            let category_counts = categories
-                .entry(row.category_name.clone())
-                .or_insert_with(Vec::new);
+            let category_counts = categories.entry(row.category_name.clone()).or_default();
 
             if let Some(category_count) =
                 category_counts.iter_mut().find(|c| c.value == bucket_value)
@@ -365,7 +363,7 @@ pub async fn get_demographic_report(
         } else {
             categories
                 .entry(row.category_name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(DemographicCount {
                     display_name: row.display_name.unwrap_or(row.category_name.clone()),
                     value: row.value.unwrap_or_default(),

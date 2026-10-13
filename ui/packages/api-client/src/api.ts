@@ -3976,20 +3976,6 @@ const endpoints = makeApi([
     response: UserDto,
   },
   {
-    method: "get",
-    path: "/auth/test_api_key_extraction",
-    alias: "getAuthtest_api_key_extraction",
-    requestFormat: "json",
-    response: UserDto,
-  },
-  {
-    method: "get",
-    path: "/auth/test_requires_roles/:conversation_id",
-    alias: "TestRequiresRoles",
-    requestFormat: "json",
-    response: UserDto,
-  },
-  {
     method: "post",
     path: "/auth/verify_email_token",
     alias: "VerifyEmailToken",

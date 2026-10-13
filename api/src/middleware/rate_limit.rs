@@ -107,6 +107,7 @@ pub fn standard_rate_limiter()
 /// - 300 requests per minute per IP
 /// - Burst capacity of 50 requests
 /// - Suitable for read-heavy operations
+#[expect(dead_code, reason = "For future use")]
 pub fn lenient_rate_limiter() -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body>
 {
     create_rate_limiter(RateLimitConfig::lenient())
