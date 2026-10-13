@@ -47,7 +47,7 @@ pub async fn wiki_poll_summary_handler(
         .await?;
 
     let model_config = match model_cfg.provider {
-        crate::config::SensemakerModelProvider::OpenAiCompatible => {
+        crate::sensemakar_service::config::SensemakarModelProvider::OpenAiCompatible => {
             model_config::ModelConfig::OpenAiCompatible {
                 base_url: model_cfg
                     .base_url
@@ -64,10 +64,12 @@ pub async fn wiki_poll_summary_handler(
                 model: model_cfg.model.clone(),
             }
         }
-        crate::config::SensemakerModelProvider::Bedrock => model_config::ModelConfig::Bedrock {
-            model: model_cfg.model.clone(),
-            region: model_cfg.region.clone(),
-        },
+        crate::sensemakar_service::config::SensemakarModelProvider::Bedrock => {
+            model_config::ModelConfig::Bedrock {
+                model: model_cfg.model.clone(),
+                region: model_cfg.region.clone(),
+            }
+        }
     };
     let model = model_config::build_model(&model_config);
 

@@ -2,6 +2,8 @@ use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use sensemakar_jobs::{ThinkingSpaceNextQuestionJob, ThinkingSpaceSummaryJob, redis_conn};
 
+pub mod config;
+
 #[derive(Clone)]
 pub struct SenseMakarService {
     pub thinking_space_followup_question_generator: RedisStorage<ThinkingSpaceNextQuestionJob>,
