@@ -46,7 +46,6 @@ impl ThemeExtractor {
 
         let list: StatementList = statement_list.into();
         let statement_text = list.to_model_embed()?;
-        println!("statement text {statement_text}");
 
         let result = extractor.extract(statement_text).await?.output;
 
@@ -101,7 +100,6 @@ mod tests {
         let model = test_model();
 
         let themes = extractor.run_with_model(statement_list, model).await;
-        println!("{:#?}", themes);
         let themes = themes.unwrap();
 
         assert!(!themes.is_empty(), "expected at least one extracted theme");
@@ -120,7 +118,6 @@ mod tests {
         let themes = extractor
             .run_in_batches_with_model(statement_list, model, 2)
             .await;
-        println!("{:#?}", themes);
         let themes = themes.unwrap();
 
         assert!(!themes.is_empty(), "expected at least one extracted theme");

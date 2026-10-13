@@ -42,7 +42,6 @@ impl StatementTypeClassifier {
 
         let list: StatementList = statement_list.into();
         let statement_text = list.to_model_embed()?;
-        println!("statement text {statement_text}");
 
         let result = extractor.extract(statement_text).await?.output;
 
@@ -70,7 +69,6 @@ impl StatementTypeClassifier {
 
         for chunk in list.statements.chunks(batch_size) {
             let statement_text = StatementList::from(chunk.to_vec()).to_model_embed()?;
-            println!("statement text {statement_text}");
 
             let result = extractor.extract(statement_text).await?.output;
             results.extend(result.statements);
@@ -103,7 +101,6 @@ mod tests {
             statements_with_classification.len(),
             "Should get back as many as we sent"
         );
-        println!("statements {statements_with_classification:#?}");
     }
 
     #[tokio::test]
@@ -125,6 +122,5 @@ mod tests {
             statements_with_classification.len(),
             "Should get back as many as we sent"
         );
-        println!("statements {statements_with_classification:#?}");
     }
 }

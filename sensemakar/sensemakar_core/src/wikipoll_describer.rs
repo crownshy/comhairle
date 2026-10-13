@@ -56,7 +56,6 @@ mod tests {
         let model = test_model();
         let data = fs::read_to_string("data/wiki_poll_results.json").unwrap();
         let data: Vec<WikiPollStatement> = serde_json::from_str(&data).unwrap();
-        println!("total statements {}", data.len());
         let data: Vec<_> = data.into_iter().take(100).collect();
         let data = WikiPollData {
             title: "What is the future of south staffishire".into(),
@@ -67,14 +66,8 @@ mod tests {
             .build();
         for i in 0..10 {
             let result = describer.run_with_model(&data, model.clone()).await;
-            println!("{result:#?}");
             assert!(result.is_ok(), "The extractor should run ");
             let result = result.unwrap();
-            fs::write(
-                format!("run_{i}.json",),
-                serde_json::to_string_pretty(&result).unwrap(),
-            )
-            .unwrap();
         }
     }
 }

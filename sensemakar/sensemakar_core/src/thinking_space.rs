@@ -122,7 +122,6 @@ mod tests {
             .await;
         assert!(result.is_ok(), "model should run");
         let result = result.unwrap();
-        println!("{result:#?}");
     }
 
     #[tokio::test]
@@ -158,6 +157,5 @@ mod tests {
         let result = generator.run_with_model(question_chain, model).await;
         assert!(result.is_ok(), "model should run");
         let result = result.unwrap();
-        println!("{result:#?}");
     }
 }

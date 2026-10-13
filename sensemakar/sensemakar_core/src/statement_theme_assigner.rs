@@ -42,7 +42,6 @@ impl StatementThemeAssigner {
         let mut all_results: Vec<ThemeAssignment> = vec![];
 
         let template = self.render()?;
-        println!("Template is {template}");
         let extractor = ExtractorBuilder::<ThemeAssignmentResult>::new(model)
             .append_preamble(&template)
             .retries(2)
@@ -108,7 +107,6 @@ mod tests {
             .build();
 
         let statements_with_themes = classifier.run_with_model(statements, model).await;
-        println!("{statements_with_themes:#?}");
         assert!(statements_with_themes.is_ok(), "Should run ok");
 
         let statements_with_themes = statements_with_themes.unwrap();
@@ -117,6 +115,5 @@ mod tests {
             statements_with_themes.statement_assignments.len(),
             "Should get back as many as we sent"
         );
-        println!("statements {statements_with_themes:#?}");
     }
 }
