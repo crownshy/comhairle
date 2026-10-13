@@ -34,7 +34,7 @@ async function Switch(name: string, refs: Refs) {
 
 	const expector = async () => expect(isOn).toBe(await isSwitchOn());
 
-	refs.cleanup(async () => {
+	refs.cleanup?.(async () => {
 		await set(startsOn);
 	});
 

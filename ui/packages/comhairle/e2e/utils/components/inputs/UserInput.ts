@@ -2,7 +2,7 @@ import { generateValue } from '../..';
 
 type UserInputReturn = {
 	currentValue: string;
-	write: (value: string) => Promise<void>;
+	write: (value?: string) => Promise<void>;
 	expect: () => Promise<void>;
 };
 

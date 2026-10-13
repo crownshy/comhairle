@@ -5,10 +5,12 @@ import type { Refs } from '../types';
 type Options = {
 	resetTo?: string;
 	index?: number;
+	overrideRole?: 'spinbutton'; // For numeric inputs
 };
 
-const Textbox = async (name: string, refs: Refs, options: Options = {}) => {
-	const locator = () => refs.page.getByRole('textbox', { name }).nth(options.index ?? 0);
+const Textbox = async (name: string | undefined, refs: Refs, options: Options = {}) => {
+	const locator = () =>
+		refs.page.getByRole(options?.overrideRole ?? 'textbox', { name }).nth(options.index ?? 0);
 
 	const initialValue = await locator().inputValue();
 
@@ -18,13 +20,12 @@ const Textbox = async (name: string, refs: Refs, options: Options = {}) => {
 		expector: (currentValue) => expect(locator()).toHaveValue(currentValue)
 	});
 
-	refs.cleanup(() => userInputs.write(options.resetTo ?? initialValue));
+	refs.cleanup?.(() => userInputs.write(options.resetTo ?? initialValue));
 
 	return {
 		...userInputs,
 		locator,
-		isValid: (locator: Locator) =>
-			locator.evaluate((element) => (element as HTMLInputElement).validity.valid)
+		isValid: () => locator().evaluate((element) => (element as HTMLInputElement).validity.valid)
 	};
 };
 

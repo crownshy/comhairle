@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
-import { Textboxes, Switches } from './utils/components';
+import { Textbox, Switch } from './utils/components';
 import { eventually, test } from './utils/testing';
 import { exists, sleep, testWithRefresh } from './utils';
 
@@ -14,15 +14,11 @@ test.beforeEach(async ({ page }) => {
 
 test('Learning Assistant page', async ({ page, cleanup }) => {
 	// Show Learning Assistant
-	const switches = await Switches([['show_learning_assistant', 'Show Learning Assistant']], {
-		page,
-		cleanup
-	});
-
-	await switches.toggle('show_learning_assistant');
+	const ShowLearningAssistant = await Switch('Show Learning Assistant', { page, cleanup });
+	await ShowLearningAssistant.toggle();
 
 	await testWithRefresh(page, async () => {
-		await switches.expect();
+		await ShowLearningAssistant.expect();
 	});
 
 	// Learn Content
@@ -57,29 +53,28 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 	);
 
 	// Target reading age
-	const TargetReadingAge = page.getByRole('spinbutton');
+	const TargetReadingAge = await Textbox(
+		undefined,
+		{ page, cleanup },
+		{ resetTo: '9', overrideRole: 'spinbutton' }
+	);
 
-	await TargetReadingAge.click();
-	await TargetReadingAge.fill('18');
+	await TargetReadingAge.write('18');
 
-	cleanup(async () => {
-		await TargetReadingAge.fill('9');
-	});
-
-	await TargetReadingAge.fill('19');
-	expect(await Textboxes.isValid(TargetReadingAge)).toBe(false);
+	await TargetReadingAge.write('19');
+	expect(await TargetReadingAge.isValid()).toBe(false);
 	await expect(page.getByText('Something went wrong updating').first()).toBeVisible();
 
-	await TargetReadingAge.fill('10');
-	expect(await Textboxes.isValid(TargetReadingAge)).toBe(true);
+	await TargetReadingAge.write('10');
+	expect(await TargetReadingAge.isValid()).toBe(true);
 
-	await TargetReadingAge.fill('4');
-	expect(await Textboxes.isValid(TargetReadingAge)).toBe(false);
+	await TargetReadingAge.write('4');
+	expect(await TargetReadingAge.isValid()).toBe(false);
 	await expect(page.getByText('Something went wrong updating').first()).toBeVisible();
 
-	await TargetReadingAge.fill('9');
+	await TargetReadingAge.write('8');
 
 	await testWithRefresh(page, async () => {
-		expect(TargetReadingAge).toHaveValue('9');
+		TargetReadingAge.expect();
 	});
 });

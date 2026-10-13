@@ -1,10 +1,10 @@
 import { expect } from '@playwright/test';
-import { test } from './utils/testing';
-import { exists, sleep, testWithRefresh } from './utils';
+import { eventually, test } from './utils/testing';
+import { exists, testWithRefresh } from './utils';
 import { login } from './utils/auth';
 import { TEST_CONVERSATION_TITLE } from './utils/constants';
 import Conversation from './utils/navigation/Conversation';
-import { Textboxes } from './utils/components';
+import { Textbox } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -13,17 +13,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Details page', async ({ page, cleanup }) => {
-	const textboxes = Textboxes.new(
-		[
-			['title', 'Title'],
-			['short_description', 'Short description'],
-			['description', 'Description']
-		],
-		{
-			page,
-			cleanup
-		}
-	);
+	const Title = await Textbox('Title', { page, cleanup }, { resetTo: TEST_CONVERSATION_TITLE });
+	const ShortDescription = await Textbox('Short Description', { page, cleanup });
+	const Description = await Textbox('Description', { page, cleanup });
 
 	// const primary_language = page.getByRole('button', { name: 'English' });
 	// const supported_languages = page.getByRole('textbox', { name: 'Supported languages' });
@@ -31,9 +23,9 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// const NEW_PRIMARY_LANGUAGE = 'Arabic';
 	// const NEW_SUPPORTED_LANGUAGE = 'Welsh';
 
-	await textboxes.write('title', TEST_CONVERSATION_TITLE);
-	await textboxes.write('short_description', ' ');
-	await textboxes.write('description', ' ');
+	await Title.write();
+	await ShortDescription.write();
+	await Description.write();
 
 	// await primary_language.click();
 	// await page.getByRole('option', { name: NEW_PRIMARY_LANGUAGE }).click();
@@ -50,19 +42,18 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// });
 
 	await testWithRefresh(page, async () => {
-		await textboxes.expect();
-
-		// Wait for data to refresh before checking
-		await sleep(1.5);
+		await Title.expect();
+		await ShortDescription.expect();
+		await Description.expect();
 
 		const header = page.getByRole('heading', {
-			description: textboxes.get('title').value,
+			description: Title.currentValue,
 			exact: true
 		});
-		expect(await exists(header)).toBe(true);
+		await eventually(async () => expect(await exists(header)).toBe(true));
 
-		const conversation = page.getByRole('link', { name: textboxes.get('title').value });
-		expect(await exists(conversation)).toBe(true);
+		const conversation = page.getByRole('link', { name: Title.currentValue });
+		await eventually(async () => expect(await exists(conversation)).toBe(true));
 
 		// Translation stuff
 		// await expect(

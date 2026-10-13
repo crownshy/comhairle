@@ -3,7 +3,7 @@ import Conversation from './utils/navigation/Conversation';
 import { login } from './utils/auth';
 import { expect } from '@playwright/test';
 import { exists, sleep, testWithRefresh } from './utils';
-import { Textboxes } from './utils/components';
+import { Textbox } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -19,36 +19,33 @@ test('Configure/Moderation-Policy page', async ({ page }) => {
 	const AddReason = page.getByRole('button', { name: 'Add reason' });
 	await AddReason.click();
 
-	const NewReason = page.getByRole('textbox', { name: 'Reason' }).nth(10);
-	let newReason = await Textboxes.write(NewReason);
-	await NewReason.press('Tab');
+	const NewReason = await Textbox('Reason', { page }, { index: 10 });
+	await NewReason.write();
+	await NewReason.locator().press('Tab');
 
-	const NewDescription = page
-		.getByRole('textbox', { name: 'What counts under this reason' })
-		.nth(5);
-	let newDescription = await Textboxes.write(NewDescription);
+	const NewDescription = await Textbox('What counts under this reason', { page }, { index: 5 });
+	await NewDescription.write();
 
 	await eventually(async () => {
 		await expect(page.getByText('Saved')).toBeVisible();
 	});
 
 	await testWithRefresh(page, async () => {
-		await expect(NewReason).toHaveValue(newReason);
-		await expect(NewDescription).toHaveValue(newDescription);
+		await NewReason.expect();
+		await NewDescription.expect();
 	});
 
 	const RemoveNewReason = page.getByRole('button', { name: 'Remove reason' }).nth(5);
 	await RemoveNewReason.click();
 
 	await testWithRefresh(page, async () => {
-		expect(await exists(NewReason)).toBe(false);
-		expect(await exists(NewDescription)).toBe(false);
+		expect(await exists(NewReason.locator())).toBe(false);
+		expect(await exists(NewDescription.locator())).toBe(false);
 	});
 
 	await AddReason.click();
-
-	newReason = await Textboxes.write(NewReason);
-	newDescription = await Textboxes.write(NewDescription);
+	await NewReason.write();
+	await NewDescription.write();
 
 	await sleep(1.5);
 
