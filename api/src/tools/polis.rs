@@ -1149,7 +1149,7 @@ async fn get_latest_summary(
 ) -> Result<(StatusCode, Json<WikiPollConversationSummary>), ComhairleError> {
     let summary = models::wikipoll_conversation_summary::get_latest_by_workflow_step_id(
         &state.db,
-        &workflow_step_id,
+        workflow_step_id,
     )
     .await?
     .ok_or_else(|| ComhairleError::ResourceNotFound("Polis summary".into()))?;
@@ -1178,7 +1178,7 @@ async fn list_summaries(
 > {
     let summaries = models::wikipoll_conversation_summary::list_by_workflow_step_id(
         &state.db,
-        &query.workflow_step_id,
+        query.workflow_step_id,
         query.page,
     )
     .await?;

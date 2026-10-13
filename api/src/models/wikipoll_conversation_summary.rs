@@ -78,12 +78,12 @@ pub async fn create(
 #[instrument(err(Debug), skip(db))]
 pub async fn get_latest_by_workflow_step_id(
     db: &PgPool,
-    workflow_step_id: &Uuid,
+    workflow_step_id: Uuid,
 ) -> Result<Option<WikiPollConversationSummary>, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(WikiPollConversationSummaryIden::Table)
-        .and_where(Expr::col(WikiPollConversationSummaryIden::WorkflowStepId).eq(*workflow_step_id))
+        .and_where(Expr::col(WikiPollConversationSummaryIden::WorkflowStepId).eq(workflow_step_id))
         .order_by(
             WikiPollConversationSummaryIden::CreatedAt,
             sea_query::Order::Desc,
@@ -99,13 +99,13 @@ pub async fn get_latest_by_workflow_step_id(
 #[instrument(err(Debug), skip(db))]
 pub async fn list_by_workflow_step_id(
     db: &PgPool,
-    workflow_step_id: &Uuid,
+    workflow_step_id: Uuid,
     page_options: PageOptions,
 ) -> Result<PaginatedResults<WikiPollConversationSummary>, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(WikiPollConversationSummaryIden::Table)
-        .and_where(Expr::col(WikiPollConversationSummaryIden::WorkflowStepId).eq(*workflow_step_id))
+        .and_where(Expr::col(WikiPollConversationSummaryIden::WorkflowStepId).eq(workflow_step_id))
         .order_by(
             WikiPollConversationSummaryIden::CreatedAt,
             sea_query::Order::Desc,
@@ -181,13 +181,13 @@ mod tests {
         )
         .await?;
 
-        let latest = get_latest_by_workflow_step_id(&pool, &workflow_step_id)
+        let latest = get_latest_by_workflow_step_id(&pool, workflow_step_id)
             .await?
             .expect("a summary should exist");
         assert_eq!(latest.id, second.id, "latest should be the most recent one");
 
         let list =
-            list_by_workflow_step_id(&pool, &workflow_step_id, PageOptions::default()).await?;
+            list_by_workflow_step_id(&pool, workflow_step_id, PageOptions::default()).await?;
         assert_eq!(list.total, 2);
         assert_eq!(list.records[0].id, second.id);
         assert_eq!(list.records[1].id, first.id);
