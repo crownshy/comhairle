@@ -5,15 +5,23 @@
 	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { PALETTE_TOOLS, isEventPaletteItem, type CreationKey } from '$lib/tool_meta';
+	import type { DemographicSelection } from '$lib/createWorkflowStep';
+	import {
+		listPublishedDemographicForms,
+		listPublishedDemographicQuestions,
+		type PickerLoad,
+		type PublishedDemographicItem
+	} from '$lib/demographicCatalogue';
 	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
+	import DemographicItemPicker from './DemographicItemPicker.svelte';
 
 	/**
 	 * The "Add a step" dialog: a two-column picker (step-type list on the left, rich
 	 * detail panel on the right). Mirrors the choose-a-template dialog's shell and
-	 * reuses {@link SelectableOptionRow}. It does not touch the API itself. On confirm
-	 * it emits either the selected tool's `creationKey` (via {@link onAdd}) or, for an
-	 * event stand-in like the video conference, calls {@link onAddEvent}; the parent
-	 * then creates the step or event and closes the dialog.
+	 * reuses {@link SelectableOptionRow}. On confirm it emits the selected tool's
+	 * `creationKey` (via {@link onAdd}), with the chosen question or form for demographic
+	 * steps, or calls {@link onAddEvent} for an event stand-in like the video conference.
+	 * The parent creates the step or event and closes the dialog.
 	 */
 	type Props = {
 		/** Two-way open state. */
@@ -21,7 +29,7 @@
 		/** Disables the confirm button while the parent is creating the step. */
 		adding?: boolean;
 		/** Called with the chosen tool's `creationKey` when the user confirms a tool step. */
-		onAdd: (creationKey: CreationKey) => void;
+		onAdd: (creationKey: CreationKey, selection?: DemographicSelection) => void;
 		/** Called when the user confirms an event stand-in (no backing tool, e.g. video conference). */
 		onAddEvent: () => void;
 	};
@@ -31,6 +39,42 @@
 	const selected = $derived(
 		PALETTE_TOOLS.find((t) => t.type === selectedType) ?? PALETTE_TOOLS[0]
 	);
+
+	let questionLoad = $state<PickerLoad>({ status: 'loading' });
+	let formLoad = $state<PickerLoad>({ status: 'loading' });
+	let picked = $state<{ type: string; item: PublishedDemographicItem } | null>(null);
+
+	const selectedCreationKey = $derived(
+		isEventPaletteItem(selected) ? null : selected.creationKey
+	);
+	const demographicNoun = $derived(
+		selectedCreationKey === 'Demographic Question'
+			? 'question'
+			: selectedCreationKey === 'Demographic Form'
+				? 'form'
+				: null
+	);
+	const pickerLoad = $derived(
+		selectedCreationKey === 'Demographic Form' ? formLoad : questionLoad
+	);
+	const pickedForSelected = $derived(
+		picked && picked.type === selected.type ? picked.item : null
+	);
+
+	async function loadPickers() {
+		const [questions, forms] = await Promise.all([
+			listPublishedDemographicQuestions(),
+			listPublishedDemographicForms()
+		]);
+		questionLoad =
+			questions.err === null ? { status: 'ready', items: questions.ok } : { status: 'error' };
+		formLoad = forms.err === null ? { status: 'ready', items: forms.ok } : { status: 'error' };
+	}
+
+	// Reload on every open so questions and forms published since the last open appear.
+	$effect(() => {
+		if (open) void loadPickers();
+	});
 </script>
 
 <Dialog.Root bind:open>
@@ -67,43 +111,54 @@
 					<h3 class="text-foreground text-base font-bold">{selected.displayName}</h3>
 					<p class="text-muted-foreground text-base">{selected.description}</p>
 
-					<!-- Setup guide callout -->
-					<a
-						href={resolve('/(admin)/admin/info/tools/[tool_id]', {
-							tool_id: selected.infoSlug
-						})}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="bg-accent border-border hover:bg-accent/70 flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors"
-					>
-						<BookOpen class="text-primary size-4 shrink-0" />
-						<span class="flex flex-1 flex-col">
-							<span class="text-primary text-xs font-semibold">
-								Introduction & setup guide
+					{#if selected.infoSlug}
+						<!-- Setup guide callout -->
+						<a
+							href={resolve('/(admin)/admin/info/tools/[tool_id]', {
+								tool_id: selected.infoSlug
+							})}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="bg-accent border-border hover:bg-accent/70 flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors"
+						>
+							<BookOpen class="text-primary size-4 shrink-0" />
+							<span class="flex flex-1 flex-col">
+								<span class="text-primary text-xs font-semibold">
+									Introduction & setup guide
+								</span>
+								<span class="text-muted-foreground text-xs">
+									Learn how to configure this step, see examples, and understand
+									best practices.
+								</span>
 							</span>
-							<span class="text-muted-foreground text-xs">
-								Learn how to configure this step, see examples, and understand best
-								practices.
-							</span>
-						</span>
-						<ExternalLink class="text-primary size-3.5 shrink-0" />
-					</a>
+							<ExternalLink class="text-primary size-3.5 shrink-0" />
+						</a>
+					{/if}
 				</div>
 
-				<!-- Example media placeholders (tokenized blocks; no photos) -->
-				<div class="flex gap-2.5">
-					{#each [0, 1, 2] as block (block)}
-						<div
-							class="bg-muted border-border relative flex h-28 flex-1 items-center justify-center overflow-hidden rounded-lg border"
-						>
-							<span
-								class="text-primary/70 border-primary/40 -rotate-[30deg] rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
+				{#if demographicNoun}
+					<DemographicItemPicker
+						noun={demographicNoun}
+						load={pickerLoad}
+						selectedId={pickedForSelected?.id ?? null}
+						onSelect={(item) => (picked = { type: selected.type, item })}
+					/>
+				{:else}
+					<!-- Example media placeholders (tokenized blocks; no photos) -->
+					<div class="flex gap-2.5">
+						{#each [0, 1, 2] as block (block)}
+							<div
+								class="bg-muted border-border relative flex h-28 flex-1 items-center justify-center overflow-hidden rounded-lg border"
 							>
-								Example
-							</span>
-						</div>
-					{/each}
-				</div>
+								<span
+									class="text-primary/70 border-primary/40 -rotate-[30deg] rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
+								>
+									Example
+								</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
 
 				{#if selected.bestFor.length}
 					<section class="flex flex-col gap-2">
@@ -156,17 +211,21 @@
 		</div>
 
 		<Dialog.Footer class="items-center sm:justify-between">
-			<a
-				href={resolve('/(admin)/admin/info/tools/[tool_id]', {
-					tool_id: selected.infoSlug
-				})}
-				target="_blank"
-				rel="noopener noreferrer"
-				class="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
-			>
-				<BookOpen class="size-3.5" />
-				Learn more in the guidebook
-			</a>
+			{#if selected.infoSlug}
+				<a
+					href={resolve('/(admin)/admin/info/tools/[tool_id]', {
+						tool_id: selected.infoSlug
+					})}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
+				>
+					<BookOpen class="size-3.5" />
+					Learn more in the guidebook
+				</a>
+			{:else}
+				<span></span>
+			{/if}
 			<div class="flex items-center gap-2">
 				<Dialog.Close class={buttonVariants({ variant: 'outline', size: 'sm' })}>
 					Cancel
@@ -175,8 +234,11 @@
 					variant="default"
 					size="sm"
 					loading={adding}
+					disabled={demographicNoun !== null && pickedForSelected === null}
 					onclick={() =>
-						isEventPaletteItem(selected) ? onAddEvent() : onAdd(selected.creationKey)}
+						isEventPaletteItem(selected)
+							? onAddEvent()
+							: onAdd(selected.creationKey, pickedForSelected ?? undefined)}
 				>
 					+ Add this step
 				</LoadingButton>

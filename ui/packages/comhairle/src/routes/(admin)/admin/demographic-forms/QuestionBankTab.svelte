@@ -8,22 +8,19 @@
 	import {
 		QUESTION_KIND_LABELS,
 		shortId,
-		usedInFormsCount,
-		type DemographicForm,
-		type DemographicQuestion
-	} from './demographicPrototypeData';
+		SPECIAL_CATEGORY_TAG,
+		type SavedQuestion
+	} from './demographicModel';
 
 	type Props = {
-		questions: DemographicQuestion[];
-		forms: DemographicForm[];
+		questions: SavedQuestion[];
+		canEdit: boolean;
 		onEdit: (questionId: string) => void;
 		onDuplicate: (questionId: string) => void;
 		highlightId?: string | null;
 	};
 
-	const SPECIAL_FILTER = 'Special category';
-
-	let { questions, forms, highlightId = null, onEdit, onDuplicate }: Props = $props();
+	let { questions, canEdit, onEdit, onDuplicate, highlightId = null }: Props = $props();
 
 	$effect(() => {
 		if (!highlightId) return;
@@ -39,17 +36,21 @@
 	let search = $state('');
 	let filter = $state<string | null>(null);
 
-	const filterOptions = $derived([...new Set(questions.flatMap((q) => q.tags)), SPECIAL_FILTER]);
+	const tagNames = (question: SavedQuestion) => question.tags.map((tag) => tag.name);
+	const matchesFilter = (question: SavedQuestion, option: string) =>
+		option === SPECIAL_CATEGORY_TAG
+			? question.specialCategory
+			: tagNames(question).includes(option);
+
+	const filterOptions = $derived([...new Set(questions.flatMap(tagNames)), SPECIAL_CATEGORY_TAG]);
 	const countFor = (option: string) =>
-		questions.filter((q) =>
-			option === SPECIAL_FILTER ? q.specialCategory : q.tags.includes(option)
-		).length;
+		questions.filter((question) => matchesFilter(question, option)).length;
 	const visible = $derived(
-		questions.filter((q) => {
-			const matchesFilter =
-				filter === null ||
-				(filter === SPECIAL_FILTER ? q.specialCategory : q.tags.includes(filter));
-			return matchesFilter && q.text.toLowerCase().includes(search.trim().toLowerCase());
+		questions.filter((question) => {
+			const passesFilter = filter === null || matchesFilter(question, filter);
+			return (
+				passesFilter && question.text.toLowerCase().includes(search.trim().toLowerCase())
+			);
 		})
 	);
 </script>
@@ -100,9 +101,11 @@
 					<Table.Head>ID</Table.Head>
 					<Table.Head>Question</Table.Head>
 					<Table.Head>Question type</Table.Head>
-					<Table.Head>Used in forms</Table.Head>
+					<Table.Head>Version</Table.Head>
 					<Table.Head>Demographic category</Table.Head>
-					<Table.Head class="w-24"><span class="sr-only">Actions</span></Table.Head>
+					{#if canEdit}<Table.Head class="w-24"
+							><span class="sr-only">Actions</span></Table.Head
+						>{/if}
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
@@ -122,38 +125,49 @@
 						<Table.Cell class="text-muted-foreground text-sm leading-8"
 							>{QUESTION_KIND_LABELS[question.kind]}</Table.Cell
 						>
-						<Table.Cell class="text-muted-foreground text-sm leading-8"
-							>{usedInFormsCount(question.id, forms)}</Table.Cell
-						>
+						<Table.Cell>
+							<Badge
+								variant={question.publishedVersion === null ? 'draft' : 'primary'}
+							>
+								{question.publishedVersion === null
+									? 'Unpublished'
+									: `v${question.publishedVersion}`}
+								{#if question.draftVersion !== null}
+									, draft v{question.draftVersion}
+								{/if}
+							</Badge>
+						</Table.Cell>
 						<Table.Cell>
 							<div class="flex flex-wrap gap-1">
-								{#each question.tags as tag (tag)}
+								{#each tagNames(question) as tag (tag)}
 									<TagBadge {tag} />
 								{/each}
 								{#if question.specialCategory}
-									<TagBadge tag="Special category" />
+									<TagBadge tag={SPECIAL_CATEGORY_TAG} />
 								{/if}
 							</div>
 						</Table.Cell>
-						<Table.Cell>
-							<div class="flex gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => onEdit(question.id)}>Edit</Button
-								>
-								<Button
-									variant="outline"
-									size="icon"
-									class="size-8"
-									title="Duplicate question"
-									aria-label={`Duplicate ${question.text}`}
-									onclick={() => onDuplicate(question.id)}
-								>
-									<Copy class="size-4" />
-								</Button>
-							</div>
-						</Table.Cell>
+						{#if canEdit}
+							<Table.Cell>
+								<div class="flex gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => onEdit(question.id)}>Edit</Button
+									>
+									<Button
+										variant="outline"
+										size="icon"
+										class="size-8"
+										title="Duplicate question"
+										aria-label={`Duplicate ${question.text}`}
+										onclick={() => onDuplicate(question.id)}
+									>
+										<Copy class="size-4" />
+									</Button>
+								</div>
+							</Table.Cell>
+						{/if}
 					</Table.Row>
 				{/each}
 			</Table.Body>

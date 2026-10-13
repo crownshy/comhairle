@@ -124,6 +124,9 @@ export const SystemAction = z.enum([
   "conversation_create",
   "organization_create",
   "translate",
+  "demographic_read",
+  "demographic_manage",
+  "demographic_default_manage",
 ]);
 export type SystemAction = z.infer<typeof SystemAction>;
 export const UserAction = z.union([
@@ -5550,6 +5553,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/forms",
     alias: "ListDemographicForms",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: z.array(FormDto),
   },
   {
@@ -5564,6 +5574,11 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         type: "Body",
         schema: FormDraftInput,
       },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
     ],
     response: FormDto,
   },
@@ -5572,6 +5587,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/forms/:form_id",
     alias: "GetDemographicForm",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: FormDto,
   },
   {
@@ -5579,6 +5601,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/forms/:form_id/archive",
     alias: "ArchiveDemographicForm",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: FormDto,
   },
   {
@@ -5593,6 +5622,11 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         type: "Body",
         schema: FormDraftInput,
       },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
     ],
     response: FormDto,
   },
@@ -5601,6 +5635,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/forms/:form_id/draft",
     alias: "StartDemographicFormDraft",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: FormDto,
   },
   {
@@ -5608,6 +5649,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/forms/:form_id/draft",
     alias: "DiscardDemographicFormDraft",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: z.void(),
   },
   {
@@ -5615,6 +5663,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/forms/:form_id/publish",
     alias: "PublishDemographicForm",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: FormDto,
   },
   {
@@ -5671,6 +5726,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/questions",
     alias: "ListDemographicQuestions",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: z.array(QuestionDto),
   },
   {
@@ -5685,6 +5747,11 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         type: "Body",
         schema: QuestionDraftInput,
       },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
     ],
     response: QuestionDto,
   },
@@ -5693,6 +5760,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/questions/:question_id",
     alias: "GetDemographicQuestion",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: QuestionDto,
   },
   {
@@ -5700,6 +5774,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/questions/:question_id/archive",
     alias: "ArchiveDemographicQuestion",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: QuestionDto,
   },
   {
@@ -5714,6 +5795,11 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         type: "Body",
         schema: QuestionDraftInput,
       },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
     ],
     response: QuestionDto,
   },
@@ -5722,6 +5808,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/questions/:question_id/draft",
     alias: "StartDemographicQuestionDraft",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: QuestionDto,
   },
   {
@@ -5729,6 +5822,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/questions/:question_id/draft",
     alias: "DiscardDemographicQuestionDraft",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: z.void(),
   },
   {
@@ -5736,6 +5836,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/questions/:question_id/publish",
     alias: "PublishDemographicQuestion",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: QuestionDto,
   },
   {
@@ -5750,6 +5857,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/demographics/tags",
     alias: "ListDemographicTags",
     requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
     response: z.array(TagDto),
   },
   {
@@ -5762,6 +5876,11 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         name: "body",
         type: "Body",
         schema: z.object({ name: z.string() }).passthrough(),
+      },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
       },
     ],
     response: TagDto,

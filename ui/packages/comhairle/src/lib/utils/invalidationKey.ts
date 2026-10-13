@@ -9,6 +9,7 @@ type InputKey =
 	| 'admin/conversation/report'
 	| 'admin/conversation/workflow'
 	| 'admin/conversations'
+	| 'admin/demographic-forms'
 	| 'admin/documents'
 	| 'admin/email-template-config'
 	| 'admin/event'

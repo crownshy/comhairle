@@ -5,6 +5,8 @@ import {
 	ListOrdered,
 	BookOpen,
 	Bot,
+	CircleHelp,
+	ClipboardList,
 	type Icon
 } from 'lucide-svelte';
 import { m } from '$lib/paraglide/messages';
@@ -20,7 +22,9 @@ export type ToolType =
 	| 'stories'
 	| 'elicitationbot'
 	| 'thinkingspace'
-	| 'prioritization';
+	| 'prioritization'
+	| 'demographicquestion'
+	| 'demographicform';
 
 /**
  * PascalCase key that seeds a new step's starter config and default name.
@@ -36,7 +40,9 @@ export type CreationKey =
 	| 'Survey'
 	| 'Prioritization'
 	| 'Elicitation Bot'
-	| 'Lived Experience';
+	| 'Lived Experience'
+	| 'Demographic Question'
+	| 'Demographic Form';
 
 export type ToolMeta = {
 	/** ToolConfig discriminant. */
@@ -47,8 +53,8 @@ export type ToolMeta = {
 	tagline: string;
 	/** Icon shown on cards and the palette. */
 	icon: typeof Icon;
-	/** Route slug under /admin/info/tools/<infoSlug>. */
-	infoSlug: string;
+	/** Route slug under /admin/info/tools/<infoSlug>. Omitted when the tool has no guide page. */
+	infoSlug?: string;
 	/** Key passed to the add-step switch (see {@link import('./createWorkflowStep').createWorkflowStep}). */
 	creationKey: CreationKey;
 	/** Whether the step uses an AI model, so participants get a pointer to the AI FAQ. */
@@ -213,6 +219,48 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		bestFor: ['Gathering personal testimony', 'Human-centred, qualitative input'],
 		features: ['Short-form video capture', 'Optional prompts to guide contributions'],
 		whatYoudGet: ['Video contributions', 'Consent-managed testimony']
+	},
+	demographicquestion: {
+		type: 'demographicquestion',
+		displayName: 'Demographic question',
+		tagline: 'Ask participants a single demographic question from your question bank.',
+		icon: CircleHelp,
+		creationKey: 'Demographic Question',
+		usesAI: false,
+		dataProtocolDefault: m.data_protocol_default_generic,
+		estimatedMinutes: 1,
+		description:
+			'Ask one demographic question from the organisation question bank. Participants who have already answered it are not asked again.',
+		bestFor: [
+			'Collecting one standard demographic detail',
+			'Reusing answers across conversations'
+		],
+		features: [
+			'Answers reused from earlier conversations',
+			'Special category questions ask for consent first'
+		],
+		whatYoudGet: ['Answers to the question', 'Consent records for special category questions']
+	},
+	demographicform: {
+		type: 'demographicform',
+		displayName: 'Demographic form',
+		tagline: 'Ask participants a set of demographic questions from a published form.',
+		icon: ClipboardList,
+		creationKey: 'Demographic Form',
+		usesAI: false,
+		dataProtocolDefault: m.data_protocol_default_generic,
+		estimatedMinutes: 3,
+		description:
+			'Ask a set of demographic questions from a published form. Participants only see the questions they have not answered yet.',
+		bestFor: [
+			'Collecting a standard set of demographic details',
+			'Repeat use across conversations'
+		],
+		features: [
+			'Questions answered earlier are skipped',
+			'Choose which questions to ask and which are required'
+		],
+		whatYoudGet: ['Answers to each question', 'Consent records for special category questions']
 	}
 };
 
@@ -281,7 +329,9 @@ export const PALETTE_TOOLS: PaletteItem[] = [
 	// VIDEO_CONFERENCE, // commenting this out until we decide the behaviour we want
 	TOOL_META.thinkingspace,
 	TOOL_META.prioritization,
-	TOOL_META.stories
+	TOOL_META.stories,
+	TOOL_META.demographicquestion,
+	TOOL_META.demographicform
 ];
 
 export function toolMeta(type: string | undefined | null): ToolMeta | undefined {
@@ -290,6 +340,6 @@ export function toolMeta(type: string | undefined | null): ToolMeta | undefined 
 }
 
 export function toolInfoUrl(type: string | undefined | null): string {
-	const meta = toolMeta(type);
-	return meta ? `/admin/info/tools/${meta.infoSlug}` : '/admin/info/tools';
+	const infoSlug = toolMeta(type)?.infoSlug;
+	return infoSlug ? `/admin/info/tools/${infoSlug}` : '/admin/info/tools';
 }

@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
-	import { tagColorClass } from './demographicPrototypeData';
+	import { tagColorClass } from './demographicModel';
 
 	type Props = { tag: string; label?: string; class?: string; children?: Snippet };
 

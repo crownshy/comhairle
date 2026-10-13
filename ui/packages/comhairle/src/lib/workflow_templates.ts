@@ -22,6 +22,15 @@ export const defaultStepCreationParams: Partial<
 		name: 'Thinking Space',
 		description:
 			"You'll be asked a few questions, and after each one you can pick follow-up questions to dig into. It's a chance to go deeper on what you really think. At the end you'll be able to review and edit your responses before submitting."
+	},
+	'Demographic Question': {
+		name: 'Demographic question',
+		description: 'Answer a short question about yourself.'
+	},
+	'Demographic Form': {
+		name: 'Demographic form',
+		description:
+			'Answer a few questions about yourself. Questions you have already answered are skipped.'
 	}
 };
 

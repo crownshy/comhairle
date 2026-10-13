@@ -5,10 +5,14 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
-	import { QUESTION_KIND_LABELS, type DemographicQuestion } from './demographicPrototypeData';
+	import {
+		QUESTION_KIND_LABELS,
+		SPECIAL_CATEGORY_TAG,
+		type SavedQuestion
+	} from './demographicModel';
 
 	type Props = {
-		questions: DemographicQuestion[];
+		questions: SavedQuestion[];
 		inFormIds: string[];
 		onAdd: (ids: string[]) => void;
 		onCreateQuestion: () => void;
@@ -37,7 +41,7 @@
 		<Dialog.Header>
 			<Dialog.Title>Add questions</Dialog.Title>
 			<Dialog.Description>
-				Choose from your question bank. Questions already in this form are greyed out.
+				Choose from your published questions. Questions already in this form are greyed out.
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -46,8 +50,9 @@
 		<ul class="border-border min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border">
 			{#each visible as question (question.id)}
 				{@const inForm = inFormIds.includes(question.id)}
+				{@const unpublished = question.publishedVersion === null}
 				<li
-					class="flex items-center gap-3 px-4 py-3 {inForm
+					class="flex items-center gap-3 px-4 py-3 {inForm || unpublished
 						? 'bg-muted text-muted-foreground'
 						: selected.includes(question.id)
 							? 'bg-primary/10'
@@ -56,7 +61,7 @@
 					<Checkbox
 						id={`add-${question.id}`}
 						checked={inForm || selected.includes(question.id)}
-						disabled={inForm}
+						disabled={inForm || unpublished}
 						onCheckedChange={(checked) => toggle(question.id, checked === true)}
 						aria-label={question.text}
 					/>
@@ -65,15 +70,17 @@
 						<span class="text-sm">{QUESTION_KIND_LABELS[question.kind]}</span>
 					</label>
 					<span class="flex items-center gap-1">
-						{#each question.tags as tag (tag)}
-							<TagBadge {tag} />
+						{#each question.tags as tag (tag.id)}
+							<TagBadge tag={tag.name} />
 						{/each}
 						{#if question.specialCategory}
-							<TagBadge tag="Special category" />
+							<TagBadge tag={SPECIAL_CATEGORY_TAG} />
 						{/if}
 					</span>
 					{#if inForm}
 						<span class="text-sm">In this form</span>
+					{:else if unpublished}
+						<span class="text-sm">Publish first</span>
 					{/if}
 				</li>
 			{/each}

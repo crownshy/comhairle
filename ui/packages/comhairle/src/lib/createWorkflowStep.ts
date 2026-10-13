@@ -19,15 +19,23 @@ type CreateStepBody = Parameters<typeof apiClient.CreateConversationWorkflowStep
  *  loaded conversation without a full {@link LocalizedConversationDto}. */
 type ConversationRef = { id: string };
 
+/** The question or form a demographic palette item points at, picked in the add-step dialog. */
+export type DemographicSelection = { id: string; name: string };
+
 /**
  * Resolve the starter `tool_setup` config for a palette creation key (the value on
  * {@link import('./tool_meta').ToolMeta.creationKey}). Returns `undefined` for an
- * unknown key so callers can bail cleanly.
+ * unknown key, or for a demographic key without a selection, so callers can bail cleanly.
  *
  * @param creationKey - e.g. `'Polis'`, `'Learn'`, `'Elicitation Bot'`.
  * @param conversation - needed because the elicitation-bot config is conversation-scoped.
+ * @param selection - the question or form a demographic key points at.
  */
-export function toolSetupForCreationKey(creationKey: CreationKey, conversation: ConversationRef) {
+export function toolSetupForCreationKey(
+	creationKey: CreationKey,
+	conversation: ConversationRef,
+	selection?: DemographicSelection
+) {
 	switch (creationKey) {
 		case 'Polis':
 			return basic_polis_config;
@@ -45,6 +53,23 @@ export function toolSetupForCreationKey(creationKey: CreationKey, conversation: 
 			return basic_thinking_space_config();
 		case 'Prioritization':
 			return basic_prioritization_config;
+		case 'Demographic Question':
+			return selection
+				? {
+						type: 'demographicquestion' as const,
+						question_id: selection.id,
+						version: { type: 'latest' as const }
+					}
+				: undefined;
+		case 'Demographic Form':
+			return selection
+				? {
+						type: 'demographicform' as const,
+						form_id: selection.id,
+						version: { type: 'latest' as const },
+						questions: []
+					}
+				: undefined;
 	}
 	// Unreachable: `creationKey` is exhausted above. Assigning it to `never` makes a
 	// newly added CreationKey without a case here a compile error.
@@ -71,14 +96,18 @@ export async function createWorkflowStep(params: {
 	workflowId: string;
 	creationKey: CreationKey;
 	existingSteps: { stepOrder: number }[];
+	selection?: DemographicSelection;
 }): Promise<Awaited<ReturnType<typeof apiClient.CreateConversationWorkflowStep>> | undefined> {
-	const { conversation, workflowId, creationKey, existingSteps } = params;
-	const tool_setup = toolSetupForCreationKey(creationKey, conversation);
+	const { conversation, workflowId, creationKey, existingSteps, selection } = params;
+	const tool_setup = toolSetupForCreationKey(creationKey, conversation, selection);
 	if (!tool_setup) return undefined;
 
 	return apiClient.CreateConversationWorkflowStep(
 		{
-			name: defaultStepCreationParams[creationKey]?.name ?? `New ${creationKey} Step`,
+			name:
+				selection?.name ??
+				defaultStepCreationParams[creationKey]?.name ??
+				`New ${creationKey} Step`,
 			description:
 				defaultStepCreationParams[creationKey]?.description ?? `A new ${creationKey} Step`,
 			is_offline: false,

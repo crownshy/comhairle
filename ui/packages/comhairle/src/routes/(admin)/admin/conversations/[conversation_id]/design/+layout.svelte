@@ -3,7 +3,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import { createWorkflowStep } from '$lib/createWorkflowStep';
+	import { createWorkflowStep, type DemographicSelection } from '$lib/createWorkflowStep';
 	import type { CreationKey } from '$lib/tool_meta';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
@@ -33,7 +33,7 @@
 		}
 	});
 
-	async function addStep(creationKey: CreationKey) {
+	async function addStep(creationKey: CreationKey, selection?: DemographicSelection) {
 		if (!canEdit || adding) return;
 		adding = true;
 		try {
@@ -41,7 +41,8 @@
 				conversation,
 				workflowId: workflow.id,
 				creationKey,
-				existingSteps: workflowSteps
+				existingSteps: workflowSteps,
+				selection
 			});
 			if (!created) return;
 			await invalidate('conversation:workflow');
