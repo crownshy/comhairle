@@ -29,11 +29,13 @@
 	type Props = {
 		toolConfig: QuestionConfig | FormConfig;
 		conversationId: string;
+		organizationId: string | null;
 		workflowId: string;
 		workflowStepId: string;
 		isLive: boolean;
 	};
-	let { toolConfig, conversationId, workflowId, workflowStepId, isLive }: Props = $props();
+	let { toolConfig, conversationId, organizationId, workflowId, workflowStepId, isLive }: Props =
+		$props();
 
 	type EntryState = { enabled: boolean; required: boolean };
 	type EntriesLoad =
@@ -69,7 +71,7 @@
 		const loadItems = isForm
 			? listPublishedDemographicForms
 			: listPublishedDemographicQuestions;
-		const result = await loadItems();
+		const result = await loadItems(organizationId);
 		picker = result.err !== null ? { status: 'error' } : { status: 'ready', items: result.ok };
 		if (isForm && selectedId) await loadFormEntries(selectedId, toolConfig.questions);
 	});

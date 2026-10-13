@@ -573,6 +573,44 @@ pub async fn update(
     Ok(conversation)
 }
 
+/// Sets or clears the organization hosting the conversation.
+#[instrument(err(Debug), skip(db))]
+pub async fn set_hosting_organization(
+    db: &PgPool,
+    id: &Uuid,
+    organization_id: Option<Uuid>,
+) -> Result<Conversation, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(ConversationIden::Table)
+        .value(ConversationIden::OrganizationId, organization_id)
+        .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    Ok(sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+        .fetch_one(db)
+        .await?)
+}
+
+/// Makes `new_owner_id` the owning user of the conversation.
+#[instrument(err(Debug), skip(db))]
+pub async fn set_owner(
+    db: &PgPool,
+    id: &Uuid,
+    new_owner_id: Uuid,
+) -> Result<Conversation, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(ConversationIden::Table)
+        .value(ConversationIden::OwnerId, new_owner_id)
+        .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    Ok(sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+        .fetch_one(db)
+        .await?)
+}
+
 /// Merge the supplied object into the conversation's `metadata` jsonb column at
 /// the top level. Existing keys are overwritten by the patch, keys not present
 /// in the patch are left untouched. This is a shallow merge — nested objects

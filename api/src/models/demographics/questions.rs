@@ -172,6 +172,17 @@ async fn visible_question_rows(
         .await?)
 }
 
+/// Whether `owner` (or the system defaults when None) can see the question, archived or not.
+pub async fn is_question_visible(
+    executor: impl PgExecutor<'_>,
+    owner: Option<Uuid>,
+    question_id: Uuid,
+) -> Result<bool, ComhairleError> {
+    Ok(!visible_question_rows(executor, owner, Some(question_id))
+        .await?
+        .is_empty())
+}
+
 pub async fn list_questions(
     db: &PgPool,
     owner: Option<Uuid>,

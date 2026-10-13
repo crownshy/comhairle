@@ -82,6 +82,7 @@
 		<DemographicStepSetup
 			{toolConfig}
 			conversationId={conversation.id}
+			organizationId={conversation.organizationId}
 			workflowId={step.workflowId}
 			workflowStepId={step.id}
 			isLive={conversation.isLive}

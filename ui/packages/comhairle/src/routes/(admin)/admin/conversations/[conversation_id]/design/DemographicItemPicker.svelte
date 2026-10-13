@@ -24,7 +24,8 @@
 {:else if load.items.length === 0}
 	<div class="flex flex-col gap-3">
 		<p class="text-muted-foreground text-base">
-			You have no published {noun}s yet. Publish one first, then come back to add it.
+			Your hosting organisation has no published {noun}s yet. Publish one first, then come
+			back to add it.
 		</p>
 		<a
 			href={resolve('/(admin)/admin/demographic-forms')}

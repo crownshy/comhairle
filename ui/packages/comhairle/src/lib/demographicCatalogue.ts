@@ -46,20 +46,25 @@ function byName(a: PublishedDemographicItem, b: PublishedDemographicItem): numbe
 	return a.name.localeCompare(b.name);
 }
 
-export async function listPublishedDemographicQuestions(): Promise<
-	Result<'ok', PublishedDemographicItem[], ErrorType>
-> {
+/** Lists what the hosting organisation offers; without one the API only returns system defaults. */
+export async function listPublishedDemographicQuestions(
+	organizationId: string | null
+): Promise<Result<'ok', PublishedDemographicItem[], ErrorType>> {
 	return tryCatchAsync(async () => {
-		const questions = await apiClient.ListDemographicQuestions();
+		const questions = await apiClient.ListDemographicQuestions({
+			queries: { organization: organizationId ?? undefined }
+		});
 		return questions.flatMap((question) => publishedQuestionItem(question) ?? []).sort(byName);
 	});
 }
 
-export async function listPublishedDemographicForms(): Promise<
-	Result<'ok', PublishedDemographicItem[], ErrorType>
-> {
+export async function listPublishedDemographicForms(
+	organizationId: string | null
+): Promise<Result<'ok', PublishedDemographicItem[], ErrorType>> {
 	return tryCatchAsync(async () => {
-		const forms = await apiClient.ListDemographicForms();
+		const forms = await apiClient.ListDemographicForms({
+			queries: { organization: organizationId ?? undefined }
+		});
 		return forms.flatMap((form) => publishedFormItem(form) ?? []).sort(byName);
 	});
 }

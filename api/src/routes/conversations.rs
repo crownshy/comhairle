@@ -34,14 +34,17 @@ use crate::models::permissions::{
     self, ActorId, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
     PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action,
     conversation::{Action, Role},
-    grant_role,
+    grant_role, organization as organization_permissions,
 };
 use crate::models::user_conversation_preferences;
 use crate::models::user_participation::{self};
+use crate::models::users::{self, User};
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
 use crate::routes::translations::LocaleExtractor;
 
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{
+    OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin, is_user_super_admin,
+};
 
 pub mod dto;
 
@@ -66,16 +69,141 @@ async fn create_conversation(
     Ok((StatusCode::CREATED, Json(conversation)))
 }
 
+/// Checks that `user` may host conversations under `organization_id` (they administer it) and
+/// that the conversation's demographic steps still resolve against that organization.
+async fn ensure_can_change_hosting_organization(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    conversation: &conversation::Conversation,
+    organization_id: Option<Uuid>,
+) -> Result<(), ComhairleError> {
+    if conversation.organization_id == organization_id {
+        return Ok(());
+    }
+
+    if let Some(organization_id) = organization_id {
+        organization::get_by_id(&state.db, &organization_id).await?;
+        let is_organization_admin = can_perform_action(
+            state,
+            &organization_id,
+            organization_permissions::Action::Update,
+            &user.id,
+            None,
+        )
+        .await?;
+        if !is_organization_admin {
+            return Err(ComhairleError::UserNotAuthorized);
+        }
+    }
+
+    demographics::steps::ensure_steps_usable_by(&state.db, conversation.id, organization_id).await
+}
+
 /// Update conversation handler
 #[instrument(err(Debug), skip(state))]
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    if let Some(organization_id) = conversation.organization_id {
+        let current = conversation::get_by_id(&state.db, &conversation_id).await?;
+        ensure_can_change_hosting_organization(&state, &user, &current, organization_id).await?;
+    }
     let conversation = conversation::update(&state.db, &conversation_id, &conversation).await?;
     let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct HostingOrganizationRequest {
+    /// The hosting organization, or null for a conversation with no organization.
+    pub organization_id: Option<Uuid>,
+}
+
+/// Set or clear the organization hosting a conversation. Setting requires administering that
+/// organization. Demographic questions and forms are picked from the hosting organization's
+/// banks, so the change is refused while a step uses an item the new organization cannot see.
+#[instrument(err(Debug), skip(state))]
+async fn set_conversation_hosting_organization(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(conversation_id): Path<Uuid>,
+    Json(request): Json<HostingOrganizationRequest>,
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let current = conversation::get_by_id(&state.db, &conversation_id).await?;
+    ensure_can_change_hosting_organization(&state, &user, &current, request.organization_id)
+        .await?;
+    let conversation = conversation::set_hosting_organization(
+        &state.db,
+        &conversation_id,
+        request.organization_id,
+    )
+    .await?;
+    Ok((StatusCode::OK, Json(conversation.into())))
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct TransferOwnershipRequest {
+    /// Exactly one of `new_owner_id` or `new_owner_email` identifies the new owning user.
+    pub new_owner_id: Option<Uuid>,
+    pub new_owner_email: Option<String>,
+}
+
+/// Transfer a conversation to another user. Only the current owner or a super administrator may
+/// do this. The previous owner keeps the conversation Admin role so they are not locked out.
+#[instrument(err(Debug), skip(state))]
+async fn transfer_conversation_ownership(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(conversation_id): Path<Uuid>,
+    Json(request): Json<TransferOwnershipRequest>,
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    if conversation.owner_id != user.id && !is_user_super_admin(&state, &user).await {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
+    let new_owner = match (request.new_owner_id, request.new_owner_email) {
+        (Some(id), None) => users::get_user_by_id(&id, &state.db).await?,
+        (None, Some(email)) => users::get_user_by_email(email.trim(), &state.db).await?,
+        _ => {
+            return Err(ComhairleError::BadRequest(
+                "Exactly one of new_owner_id or new_owner_email must be provided".into(),
+            ));
+        }
+    };
+
+    if new_owner.id == conversation.owner_id {
+        return Err(ComhairleError::BadRequest(
+            "That user already owns this conversation".into(),
+        ));
+    }
+    if !is_user_admin(&state, &new_owner).await {
+        return Err(ComhairleError::BadRequest(
+            "Conversations can only be transferred to an admin user".into(),
+        ));
+    }
+
+    let updated = conversation::set_owner(&state.db, &conversation_id, new_owner.id).await?;
+
+    let previous_owner_access = grant_role(
+        &state,
+        GrantRoleRequest {
+            actor_id: ActorId::User(conversation.owner_id),
+            permission_triplet: Role::Admin.triplet(&conversation_id)?,
+            granted_by: &user.id,
+            grant_reason: "Previous owner after ownership transfer",
+        },
+    )
+    .await;
+    match previous_owner_access {
+        Ok(_) | Err(ComhairleError::RoleAlreadyGranted(_)) => {}
+        Err(error) => return Err(error),
+    }
+
+    Ok((StatusCode::OK, Json(updated.into())))
 }
 
 /// Shallow-merge the request body into the conversation's `metadata` jsonb
@@ -909,6 +1037,26 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 .route_layer(from_fn_with_state(requirement(Action::Update), permission_middleware::<ConversationResource>)),
         )
         .api_route(
+            "/{conversation_id}/organization",
+            put_with(set_conversation_hosting_organization, |op| {
+                op.id("SetConversationHostingOrganization")
+                    .summary("Set or clear the organization hosting a conversation")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ConversationDto>>()
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+        )
+        .api_route(
+            "/{conversation_id}/transfer-ownership",
+            post_with(transfer_conversation_ownership, |op| {
+                op.id("TransferConversationOwnership")
+                    .summary("Transfer a conversation to another user")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ConversationDto>>()
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+        )
+        .api_route(
             "/{conversation_id}/launch",
             put_with(launch_conversation, |op| {
                 op.id("LaunchConversation")
@@ -1030,7 +1178,7 @@ mod tests {
     use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{MultipartBodyBuilder, test_config, test_state};
+    use crate::test_helpers::{MultipartBodyBuilder, TEST_PASSWORD, test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::body::Body;
     use axum::http::StatusCode;
@@ -1042,6 +1190,194 @@ mod tests {
     use uuid::Uuid;
 
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_set_and_clear_hosting_organization_only_as_organization_admin(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut org_admin = UserSession::new_admin();
+        org_admin.signup(&app).await?;
+        let (_, response, _) = org_admin.create_random_organization(&app).await?;
+        let organization: crate::routes::organizations::dto::OrganizationDto =
+            serde_json::from_value(response)?;
+
+        let mut other_admin = UserSession::new("other_admin", TEST_PASSWORD, "test1@crown-shy.com");
+        other_admin.signup(&app).await?;
+
+        let (st, response, _) = other_admin
+            .create_random_unlaunched_conversation(&app)
+            .await?;
+        let other_conversation: ConversationDto = serde_json::from_value(response)?;
+        let other_url = format!("/conversation/{}/organization", other_conversation.id);
+        let (status, _, _) = other_admin
+            .put(
+                &app,
+                &other_url,
+                json!({ "organization_id": organization.id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "an admin of another organization cannot host here"
+        );
+
+        let (_, response, _) = org_admin
+            .create_random_unlaunched_conversation(&app)
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+        let url = format!("/conversation/{}/organization", conversation.id);
+        let (status, response, _) = org_admin
+            .put(
+                &app,
+                &url,
+                json!({ "organization_id": organization.id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let updated: ConversationDto = serde_json::from_value(response)?;
+        assert_eq!(updated.organization_id, Some(organization.id));
+
+        let (status, response, _) = org_admin
+            .put(
+                &app,
+                &url,
+                json!({ "organization_id": null }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let updated: ConversationDto = serde_json::from_value(response)?;
+        assert_eq!(updated.organization_id, None);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_refuse_hosting_organization_change_through_update_for_non_admins(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut org_admin = UserSession::new_admin();
+        org_admin.signup(&app).await?;
+        let (_, response, _) = org_admin.create_random_organization(&app).await?;
+        let organization: crate::routes::organizations::dto::OrganizationDto =
+            serde_json::from_value(response)?;
+
+        let mut other_admin = UserSession::new("other_admin", TEST_PASSWORD, "test1@crown-shy.com");
+        other_admin.signup(&app).await?;
+        let (_, response, _) = other_admin
+            .create_random_unlaunched_conversation(&app)
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+
+        let (status, _, _) = other_admin
+            .put(
+                &app,
+                &format!("/conversation/{}", conversation.id),
+                json!({ "organization_id": organization.id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_transfer_ownership_to_another_admin_and_keep_previous_owner_as_admin(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner = UserSession::new_admin();
+        owner.signup(&app).await?;
+        let mut new_owner = UserSession::new("new_owner", TEST_PASSWORD, "test1@crown-shy.com");
+        new_owner.signup(&app).await?;
+        let mut participant =
+            UserSession::new("participant", TEST_PASSWORD, "participant@example.com");
+        participant.signup(&app).await?;
+
+        let (_, response, _) = owner.create_random_unlaunched_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+        let url = format!("/conversation/{}/transfer-ownership", conversation.id);
+        let draft_url = format!("/conversation/{}", conversation.id);
+
+        let (status, _, _) = new_owner.get(&app, &draft_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &url,
+                json!({ "new_owner_email": "participant@example.com" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "only admin users can receive a conversation"
+        );
+
+        let (status, _, _) = owner.post(&app, &url, json!({}).to_string().into()).await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &url,
+                json!({ "new_owner_email": "test1@crown-shy.com" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _, _) = new_owner.get(&app, &draft_url).await?;
+        assert_eq!(status, StatusCode::OK, "new owner can read the draft");
+        let (status, _, _) = owner.get(&app, &draft_url).await?;
+        assert_eq!(status, StatusCode::OK, "previous owner keeps access");
+
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &url,
+                json!({ "new_owner_email": "admin@crown-shy.com" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "a previous owner holding the Admin role is not the owner"
+        );
+
+        let (status, _, _) = new_owner
+            .post(
+                &app,
+                &url,
+                json!({ "new_owner_email": "admin@crown-shy.com" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK, "the new owner can transfer it back");
+
+        Ok(())
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_add_and_list_conversation_cohost_organizations(

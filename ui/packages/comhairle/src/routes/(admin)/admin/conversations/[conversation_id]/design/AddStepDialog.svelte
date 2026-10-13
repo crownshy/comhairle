@@ -28,12 +28,22 @@
 		open?: boolean;
 		/** Disables the confirm button while the parent is creating the step. */
 		adding?: boolean;
+		conversationId: string;
+		/** The hosting organisation whose question and form banks demographic steps draw from. */
+		organizationId: string | null;
 		/** Called with the chosen tool's `creationKey` when the user confirms a tool step. */
 		onAdd: (creationKey: CreationKey, selection?: DemographicSelection) => void;
 		/** Called when the user confirms an event stand-in (no backing tool, e.g. video conference). */
 		onAddEvent: () => void;
 	};
-	let { open = $bindable(false), adding = false, onAdd, onAddEvent }: Props = $props();
+	let {
+		open = $bindable(false),
+		adding = false,
+		conversationId,
+		organizationId,
+		onAdd,
+		onAddEvent
+	}: Props = $props();
 
 	let selectedType = $state<string>(PALETTE_TOOLS[0].type);
 	const selected = $derived(
@@ -57,14 +67,21 @@
 	const pickerLoad = $derived(
 		selectedCreationKey === 'Demographic Form' ? formLoad : questionLoad
 	);
+	function needsOrganization(tool: (typeof PALETTE_TOOLS)[number]): boolean {
+		return (
+			!isEventPaletteItem(tool) &&
+			(tool.creationKey === 'Demographic Question' || tool.creationKey === 'Demographic Form')
+		);
+	}
+	const missingOrganization = $derived(organizationId === null);
 	const pickedForSelected = $derived(
 		picked && picked.type === selected.type ? picked.item : null
 	);
 
 	async function loadPickers() {
 		const [questions, forms] = await Promise.all([
-			listPublishedDemographicQuestions(),
-			listPublishedDemographicForms()
+			listPublishedDemographicQuestions(organizationId),
+			listPublishedDemographicForms(organizationId)
 		]);
 		questionLoad =
 			questions.err === null ? { status: 'ready', items: questions.ok } : { status: 'error' };
@@ -98,9 +115,25 @@
 						selected={selectedType === tool.type}
 						name={tool.displayName}
 						description={tool.tagline}
+						disabled={missingOrganization && needsOrganization(tool)}
 						onSelect={() => (selectedType = tool.type)}
 					/>
 				{/each}
+				{#if missingOrganization}
+					<p class="text-muted-foreground text-base">
+						Demographic steps are unavailable because this conversation has no hosting
+						organisation. Questions and forms come from the hosting organisation.
+						<a
+							href={resolve(
+								'/(admin)/admin/conversations/[conversation_id]/configure/team',
+								{ conversation_id: conversationId }
+							)}
+							class="text-primary underline"
+						>
+							Configure one
+						</a>
+					</p>
+				{/if}
 			</div>
 
 			<!-- Right: selected step-type detail -->

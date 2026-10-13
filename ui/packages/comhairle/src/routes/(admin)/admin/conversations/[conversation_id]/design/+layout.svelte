@@ -82,7 +82,14 @@
 </script>
 
 {#if canEdit}
-	<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
+	<AddStepDialog
+		bind:open={addStepDialog.open}
+		{adding}
+		conversationId={conversation.id}
+		organizationId={conversation.organizationId}
+		onAdd={addStep}
+		onAddEvent={addEvent}
+	/>
 {/if}
 
 {@render children()}

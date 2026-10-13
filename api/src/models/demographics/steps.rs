@@ -1,13 +1,15 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Serialize;
+use sqlx::types::Json;
 use sqlx::{PgConnection, PgPool};
 use uuid::Uuid;
 
 use super::VersionStatus;
 use super::forms::{latest_published_form_version_id, load_entries, published_form_version_of};
 use super::questions::{
-    QuestionVersionDto, latest_published_version_id, load_version, usable_published_version,
+    QuestionVersionDto, is_question_visible, latest_published_version_id, load_version,
+    usable_published_version,
 };
 use super::responses::{ConsentState, ResponseDto, consent_state, reusable_response};
 use super::validation::invalid;
@@ -151,6 +153,58 @@ pub async fn validate_tool_config(
         ToolConfig::DemographicForm(config) => validate_form_step(conn, owner, config).await,
         _ => Ok(()),
     }
+}
+
+/// Rejects moving a conversation to another hosting organization while its demographic steps
+/// use questions or forms that organization cannot see. Archived items are fine: steps keep
+/// their pinned versions.
+pub async fn ensure_steps_usable_by(
+    db: &PgPool,
+    conversation_id: Uuid,
+    organization_id: Option<Uuid>,
+) -> Result<(), ComhairleError> {
+    let rows: Vec<(Option<Json<ToolConfig>>, Json<ToolConfig>)> = sqlx::query_as(
+        "SELECT ws.tool_config, ws.preview_tool_config FROM workflow_step ws
+         JOIN workflow w ON w.id = ws.workflow_id
+         WHERE w.conversation_id = $1",
+    )
+    .bind(conversation_id)
+    .fetch_all(db)
+    .await?;
+
+    let mut conn = db.acquire().await?;
+    for (tool_config, preview_tool_config) in rows {
+        for config in tool_config.into_iter().chain([preview_tool_config]) {
+            match config.0 {
+                ToolConfig::DemographicQuestion(config) => {
+                    if !is_question_visible(&mut *conn, organization_id, config.question_id).await?
+                    {
+                        return Err(invalid(
+                            "a demographic question in this conversation is not in the new organization's question bank",
+                        ));
+                    }
+                }
+                ToolConfig::DemographicForm(config) => {
+                    let owned: bool = sqlx::query_scalar(
+                        "SELECT EXISTS (
+                            SELECT 1 FROM demographics_form WHERE id = $1 AND organization_id = $2
+                        )",
+                    )
+                    .bind(config.form_id)
+                    .bind(organization_id)
+                    .fetch_one(&mut *conn)
+                    .await?;
+                    if !owned {
+                        return Err(invalid(
+                            "a demographic form in this conversation is not in the new organization's form bank",
+                        ));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
 }
 
 async fn validate_question_step(

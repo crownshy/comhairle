@@ -1297,6 +1297,21 @@ export const PartialConversation = z
   .partial()
   .passthrough();
 export type PartialConversation = z.infer<typeof PartialConversation>;
+export const HostingOrganizationRequest = z
+  .object({ organization_id: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type HostingOrganizationRequest = z.infer<
+  typeof HostingOrganizationRequest
+>;
+export const TransferOwnershipRequest = z
+  .object({
+    new_owner_email: z.union([z.string(), z.null()]),
+    new_owner_id: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type TransferOwnershipRequest = z.infer<typeof TransferOwnershipRequest>;
 export const OrganizationWithPermissionDto = z
   .object({ id: z.string().uuid(), name: z.string(), roleName: z.string() })
   .passthrough();
@@ -3709,6 +3724,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ConversationWithTranslations,
   ConversationResponse,
   PartialConversation,
+  HostingOrganizationRequest,
+  TransferOwnershipRequest,
   OrganizationWithPermissionDto,
   CohostInfo,
   SendNotificationRequest,
@@ -5206,6 +5223,20 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: NotificationRecipientsResponse,
   },
   {
+    method: "put",
+    path: "/conversation/:conversation_id/organization",
+    alias: "SetConversationHostingOrganization",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: HostingOrganizationRequest,
+      },
+    ],
+    response: ConversationDto,
+  },
+  {
     method: "get",
     path: "/conversation/:conversation_id/report",
     alias: "GetReportForConversation",
@@ -5274,6 +5305,20 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: ReportImpactDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/transfer-ownership",
+    alias: "TransferConversationOwnership",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: TransferOwnershipRequest,
+      },
+    ],
+    response: ConversationDto,
   },
   {
     method: "get",
