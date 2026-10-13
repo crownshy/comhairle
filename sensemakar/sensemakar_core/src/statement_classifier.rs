@@ -1,9 +1,9 @@
 use askama::Template;
 use bon::Builder;
-use rig::{
-    completion::CompletionModel,
-    extractor::{ExtractionError, ExtractorBuilder},
-};
+use rig_agent::completion::StructuredOutputError;
+use rig_agent::extractor::ExtractorBuilder;
+use rig_core::DynModel;
+use rig_core::operation::Completion;
 use sensemakar_types::Statement;
 use sensemakar_types::{StatementError, StatementList};
 use thiserror::Error;
@@ -17,29 +17,26 @@ pub struct StatementTypeClassifier {
 
 #[derive(Error, Debug)]
 pub enum StatementTypeClassifierError {
-    #[error("model error {0}")]
-    RigError(#[from] rig::ProviderResponseError),
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] ExtractionError),
+    RigExtractorError(#[from] StructuredOutputError),
     #[error("Statement serialization error {0}")]
     StatementSeializationError(#[from] StatementError),
 }
 
 impl StatementTypeClassifier {
-    pub async fn run_with_model<M, S>(
+    pub async fn run_with_model<S>(
         &self,
         statement_list: S,
-        model: M,
+        model: impl Into<DynModel<Completion>>,
     ) -> Result<Vec<Statement>, StatementTypeClassifierError>
     where
-        M: CompletionModel + 'static,
         S: Into<StatementList>,
     {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<StatementList>::new(model)
-            .preamble(&template)
+            .append_preamble(&template)
             .retries(2)
             .build();
 
@@ -47,25 +44,24 @@ impl StatementTypeClassifier {
         let statement_text = list.to_model_embed()?;
         println!("statement text {statement_text}");
 
-        let result = extractor.extract(statement_text).await?;
+        let result = extractor.extract(statement_text).await?.output;
 
         Ok(result.statements)
     }
 
-    pub async fn run_in_batches_with_model<M, S>(
+    pub async fn run_in_batches_with_model<S>(
         &self,
         statement_list: S,
-        model: M,
+        model: impl Into<DynModel<Completion>>,
         batch_size: usize,
     ) -> Result<Vec<Statement>, StatementTypeClassifierError>
     where
-        M: CompletionModel + 'static,
         S: Into<StatementList>,
     {
         let template = self.render()?;
 
         let extractor = ExtractorBuilder::<StatementList>::new(model)
-            .preamble(&template)
+            .append_preamble(&template)
             .retries(2)
             .build();
 
@@ -76,7 +72,7 @@ impl StatementTypeClassifier {
             let statement_text = StatementList::from(chunk.to_vec()).to_model_embed()?;
             println!("statement text {statement_text}");
 
-            let result = extractor.extract(statement_text).await?;
+            let result = extractor.extract(statement_text).await?.output;
             results.extend(result.statements);
         }
         Ok(results)

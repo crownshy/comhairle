@@ -1,11 +1,11 @@
-use sensemakar_types::{StatementError, StatementList, Theme, ThemeList};
 use askama::Template;
 use bon::Builder;
+use sensemakar_types::{StatementError, StatementList, Theme, ThemeList};
 
-use rig::{
-    completion::CompletionModel,
-    extractor::{ExtractionError, ExtractorBuilder},
-};
+use rig_agent::completion::StructuredOutputError;
+use rig_agent::extractor::ExtractorBuilder;
+use rig_core::DynModel;
+use rig_core::operation::Completion;
 use thiserror::Error;
 
 #[derive(Builder, Template)]
@@ -21,29 +21,26 @@ pub struct ThemeExtractor {
 
 #[derive(Error, Debug)]
 pub enum ThemeExtractorError {
-    #[error("model error {0}")]
-    RigError(#[from] rig::ProviderResponseError),
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] ExtractionError),
+    RigExtractorError(#[from] StructuredOutputError),
     #[error("Statement serialization error {0}")]
     StatementSeializationError(#[from] StatementError),
 }
 
 impl ThemeExtractor {
-    pub async fn run_with_model<M, S>(
+    pub async fn run_with_model<S>(
         &self,
         statement_list: S,
-        model: M,
+        model: impl Into<DynModel<Completion>>,
     ) -> Result<Vec<Theme>, ThemeExtractorError>
     where
-        M: CompletionModel + 'static,
         S: Into<StatementList>,
     {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<ThemeList>::new(model)
-            .preamble(&template)
+            .append_preamble(&template)
             .retries(2)
             .build();
 
@@ -51,19 +48,18 @@ impl ThemeExtractor {
         let statement_text = list.to_model_embed()?;
         println!("statement text {statement_text}");
 
-        let result = extractor.extract(statement_text).await?;
+        let result = extractor.extract(statement_text).await?.output;
 
         Ok(result.themes)
     }
 
-    pub async fn run_in_batches_with_model<M, S>(
+    pub async fn run_in_batches_with_model<S>(
         &mut self,
         statement_list: S,
-        model: M,
+        model: DynModel<Completion>,
         batch_size: usize,
     ) -> Result<Vec<Theme>, ThemeExtractorError>
     where
-        M: CompletionModel + 'static + Clone,
         S: Into<StatementList>,
     {
         let list: StatementList = statement_list.into();

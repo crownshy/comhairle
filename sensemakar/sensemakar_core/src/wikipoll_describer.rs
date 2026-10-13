@@ -1,20 +1,18 @@
 use askama::Template;
 use bon::Builder;
-use rig::{
-    completion::CompletionModel,
-    extractor::{ExtractionError, ExtractorBuilder},
-};
+use rig_agent::completion::StructuredOutputError;
+use rig_agent::extractor::ExtractorBuilder;
+use rig_core::DynModel;
+use rig_core::operation::Completion;
 use sensemakar_types::{WikiPollData, WikiPollReportResult};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum WikiPollGroupDescriberError {
-    #[error("model error {0}")]
-    RigError(#[from] rig::ProviderResponseError),
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] ExtractionError),
+    RigExtractorError(#[from] StructuredOutputError),
     #[error("json error error {0}")]
     StatementFormatError(#[from] serde_json::Error),
 }
@@ -27,23 +25,20 @@ pub struct WikiPollGroupDescriber {
 }
 
 impl WikiPollGroupDescriber {
-    pub async fn run_with_model<M>(
+    pub async fn run_with_model(
         &self,
         wiki_poll_report: &WikiPollData,
-        model: M,
-    ) -> Result<WikiPollReportResult, WikiPollGroupDescriberError>
-    where
-        M: CompletionModel + 'static,
-    {
+        model: impl Into<DynModel<Completion>>,
+    ) -> Result<WikiPollReportResult, WikiPollGroupDescriberError> {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<WikiPollReportResult>::new(model)
-            .preamble(&template)
+            .append_preamble(&template)
             .retries(2)
             .build();
 
         let statement_json: String = serde_json::to_string(wiki_poll_report)?;
 
-        let result = extractor.extract(statement_json).await?;
+        let result = extractor.extract(statement_json).await?.output;
         Ok(result)
     }
 }

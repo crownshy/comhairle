@@ -969,7 +969,7 @@ dependencies = [
  "aws-credential-types",
  "aws-sigv4",
  "aws-smithy-async",
- "aws-smithy-eventstream",
+ "aws-smithy-eventstream 0.61.4",
  "aws-smithy-http",
  "aws-smithy-runtime",
  "aws-smithy-runtime-api",
@@ -987,6 +987,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws-sdk-bedrockruntime"
+version = "1.148.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f2542c0f038223ba2f9aefe3bd38c7395ccc6899d8fc58a99b8ddfeab3354f5"
+dependencies = [
+ "arc-swap",
+ "aws-credential-types",
+ "aws-runtime",
+ "aws-sigv4",
+ "aws-smithy-async",
+ "aws-smithy-eventstream 0.61.4",
+ "aws-smithy-http",
+ "aws-smithy-json",
+ "aws-smithy-observability",
+ "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
+ "aws-smithy-schema",
+ "aws-smithy-types",
+ "aws-types",
+ "bytes",
+ "fastrand 2.5.0",
+ "http 1.5.0",
+ "http-body-util",
+ "regex-lite",
+ "tracing",
+]
+
+[[package]]
 name = "aws-sdk-s3"
 version = "1.152.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -998,7 +1026,7 @@ dependencies = [
  "aws-sigv4",
  "aws-smithy-async",
  "aws-smithy-checksums",
- "aws-smithy-eventstream",
+ "aws-smithy-eventstream 0.61.4",
  "aws-smithy-http",
  "aws-smithy-json",
  "aws-smithy-observability",
@@ -1134,7 +1162,7 @@ dependencies = [
  "aws-runtime",
  "aws-sigv4",
  "aws-smithy-async",
- "aws-smithy-eventstream",
+ "aws-smithy-eventstream 0.61.4",
  "aws-smithy-http",
  "aws-smithy-json",
  "aws-smithy-observability",
@@ -1158,7 +1186,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2312577f088c9fbf4206dfdb884cf1de9407b43e1a923cbed5237775116fc24b"
 dependencies = [
  "aws-credential-types",
- "aws-smithy-eventstream",
+ "aws-smithy-eventstream 0.61.4",
  "aws-smithy-http",
  "aws-smithy-runtime-api",
  "aws-smithy-types",
@@ -1211,6 +1239,17 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-eventstream"
+version = "0.60.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78d8391e65fcea47c586a22e1a41f173b38615b112b2c6b7a44e80cec3e6b706"
+dependencies = [
+ "aws-smithy-types",
+ "bytes",
+ "crc32fast",
+]
+
+[[package]]
+name = "aws-smithy-eventstream"
 version = "0.61.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80c2051c2f1016fb8e6548dd07b8bc2ac9c3fe583721444b92f515e856d31609"
@@ -1226,7 +1265,7 @@ version = "0.64.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "639b4d8f8555f24a9be649811c3eb0b4d4616f4d61daf0c32e28873bc1ea9af1"
 dependencies = [
- "aws-smithy-eventstream",
+ "aws-smithy-eventstream 0.61.4",
  "aws-smithy-runtime-api",
  "aws-smithy-types",
  "bytes",
@@ -8649,9 +8688,9 @@ version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b989f4060e5f3c1ea4b8b6999f6759949d820704286cc6976b7a688cc0133029"
 dependencies = [
- "rig-agent",
- "rig-core",
- "rig-derive",
+ "rig-agent 0.42.0",
+ "rig-core 0.42.0",
+ "rig-derive 0.42.0",
  "rig-fastembed",
  "rig-helixdb",
  "rig-lancedb",
@@ -8669,8 +8708,8 @@ dependencies = [
  "futures",
  "http 1.5.0",
  "indexmap 2.14.2",
- "rig-core",
- "rig-derive",
+ "rig-core 0.42.0",
+ "rig-derive 0.42.0",
  "schemars 1.2.2",
  "serde",
  "serde_json",
@@ -8678,6 +8717,52 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-futures",
+]
+
+[[package]]
+name = "rig-agent"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e3fa130bb81762e875dff982301fb599046535bbc04d908a2ee1fea583d1c67"
+dependencies = [
+ "async-stream",
+ "futures",
+ "http 1.5.0",
+ "indexmap 2.14.2",
+ "loom",
+ "rig-core 0.44.0",
+ "rig-derive 0.44.0",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tracing",
+ "tracing-futures",
+]
+
+[[package]]
+name = "rig-bedrock"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "182065e388df2229dba9edd7f38094994e63d9c49b58becc03f06551e1626854"
+dependencies = [
+ "async-stream",
+ "aws-config",
+ "aws-sdk-bedrockruntime",
+ "aws-smithy-eventstream 0.60.21",
+ "aws-smithy-runtime-api",
+ "aws-smithy-types",
+ "base64 0.22.1",
+ "bytes",
+ "futures",
+ "http-body 1.1.0",
+ "rig-core 0.44.0",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -8702,7 +8787,7 @@ dependencies = [
  "ordered-float 5.5.0",
  "pin-project-lite",
  "reqwest 0.13.5",
- "rig-derive",
+ "rig-derive 0.42.0",
  "schemars 1.2.2",
  "serde",
  "serde_json",
@@ -8713,6 +8798,36 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "url",
+]
+
+[[package]]
+name = "rig-core"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c60db6e3da7681abbdfa9637c1a76dbd5a713f935f0a6753d72c5d2770ed4c6"
+dependencies = [
+ "async-stream",
+ "base64 0.22.1",
+ "bytes",
+ "fastrand 2.5.0",
+ "futures",
+ "glob",
+ "http 1.5.0",
+ "mime",
+ "mime_guess",
+ "ordered-float 5.5.0",
+ "rig-derive 0.44.0",
+ "rig-http",
+ "rig-reqwest",
+ "rig-tungstenite",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -8729,13 +8844,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "rig-derive"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1146bdcb55a3b2dbdd9d2df7a8846714499c9985e9042926c06ffe98b3a821bc"
+dependencies = [
+ "convert_case 0.11.0",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "rig-fastembed"
 version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1dff99f9bea13108bb14df5431b6fc0738beb87f1fe5ebfcf26ae9fe54a188d"
 dependencies = [
  "fastembed",
- "rig-core",
+ "rig-core 0.42.0",
  "schemars 1.2.2",
  "serde",
  "serde_json",
@@ -8749,10 +8877,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5fa2b188a1e9e65d29c34738c97465f0822c57540d6d45fd4f04dad906c966a"
 dependencies = [
  "reqwest 0.13.5",
- "rig-core",
+ "rig-core 0.42.0",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rig-http"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9b68e5fe7258d64aeffb0a976ad0665ad2f94104d41eb4cdf463065ba57ec0b"
+dependencies = [
+ "bytes",
+ "futures",
+ "futures-timer",
+ "http 1.5.0",
+ "mime",
+ "thiserror 2.0.21",
+ "url",
 ]
 
 [[package]]
@@ -8764,7 +8907,7 @@ dependencies = [
  "arrow-array",
  "futures",
  "lancedb",
- "rig-core",
+ "rig-core 0.42.0",
  "serde",
  "serde_json",
 ]
@@ -8776,10 +8919,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af9c7b7ff7ed9c16da983a21f1e81f425c9805355427a92f4d2d97ba1fe2aa12"
 dependencies = [
  "reqwest 0.13.5",
- "rig-core",
+ "rig-core 0.42.0",
  "serde",
  "serde_json",
  "uuid",
+]
+
+[[package]]
+name = "rig-reqwest"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d478ca821bdf7030b4cabfdc7acc07ab5f0449886f9a7e472de205a6ec4b2b1d"
+dependencies = [
+ "bytes",
+ "futures",
+ "http 1.5.0",
+ "reqwest 0.13.5",
+ "rig-http",
+ "thiserror 2.0.21",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "rig-tungstenite"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d145d2d41722fd040dbb47f05b797c8119884697bb4ee7e53fc5c1c1ec9610df"
+dependencies = [
+ "futures",
+ "rig-http",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-tungstenite 0.29.0",
 ]
 
 [[package]]
@@ -9324,8 +9496,9 @@ dependencies = [
  "csv",
  "jiff",
  "language-tags",
- "rig",
- "rig-core",
+ "rig-agent 0.44.0",
+ "rig-bedrock",
+ "rig-core 0.44.0",
  "schemars 1.2.2",
  "sensemakar_types",
  "serde",
@@ -9344,14 +9517,14 @@ dependencies = [
  "anyhow",
  "axum",
  "rig",
- "rig-core",
+ "rig-core 0.42.0",
  "sensemakar",
  "sensemakar_types",
  "serde",
  "serde_json",
- "thiserror 2.0.20",
+ "thiserror 2.0.21",
  "tokio",
- "tower-http",
+ "tower-http 0.6.11",
  "tracing",
  "tracing-subscriber",
 ]
@@ -9365,7 +9538,7 @@ dependencies = [
  "csv",
  "language-tags",
  "rig",
- "rig-core",
+ "rig-core 0.42.0",
  "sensemakar",
  "sensemakar_types",
  "serde",
@@ -9407,7 +9580,7 @@ dependencies = [
  "apalis",
  "apalis-redis",
  "rig",
- "rig-core",
+ "rig-core 0.42.0",
  "sensemakar",
  "sensemakar_jobs",
  "sensemakar_types",
@@ -9501,6 +9674,8 @@ version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
 dependencies = [
+ "foldhash 0.2.0",
+ "indexmap 2.14.2",
  "itoa",
  "memchr",
  "serde",

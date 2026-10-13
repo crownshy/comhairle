@@ -1,5 +1,7 @@
 use language_tags::LanguageTag;
-use rig::{client::CompletionClient, completion::CompletionModel, providers::ollama};
+use rig_core::DynModel;
+use rig_core::operation::Completion;
+use rig_core::providers::ollama::Ollama;
 
 use sensemakar_types::{Statement, Theme};
 
@@ -64,13 +66,6 @@ pub fn test_statements() -> Vec<Statement> {
     ]
 }
 
-pub fn test_model() -> impl CompletionModel + Clone {
-    let client = ollama::Client::builder()
-        .base_url("http://localhost:11434")
-        .api_key("AAAAC3NzaC1lZDI1NTE5AAAAIK1z4ddn4+0iDtXx9RTiqMVi+gSLhh2Q6qcXsd109H6S")
-        .build()
-        .unwrap();
-
-    let model = client.completion_model("qwen3-long");
-    model
+pub fn test_model() -> DynModel<Completion> {
+    Ollama::new().completion("qwen3-long").erase()
 }

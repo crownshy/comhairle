@@ -2,10 +2,10 @@ use std::collections::HashSet;
 
 use askama::Template;
 use bon::Builder;
-use rig::{
-    completion::CompletionModel,
-    extractor::{ExtractionError, ExtractorBuilder},
-};
+use rig_agent::completion::StructuredOutputError;
+use rig_agent::extractor::ExtractorBuilder;
+use rig_core::DynModel;
+use rig_core::operation::Completion;
 use sensemakar_types::{Statement, ThemeAssignment, ThemeAssignmentResult, ThemeError};
 use sensemakar_types::{StatementError, StatementList, ThemeList};
 use thiserror::Error;
@@ -20,12 +20,10 @@ pub struct StatementThemeAssigner {
 
 #[derive(Error, Debug)]
 pub enum StatementThemeAssignerError {
-    #[error("model error {0}")]
-    RigError(#[from] rig::ProviderResponseError),
     #[error("Template Error {0}")]
     TemplateError(#[from] askama::Error),
     #[error("extractor error {0}")]
-    RigExtractorError(#[from] ExtractionError),
+    RigExtractorError(#[from] StructuredOutputError),
     #[error("Statement serialization error {0}")]
     StatementSeializationError(#[from] StatementError),
     #[error("Theme serialization error {0}")]
@@ -33,13 +31,12 @@ pub enum StatementThemeAssignerError {
 }
 
 impl StatementThemeAssigner {
-    pub async fn run_with_model<M, S>(
+    pub async fn run_with_model<S>(
         &self,
         statement_list: S,
-        model: M,
+        model: impl Into<DynModel<Completion>>,
     ) -> Result<ThemeAssignmentResult, StatementThemeAssignerError>
     where
-        M: CompletionModel + 'static,
         S: Into<StatementList>,
     {
         let mut all_results: Vec<ThemeAssignment> = vec![];
@@ -47,7 +44,7 @@ impl StatementThemeAssigner {
         let template = self.render()?;
         println!("Template is {template}");
         let extractor = ExtractorBuilder::<ThemeAssignmentResult>::new(model)
-            .preamble(&template)
+            .append_preamble(&template)
             .retries(2)
             .build();
 
@@ -68,7 +65,7 @@ impl StatementThemeAssigner {
             }
             .to_model_embed()?;
 
-            let result = extractor.extract(statement_text).await?;
+            let result = extractor.extract(statement_text).await?.output;
 
             for entry in &result.statement_assignments {
                 pending_ids.remove(&entry.statement_id);
@@ -80,35 +77,6 @@ impl StatementThemeAssigner {
             statement_assignments: all_results,
         })
     }
-
-    // pub async fn run_in_batches_with_model<M, S>(
-    //     &self,
-    //     statement_list: S,
-    //     model: M,
-    //     batch_size: usize,
-    // ) -> Result<Vec<Statement>, StatementTypeClassifierError>
-    // where
-    //     M: CompletionModel + 'static,
-    //     S: Into<StatementList>,
-    // {
-    //     let template = self.render()?;
-    //
-    //     let extractor = ExtractorBuilder::<StatementList>::new(model)
-    //         .preamble(&template)
-    //         .build();
-    //
-    //     let list: StatementList = statement_list.into();
-    //     let mut results = vec![];
-    //
-    //     for chunk in list.statements.chunks(batch_size) {
-    //         let statement_text = StatementList::from(chunk.to_vec()).to_model_embed()?;
-    //         println!("statement text {statement_text}");
-    //
-    //         let result = extractor.extract(statement_text).await?;
-    //         results.extend(result.statements);
-    //     }
-    //     Ok(results)
-    // }
 }
 
 #[cfg(test)]

@@ -46,11 +46,30 @@ pub async fn wiki_poll_summary_handler(
         .ok_or_record_failure(&job.job_id, &state.db)
         .await?;
 
-    let model = model_config::build_model(&model_config::ModelConfig {
-        base_url: model_cfg.base_url.clone(),
-        api_key: model_cfg.api_key.clone(),
-        model: model_cfg.model.clone(),
-    });
+    let model_config = match model_cfg.provider {
+        crate::config::SensemakerModelProvider::OpenAiCompatible => {
+            model_config::ModelConfig::OpenAiCompatible {
+                base_url: model_cfg
+                    .base_url
+                    .clone()
+                    .ok_or(WorkerServiceError::NoSensemakerModelConfigured)
+                    .ok_or_record_failure(&job.job_id, &state.db)
+                    .await?,
+                api_key: model_cfg
+                    .api_key
+                    .clone()
+                    .ok_or(WorkerServiceError::NoSensemakerModelConfigured)
+                    .ok_or_record_failure(&job.job_id, &state.db)
+                    .await?,
+                model: model_cfg.model.clone(),
+            }
+        }
+        crate::config::SensemakerModelProvider::Bedrock => model_config::ModelConfig::Bedrock {
+            model: model_cfg.model.clone(),
+            region: model_cfg.region.clone(),
+        },
+    };
+    let model = model_config::build_model(&model_config);
 
     let describer = WikiPollGroupDescriber {
         context: job.context.clone(),
