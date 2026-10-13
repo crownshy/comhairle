@@ -34,6 +34,7 @@
 	import { DEFAULT_LOCALE } from '$lib/utils/constants';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { permissions } from '$lib/permissions.svelte';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	const { data } = $props();
 	const { conversation } = $derived(data);
@@ -368,7 +369,7 @@
 				{/each}
 			{:then workflows}
 				{#if workflows.err !== null}
-					<span class="text-destructive">Could not load workflows, please try again</span>
+					<ErrorMessage>Could not load workflows, please try again</ErrorMessage>
 				{:else if workflows.ok.current.steps.length === 0}
 					<div
 						class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"

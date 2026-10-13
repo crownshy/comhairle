@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { notifications } from '$lib/notifications.svelte.js';
 	import AddStepDialog from './AddStepDialog.svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import { Plus, Settings2 } from '@lucide/svelte';
@@ -9,6 +8,7 @@
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import { setAddStepDialogContext } from './context';
 	import { max } from '$lib/utils/maths';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	const { data, children, params } = $props();
 	const { conversation_id } = $derived(params);
@@ -46,10 +46,7 @@
 	{:then workflows}
 		{#if workflows.err !== null}
 			{console.error(workflows.err)}
-			{notifications.addFlash({
-				message: 'Could not load workflows, please try again',
-				priority: 'ERROR'
-			})}
+			<ErrorMessage>Could not load workflows, please try again</ErrorMessage>
 		{:else}
 			{#each workflows.ok.current.steps as step (step.id)}
 				<TabStripItem
