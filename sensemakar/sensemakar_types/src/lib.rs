@@ -54,7 +54,7 @@ pub struct WikiPollVoteSummary {
     pub pass: u32,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 /// A description of a WikiPoll Group
 pub struct WikiPollGroupDescription {
     /// The id of the group this description belongs to, exactly as given in the input data
@@ -68,7 +68,7 @@ pub struct WikiPollGroupDescription {
     unique_statement: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct WikiPollReportResult {
     /// A description of each group. There must be exactly one entry per group
     /// in the input data, with `group_id` set to that group's id

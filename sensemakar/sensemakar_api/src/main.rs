@@ -7,7 +7,7 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use rig::{client::CompletionClient, providers::ollama};
+use rig_core::providers::ollama::OllamaConfig;
 use tower_http::trace::TraceLayer;
 
 #[tokio::main]
@@ -16,18 +16,19 @@ async fn main() -> anyhow::Result<()> {
 
     let base_url = std::env::var("SENSEMAKAR_OLLAMA_BASE_URL")
         .unwrap_or_else(|_| "http://localhost:11434".to_string());
-    let model_name = std::env::var("SENSEMAKAR_OLLAMA_MODEL").unwrap_or_else(|_| "qwen3-long".to_string());
+    let model_name =
+        std::env::var("SENSEMAKAR_OLLAMA_MODEL").unwrap_or_else(|_| "qwen3-long".to_string());
     let api_key = std::env::var("SENSEMAKAR_OLLAMA_API_KEY").unwrap_or_default();
     let port: u16 = std::env::var("SENSEMAKAR_API_PORT")
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or(8089);
 
-    let client = ollama::Client::builder()
-        .base_url(&base_url)
-        .api_key(api_key.as_str())
-        .build()?;
-    let model = Arc::new(client.completion_model(&model_name));
+    let mut config = OllamaConfig::new().with_base_url(&base_url);
+    if !api_key.is_empty() {
+        config = config.with_api_key(api_key);
+    }
+    let model = Arc::new(config.client().completion(&model_name).erase());
 
     let app = Router::new()
         .route("/health", get(routes::health))

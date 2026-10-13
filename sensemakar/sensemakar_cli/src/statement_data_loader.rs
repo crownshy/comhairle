@@ -24,10 +24,12 @@ fn load_csv(path: &Path, default_lang: &LanguageTag) -> Result<Vec<Statement>> {
 
     let mut statements = Vec::new();
     for record in reader.deserialize() {
-        let row: CsvRow = record.with_context(|| format!("failed to parse row in {}", path.display()))?;
+        let row: CsvRow =
+            record.with_context(|| format!("failed to parse row in {}", path.display()))?;
         let lang = match row.lang {
-            Some(tag) => LanguageTag::parse(&tag)
-                .with_context(|| format!("invalid language tag '{tag}' for statement {}", row.id))?,
+            Some(tag) => LanguageTag::parse(&tag).with_context(|| {
+                format!("invalid language tag '{tag}' for statement {}", row.id)
+            })?,
             None => default_lang.clone(),
         };
         statements.push(Statement {

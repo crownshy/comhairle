@@ -25,7 +25,8 @@ fn load_csv(path: &Path) -> Result<Vec<Theme>> {
 
     let mut themes = Vec::new();
     for record in reader.deserialize() {
-        let theme: Theme = record.with_context(|| format!("failed to parse row in {}", path.display()))?;
+        let theme: Theme =
+            record.with_context(|| format!("failed to parse row in {}", path.display()))?;
         themes.push(theme);
     }
 

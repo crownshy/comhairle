@@ -16,10 +16,15 @@ fn load_csv(path: &Path) -> Result<Vec<WikiPollStatement>> {
 
     let mut statements = Vec::new();
     for record in reader.records() {
-        let record = record.with_context(|| format!("failed to parse row in {}", path.display()))?;
+        let record =
+            record.with_context(|| format!("failed to parse row in {}", path.display()))?;
 
         let mut statement = None;
-        let mut total_votes = WikiPollVoteSummary { agree: 0, disagree: 0, pass: 0 };
+        let mut total_votes = WikiPollVoteSummary {
+            agree: 0,
+            disagree: 0,
+            pass: 0,
+        };
         let mut group_votes: HashMap<String, WikiPollVoteSummary> = HashMap::new();
 
         for (header, value) in headers.iter().zip(record.iter()) {
@@ -45,11 +50,14 @@ fn load_csv(path: &Path) -> Result<Vec<WikiPollStatement>> {
                     let parsed: u32 = value
                         .parse()
                         .with_context(|| format!("column '{other}' is not a valid vote count"))?;
-                    let summary = group_votes.entry(group.to_string()).or_insert(WikiPollVoteSummary {
-                        agree: 0,
-                        disagree: 0,
-                        pass: 0,
-                    });
+                    let summary =
+                        group_votes
+                            .entry(group.to_string())
+                            .or_insert(WikiPollVoteSummary {
+                                agree: 0,
+                                disagree: 0,
+                                pass: 0,
+                            });
                     match field {
                         "agree" => summary.agree = parsed,
                         "disagree" => summary.disagree = parsed,
@@ -153,12 +161,20 @@ mod tests {
         let statements = vec![
             WikiPollStatement {
                 statement: "Bikes are great".into(),
-                total_votes: WikiPollVoteSummary { agree: 10, disagree: 2, pass: 1 },
+                total_votes: WikiPollVoteSummary {
+                    agree: 10,
+                    disagree: 2,
+                    pass: 1,
+                },
                 group_votes: HashMap::new(),
             },
             WikiPollStatement {
                 statement: "Buses are late".into(),
-                total_votes: WikiPollVoteSummary { agree: 5, disagree: 1, pass: 0 },
+                total_votes: WikiPollVoteSummary {
+                    agree: 5,
+                    disagree: 1,
+                    pass: 0,
+                },
                 group_votes: HashMap::new(),
             },
         ];

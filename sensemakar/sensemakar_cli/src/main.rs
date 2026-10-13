@@ -7,8 +7,9 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use language_tags::LanguageTag;
-use rig::client::CompletionClient;
-use rig::providers::ollama;
+use rig_core::DynModel;
+use rig_core::operation::Completion;
+use rig_core::providers::ollama::OllamaConfig;
 use sensemakar::statement_theme_assigner::StatementThemeAssigner;
 use sensemakar::theme_extraction::ThemeExtractor;
 use sensemakar::wikipoll_describer::WikiPollGroupDescriber;
@@ -42,7 +43,10 @@ fn load_input_statements(
 }
 
 #[derive(Parser)]
-#[command(name = "sensemakar", about = "CLI for the sensemakar deliberation analysis tools")]
+#[command(
+    name = "sensemakar",
+    about = "CLI for the sensemakar deliberation analysis tools"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -65,13 +69,12 @@ struct ModelArgs {
 }
 
 impl ModelArgs {
-    fn build_model(&self) -> Result<ollama::CompletionModel> {
-        let client = ollama::Client::builder()
-            .base_url(&self.base_url)
-            .api_key(self.api_key.as_deref().unwrap_or(""))
-            .build()
-            .context("failed to build ollama client")?;
-        Ok(client.completion_model(&self.model))
+    fn build_model(&self) -> Result<DynModel<Completion>> {
+        let mut config = OllamaConfig::new().with_base_url(&self.base_url);
+        if let Some(api_key) = &self.api_key {
+            config = config.with_api_key(api_key.clone());
+        }
+        Ok(config.client().completion(&self.model).erase())
     }
 }
 
@@ -253,7 +256,8 @@ async fn main() -> Result<()> {
             output,
             model_args,
         } => {
-            let lang = LanguageTag::parse(&lang).with_context(|| format!("invalid language tag '{lang}'"))?;
+            let lang = LanguageTag::parse(&lang)
+                .with_context(|| format!("invalid language tag '{lang}'"))?;
             let statements = load_input_statements(&input, format, &lang)?;
             println!("loaded {} statements", statements.len());
 
@@ -296,7 +300,8 @@ async fn main() -> Result<()> {
             output,
             model_args,
         } => {
-            let lang = LanguageTag::parse(&lang).with_context(|| format!("invalid language tag '{lang}'"))?;
+            let lang = LanguageTag::parse(&lang)
+                .with_context(|| format!("invalid language tag '{lang}'"))?;
             let statements = load_input_statements(&input, format, &lang)?;
             println!("loaded {} statements", statements.len());
 

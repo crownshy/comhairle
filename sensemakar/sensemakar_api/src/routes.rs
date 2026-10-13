@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use axum::{Json, extract::State};
-use rig::providers::ollama;
+use rig_core::DynModel;
+use rig_core::operation::Completion;
 use sensemakar::statement_theme_assigner::StatementThemeAssigner;
 use sensemakar::theme_extraction::ThemeExtractor;
 use sensemakar::wikipoll_describer::WikiPollGroupDescriber;
@@ -12,7 +13,7 @@ use serde::Deserialize;
 
 use crate::error::ApiError;
 
-pub type AppState = Arc<ollama::CompletionModel>;
+pub type AppState = Arc<DynModel<Completion>>;
 
 pub async fn health() -> &'static str {
     "ok"
