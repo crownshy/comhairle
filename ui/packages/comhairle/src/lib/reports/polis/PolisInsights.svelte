@@ -15,15 +15,25 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
+	import type { Snippet } from 'svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let {
+		conversationId,
 		reportData,
-		statementAux
+		statementAux,
+		actions
 	}: {
+		conversationId: string;
 		workflowStepId: string;
 		reportData: PolisReportData | null;
 		statementAux: PolisStatementAux[];
+		/** Extra page actions, shown beside Download CSV. */
+		actions?: Snippet;
 	} = $props();
+	const canExport = $derived(
+		permissions.can('conversation', 'conversation_export', conversationId)
+	);
 
 	// "aux" = PolisStatementAux: our supplementary per-statement record (themes,
 	// moderation status/reason, step id, seed flag) that Polis itself doesn't store.
@@ -145,7 +155,7 @@
 	}
 
 	function handleDownloadCsv() {
-		if (!report) return;
+		if (!canExport || !report) return;
 		const csv = buildInsightsCsv(report, auxByTid);
 		const ts = new Date().toISOString().slice(0, 10);
 		downloadCsv(`polis-statements-${ts}.csv`, csv);
@@ -153,6 +163,9 @@
 </script>
 
 {#if !report || !stats}
+	{#if actions}
+		<div class="flex justify-end pb-4">{@render actions()}</div>
+	{/if}
 	<div
 		class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 	>
@@ -185,10 +198,13 @@
 					subText="{avgVotesPerVoter.toFixed(1)} avg per voter"
 				/>
 			</div>
-			<Button size="sm" onclick={handleDownloadCsv}>
-				<Download class="size-4" />
-				Download CSV
-			</Button>
+			<div class="flex flex-wrap gap-2">
+				{@render actions?.()}
+				<Button size="sm" onclick={handleDownloadCsv} disabled={!canExport}>
+					<Download class="size-4" />
+					Download CSV
+				</Button>
+			</div>
 		</div>
 
 		<!-- ===== Consensus continuum ===== -->

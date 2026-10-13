@@ -325,6 +325,9 @@ pub enum ComhairleError {
     #[error("Event has past")]
     EventHasPast,
 
+    #[error("Event has incorrect signup mode for this action")]
+    EventInvalidSignupMode,
+
     #[error("User is already registered for event: {0}")]
     UserAlreadyRegisteredForEvent(String),
 

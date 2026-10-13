@@ -1,3 +1,4 @@
+import { key } from '$lib/utils/invalidationKey';
 import type { LayoutLoad } from './$types';
 import type {
 	LocalizedWorkflowStepDto,
@@ -13,10 +14,10 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 		await parent();
 	const workflow_id = params.workflow_id;
 
-	depends('app:workflow-steps');
+	depends(key('public/workflow-steps'));
 	// This layout fetches participation itself when the parent's row is for another workflow,
 	// so it needs the same key the conversation layout declares.
-	depends('app:participation');
+	depends(key('public/participation'));
 
 	let workflowSteps: LocalizedWorkflowStepWithProgressDto[];
 	if (conversation.isLive) {
@@ -63,6 +64,8 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 		preview,
 		sealed,
 		availableDocuments,
-		hasKnowledgeBaseDocs
+		hasKnowledgeBaseDocs,
+		// Tells the NavBar, which renders above this layout, to show its Find out more button.
+		hasSupportDrawer: true
 	};
 };

@@ -4,7 +4,7 @@
 	import Icon from '@iconify/svelte';
 	import { copy } from 'svelte-copy';
 	import { fade } from 'svelte/transition';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { page } from '$app/state';
 	import AuthGradient from '$lib/components/AuthGradient.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';

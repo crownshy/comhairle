@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { apiClient } from '@crownshy/api-client/client';
-	import { toast } from 'svelte-sonner';
-	import * as m from '$lib/paraglide/messages';
+	import { notifications } from '$lib/notifications.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 
 	let { user, backTo }: { user: any; backTo?: string } = $props();
@@ -11,7 +11,7 @@
 	async function resendVerificationEmail() {
 		try {
 			await apiClient.ResendVerificationEmail({ id: user.id });
-			toast.success(m.verification_email_sent());
+			notifications.send({ message: m.verification_email_sent(), priority: 'SUCCESS' });
 		} catch (e) {
 			responseMessage = m.verify_error_message();
 			if (!user) {

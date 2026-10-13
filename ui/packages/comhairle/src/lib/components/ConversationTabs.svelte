@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
 	import { conversationSections } from '$lib/config/conversation-steps';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let {
 		conversationId,
@@ -8,6 +9,9 @@
 	}: { conversationId: string; conversationIsLive: boolean } = $props();
 
 	let basePath = $derived(`/admin/conversations/${conversationId}`);
+	const canAdmin = $derived(
+		permissions.can('conversation', 'conversation_admin', conversationId)
+	);
 
 	// During a pending navigation `page` still reflects the old route, so highlight the
 	// destination instead: the clicked tab lights up immediately rather than after a
@@ -29,13 +33,16 @@
 	<ul class="pl-gutter flex min-w-full items-center pr-5 [&>li:first-child]:-ml-4">
 		{#each conversationSections as section (section.path)}
 			{@const active = isActive(section.path, activePathname)}
-			{@const disabled = section.requiresLive && !conversationIsLive}
+			{@const requiresAdmin = section.path === 'notifications' && !canAdmin}
+			{@const disabled = requiresAdmin || (section.requiresLive && !conversationIsLive)}
 			<li class="shrink-0">
 				{#if disabled}
 					<span
 						class="text-foreground relative flex h-11 cursor-not-allowed items-center px-4 text-sm font-medium whitespace-nowrap opacity-30"
 						aria-disabled="true"
-						title="Available after launch"
+						title={requiresAdmin
+							? 'Admin permission required'
+							: 'Available after launch'}
 					>
 						{section.name}
 					</span>

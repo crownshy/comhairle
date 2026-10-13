@@ -2,6 +2,8 @@
 export interface JitsiBreakoutRoom {
 	// jid: the XMPP address Jitsi identifies a room by, and what you pass to join it.
 	jid?: string;
+	/** Jitsi's short id for the room, which is what `closeBreakoutRoom` takes. */
+	id?: string;
 	name?: string;
 	isMainRoom?: boolean;
 }

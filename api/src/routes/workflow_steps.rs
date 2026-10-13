@@ -10,6 +10,7 @@ use axum::{
     Json,
     extract::{Path, State},
     http::StatusCode,
+    middleware::from_fn_with_state,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -29,10 +30,12 @@ use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterCon
 use crate::{
     ComhairleState,
     error::ComhairleError,
+    middleware::permissions::{PermissionRequirement, authorize as permission_middleware},
+    models::permissions::{ConversationResource, conversation::Action},
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep},
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::RequiredUser;
 use crate::models::{self, conversation, user_participation};
 use axum::extract::{FromRequestParts, Query};
 
@@ -108,7 +111,6 @@ async fn create_workflow_step(
         event_id: _,
     }: SourcePathCtx,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(new_workflow): Json<CreateWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
@@ -137,7 +139,6 @@ async fn update_workflow_step(
         workflow_id,
         workflow_step_id,
     }: WorkflowStepPathCtx,
-    RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
@@ -172,14 +173,29 @@ async fn list_workflows_step(
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<WorkflowStepsListResponse>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    let conversation_owner = user.id == conversation.owner_id;
+    let can_read = models::permissions::can_perform_action(
+        &state,
+        &conversation_id,
+        Action::Read,
+        &user.id,
+        Some(&conversation.owner_id),
+    )
+    .await?;
+    let can_edit = models::permissions::can_perform_action(
+        &state,
+        &conversation_id,
+        Action::Update,
+        &user.id,
+        Some(&conversation.owner_id),
+    )
+    .await?;
+    if !can_read {
+        user_participation::get(&state.db, &user.id, &workflow_id)
+            .await
+            .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
+    }
 
-    user_participation::get(&state.db, &user.id, &workflow_id)
-        .await
-        .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
-
-    let should_return_with_translations =
-        query.with_translations && is_user_admin(&state, &user).await;
+    let should_return_with_translations = query.with_translations && can_read;
 
     if should_return_with_translations {
         let steps = workflow_step::list_with_translations(&state.db, &workflow_id, &locale).await?;
@@ -229,7 +245,7 @@ async fn list_workflows_step(
     } else {
         let mut workflow_steps =
             workflow_step::list_localized(&state.db, &workflow_id, &locale).await?;
-        if !conversation_owner {
+        if !can_edit {
             for workflow_step in workflow_steps.iter_mut() {
                 workflow_step.sanatize();
             }
@@ -272,12 +288,19 @@ async fn get_workflow_step(
 ) -> Result<(StatusCode, Json<LocalizedWorkflowStepDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    let conversation_owner = user.id == conversation.owner_id;
+    let can_edit = models::permissions::can_perform_action(
+        &state,
+        &conversation_id,
+        Action::Update,
+        &user.id,
+        Some(&conversation.owner_id),
+    )
+    .await?;
 
     let mut workflow_step =
         workflow_step::get_localised_by_id(&state.db, &workflow_step_id, &locale).await?;
 
-    if !conversation_owner {
+    if !can_edit {
         workflow_step.sanatize();
     }
 
@@ -306,7 +329,6 @@ async fn get_workflow_step(
 #[instrument(err(Debug), skip(state))]
 async fn delete_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
     WorkflowStepPathCtx {
         workflow_id: _,
         workflow_step_id,
@@ -328,7 +350,11 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                     .summary("Create a new workflow step")
                     .security_requirement("JWT")
                     .response::<201, Json<WorkflowStepDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
         )
         .api_route(
             "/",
@@ -364,7 +390,11 @@ Use query param withUserProgress=true to get the active user's progress status f
                     .summary("Update the specified workflow step")
                     .security_requirement("JWT")
                     .response::<200, Json<WorkflowStepDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
         )
         .api_route(
             "/{workflow_step_id}",
@@ -374,7 +404,11 @@ Use query param withUserProgress=true to get the active user's progress status f
                     .summary("Delete the specified workflow step")
                     .security_requirement("JWT")
                     .response::<200, Json<WorkflowStepDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
         )
         .with_state(state)
 }

@@ -5,6 +5,7 @@
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { InviteDto } from '@crownshy/api-client/api';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let {
 		open = $bindable(false),
@@ -20,6 +21,9 @@
 
 	let label = $state(invite?.label || '');
 	let isNew = $derived(!invite);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversationId)
+	);
 
 	$effect(() => {
 		if (invite) {
@@ -28,6 +32,7 @@
 	});
 
 	async function handleSave() {
+		if (!canEdit) return;
 		try {
 			if (isNew) {
 				// Create new invite with label
@@ -57,31 +62,33 @@
 	}
 </script>
 
-<Dialog.Root {open} onOpenChange={handleOpenChange}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{isNew ? 'Create New Invite' : 'Update Invite Label'}</Dialog.Title>
-			<Dialog.Description>
-				{isNew
-					? 'Add a label to help you identify this invite link.'
-					: 'Update the label for this invite link.'}
-			</Dialog.Description>
-		</Dialog.Header>
+{#if canEdit}
+	<Dialog.Root {open} onOpenChange={handleOpenChange}>
+		<Dialog.Content>
+			<Dialog.Header>
+				<Dialog.Title>{isNew ? 'Create New Invite' : 'Update Invite Label'}</Dialog.Title>
+				<Dialog.Description>
+					{isNew
+						? 'Add a label to help you identify this invite link.'
+						: 'Update the label for this invite link.'}
+				</Dialog.Description>
+			</Dialog.Header>
 
-		<div class="space-y-4 py-4">
-			<div class="space-y-2">
-				<Label for="label">Label (optional)</Label>
-				<Input
-					id="label"
-					bind:value={label}
-					placeholder="e.g., Social Media Campaign, Newsletter, etc."
-				/>
+			<div class="space-y-4 py-4">
+				<div class="space-y-2">
+					<Label for="label">Label (optional)</Label>
+					<Input
+						id="label"
+						bind:value={label}
+						placeholder="e.g., Social Media Campaign, Newsletter, etc."
+					/>
+				</div>
 			</div>
-		</div>
 
-		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
-			<Button onclick={handleSave}>{isNew ? 'Create' : 'Save'}</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+			<Dialog.Footer>
+				<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
+				<Button onclick={handleSave}>{isNew ? 'Create' : 'Save'}</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}

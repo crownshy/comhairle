@@ -7,6 +7,7 @@
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
 	import { loginRedirectServer } from '$lib/urls';
+	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
 	import { replaceState } from '$app/navigation';
 	import PrototypeSwitcher from '$lib/components/PrototypeSwitcher.svelte';
 	import SidebarDrillIn from './sidebar-prototype/SidebarDrillIn.svelte';
@@ -25,6 +26,7 @@
 	let ownedConversations = $derived(data.ownedConversations);
 	let permittedConversations = $derived(data.permittedConversations);
 	let userOrganizations = $derived(data.userOrganizations);
+	let userRoles = $derived(data.userRoles);
 
 	if (!data.user) {
 		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
@@ -92,6 +94,7 @@
 				organizations: [],
 				canCreateOrganization: false
 			}}
+			{userRoles}
 			path={page.url.pathname}
 		/>
 	{/if}
@@ -103,6 +106,7 @@
 	</SideBar.Inset>
 </SideBar.Provider>
 
+<AutosaveLeaveGuard />
 <PrototypeSwitcher variants={SIDEBAR_VARIANTS} current={sidebarVariant} onChange={chooseVariant} />
 
 <style>

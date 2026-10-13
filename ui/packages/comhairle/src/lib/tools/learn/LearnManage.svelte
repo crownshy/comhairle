@@ -23,6 +23,9 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
+	import { key } from '$lib/utils/invalidationKey';
+	import { permissions } from '$lib/permissions.svelte';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 
 	interface Props {
 		conversationId: string;
@@ -32,6 +35,9 @@
 	}
 
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversationId)
+	);
 
 	let isInitialLoad = $state(true);
 	let primaryLocale = $derived<Locale>((conversation.primaryLocale as Locale) ?? 'en');
@@ -62,6 +68,7 @@
 	guardUnsavedChanges(() => pages.areDirty);
 
 	async function save(pagesToSave: ExtendedLocalizedPage[][]) {
+		if (!canEdit) throw new Error('Edit access is required to save Learn pages');
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
 			pages: pagesToSave
@@ -87,15 +94,7 @@
 			throw response.err;
 		}
 
-		// Every save refreshes the step list, content edits included. This step's config is served
-		// from the conversation layout's `workflowSteps`, and that load keys off `conversation_id`
-		// alone, so hopping between steps never refetches it. A save that skipped this left the
-		// cache holding pre-edit pages: leave the step, come back, and the editor remounts from
-		// stale props and the next autosave writes them back over the real content.
-		//
-		// Ordering matters. Invalidating before markSaved() means the fresh props land while
-		// `areDirty` is still true, so the reload effect below leaves the editor alone.
-		await invalidate('conversation:workflow');
+		await invalidate(key('admin/conversation'));
 		pages.markSaved();
 	}
 
@@ -150,10 +149,12 @@
 				<Skeleton class="h-10 w-45" />
 				<Skeleton class="h-10 w-24" />
 				<Skeleton class="h-10 w-28" />
-			{:else}
+			{:else if canEdit}
 				<DraggableList
 					items={pages.order}
-					onReorder={(order) => pages.reorder(order)}
+					onReorder={(order) => {
+						if (canEdit) pages.reorder(order);
+					}}
 					class="bg-muted flex flex-row flex-wrap items-center gap-2 rounded-md p-2"
 				>
 					{#snippet children(item, i)}
@@ -176,8 +177,12 @@
 						</Button>
 					{/snippet}
 				</DraggableList>
-				<Button variant="ghost" size="sm" onclick={() => pages.new(primaryLocale)}
-					>+ Add Page</Button
+				<Button
+					variant="ghost"
+					size="sm"
+					onclick={() => {
+						if (canEdit) pages.new(primaryLocale);
+					}}>+ Add Page</Button
 				>
 				<Tooltip.Root>
 					<Tooltip.Trigger>
@@ -193,6 +198,18 @@
 						>Most conversations work best with 5 pages or fewer</Tooltip.Content
 					>
 				</Tooltip.Root>
+			{:else}
+				<div class="flex flex-wrap items-center gap-2">
+					{#each pages.order as item, index (item.id)}
+						<Button
+							size="sm"
+							variant={Number(item.id) === pages.currentId ? 'default' : 'secondary'}
+							onclick={() => pages.switchTo(Number(item.id))}
+						>
+							Page {index + 1}
+						</Button>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -218,7 +235,7 @@
 				<Skeleton class="h-7 w-24 rounded-full" />
 			</div>
 		</div>
-	{:else}
+	{:else if canEdit}
 		<TranslatableField
 			source={translationSource}
 			{primaryLocale}
@@ -230,10 +247,21 @@
 			{availableDocuments}
 			{conversationId}
 		/>
+	{:else}
+		<div class="bg-card border-border rounded-lg border p-4">
+			<ContentRenderer
+				content={translationSource.contents[primaryLocale] ?? ''}
+				{availableDocuments}
+				{conversationId}
+			/>
+		</div>
 	{/if}
-	{#if pages.count > 1}
-		<Button variant="destructiveOutline" onclick={() => pages.current.delete()}
-			><Trash2 /> Delete Page</Button
+	{#if canEdit && pages.count > 1}
+		<Button
+			variant="destructiveOutline"
+			onclick={() => {
+				if (canEdit) pages.current.delete();
+			}}><Trash2 /> Delete Page</Button
 		>
 	{/if}
 </div>

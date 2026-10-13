@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let { data, children } = $props();
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', data.conversation.id)
+	);
 
 	let subtabItems = $derived(data.subtabItems);
 	let basePath = $derived(
 		`/admin/conversations/${data.conversation.id}/design/step/${data.step_id}`
 	);
-	let pageTitle = $derived(`Edit Step: ${data.step?.name ?? 'Step'}`);
+	let pageTitle = $derived(`${canEdit ? 'Edit Step' : 'Step'}: ${data.step?.name ?? 'Step'}`);
 
 	// The heyform Setup tab embeds the full HeyForm builder (a desktop iframe app). It owns the
 	// whole content region full-bleed, with no reading-column padding or max-width, so the frame
 	// can fill the space and scale itself to fit. Every other step page keeps the padded column.
 	let isHeyformSetup = $derived(
-		page.url.pathname.replace(/\/+$/, '').endsWith('/setup') &&
+		canEdit &&
+			page.url.pathname.replace(/\/+$/, '').endsWith('/setup') &&
 			data.toolConfig?.type === 'heyform'
 	);
 </script>

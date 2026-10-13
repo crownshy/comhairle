@@ -9,6 +9,7 @@
 	import { createConversation } from '$lib/createConversation';
 	import { justCreatedConversation } from '$lib/stores/justCreatedConversation.svelte';
 	import TemplatePickerDialog from '$lib/components/TemplatePickerDialog.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 	import { cn } from '$lib/utils';
 
 	type Props = {
@@ -30,7 +31,9 @@
 			justCreatedConversation.flag(conversation.id);
 			notifications.addFlash({ message: 'Conversation created' });
 			dialogOpen = false;
-			await goto(manage_conversation_url(conversation.id), { invalidateAll: true });
+			await goto(manage_conversation_url(conversation.id), {
+				invalidate: [key('admin/conversation')]
+			});
 		} catch (e) {
 			console.warn(e);
 			notifications.send({ message: 'Something went wrong creating the conversation' });

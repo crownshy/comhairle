@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Highlight from '$lib/components/Highlight.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 
 	let { class: className }: { class?: string } = $props();
 </script>

@@ -351,7 +351,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhairle
 #[cfg(test)]
 mod tests {
     use crate::models::{
-        event::{self, CreateEvent},
+        event::{self, CreateEvent, SignupMode},
         model_test_helpers::{
             get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
         },
@@ -370,7 +370,7 @@ mod tests {
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -399,7 +399,7 @@ mod tests {
         let create_event = CreateEvent {
             name: "test_event".to_string(),
             capacity: Some(10),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -433,7 +433,7 @@ mod tests {
         let create_event = CreateEvent {
             name: "test_event".to_string(),
             capacity: Some(3),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -499,7 +499,7 @@ mod tests {
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -541,13 +541,13 @@ mod tests {
         let create_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
             capacity: Some(1),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let create_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
             capacity: Some(1),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event_1 = event::create(&pool, &conversation_id, &create_event_1).await?;
@@ -588,7 +588,7 @@ mod tests {
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -623,7 +623,7 @@ mod tests {
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -650,7 +650,7 @@ mod tests {
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -679,7 +679,7 @@ mod tests {
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -739,7 +739,7 @@ mod tests {
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;
@@ -803,7 +803,7 @@ mod tests {
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event = event::create(&pool, &conversation_id, &create_event).await?;

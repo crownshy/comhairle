@@ -1,7 +1,7 @@
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import NewEventSchema from './NewEventSchema';
-import type { PageLoad } from '../$types';
+import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {
 	const { conversation, user } = await parent();

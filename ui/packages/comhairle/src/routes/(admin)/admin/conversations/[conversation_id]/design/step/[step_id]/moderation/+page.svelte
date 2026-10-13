@@ -12,6 +12,7 @@
 
 {#if step}
 	<PolisModeration
+		conversationId={data.conversation.id}
 		workflowStepId={step.id}
 		statements={data.statementAux ?? []}
 		{rejectReasons}

@@ -10,8 +10,8 @@ use comhairle::websockets::{
 use comhairle::wiki_poll_service::error::WikiPollServiceError;
 use comhairle::wiki_poll_service::polis_service::WikiPollReport;
 use comhairle::wiki_poll_service::{
-    ModerationStatus, PostedStatement, WikiPoll, WikiPollComment, WikiPollConfigUpdate,
-    WikiPollLogin, WikiPollXid,
+    ModerationStatus, PostedStatement, ReportScope, WikiPoll, WikiPollComment,
+    WikiPollConfigUpdate, WikiPollLogin, WikiPollXid,
 };
 use comhairle::{ComhairleState, mailer, websockets, wiki_poll_service};
 use lettre::message::SinglePart;
@@ -275,6 +275,7 @@ impl wiki_poll_service::WikiPollService for DummyWikiPollService {
     async fn get_report_data(
         &self,
         _poll_id: &str,
+        _scope: ReportScope,
     ) -> Result<WikiPollReport, WikiPollServiceError> {
         todo!()
     }

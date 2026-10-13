@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import { page } from '$app/state';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
@@ -16,6 +17,7 @@
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
 	import { inviteUrl, embedInviteUrl } from '$lib/utils/invites.js';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let labelDialogOpen = $state(false);
 	let selectedInvite = $state<InviteDto | null>(null);
@@ -25,23 +27,28 @@
 	let invites = $derived(data.invites);
 
 	let { conversation } = data;
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 
 	// The sub-tab strip (Row 3) is server-rendered by the conversation layout from INVITE_SUBTABS;
 	// this page just reads `?subtab=` to pick which section to show.
 	let activeTab = $derived(page.url.searchParams.get('subtab') ?? 'email');
 
 	function createInviteLink() {
+		if (!canEdit) return;
 		selectedInvite = null;
 		labelDialogOpen = true;
 	}
 
 	function editInviteLabel(invite: InviteDto) {
+		if (!canEdit) return;
 		selectedInvite = invite;
 		labelDialogOpen = true;
 	}
 
 	async function handleLabelSaved() {
-		await invalidateAll();
+		await invalidate(key('admin/conversation/invites'));
 	}
 
 	let openInvites = $derived(invites.filter((invite) => invite.inviteType == 'open'));
@@ -55,7 +62,7 @@
 	);
 
 	function emailInvitesSubmitted() {
-		invalidateAll();
+		invalidate(key('admin/conversation/invites'));
 	}
 </script>
 
@@ -72,7 +79,11 @@
 <PageHeader title="Recruit" />
 
 {#if activeTab === 'email'}
-	<EmailInviteForm conversationId={conversation.id} onDone={emailInvitesSubmitted} />
+	<EmailInviteForm
+		conversationId={conversation.id}
+		onDone={emailInvitesSubmitted}
+		editable={canEdit}
+	/>
 	<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 {:else if activeTab === 'open-links'}
 	<div class="space-y-4">
@@ -80,12 +91,15 @@
 			<p class="text-muted-foreground max-w-prose">
 				Create invite links to share on social media or send directly to people.
 			</p>
-			<Button onclick={createInviteLink}>New Invite Link</Button>
+			{#if canEdit}
+				<Button onclick={createInviteLink}>New Invite Link</Button>
+			{/if}
 		</div>
 
 		{#if openInvites.length === 0}
 			<div class="text-muted-foreground rounded-lg border border-dashed p-8 text-center">
-				No invite links yet. Create one to start recruiting participants.
+				No invite links yet.
+				{#if canEdit}Create one to start recruiting participants.{/if}
 			</div>
 		{:else}
 			<div class="overflow-x-auto">
@@ -106,14 +120,18 @@
 						{#each openInvites as invite (invite.id)}
 							<Table.Row>
 								<Table.Cell class="font-medium">
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => editInviteLabel(invite)}
-										class="h-auto p-1 font-normal"
-									>
-										{invite.label || '(click to add label)'}
-									</Button>
+									{#if canEdit}
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={() => editInviteLabel(invite)}
+											class="h-auto p-1 font-normal"
+										>
+											{invite.label || '(click to add label)'}
+										</Button>
+									{:else}
+										{invite.label || 'No label'}
+									{/if}
 								</Table.Cell>
 
 								<Table.Cell>
@@ -174,9 +192,11 @@
 	<h2>Generate physical QR Codes for an inperson event</h2>
 {/if}
 
-<InviteLabelDialog
-	bind:open={labelDialogOpen}
-	invite={selectedInvite}
-	conversationId={conversation.id}
-	onSave={handleLabelSaved}
-/>
+{#if canEdit}
+	<InviteLabelDialog
+		bind:open={labelDialogOpen}
+		invite={selectedInvite}
+		conversationId={conversation.id}
+		onSave={handleLabelSaved}
+	/>
+{/if}

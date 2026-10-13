@@ -49,6 +49,8 @@ pub struct WorkflowStep {
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
     pub request_user_share_permission: bool,
+    #[partially(transparent)]
+    pub data_protocol: Option<TextContentId>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -98,7 +100,7 @@ impl WithToolConfig for LocalizedWorkflowStepWithProgress {
     }
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 15] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -111,6 +113,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
     WorkflowStepIden::PreviewToolConfig,
     WorkflowStepIden::Required,
     WorkflowStepIden::RequestUserSharePermission,
+    WorkflowStepIden::DataProtocol,
     WorkflowStepIden::CreatedAt,
     WorkflowStepIden::UpdatedAt,
 ];
@@ -136,6 +139,24 @@ async fn reset_orders(pool: &mut PgConnection, workflow_id: &Uuid) -> Result<(),
     Ok(())
 }
 
+/// The conversation-level locale settings that drive statement translation:
+/// the conversation's `primary_locale` and its `supported_languages`.
+#[instrument(err(Debug), skip(state))]
+async fn conversation_locales(
+    state: &Arc<ComhairleState>,
+    workflow_id: &Uuid,
+) -> Result<(String, Vec<String>), ComhairleError> {
+    let workflow = crate::models::workflow::get_by_id(&state.db, workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+        "workflow is not attached to a conversation".into(),
+    ))?;
+    let conversation = crate::models::conversation::get_by_id(&state.db, &conversation_id).await?;
+    Ok((
+        conversation.primary_locale,
+        conversation.supported_languages,
+    ))
+}
+
 /// Create the live version of this workflow step
 #[instrument(err(Debug), skip(state))]
 pub async fn launch(
@@ -156,11 +177,20 @@ pub async fn launch(
         },
     )
     .await?;
+    let (primary_locale, supported_languages) =
+        conversation_locales(&state, &workflow_step.workflow_id).await?;
 
     // When a Polis poll goes live, seed the aux statement table from the new
     // live poll so moderation/theming has rows to work with immediately.
     if let ToolConfig::Polis(config) = &new_live_config {
-        crate::tools::polis::sync_statement_aux_inner(state, workflow_step_id, config).await?;
+        crate::tools::polis::sync_statement_aux_inner(
+            state,
+            workflow_step_id,
+            config,
+            &primary_locale,
+            &supported_languages,
+        )
+        .await?;
     }
 
     Ok(())
@@ -253,6 +283,9 @@ impl PartialWorkflowStep {
         };
         if let Some(value) = self.request_user_share_permission {
             values.push((WorkflowStepIden::RequestUserSharePermission, value.into()))
+        };
+        if let Some(value) = &self.data_protocol {
+            values.push((WorkflowStepIden::DataProtocol, (*value).into()))
         };
         values
     }
@@ -841,6 +874,52 @@ mod tests {
         .await?;
 
         assert!(step.can_revisit, "incorrect can_revisit after update");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_update_data_protocol_field(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+        let steps_res = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                1,
+            )
+            .await?;
+        let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
+
+        assert!(
+            step.data_protocol.is_none(),
+            "new steps should fall back to the tool default"
+        );
+
+        let text = new_translation(
+            &pool,
+            "en",
+            "<p>Your votes are anonymous.</p>",
+            TextFormat::Rich,
+        )
+        .await?;
+        let step = update(
+            &pool,
+            &step.id,
+            &workflow.id,
+            &PartialWorkflowStep {
+                data_protocol: Some(text.id),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        assert_eq!(step.data_protocol, Some(text.id), "data_protocol not saved");
 
         Ok(())
     }

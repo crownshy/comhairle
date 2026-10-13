@@ -1,17 +1,19 @@
 <script lang="ts">
+	import { canAccessAdminPortal } from '$lib/utils/permissions';
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { loginOtpSchema, sendOtpSchema } from '$lib/profile';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { onMount } from 'svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -54,16 +56,14 @@
 					if (redirectTo === '/') {
 						try {
 							const userRoles = await apiClient.GetUserRoles();
-							const isAdmin = userRoles
-								?.find((ur) => ur.resource === 'Site')
-								?.roles.includes('Admin');
+							const isAdmin = canAccessAdminPortal(userRoles);
 							if (isAdmin) {
 								redirectTo = '/admin';
 							}
 						} catch {}
 					}
 
-					await goto(resolve(redirectTo), { invalidateAll: true });
+					await goto(resolve(redirectTo), { invalidate: [key('user')] });
 				} catch (e) {
 					responseMessage = e.response.data.err;
 				}
@@ -92,7 +92,7 @@
 					await apiClient.CreateOtp({
 						email
 					});
-					await invalidateAll();
+					await invalidate(key('user'));
 				} catch (e) {
 					responseMessage = e.response?.data?.err ?? 'Failed to send one-time-passcode';
 				}

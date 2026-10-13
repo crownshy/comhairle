@@ -4,13 +4,14 @@
 	import { guestLoginFormSchema } from '$lib/profile';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zodClient, zod } from 'sveltekit-superforms/adapters';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Info } from 'lucide-svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -34,7 +35,7 @@
 					await apiClient.LoginGuestUser({
 						guest_code
 					});
-					await goto(backTo ?? '/', { invalidateAll: true });
+					await goto(backTo ?? '/', { invalidate: [key('user')] });
 				} catch (e) {
 					if (e.response.status === 429) {
 						$errMessage =

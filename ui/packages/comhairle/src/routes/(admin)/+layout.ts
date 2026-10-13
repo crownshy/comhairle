@@ -1,10 +1,12 @@
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
+import { key } from '$lib/utils/invalidationKey';
 
 export const load: LayoutLoad = async ({ parent, data, depends }) => {
-	depends('admin:organizations');
-	const { api } = await parent();
+	depends(key('admin/organizations'));
+	depends(key('admin/conversations'));
+	const { api, isSuperAdmin } = await parent();
 
 	try {
 		const ownedConversations = await api
@@ -40,6 +42,7 @@ export const load: LayoutLoad = async ({ parent, data, depends }) => {
 			ownedConversations,
 			permittedConversations: nonOwnedPermittedConversations,
 			userOrganizations,
+			isSuperAdmin,
 			sidebarWidth: data.sidebarWidth,
 			sidebarPrototypeVariant: data.sidebarPrototypeVariant
 		};

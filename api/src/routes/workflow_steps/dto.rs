@@ -52,6 +52,8 @@ pub struct WorkflowStepDto {
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
     pub request_user_share_permission: bool,
+    #[schemars(example = "example_uuid")]
+    pub data_protocol: Option<TextContentId>,
 }
 
 /// Data transfer object (public API representation) for a LocalizedWorkflowStep.
@@ -87,6 +89,7 @@ pub struct LocalizedWorkflowStepDto {
     pub tool_config: Option<LocalizedToolConfig>,
     pub preview_tool_config: LocalizedToolConfig,
     pub request_user_share_permission: bool,
+    pub data_protocol: Option<String>,
 }
 
 /// Data transfer object (public API representation) for a LocalizedWorkflowStepWithProgress.
@@ -125,6 +128,7 @@ pub struct LocalizedWorkflowStepWithProgressDto {
     pub preview_tool_config: LocalizedToolConfig,
     pub progress_status: ProgressStatus,
     pub request_user_share_permission: bool,
+    pub data_protocol: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -144,6 +148,7 @@ pub struct WorkflowStepWithTranslationsDto {
     pub required: bool,
     pub can_revisit: bool,
     pub request_user_share_permission: bool,
+    pub data_protocol: Option<String>,
     pub translations: WorkflowStepTranslations,
     pub tool_config: Option<ToolConfigWithTranslations>,
     pub preview_tool_config: ToolConfigWithTranslations,
@@ -166,6 +171,7 @@ impl WorkflowStepWithTranslations {
             required: self.required,
             can_revisit: self.can_revisit,
             request_user_share_permission: self.request_user_share_permission,
+            data_protocol: self.data_protocol,
             translations: self.translations,
             tool_config: self
                 .tool_config
@@ -192,6 +198,7 @@ impl From<WorkflowStep> for WorkflowStepDto {
             tool_config: w.tool_config,
             preview_tool_config: w.preview_tool_config,
             request_user_share_permission: w.request_user_share_permission,
+            data_protocol: w.data_protocol,
         }
     }
 }
@@ -214,6 +221,7 @@ impl LocalizedWorkflowStep {
             tool_config: self.tool_config.map(|tc| tc.localize(translations_map)),
             preview_tool_config: self.preview_tool_config.localize(translations_map),
             request_user_share_permission: self.request_user_share_permission,
+            data_protocol: self.data_protocol,
         }
     }
 }
@@ -239,6 +247,7 @@ impl LocalizedWorkflowStepWithProgress {
                 .map(|tc| tc.localize(translations_map)),
             preview_tool_config: self.step.preview_tool_config.localize(translations_map),
             request_user_share_permission: self.step.request_user_share_permission,
+            data_protocol: self.step.data_protocol,
             progress_status: self.status,
         }
     }

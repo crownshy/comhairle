@@ -208,7 +208,7 @@ mod tests {
     async fn should_create_new_proposal(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(
@@ -247,7 +247,7 @@ mod tests {
     async fn should_get_localized_proposal(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(
@@ -296,7 +296,7 @@ mod tests {
     async fn should_list_proposals(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(
@@ -343,7 +343,7 @@ mod tests {
     async fn should_delete_proposal(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
 
         let (_, value, _) = session
             .create_workflow_step(

@@ -6,6 +6,7 @@ on:
         - 'v*'
     branches:
       - staging
+      - demo/young-scot
   workflow_dispatch:
     inputs:
       dry_run:

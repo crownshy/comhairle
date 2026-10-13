@@ -2,6 +2,7 @@ import { resolveTranslatableJsonToTextContentIds } from '$lib/components/Transla
 import { notifications } from '$lib/notifications.svelte';
 import * as api from './prioritizationApi';
 import type { Proposal, ToolConfig } from './types';
+import { permissions } from '$lib/permissions.svelte';
 
 /** Reactive store for the admin (Manage) view. Holds the proposal list and
  * wraps the api module — failed writes surface a toast and re-throw so callers
@@ -20,6 +21,12 @@ export function createStore(opts: {
 	let state = $state<LoadState>('idle');
 	let proposals = $state<Proposal[]>([]);
 	let error = $state<string | null>(null);
+
+	function requireEdit() {
+		if (!permissions.can('conversation', 'conversation_update', opts.conversationId)) {
+			throw new Error('Edit access is required to change Prioritization configuration');
+		}
+	}
 
 	async function refresh() {
 		state = 'loading';
@@ -46,12 +53,14 @@ export function createStore(opts: {
 	}
 
 	async function create(input: { title: string; sections: string[] }) {
+		requireEdit();
 		const created = await api.createProposal(opts.workflowStepId, input);
 		proposals = [...proposals, created];
 		return created;
 	}
 
 	async function remove(id: string) {
+		requireEdit();
 		try {
 			await api.deleteProposal(id);
 			proposals = proposals.filter((p) => p.id !== id);
@@ -62,6 +71,7 @@ export function createStore(opts: {
 	}
 
 	async function addSection(proposalId: string, body: string) {
+		requireEdit();
 		try {
 			await api.addSection(proposalId, body);
 			await refresh();
@@ -72,6 +82,7 @@ export function createStore(opts: {
 	}
 
 	async function removeSection(proposalId: string, sectionId: string) {
+		requireEdit();
 		try {
 			await api.deleteSection(proposalId, sectionId);
 			await refresh();
@@ -81,7 +92,8 @@ export function createStore(opts: {
 		}
 	}
 
-	async function saveToolConfig(toolConfig: ToolConfig) {
+	async function saveToolConfig<TText>(toolConfig: ToolConfig<TText>) {
+		requireEdit();
 		try {
 			// Strip out translations data as update of toolConfig expects only
 			// `textContentIds` for nested translatable fields.

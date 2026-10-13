@@ -16,6 +16,13 @@
 	let currentStepTitle = $derived(
 		currentStep?.toolConfig?.type === 'learn' ? currentStep.name : undefined
 	);
+	let stepDataProtocol = $derived(
+		currentStep && {
+			text: currentStep.dataProtocol,
+			toolType: (conversation.isLive ? currentStep.toolConfig : currentStep.previewToolConfig)
+				?.type
+		}
+	);
 </script>
 
 {@render children()}
@@ -25,4 +32,5 @@
 	{hasKnowledgeBaseDocs}
 	{availableDocuments}
 	{currentStepTitle}
+	{stepDataProtocol}
 />

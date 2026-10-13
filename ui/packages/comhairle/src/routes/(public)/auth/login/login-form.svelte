@@ -1,16 +1,18 @@
 <script lang="ts">
+	import { canAccessAdminPortal } from '$lib/utils/permissions';
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { loginFormSchema } from '$lib/profile';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 	import { resolve } from '$app/paths';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -43,16 +45,14 @@
 					if (redirectTo === '/') {
 						try {
 							const userRoles = await apiClient.GetUserRoles();
-							const isAdmin = userRoles
-								?.find((ur) => ur.resource === 'Site')
-								?.roles.includes('Admin');
+							const isAdmin = canAccessAdminPortal(userRoles);
 							if (isAdmin) {
 								redirectTo = '/admin';
 							}
 						} catch {}
 					}
 
-					await goto(resolve(redirectTo), { invalidateAll: true });
+					await goto(resolve(redirectTo), { invalidate: [key('user')] });
 				} catch (e) {
 					responseMessage = e.response.data.err;
 				}

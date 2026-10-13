@@ -12,6 +12,7 @@
 	import type { Glossary } from '$lib/glossary/types';
 	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
 	import { getPreviewKind, type PreviewKind } from '$lib/utils/previewKind';
+	import { openImageLightbox } from './imageLightbox';
 	import '../editor-content.css';
 
 	type Props = {
@@ -58,11 +59,16 @@
 
 	/* Intercept source-document badge clicks: open PDFs, images, and Word
 	 * documents in an in-page viewer instead of downloading. Other file types
-	 * keep default download. */
+	 * keep default download. Images outside a link open in a zoomable lightbox. */
 	function handleContentClick(event: MouseEvent) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
 
 		const target = event.target as HTMLElement | null;
+		if (target instanceof HTMLImageElement && !target.closest('a')) {
+			openImageLightbox(target);
+			return;
+		}
+
 		const badge = target?.closest<HTMLAnchorElement>('a.source-document-badge');
 		if (!badge) return;
 
@@ -202,5 +208,9 @@
 
 	:global(.content-renderer .tiptap) {
 		min-height: unset;
+	}
+
+	:global(.content-renderer img:not(a img)) {
+		cursor: zoom-in;
 	}
 </style>

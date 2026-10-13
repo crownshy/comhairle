@@ -26,6 +26,8 @@
 		type DraftTranslatableJsonField
 	} from '$lib/components/Translation/translationUtils';
 	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
 		conversation: ConversationWithTranslations;
@@ -35,6 +37,9 @@
 	};
 
 	let { conversation, workflowId, workflowStep, isLive }: Props = $props();
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 
 	let toolConfig = $derived(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig);
 
@@ -64,7 +69,8 @@
 			getTranslation: () => topic?.translations,
 			getPrimaryLocale: () => conversation.primaryLocale,
 			getSupportedLanguages: () => conversation.supportedLanguages,
-			getPrimaryFallback: () => topic?.localized ?? ''
+			getPrimaryFallback: () => topic?.localized ?? '',
+			refresh: () => invalidate(key('admin/conversation/workflow'))
 		});
 	});
 
@@ -91,16 +97,19 @@
 	});
 
 	function openCreateQuestion() {
+		if (!canEdit) return;
 		editingQuestionId = null;
 		questionEditorOpen = true;
 	}
 
 	function openEditQuestion(q: QuestionConfig<DraftTranslatableJsonField>) {
+		if (!canEdit) return;
 		editingQuestionId = q.id;
 		questionEditorOpen = true;
 	}
 
 	function handleSaveQuestion(q: QuestionConfig<DraftTranslatableJsonField>) {
+		if (!canEdit) return;
 		const exists = config.questions.some((x) => x.id === q.id);
 		config.questions = exists
 			? config.questions.map((x) => (x.id === q.id ? q : x))
@@ -108,14 +117,17 @@
 	}
 
 	function removeQuestion(id: string) {
+		if (!canEdit) return;
 		config.questions = config.questions.filter((q) => q.id !== id);
 	}
 
 	function bumpFollowUps(delta: -1 | 1) {
+		if (!canEdit) return;
 		config.followUpRoundsCount = Math.max(0, Math.min(5, config.followUpRoundsCount + delta));
 	}
 
 	async function saveAll() {
+		if (!canEdit || saving) return;
 		if (topic.localized.trim().length < 3) {
 			notifications.send({
 				message: 'Topic must be at least 3 characters.',
@@ -151,6 +163,7 @@
 			const update = isLive
 				? { tool_config: resolvedToolConfig }
 				: { preview_tool_config: resolvedToolConfig };
+			if (!canEdit) return;
 			await apiClient.UpdateConversationWorkflowStep(update, {
 				params: {
 					conversation_id: conversation.id,
@@ -194,6 +207,7 @@
 		<CardContent>
 			<TranslatableField
 				source={topicTransSource}
+				disabled={!canEdit}
 				primaryLocale={conversation.primaryLocale}
 				supportedLanguages={conversation.supportedLanguages}
 			/>
@@ -215,7 +229,7 @@
 					variant="outline"
 					size="icon"
 					onclick={() => bumpFollowUps(-1)}
-					disabled={config.followUpRoundsCount <= 0}
+					disabled={!canEdit || config.followUpRoundsCount <= 0}
 					aria-label="Decrease follow-up count"
 				>
 					<Minus class="size-4" />
@@ -227,7 +241,7 @@
 					variant="outline"
 					size="icon"
 					onclick={() => bumpFollowUps(1)}
-					disabled={config.followUpRoundsCount >= 5}
+					disabled={!canEdit || config.followUpRoundsCount >= 5}
 					aria-label="Increase follow-up count"
 				>
 					<Plus class="size-4" />
@@ -244,9 +258,11 @@
 					Participants answer these one at a time. Drag to reorder.
 				</p>
 			</div>
-			<Button class="shrink-0" variant="outline" onclick={openCreateQuestion}>
-				<Plus class="mr-2 size-4" /> Add question
-			</Button>
+			{#if canEdit}
+				<Button class="shrink-0" variant="outline" onclick={openCreateQuestion}>
+					<Plus class="mr-2 size-4" /> Add question
+				</Button>
+			{/if}
 		</header>
 
 		{#if config.questions.length === 0}
@@ -254,34 +270,40 @@
 				<CardContent class="py-10 text-center">
 					<p class="text-muted-foreground text-sm">
 						No questions yet.
-						<button
-							type="button"
-							class="text-primary font-medium underline-offset-4 hover:underline"
-							onclick={openCreateQuestion}
-						>
-							Add the first one
-						</button>
-						to get started.
+						{#if canEdit}
+							<button
+								type="button"
+								class="text-primary font-medium underline-offset-4 hover:underline"
+								onclick={openCreateQuestion}
+							>
+								Add the first one
+							</button>
+							to get started.
+						{/if}
 					</p>
 				</CardContent>
 			</Card>
 		{:else}
 			<DraggableList
 				items={config.questions}
-				onReorder={(next) => (config.questions = next)}
-				dragDisabled={saving}
+				onReorder={(next) => {
+					if (canEdit) config.questions = next;
+				}}
+				dragDisabled={!canEdit || saving}
 				class="space-y-3"
 			>
 				{#snippet children(q: QuestionConfig<DraftTranslatableJsonField>)}
 					<Card class="bg-card">
 						<CardContent class="flex items-start gap-3 p-4">
-							<button
-								type="button"
-								aria-label="Drag to reorder"
-								class="text-muted-foreground hover:text-foreground mt-1 shrink-0 cursor-grab active:cursor-grabbing"
-							>
-								<GripVertical class="size-4" />
-							</button>
+							{#if canEdit}
+								<button
+									type="button"
+									aria-label="Drag to reorder"
+									class="text-muted-foreground hover:text-foreground mt-1 shrink-0 cursor-grab active:cursor-grabbing"
+								>
+									<GripVertical class="size-4" />
+								</button>
+							{/if}
 							<div class="min-w-0 flex-1 space-y-1">
 								<p
 									class="text-base leading-relaxed"
@@ -297,27 +319,29 @@
 									</p>
 								{:else}
 									<p class="text-destructive text-xs">
-										Intent missing — add one before saving.
+										Intent missing. Add one before saving.
 									</p>
 								{/if}
 							</div>
-							<div class="flex shrink-0 gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => openEditQuestion(q)}
-								>
-									<Pencil class="mr-1 size-3.5" /> Edit
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="text-destructive hover:text-destructive"
-									onclick={() => removeQuestion(q.id)}
-								>
-									<Trash2 class="mr-1 size-3.5" /> Delete
-								</Button>
-							</div>
+							{#if canEdit}
+								<div class="flex shrink-0 gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => openEditQuestion(q)}
+									>
+										<Pencil class="mr-1 size-3.5" /> Edit
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="text-destructive hover:text-destructive"
+										onclick={() => removeQuestion(q.id)}
+									>
+										<Trash2 class="mr-1 size-3.5" /> Delete
+									</Button>
+								</div>
+							{/if}
 						</CardContent>
 					</Card>
 				{/snippet}
@@ -325,21 +349,25 @@
 		{/if}
 	</section>
 
-	<div class="flex justify-end">
-		<Button onclick={saveAll} disabled={saving}>
-			{saving ? 'Saving…' : 'Save configuration'}
-		</Button>
-	</div>
+	{#if canEdit}
+		<div class="flex justify-end">
+			<Button onclick={saveAll} disabled={saving}>
+				{saving ? 'Saving…' : 'Save configuration'}
+			</Button>
+		</div>
+	{/if}
 </div>
 
-<QuestionEditorDialog
-	open={questionEditorOpen}
-	question={editingQuestion}
-	onOpenChange={(o) => {
-		questionEditorOpen = o;
-		if (!o) editingQuestionId = null;
-	}}
-	onSave={handleSaveQuestion}
-	primaryLocale={conversation.primaryLocale}
-	supportedLanguages={conversation.supportedLanguages}
-/>
+{#if canEdit}
+	<QuestionEditorDialog
+		open={questionEditorOpen}
+		question={editingQuestion}
+		onOpenChange={(o) => {
+			questionEditorOpen = o;
+			if (!o) editingQuestionId = null;
+		}}
+		onSave={handleSaveQuestion}
+		primaryLocale={conversation.primaryLocale}
+		supportedLanguages={conversation.supportedLanguages}
+	/>
+{/if}

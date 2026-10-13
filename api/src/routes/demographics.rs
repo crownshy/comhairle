@@ -18,7 +18,7 @@ use crate::models::demographics::{
     DemographicsResponsesFilterOptions, PartialDemographicsQuestion, PartialDemographicsResponse,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::{Action, can_perform_resource_action};
+use crate::models::permissions::{can_perform_action, conversation::Action};
 use crate::models::users::User;
 use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 
@@ -43,12 +43,11 @@ async fn can_view_conversation(
         return Ok(true);
     }
 
-    can_perform_resource_action(
+    can_perform_action(
         state,
         &conversation.id,
-        Action::ConversationRead,
+        Action::Read,
         &user.id,
-        user.organization_id.as_ref(),
         Some(&conversation.owner_id),
     )
     .await

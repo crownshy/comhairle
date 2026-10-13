@@ -1,0 +1,5 @@
+# Permission caches use database-backed versions
+
+Validate separate permission and membership caches against versions stored in Postgres, advanced atomically with their corresponding data changes. Cache entries retain a five-minute TTL and are invalidated after mutations, but matching the authoritative database version is required before using cached data. Cache fills must read data and version from the same database snapshot.
+
+We accept database version lookups on permission checks instead of relying on best-effort deletion and TTL expiry for correctness. This prevents stale entries from remaining authoritative across API instances when deletion fails or an older request repopulates the cache. Redis failures fall back to Postgres; unvalidated cached data cannot authorize access when Postgres validation is unavailable.

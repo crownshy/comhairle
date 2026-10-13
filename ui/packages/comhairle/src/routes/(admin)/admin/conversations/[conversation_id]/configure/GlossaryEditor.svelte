@@ -178,7 +178,7 @@
 			async () => {
 				if (!file.name.toLowerCase().endsWith('.csv')) throw 'INCORRECT_FILE_TYPE';
 
-				const imported = parseGlossaryCsv(await file.text());
+				const imported = await parseGlossaryCsv(await file.text());
 				if (imported.length === 0) throw 'NO_ENTRIES_FOUND';
 
 				const existing = rows.filter((row) => !isBlank(row));

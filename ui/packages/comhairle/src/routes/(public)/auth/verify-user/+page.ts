@@ -1,6 +1,6 @@
 import type { PageLoad } from './$types';
 import { apiClient } from '@crownshy/api-client/client';
-import * as m from '$lib/paraglide/messages';
+import { m } from '$lib/paraglide/messages';
 
 export const load: PageLoad = async ({ url }) => {
 	const token = url.searchParams.get('token') ?? '';

@@ -11,11 +11,13 @@
 	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import LoadingButton from './ui/button/loading-button.svelte';
 	import type { ConversationDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
 	import { LucideCircleX } from 'lucide-svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
 		conversation: ConversationDto;
@@ -25,8 +27,12 @@
 
 	let { conversation, open = $bindable(false), hideTrigger = false }: Props = $props();
 	const loader = useLoading();
+	const canLaunch = $derived(
+		permissions.can('conversation', 'conversation_launch', conversation.id)
+	);
 
 	async function toggleComplete() {
+		if (!canLaunch) return;
 		await loader.run(async () => {
 			const isComplete = !conversation.isComplete;
 			try {
@@ -35,7 +41,7 @@
 					{ params: { conversation_id: conversation.id } }
 				);
 				open = false;
-				invalidateAll();
+				await invalidate(key('admin/conversation'));
 
 				notifications.send({
 					message: isComplete ? 'Conversation now ended' : 'Conversation re-opened',
@@ -59,7 +65,9 @@
 
 {#if conversation.isComplete}
 	{#if !hideTrigger}
-		<Button variant="outline" onclick={toggleComplete}>Re-open Conversation</Button>
+		<Button variant="outline" onclick={toggleComplete} disabled={!canLaunch}
+			>Re-open Conversation</Button
+		>
 	{/if}
 
 	<Dialog bind:open>
@@ -76,7 +84,12 @@
 			</Alert>
 
 			<DialogFooter>
-				<LoadingButton variant="default" onclick={toggleComplete} loading={loader.loading}>
+				<LoadingButton
+					variant="default"
+					onclick={toggleComplete}
+					loading={loader.loading}
+					disabled={!canLaunch}
+				>
 					Re-open
 				</LoadingButton>
 				<Button onclick={cancel} variant="outline">cancel</Button>
@@ -86,9 +99,10 @@
 {:else}
 	<Dialog bind:open>
 		{#if !hideTrigger}
-			<DialogTrigger>
+			<DialogTrigger disabled={!canLaunch}>
 				<Button
 					variant="outline"
+					disabled={!canLaunch}
 					class="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive!"
 					><LucideCircleX /> End Conversation</Button
 				>
@@ -113,7 +127,12 @@
 			</Alert>
 
 			<DialogFooter>
-				<LoadingButton variant="default" onclick={toggleComplete} loading={loader.loading}>
+				<LoadingButton
+					variant="default"
+					onclick={toggleComplete}
+					loading={loader.loading}
+					disabled={!canLaunch}
+				>
 					End
 				</LoadingButton>
 				<Button onclick={cancel} variant="outline">cancel</Button>

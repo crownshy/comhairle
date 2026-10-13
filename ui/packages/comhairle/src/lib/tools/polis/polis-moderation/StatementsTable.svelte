@@ -10,6 +10,7 @@
 	import RejectReasonPopover from './RejectReasonPopover.svelte';
 
 	type Props = {
+		editable?: boolean;
 		/** The visible (filtered + searched) statements, already ordered. */
 		rows: PolisStatementAux[];
 		/** The conversation's moderation policy reasons, offered on reject. */
@@ -34,6 +35,7 @@
 	};
 
 	let {
+		editable = true,
 		rows,
 		rejectReasons,
 		selected,
@@ -61,7 +63,7 @@
 	     Keeping a fixed height means the card (and the list below) never shifts
 	     when a selection starts or clears. -->
 	<div class="flex min-h-[3.5rem] items-center border-b px-4">
-		{#if selectedCount > 0}
+		{#if editable && selectedCount > 0}
 			<div class="flex w-full items-center gap-3">
 				<Checkbox
 					checked={allSelected}
@@ -108,16 +110,18 @@
 				class="text-muted-foreground grid w-full grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 text-xs font-semibold uppercase"
 			>
 				<div class="flex items-center">
-					<Checkbox
-						checked={allSelected}
-						indeterminate={someSelected}
-						onCheckedChange={(v) => onToggleAll(v === true)}
-						aria-label="Select all statements"
-					/>
+					{#if editable}
+						<Checkbox
+							checked={allSelected}
+							indeterminate={someSelected}
+							onCheckedChange={(v) => onToggleAll(v === true)}
+							aria-label="Select all statements"
+						/>
+					{/if}
 				</div>
 				<div>#</div>
 				<div>Statement</div>
-				<div class="pr-2">Action</div>
+				<div class="pr-2">{editable ? 'Action' : 'Status'}</div>
 			</div>
 		{/if}
 	</div>
@@ -139,6 +143,7 @@
 		{:else}
 			{#each rows as row (row.id)}
 				<StatementModerationRow
+					{editable}
 					{row}
 					{rejectReasons}
 					selected={!!selected[row.id]}

@@ -1,5 +1,5 @@
 import { setPage } from '$lib/pagination/utils';
-import * as m from '$lib/paraglide/messages';
+import { m } from '$lib/paraglide/messages';
 
 export const PAGE_SIZE = 6;
 

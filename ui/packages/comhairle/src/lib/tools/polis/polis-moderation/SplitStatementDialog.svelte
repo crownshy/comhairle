@@ -7,8 +7,10 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { Plus, Trash2 } from '@lucide/svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
+		conversationId: string;
 		open: boolean;
 		/** The participant statement being split or reworded. Null while closed. */
 		original: PolisStatementAux | null;
@@ -21,7 +23,10 @@
 		onDone: () => void | Promise<void>;
 	};
 
-	let { open = $bindable(), original, viewedContext, onDone }: Props = $props();
+	let { conversationId, open = $bindable(), original, viewedContext, onDone }: Props = $props();
+	const canModerate = $derived(
+		permissions.can('conversation', 'conversation_moderate', conversationId)
+	);
 
 	// The replacement statements the admin is authoring. Starts as one blank field;
 	// the original text is shown read-only above for reference, and the admin types
@@ -39,6 +44,7 @@
 	}
 
 	async function submit() {
+		if (!canModerate) return;
 		const target = original;
 		if (!target || !canSubmit) return;
 		const cleaned = replacements.map((r) => r.trim()).filter(Boolean);

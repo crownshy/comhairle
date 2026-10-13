@@ -6,8 +6,6 @@
 	import * as Select from '$lib/components/ui/select';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
-	import { hasUnsavedChanges } from '$lib/components/Translation/translationUtils';
-	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';
@@ -31,7 +29,8 @@
 	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import FacilitatorRoleList from './FacilitatorRoleList.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
@@ -46,8 +45,9 @@
 	import EventLocationForm from './EventLocationForm.svelte';
 	import EventRecordings from './EventRecordings.svelte';
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
-	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
+	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
+	import { permissions } from '$lib/permissions.svelte';
 
 	let url = $derived(page.url);
 	let { data } = $props();
@@ -56,6 +56,9 @@
 
 	const event = $derived(data.event);
 	const conversation = $derived(data.conversation);
+	const canEdit = $derived(
+		permissions.can('conversation', 'conversation_update', conversation.id)
+	);
 	const attendees = $derived(data.attendees);
 	const recordings = $derived(data.recordings);
 
@@ -68,8 +71,7 @@
 		)
 	);
 
-	/** Invited-by-email people who haven't registered yet — shown non-selectable
-	 *  in the facilitators tab (a role can't attach without a registration). */
+	// Shown but not selectable in the facilitators tab: a role needs a registration to attach to.
 	let pendingInvites = $derived(
 		emailInvites
 			.filter((invite) => invite.status === 'pending' || invite.status === 'open')
@@ -88,8 +90,7 @@
 	);
 
 	const timeZone = getLocalTimeZone();
-	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
-	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
+	const [startDate] = $derived(event.startTime.split('T'));
 	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
 		value: tz,
 		label: tz
@@ -118,25 +119,23 @@
 
 	let { form, enhance, validateForm, submitting, tainted } = $derived(eventForm);
 
-	// Each field is driven by a TranslationSource (ADR-0005); `onEdit` mirrors the primary value into
-	// `$form` so superForm's inline validation keeps working while the source owns the content.
+	// `onEdit` mirrors the primary value into `$form` so superForm's inline validation still runs (ADR-0005).
 	const nameSource = createTextContentSource({
 		getTranslation: () => event.translations?.name,
 		getPrimaryLocale: () => primaryLanguage,
 		getSupportedLanguages: () => supportedLanguages,
 		getPrimaryFallback: () => $form.name ?? '',
-		onEdit: (content) => ($form.name = content)
+		onEdit: (content) => ($form.name = content),
+		refresh: () => invalidate(key('admin/conversation/events'))
 	});
 	const descriptionSource = createTextContentSource({
 		getTranslation: () => event.translations?.description,
 		getPrimaryLocale: () => primaryLanguage,
 		getSupportedLanguages: () => supportedLanguages,
 		getPrimaryFallback: () => $form.description ?? '',
-		onEdit: (content) => ($form.description = content)
+		onEdit: (content) => ($form.description = content),
+		refresh: () => invalidate(key('admin/event'))
 	});
-
-	// Warn on refresh / navigate-away while a field is still autosaving.
-	guardUnsavedChanges(() => [nameSource, descriptionSource].some(hasUnsavedChanges));
 
 	function convertTimeToSelectedZone(date: string, time: string, timeZone: string) {
 		const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -157,11 +156,10 @@
 	let saving = $state(false);
 
 	async function handleUpdateEvent({ cancel }: { cancel: () => void }) {
-		// We submit via the API client below — prevent SvelteKit from POSTing the form to the
-		// page route (which has no server actions and would return 405 Method Not Allowed).
+		// The page route has no server actions, so a SvelteKit POST would 405. Save via the API client.
 		cancel();
 
-		if (saving) return;
+		if (!canEdit || saving) return;
 
 		const result = await validateForm({ update: true });
 
@@ -194,7 +192,7 @@
 				}
 			});
 
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
@@ -212,7 +210,7 @@
 	});
 
 	let eventDate = $derived($form.start_date ? parseDate($form.start_date) : undefined);
-	let pageTitle = $derived(`Edit Event: ${event.name}`);
+	let pageTitle = $derived(`${canEdit ? 'Edit Event' : 'Event'}: ${event.name}`);
 
 	/** Map API agenda items to editor format */
 	function apiAgendaToEditor(items: EventAgendaItem[]): AgendaItemData[] {
@@ -274,11 +272,13 @@
 	let agendaSaving = $state(false);
 
 	function handleAgendaUpdate(items: AgendaItemData[]) {
+		if (!canEdit) return;
 		agendaItems = items;
 		agendaDirty = true;
 	}
 
 	async function handleSaveAgenda() {
+		if (!canEdit || agendaSaving) return;
 		agendaSaving = true;
 		try {
 			await apiClient.UpdateEvent(
@@ -290,7 +290,7 @@
 					}
 				}
 			);
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 			agendaDirty = false;
 			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
 		} catch (e) {
@@ -302,6 +302,7 @@
 	}
 
 	async function handleSetAttendeeRole(attendanceId: string, role: string) {
+		if (!canEdit) return;
 		try {
 			await apiClient.UpdateEventAttendance(
 				{ role },
@@ -319,7 +320,7 @@
 				message: 'Role updated'
 			});
 
-			await invalidateAll();
+			await invalidate(key('admin/event'));
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -330,7 +331,7 @@
 	}
 
 	async function emailInvitesSubmitted() {
-		await invalidateAll();
+		await invalidate(key('admin/event'));
 	}
 </script>
 
@@ -359,6 +360,7 @@
 						<div class="flex-1">
 							<TranslatableField
 								source={nameSource}
+								disabled={!canEdit}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputProps={props}
@@ -382,6 +384,7 @@
 						<div class="flex-1">
 							<TranslatableField
 								source={descriptionSource}
+								disabled={!canEdit}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputType="textarea"
@@ -403,27 +406,31 @@
 						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 							Capacity
 						</Form.Label>
-						<Input {...props} bind:value={$form.capacity} type="number" />
+						<Input
+							{...props}
+							bind:value={$form.capacity}
+							type="number"
+							disabled={!canEdit}
+						/>
 						<Form.FieldErrors />
 					{/snippet}
 				</Form.Control>
 			</Form.Field>
 		</div>
 
-		<!-- Default time zone -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
 			<Form.Field form={eventForm} name="default_time_zone" class="contents">
 				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>
-							<span>Default time zone</span>
-							<span class="font-normal">Time zone event is taking place in</span>
-						</Form.Label>
-						<div class="flex-1">
+					<Form.Label
+						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>
+						<span>Default time zone</span>
+						<span class="font-normal">Time zone event is taking place in</span>
+					</Form.Label>
+					<div class="flex-1">
+						{#if canEdit}
 							<Combobox
 								selectedItem={availableTimeZones.find(
 									(tz) => tz.value === $form.default_time_zone
@@ -432,8 +439,14 @@
 								placeholder="Select a default timezone"
 								onSelect={(item) => ($form.default_time_zone = item.value)}
 							/>
-						</div>
-					{/snippet}
+						{:else}
+							<Input
+								value={$form.default_time_zone}
+								disabled
+								aria-label="Default time zone"
+							/>
+						{/if}
+					</div>
 				</Form.Control>
 			</Form.Field>
 		</div>
@@ -451,6 +464,7 @@
 							<Popover.Root>
 								<Popover.Trigger
 									{...props}
+									disabled={!canEdit}
 									class={cn(
 										buttonVariants({ variant: 'outline' }),
 										'w-full max-w-xs justify-start pl-4 text-left font-normal',
@@ -465,10 +479,12 @@
 								<Popover.Content class="w-auto p-0" side="bottom" align="start">
 									<Calendar
 										type="single"
+										disabled={!canEdit}
 										value={eventDate as DateValue}
 										minValue={today(getLocalTimeZone())}
 										calendarLabel="Event Date"
 										onValueChange={(v) => {
+											if (!canEdit) return;
 											if (v) {
 												$form.start_date = v.toString();
 											} else {
@@ -491,12 +507,19 @@
 		>
 			<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
 			<div class="flex flex-1 flex-col gap-2 2xl:flex-row 2xl:items-center">
-				<TimeRangePicker
-					startName="start_time"
-					endName="end_time"
-					bind:startValue={$form.start_time}
-					bind:endValue={$form.end_time}
-				/>
+				{#if canEdit}
+					<TimeRangePicker
+						startName="start_time"
+						endName="end_time"
+						bind:startValue={$form.start_time}
+						bind:endValue={$form.end_time}
+					/>
+				{:else}
+					<div class="flex gap-2">
+						<Input value={$form.start_time} disabled aria-label="Start time" />
+						<Input value={$form.end_time} disabled aria-label="End time" />
+					</div>
+				{/if}
 				<Form.Field form={eventForm} name="start_time" class="contents">
 					<Form.FieldErrors class="text-destructive text-sm" />
 				</Form.Field>
@@ -527,37 +550,34 @@
 			</div>
 		</div>
 
-		<!-- Format -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
 			<Form.Field form={eventForm} name="format" class="contents">
 				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label
-							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					<Form.Label
+						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>
+						<span>Format</span>
+					</Form.Label>
+					<Select.Root
+						type="single"
+						disabled={!canEdit}
+						value={$form.format}
+						onValueChange={(value: string) => ($form.format = value)}
+					>
+						<Select.Trigger class="w-45"
+							>Format: {snakeToStartCase($form.format)}</Select.Trigger
 						>
-							<span>Format</span>
-						</Form.Label>
-						<Select.Root
-							type="single"
-							value={$form.format}
-							onValueChange={(value: string) => ($form.format = value)}
-						>
-							<Select.Trigger class="w-45"
-								>Format: {snakeToSentenceCase($form.format)}</Select.Trigger
-							>
-							<Select.Content>
-								<Select.Item value="online">Online</Select.Item>
-								<Select.Item value="in_person">In-person</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					{/snippet}
+						<Select.Content>
+							<Select.Item value="online">Online</Select.Item>
+							<Select.Item value="in_person">In-person</Select.Item>
+						</Select.Content>
+					</Select.Root>
 				</Form.Control>
 			</Form.Field>
 		</div>
 
-		<!-- Custom Event Link -->
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
@@ -575,7 +595,7 @@
 								{...props}
 								bind:value={$form.custom_event_link}
 								placeholder={`/conversations/${conversation.id}/events/${event.id}/live`}
-								disabled={$form.format !== 'online'}
+								disabled={!canEdit || $form.format !== 'online'}
 							/>
 							<Form.FieldErrors />
 						</div>
@@ -592,6 +612,7 @@
 					>Signup mode</Form.Legend
 				>
 				<RadioGroup.Root
+					disabled={!canEdit}
 					bind:value={$form.signup_mode}
 					class="flex flex-row space-x-1"
 					name="signup_mode"
@@ -614,16 +635,18 @@
 			</Form.Fieldset>
 		</div>
 
-		<div class="border-border flex justify-center border-t py-6">
-			<Form.Button
-				type="submit"
-				variant="default"
-				class="px-12"
-				disabled={saving || $submitting || !$tainted}
-			>
-				Save Changes
-			</Form.Button>
-		</div>
+		{#if canEdit}
+			<div class="border-border flex justify-center border-t py-6">
+				<Form.Button
+					type="submit"
+					variant="default"
+					class="px-12"
+					disabled={saving || $submitting || !$tainted}
+				>
+					Save Changes
+				</Form.Button>
+			</div>
+		{/if}
 	</form>
 {:else if activeTab === 'structure'}
 	<div class="flex flex-col gap-10 py-6">
@@ -634,18 +657,20 @@
 			<p class="text-muted-foreground text-base">Plan how your meeting will run</p>
 		</div>
 
-		<AgendaEditor bind:items={agendaItems} onUpdate={handleAgendaUpdate} />
+		<AgendaEditor bind:items={agendaItems} onUpdate={handleAgendaUpdate} editable={canEdit} />
 
-		<div class="border-border flex justify-center border-t py-6">
-			<Button
-				variant="default"
-				class="px-12"
-				disabled={!agendaDirty || agendaSaving}
-				onclick={handleSaveAgenda}
-			>
-				{agendaSaving ? 'Saving...' : 'Save Agenda'}
-			</Button>
-		</div>
+		{#if canEdit}
+			<div class="border-border flex justify-center border-t py-6">
+				<Button
+					variant="default"
+					class="px-12"
+					disabled={!canEdit || !agendaDirty || agendaSaving}
+					onclick={handleSaveAgenda}
+				>
+					{agendaSaving ? 'Saving...' : 'Save Agenda'}
+				</Button>
+			</div>
+		{/if}
 	</div>
 {:else if activeTab === 'facilitators'}
 	<div
@@ -653,7 +678,12 @@
 	>
 		<div class="contents">
 			<Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Facilitators</Label>
-			<FacilitatorRoleList {attendees} {pendingInvites} onSetRole={handleSetAttendeeRole} />
+			<FacilitatorRoleList
+				{attendees}
+				{pendingInvites}
+				onSetRole={handleSetAttendeeRole}
+				editable={canEdit}
+			/>
 		</div>
 	</div>
 {:else if activeTab === 'location'}
@@ -669,17 +699,30 @@
 {:else if activeTab === 'invites'}
 	<div class="border-border flex flex-col gap-4 border-t py-6 lg:gap-6">
 		<Label class="text-sm font-semibold lg:shrink-0 lg:pt-2">Email invites</Label>
-		<EmailInviteForm
-			conversationId={conversation.id}
-			eventId={event.id}
-			onDone={emailInvitesSubmitted}
-		/>
+		{#if canEdit}
+			<EmailInviteForm
+				editable={canEdit}
+				conversationId={conversation.id}
+				eventId={event.id}
+				onDone={emailInvitesSubmitted}
+			/>
+		{/if}
 		<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 	</div>
 {:else if activeTab === 'breakout'}
-	<EventBreakoutRooms conversation_id={conversation.id} event_id={event.id} {attendees} />
+	<EventBreakoutRooms
+		conversation_id={conversation.id}
+		event_id={event.id}
+		{attendees}
+		editable={canEdit}
+	/>
 {:else if activeTab === 'recordings'}
-	<EventRecordings conversation_id={conversation.id} event_id={event.id} {recordings} />
+	<EventRecordings
+		conversation_id={conversation.id}
+		event_id={event.id}
+		{recordings}
+		editable={canEdit}
+	/>
 {/if}
 
 {#snippet InviteLink(invite: InviteDto, label: string)}

@@ -34,7 +34,6 @@ function polisConfig(moderationPolicyId: string | null): ToolConfigWithTranslati
 		description: null,
 		is_active: true,
 		strict_moderation: false,
-		label_seeds_as_conversation_starter: false,
 		moderation_policy_id: moderationPolicyId
 	};
 }

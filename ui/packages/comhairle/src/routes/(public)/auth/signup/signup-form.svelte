@@ -5,11 +5,12 @@
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import { zodClient, zod } from 'sveltekit-superforms/adapters';
 	import { signupFormSchema } from '$lib/profile';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { backTo } = $props();
 	let responseMessage = $state(null);
@@ -38,11 +39,11 @@
 						email
 					});
 					if (user.auth_type === 'guest') {
-						await goto(backTo ?? '/', { invalidateAll: true });
+						await goto(backTo ?? '/', { invalidate: [key('user')] });
 					} else {
 						await goto(
 							`/auth/verification-message?backTo=${encodeURIComponent(backTo ?? '/')}`,
-							{ invalidateAll: true }
+							{ invalidate: [key('user')] }
 						);
 					}
 				} catch (e) {

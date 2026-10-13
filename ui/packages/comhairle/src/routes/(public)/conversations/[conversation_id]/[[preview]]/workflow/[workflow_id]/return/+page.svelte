@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type { PageProps } from './$types';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 
 	const { data }: PageProps = $props();
 

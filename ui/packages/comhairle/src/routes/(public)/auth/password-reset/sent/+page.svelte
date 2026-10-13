@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import AuthGradient from '$lib/components/AuthGradient.svelte';
 	import { Button } from '$lib/components/ui/button';
 </script>

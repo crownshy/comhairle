@@ -1,5 +1,39 @@
 import { describe, expect, it } from 'vitest';
-import { csvField, toCsv } from './csv';
+import { csvField, parseCsvRows, toCsv } from './csv';
+
+describe('parseCsvRows', () => {
+	it('splits simple rows and columns', async () => {
+		expect((await parseCsvRows('a,b\nc,d')).rows).toEqual([
+			['a', 'b'],
+			['c', 'd']
+		]);
+	});
+
+	it('keeps commas inside quoted fields', async () => {
+		expect((await parseCsvRows('bus,"A vehicle, large"')).rows).toEqual([
+			['bus', 'A vehicle, large']
+		]);
+	});
+
+	it('unescapes doubled quotes inside a quoted field', async () => {
+		expect((await parseCsvRows('bus,"A ""big"" vehicle"')).rows).toEqual([
+			['bus', 'A "big" vehicle']
+		]);
+	});
+
+	it('keeps newlines inside quoted fields', async () => {
+		expect((await parseCsvRows('bus,"line one\nline two"')).rows).toEqual([
+			['bus', 'line one\nline two']
+		]);
+	});
+
+	it('handles CRLF line endings and a trailing newline', async () => {
+		expect((await parseCsvRows('a,b\r\nc,d\r\n')).rows).toEqual([
+			['a', 'b'],
+			['c', 'd']
+		]);
+	});
+});
 
 describe('csvField', () => {
 	it('quotes values and doubles internal quotes', () => {

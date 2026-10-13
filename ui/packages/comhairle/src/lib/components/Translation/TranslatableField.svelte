@@ -9,17 +9,24 @@
 	import { Languages, X, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import type { ComponentProps } from 'svelte';
-	import type { TranslationSource, TranslationEntry } from './translationUtils';
+	import {
+		isAutosaveSource,
+		type TranslationSource,
+		type TranslationEntry
+	} from './translationUtils';
+	import { registerAutosaveSource } from './autosaveRegistry.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
 
-	type BaseProps = {
+	export type TranslatableFieldBaseProps = {
 		/** The single persistence + read contract this field renders. See ADR-0005. */
+		id?: string;
 		source: TranslationSource;
 		primaryLocale: Locale;
 		supportedLanguages: Locale[];
 		editorType?: 'plain' | 'rich';
+		disabled?: boolean;
 		placeholder?: string;
 		minHeight?: string;
 		maxHeight?: string;
@@ -40,17 +47,19 @@
 	// `inputProps` is typed against whichever underlying element `inputType` selects, so callers
 	// get element-correct autocomplete/checking at the call site. TS can't carry that correlation
 	// through the `$props()` destructure (see the cast at the spread below).
-	type Props = BaseProps &
+	export type TranslatableFieldInputProps = TranslatableFieldBaseProps &
 		(
 			| { inputType?: 'input'; inputProps?: ComponentProps<typeof Input> }
 			| { inputType?: 'textarea'; inputProps?: ComponentProps<typeof Textarea> }
 		);
 
 	let {
+		id,
 		source,
 		primaryLocale,
 		supportedLanguages,
 		editorType = 'plain',
+		disabled = false,
 		inputType = 'input',
 		placeholder = '',
 		minHeight = '100px',
@@ -62,7 +71,7 @@
 		availableDocuments = [],
 		conversationId,
 		reportEmbedSteps = []
-	}: Props = $props();
+	}: TranslatableFieldBaseProps & TranslatableFieldInputProps = $props();
 
 	let dialogOpen = $state(false);
 	let clickedLang = $state<Locale | undefined>(undefined);
@@ -71,6 +80,8 @@
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
 	let hasTranslations = $derived(otherLanguages.length > 0);
 	let saveState = $derived(source.saveState);
+
+	registerAutosaveSource(() => source);
 
 	let badges = $derived.by((): TranslationEntry[] =>
 		otherLanguages.map((locale) => ({
@@ -82,6 +93,7 @@
 	);
 
 	function saveSource(content: string) {
+		if (disabled) return;
 		if (!canSave || canSave(content)) source.saveSource(content);
 	}
 
@@ -113,6 +125,7 @@
 		<div class="relative">
 			<RichTextEditor
 				{value}
+				editable={!disabled}
 				onChange={handleRichChange}
 				{placeholder}
 				{minHeight}
@@ -136,19 +149,23 @@
 		<div class="relative">
 			{#if inputType === 'textarea'}
 				<Textarea
+					{id}
 					class="pr-12"
 					{value}
 					oninput={handlePlainInput}
 					{placeholder}
 					{...inputProps as ComponentProps<typeof Textarea>}
+					{disabled}
 				/>
 			{:else}
 				<Input
+					{id}
 					class="pr-12"
 					{value}
 					oninput={handlePlainInput}
 					{placeholder}
 					{...inputProps as ComponentProps<typeof Input>}
+					{disabled}
 				/>
 			{/if}
 			{#if hasTranslations}
@@ -181,6 +198,17 @@
 					<TriangleAlert class="h-3 w-3" />
 					Not saved
 				</span>
+				{#if isAutosaveSource(source)}
+					<Button
+						type="button"
+						variant="link"
+						size="sm"
+						class="h-auto p-0 text-xs"
+						onclick={() => isAutosaveSource(source) && source.retry()}
+					>
+						Retry
+					</Button>
+				{/if}
 			{/if}
 			{#each badges as badge (badge.language)}
 				<LanguageStatusBadge
@@ -226,6 +254,7 @@
 			<div class="max-h-[calc(90vh-120px)] overflow-y-auto">
 				<TranslationEditor
 					{source}
+					{disabled}
 					{primaryLocale}
 					{supportedLanguages}
 					{editorType}

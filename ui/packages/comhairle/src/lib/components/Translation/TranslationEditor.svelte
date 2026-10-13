@@ -16,6 +16,7 @@
 		primaryLocale: Locale;
 		supportedLanguages: Locale[];
 		editorType?: 'plain' | 'rich';
+		disabled?: boolean;
 		minHeight?: string;
 		maxHeight?: string;
 		initialTargetLang?: Locale;
@@ -28,6 +29,7 @@
 		primaryLocale,
 		supportedLanguages,
 		editorType = 'plain',
+		disabled = false,
 		minHeight = '200px',
 		maxHeight,
 		initialTargetLang,
@@ -67,11 +69,13 @@
 	);
 
 	function handleSourceChange(content: string) {
+		if (disabled) return;
 		if (content === source.contents[primaryLocale]) return;
 		source.saveSource(content);
 	}
 
 	function handleTargetChange(content: string) {
+		if (disabled) return;
 		if (!currentTargetLang) return;
 		if (content === source.contents[currentTargetLang]) return;
 		source.saveTarget(currentTargetLang, content);
@@ -92,7 +96,7 @@
 	}
 
 	async function handleAiTranslate() {
-		if (isTranslating || !currentTargetLang || !sourceContent) return;
+		if (disabled || isTranslating || !currentTargetLang || !sourceContent) return;
 		isTranslating = true;
 		try {
 			await source.aiTranslate(currentTargetLang, sourceContent);
@@ -106,6 +110,7 @@
 	}
 
 	async function handleApproveClick(lang: string) {
+		if (disabled) return;
 		try {
 			await source.approve(lang);
 		} catch {
@@ -114,6 +119,7 @@
 	}
 
 	async function handleMarkAsDraftClick(lang: string) {
+		if (disabled) return;
 		try {
 			await source.markAsDraft(lang);
 		} catch {
@@ -159,6 +165,7 @@
 			{#if editorType === 'rich'}
 				<RichTextEditor
 					value={sourceContent}
+					editable={!disabled}
 					onChange={handleSourceChange}
 					{minHeight}
 					{maxHeight}
@@ -172,6 +179,7 @@
 						style="min-height: {minHeight};"
 						value={sourceContent}
 						oninput={handleSourceInput}
+						{disabled}
 						placeholder="Primary content..."
 					></textarea>
 				</div>
@@ -194,6 +202,7 @@
 				{#if editorType === 'rich'}
 					<RichTextEditor
 						value={sourceContent}
+						editable={!disabled}
 						onChange={handleSourceChange}
 						{minHeight}
 						{maxHeight}
@@ -207,6 +216,7 @@
 							style="min-height: {minHeight};"
 							value={sourceContent}
 							oninput={handleSourceInput}
+							{disabled}
 							placeholder="Primary content..."
 						></textarea>
 					</div>
@@ -232,7 +242,7 @@
 						size="sm"
 						class="gap-1.5 rounded-full"
 						onclick={handleAiTranslate}
-						disabled={isTranslating}
+						disabled={disabled || isTranslating}
 					>
 						{#if isTranslating}
 							Translating...
@@ -245,6 +255,7 @@
 				{#if editorType === 'rich'}
 					<RichTextEditor
 						value={currentTargetContent}
+						editable={!disabled}
 						onChange={handleTargetChange}
 						{minHeight}
 						{maxHeight}
@@ -258,6 +269,7 @@
 							style="min-height: {minHeight};"
 							value={currentTargetContent}
 							oninput={handleTargetInput}
+							{disabled}
 							placeholder="Translation content..."
 						></textarea>
 					</div>
@@ -276,11 +288,12 @@
 							Approved
 						</Button>
 						<DropdownMenu.Root>
-							<DropdownMenu.Trigger>
+							<DropdownMenu.Trigger {disabled}>
 								<Button
 									variant="outline"
 									size="icon"
 									class="h-10 w-10 rounded-full"
+									{disabled}
 								>
 									<MoreHorizontal class="size-4" />
 								</Button>
@@ -288,6 +301,7 @@
 							<DropdownMenu.Content>
 								<DropdownMenu.Item
 									onclick={() => handleMarkAsDraftClick(currentTargetLang)}
+									{disabled}
 								>
 									Mark as draft
 								</DropdownMenu.Item>
@@ -299,7 +313,7 @@
 							size="default"
 							class="gap-2 rounded-full"
 							onclick={() => handleApproveClick(currentTargetLang)}
-							disabled={!currentTargetContent}
+							disabled={disabled || !currentTargetContent}
 						>
 							<Check class="size-4" />
 							Approve
@@ -314,6 +328,7 @@
 	{#if editorType === 'rich'}
 		<RichTextEditor
 			value={sourceContent}
+			editable={!disabled}
 			onChange={handleSourceChange}
 			{minHeight}
 			{maxHeight}
@@ -326,6 +341,7 @@
 			style="min-height: {minHeight};"
 			value={sourceContent}
 			oninput={handleSourceInput}
+			{disabled}
 			placeholder="Content..."
 		></textarea>
 	{/if}

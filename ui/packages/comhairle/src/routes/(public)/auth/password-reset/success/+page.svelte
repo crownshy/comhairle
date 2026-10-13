@@ -1,6 +1,6 @@
 <script lang="ts">
 	import AuthPage from '$lib/profile/AuthPage.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 </script>
 
 <svelte:head>

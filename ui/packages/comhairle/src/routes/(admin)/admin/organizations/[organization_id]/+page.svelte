@@ -7,30 +7,15 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
-	import { Trash2, SquarePen, Trash } from 'lucide-svelte';
+	import { Trash2, SquarePen } from 'lucide-svelte';
 	import type { PageData } from './$types';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import RoleAssignments from '$lib/components/permissions/RoleAssignments.svelte';
 
 	let { data }: { data: PageData } = $props();
-
-	type TeamRole = 'member' | 'admin';
-	type TeamMember = {
-		id: string;
-		username?: string | null;
-		email?: string | null;
-		role: TeamRole;
-	};
 
 	let isEditing = $state(false);
 	let isDeleting = $state(false);
 	let isSaving = $state(false);
-	let teamBusy = $state(false);
-	let confirmCreateUserOpen = $state(false);
-	let pendingCreateUser = $state<{ email: string; role: TeamRole } | null>(null);
-
-	let members = $state<TeamMember[]>(data.team.members ?? []);
-	let memberEmail = $state('');
-	let newMemberRole = $state<TeamRole>('member');
 
 	let editName = $state(data.organization?.name ?? '');
 	let editDescription = $state(data.organization?.description ?? '');
@@ -43,12 +28,9 @@
 	let editExternalUrl = $state(data.organization?.externalUrl ?? '');
 	let editRegionIds = $state<string[]>(data.organization?.regions ?? []);
 
-	let activeTab = $derived(page.url.searchParams.get('tab') ?? 'details');
-	let currentUserId = $derived(data.user?.id ?? '');
-
-	$effect(() => {
-		members = data.team.members ?? [];
-	});
+	let activeTab = $derived(
+		page.url.searchParams.get('tab') === 'team' && data.canManageTeam ? 'team' : 'details'
+	);
 
 	async function setTab(tab: 'details' | 'team') {
 		const params = new URLSearchParams(page.url.searchParams);
@@ -107,7 +89,7 @@
 			);
 
 			notifications.send({ priority: 'INFO', message: 'Organization updated' });
-			await invalidate('organization:details');
+			await invalidate(key('admin/organization/details'));
 			isEditing = false;
 		} catch (error) {
 			console.error(error);
@@ -115,132 +97,6 @@
 		} finally {
 			isSaving = false;
 		}
-	}
-
-	async function refreshTeam() {
-		await invalidate('organization:team');
-	}
-
-	async function addMember(allowCreateUser = false, preset?: { email: string; role: TeamRole }) {
-		const email = (preset?.email ?? memberEmail).trim();
-		const requestedRole = preset?.role ?? newMemberRole;
-		if (email.length === 0 || !data.organization) return;
-
-		teamBusy = true;
-		const response = await tryCatchAsync(async () => {
-			const result = await fetch(`/api/organizations/${data.organization.id}/members`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					email,
-					role: requestedRole,
-					allow_create_user: allowCreateUser
-				})
-			});
-
-			if (result.status === 404 && !allowCreateUser) {
-				return { requiresConfirmation: true as const };
-			}
-
-			if (!result.ok) {
-				throw new Error(`Failed to add member (${result.status})`);
-			}
-			return result.json() as Promise<{ createdAccount: boolean; emailed: boolean }>;
-		});
-
-		if (response.ok !== null && 'requiresConfirmation' in response.ok) {
-			pendingCreateUser = { email, role: requestedRole };
-			confirmCreateUserOpen = true;
-			teamBusy = false;
-			return;
-		}
-
-		if (response.err !== null) {
-			notifications.send({ priority: 'ERROR', message: 'Failed to add organization member' });
-			teamBusy = false;
-			return;
-		}
-
-		memberEmail = '';
-		newMemberRole = 'member';
-		pendingCreateUser = null;
-		confirmCreateUserOpen = false;
-		await refreshTeam();
-
-		notifications.send({
-			priority: response.ok.createdAccount && !response.ok.emailed ? 'WARNING' : 'INFO',
-			message: response.ok.createdAccount
-				? response.ok.emailed
-					? 'Member added and account created. Account setup email sent.'
-					: 'Member added and account created. Account setup email could not be sent.'
-				: 'Member added to organization'
-		});
-
-		teamBusy = false;
-	}
-
-	async function confirmCreateUser() {
-		if (!pendingCreateUser) return;
-		await addMember(true, pendingCreateUser);
-	}
-
-	async function removeMember(userId: string) {
-		if (!data.organization) return;
-
-		teamBusy = true;
-		const response = await tryCatchAsync(async () => {
-			const result = await fetch(
-				`/api/organizations/${data.organization.id}/members/${userId}`,
-				{
-					method: 'DELETE'
-				}
-			);
-			if (!result.ok) {
-				throw new Error(`Failed to remove member (${result.status})`);
-			}
-		});
-
-		if (response.err !== null) {
-			notifications.send({
-				priority: 'ERROR',
-				message: 'Failed to remove organization member'
-			});
-			teamBusy = false;
-			return;
-		}
-
-		await refreshTeam();
-		notifications.send({ priority: 'INFO', message: 'Member removed from organization' });
-		teamBusy = false;
-	}
-
-	async function updateMemberRole(userId: string, role: TeamRole) {
-		if (!data.organization) return;
-
-		teamBusy = true;
-		const response = await tryCatchAsync(async () => {
-			const result = await fetch(
-				`/api/organizations/${data.organization.id}/members/${userId}/role`,
-				{
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ role })
-				}
-			);
-			if (!result.ok) {
-				throw new Error(`Failed to update role (${result.status})`);
-			}
-		});
-
-		if (response.err !== null) {
-			notifications.send({ priority: 'ERROR', message: 'Failed to update member role' });
-			teamBusy = false;
-			return;
-		}
-
-		await refreshTeam();
-		notifications.send({ priority: 'INFO', message: 'Member role updated' });
-		teamBusy = false;
 	}
 
 	async function deleteOrganization() {
@@ -252,8 +108,8 @@
 			});
 
 			await Promise.all([
-				invalidate('organization:details'),
-				invalidate('admin:organizations')
+				invalidate(key('admin/organization/details')),
+				invalidate(key('admin/organizations'))
 			]);
 			notifications.send({ priority: 'INFO', message: 'Organization deleted' });
 			goto('/admin');
@@ -323,17 +179,19 @@
 				>
 					Details
 				</button>
-				<button
-					type="button"
-					onclick={() => setTab('team')}
-					class={`border-b-2 px-3 py-2 text-sm font-medium ${
-						activeTab === 'team'
-							? 'border-foreground text-foreground'
-							: 'text-muted-foreground hover:text-foreground border-transparent'
-					}`}
-				>
-					Team
-				</button>
+				{#if data.canManageTeam}
+					<button
+						type="button"
+						onclick={() => setTab('team')}
+						class={`border-b-2 px-3 py-2 text-sm font-medium ${
+							activeTab === 'team'
+								? 'border-foreground text-foreground'
+								: 'text-muted-foreground hover:text-foreground border-transparent'
+						}`}
+					>
+						Team
+					</button>
+				{/if}
 			</div>
 		</div>
 
@@ -503,104 +361,11 @@
 				</div>
 			{/if}
 		{:else if activeTab === 'team'}
-			{#if data.canManageTeam}
-				<div class="rounded-lg border p-4">
-					<h2 class="text-lg font-semibold">Members</h2>
-					<p class="text-muted-foreground mt-1 text-sm">
-						Add members and assign each member as member or admin.
-					</p>
-
-					<div class="mt-4 grid gap-2 md:grid-cols-[1fr_auto_auto]">
-						<Input
-							bind:value={memberEmail}
-							placeholder="member@example.com"
-							disabled={teamBusy}
-						/>
-						<select
-							bind:value={newMemberRole}
-							disabled={teamBusy}
-							class="border-input bg-background h-10 rounded-md border px-3 py-2 text-sm"
-						>
-							<option value="member">Member</option>
-							<option value="admin">Admin</option>
-						</select>
-						<Button
-							onclick={() => addMember()}
-							disabled={teamBusy || memberEmail.length === 0}>Add</Button
-						>
-					</div>
-
-					<div class="mt-4 overflow-x-auto">
-						<table class="w-full text-sm">
-							<thead>
-								<tr class="border-b text-left">
-									<th class="py-2">Username</th>
-									<th class="py-2">Email</th>
-									<th class="py-2">Role</th>
-									<th class="py-2 text-right">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each members as member (member.id)}
-									{@const isCurrentUser = member.id === currentUserId}
-									<tr class="border-b">
-										<td class="py-2">
-											<div class="flex items-center gap-2">
-												<span>{member.username ?? 'Unknown user'}</span>
-												{#if isCurrentUser}
-													<span
-														class="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs"
-													>
-														You
-													</span>
-												{/if}
-											</div>
-										</td>
-										<td class="py-2">{member.email ?? 'No email'}</td>
-										<td class="py-2">
-											<div class="flex flex-col gap-1">
-												<select
-													value={member.role}
-													onchange={(event) =>
-														updateMemberRole(
-															member.id,
-															(
-																event.currentTarget as HTMLSelectElement
-															).value as TeamRole
-														)}
-													disabled={teamBusy || isCurrentUser}
-													title={isCurrentUser
-														? 'You cannot change your own role'
-														: undefined}
-													class="border-input bg-background h-9 rounded-md border px-2 py-1 text-sm disabled:pointer-events-none disabled:opacity-50"
-												>
-													<option value="member">Member</option>
-													<option value="admin">Admin</option>
-												</select>
-											</div>
-										</td>
-										<td class="py-2 text-right">
-											<button
-												type="button"
-												aria-label="Remove member"
-												class="hover:bg-primary group rounded-full p-1.5 disabled:pointer-events-none disabled:opacity-50"
-												onclick={() => removeMember(member.id)}
-												disabled={teamBusy || isCurrentUser}
-											>
-												<Trash
-													class="group-hover:text-primary-foreground size-4"
-												/>
-											</button>
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</div>
-			{:else}
-				<p class="text-muted-foreground">You do not have permission to manage this team.</p>
-			{/if}
+			<RoleAssignments
+				resourceType="organization"
+				resourceId={data.organization.id}
+				roleManagement={data.roleManagement}
+			/>
 		{/if}
 	{:else}
 		<p class="text-muted-foreground">Organization not found.</p>
@@ -619,31 +384,6 @@
 		<AlertDialog.Footer>
 			<Button variant="outline" onclick={() => (isDeleting = false)}>Cancel</Button>
 			<Button variant="destructive" onclick={deleteOrganization}>Delete</Button>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
-
-<AlertDialog.Root open={confirmCreateUserOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Create new user account?</AlertDialog.Title>
-			<AlertDialog.Description>
-				No account exists for <strong>{pendingCreateUser?.email}</strong>. Continue to
-				create a new email/password user, send an account setup email, and add them as
-				<strong>{pendingCreateUser?.role ?? 'member'}</strong>?
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<Button
-				variant="outline"
-				onclick={() => {
-					confirmCreateUserOpen = false;
-					pendingCreateUser = null;
-				}}
-			>
-				Cancel
-			</Button>
-			<Button onclick={confirmCreateUser} disabled={teamBusy}>Create user</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

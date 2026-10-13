@@ -2,16 +2,17 @@
 	import { resolve } from '$app/paths';
 	import * as Form from '$lib/components/ui/form';
 
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import { passwordResetCreateFormSchema } from '$lib/profile/schema';
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import AuthGradient from '$lib/components/AuthGradient.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let responseMessage: string | null = $state(null);
 
@@ -30,7 +31,7 @@
 			await loader.run(async () => {
 				try {
 					await apiClient.PasswordResetCreate({ email });
-					await goto(resolve('/auth/password-reset/sent'), { invalidateAll: true });
+					await goto(resolve('/auth/password-reset/sent'), { invalidate: [key('user')] });
 				} catch (e) {
 					if (e.response?.status === 404) {
 						responseMessage = m.email_address_not_found();

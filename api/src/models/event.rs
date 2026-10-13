@@ -165,7 +165,7 @@ pub struct Event {
     pub conversation_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
-    pub signup_mode: String,
+    pub signup_mode: SignupMode,
     #[partially(omit)]
     pub video_meeting_id: Option<Uuid>,
     #[serde(default)]
@@ -184,6 +184,34 @@ pub struct Event {
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(
+    Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema, Default,
+)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Dummy))]
+pub enum SignupMode {
+    #[default]
+    Invite,
+    Open,
+}
+
+impl From<SignupMode> for sea_query::Value {
+    fn from(val: SignupMode) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
+    }
+}
+
+impl std::fmt::Display for SignupMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            SignupMode::Invite => "invite",
+            SignupMode::Open => "open",
+        };
+        write!(f, "{}", value)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Default)]
@@ -355,7 +383,7 @@ pub struct CreateEvent {
     pub capacity: Option<i32>,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
-    pub signup_mode: String,
+    pub signup_mode: SignupMode,
     pub agenda: Option<EventAgenda>,
     pub location: Option<EventLocation>,
     pub default_time_zone: Option<String>,
@@ -479,7 +507,7 @@ impl PartialEvent {
             values.push((EventIden::EndTime, (*value).into()));
         }
         if let Some(value) = &self.signup_mode {
-            values.push((EventIden::SignupMode, value.into()));
+            values.push((EventIden::SignupMode, value.clone().into()));
         }
         if let Some(value) = &self.agenda {
             values.push((EventIden::Agenda, value.into()));
@@ -847,7 +875,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             ..Default::default()
         };
@@ -877,7 +905,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             location: Some(EventLocation {
                 venue_name: "Test venue".to_string(),
@@ -914,7 +942,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             ..Default::default()
         };
@@ -927,13 +955,13 @@ mod tests {
         );
         assert_eq!(
             event.signup_mode,
-            "invite".to_string(),
+            SignupMode::Invite,
             "incorrect signup_mode after creation"
         );
 
         let update_event = PartialEvent {
             capacity: Some(20),
-            signup_mode: Some("open".to_string()),
+            signup_mode: Some(SignupMode::Open),
             ..Default::default()
         };
         let event = update(&pool, &event.id, &update_event).await?;
@@ -941,7 +969,7 @@ mod tests {
         assert_eq!(event.capacity, Some(20), "incorrect capacity after update");
         assert_eq!(
             event.signup_mode,
-            "open".to_string(),
+            SignupMode::Open,
             "incorrect signup_mode after update"
         );
 
@@ -959,7 +987,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             location: Some(EventLocation {
                 venue_name: "Test venue".to_string(),
@@ -1008,7 +1036,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             ..Default::default()
         };
@@ -1018,7 +1046,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             ..Default::default()
         };
@@ -1058,7 +1086,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             ..Default::default()
         };
@@ -1101,22 +1129,22 @@ mod tests {
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let _ = create(&pool, &conversation_id, &new_event_1).await?;
@@ -1161,25 +1189,25 @@ mod tests {
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             start_time: Utc::now() + Duration::days(1),
             ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             start_time: Utc::now() + Duration::days(2),
             ..Default::default()
         };
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             start_time: Utc::now() + Duration::days(3),
             ..Default::default()
         };
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             start_time: Utc::now() - Duration::days(3),
             ..Default::default()
         };
@@ -1249,34 +1277,34 @@ mod tests {
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
             capacity: Some(1),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         // Full: will add three attendees
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
             capacity: Some(3),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         // Available: has capacity but will add no attendees
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
             capacity: Some(1),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         // Available: capacity null so always has availability
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         // Full: will add 2 attendees
         let new_event_5 = CreateEvent {
             name: "test_event_5".to_string(),
             capacity: Some(2),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             ..Default::default()
         };
         let event_1 = create(&pool, &conversation_id, &new_event_1).await?;
@@ -1426,7 +1454,7 @@ mod tests {
             capacity: Some(10),
             start_time: Utc::now(),
             end_time: Utc::now(),
-            signup_mode: "invite".to_string(),
+            signup_mode: SignupMode::Invite,
             agenda: None,
             ..Default::default()
         };

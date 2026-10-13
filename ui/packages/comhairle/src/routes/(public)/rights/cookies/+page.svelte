@@ -2,7 +2,7 @@
 	import * as CookieConsent from 'vanilla-cookieconsent';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Table from '$lib/components/ui/table';
-	import * as m from '$lib/paraglide/messages';
+	import { m } from '$lib/paraglide/messages';
 
 	const sectionTitle = 'text-2xl font-bold text-foreground md:text-3xl';
 	const body = 'text-base leading-7 text-foreground';

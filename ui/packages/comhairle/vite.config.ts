@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
@@ -15,6 +15,9 @@ export default defineConfig({
 			outdir: './src/lib/paraglide'
 		})
 	],
+	resolve: {
+		conditions: mode === 'test' ? ['browser'] : undefined
+	},
 	server: {
 		proxy: {
 			'/api/ws': {
@@ -74,4 +77,4 @@ export default defineConfig({
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	}
-});
+}));

@@ -9,6 +9,7 @@
 	interface Props {
 		primaryLanguage: Locale;
 		supportedLanguages: Locale[];
+		disabled?: boolean;
 		onPrimaryChange?: (language: string) => void;
 		onSupportedChange?: (languages: string[]) => void;
 	}
@@ -16,6 +17,7 @@
 	let {
 		primaryLanguage = $bindable('en'),
 		supportedLanguages = $bindable(['en']),
+		disabled = false,
 		onPrimaryChange,
 		onSupportedChange
 	}: Props = $props();
@@ -36,7 +38,7 @@
 	);
 
 	function handlePrimaryChange(value: string | undefined) {
-		if (!value) return;
+		if (disabled || !value) return;
 		const languageCode = value as Locale;
 		primaryLanguage = languageCode;
 		if (!supportedLanguages.includes(languageCode)) {
@@ -46,6 +48,7 @@
 	}
 
 	function handleOtherLanguagesChange(options: Option[]) {
+		if (disabled) return;
 		supportedLanguages = [primaryLanguage].concat(options.map((o) => o.value as Locale));
 		onSupportedChange?.(supportedLanguages);
 	}
@@ -55,7 +58,12 @@
 	<!-- Primary Language -->
 	<div class="flex flex-col gap-2">
 		<Label class="font-semibold">Primary language</Label>
-		<Select.Root type="single" value={primaryLanguage} onValueChange={handlePrimaryChange}>
+		<Select.Root
+			type="single"
+			value={primaryLanguage}
+			onValueChange={handlePrimaryChange}
+			{disabled}
+		>
 			<Select.Trigger class="w-full">
 				{getLanguageName(primaryLanguage)}
 			</Select.Trigger>
@@ -71,6 +79,7 @@
 	<div class="flex flex-col gap-2">
 		<Label class="font-semibold">Supported languages</Label>
 		<MultiSelect
+			{disabled}
 			defaultOptions={otherLanguageOptions}
 			selected={selectedOtherLanguages}
 			onSelectedChange={handleOtherLanguagesChange}

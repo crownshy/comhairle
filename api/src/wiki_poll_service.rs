@@ -97,7 +97,12 @@ pub trait WikiPollService: Send + Sync {
         auth_cookies: &str,
     ) -> Result<u32, WikiPollServiceError>;
 
-    async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError>;
+    /// Report data for a poll, limited to the statements `scope` admits.
+    async fn get_report_data(
+        &self,
+        poll_id: &str,
+        scope: ReportScope,
+    ) -> Result<WikiPollReport, WikiPollServiceError>;
 
     async fn moderate_comment(
         &self,
@@ -132,6 +137,27 @@ impl ModerationStatus {
 
     pub fn active(self) -> bool {
         matches!(self, ModerationStatus::Accepted)
+    }
+}
+
+/// Which statements a report covers. It should match what participants are shown, or the
+/// report and the voting interface disagree about what is in the conversation. Rejected
+/// statements are always left out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReportScope {
+    /// For polls that only show participants statements a moderator has accepted.
+    AcceptedOnly,
+    /// For polls that show participants everything a moderator has not rejected.
+    AcceptedAndPending,
+}
+
+impl ReportScope {
+    pub fn includes(self, status: ModerationStatus) -> bool {
+        match status {
+            ModerationStatus::Accepted => true,
+            ModerationStatus::Pending => self == ReportScope::AcceptedAndPending,
+            ModerationStatus::Rejected => false,
+        }
     }
 }
 

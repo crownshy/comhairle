@@ -5,9 +5,10 @@
 	type Props = {
 		documents: ComhairleDocument[];
 		conversation: ConversationWithTranslations;
+		editable?: boolean;
 	};
 
-	let { documents, conversation }: Props = $props();
+	let { documents, conversation, editable = true }: Props = $props();
 </script>
 
 {#if conversation.knowledgeBaseId}
@@ -15,7 +16,7 @@
 	<ul class="flex flex-col gap-3">
 		{#each documents as document (document.id)}
 			<li>
-				<ParsedFileBadge {document} conversationId={conversation.id} />
+				<ParsedFileBadge {document} conversationId={conversation.id} {editable} />
 			</li>
 		{/each}
 	</ul>

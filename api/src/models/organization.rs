@@ -17,7 +17,7 @@ use crate::{
     models::{
         SqlxResultExt,
         pagination::{Order, PageOptions, PaginatedResults},
-        translations::{TextContentId, TextFormat, new_translation},
+        translations::{TextContentId, TextFormat, new_translation_in_connection},
         users,
     },
 };
@@ -28,6 +28,8 @@ use crate::{
 pub struct Organization {
     #[partially(omit)]
     pub id: Uuid,
+    #[partially(omit)]
+    pub user_group_id: Uuid,
     pub name: String,
     #[partially(omit)]
     pub description: TextContentId,
@@ -77,7 +79,7 @@ impl std::fmt::Display for OrganizationType {
     }
 }
 
-const DEFAULT_COLUMNS: [OrganizationIden; 11] = [
+const DEFAULT_COLUMNS: [OrganizationIden; 12] = [
     OrganizationIden::Id,
     OrganizationIden::Name,
     OrganizationIden::Description,
@@ -89,6 +91,7 @@ const DEFAULT_COLUMNS: [OrganizationIden; 11] = [
     OrganizationIden::Metadata,
     OrganizationIden::CreatedAt,
     OrganizationIden::UpdatedAt,
+    OrganizationIden::UserGroupId,
 ];
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
@@ -137,22 +140,34 @@ impl CreateOrganization {
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn create(
+pub async fn create_with_administrator(
     db: &PgPool,
     new_org: &CreateOrganization,
     locale: &str,
+    administrator_id: Uuid,
 ) -> Result<Organization, ComhairleError> {
+    let mut transaction = db.begin().await?;
     let mut columns = new_org.columns();
     let mut values = new_org.values();
 
-    let description_translation =
-        new_translation(db, locale, &new_org.description, TextFormat::Plain).await?;
+    let description_translation = new_translation_in_connection(
+        &mut transaction,
+        locale,
+        &new_org.description,
+        TextFormat::Plain,
+    )
+    .await?;
 
     columns.push(OrganizationIden::Description);
     values.push(description_translation.id.into());
 
-    let mission_translation =
-        new_translation(db, locale, &new_org.mission, TextFormat::Plain).await?;
+    let mission_translation = new_translation_in_connection(
+        &mut transaction,
+        locale,
+        &new_org.mission,
+        TextFormat::Plain,
+    )
+    .await?;
     columns.push(OrganizationIden::Mission);
     values.push(mission_translation.id.into());
 
@@ -163,9 +178,34 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let organization = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let organization: Organization = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *transaction)
+        .await?;
+    sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $2)")
+        .bind(organization.user_group_id)
+        .bind(administrator_id)
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query("INSERT INTO organization_user_permissions (user_id, resource_id, role_name, granted_by, grant_reason)
+                 VALUES ($1, $2, 'organization_admin', $1, 'Organization creation')")
+        .bind(administrator_id).bind(organization.id).execute(&mut *transaction).await?;
+    transaction.commit().await?;
 
     Ok(organization)
+}
+
+#[cfg(test)]
+async fn create(
+    db: &PgPool,
+    new_org: &CreateOrganization,
+    locale: &str,
+) -> Result<Organization, ComhairleError> {
+    let administrator_id = sqlx::query_scalar(
+        "SELECT user_id FROM system_user_permissions WHERE role_name = 'super_admin' LIMIT 1",
+    )
+    .fetch_one(db)
+    .await?;
+    create_with_administrator(db, new_org, locale, administrator_id).await
 }
 
 #[instrument(err(Debug), skip(db))]

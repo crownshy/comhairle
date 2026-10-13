@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import * as m from '$lib/paraglide/messages';
+import { m } from '$lib/paraglide/messages';
 
 export const loginFormSchema = z.object({
 	email: z.string().email(m.please_enter_a_valid_email()),

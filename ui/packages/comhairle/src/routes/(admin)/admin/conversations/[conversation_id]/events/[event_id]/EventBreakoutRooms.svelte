@@ -12,9 +12,10 @@
 		conversation_id: string;
 		event_id: string;
 		attendees: EventAttendanceEtx[];
+		editable?: boolean;
 	};
 
-	let { conversation_id, event_id, attendees }: Props = $props();
+	let { conversation_id, event_id, attendees, editable = true }: Props = $props();
 
 	let plan = $state<BreakoutPlanDto | null>(null);
 	let loading = $state(true);
@@ -42,6 +43,7 @@
 	onMount(loadPlan);
 
 	async function handleSeed() {
+		if (!editable || seeding || saving) return;
 		seeding = true;
 		try {
 			plan = await apiClient.SeedEventBreakoutPlan(undefined, {
@@ -84,6 +86,7 @@
 		roomAssignments: VideoCallParticipant[][];
 		moderatorIds: string[];
 	}) {
+		if (!editable || saving || seeding) return;
 		saving = true;
 		const mods = new Set(config.moderatorIds);
 		const rooms = config.roomAssignments.map((room) => ({
@@ -121,29 +124,34 @@
 		</p>
 	</div>
 
-	<div class="flex flex-wrap items-center gap-3">
-		<Button variant="outline" class="gap-2" onclick={handleSeed} disabled={seeding}>
-			<Shuffle class="h-4 w-4" />
-			{seeding ? 'Assigning…' : 'Auto-assign'}
-		</Button>
-		<Button
-			variant="outline"
-			class="gap-2"
-			onclick={() => (dialogOpen = true)}
-			disabled={totalSeats === 0}
-		>
-			<Pencil class="h-4 w-4" />
-			Edit rooms
-		</Button>
-	</div>
+	{#if editable}
+		<div class="flex flex-wrap items-center gap-3">
+			<Button variant="outline" class="gap-2" onclick={handleSeed} disabled={seeding}>
+				<Shuffle class="h-4 w-4" />
+				{seeding ? 'Assigning…' : 'Auto-assign'}
+			</Button>
+			<Button
+				variant="outline"
+				class="gap-2"
+				onclick={() => (dialogOpen = true)}
+				disabled={totalSeats === 0}
+			>
+				<Pencil class="h-4 w-4" />
+				Edit rooms
+			</Button>
+		</div>
+	{/if}
 
 	{#if loading}
 		<p class="text-muted-foreground text-sm">Loading…</p>
 	{:else if !plan || plan.rooms.length === 0}
 		<div class="flex items-center justify-center rounded-2xl border border-dashed p-8">
 			<p class="text-muted-foreground text-sm">
-				No breakout plan yet. Use <span class="font-medium">Auto-assign</span> to build one from
-				the current attendees and invites.
+				No breakout plan yet.
+				{#if editable}
+					Use <span class="font-medium">Auto-assign</span> to build one from the current attendees
+					and invites.
+				{/if}
 			</p>
 		</div>
 	{:else}
@@ -179,18 +187,20 @@
 	{/if}
 </div>
 
-<CreateBreakoutDialog
-	bind:open={dialogOpen}
-	participants={attendees.map((a) => ({
-		user_id: a.userId,
-		username: a.email ?? a.userId,
-		role: a.role
-	}))}
-	initialAssignments={dialogAssignments}
-	moderatorIds={dialogModeratorIds}
-	enableModerators={true}
-	showDuration={false}
-	confirmLabel={saving ? 'Saving…' : 'Save plan'}
-	onClose={() => (dialogOpen = false)}
-	onCreate={handleSave}
-/>
+{#if editable}
+	<CreateBreakoutDialog
+		bind:open={dialogOpen}
+		participants={attendees.map((a) => ({
+			user_id: a.userId,
+			username: a.email ?? a.userId,
+			role: a.role
+		}))}
+		initialAssignments={dialogAssignments}
+		moderatorIds={dialogModeratorIds}
+		enableModerators={true}
+		showDuration={false}
+		confirmLabel={saving ? 'Saving…' : 'Save plan'}
+		onClose={() => (dialogOpen = false)}
+		onCreate={handleSave}
+	/>
+{/if}

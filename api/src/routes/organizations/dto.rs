@@ -25,6 +25,7 @@ use crate::{
 pub struct OrganizationDto {
     #[schemars(example = "example_uuid")]
     pub id: Uuid,
+    pub user_group_id: Uuid,
     pub name: String,
     #[schemars(example = "example_uuid")]
     pub description: TextContentId,
@@ -42,6 +43,7 @@ impl From<Organization> for OrganizationDto {
     fn from(o: Organization) -> Self {
         Self {
             id: o.id,
+            user_group_id: o.user_group_id,
             name: o.name,
             description: o.description,
             mission: o.mission,
@@ -68,6 +70,7 @@ impl From<Organization> for OrganizationDto {
 pub struct LocalizedOrganizationDto {
     #[schemars(example = "example_uuid")]
     pub id: Uuid,
+    pub user_group_id: Uuid,
     pub name: String,
     #[schemars(example = "example_localized_text")]
     pub description: String,
@@ -85,6 +88,7 @@ impl From<LocalizedOrganization> for LocalizedOrganizationDto {
     fn from(o: LocalizedOrganization) -> Self {
         Self {
             id: o.id,
+            user_group_id: o.user_group_id,
             name: o.name,
             description: o.description,
             mission: o.mission,

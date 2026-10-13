@@ -6,11 +6,16 @@ export function camelToSentenceCase(str: string) {
 	return str.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`);
 }
 
-export function snakeToSentenceCase(str: string) {
+export function snakeToStartCase(str: string) {
 	return str
 		.replace(/^[-_]*(.)/, (_, c) => c.toUpperCase()) // Initial char (after -/_)
 		.replace(/[-_]+(.)/g, (_, c) => ' ' + c.toUpperCase());
 }
+
+export const kebabToSentenceCase = (str: string): string => {
+	const sentence = str.replaceAll('-', ' ');
+	return sentence[0].toLocaleUpperCase() + sentence.slice(1).toLocaleLowerCase();
+};
 
 export function snakeToCamel(str: string) {
 	return str.toLowerCase().replace(/[-_][a-z]/g, (group) => group.slice(-1).toUpperCase());
@@ -50,4 +55,11 @@ export function capitalise(str: string): string {
 		.split(' ')
 		.map((word) => word[0].toUpperCase() + word.slice(1))
 		.join(' ');
+}
+
+export function toSlug(text: string): string {
+	return text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '');
 }

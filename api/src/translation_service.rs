@@ -17,6 +17,11 @@ pub trait TranslationService: Send + Sync {
         from_locale: &str,
         to_locale: &str,
     ) -> Result<String>;
+
+    /// Detect the source language of `content`, returning an application locale
+    /// code (e.g. "en", "es"). Used to label the source of a submitted statement
+    /// when the client sends no locale hint.
+    async fn detect_language(&self, content: &str) -> Result<String>;
 }
 
 pub struct GoogleTranslateService {
@@ -37,6 +42,21 @@ struct GoogleData {
 #[derive(Deserialize)]
 struct GoogleTranslateResponse {
     data: GoogleData,
+}
+
+#[derive(Deserialize)]
+struct GoogleDetection {
+    language: String,
+}
+
+#[derive(Deserialize)]
+struct GoogleDetectData {
+    detections: Vec<Vec<GoogleDetection>>,
+}
+
+#[derive(Deserialize)]
+struct GoogleDetectResponse {
+    data: GoogleDetectData,
 }
 
 impl GoogleTranslateService {
@@ -66,6 +86,10 @@ impl MockTranslationService {
         translator
             .expect_translate_from_to()
             .returning(|_, _, _| Ok("Translated String".into()));
+
+        translator
+            .expect_detect_language()
+            .returning(|_| Ok("en".into()));
 
         translator
     }
@@ -102,6 +126,33 @@ impl TranslationService for GoogleTranslateService {
             .map_err(|e| TranslationError::TranslationFailed(e.to_string()))?;
 
         Ok(res.data.translations[0].translated_text.clone())
+    }
+
+    async fn detect_language(&self, content: &str) -> Result<String> {
+        let url = format!(
+            "https://translation.googleapis.com/language/translate/v2/detect?key={}",
+            self.api_key
+        );
+
+        let client = Client::new();
+
+        let res: GoogleDetectResponse = client
+            .post(&url)
+            .json(&serde_json::json!({ "q": content }))
+            .send()
+            .await
+            .map_err(|e| TranslationError::TranslationFailed(e.to_string()))?
+            .json()
+            .await
+            .map_err(|e| TranslationError::TranslationFailed(e.to_string()))?;
+
+        res.data
+            .detections
+            .into_iter()
+            .flatten()
+            .next()
+            .map(|d| d.language)
+            .ok_or_else(|| TranslationError::TranslationFailed("no language detected".into()))
     }
 }
 

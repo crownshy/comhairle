@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 
 	type Attendee = {
 		id: string;
@@ -19,9 +20,10 @@
 		pendingInvites: PendingInvite[];
 		/** Set a registered attendee's role by attendance id. */
 		onSetRole: (attendanceId: string, role: string) => void;
+		editable?: boolean;
 	};
 
-	let { attendees, pendingInvites, onSetRole }: Props = $props();
+	let { attendees, pendingInvites, onSetRole, editable = true }: Props = $props();
 
 	/** Roles an admin can assign, in display order. 'participant' is the plain,
 	 *  non-privileged role a registered attendee gets by default. */
@@ -49,17 +51,26 @@
 					>
 						<span class="text-sm">{displayName(attendee)}</span>
 						<div class="flex gap-1">
-							{#each ROLES as role (role.value)}
-								<Button
-									size="sm"
-									variant={attendee.role === role.value ? 'default' : 'outline'}
-									aria-pressed={attendee.role === role.value}
-									disabled={attendee.role === role.value}
-									onclick={() => onSetRole(attendee.id, role.value)}
-								>
-									{role.label}
-								</Button>
-							{/each}
+							{#if editable}
+								{#each ROLES as role (role.value)}
+									<Button
+										size="sm"
+										variant={attendee.role === role.value
+											? 'default'
+											: 'outline'}
+										aria-pressed={attendee.role === role.value}
+										disabled={attendee.role === role.value}
+										onclick={() => onSetRole(attendee.id, role.value)}
+									>
+										{role.label}
+									</Button>
+								{/each}
+							{:else}
+								<Badge variant="secondary" class="text-base">
+									{ROLES.find((role) => role.value === attendee.role)?.label ??
+										attendee.role}
+								</Badge>
+							{/if}
 						</div>
 					</li>
 				{/each}

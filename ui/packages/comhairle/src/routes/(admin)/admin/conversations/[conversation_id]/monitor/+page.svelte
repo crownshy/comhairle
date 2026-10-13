@@ -6,11 +6,15 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Download } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { permissions } from '$lib/permissions.svelte';
 
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	let { workflowSteps, workflowStats } = data;
+	const canExport = $derived(
+		permissions.can('conversation', 'conversation_export', data.conversation.id)
+	);
 
 	let stats = [
 		{
@@ -114,6 +118,7 @@
 		<p>Download a list of users who have opted in to being contacted on this engagment</p>
 		<Button
 			href={`/api/conversation/${data.conversation.id}/contacts/export`}
+			disabled={!canExport}
 			download
 			variant="outline"
 		>
@@ -125,6 +130,7 @@
 		<p>Download demographic data from user profiles for participants in this conversation</p>
 		<Button
 			href={`/api/conversation/${data.conversation.id}/demographics/export`}
+			disabled={!canExport}
 			download
 			variant="outline"
 		>

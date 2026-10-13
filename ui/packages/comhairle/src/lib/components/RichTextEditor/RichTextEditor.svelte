@@ -232,18 +232,20 @@
 	style={width ? `width: ${width}` : ''}
 >
 	{#if editor}
-		<EditorToolbar
-			{editor}
-			{activeStates}
-			documents={availableDocuments}
-			{menuExpanded}
-			compact={isCompact}
-			onToggleMenu={() => (menuExpanded = !menuExpanded)}
-		/>
-		<TableInsertControls {editor} />
-		{#if reportEmbedSteps.length > 0}
-			<ReportEmbedControls {editor} steps={reportEmbedSteps} />
-		{/if}
+		<fieldset disabled={!editable} class="contents">
+			<EditorToolbar
+				{editor}
+				{activeStates}
+				documents={availableDocuments}
+				{menuExpanded}
+				compact={isCompact}
+				onToggleMenu={() => (menuExpanded = !menuExpanded)}
+			/>
+			<TableInsertControls {editor} />
+			{#if reportEmbedSteps.length > 0}
+				<ReportEmbedControls {editor} steps={reportEmbedSteps} />
+			{/if}
+		</fieldset>
 	{/if}
 
 	<div

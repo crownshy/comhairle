@@ -830,8 +830,8 @@ impl UpdateTextTranslation {
 /// This function will return an error if:
 /// * The database operation fails
 #[instrument(err(Debug), skip(db))]
-pub async fn create_text_content(
-    db: &PgPool,
+pub async fn create_text_content<'connection>(
+    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
     text_content: &CreateTextContent,
 ) -> Result<TextContent, ComhairleError> {
     let columns = text_content.columns();
@@ -985,8 +985,8 @@ pub async fn delete_text_content(
 /// * The content_id references a non-existent text content
 /// * A translation for the same content_id and locale already exists
 #[instrument(err(Debug), skip(db))]
-pub async fn create_text_translation(
-    db: &PgPool,
+pub async fn create_text_translation<'connection>(
+    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
     text_translation: &CreateTextTranslation,
 ) -> Result<TextTranslation, ComhairleError> {
     let columns = text_translation.columns();
@@ -1310,8 +1310,18 @@ pub async fn new_translation(
     content: &str,
     format: TextFormat,
 ) -> Result<TextContent, ComhairleError> {
+    let mut connection = db.acquire().await?;
+    new_translation_in_connection(&mut connection, locale, content, format).await
+}
+
+pub async fn new_translation_in_connection(
+    db: &mut sqlx::PgConnection,
+    locale: &str,
+    content: &str,
+    format: TextFormat,
+) -> Result<TextContent, ComhairleError> {
     let translation = create_text_content(
-        db,
+        &mut *db,
         &CreateTextContent {
             primary_locale: locale.to_owned(),
             format,
@@ -1320,7 +1330,7 @@ pub async fn new_translation(
     .await?;
 
     create_text_translation(
-        db,
+        &mut *db,
         &CreateTextTranslation {
             content_id: translation.id,
             locale: locale.to_owned(),
