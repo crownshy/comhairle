@@ -17,14 +17,9 @@ use crate::models::organization::{
     PartialOrganization,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::{
-    PermissionResource, PermissionRole, SystemResource,
-    organization::{Action, Role},
-    system,
-};
-use crate::models::translations;
-use crate::models::user_group;
-use crate::models::users;
+use crate::models::permissions::organization::{Action, Role};
+use crate::models::permissions::{PermissionResource, PermissionRole, SystemResource, system};
+use crate::models::{translations, user_group, users};
 use crate::routes::auth::{
     EmailLinkClaims, RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin,
     is_user_super_admin,

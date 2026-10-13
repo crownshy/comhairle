@@ -5,18 +5,12 @@ pub mod messages;
 pub mod routes;
 pub mod setup;
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
-};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use axum::{
-    extract::{
-        ConnectInfo, State,
-        ws::{Message, WebSocket, WebSocketUpgrade},
-    },
-    response::Response,
-};
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::{ConnectInfo, State};
+use axum::response::Response;
 use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt};
 use messages::{NotificationLevel, WebSocketMessage};

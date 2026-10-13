@@ -1,13 +1,11 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::{
-    body::Body,
-    extract::{ConnectInfo, State},
-    http::{HeaderMap, Request},
-    middleware::Next,
-    response::Response,
-};
+use axum::body::Body;
+use axum::extract::{ConnectInfo, State};
+use axum::http::{HeaderMap, Request};
+use axum::middleware::Next;
+use axum::response::Response;
 use axum_extra::extract::CookieJar;
 use tracing::Instrument;
 

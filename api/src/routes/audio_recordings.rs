@@ -9,14 +9,10 @@ pub mod dto;
 
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with},
-};
-use axum::{
-    extract::{Json, Path, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with};
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
 use hyper::HeaderMap;
 use tracing::instrument;
 use uuid::Uuid;

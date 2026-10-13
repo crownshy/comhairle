@@ -1,36 +1,32 @@
-use std::{
-    collections::{HashMap, HashSet},
-    pin::Pin,
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
+use std::pin::Pin;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::stream::{self, Stream, StreamExt};
-use ragflow::{
-    DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage,
-    agent::{session::*, *},
-    chat::{session::*, *},
-    client::RagflowClient,
-    dataset::*,
-    document::*,
-};
+use ragflow::agent::session::*;
+use ragflow::agent::*;
+use ragflow::chat::session::*;
+use ragflow::chat::*;
+use ragflow::client::RagflowClient;
+use ragflow::dataset::*;
+use ragflow::document::*;
+use ragflow::{DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage};
 use reqwest::StatusCode;
 use serde_json::{Value, from_str};
 use tracing::instrument;
 
-use crate::{
-    bot_service::{
-        AgentConversationRequest, BotServiceSseEvent, ChatConversationRequest, ComhairleAgent,
-        ComhairleAgentSession, ComhairleBotService, ComhairleChat, ComhairleChatSession,
-        ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference,
-        ComhairlePrompt, ComhairleSessionMessage, CreateAgentRequest, CreateChatRequest,
-        CreateChatSessionRequest, GetQueryParams as ApiGetQueryParams, UpdateAgentRequest,
-        UpdateChatRequest, UpdateChatSessionRequest, UpdateDocumentRequest,
-        UpdateKnowledgeBaseRequest, UploadFileRequest, Variable as ComhairleVariable,
-    },
-    error::ComhairleError,
+use crate::bot_service::{
+    AgentConversationRequest, BotServiceSseEvent, ChatConversationRequest, ComhairleAgent,
+    ComhairleAgentSession, ComhairleBotService, ComhairleChat, ComhairleChatSession,
+    ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference,
+    ComhairlePrompt, ComhairleSessionMessage, CreateAgentRequest, CreateChatRequest,
+    CreateChatSessionRequest, GetQueryParams as ApiGetQueryParams, UpdateAgentRequest,
+    UpdateChatRequest, UpdateChatSessionRequest, UpdateDocumentRequest, UpdateKnowledgeBaseRequest,
+    UploadFileRequest, Variable as ComhairleVariable,
 };
+use crate::error::ComhairleError;
 
 #[derive(Debug)]
 pub struct ComhairleRagBotService {

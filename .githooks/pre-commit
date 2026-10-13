@@ -32,7 +32,7 @@ format_rust() {
         stash_used=true
       fi
 
-      cargo fmt --manifest-path "${cargo_toml_path}"
+      cargo fmt --manifest-path "${cargo_toml_path}" -- --config imports_granularity=Module
       git add "${path}/"
 
       if [[ $stash_used == true ]]; then

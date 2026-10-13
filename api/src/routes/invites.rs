@@ -1,13 +1,9 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, patch_with, post_with},
-};
-use axum::{
-    Extension, Json,
-    extract::{Path, State},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, patch_with, post_with};
+use axum::extract::{Path, State};
+use axum::{Extension, Json};
 use axum_extra::extract::CookieJar;
 use hyper::StatusCode;
 use tower::util::option_layer;
@@ -488,17 +484,14 @@ mod tests {
     use sqlx::PgPool;
     use tracing_test::traced_test;
 
-    use crate::{
-        mailer::MockComhairleMailer,
-        models::{
-            invites::{InviteStatus, LoginBehaviour},
-            model_test_helpers::get_random_conversation_id,
-            users::UserAuthType,
-        },
-        routes::{events::dto::EventDto, user::dto::UserDto},
-        setup_server,
-        test_helpers::{UserSession, extract, test_state},
-    };
+    use crate::mailer::MockComhairleMailer;
+    use crate::models::invites::{InviteStatus, LoginBehaviour};
+    use crate::models::model_test_helpers::get_random_conversation_id;
+    use crate::models::users::UserAuthType;
+    use crate::routes::events::dto::EventDto;
+    use crate::routes::user::dto::UserDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, extract, test_state};
 
     use super::*;
 

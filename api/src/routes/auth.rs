@@ -1,18 +1,17 @@
 use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
-use axum::{
-    Extension, RequestPartsExt,
-    extract::{FromRequestParts, Json, State},
-    http::{StatusCode, request::Parts},
-    response::{IntoResponse, Response},
-};
-use axum_extra::{
-    TypedHeader,
-    extract::cookie::{Cookie, CookieJar, SameSite},
-    headers::{Authorization, authorization::Bearer},
-};
+use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use axum::extract::{FromRequestParts, Json, State};
+use axum::http::StatusCode;
+use axum::http::request::Parts;
+use axum::response::{IntoResponse, Response};
+use axum::{Extension, RequestPartsExt};
+use axum_extra::TypedHeader;
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use axum_extra::headers::Authorization;
+use axum_extra::headers::authorization::Bearer;
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
@@ -23,10 +22,12 @@ use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, deco
 use rand_core::OsRng;
 use regex::Regex;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::Sha256;
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 use time::Duration;
 use tower::util::option_layer;
 use tracing::{instrument, warn};
@@ -36,9 +37,9 @@ use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::middleware::rate_limit::RateLimitLayers;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
+use crate::models::permissions::system::Role as SystemRole;
 use crate::models::permissions::{
     ActorId, GrantRoleRequest, PermissionRole, grant_role, has_resource_permission,
-    system::Role as SystemRole,
 };
 use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
 use crate::models::users::{
@@ -1302,28 +1303,23 @@ pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Co
 mod tests {
     use super::*;
 
-    use crate::{
-        mailer::MockComhairleMailer,
-        models::{
-            api_key::CreateApiKeyRequest,
-            model_test_helpers::setup_default_app_and_session,
-            otp,
-            users::{self, UpdateUserRequest, User, UserAuthType, get_user_by_email},
-        },
-        routes::{
-            auth::{EmailLinkClaims, SessionClaims, generate_jwt},
-            user::dto::UserDto,
-        },
-        setup_server,
-        test_helpers::{TEST_PASSWORD, UserSession, test_state},
-    };
+    use crate::mailer::MockComhairleMailer;
+    use crate::models::api_key::CreateApiKeyRequest;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::otp;
+    use crate::models::users::{self, UpdateUserRequest, User, UserAuthType, get_user_by_email};
+    use crate::routes::auth::{EmailLinkClaims, SessionClaims, generate_jwt};
+    use crate::routes::user::dto::UserDto;
+    use crate::setup_server;
+    use crate::test_helpers::{TEST_PASSWORD, UserSession, test_state};
 
     use argon2::{Argon2, PasswordHash, PasswordVerifier};
     use axum::http::StatusCode;
     use mockall::predicate::{always, eq};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::{error::Error, sync::Arc};
+    use std::error::Error;
+    use std::sync::Arc;
     use uuid::Uuid;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]

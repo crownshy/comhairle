@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with};
 use async_trait::async_trait;
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -27,8 +23,7 @@ use crate::models::proposal_section::{
     self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
 };
 use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
-use crate::models::user_progress;
-use crate::models::workflow_step;
+use crate::models::{user_progress, workflow_step};
 use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::routes::translations::LocaleExtractor;
 use crate::schema_helpers::{example_localized_text, example_uuid};
@@ -822,17 +817,13 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::{
-            model_test_helpers::{
-                get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-            },
-            proposal_response::Response,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::prioritization_tool_config,
-        tools::ToolConfig,
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
+    use crate::models::proposal_response::Response;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::prioritization_tool_config;
+    use crate::tools::ToolConfig;
 
     use super::*;
 

@@ -1,15 +1,14 @@
 use async_trait::async_trait;
 use aws_config::SdkConfig;
-use aws_sdk_s3::{
-    Client,
-    config::{RequestChecksumCalculation, ResponseChecksumValidation},
-    presigning::PresigningConfig,
-    primitives::ByteStream,
-    types::ObjectCannedAcl,
-};
+use aws_sdk_s3::Client;
+use aws_sdk_s3::config::{RequestChecksumCalculation, ResponseChecksumValidation};
+use aws_sdk_s3::presigning::PresigningConfig;
+use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::types::ObjectCannedAcl;
 use std::time::Duration;
 
-use crate::bulk_storage_service::{BulkStorageService, FileMetadata, error::BulkStorageError};
+use crate::bulk_storage_service::error::BulkStorageError;
+use crate::bulk_storage_service::{BulkStorageService, FileMetadata};
 /// Presigned URL expiration time for PUT operations (in seconds)
 const PUT_EXPIRES: u64 = 600;
 /// Presigned URL expiration time for GET operations (in seconds)

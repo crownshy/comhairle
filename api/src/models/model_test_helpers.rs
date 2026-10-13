@@ -1,8 +1,8 @@
-use std::{error::Error, sync::Arc};
+use std::error::Error;
+use std::sync::Arc;
 
-use crate::models::permissions::{
-    ActorId, GrantRoleRequest, PermissionRole, grant_role, system::Role,
-};
+use crate::models::permissions::system::Role;
+use crate::models::permissions::{ActorId, GrantRoleRequest, PermissionRole, grant_role};
 use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;

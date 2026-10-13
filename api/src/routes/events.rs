@@ -1,35 +1,24 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, patch_with, post_with, put_with},
-};
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        event::{
-            self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations,
-            PartialEvent,
-        },
-        event_attendance,
-        pagination::{PageOptions, PaginatedResults},
-    },
-    routes::{
-        auth::{RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin},
-        events::dto::{EventDto, LocalizedEventDto},
-        translations::LocaleExtractor,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::event::{
+    self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations, PartialEvent,
 };
+use crate::models::event_attendance;
+use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::routes::auth::{RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin};
+use crate::routes::events::dto::{EventDto, LocalizedEventDto};
+use crate::routes::translations::LocaleExtractor;
 
 pub mod breakout;
 pub mod dto;
@@ -360,9 +349,9 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
-    use crate::models::{
-        event::SignupMode,
-        model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+    use crate::models::event::SignupMode;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
     };
 
     use super::*;

@@ -1,13 +1,12 @@
 #[cfg(test)]
 mod tests {
     use crate::test_helpers::{TEST_PASSWORD, test_state};
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::{error::Error, sync::Arc};
+    use std::error::Error;
+    use std::sync::Arc;
     use tower::ServiceExt;
 
     /// Helper to create test state with rate limiting enabled

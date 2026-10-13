@@ -5,18 +5,15 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        proposal_section::{self, ProposalSection},
-        translations::{TextContentId, TextFormat, new_translation},
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::proposal_section::{self, ProposalSection};
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "proposal_evaluation_proposal")]
@@ -192,13 +189,11 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> 
 mod tests {
     use serde_json::json;
 
-    use crate::{
-        models::model_test_helpers::{
-            get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::prioritization_tool_config,
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::prioritization_tool_config;
 
     use super::*;
 

@@ -5,12 +5,9 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    Decode, Encode, PgPool, Postgres,
-    encode::IsNull,
-    prelude::{FromRow, Type},
-    query_as_with,
-};
+use sqlx::encode::IsNull;
+use sqlx::prelude::{FromRow, Type};
+use sqlx::{Decode, Encode, PgPool, Postgres, query_as_with};
 use sqlx_postgres::{PgArgumentBuffer, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
@@ -18,14 +15,10 @@ use uuid::Uuid;
 #[cfg(test)]
 use fake::Dummy;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        pagination::{Order, PageOptions, PaginatedResults},
-    },
-};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 
 #[derive(Serialize, Deserialize, Debug, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "scheduled_email")]

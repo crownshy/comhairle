@@ -5,7 +5,8 @@ use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 

@@ -1,32 +1,24 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, patch_with, post_with, put_with},
-};
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        pagination::{PageOptions, PaginatedResults},
-        region::{self, CreateRegion, PartialRegion, RegionFilterOptions, RegionOrderOptions},
-        region_area,
-    },
-    routes::{
-        auth::{RequiredAdminUser, RequiredUser},
-        regions::dto::{
-            LocalizedRegionDto, RegionAreaLinksDto, RegionAreaLinksRequestDto, RegionDto,
-        },
-        translations::LocaleExtractor,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::region::{
+    self, CreateRegion, PartialRegion, RegionFilterOptions, RegionOrderOptions,
 };
+use crate::models::region_area;
+use crate::routes::auth::{RequiredAdminUser, RequiredUser};
+use crate::routes::regions::dto::{
+    LocalizedRegionDto, RegionAreaLinksDto, RegionAreaLinksRequestDto, RegionDto,
+};
+use crate::routes::translations::LocaleExtractor;
 
 pub mod dto;
 
@@ -344,8 +336,9 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
+    use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::region::RegionType;
-    use crate::models::{model_test_helpers::setup_default_app_and_session, region_area};
+    use crate::models::region_area;
 
     use super::*;
 

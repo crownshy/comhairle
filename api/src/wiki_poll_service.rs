@@ -1,7 +1,8 @@
 pub mod error;
 pub mod polis_service;
 
-use crate::wiki_poll_service::{error::WikiPollServiceError, polis_service::WikiPollReport};
+use crate::wiki_poll_service::error::WikiPollServiceError;
+use crate::wiki_poll_service::polis_service::WikiPollReport;
 
 use async_trait::async_trait;
 use schemars::JsonSchema;

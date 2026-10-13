@@ -1,24 +1,16 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, post_with},
-};
-use axum::{
-    extract::{Json, Path, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::bot_service::{ComhairlePrompt, UpdateChatRequest, Variable};
+use crate::models::chat_instructions::{self, UpsertChatInstructions};
+use crate::models::conversation;
 use crate::{ComhairleError, ComhairleState};
-use crate::{
-    bot_service::{ComhairlePrompt, UpdateChatRequest, Variable},
-    models::{
-        chat_instructions::{self, UpsertChatInstructions},
-        conversation,
-    },
-};
 use dto::ChatInstructionsDto;
 
 pub mod dto;

@@ -5,22 +5,17 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    Decode, Encode, PgPool, Postgres,
-    encode::IsNull,
-    prelude::{FromRow, Type},
-    query_as_with,
-};
+use sqlx::encode::IsNull;
+use sqlx::prelude::{FromRow, Type};
+use sqlx::{Decode, Encode, PgPool, Postgres, query_as_with};
 use sqlx_postgres::{PgArgumentBuffer, PgTypeInfo, PgValueRef};
 use strum::EnumCount as _;
 use strum_macros::EnumCount;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{SqlxResultExt, users},
-};
+use crate::error::ComhairleError;
+use crate::models::{SqlxResultExt, users};
 
 /// A client-configured email template, persisted to the `email_template_config` table.
 ///

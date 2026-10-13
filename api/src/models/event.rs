@@ -6,10 +6,8 @@ use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    Decode, Encode, PgPool, Postgres,
-    prelude::{FromRow, Type},
-};
+use sqlx::prelude::{FromRow, Type};
+use sqlx::{Decode, Encode, PgPool, Postgres};
 use sqlx_postgres::{PgArgumentBuffer, PgValueRef};
 use std::str::FromStr;
 use tracing::{instrument, warn};
@@ -18,16 +16,14 @@ use uuid::Uuid;
 #[cfg(test)]
 use fake::Dummy;
 
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        pagination::{Order, PageOptions, PaginatedResults},
-        scheduled_email::{self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig},
-        translations::{TextContentId, TextFormat, new_translation},
-        users::User,
-    },
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::models::scheduled_email::{
+    self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig,
 };
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
+use crate::models::users::User;
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
 pub struct BasicEventAgendaItem {
@@ -855,11 +851,9 @@ fn add_current_attendance(mut query: sea_query::SelectStatement) -> sea_query::S
 mod tests {
     use chrono::Duration;
 
-    use crate::models::{
-        event_attendance::{self, CreateEventAttendance},
-        model_test_helpers::{
-            get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
-        },
+    use crate::models::event_attendance::{self, CreateEventAttendance};
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
     };
 
     use super::*;

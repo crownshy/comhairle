@@ -21,7 +21,6 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::permissions::conversation::Action;
-use crate::models::polis_statement_aux;
 use crate::models::polis_statement_aux::{
     CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
     PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux, UpsertFromPolis,
@@ -36,7 +35,6 @@ use crate::models::{
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
 use crate::wiki_poll_service::{
     ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
-    polis_service::WikiPollReport,
 };
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
@@ -1988,15 +1986,12 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            polis_statement_aux::{self, CreatePolisStatementAux},
-        },
-        setup_server,
-        test_helpers::{UserSession, extract, polis_tool_config, test_state},
-        wiki_poll_service::{MockWikiPollService, WikiPollService, error::WikiPollServiceError},
-    };
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::polis_statement_aux::{self, CreatePolisStatementAux};
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, extract, polis_tool_config, test_state};
+    use crate::wiki_poll_service::error::WikiPollServiceError;
+    use crate::wiki_poll_service::{MockWikiPollService, WikiPollService};
 
     use super::*;
 
@@ -2058,8 +2053,9 @@ mod tests {
     async fn moderation_middleware_enforces_conversation_roles(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        use crate::models::permissions::conversation::Role;
         use crate::models::permissions::{
-            self, ActorId, GrantRoleRequest, PermissionRole, RevokeRoleRequest, conversation::Role,
+            self, ActorId, GrantRoleRequest, PermissionRole, RevokeRoleRequest,
         };
 
         let state = Arc::new(test_state().db(pool.clone()).call()?);

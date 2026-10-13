@@ -24,11 +24,13 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Cond, Expr, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr};
+use sea_query::extension::postgres::PgExpr;
+use sea_query::{Cond, Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -1024,9 +1026,8 @@ mod tests {
     use serde_json::json;
 
     use crate::models::model_test_helpers::setup_default_app_and_session;
-    use crate::models::permissions::{
-        ActorId, GrantRoleRequest, PermissionRole, conversation::Role, grant_role,
-    };
+    use crate::models::permissions::conversation::Role;
+    use crate::models::permissions::{ActorId, GrantRoleRequest, PermissionRole, grant_role};
     use crate::models::users::{self, UpdateUserRequest, create_user, update_user};
     use crate::routes::auth::SignupRequest;
     use crate::routes::conversations::dto::ConversationDto;

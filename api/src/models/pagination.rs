@@ -1,15 +1,20 @@
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
+use std::sync::Arc;
 
 use aide::OperationIo;
-use axum::{RequestPartsExt, extract::FromRequestParts, http::request::Parts};
+use axum::RequestPartsExt;
+use axum::extract::FromRequestParts;
+use axum::http::request::Parts;
 use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, SelectStatement};
 use sea_query_binder::SqlxBinder;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::{FromRow, PgPool};
 
-use crate::{ComhairleState, error::ComhairleError};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 
 #[derive(Deserialize, Debug, OperationIo)]
 pub struct Sort {
