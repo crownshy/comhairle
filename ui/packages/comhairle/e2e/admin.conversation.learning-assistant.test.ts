@@ -75,6 +75,6 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 	await TargetReadingAge.write('8');
 
 	await testWithRefresh(page, async () => {
-		TargetReadingAge.expect();
+		await TargetReadingAge.expect();
 	});
 });
