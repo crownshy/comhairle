@@ -47,37 +47,6 @@ use crate::{
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
-// ======================
-//
-// LEGACY TYPES
-//
-// Keep for migration binary
-//
-// ======================
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct LegacyThinkingSpaceQuestion {
-    pub id: Uuid,
-    pub text: String,
-    /// Admin-authored description of *why* this question is being asked — fed to
-    /// the AI as `question_intent` so it can generate sharper follow-ups. Never
-    /// shown to participants.
-    pub intent: String,
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct LegacyThinkingSpaceToolConfig {
-    pub topic: String,
-    pub root_questions: Vec<LegacyThinkingSpaceQuestion>,
-    pub follow_up_rounds_count: u8,
-}
-
-// ======================
-//
-// END LEGACY TYPES
-//
-// ======================
-
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq, TranslatableJson)]
 pub struct ThinkingSpaceQuestion {
     pub id: Uuid,

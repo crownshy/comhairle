@@ -68,6 +68,29 @@ jobs:
         working-directory: ui
         run: pnpm --filter comhairle test:unit
 
+  api-lint:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout repository
+        uses: actions/checkout@v3
+      -
+        name: Install Rust
+        uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: clippy
+      -
+        name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+      -
+        name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
   api-unit-tests:
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true'

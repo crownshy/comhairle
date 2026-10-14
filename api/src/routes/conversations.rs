@@ -156,6 +156,10 @@ pub struct GetConversationQuery {
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(untagged)]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "built once per request and serialized immediately"
+)]
 pub enum ConversationResponse {
     WithTranslations(ConversationWithTranslations),
     Localized(LocalizedConversationDto),
@@ -689,11 +693,13 @@ async fn register_email_for_updates(
     ))
 }
 
+type CsvExportResponse = (StatusCode, [(String, String); 2], String);
+
 #[instrument(err(Debug), skip(state))]
 async fn export_conversation_contacts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
+) -> Result<CsvExportResponse, ComhairleError> {
     // Get all contacts who opted in
     let contacts =
         user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
@@ -762,7 +768,7 @@ async fn export_conversation_contacts(
 async fn export_conversation_demographics(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
+) -> Result<CsvExportResponse, ComhairleError> {
     // Get demographic data for export
     let demographics =
         user_profile::get_demographics_for_export(&state.db, &conversation_id).await?;
@@ -790,32 +796,27 @@ async fn export_conversation_demographics(
                 profile
                     .demographics
                     .get("ethnicity")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("age")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("gender")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("zipcode")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("political_party")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile.created_at.to_rfc3339(),
             ])?;
@@ -1444,7 +1445,7 @@ mod tests {
             .create_conversation(
                 &app,
                 json! ({
-                    "title" : format!("this is the target"),
+                    "title" : "this is the target".to_string(),
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
@@ -1452,7 +1453,7 @@ mod tests {
                     "is_public" : true,
                     "is_live" : true,
                     "is_invite_only" : false,
-                    "slug" : format!("target_slug"),
+                    "slug" : "target_slug".to_string(),
                     "primary_locale" : "en",
                     "supported_languages" : ["en"]
                 }),
@@ -2776,7 +2777,7 @@ mod tests {
                 actor_id: ActorId::User(other_user_session.id.unwrap()),
                 permission_triplet: system::Role::SuperAdmin.system_triplet()?,
                 granted_by: &owner_session.id.unwrap(),
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;

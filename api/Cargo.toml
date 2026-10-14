@@ -19,6 +19,9 @@ path = "src/main.rs"
 name = "comhairle_data_loader"
 path = "src/data_loader/main.rs"
 
+[lints]
+workspace = true
+
 [dependencies]
 axum = { version = "0.8.3", features = ["ws", "multipart"] }
 async-trait = { workspace = true }

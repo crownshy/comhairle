@@ -107,9 +107,9 @@ pub enum DemographicsQuestionResponseType {
     String,
 }
 
-impl Into<SimpleExpr> for DemographicsQuestionResponseType {
-    fn into(self) -> SimpleExpr {
-        Expr::val(self.as_ref()).cast_as(Alias::new("demographics_response_type"))
+impl From<DemographicsQuestionResponseType> for SimpleExpr {
+    fn from(value: DemographicsQuestionResponseType) -> Self {
+        Expr::val(value.as_ref()).cast_as(Alias::new("demographics_response_type"))
     }
 }
 
@@ -128,21 +128,19 @@ impl Decode<'_, Postgres> for DemographicsQuestionResponseType {
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let s = row.as_str()?;
         match s {
-            "number" => return Ok(DemographicsQuestionResponseType::Number),
-            "string" => return Ok(DemographicsQuestionResponseType::String),
-            _ => {
-                return Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("Invalid demographics question response type: {s}"),
-                )));
-            }
+            "number" => Ok(DemographicsQuestionResponseType::Number),
+            "string" => Ok(DemographicsQuestionResponseType::String),
+            _ => Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid demographics question response type: {s}"),
+            ))),
         }
     }
 }
 
 impl Type<Postgres> for DemographicsQuestionResponseType {
     fn type_info() -> <Postgres as sqlx::Database>::TypeInfo {
-        <Postgres as sqlx::Database>::TypeInfo::with_name("demographics_response_type").into()
+        <Postgres as sqlx::Database>::TypeInfo::with_name("demographics_response_type")
     }
 }
 
@@ -189,8 +187,8 @@ pub fn resolve_category_bucket(value: &str, buckets: &ValueBuckets) -> String {
         } => {
             if let Ok(num) = value.parse::<i64>() {
                 for bucket in numeric_buckets {
-                    let greater_than_or_equal_to_min = bucket.min.map_or(true, |m| num >= m);
-                    let less_than_or_equal_to_max = bucket.max.map_or(true, |m| num <= m);
+                    let greater_than_or_equal_to_min = bucket.min.is_none_or(|m| num >= m);
+                    let less_than_or_equal_to_max = bucket.max.is_none_or(|m| num <= m);
                     if greater_than_or_equal_to_min && less_than_or_equal_to_max {
                         return bucket.label.clone();
                     }
@@ -260,19 +258,22 @@ impl CreateDemographicsQuestion {
 }
 
 impl PartialDemographicsQuestion {
-    fn to_values(self) -> Vec<(DemographicsQuestionIden, SimpleExpr)> {
+    fn to_values(&self) -> Vec<(DemographicsQuestionIden, SimpleExpr)> {
         let mut values = Vec::new();
-        if let Some(display_name) = self.display_name {
+        if let Some(display_name) = &self.display_name {
             values.push((DemographicsQuestionIden::DisplayName, display_name.into()));
         }
 
-        if let Some(response_type) = self.response_type {
-            values.push((DemographicsQuestionIden::ResponseType, response_type.into()));
+        if let Some(response_type) = &self.response_type {
+            values.push((
+                DemographicsQuestionIden::ResponseType,
+                response_type.clone().into(),
+            ));
         }
 
-        if let Some(bucket_config) = self.bucket_config {
+        if let Some(bucket_config) = &self.bucket_config {
             let json_expr: SimpleExpr = match bucket_config {
-                Some(json) => Expr::val(serde_json::to_value(json.0).unwrap()).into(),
+                Some(json) => Expr::val(serde_json::to_value(json.0.clone()).unwrap()).into(),
                 None => sea_query::Keyword::Null.into(),
             };
 
@@ -674,12 +675,12 @@ async fn validate_response_value(
 ) -> Result<(), ComhairleError> {
     let question = get_demographics_question_by_slug(db, question_slug).await?;
 
-    if let Some(bucket_config) = &question.bucket_config {
-        if !bucket_config.0.accepts_value(value) {
-            return Err(ComhairleError::BadRequest(format!(
-                "'{value}' is not a valid answer for question '{question_slug}'"
-            )));
-        }
+    if let Some(bucket_config) = &question.bucket_config
+        && !bucket_config.0.accepts_value(value)
+    {
+        return Err(ComhairleError::BadRequest(format!(
+            "'{value}' is not a valid answer for question '{question_slug}'"
+        )));
     }
 
     Ok(())
@@ -928,7 +929,7 @@ mod tests {
 
         // Associate the demographics question with the conversation
         let payload = CreateConversationDemographics {
-            conversation_id: conversation_id,
+            conversation_id,
             question_slug: question.slug.clone(),
         };
         let response = create_conversation_demographics(&db, payload).await?;
@@ -1139,7 +1140,7 @@ mod tests {
         let _ = create_conversation_demographics(
             &db,
             CreateConversationDemographics {
-                conversation_id: conversation_id,
+                conversation_id,
                 question_slug: question.slug.clone(),
             },
         )
@@ -1147,7 +1148,7 @@ mod tests {
         let _ = create_conversation_demographics(
             &db,
             CreateConversationDemographics {
-                conversation_id: conversation_id,
+                conversation_id,
                 question_slug: other_question.slug.clone(),
             },
         )

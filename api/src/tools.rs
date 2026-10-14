@@ -97,6 +97,7 @@ pub trait ToolImpl: Send + Sync + 'static {
     }
 
     /// Sanitize config by removing sensitive data
+    #[expect(dead_code, reason = "For future use")]
     fn sanitize(config: Self::Config) -> Self::Config;
 }
 

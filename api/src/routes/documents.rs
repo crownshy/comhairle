@@ -61,7 +61,7 @@ async fn require_conversation_document_access(
         return Err(ComhairleError::UserNotAuthorized);
     };
 
-    if is_user_admin(&state, user).await {
+    if is_user_admin(state, user).await {
         return Ok(());
     }
 
@@ -473,10 +473,10 @@ async fn learn_content(
 
             let mut pages: Vec<LearnContentPage> = Vec::new();
             for entry in &config.pages {
-                if let Some(page) = resolve_page_raw(&state.db, entry, locale).await? {
-                    if !page.content.trim().is_empty() {
-                        pages.push(page);
-                    }
+                if let Some(page) = resolve_page_raw(&state.db, entry, locale).await?
+                    && !page.content.trim().is_empty()
+                {
+                    pages.push(page);
                 }
             }
 

@@ -126,13 +126,11 @@ async fn update(
     let event: EventDto = event::update(&state.db, &event_id, &event).await?.into();
 
     // If the agenda changed, push it to anyone currently on the call for this event.
-    if agenda_updated {
-        if let Ok(agenda) = serde_json::to_value(&event.agenda) {
-            let _ = state
-                .video_call_handler
-                .broadcast_agenda_update(&event_id, agenda, &state)
-                .await;
-        }
+    if agenda_updated && let Ok(agenda) = serde_json::to_value(&event.agenda) {
+        let _ = state
+            .video_call_handler
+            .broadcast_agenda_update(&event_id, agenda, &state)
+            .await;
     }
 
     Ok((StatusCode::OK, Json(event)))

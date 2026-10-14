@@ -221,9 +221,8 @@ pub async fn create_many(
                     Some(geom) => Expr::cust_with_values(
                         "ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1)), 3))",
                         [geom.to_string()],
-                    )
-                    .into(),
-                    None => Expr::cust("NULL").into(),
+                    ),
+                    None => Expr::cust("NULL"),
                 },
                 request.name.into(),
             ])
@@ -476,15 +475,15 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError
 }
 
 fn geometry_error(error: sqlx::Error) -> ComhairleError {
-    if let sqlx::Error::Database(ref database_error) = error {
-        if matches!(
+    if let sqlx::Error::Database(ref database_error) = error
+        && matches!(
             database_error.code().as_deref(),
             Some("22023" | "XX000" | "23514")
-        ) {
-            return ComhairleError::BadRequest(
-                "Invalid boundary. Use valid WGS84 Polygon or MultiPolygon geometry.".into(),
-            );
-        }
+        )
+    {
+        return ComhairleError::BadRequest(
+            "Invalid boundary. Use valid WGS84 Polygon or MultiPolygon geometry.".into(),
+        );
     }
     match error {
         sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Region Area".into()),

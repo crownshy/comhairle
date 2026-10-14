@@ -20,9 +20,9 @@ pub enum TranscriptionServiceError {
 }
 pub type Result<T> = std::result::Result<T, TranscriptionServiceError>;
 
-impl Into<StatusCode> for &TranscriptionServiceError {
-    fn into(self) -> StatusCode {
-        match self {
+impl From<&TranscriptionServiceError> for StatusCode {
+    fn from(val: &TranscriptionServiceError) -> Self {
+        match val {
             TranscriptionServiceError::BatchProcessingUnsupported
             | TranscriptionServiceError::StreamingProcessingUnsupported => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,

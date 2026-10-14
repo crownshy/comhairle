@@ -447,7 +447,7 @@ fn to_aws_media_format(audio_format: AudioFormat) -> MediaFormat {
 
 #[async_trait]
 impl Transcriber for AmazonTranscriber {
-    async fn transcribe(&self, _audio: &Vec<u8>) -> Result<String> {
+    async fn transcribe(&self, _audio: &[u8]) -> Result<String> {
         Err(TranscriptionServiceError::BatchProcessingUnsupported)
     }
 
