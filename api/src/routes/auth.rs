@@ -1134,12 +1134,12 @@ async fn issue_refresh_token<'a>(
 }
 
 /// Function to set up the auth routes
-pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub async fn router(enable_rate_limiting: bool) -> ApiRouter<Arc<ComhairleState>> {
     // One strict per-IP bucket, shared by every route that takes or issues
     // credentials, so rotating between login and signup does not buy extra
     // attempts. Session reads (`current_user`, `logout`) stay off it: they run
     // on every page render, and limiting them signs people out at random.
-    let credential_limit = option_layer(auth_rate_limiter_if_enabled(&state.config));
+    let credential_limit = option_layer(auth_rate_limiter_if_enabled(enable_rate_limiting));
 
     ApiRouter::new()
         .api_route(
@@ -1291,7 +1291,6 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

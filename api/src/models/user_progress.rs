@@ -354,13 +354,12 @@ mod tests {
 
     use crate::models::conversation::{self, PartialConversation};
     use crate::models::users::User;
-    use axum::Router;
     use std::error::Error;
 
     /// A conversation with one workflow of `step_count` steps and one participant. The app and
     /// session are kept so a test can add more steps afterwards.
     struct Fixture {
-        app: Router,
+        app: crate::App,
         session: crate::test_helpers::UserSession,
         conversation_id: Uuid,
         workflow: WorkflowDto,
@@ -424,7 +423,7 @@ mod tests {
     }
 
     async fn add_steps(
-        app: &Router,
+        app: &crate::App,
         session: &mut crate::test_helpers::UserSession,
         conversation_id: &Uuid,
         workflow: &WorkflowDto,

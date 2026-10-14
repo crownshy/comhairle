@@ -186,9 +186,13 @@ async fn run() -> Result<(), Box<dyn Error>> {
         // run our app with hyper
         let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
         tracing::info!("listening on {}", listener.local_addr()?);
+        // `App` wraps the router in `NormalizePath`, so the method comes from
+        // `axum::ServiceExt` rather than `Router`
         axum::serve(
             listener,
-            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            axum::ServiceExt::<axum::extract::Request>::into_make_service_with_connect_info::<
+                std::net::SocketAddr,
+            >(app),
         )
         .await
     };
