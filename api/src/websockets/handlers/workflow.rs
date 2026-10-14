@@ -66,6 +66,7 @@ pub enum WorkflowWSError {}
 /// # Registration
 ///
 /// This handler is automatically registered in `websockets::setup::register_handlers()`.
+#[derive(Default)]
 pub struct WorkflowMessageHandler;
 
 impl WorkflowMessageHandler {

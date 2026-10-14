@@ -22,8 +22,8 @@ pub enum BulkStorageError {
     FailedList(String),
 }
 
-impl Into<StatusCode> for &BulkStorageError {
-    fn into(self) -> StatusCode {
+impl From<&BulkStorageError> for StatusCode {
+    fn from(_val: &BulkStorageError) -> Self {
         StatusCode::INTERNAL_SERVER_ERROR
     }
 }

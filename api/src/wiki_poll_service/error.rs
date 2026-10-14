@@ -17,9 +17,9 @@ pub enum WikiPollServiceError {
     UnknownModerationStatus,
 }
 
-impl Into<StatusCode> for &WikiPollServiceError {
-    fn into(self) -> StatusCode {
-        match self {
+impl From<&WikiPollServiceError> for StatusCode {
+    fn from(val: &WikiPollServiceError) -> Self {
+        match val {
             WikiPollServiceError::PolisError(polis_error) => Into::<StatusCode>::into(polis_error),
             WikiPollServiceError::Http(err) => {
                 if let Some(status) = err.status() {

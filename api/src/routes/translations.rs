@@ -1101,7 +1101,7 @@ mod tests {
         let response_text: String = extract("content", &response);
         assert_eq!(
             response_text,
-            format!("translated: Original Translation from en to fr"),
+            "translated: Original Translation from en to fr".to_string(),
             "should successfully translate"
         );
 
@@ -1113,7 +1113,7 @@ mod tests {
         let response_text: String = extract("content", &response);
         assert_eq!(
             response_text,
-            format!("translated: Original Translation from en to gr"),
+            "translated: Original Translation from en to gr".to_string(),
             "should successfully translate"
         );
 

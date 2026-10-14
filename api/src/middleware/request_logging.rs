@@ -82,19 +82,19 @@ pub async fn log_requests(
 /// connection info extension is absent (e.g. in tests), in which case we fall
 /// back to `"unknown"`.
 pub fn client_ip(headers: &HeaderMap, addr: Option<SocketAddr>) -> String {
-    if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-        if let Some(first) = forwarded.split(',').next() {
-            let trimmed = first.trim();
-            if !trimmed.is_empty() {
-                return trimmed.to_owned();
-            }
+    if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok())
+        && let Some(first) = forwarded.split(',').next()
+    {
+        let trimmed = first.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_owned();
         }
     }
 
-    if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
-        if !real_ip.is_empty() {
-            return real_ip.to_owned();
-        }
+    if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok())
+        && !real_ip.is_empty()
+    {
+        return real_ip.to_owned();
     }
 
     addr.map(|a| a.ip().to_string())

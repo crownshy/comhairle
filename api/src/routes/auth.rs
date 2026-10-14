@@ -4,7 +4,7 @@ use aide::axum::routing::{get_with, post_with};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use axum::{
     Extension, RequestPartsExt,
-    extract::{FromRequestParts, Json, Path, State},
+    extract::{FromRequestParts, Json, State},
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
@@ -26,7 +26,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use sha2::Sha256;
-use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
 use time::Duration;
 use tower::util::option_layer;
@@ -38,14 +37,13 @@ use crate::error::ComhairleError;
 use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
-    ActorId, ConversationPath, GrantRoleRequest, PermissionResource, PermissionRole, grant_role,
-    has_resource_permission, system::Role as SystemRole,
+    ActorId, GrantRoleRequest, PermissionRole, grant_role, has_resource_permission,
+    system::Role as SystemRole,
 };
 use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
 use crate::models::users::{
-    self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-    create_guest_user, create_otp_user, create_user, get_guest_user_by_code, get_user_by_email,
-    get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
+    self, UpdateUserRequest, User, UserAuthType, create_guest_user, create_otp_user, create_user,
+    get_guest_user_by_code, get_user_by_email, get_user_by_id, set_signup_metadata, update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
@@ -808,134 +806,6 @@ pub fn user_id_from_session_token(token: &str, secret: &str) -> Option<String> {
         .map(|data| data.claims.id)
 }
 
-/// An extractor to ensure that a required user has a role.
-/// If the user does not have the role then this will fail and
-/// return a Not Authorized response
-/// e.g.
-///     RequiredRole(role, _, _): RequiredRole<Conversation, Owner>
-#[derive(OperationIo)]
-pub struct RequiredRole<Kind: RequiredRoleResource, Roles: RequiredRoleRoleTuple>(
-    UserResourceRole,
-    PhantomData<Kind>,
-    PhantomData<Roles>,
-);
-impl<Kind: RequiredRoleResource, Roles: RequiredRoleRoleTuple> RequiredRole<Kind, Roles> {
-    pub fn new(user_resource_role: UserResourceRole) -> Self {
-        RequiredRole(user_resource_role, PhantomData, PhantomData)
-    }
-}
-
-impl<Resource: RequiredRoleResource, Roles: RequiredRoleRoleTuple>
-    FromRequestParts<Arc<ComhairleState>> for RequiredRole<Resource, Roles>
-{
-    type Rejection = ComhairleError;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        let RequiredUser(user) = parts.extract_with_state::<RequiredUser, _>(state).await?;
-        let params = parts
-            .extract::<Path<ConversationPath>>()
-            .await
-            .map_err(|_| {
-                ComhairleError::ResourceNotFound("Path must contain a conversation_id".to_string())
-            })?;
-
-        let roles = get_user_resource_roles(
-            Resource::to_enum(),
-            &params.conversation_id, // TODO: handle slug
-            &Roles::to_enum_vec(),
-            &user.id,
-            &state.db,
-        )
-        .await?;
-
-        match roles.first() {
-            Some(role) => Ok(RequiredRole::new(role.clone())),
-            None => Err(ComhairleError::UserNotAuthorized),
-        }
-    }
-}
-
-pub trait RequiredRoleRole: Default {
-    fn to_enum() -> Role;
-}
-
-pub trait RequiredRoleRoleTuple {
-    fn to_enum_vec() -> Vec<Role>;
-}
-
-impl RequiredRoleRoleTuple for () {
-    fn to_enum_vec() -> Vec<Role> {
-        Vec::new()
-    }
-}
-
-impl<Head: RequiredRoleRole, Tail: RequiredRoleRoleTuple> RequiredRoleRoleTuple for (Head, Tail) {
-    fn to_enum_vec() -> Vec<Role> {
-        let mut roles = Tail::to_enum_vec();
-        roles.push(Head::to_enum());
-        roles
-    }
-}
-
-impl<Head: RequiredRoleRole> RequiredRoleRoleTuple for (Head,) {
-    fn to_enum_vec() -> Vec<Role> {
-        <(Head, ())>::to_enum_vec()
-    }
-}
-
-#[derive(Default)]
-pub struct Owner {}
-impl RequiredRoleRole for Owner {
-    fn to_enum() -> Role {
-        Role::Owner
-    }
-}
-
-#[derive(Default)]
-pub struct Contributor {}
-impl RequiredRoleRole for Contributor {
-    fn to_enum() -> Role {
-        Role::Contributor
-    }
-}
-
-#[derive(Default)]
-pub struct Translator {}
-impl RequiredRoleRole for Translator {
-    fn to_enum() -> Role {
-        Role::Translator
-    }
-}
-#[derive(Default)]
-pub struct Moderator {}
-impl RequiredRoleRole for Moderator {
-    fn to_enum() -> Role {
-        Role::Moderator
-    }
-}
-
-pub trait RequiredRoleResource: Default {
-    fn to_enum() -> Resource;
-}
-
-#[derive(Default)]
-pub struct Organisation {}
-impl RequiredRoleResource for Organisation {
-    fn to_enum() -> Resource {
-        Resource::Organisation
-    }
-}
-#[derive(Default)]
-pub struct Conversation {}
-impl RequiredRoleResource for Conversation {
-    fn to_enum() -> Resource {
-        Resource::Conversation
-    }
-}
-
 /// Resolves a [`User`] from an incoming request by checking two authentication
 /// methods in order:
 ///
@@ -972,30 +842,6 @@ async fn resolve_user_from_request(
             .ok_or(ComhairleError::UserRequired)
     }
 }
-/// Authorizes `user` to perform `action` on `resource`.
-///
-/// Access is granted if the user owns the resource, or if the user (or their
-/// organization) holds a role whose policy permits the action. Super admins are
-/// always permitted (handled by [`can_perform_action`]).
-///
-/// # Errors
-///
-/// * Returns [`ComhairleError::UserNotAuthorized`] if the user is not permitted.
-/// * Propagates [`ComhairleError`] from the underlying permission lookup.
-pub async fn authorize<R: PermissionResource>(
-    state: &Arc<ComhairleState>,
-    user: &User,
-    action: R::Action,
-    resource: &R,
-) -> Result<(), ComhairleError> {
-    if resource.owner_id() == Some(user.id)
-        || resource.can_perform_action(state, action, &user.id).await?
-    {
-        Ok(())
-    } else {
-        Err(ComhairleError::UserNotAuthorized)
-    }
-}
 
 /// An extractor to get a required current user.
 /// If no user is logged in then this will fail and
@@ -1012,7 +858,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
     ) -> Result<Self, Self::Rejection> {
         let user = resolve_user_from_request(parts, state).await?;
 
-        if is_user_admin(&state, &user).await {
+        if is_user_admin(state, &user).await {
             Ok(RequiredAdminUser(user.clone()))
         } else {
             Err(ComhairleError::RequiresAuthUser)
@@ -1072,6 +918,14 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         parts: &mut Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
+        if let Ok(TypedHeader(Authorization(bearer))) =
+            TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await
+        {
+            let user_id = api_key::get_matching_user_id(&state.db, bearer.token()).await?;
+            let user = users::get_user_by_id(&user_id, &state.db).await?;
+            return Ok(OptionalUser(Some(user)));
+        }
+
         let jar = parts
             .extract::<CookieJar>()
             .await
@@ -1174,23 +1028,6 @@ pub async fn current_user(
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
     let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLoggedInUser)?).into();
 
-    Ok((StatusCode::OK, Json(user)))
-}
-
-/// Handler for testing RequiresRole
-pub async fn test_requires_roles(
-    RequiredRole(_, _, _): RequiredRole<Conversation, (Owner, (Contributor,))>,
-    RequiredUser(user): RequiredUser,
-) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = user.into();
-    Ok((StatusCode::OK, Json(user)))
-}
-
-/// Handler for testing RequiredApiKeyUser
-pub async fn test_api_key(
-    RequiredAdminUser(user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = user.into();
     Ok((StatusCode::OK, Json(user)))
 }
 
@@ -1450,25 +1287,6 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserDto>>()
             }),
         )
-        // TODO: this route is used for testing only. Once we have authorisation logic locekd down
-        // in other endpoints, this can be removed and those auth requirements tested.
-        .api_route(
-            "/test_requires_roles/{conversation_id}",
-            get_with(test_requires_roles, |op| {
-                op.id("TestRequiresRoles")
-                    .summary("Test the requires roles")
-                    .response::<200, Json<UserDto>>()
-            }),
-        )
-        // TODO: this route is used for testing only. Once we have authorisation logic locekd down
-        // in other endpoints, this can be removed and those auth requirements tested.
-        .api_route(
-            "/test_api_key_extraction",
-            get_with(test_api_key, |op| {
-                op.summary("Test the api key extraction")
-                    .response::<200, Json<UserDto>>()
-            }),
-        )
         .with_state(state)
 }
 
@@ -1482,10 +1300,7 @@ mod tests {
             api_key::CreateApiKeyRequest,
             model_test_helpers::setup_default_app_and_session,
             otp,
-            users::{
-                self, Resource, Role, UpdateUserRequest, User, UserAuthType,
-                add_user_resource_role, get_user_by_email,
-            },
+            users::{self, UpdateUserRequest, User, UserAuthType, get_user_by_email},
         },
         routes::{
             auth::{EmailLinkClaims, SessionClaims, generate_jwt},
@@ -2303,56 +2118,6 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn user_requires_roles(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool.clone()).call()?;
-        let app = setup_server(Arc::new(state)).await?;
-
-        let username = "test_user";
-        let password = crate::test_helpers::TEST_PASSWORD;
-        let email = "test_email";
-        let conversation_id = uuid::Uuid::parse_str("8438709B-C269-422E-B3F1-D173295F48CF")?;
-
-        let mut session = UserSession::new(username, password, email);
-        session.signup(&app).await?;
-        let url = format!("/auth/test_requires_roles/{conversation_id}");
-
-        let (status, _, _) = session.get(&app, &url).await?;
-        assert_eq!(
-            status,
-            StatusCode::FORBIDDEN,
-            "User without role should be forbidden"
-        );
-
-        add_user_resource_role(
-            Resource::Conversation,
-            &conversation_id,
-            Role::Translator,
-            &session.id.unwrap(),
-            &pool,
-        )
-        .await?;
-        let (status, _, _) = session.get(&app, &url).await?;
-        assert_eq!(
-            status,
-            StatusCode::FORBIDDEN,
-            "User with wrong role should be forbidden"
-        );
-
-        add_user_resource_role(
-            Resource::Conversation,
-            &conversation_id,
-            Role::Owner,
-            &session.id.unwrap(),
-            &pool,
-        )
-        .await?;
-        let (status, _, _) = session.get(&app, &url).await?;
-        assert_eq!(status, StatusCode::OK, "User with role should have access");
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_return_user_from_api_key(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session
@@ -2381,7 +2146,7 @@ mod tests {
         );
 
         let (_, value) = session
-            .get_with_api_key(&app, "/auth/test_api_key_extraction", &api_key)
+            .get_with_api_key(&app, "/auth/current_user", &api_key)
             .await?;
         let extracted_user: UserDto = serde_json::from_value(value)?;
 

@@ -607,9 +607,9 @@ pub enum PolisError {
     ProxyError { from: String, to: String },
 }
 
-impl Into<StatusCode> for &PolisError {
-    fn into(self) -> StatusCode {
-        match self {
+impl From<&PolisError> for StatusCode {
+    fn from(val: &PolisError) -> Self {
+        match val {
             PolisError::Http(err) => {
                 if let Some(status) = err.status() {
                     status
@@ -638,7 +638,8 @@ struct NewAdminUser {
     pub password: String,
     pub password2: String,
     pub email: String,
-    pub gatekeeperTosPrivacy: bool,
+    #[serde(rename = "gatekeeperTosPrivacy")]
+    pub gatekeeper_tos_privacy: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -1258,7 +1259,7 @@ pub async fn sync_statement_aux_inner(
 
         // Polis carries no source-language metadata, so detect it (no client
         // hint is available on this path).
-        let source_locale = resolve_source_locale(&state, None, &comment.txt, primary_locale).await;
+        let source_locale = resolve_source_locale(state, None, &comment.txt, primary_locale).await;
 
         let aux = models::polis_statement_aux::upsert_from_polis(
             &state.db,
@@ -1276,7 +1277,7 @@ pub async fn sync_statement_aux_inner(
         )
         .await?;
 
-        spawn_statement_translations(&state, &aux, &source_locale, &supported_languages);
+        spawn_statement_translations(state, &aux, &source_locale, supported_languages);
 
         statements.push(aux);
     }
@@ -2355,6 +2356,7 @@ mod tests {
     }
 
     /// A Polis mock that records every config update it is sent.
+    #[allow(clippy::type_complexity, reason = "Only features in test helper")]
     fn poll_service_recording_updates() -> (
         Arc<dyn WikiPollService>,
         Arc<std::sync::Mutex<Vec<(String, WikiPollConfigUpdate)>>>,

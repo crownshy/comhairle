@@ -60,13 +60,6 @@ async fn elicitation_bot_setup(
     })
 }
 
-// Keep public function for backwards compatibility
-pub async fn setup(
-    config: &ElicitationBotToolSetup,
-) -> Result<ElicitationBotToolConfig, ComhairleError> {
-    elicitation_bot_setup(config).await
-}
-
 /// Zero-sized marker type for ElicitationBot tool implementation
 pub struct ElicitationBotTool;
 

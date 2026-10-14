@@ -40,11 +40,6 @@ async fn stories_setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, C
     })
 }
 
-// Keep public function for backwards compatibility
-pub async fn setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, ComhairleError> {
-    stories_setup(config).await
-}
-
 impl ToolConfigSanitize for StoriesToolConfig {
     fn sanitize(&self) -> Self {
         self.clone()
