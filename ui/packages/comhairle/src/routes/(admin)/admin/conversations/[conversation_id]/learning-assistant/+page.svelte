@@ -461,10 +461,18 @@
 								(doc.parse_progress === 0 && doc.parse_status === 'CANCEL')
 						)}
 						{#if parsingDocuments?.length}
-							<ParsingFileList documents={parsingDocuments} {conversation} />
+							<ParsingFileList
+								documents={parsingDocuments}
+								{conversation}
+								editable={canEdit}
+							/>
 						{/if}
 						{#if parsedDocuments?.length}
-							<ParsedFileList documents={parsedDocuments} {conversation} />
+							<ParsedFileList
+								documents={parsedDocuments}
+								{conversation}
+								editable={canEdit}
+							/>
 						{/if}
 					{/if}
 				{/await}
@@ -495,6 +503,7 @@
 							{@const crossLanguages = chat.ok.prompt?.cross_languages ?? []}
 							<MultiSelect
 								defaultOptions={allLanguageOptions}
+								disabled={!canEdit}
 								selected={crossLanguages.length > 0
 									? allLanguageOptions.filter(
 											(langOption) =>

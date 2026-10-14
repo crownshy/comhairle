@@ -4,7 +4,6 @@ import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 import { HttpStatus } from '$lib/utils/constants';
 import { resolve } from '$app/paths';
-import { notifications } from '$lib/notifications.svelte';
 
 export const load: PageLoad = async ({ depends, parent, params }) => {
 	depends(key('admin/knowledge-base/documents'));
@@ -13,10 +12,6 @@ export const load: PageLoad = async ({ depends, parent, params }) => {
 	const { conversation_id } = params;
 
 	if (!conversation_id) {
-		notifications.addFlash({
-			message: 'Conversation ID not found',
-			priority: 'ERROR'
-		});
 		redirect(HttpStatus.Found, resolve('/(admin)/admin/conversations'));
 	}
 
