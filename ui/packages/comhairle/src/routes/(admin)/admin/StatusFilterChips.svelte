@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
+	import { cn } from '$lib/utils';
 	import {
 		conversationStatusFilters,
 		statusFilterHref,
@@ -8,7 +8,7 @@
 		type ConversationStatusFilter
 	} from './conversationFilters';
 
-	let { active }: { active: ConversationStatusFilter } = $props();
+	let { url, active }: { url: URL; active: ConversationStatusFilter } = $props();
 </script>
 
 <nav aria-label="Filter conversations">
@@ -17,13 +17,13 @@
 			{@const isActive = filter === active}
 			<li>
 				<Button
-					href={statusFilterHref(page.url, filter)}
+					href={statusFilterHref(url, filter)}
 					data-sveltekit-replacestate
 					data-sveltekit-noscroll
 					aria-current={isActive ? 'page' : undefined}
 					variant={isActive ? 'default' : 'ghost'}
 					size="lg"
-					class="px-4 text-base {isActive ? '' : 'bg-card text-foreground'}"
+					class={cn('px-4 text-base', !isActive && 'bg-card text-foreground')}
 				>
 					{statusFilterLabels[filter]}
 				</Button>

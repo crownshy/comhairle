@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	conversationStatus,
-	filterConversations,
-	parseStatusFilter,
-	statusFilterHref
-} from './conversationFilters';
+import { filterConversations, parseStatusFilter, statusFilterHref } from './conversationFilters';
 
 const conversation = (id: string, isLive: boolean, isComplete: boolean) => ({
 	id,
@@ -22,17 +17,6 @@ const owned = [ownedLive, ownedDraft, ownedCompleted];
 const shared = [sharedDraft, sharedLive];
 
 const ids = (conversations: { id: string }[]) => conversations.map(({ id }) => id);
-
-describe('conversationStatus', () => {
-	it('treats a complete conversation as completed even while still flagged live', () => {
-		expect(conversationStatus(ownedCompleted)).toBe('completed');
-	});
-
-	it('splits the rest into live and draft', () => {
-		expect(conversationStatus(ownedLive)).toBe('live');
-		expect(conversationStatus(ownedDraft)).toBe('draft');
-	});
-});
 
 describe('filterConversations', () => {
 	it('shows owned and shared together under All', () => {

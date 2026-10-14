@@ -50,7 +50,7 @@
 		{/if}
 	</div>
 	<div class="flex w-full flex-col gap-11 overflow-y-auto">
-		<StatusFilterChips active={statusFilter} />
+		<StatusFilterChips url={page.url} active={statusFilter} />
 
 		{#if visibleConversations.length > 0}
 			<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">

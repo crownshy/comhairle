@@ -1,24 +1,14 @@
 import type { ConversationDto } from '@crownshy/api-client/api';
+import { conversationStatus, conversationStatusLabels } from '$lib/utils/conversationStatus';
 
 export const conversationStatusFilters = ['all', 'live', 'draft', 'completed', 'shared'] as const;
 export type ConversationStatusFilter = (typeof conversationStatusFilters)[number];
 
 export const statusFilterLabels: Record<ConversationStatusFilter, string> = {
 	all: 'All',
-	live: 'Live',
-	draft: 'Draft',
-	completed: 'Completed',
+	...conversationStatusLabels,
 	shared: 'Shared'
 };
-
-type ConversationStatus = 'live' | 'draft' | 'completed';
-
-export function conversationStatus(
-	conversation: Pick<ConversationDto, 'isLive' | 'isComplete'>
-): ConversationStatus {
-	if (conversation.isComplete) return 'completed';
-	return conversation.isLive ? 'live' : 'draft';
-}
 
 export function parseStatusFilter(value: string | null): ConversationStatusFilter {
 	return conversationStatusFilters.find((filter) => filter === value) ?? 'all';
