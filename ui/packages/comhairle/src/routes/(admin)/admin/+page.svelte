@@ -6,10 +6,21 @@
 	import { Home } from 'lucide-svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
+	import { page } from '$app/state';
+	import StatusFilterChips from './StatusFilterChips.svelte';
+	import {
+		filterConversations,
+		parseStatusFilter,
+		statusFilterLabels
+	} from './conversationFilters';
 
 	let props: PageProps = $props();
 	let ownedConversations = $derived(props.data.ownedConversations?.records ?? []);
 	let permittedConversations = $derived(props.data.permittedConversations?.records ?? []);
+	let statusFilter = $derived(parseStatusFilter(page.url.searchParams.get('status')));
+	let visibleConversations = $derived(
+		filterConversations(ownedConversations, permittedConversations, statusFilter)
+	);
 </script>
 
 <svelte:head>
@@ -39,24 +50,20 @@
 		{/if}
 	</div>
 	<div class="flex w-full flex-col gap-11 overflow-y-auto">
-		<section class="flex flex-col gap-6">
-			<h2 class="text-muted-foreground text-base font-medium">Owned Conversations</h2>
+		<StatusFilterChips active={statusFilter} />
+
+		{#if visibleConversations.length > 0}
 			<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
-				{#each ownedConversations as conversation (conversation.id)}
+				{#each visibleConversations as conversation (conversation.id)}
 					<ConversationCard {conversation} />
 				{/each}
 			</div>
-		</section>
-
-		{#if permittedConversations.length > 0}
-			<section class="flex flex-col gap-6">
-				<h2 class="text-muted-foreground text-base font-medium">Permitted Conversations</h2>
-				<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
-					{#each permittedConversations as conversation (conversation.id)}
-						<ConversationCard {conversation} />
-					{/each}
-				</div>
-			</section>
+		{:else if statusFilter === 'all'}
+			<p class="text-muted-foreground text-base">You don't have any conversations yet.</p>
+		{:else}
+			<p class="text-muted-foreground text-base">
+				No {statusFilterLabels[statusFilter].toLowerCase()} conversations.
+			</p>
 		{/if}
 	</div>
 </div>

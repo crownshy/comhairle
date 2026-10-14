@@ -85,7 +85,9 @@
 			<!-- Text content -->
 			<div class="flex w-full flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
 				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
-					{#if conversation.isLive}
+					{#if conversation.isComplete}
+						<Badge variant="secondary" class="h-7 text-sm">Completed</Badge>
+					{:else if conversation.isLive}
 						<Badge variant="default" class="h-7 text-sm">Live</Badge>
 					{:else}
 						<Badge variant="draft" class="h-7 text-sm">Draft</Badge>
