@@ -19,7 +19,7 @@
 	 stay pixel-identical. `bg-secondary` is the Row 2 tone (Row 1 is `bg-background`, the
 	 Row 3 sub-strip is `bg-accent`). -->
 <nav
-	class="border-border bg-secondary scrollbar-none w-full overflow-x-auto border-b"
+	class="border-border bg-secondary scrollbar-none w-full shrink-0 overflow-x-auto border-b"
 	aria-label={ariaLabel}
 	aria-hidden={ariaHidden || undefined}
 >
