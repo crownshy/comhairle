@@ -7,7 +7,7 @@ use sea_query::{Alias, Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    Decode, Encode, PgPool, Postgres,
+    Decode, Encode, Postgres,
     prelude::{FromRow, Type},
 };
 use sqlx_postgres::{PgArgumentBuffer, PgValueRef};
@@ -314,7 +314,7 @@ impl ResolveTimeZone for LocalizedEvent {
 impl LocalizedEvent {
     pub async fn schedule_event_reminders(
         &self,
-        db: &PgPool,
+        db: impl crate::DbSource,
         recipient: &User,
         owner_id: Uuid,
         locale: &str,
@@ -342,14 +342,15 @@ impl LocalizedEvent {
             email_config: email_config.clone(),
             send_at: self.start_time - chrono::Duration::days(1),
         };
-        scheduled_email::create(db, params_24_hours).await?;
+        let mut conn = db.acquire().await?;
+        scheduled_email::create(&mut *conn, params_24_hours).await?;
 
         let params_2_hours = CreateScheduledEmail {
             user_email: email.to_string(),
             email_config,
             send_at: self.start_time - chrono::Duration::hours(2),
         };
-        scheduled_email::create(db, params_2_hours).await?;
+        scheduled_email::create(&mut *conn, params_2_hours).await?;
 
         Ok(())
     }
@@ -446,18 +447,20 @@ impl CreateEvent {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
     new_event: &CreateEvent,
 ) -> Result<Event, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let mut columns = new_event.columns();
     let mut values = new_event.values();
 
     columns.push(EventIden::ConversationId);
     values.push((*conversation_id).into());
 
-    let name = new_translation(db, "en", &new_event.name, TextFormat::Plain).await?;
-    let description = new_translation(db, "en", &new_event.description, TextFormat::Plain).await?;
+    let name = new_translation(&mut *conn, "en", &new_event.name, TextFormat::Plain).await?;
+    let description =
+        new_translation(&mut *conn, "en", &new_event.description, TextFormat::Plain).await?;
 
     columns.push(EventIden::Name);
     values.push(name.id.into());
@@ -482,7 +485,7 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let event = sqlx::query_as_with::<_, Event, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(event)
@@ -541,7 +544,7 @@ impl PartialEvent {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update_event: &PartialEvent,
 ) -> Result<Event, ComhairleError> {
@@ -551,6 +554,8 @@ pub async fn update(
         return Err(ComhairleError::NoValidUpdates);
     }
 
+    let mut conn = db.acquire().await?;
+
     let (sql, values) = Query::update()
         .table(EventIden::Table)
         .values(values)
@@ -559,7 +564,7 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let event = sqlx::query_as_with::<_, Event, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(event)
@@ -568,9 +573,10 @@ pub async fn update(
 /// Get the event's `metadata` jsonb column.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_metadata(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
 ) -> Result<Option<serde_json::Value>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let query = Query::select()
         .columns([EventIden::Metadata].map(|col| (EventIden::Table, col)))
         .from(EventIden::Table)
@@ -580,7 +586,7 @@ pub async fn get_metadata(
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
     let (metadata,) = sqlx::query_as_with::<_, (Option<serde_json::Value>,), _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(metadata)
@@ -589,7 +595,7 @@ pub async fn get_metadata(
 /// Merge the supplied object into the event's `metadata` jsonb column at the
 /// top level. Existing keys are overwritten by the patch.
 pub async fn patch_metadata(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     patch: serde_json::Value,
 ) -> Result<Event, ComhairleError> {
@@ -599,6 +605,7 @@ pub async fn patch_metadata(
         ));
     }
 
+    let mut conn = db.acquire().await?;
     let event = sqlx::query_as::<_, Event>(
         "UPDATE event
             SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
@@ -608,7 +615,7 @@ pub async fn patch_metadata(
     )
     .bind(patch)
     .bind(id)
-    .fetch_one(db)
+    .fetch_one(&mut *conn)
     .await
     .resolve_db_err("Event")?;
 
@@ -752,7 +759,7 @@ pub struct LocalizedEventWithAttendance {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
     page_options: PageOptions,
     filter_options: EventFilterOptions,
@@ -773,13 +780,17 @@ pub async fn list(
     let query = filter_options.apply(query);
     let query = order_options.apply_to_localized(query);
 
-    let events = page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let events = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(events)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<Event, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
         .from(EventIden::Table)
@@ -789,7 +800,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
     let event = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Event")?;
 
@@ -798,10 +809,11 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> 
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     locale: &str,
 ) -> Result<LocalizedEvent, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
         .from(EventIden::Table)
@@ -813,7 +825,7 @@ pub async fn get_localized_by_id(
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
     let event = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Event")?;
 
@@ -821,7 +833,8 @@ pub async fn get_localized_by_id(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Event, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::delete()
         .from_table(EventIden::Table)
         .and_where(Expr::col(EventIden::Id).eq(id.to_owned()))
@@ -829,7 +842,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
         .build_sqlx(PostgresQueryBuilder);
 
     let event = sqlx::query_as_with::<_, Event, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(event)
@@ -853,6 +866,7 @@ fn add_current_attendance(mut query: sea_query::SelectStatement) -> sea_query::S
 #[cfg(test)]
 mod tests {
     use chrono::Duration;
+    use sqlx::PgPool;
 
     use crate::models::{
         event_attendance::{self, CreateEventAttendance},

@@ -2065,13 +2065,13 @@ mod tests {
 
         // Create test users with profiles
         let user1 = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "demo_user1".to_string(),
                 password: "password".to_string(),
                 email: "user1@test.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -2090,13 +2090,13 @@ mod tests {
         .await?;
 
         let user2 = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "demo_user2".to_string(),
                 password: "password".to_string(),
                 email: "user2@test.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -2309,13 +2309,13 @@ mod tests {
 
         // user1 — opted in
         let user1 = create_user(
+            &pool,
             &SignupRequest {
                 username: "opt_in_user".into(),
                 password: "password".into(),
                 email: "user1@test.com".into(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
         user_conversation_preferences::create(
@@ -2333,13 +2333,13 @@ mod tests {
 
         // user2 — explicitly opted out (preferences row exists, flag false)
         let user2 = create_user(
+            &pool,
             &SignupRequest {
                 username: "opt_out_user".into(),
                 password: "password".into(),
                 email: "user2@test.com".into(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
         user_conversation_preferences::create(
@@ -2357,13 +2357,13 @@ mod tests {
 
         // user3 — no preferences row at all (default = not opted in)
         let _user3 = create_user(
+            &pool,
             &SignupRequest {
                 username: "no_prefs_user".into(),
                 password: "password".into(),
                 email: "user3@test.com".into(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -2551,13 +2551,13 @@ mod tests {
 
         // Authenticated opt-in
         let user_in = create_user(
+            &pool,
             &SignupRequest {
                 username: "in_user".into(),
                 password: "password".into(),
                 email: "authed_in@test.com".into(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
         user_conversation_preferences::create(
@@ -2575,13 +2575,13 @@ mod tests {
 
         // Authenticated opt-out
         let user_out = create_user(
+            &pool,
             &SignupRequest {
                 username: "out_user".into(),
                 password: "password".into(),
                 email: "authed_out@test.com".into(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
         user_conversation_preferences::create(

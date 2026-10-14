@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -46,7 +46,7 @@ const DEFAULT_COLUMNS: [RecruitmentTargetIden; 7] = [
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
     create_request: &CreateRecruitmentTarget,
 ) -> Result<RecruitmentTarget, ComhairleError> {
@@ -80,23 +80,28 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let target = sqlx::query_as_with::<_, RecruitmentTarget, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(target)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<RecruitmentTarget, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(RecruitmentTargetIden::Table)
         .and_where(Expr::col(RecruitmentTargetIden::Id).eq(*id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let target = sqlx::query_as_with::<_, RecruitmentTarget, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Recruitment Target")?;
 
@@ -105,7 +110,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, Comh
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_workflow(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
 ) -> Result<Vec<RecruitmentTarget>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -116,8 +121,9 @@ pub async fn list_for_workflow(
         .order_by(RecruitmentTargetIden::Bucket, sea_query::Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let targets = sqlx::query_as_with::<_, RecruitmentTarget, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(targets)
@@ -125,7 +131,7 @@ pub async fn list_for_workflow(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update_request: &PartialRecruitmentTarget,
 ) -> Result<RecruitmentTarget, ComhairleError> {
@@ -167,8 +173,9 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let target = sqlx::query_as_with::<_, RecruitmentTarget, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Recruitment Target")?;
 
@@ -176,15 +183,19 @@ pub async fn update(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<RecruitmentTarget, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RecruitmentTargetIden::Table)
         .and_where(Expr::col(RecruitmentTargetIden::Id).eq(*id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let target = sqlx::query_as_with::<_, RecruitmentTarget, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Recruitment Target")?;
 

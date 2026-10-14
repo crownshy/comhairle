@@ -37,7 +37,7 @@ pub async fn send_scheduled_email(
         .mailer_send(&req.scheduled_email.user_email, &state)
         .await
         .map_err(|e| WorkerServiceError::MailerError(e.to_string()))
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
 
     // Mark status as sent

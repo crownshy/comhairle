@@ -6,7 +6,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{PgPool, prelude::FromRow, query_scalar_with, query_with};
+use sqlx::{prelude::FromRow, query_scalar_with, query_with};
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
@@ -49,7 +49,7 @@ pub struct CreateApiKeyRequest {
 
 // No tracing to avoid keys being exposed in logs
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     create_key: CreateApiKeyRequest,
 ) -> Result<String, ComhairleError> {
@@ -76,12 +76,16 @@ pub async fn create(
         .returning_col(ApiKeyIden::Id)
         .build_sqlx(PostgresQueryBuilder);
 
-    let _id = query_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let _id = query_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(raw)
 }
 
-pub async fn get_matching_user_id(db: &PgPool, key: &str) -> Result<Uuid, ComhairleError> {
+pub async fn get_matching_user_id(
+    db: impl crate::DbSource,
+    key: &str,
+) -> Result<Uuid, ComhairleError> {
     let hash = hash_api_key(key);
 
     let (sql, values) = Query::select()
@@ -96,8 +100,9 @@ pub async fn get_matching_user_id(db: &PgPool, key: &str) -> Result<Uuid, Comhai
         )
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let user_id = query_scalar_with::<_, Uuid, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await?
         .ok_or(ComhairleError::InvalidApiKey)?;
 
@@ -106,11 +111,13 @@ pub async fn get_matching_user_id(db: &PgPool, key: &str) -> Result<Uuid, Comhai
 
 #[cfg(test)]
 mod tests {
-    use crate::models::users;
-
     use super::*;
 
     use std::error::Error;
+
+    use sqlx::PgPool;
+
+    use crate::models::users;
 
     #[test]
     fn same_keys_produce_same_hashes() {

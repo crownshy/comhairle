@@ -4,7 +4,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -50,7 +50,7 @@ pub struct CreateWikiPollConversationSummary {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     create: &CreateWikiPollConversationSummary,
 ) -> Result<WikiPollConversationSummary, ComhairleError> {
     let (sql, values) = Query::insert()
@@ -70,14 +70,15 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let summary = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let summary = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(summary)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_latest_by_workflow_step_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: Uuid,
 ) -> Result<Option<WikiPollConversationSummary>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -91,14 +92,17 @@ pub async fn get_latest_by_workflow_step_id(
         .limit(1)
         .build_sqlx(PostgresQueryBuilder);
 
-    let summary = query_as_with(&sql, values).fetch_optional(db).await?;
+    let mut conn = db.acquire().await?;
+    let summary = query_as_with(&sql, values)
+        .fetch_optional(&mut *conn)
+        .await?;
 
     Ok(summary)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_by_workflow_step_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: Uuid,
     page_options: PageOptions,
 ) -> Result<PaginatedResults<WikiPollConversationSummary>, ComhairleError> {
@@ -119,6 +123,8 @@ pub async fn list_by_workflow_step_id(
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use super::*;
 
     use std::error::Error;

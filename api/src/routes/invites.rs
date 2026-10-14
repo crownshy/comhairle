@@ -125,7 +125,7 @@ async fn create_conversation_invite(
             // consider how to adjust template variables and default slots for
             // injecting user data, or split into separate email templates with
             // separate schemas
-            let recipient = models::users::get_user_by_id(recipient_id, &state.db).await?;
+            let recipient = models::users::get_user_by_id(&state.db, recipient_id).await?;
             if let Some(email) = &recipient.email {
                 state
                     .mailer
@@ -347,7 +347,7 @@ async fn auto_register_event_attendance(
         )
         .await?;
 
-    let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
+    let event_owner = users::get_user_by_id(&state.db, &conversation.owner_id).await?;
 
     state
         .mailer
@@ -867,7 +867,7 @@ mod tests {
 
         session.logout(&app).await?;
 
-        let user = users::get_user_by_email(email, &pool).await?;
+        let user = users::get_user_by_email(&pool, email).await?;
         let attendance =
             event_attendance::get_by_event_and_user(&pool, &event.id, &user.id).await?;
 

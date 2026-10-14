@@ -25,7 +25,7 @@ use sea_query::{Cond, Expr, PostgresQueryBuilder, Query, enum_def, extension::po
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -410,7 +410,7 @@ impl ConversationOrderOptions {
 
 #[instrument(err(Debug), skip(db, bot_service))]
 pub async fn delete(
-    db: &PgPool,
+    db: impl crate::DbSource,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
     id: &Uuid,
 ) -> Result<Conversation, ComhairleError> {
@@ -420,8 +420,9 @@ pub async fn delete(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Conversation")?;
 
@@ -440,7 +441,7 @@ pub async fn delete(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_id_or_slug(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id_or_slug: &IdOrSlug,
 ) -> Result<Conversation, ComhairleError> {
     let conversation = match id_or_slug {
@@ -452,7 +453,7 @@ pub async fn get_by_id_or_slug(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localised_by_id_or_slug(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id_or_slug: &IdOrSlug,
     lang_code: &str,
 ) -> Result<LocalizedConversation, ComhairleError> {
@@ -464,15 +465,19 @@ pub async fn get_localised_by_id_or_slug(
 }
 /// Get a conversation by ID (original struct, not localized)
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ConversationIden::Table)
         .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Conversation")?;
 
@@ -482,10 +487,11 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, Comhairle
 /// Get a conversation by ID
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localised_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     lang_code: &str,
 ) -> Result<LocalizedConversation, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let select_query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
         .from(ConversationIden::Table)
@@ -496,7 +502,7 @@ pub async fn get_localised_by_id(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Conversation")?;
 
@@ -505,7 +511,11 @@ pub async fn get_localised_by_id(
 
 /// Get a conversation by slug (original struct, not localized)
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, ComhairleError> {
+pub async fn get_by_slug(
+    db: impl crate::DbSource,
+    slug: &str,
+) -> Result<Conversation, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ConversationIden::Table)
@@ -513,7 +523,7 @@ pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, Comhai
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Conversation")?;
 
@@ -522,10 +532,11 @@ pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, Comhai
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localised_by_slug(
-    db: &PgPool,
+    db: impl crate::DbSource,
     slug: &str,
     lang_code: &str,
 ) -> Result<LocalizedConversation, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let select_query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
         .from(ConversationIden::Table)
@@ -536,7 +547,7 @@ pub async fn get_localised_by_slug(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Conversation")?;
 
@@ -545,10 +556,11 @@ pub async fn get_localised_by_slug(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update: &PartialConversation,
 ) -> Result<Conversation, ComhairleError> {
+    let mut conn = db.acquire().await?;
     //TODO we need something here to generate new translations
     //if the supported lanagues change
     //or I guess if primary_locale changes
@@ -567,7 +579,7 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(conversation)
@@ -579,7 +591,7 @@ pub async fn update(
 /// are replaced, not merged recursively. `patch` must be a JSON object.
 #[instrument(err(Debug), skip(db))]
 pub async fn patch_metadata(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     patch: &serde_json::Value,
 ) -> Result<Conversation, ComhairleError> {
@@ -588,6 +600,7 @@ pub async fn patch_metadata(
             "metadata patch must be a JSON object".into(),
         ));
     }
+    let mut conn = db.acquire().await?;
 
     let conversation = sqlx::query_as::<_, Conversation>(
         "UPDATE conversation
@@ -598,7 +611,7 @@ pub async fn patch_metadata(
     )
     .bind(patch)
     .bind(id)
-    .fetch_one(db)
+    .fetch_one(&mut *conn)
     .await
     .resolve_db_err("Conversation")?;
 
@@ -607,10 +620,11 @@ pub async fn patch_metadata(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_user_participation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     locale: &str,
 ) -> Result<Vec<LocalizedConversation>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let query = Query::select()
         .from(ConversationIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
@@ -647,7 +661,7 @@ pub async fn list_for_user_participation(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversations = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
     Ok(conversations)
 }
@@ -714,7 +728,7 @@ impl CreateConversation {
 
 #[instrument(err(Debug), skip(db, bot_service))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
     config: &ComhairleConfig,
     conversation: &CreateConversation,
@@ -722,10 +736,11 @@ pub async fn create(
     organization_id: Option<Uuid>,
 ) -> Result<Conversation, ComhairleError> {
     let conversation_id = Uuid::new_v4();
+    let mut conn = db.acquire().await?;
 
     // Generate Translations
     let title = new_translation(
-        db,
+        &mut *conn,
         &conversation.primary_locale,
         &conversation.title,
         TextFormat::Plain,
@@ -733,7 +748,7 @@ pub async fn create(
     .await?;
 
     let description = new_translation(
-        db,
+        &mut *conn,
         &conversation.primary_locale,
         &conversation.description,
         TextFormat::Rich,
@@ -741,7 +756,7 @@ pub async fn create(
     .await?;
 
     let short_description = new_translation(
-        db,
+        &mut *conn,
         &conversation.primary_locale,
         &conversation.short_description,
         TextFormat::Rich,
@@ -838,7 +853,7 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation_result = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await;
 
     match conversation_result {
@@ -859,13 +874,14 @@ pub async fn create(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_owned(
-    db: &PgPool,
+    db: impl crate::DbSource,
     owner_id: Uuid,
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
     locale: Option<String>,
 ) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     // 1. Build base query with conversation table columns
     let query = Query::select()
         .from(ConversationIden::Table)
@@ -882,24 +898,27 @@ pub async fn list_owned(
     let query = filter_options.apply_to_localized(query);
     let query = order_options.apply_to_localized(query);
 
-    let conversations = page_options.fetch_paginated_results(db, query).await?;
+    let conversations = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(conversations)
 }
 
 #[instrument(err(Debug), skip(state))]
 pub async fn launch(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     state: &Arc<ComhairleState>,
 ) -> Result<Conversation, ComhairleError> {
-    let workflows = models::workflow::list(db, conversation_id, None).await?;
+    let mut conn = db.acquire().await?;
+    let workflows = models::workflow::list(&mut *conn, conversation_id, None).await?;
     for workflow in workflows {
         models::workflow::launch(state, &workflow.id).await?;
     }
 
     update(
-        db,
+        &mut *conn,
         &conversation_id,
         &PartialConversation {
             is_live: Some(true),
@@ -908,19 +927,20 @@ pub async fn launch(
     )
     .await?;
 
-    let conversation = get_by_id(db, &conversation_id).await?;
+    let conversation = get_by_id(&mut *conn, &conversation_id).await?;
 
     Ok(conversation)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
     locale: Option<String>,
 ) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     // 1. Build base query with conversation table columns
     let query = Query::select()
         .from(ConversationIden::Table)
@@ -936,14 +956,16 @@ pub async fn list(
     let query = filter_options.apply_to_localized(query);
     let query = order_options.apply_to_localized(query);
 
-    let conversations = page_options.fetch_paginated_results(db, query).await?;
+    let conversations = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(conversations)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_permitted_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     is_super_admin: bool,
     page_options: PageOptions,
@@ -951,6 +973,7 @@ pub async fn list_for_permitted_user(
     filter_options: ConversationFilterOptions,
     locale: Option<String>,
 ) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let mut query = Query::select();
     query
         .from(ConversationIden::Table)
@@ -982,7 +1005,9 @@ pub async fn list_for_permitted_user(
     let query = filter_options.apply_to_localized(query);
     let query = order_options.apply_to_localized(query);
 
-    let conversations = page_options.fetch_paginated_results(db, query).await?;
+    let conversations = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(conversations)
 }
@@ -991,6 +1016,7 @@ pub async fn list_for_permitted_user(
 mod tests {
     use fake::{Fake, Faker};
     use serde_json::json;
+    use sqlx::PgPool;
 
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::permissions::{
@@ -1019,22 +1045,22 @@ mod tests {
         let (_, response, _) = admin_session.create_random_organization(&app).await?;
         let organization: OrganizationDto = serde_json::from_value(response)?;
         let user = create_user(
+            &pool,
             &SignupRequest {
                 username: "test_user".to_string(),
                 password: "test_pw".to_string(),
                 email: "test_email".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
         let user = update_user(
+            &pool,
             &user.id,
             &UpdateUserRequest {
                 organization_id: Some(organization.id),
                 ..Default::default()
             },
-            &pool,
         )
         .await?;
 

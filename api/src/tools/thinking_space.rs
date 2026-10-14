@@ -17,7 +17,6 @@ use axum::{
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -87,18 +86,19 @@ pub struct ThinkingSpaceSetupQuestion {
 impl ThinkingSpaceSetupQuestion {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: impl crate::DbSource,
         locale: &str,
     ) -> Result<ThinkingSpaceQuestion, ComhairleError> {
+        let mut conn = db.acquire().await?;
         Ok(ThinkingSpaceQuestion {
             id: Uuid::new_v4(),
             text: self
                 .text
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(&mut *conn, locale, TextFormat::Plain)
                 .await?,
             intent: self
                 .intent
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(&mut *conn, locale, TextFormat::Plain)
                 .await?,
         })
     }
@@ -114,18 +114,19 @@ pub struct ThinkingSpaceToolSetup {
 impl ThinkingSpaceToolSetup {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: impl crate::DbSource,
         locale: &str,
     ) -> Result<ThinkingSpaceToolConfig, ComhairleError> {
+        let mut conn = db.acquire().await?;
         Ok(ThinkingSpaceToolConfig {
             topic: self
                 .topic
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(&mut *conn, locale, TextFormat::Plain)
                 .await?,
             root_questions: {
                 let mut built = Vec::with_capacity(self.root_questions.len());
                 for question in self.root_questions {
-                    built.push(question.build_with_translations(db, locale).await?);
+                    built.push(question.build_with_translations(&mut *conn, locale).await?);
                 }
                 built
             },
@@ -337,7 +338,7 @@ Use a raw HTTP request and process the response body incrementally.
 }
 
 async fn thinking_space_setup(
-    db: &PgPool,
+    db: impl crate::DbSource,
     config: &ThinkingSpaceToolSetup,
     locale: &str,
 ) -> Result<ThinkingSpaceToolConfig, ComhairleError> {
@@ -419,7 +420,7 @@ impl From<ThinkingSpaceFollowUpQuestion> for ThinkingSpaceFollowUpQuestionDto {
 }
 
 async fn get_localized_topic(
-    db: &PgPool,
+    db: impl crate::DbSource,
     tool_config: &ThinkingSpaceToolConfig,
     locale: &str,
 ) -> Result<String, ComhairleError> {

@@ -8,10 +8,10 @@ use crate::{
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{Asterisk, Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -217,7 +217,7 @@ impl CreateNotificationDelivery {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     delivery: &CreateNotificationDelivery,
 ) -> Result<NotificationDelivery, ComhairleError> {
     let columns = delivery.columns();
@@ -231,8 +231,9 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let delivery_result = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await;
 
     delivery_result.map_err(ComhairleError::DatabaseError)
@@ -240,7 +241,7 @@ pub async fn create(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create_bulk(
-    db: &PgPool,
+    db: impl crate::DbSource,
     deliveries: &[CreateNotificationDelivery],
 ) -> Result<Vec<NotificationDelivery>, ComhairleError> {
     if deliveries.is_empty() {
@@ -264,23 +265,28 @@ pub async fn create_bulk(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let deliveries = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(deliveries)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<NotificationDelivery, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(NotificationDeliveryIden::Table)
         .and_where(Expr::col(NotificationDeliveryIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let delivery = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Notification Delivery")?;
 
@@ -289,7 +295,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, C
 
 #[instrument(err(Debug), skip(db))]
 pub async fn mark_as_read(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     read_at: DateTime<Utc>,
 ) -> Result<NotificationDelivery, ComhairleError> {
@@ -300,8 +306,9 @@ pub async fn mark_as_read(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let delivery = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(delivery)
@@ -309,7 +316,7 @@ pub async fn mark_as_read(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn mark_all_as_read_for_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     read_at: DateTime<Utc>,
 ) -> Result<Vec<NotificationDelivery>, ComhairleError> {
@@ -321,8 +328,9 @@ pub async fn mark_all_as_read_for_user(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let deliveries = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(deliveries)
@@ -330,7 +338,7 @@ pub async fn mark_all_as_read_for_user(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     update: &PartialNotificationDelivery,
 ) -> Result<NotificationDelivery, ComhairleError> {
@@ -347,23 +355,28 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let delivery = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(delivery)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<NotificationDelivery, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(NotificationDeliveryIden::Table)
         .and_where(Expr::col(NotificationDeliveryIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let delivery = sqlx::query_as_with::<_, NotificationDelivery, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Notification Delivery")?;
 
@@ -372,7 +385,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<NotificationDelivery, Comh
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     page_options: PageOptions,
     order_options: NotificationDeliveryOrderOptions,
@@ -385,14 +398,17 @@ pub async fn list_for_user(
 
     let query = order_options.apply(query);
 
-    let deliveries = page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let deliveries = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(deliveries)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_unread_for_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     page_options: PageOptions,
     order_options: NotificationDeliveryOrderOptions,
@@ -406,14 +422,17 @@ pub async fn list_unread_for_user(
 
     let query = order_options.apply(query);
 
-    let deliveries = page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let deliveries = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(deliveries)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     order_options: NotificationDeliveryOrderOptions,
     filter_options: NotificationDeliveryFilterOptions,
@@ -426,35 +445,45 @@ pub async fn list(
     let query = filter_options.apply(query);
     let query = order_options.apply(query);
 
-    let deliveries = page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let deliveries = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(deliveries)
 }
 
 #[instrument(err(Debug), skip(db))]
-#[expect(deprecated, reason = "Requires sea_query version upgrade")]
-pub async fn get_unread_count_for_user(db: &PgPool, user_id: &Uuid) -> Result<i64, ComhairleError> {
+pub async fn get_unread_count_for_user(
+    db: impl crate::DbSource,
+    user_id: &Uuid,
+) -> Result<i64, ComhairleError> {
     let (sql, values) = Query::select()
-        .expr(Expr::count(Expr::asterisk()))
+        .expr(Expr::col(Asterisk).count())
         .from(NotificationDeliveryIden::Table)
         .and_where(Expr::col(NotificationDeliveryIden::UserId).eq(user_id.to_owned()))
         .and_where(Expr::col(NotificationDeliveryIden::ReadAt).is_null())
         .build_sqlx(PostgresQueryBuilder);
 
-    let count: (i64,) = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let count: (i64,) = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *conn)
+        .await?;
 
     Ok(count.0)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_user_with_notifications(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     page_options: PageOptions,
     order_options: NotificationDeliveryOrderOptions,
 ) -> Result<PaginatedResults<NotificationWithDelivery>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     // First get the deliveries
-    let deliveries = list_for_user(db, user_id, page_options.clone(), order_options).await?;
+    let deliveries =
+        list_for_user(&mut *conn, user_id, page_options.clone(), order_options).await?;
 
     // Get all notification IDs
     let notification_ids: Vec<Uuid> = deliveries
@@ -477,7 +506,9 @@ pub async fn list_for_user_with_notifications(
         .and_where(Expr::col(NotificationIden::Id).is_in(notification_ids))
         .build_sqlx(PostgresQueryBuilder);
 
-    let notifications: Vec<Notification> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+    let notifications: Vec<Notification> = sqlx::query_as_with(&sql, values)
+        .fetch_all(&mut *conn)
+        .await?;
 
     // Create a map for quick lookup
     let notifications_map: std::collections::HashMap<Uuid, Notification> =
@@ -505,13 +536,15 @@ pub async fn list_for_user_with_notifications(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_unread_for_user_with_notifications(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     page_options: PageOptions,
     order_options: NotificationDeliveryOrderOptions,
 ) -> Result<PaginatedResults<NotificationWithDelivery>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     // First get the unread deliveries
-    let deliveries = list_unread_for_user(db, user_id, page_options.clone(), order_options).await?;
+    let deliveries =
+        list_unread_for_user(&mut *conn, user_id, page_options.clone(), order_options).await?;
 
     // Get all notification IDs
     let notification_ids: Vec<Uuid> = deliveries
@@ -534,7 +567,9 @@ pub async fn list_unread_for_user_with_notifications(
         .and_where(Expr::col(NotificationIden::Id).is_in(notification_ids))
         .build_sqlx(PostgresQueryBuilder);
 
-    let notifications: Vec<Notification> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+    let notifications: Vec<Notification> = sqlx::query_as_with(&sql, values)
+        .fetch_all(&mut *conn)
+        .await?;
 
     // Create a map for quick lookup
     let notifications_map: std::collections::HashMap<Uuid, Notification> =

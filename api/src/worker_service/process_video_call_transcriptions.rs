@@ -65,19 +65,19 @@ async fn transcribe_recording_inner(
     let transcription_service = state
         .required_transcription_service()
         .map_err(|_| WorkerServiceError::NoTranscriptionServiceConfigured)
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
     let bulk_storage_service = state
         .required_bulk_storage_service()
         .map_err(|_| WorkerServiceError::NoBulkStorageServiceConfigured)
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
     let bulk_storage_config = state
         .config
         .bulk_storage_service
         .as_ref()
         .ok_or(WorkerServiceError::NoBulkStorageServiceConfigured)
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
 
     info!(
@@ -89,7 +89,7 @@ async fn transcribe_recording_inner(
     let recording = crate::models::audio_recording::get_by_id(&state.db, &req.recording_id)
         .await
         .map_err(|e| WorkerServiceError::DbError(e.to_string()))
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
     let recording_location = recording.s3_key_prefix.clone();
     let audio_format = recording.file_extension;
@@ -103,7 +103,7 @@ async fn transcribe_recording_inner(
         )
         .await
         .map_err(|e| WorkerServiceError::TranscriptionServiceError(e.to_string()))
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
 
     info!(
@@ -147,20 +147,20 @@ async fn generate_sensemaking_report_inner(
     let categorization_service = state
         .required_categorization_service()
         .map_err(|_| WorkerServiceError::NoCategorizationServiceError)
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
     let webhook_secret = &state
         .config
         .categorization_service
         .as_ref()
         .ok_or(WorkerServiceError::NoCategorizationServiceError)
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?
         .webhook_secret;
     let bulk_storage_service = state
         .required_bulk_storage_service()
         .map_err(|_| WorkerServiceError::NoBulkStorageServiceConfigured)
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
 
     info!(
@@ -173,7 +173,7 @@ async fn generate_sensemaking_report_inner(
         .get_file(&req.transcription_key)
         .await
         .map_err(|e| WorkerServiceError::BulkStorageServiceError(e.to_string()))
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
 
     let transcription: Transcription = serde_json::from_slice(&bytes)?;
@@ -201,7 +201,7 @@ async fn generate_sensemaking_report_inner(
         )
         .await
         .map_err(|e| WorkerServiceError::CategorizationServiceError(e.to_string()))
-        .ok_or_record_failure(&req.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &req.job_id)
         .await?;
 
     info!(

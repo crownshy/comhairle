@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -120,7 +120,7 @@ impl CreateAnswer {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     user_id: &Uuid,
     new_answer: &CreateAnswer,
@@ -151,21 +151,26 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let answer = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let answer = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(answer)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<ThinkingSpaceAnswer, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ThinkingSpaceAnswerIden::Table)
         .and_where(Expr::col(ThinkingSpaceAnswerIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let answer = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Thinking Space Answer")?;
 
@@ -209,7 +214,7 @@ impl ThinkingSpaceAnswerFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     filter_options: ThinkingSpaceAnswerFilterOptions,
 ) -> Result<Vec<ThinkingSpaceAnswer>, ComhairleError> {
@@ -229,7 +234,8 @@ pub async fn list(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let answers = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let answers = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(answers)
 }
@@ -257,7 +263,7 @@ impl UpdateAnswer {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update_answer: &UpdateAnswer,
 ) -> Result<ThinkingSpaceAnswer, ComhairleError> {
@@ -274,20 +280,25 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let answer = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let answer = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(answer)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<ThinkingSpaceAnswer, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ThinkingSpaceAnswerIden::Table)
         .and_where(Expr::col(ThinkingSpaceAnswerIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let answer = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let answer = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(answer)
 }
@@ -299,6 +310,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, Comha
 )]
 mod tests {
     use serde_json::json;
+    use sqlx::PgPool;
 
     use crate::{
         models::{

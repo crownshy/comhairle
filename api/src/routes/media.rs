@@ -278,7 +278,7 @@ mod tests {
     use sqlx::PgPool;
 
     async fn create_random_image_record(
-        db: &PgPool,
+        db: impl crate::DbSource,
         user_id: &Uuid,
     ) -> Result<Media, ComhairleError> {
         let random_name = gen_id();

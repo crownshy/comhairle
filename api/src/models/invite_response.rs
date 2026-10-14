@@ -40,7 +40,7 @@ const DEFAULT_COLUMNS: [InviteResponseIden; 5] = [
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &sqlx::PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     invite_id: &Uuid,
     response: Response,
@@ -61,8 +61,9 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with::<_, InviteResponse, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(ComhairleError::FailedToCreateInviteResponse)
 }

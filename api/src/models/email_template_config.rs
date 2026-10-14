@@ -6,7 +6,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, 
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    Decode, Encode, PgPool, Postgres,
+    Decode, Encode, Postgres,
     encode::IsNull,
     prelude::{FromRow, Type},
     query_as_with,
@@ -482,10 +482,11 @@ pub struct CreateEmailTemplateConfig {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     params: &CreateEmailTemplateConfig,
 ) -> Result<EmailTemplateConfig, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let slots_json = serde_json::to_value(&params.slots)?;
 
     let mut columns = vec![
@@ -502,7 +503,7 @@ pub async fn create(
         values.push(subject.into());
     }
 
-    let user = users::get_user_by_id(&user_id, db).await?;
+    let user = users::get_user_by_id(&mut *conn, &user_id).await?;
 
     if let Some(organization_id) = user.organization_id {
         columns.push(EmailTemplateConfigIden::OrganizationId);
@@ -516,7 +517,7 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let email_config = query_as_with(&sql, values).fetch_one(db).await?;
+    let email_config = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(email_config)
 }
@@ -545,7 +546,7 @@ impl UpdateEmailTemplateConfig {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     params: &UpdateEmailTemplateConfig,
 ) -> Result<EmailTemplateConfig, ComhairleError> {
@@ -555,6 +556,8 @@ pub async fn update(
         return Err(ComhairleError::NoValidUpdates);
     }
 
+    let mut conn = db.acquire().await?;
+
     let (sql, values) = Query::update()
         .table(EmailTemplateConfigIden::Table)
         .values(values)
@@ -562,13 +565,17 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let email_config = query_as_with(&sql, values).fetch_one(db).await?;
+    let email_config = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(email_config)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: Uuid,
+) -> Result<EmailTemplateConfig, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(EmailTemplateConfigIden::Table)
@@ -576,7 +583,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Com
         .build_sqlx(PostgresQueryBuilder);
 
     let email_config = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Email Template Config")?;
 
@@ -585,10 +592,11 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Com
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_type_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     email_type: &EmailType,
 ) -> Result<Option<EmailTemplateConfig>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(EmailTemplateConfigIden::Table)
@@ -596,7 +604,9 @@ pub async fn get_by_type_user(
         .and_where(Expr::col(EmailTemplateConfigIden::EmailType).eq(email_type.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
-    let email_config = query_as_with(&sql, values).fetch_optional(db).await?;
+    let email_config = query_as_with(&sql, values)
+        .fetch_optional(&mut *conn)
+        .await?;
 
     Ok(email_config)
 }
@@ -620,10 +630,11 @@ impl EmailTemplateConfigFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     filter_options: EmailTemplateConfigFilterOptions,
 ) -> Result<Vec<EmailTemplateConfig>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let query = Query::select()
         .from(EmailTemplateConfigIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -634,26 +645,32 @@ pub async fn list(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let email_configs = query_as_with(&sql, values).fetch_all(db).await?;
+    let email_configs = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(email_configs)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    id: Uuid,
+) -> Result<EmailTemplateConfig, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::delete()
         .from_table(EmailTemplateConfigIden::Table)
         .and_where(Expr::col(EmailTemplateConfigIden::Id).eq(id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let email_config = query_as_with(&sql, values).fetch_one(db).await?;
+    let email_config = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(email_config)
 }
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use crate::models::model_test_helpers::setup_default_app_and_session;
 
     use super::*;

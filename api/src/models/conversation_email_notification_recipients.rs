@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -60,9 +60,10 @@ impl CreateConversationEmailNotificationRecipients {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     recipient: &CreateConversationEmailNotificationRecipients,
 ) -> Result<ConversationEmailNotificationRecipients, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let columns = recipient.columns();
     let values = recipient.values();
 
@@ -76,7 +77,7 @@ pub async fn create(
 
     let recipient =
         sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
-            .fetch_one(db)
+            .fetch_one(&mut *conn)
             .await?;
 
     Ok(recipient)
@@ -84,10 +85,11 @@ pub async fn create(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation_and_email(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
     email: &str,
 ) -> Result<ConversationEmailNotificationRecipients, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ConversationEmailNotificationRecipientsIden::Table)
@@ -102,7 +104,7 @@ pub async fn get_by_conversation_and_email(
 
     let recipient =
         sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
-            .fetch_one(db)
+            .fetch_one(&mut *conn)
             .await
             .resolve_db_err("Conversation Email Notification Recipients")?;
 
@@ -111,9 +113,10 @@ pub async fn get_by_conversation_and_email(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
 ) -> Result<Vec<ConversationEmailNotificationRecipients>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ConversationEmailNotificationRecipientsIden::Table)
@@ -125,7 +128,7 @@ pub async fn get_by_conversation(
 
     let recipients =
         sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
-            .fetch_all(db)
+            .fetch_all(&mut *conn)
             .await?;
 
     Ok(recipients)
@@ -133,10 +136,11 @@ pub async fn get_by_conversation(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn delete_by_conversation_and_email(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
     email: &str,
 ) -> Result<ConversationEmailNotificationRecipients, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::delete()
         .from_table(ConversationEmailNotificationRecipientsIden::Table)
         .and_where(
@@ -151,7 +155,7 @@ pub async fn delete_by_conversation_and_email(
 
     let recipient =
         sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
-            .fetch_one(db)
+            .fetch_one(&mut *conn)
             .await
             .resolve_db_err("Conversation Email Notification Recipients")?;
 

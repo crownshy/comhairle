@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -89,10 +89,11 @@ impl UpsertChatInstructions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn upsert_for_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     payload: &UpsertChatInstructions,
 ) -> Result<ChatInstructions, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let mut columns = payload.columns();
     let mut values = payload.values();
 
@@ -111,16 +112,17 @@ pub async fn upsert_for_conversation(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let chat_instructions = query_as_with(&sql, values).fetch_one(db).await?;
+    let chat_instructions = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(chat_instructions)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
 ) -> Result<ChatInstructions, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ChatInstructionsIden::Table)
@@ -128,7 +130,7 @@ pub async fn get_by_conversation_id(
         .build_sqlx(PostgresQueryBuilder);
 
     let chat_instructions = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Chat Instructions")?;
 
@@ -137,6 +139,8 @@ pub async fn get_by_conversation_id(
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use super::*;
 
     use std::error::Error;

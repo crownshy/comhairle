@@ -405,7 +405,7 @@ pub async fn update_user_details(
     RequiredUser(user): RequiredUser,
     Json(update_request): Json<UpdateUserRequest>,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let updated_user = models::users::update_user(&user.id, &update_request, &state.db).await?;
+    let updated_user = models::users::update_user(&state.db, &user.id, &update_request).await?;
     let user: UserDto = updated_user.into();
     Ok((StatusCode::OK, Json(user)))
 }
@@ -417,7 +417,7 @@ pub async fn upgrade_account(
     Json(upgrade_request): Json<UpgradeAccountRequest>,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
     let upgraded_user =
-        models::users::upgrade_account(&user.id, &upgrade_request, &state.db).await?;
+        models::users::upgrade_account(&state.db, &user.id, &upgrade_request).await?;
     let user: UserDto = upgraded_user.into();
     Ok((StatusCode::OK, Json(user)))
 }

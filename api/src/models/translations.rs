@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use sea_query::{Alias, Expr, Func, JoinType, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -345,7 +345,7 @@ pub trait BuildTextTranslation {
     /// Returns [`ComhairleError`] if the underlying insert fails.
     async fn build_text_translation(
         self,
-        db: &PgPool,
+        db: impl crate::DbSource,
         locale: &str,
         format: TextFormat,
     ) -> Result<Self::Built, ComhairleError>;
@@ -357,11 +357,12 @@ impl BuildTextTranslation for String {
 
     async fn build_text_translation(
         self,
-        db: &PgPool,
+        db: impl crate::DbSource,
         locale: &str,
         format: TextFormat,
     ) -> Result<Self::Built, ComhairleError> {
-        let translation = new_translation(db, locale, &self, format).await?;
+        let mut conn = db.acquire().await?;
+        let translation = new_translation(&mut *conn, locale, &self, format).await?;
         Ok(translation.id)
     }
 }
@@ -372,12 +373,16 @@ impl<T: BuildTextTranslation + Send> BuildTextTranslation for Option<T> {
 
     async fn build_text_translation(
         self,
-        db: &PgPool,
+        db: impl crate::DbSource,
         locale: &str,
         format: TextFormat,
     ) -> Result<Self::Built, ComhairleError> {
         match self {
-            Some(v) => Ok(Some(v.build_text_translation(db, locale, format).await?)),
+            Some(v) => {
+                let mut conn = db.acquire().await?;
+                let result = v.build_text_translation(&mut *conn, locale, format).await?;
+                Ok(Some(result))
+            }
             None => Ok(None),
         }
     }
@@ -496,7 +501,7 @@ impl<T: ResolveWithTranslations> ResolveWithTranslations for Vec<T> {
 ///
 /// Returns [`ComhairleError`] if the query fails to execute.
 pub async fn localize_translations(
-    db: &PgPool,
+    db: impl crate::DbSource,
     ids: &[TextContentId],
     locale: &str,
 ) -> Result<HashMap<TextContentId, String>, ComhairleError> {
@@ -538,7 +543,9 @@ pub async fn localize_translations(
         )
         .build_sqlx(PostgresQueryBuilder);
 
-    let rows: Vec<(Uuid, Option<String>)> = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let rows: Vec<(Uuid, Option<String>)> =
+        query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(rows
         .into_iter()
@@ -866,7 +873,7 @@ pub async fn create_text_content<'connection>(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_text_content_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &TextContentId,
 ) -> Result<TextContent, ComhairleError> {
     let (sql, values) = Query::select()
@@ -875,8 +882,9 @@ pub async fn get_text_content_by_id(
         .and_where(Expr::col(TextContentIden::Id).eq(id.as_uuid().to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Text Content")?;
 
@@ -904,7 +912,7 @@ pub async fn get_text_content_by_id(
 /// * The database operation fails
 #[instrument(err(Debug), skip(db))]
 pub async fn update_text_content(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &TextContentId,
     update: &UpdateTextContent,
 ) -> Result<TextContent, ComhairleError> {
@@ -923,8 +931,9 @@ pub async fn update_text_content(
         .returning(Query::returning().columns(TEXT_CONTENT_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Text Content")?;
 
@@ -947,7 +956,7 @@ pub async fn update_text_content(
 /// or a `ComhairleError::ResourceNotFound` if the content doesn't exist.
 #[instrument(err(Debug), skip(db))]
 pub async fn delete_text_content(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &TextContentId,
 ) -> Result<TextContent, ComhairleError> {
     let (sql, values) = Query::delete()
@@ -956,8 +965,9 @@ pub async fn delete_text_content(
         .returning(Query::returning().columns(TEXT_CONTENT_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Text Content")?;
 
@@ -985,8 +995,8 @@ pub async fn delete_text_content(
 /// * The content_id references a non-existent text content
 /// * A translation for the same content_id and locale already exists
 #[instrument(err(Debug), skip(db))]
-pub async fn create_text_translation<'connection>(
-    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
+pub async fn create_text_translation(
+    db: impl crate::DbSource,
     text_translation: &CreateTextTranslation,
 ) -> Result<TextTranslation, ComhairleError> {
     let columns = text_translation.columns();
@@ -1000,8 +1010,9 @@ pub async fn create_text_translation<'connection>(
         .returning(Query::returning().columns(TEXT_TRANSLATION_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(text_translation)
@@ -1020,7 +1031,7 @@ pub async fn create_text_translation<'connection>(
 /// or a `ComhairleError::ResourceNotFound` if not found.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_text_translation_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
 ) -> Result<TextTranslation, ComhairleError> {
     let (sql, values) = Query::select()
@@ -1029,8 +1040,9 @@ pub async fn get_text_translation_by_id(
         .and_where(Expr::col(TextTranslationIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Text Translation")?;
 
@@ -1051,7 +1063,7 @@ pub async fn get_text_translation_by_id(
 /// if no translations are found for the content.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_text_translations_by_content_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     content_id: &TextContentId,
 ) -> Result<Vec<TextTranslation>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -1060,8 +1072,9 @@ pub async fn get_text_translations_by_content_id(
         .and_where(Expr::col(TextTranslationIden::ContentId).eq(content_id.as_uuid().to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_translations = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(text_translations)
@@ -1085,7 +1098,7 @@ pub async fn get_text_translations_by_content_id(
 /// for the given content and locale combination.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_text_translation_by_content_and_locale(
-    db: &PgPool,
+    db: impl crate::DbSource,
     content_id: &TextContentId,
     locale: &str,
 ) -> Result<TextTranslation, ComhairleError> {
@@ -1096,8 +1109,9 @@ pub async fn get_text_translation_by_content_and_locale(
         .and_where(Expr::col(TextTranslationIden::Locale).eq(locale))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Text Translation")?;
 
@@ -1126,7 +1140,7 @@ pub async fn get_text_translation_by_content_and_locale(
 /// * The updated locale would create a duplicate (content_id, locale) pair
 #[instrument(err(Debug), skip(db))]
 pub async fn update_text_translation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update: &UpdateTextTranslation,
 ) -> Result<TextTranslation, ComhairleError> {
@@ -1143,8 +1157,9 @@ pub async fn update_text_translation(
         .returning(Query::returning().columns(TEXT_TRANSLATION_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(text_translation)
@@ -1163,7 +1178,7 @@ pub async fn update_text_translation(
 /// or a `ComhairleError::ResourceNotFound` if the translation doesn't exist.
 #[instrument(err(Debug), skip(db))]
 pub async fn delete_text_translation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
 ) -> Result<TextTranslation, ComhairleError> {
     let (sql, values) = Query::delete()
@@ -1172,8 +1187,9 @@ pub async fn delete_text_translation(
         .returning(Query::returning().columns(TEXT_TRANSLATION_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Text Translation")?;
 
@@ -1198,10 +1214,11 @@ pub async fn delete_text_translation(
 /// or a `ComhairleError` on failure.
 #[instrument(err(Debug), skip(db))]
 pub async fn create_text_content_and_get_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     text_content: &CreateTextContent,
 ) -> Result<TextContentId, ComhairleError> {
-    let content = create_text_content(db, text_content).await?;
+    let mut conn = db.acquire().await?;
+    let content = create_text_content(&mut *conn, text_content).await?;
     Ok(content.id)
 }
 
@@ -1222,11 +1239,12 @@ pub async fn create_text_content_and_get_id(
 /// `None` if no translation exists, or a `ComhairleError` on database failure.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_text_translation_optional(
-    db: &PgPool,
+    db: impl crate::DbSource,
     content_id: &TextContentId,
     locale: &str,
 ) -> Result<Option<TextTranslation>, ComhairleError> {
-    match get_text_translation_by_content_and_locale(db, content_id, locale).await {
+    let mut conn = db.acquire().await?;
+    match get_text_translation_by_content_and_locale(&mut *conn, content_id, locale).await {
         Ok(translation) => Ok(Some(translation)),
         Err(ComhairleError::ResourceNotFound(_)) => Ok(None),
         Err(e) => Err(e),
@@ -1242,18 +1260,23 @@ pub async fn get_text_translation_optional(
 // make this smoother
 #[instrument(err(Debug), skip(translator))]
 pub async fn auto_generate_all_translations(
-    db: &PgPool,
+    db: impl crate::DbSource,
     translator: &Arc<dyn TranslationService>,
     text_content_id: &TextContentId,
 ) -> Result<Vec<TextTranslation>, ComhairleError> {
-    let text_content = get_text_content_by_id(db, text_content_id).await?;
-    let translations = get_text_translations_by_content_id(db, text_content_id).await?;
+    let mut conn = db.acquire().await?;
+    let text_content = get_text_content_by_id(&mut *conn, text_content_id).await?;
+    let translations = get_text_translations_by_content_id(&mut *conn, text_content_id).await?;
     let mut result: Vec<TextTranslation> = vec![];
     for translation in translations.iter() {
         if translation.locale != text_content.primary_locale {
-            let new_translation =
-                auto_generate_translation(db, translator, text_content_id, &translation.locale)
-                    .await?;
+            let new_translation = auto_generate_translation(
+                &mut *conn,
+                translator,
+                text_content_id,
+                &translation.locale,
+            )
+            .await?;
             result.push(new_translation);
         }
     }
@@ -1264,18 +1287,19 @@ pub async fn auto_generate_all_translations(
 /// as a reference
 #[instrument(err(Debug), skip(translator))]
 pub async fn auto_generate_translation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     translator: &Arc<dyn TranslationService>,
     text_content_id: &TextContentId,
     locale: &str,
 ) -> Result<TextTranslation, ComhairleError> {
-    let text_content = get_text_content_by_id(db, text_content_id).await?;
+    let mut conn = db.acquire().await?;
+    let text_content = get_text_content_by_id(&mut *conn, text_content_id).await?;
 
     let translation =
-        get_text_translation_by_content_and_locale(db, text_content_id, locale).await?;
+        get_text_translation_by_content_and_locale(&mut *conn, text_content_id, locale).await?;
 
     let reference_text = get_text_translation_by_content_and_locale(
-        db,
+        &mut *conn,
         &text_content.id,
         &text_content.primary_locale,
     )
@@ -1290,7 +1314,7 @@ pub async fn auto_generate_translation(
         .await?;
 
     let updated_translation = update_text_translation(
-        db,
+        &mut *conn,
         &translation.id,
         &UpdateTextTranslation {
             content: Some(translated_text),
@@ -1305,23 +1329,24 @@ pub async fn auto_generate_translation(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn new_translation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     locale: &str,
     content: &str,
     format: TextFormat,
 ) -> Result<TextContent, ComhairleError> {
-    let mut connection = db.acquire().await?;
-    new_translation_in_connection(&mut connection, locale, content, format).await
+    let mut conn = db.acquire().await?;
+    new_translation_in_connection(&mut *conn, locale, content, format).await
 }
 
 pub async fn new_translation_in_connection(
-    db: &mut sqlx::PgConnection,
+    db: impl crate::DbSource,
     locale: &str,
     content: &str,
     format: TextFormat,
 ) -> Result<TextContent, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let translation = create_text_content(
-        &mut *db,
+        &mut *conn,
         &CreateTextContent {
             primary_locale: locale.to_owned(),
             format,
@@ -1330,7 +1355,7 @@ pub async fn new_translation_in_connection(
     .await?;
 
     create_text_translation(
-        &mut *db,
+        &mut *conn,
         &CreateTextTranslation {
             content_id: translation.id,
             locale: locale.to_owned(),
@@ -1352,7 +1377,7 @@ pub struct TranslationDto {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_text_content_with_translations(
-    db: &PgPool,
+    db: impl crate::DbSource,
     text_content_ids: Vec<TextContentId>,
 ) -> Result<HashMap<TextContentId, TranslationDto>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -1363,7 +1388,8 @@ pub async fn get_text_content_with_translations(
         )
         .build_sqlx(PostgresQueryBuilder);
 
-    let text_contents: Vec<TextContent> = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let text_contents: Vec<TextContent> = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     let (sql, values) = Query::select()
         .from(TextTranslationIden::Table)
@@ -1374,7 +1400,8 @@ pub async fn get_text_content_with_translations(
         )
         .build_sqlx(PostgresQueryBuilder);
 
-    let text_translations: Vec<TextTranslation> = query_as_with(&sql, values).fetch_all(db).await?;
+    let text_translations: Vec<TextTranslation> =
+        query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     let mut tts_by_tc_id: HashMap<TextContentId, Vec<TextTranslation>> = HashMap::new();
     for translation in text_translations {
@@ -1408,6 +1435,7 @@ pub async fn get_text_content_with_translations(
 #[cfg(test)]
 mod tests {
     use comhairle_macros::TranslatableJson;
+    use sqlx::PgPool;
 
     use super::*;
 

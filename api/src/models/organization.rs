@@ -1,3 +1,4 @@
+use crate::DbTransaction;
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -5,7 +6,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -141,7 +142,7 @@ impl CreateOrganization {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create_with_administrator(
-    db: &PgPool,
+    db: impl crate::DbSource,
     new_org: &CreateOrganization,
     locale: &str,
     administrator_id: Uuid,
@@ -196,37 +197,40 @@ pub async fn create_with_administrator(
 
 #[cfg(test)]
 async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     new_org: &CreateOrganization,
     locale: &str,
 ) -> Result<Organization, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let administrator_id = sqlx::query_scalar(
         "SELECT user_id FROM system_user_permissions WHERE role_name = 'super_admin' LIMIT 1",
     )
-    .fetch_one(db)
+    .fetch_one(&mut *conn)
     .await?;
-    create_with_administrator(db, new_org, locale, administrator_id).await
+    create_with_administrator(&mut *conn, new_org, locale, administrator_id).await
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn add_member_emails(
-    db: &PgPool,
+    db: impl crate::DbSource,
     organization_id: &Uuid,
     user_emails: &[String],
 ) -> Result<(), ComhairleError> {
+    let mut conn = db.acquire().await?;
     for user_email in user_emails {
         let trimmed = user_email.trim();
         if trimmed.is_empty() {
             continue;
         }
 
-        match users::get_user_by_email(trimmed, db).await {
+        match users::get_user_by_email(&mut *conn, trimmed).await {
             Ok(user) => {
                 let update_request = users::UpdateUserRequest {
                     organization_id: Some(*organization_id),
                     ..Default::default()
                 };
-                if let Err(error) = users::update_user(&user.id, &update_request, db).await {
+                if let Err(error) = users::update_user(&mut *conn, &user.id, &update_request).await
+                {
                     tracing::warn!(
                         "Failed to add user {} to organization {}: {:?}",
                         user.id,
@@ -279,7 +283,7 @@ impl PartialOrganization {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update_org: &PartialOrganization,
 ) -> Result<Organization, ComhairleError> {
@@ -296,7 +300,10 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let organization = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let organization = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *conn)
+        .await?;
 
     Ok(organization)
 }
@@ -304,7 +311,7 @@ pub async fn update(
 /// Get the organization's `metadata` jsonb column
 #[instrument(err(Debug), skip(db))]
 pub async fn get_metadata(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
 ) -> Result<Option<serde_json::Value>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -313,8 +320,9 @@ pub async fn get_metadata(
         .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let (metadata,) = query_as_with::<_, (Option<serde_json::Value>,), _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(metadata)
@@ -324,7 +332,7 @@ pub async fn get_metadata(
 /// at the top level. Existing keys are overwritten by the patch.
 #[instrument(err(Debug), skip(db))]
 pub async fn patch_metadata(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     patch: serde_json::Value,
 ) -> Result<Organization, ComhairleError> {
@@ -333,7 +341,7 @@ pub async fn patch_metadata(
             "metadata patch must be a JSON object".into(),
         ));
     }
-
+    let mut conn = db.acquire().await?;
     let organization = sqlx::query_as::<_, Organization>(
         "UPDATE organization
             SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
@@ -343,7 +351,7 @@ pub async fn patch_metadata(
     )
     .bind(patch)
     .bind(id)
-    .fetch_one(db)
+    .fetch_one(&mut *conn)
     .await
     .resolve_db_err("Organization")?;
 
@@ -400,7 +408,7 @@ impl OrganizationFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     filter_options: OrganizationFilterOptions,
     order_options: OrganizationOrderOptions,
@@ -415,14 +423,17 @@ pub async fn list(
 
     let query = filter_options.apply(query);
     let query = order_options.apply(query);
-    let organizations = page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let organizations = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(organizations)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     locale: &str,
 ) -> Result<LocalizedOrganization, ComhairleError> {
@@ -436,8 +447,9 @@ pub async fn get_localized_by_id(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let organization = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Organization")?;
 
@@ -445,15 +457,19 @@ pub async fn get_localized_by_id(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<Organization, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (OrganizationIden::Table, col)))
         .from(OrganizationIden::Table)
         .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let organization = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Organization")?;
 
@@ -461,7 +477,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Organization, Comhairle
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Organization, ComhairleError> {
     let mut tx = db.begin().await?;
 
     sqlx::query("UPDATE comhairle_user SET organization_id = NULL WHERE organization_id = $1")
@@ -499,6 +515,8 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use crate::{
         models::{
             model_test_helpers::setup_default_app_and_session,
@@ -565,23 +583,23 @@ mod tests {
         let organization = create(&pool, &new_org, "en").await?;
 
         let user = create_user(
+            &pool,
             &SignupRequest {
                 username: "test_org_user".to_string(),
                 password: "StrongPass123!".to_string(),
                 email: "test_org_user@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
         users::update_user(
+            &pool,
             &user.id,
             &users::UpdateUserRequest {
                 organization_id: Some(organization.id),
                 ..Default::default()
             },
-            &pool,
         )
         .await?;
 
@@ -589,7 +607,7 @@ mod tests {
 
         assert_eq!(deleted_organization.id, organization.id);
 
-        let updated_user = users::get_user_by_id(&user.id, &pool).await?;
+        let updated_user = users::get_user_by_id(&pool, &user.id).await?;
         assert_eq!(updated_user.organization_id, None);
 
         Ok(())

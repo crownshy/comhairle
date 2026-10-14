@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -91,15 +91,16 @@ impl PartialWorkflow {
 
 /// Get a conversation by ID
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<Workflow, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(WorkflowIden::Table)
         .and_where(Expr::col(WorkflowIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let conversation = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("Workflow".into()))?;
 
@@ -118,13 +119,14 @@ pub async fn launch(state: &Arc<ComhairleState>, workflow_id: &Uuid) -> Result<(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn check_user_is_owner(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
     user_id: &Uuid,
 ) -> Result<(), ComhairleError> {
-    let workflow = get_by_id(db, workflow_id).await?;
+    let mut conn = db.acquire().await?;
+    let workflow = get_by_id(&mut *conn, workflow_id).await?;
     if let Some(conversation_id) = workflow.conversation_id {
-        let conversation = super::conversation::get_by_id(db, &conversation_id).await?;
+        let conversation = super::conversation::get_by_id(&mut *conn, &conversation_id).await?;
         if conversation.owner_id != *user_id {
             return Err(ComhairleError::UserNotAuthorized);
         }
@@ -180,18 +182,19 @@ impl CreateWorkflow {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn register_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
     user: &User,
 ) -> Result<UserParticipation, ComhairleError> {
-    let workflow = get_by_id(db, workflow_id).await?;
-    let user_participation = user_participation::create(db, &user.id, workflow_id).await?;
+    let mut conn = db.acquire().await?;
+    let workflow = get_by_id(&mut *conn, workflow_id).await?;
+    let user_participation = user_participation::create(&mut *conn, &user.id, workflow_id).await?;
 
-    let workflow_steps = workflow_step::list(db, workflow_id).await?;
+    let workflow_steps = workflow_step::list(&mut *conn, workflow_id).await?;
 
     for step in workflow_steps {
         user_progress::create(
-            db,
+            &mut *conn,
             &user.id,
             &step.id,
             user_progress::ProgressStatus::NotStarted,
@@ -203,7 +206,7 @@ pub async fn register_user(
     // conversastion
     if let Some(conversation_id) = workflow.conversation_id {
         let user_preferences = user_conversation_preferences::get_by_user_and_conversation(
-            db,
+            &mut *conn,
             &user.id,
             &conversation_id,
         )
@@ -211,8 +214,12 @@ pub async fn register_user(
 
         // If they dont, create some
         if user_preferences.is_err() {
-            user_conversation_preferences::create_with_defaults(db, &user.id, &conversation_id)
-                .await?;
+            user_conversation_preferences::create_with_defaults(
+                &mut *conn,
+                &user.id,
+                &conversation_id,
+            )
+            .await?;
         }
     }
 
@@ -221,15 +228,16 @@ pub async fn register_user(
 
 // TODO ensure this deletes all workflow steps on deletion
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Workflow, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(WorkflowIden::Table)
         .and_where(Expr::col(WorkflowIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let workflow = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
 
@@ -238,7 +246,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> 
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     update: &PartialWorkflow,
 ) -> Result<Workflow, ComhairleError> {
@@ -255,8 +263,9 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let workflow = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(workflow)
@@ -279,7 +288,7 @@ pub async fn update(
 /// it is not used in the final database query.
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     event_id: Option<Uuid>,
 ) -> Result<Vec<Workflow>, ComhairleError> {
@@ -300,8 +309,9 @@ pub async fn list(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let workflows = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(workflows)
@@ -324,7 +334,10 @@ pub struct WorkflowStepStats {
 }
 
 /// Calculate stastistics for the workflow
-pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, ComhairleError> {
+pub async fn stats(
+    db: impl crate::DbSource,
+    workflow_id: Uuid,
+) -> Result<WorkflowStats, ComhairleError> {
     let (sql, values) = Query::select()
         .from(WorkflowStepIden::Table)
         .column((WorkflowStepIden::Table, WorkflowStepIden::Id))
@@ -352,8 +365,9 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
         .to_owned()
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let step_stats = sqlx::query_as_with::<_, WorkflowStepStats, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     let (sql, values) = Query::select()
@@ -363,8 +377,10 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
         .to_owned()
         .build_sqlx(PostgresQueryBuilder);
 
-    let total_users: i32 = sqlx::query_scalar_with(&sql, values).fetch_one(db).await?;
-    let signup_stats = get_workflow_signup_stats(db, workflow_id).await?;
+    let total_users: i32 = sqlx::query_scalar_with(&sql, values)
+        .fetch_one(&mut *conn)
+        .await?;
+    let signup_stats = get_workflow_signup_stats(&mut *conn, workflow_id).await?;
 
     Ok(WorkflowStats {
         step_stats,
@@ -388,7 +404,7 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
 /// If `event_id` is `Some` the workflow will be created referencing the specified event.
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow: &CreateWorkflow,
     conversation_id: Option<Uuid>,
     event_id: Option<Uuid>,
@@ -418,8 +434,9 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let workflow = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(workflow)
@@ -433,9 +450,10 @@ pub struct DailySignupStats {
 }
 
 pub async fn get_workflow_signup_stats(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: Uuid,
 ) -> Result<Vec<DailySignupStats>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as::<_, DailySignupStats>(
         r#"
         SELECT date_trunc('day', created_at) as day,
@@ -447,7 +465,7 @@ pub async fn get_workflow_signup_stats(
     "#,
     )
     .bind(workflow_id)
-    .fetch_all(db)
+    .fetch_all(&mut *conn)
     .await
     .map_err(ComhairleError::WorkflowStatsAggregationError)?;
     Ok(result)
@@ -465,6 +483,7 @@ mod tests {
 
     use super::*;
 
+    use sqlx::PgPool;
     use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]

@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use std::path::Path;
 use tracing::instrument;
 use uuid::Uuid;
@@ -238,7 +238,8 @@ impl MediaResolver {
     /// # Errors
     ///
     /// Returns [`ComhairleError`] if the underlying query fails.
-    pub async fn load(db: &PgPool, ids: &[Uuid]) -> Result<Self, ComhairleError> {
+    pub async fn load(db: impl crate::DbSource, ids: &[Uuid]) -> Result<Self, ComhairleError> {
+        let mut conn = db.acquire().await?;
         let (sql, values) = Query::select()
             .from(MediaIden::Table)
             .columns(DEFAULT_COLUMNS)
@@ -246,7 +247,7 @@ impl MediaResolver {
             .build_sqlx(PostgresQueryBuilder);
 
         let media = query_as_with::<_, Media, _>(&sql, values)
-            .fetch_all(db)
+            .fetch_all(&mut *conn)
             .await?;
 
         Ok(Self(
@@ -328,7 +329,7 @@ impl CreateMedia {
 /// `ComhairleError` if the query fails.
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     create_media: &CreateMedia,
     user_id: &Uuid,
 ) -> Result<Media, ComhairleError> {
@@ -345,7 +346,10 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let media = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let media = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *conn)
+        .await?;
 
     Ok(media)
 }
@@ -363,15 +367,16 @@ pub async fn create(
 /// a `ComhairleError::ResourceNotFound` if not found, or a
 /// `ComhairleError` if the query fails for any other reason.
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(MediaIden::Table)
         .and_where(Expr::col(MediaIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let media = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Media")?;
 
@@ -461,7 +466,7 @@ impl MediaFilterOptions {
 /// or a `ComhairleError` if the query fails.
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     order_options: MediaOrderOptions,
     filter_options: MediaFilterOptions,
@@ -474,7 +479,10 @@ pub async fn list(
     let query = filter_options.apply(query);
     let query = order_options.apply(query);
 
-    let media = page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let media = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(media)
 }
@@ -493,7 +501,7 @@ pub async fn list(
 /// if the query fails.
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update_media: &MediaEditableFields,
 ) -> Result<Media, ComhairleError> {
@@ -510,7 +518,10 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let media = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let media = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *conn)
+        .await?;
 
     Ok(media)
 }
@@ -527,15 +538,16 @@ pub async fn update(
 /// Returns a `Result` containing the deleted `Media` record, or `ComhairleError`
 /// if the query fails.
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(MediaIden::Table)
         .and_where(Expr::col(MediaIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let media = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Media")?;
 
@@ -544,6 +556,8 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use crate::{
         models::{model_test_helpers::setup_default_app_and_session, users},
         test_helpers::TEST_PASSWORD,

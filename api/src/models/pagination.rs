@@ -7,7 +7,7 @@ use sea_query::{Alias, Expr, PostgresQueryBuilder, SelectStatement};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
-use sqlx::{FromRow, PgPool};
+use sqlx::FromRow;
 
 use crate::{ComhairleState, error::ComhairleError};
 
@@ -114,7 +114,7 @@ pub struct PaginatedResults<T: JsonSchema> {
 impl PageOptions {
     pub async fn fetch_paginated_results<T>(
         &self,
-        pool: &PgPool,
+        db: impl crate::DbSource,
         base_query: SelectStatement,
     ) -> Result<PaginatedResults<T>, sqlx::Error>
     where
@@ -140,15 +140,16 @@ impl PageOptions {
         // Generate SQL for count query
         let (count_sql, count_values) = count_query.build_sqlx(PostgresQueryBuilder);
 
+        let mut conn = db.acquire().await?;
         let total: i32 = sqlx::query_scalar_with(&count_sql, count_values)
-            .fetch_one(pool)
+            .fetch_one(&mut *conn)
             .await?;
 
         // Generate SQL for paginated query
         let (query_sql, query_values) = paginated_query.build_sqlx(PostgresQueryBuilder);
 
         let records: Vec<T> = sqlx::query_as_with(&query_sql, query_values)
-            .fetch_all(pool)
+            .fetch_all(&mut *conn)
             .await?;
 
         Ok(PaginatedResults { total, records })

@@ -316,7 +316,7 @@ async fn record_signup_metadata(
     user_agent: &ClientUserAgent,
 ) {
     if let Err(error) =
-        set_signup_metadata(user_id, &client_ip.0, user_agent.0.as_deref(), &state.db).await
+        set_signup_metadata(&state.db, user_id, &client_ip.0, user_agent.0.as_deref()).await
     {
         warn!("Failed to record signup metadata for user {user_id}: {error}");
     }
@@ -334,7 +334,7 @@ async fn signup(
     // Validate password strength
     validate_password_strength(&payload.password)?;
 
-    let user = create_user(&payload, &state.db).await?;
+    let user = create_user(&state.db, &payload).await?;
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
@@ -406,7 +406,7 @@ async fn signup_otp(
     jar: CookieJar,
     Json(payload): Json<OtpSignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = create_otp_user(&payload, &state.db).await?;
+    let user = create_otp_user(&state.db, &payload).await?;
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
@@ -433,7 +433,7 @@ async fn login(
     jar: CookieJar,
     Json(payload): Json<LoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = get_user_by_email(&payload.email, &state.db).await?;
+    let user = get_user_by_email(&state.db, &payload.email).await?;
 
     let password = user
         .password
@@ -469,7 +469,7 @@ async fn login_guest(
     jar: CookieJar,
     Json(payload): Json<GuestLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = get_guest_user_by_code(&payload.guest_code, &state.db).await?;
+    let user = get_guest_user_by_code(&state.db, &payload.guest_code).await?;
 
     if user.auth_type != UserAuthType::Guest {
         // return not found to avoid revealing that a correct username has been used.
@@ -518,7 +518,7 @@ async fn login_otp(
     jar: CookieJar,
     Json(payload): Json<OtpLoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let user = get_user_by_email(&payload.email, &state.db).await?;
+    let user = get_user_by_email(&state.db, &payload.email).await?;
     let now = Utc::now();
 
     if user.auth_type != UserAuthType::EmailPassword && user.auth_type != UserAuthType::Otp {
@@ -555,7 +555,7 @@ async fn create_otp(
     State(state): State<Arc<ComhairleState>>,
     Json(payload): Json<CreateOtpRequest>,
 ) -> Result<StatusCode, ComhairleError> {
-    let user = get_user_by_email(&payload.email, &state.db).await?;
+    let user = get_user_by_email(&state.db, &payload.email).await?;
 
     if user.auth_type != UserAuthType::EmailPassword && user.auth_type != UserAuthType::Otp {
         return Err(ComhairleError::WrongUserType);
@@ -614,7 +614,7 @@ async fn login_otp_token(
         }
     };
 
-    let user = get_user_by_email(&token_data.claims.details.email, &state.db).await?;
+    let user = get_user_by_email(&state.db, &token_data.claims.details.email).await?;
     let now = Utc::now();
 
     if user.auth_type == UserAuthType::Guest {
@@ -634,7 +634,7 @@ async fn resend_verification_email(
     Json(payload): Json<ResendVerificationEmailRequest>,
 ) -> Result<StatusCode, ComhairleError> {
     let id = Uuid::parse_str(&payload.id).map_err(|_| ComhairleError::InvalidUserId)?;
-    let user = get_user_by_id(&id, &state.db).await?;
+    let user = get_user_by_id(&state.db, &id).await?;
     let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
@@ -672,7 +672,7 @@ async fn verify_email_token(
         ..Default::default()
     };
 
-    let updated_user = update_user(&current_user.id, &updated_verified_status, &state.db).await?;
+    let updated_user = update_user(&state.db, &current_user.id, &updated_verified_status).await?;
 
     let claims = SessionClaims {
         username: updated_user.username.clone(),
@@ -701,7 +701,7 @@ async fn password_reset_create(
     State(state): State<Arc<ComhairleState>>,
     Json(payload): Json<CreatePasswordResetRequest>,
 ) -> Result<StatusCode, ComhairleError> {
-    let user = get_user_by_email(&payload.email, &state.db).await?;
+    let user = get_user_by_email(&state.db, &payload.email).await?;
     let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
@@ -746,7 +746,7 @@ async fn password_reset_update(
         ..Default::default()
     };
 
-    update_user(&user.id, &updated_password, &state.db).await?;
+    update_user(&state.db, &user.id, &updated_password).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -769,7 +769,7 @@ async fn refresh_session(
 
     let user_id = Uuid::parse_str(&token_data.claims.sub)
         .map_err(|_| ComhairleError::SessionRefreshFailure(RefreshFailure::InvalidClaim))?;
-    let user = users::get_user_by_id(&user_id, &state.db).await?;
+    let user = users::get_user_by_id(&state.db, &user_id).await?;
     let jti = token_data.claims.details.jti;
 
     // Handles expired / re-used / invalid tokens
@@ -833,7 +833,7 @@ async fn resolve_user_from_request(
         TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await
     {
         let user_id = api_key::get_matching_user_id(&state.db, bearer.token()).await?;
-        users::get_user_by_id(&user_id, &state.db).await
+        users::get_user_by_id(&state.db, &user_id).await
     } else {
         parts
             .extract_with_state::<OptionalUser, _>(state)
@@ -922,7 +922,7 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
             TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await
         {
             let user_id = api_key::get_matching_user_id(&state.db, bearer.token()).await?;
-            let user = users::get_user_by_id(&user_id, &state.db).await?;
+            let user = users::get_user_by_id(&state.db, &user_id).await?;
             return Ok(OptionalUser(Some(user)));
         }
 
@@ -987,7 +987,7 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
 
     // Fetch the user details from the database
     let uuid = Uuid::parse_str(&token_data.claims.id).unwrap();
-    let current_user = match get_user_by_id(&uuid, &state.db).await {
+    let current_user = match get_user_by_id(&state.db, &uuid).await {
         Ok(user) => user,
         Err(e) => {
             return Err(e);
@@ -1994,7 +1994,7 @@ mod tests {
             .await?;
         let (login_status, _, _) = session.login(&app, email, updated_password).await?;
 
-        let user = get_user_by_email(email, db).await?;
+        let user = get_user_by_email(db, email).await?;
         let hashed_user_password = PasswordHash::new(user.password.as_ref().unwrap()).unwrap();
 
         assert_eq!(
@@ -2286,7 +2286,7 @@ mod tests {
         assert_eq!(status, StatusCode::CREATED);
 
         // Get the user from DB
-        let user = get_user_by_email(email, &state.db).await?;
+        let user = get_user_by_email(&state.db, email).await?;
 
         // Generate a password reset token
         let claims = EmailLinkClaims {
@@ -2484,7 +2484,7 @@ mod tests {
         let (_, current_user, _) = session.current_user(&app).await?;
 
         let otp = otp::create(&pool, &current_user.id, None, None).await?;
-        let user = users::get_user_by_id(&current_user.id, &pool).await?;
+        let user = users::get_user_by_id(&pool, &current_user.id).await?;
 
         let claims = OtpClaims {
             email: email.to_string(),
@@ -2670,7 +2670,7 @@ mod tests {
         // Signup
         session.signup(&app).await?;
         let (_, current_user, _) = session.current_user(&app).await?;
-        let current_user_model = users::get_user_by_id(&current_user.id, &pool).await?;
+        let current_user_model = users::get_user_by_id(&pool, &current_user.id).await?;
 
         // Extract refresh-token from cookies and assert db record is valid
         let original_refresh_token_record =

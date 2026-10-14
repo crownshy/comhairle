@@ -5,7 +5,7 @@ use sea_query::{
 };
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -66,7 +66,7 @@ impl CreateSummary {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     workflow_step_id: Uuid,
     create_summary: &CreateSummary,
@@ -86,7 +86,8 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let summary = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let summary = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(summary)
 }
@@ -98,7 +99,7 @@ pub struct UpdateSummary {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     update_summary: &UpdateSummary,
 ) -> Result<ThinkingSpaceSummary, ComhairleError> {
@@ -130,21 +131,26 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let summary = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let summary = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(summary)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: Uuid,
+) -> Result<ThinkingSpaceSummary, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ThinkingSpaceSummaryIden::Table)
         .columns(DEFAULT_COLUMNS)
         .and_where(Expr::col(ThinkingSpaceSummaryIden::Id).eq(id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let summary = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Thinking Space Summary")?;
 
@@ -227,7 +233,7 @@ impl ThinkingSpaceSummaryFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     filter_options: ThinkingSpaceSummaryFilterOptions,
 ) -> Result<Vec<ThinkingSpaceSummary>, ComhairleError> {
@@ -247,20 +253,25 @@ pub async fn list(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let summaries = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let summaries = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(summaries)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    id: Uuid,
+) -> Result<ThinkingSpaceSummary, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ThinkingSpaceSummaryIden::Table)
         .and_where(Expr::col(ThinkingSpaceSummaryIden::Id).eq(id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let summary = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let summary = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(summary)
 }
@@ -282,6 +293,8 @@ mod tests {
     use super::*;
 
     use serde_json::json;
+    use sqlx::PgPool;
+
     use std::error::Error;
 
     async fn create_thinking_space_resources(

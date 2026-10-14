@@ -53,6 +53,9 @@ use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;
 
+// Re-export database traits for use throughout the crate.
+pub(crate) use crate::db::{DbSource, DbTransaction};
+
 #[cfg(test)]
 // sqlx::test expands every migration into the test binary for every invocation.
 // So, it massively bloats both the binary size and compile time.

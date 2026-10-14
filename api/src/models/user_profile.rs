@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, types::Json};
+use sqlx::{prelude::FromRow, types::Json};
 use std::collections::HashMap;
 use tracing::instrument;
 use uuid::Uuid;
@@ -62,7 +62,7 @@ impl CreateUserProfile {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     profile: &CreateUserProfile,
 ) -> Result<UserProfile, ComhairleError> {
     let columns = profile.columns();
@@ -76,12 +76,13 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let new_profile = sqlx::query_as_with::<_, UserProfile, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     let _ = create_default_user_profile_demographics(
-        db,
+        &mut *conn,
         new_profile.user_id,
         profile.age.to_owned(),
         profile.ethnicity.to_owned(),
@@ -95,15 +96,16 @@ pub async fn create(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<UserProfile, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserProfileIden::Table)
         .and_where(Expr::col(UserProfileIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let profile = sqlx::query_as_with::<_, UserProfile, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("User Profile")?;
 
@@ -111,15 +113,19 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleE
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_user_id(db: &PgPool, user_id: &Uuid) -> Result<UserProfile, ComhairleError> {
+pub async fn get_by_user_id(
+    db: impl crate::DbSource,
+    user_id: &Uuid,
+) -> Result<UserProfile, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserProfileIden::Table)
         .and_where(Expr::col(UserProfileIden::UserId).eq(user_id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let profile = sqlx::query_as_with::<_, UserProfile, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("User Profile")?;
 
@@ -128,7 +134,7 @@ pub async fn get_by_user_id(db: &PgPool, user_id: &Uuid) -> Result<UserProfile, 
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update: &PartialUserProfile,
 ) -> Result<UserProfile, ComhairleError> {
@@ -157,23 +163,25 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let profile = sqlx::query_as_with::<_, UserProfile, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(profile)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<UserProfile, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(UserProfileIden::Table)
         .and_where(Expr::col(UserProfileIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let profile = sqlx::query_as_with::<_, UserProfile, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("User Profile")?;
 
@@ -181,7 +189,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleErro
 }
 
 pub async fn create_default_user_profile_demographics(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     age: Option<i32>,
     ethnicity: Option<String>,
@@ -196,10 +204,11 @@ pub async fn create_default_user_profile_demographics(
         .chain(std::iter::once(("political_party", political_party)));
 
     let mut responses = Vec::new();
+    let mut conn = db.acquire().await?;
     for (question_slug, value) in demographics {
         if let Some(value) = value {
             let response = demographics::create_demographics_response(
-                db,
+                &mut *conn,
                 demographics::CreateDemographicsResponse {
                     question_slug: question_slug.to_string(),
                     user_id,
@@ -246,7 +255,7 @@ pub struct UserProfileExport {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_demographics_for_export(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
 ) -> Result<Vec<UserProfileExport>, ComhairleError> {
     // We join conversation_demographics to ensure we only get required questions,
@@ -279,9 +288,10 @@ pub async fn get_demographics_for_export(
         ORDER BY up.created_at DESC
     "#;
 
+    let mut conn = db.acquire().await?;
     let profiles = sqlx::query_as::<_, UserProfileExport>(query)
         .bind(conversation_id)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(profiles)
@@ -289,7 +299,7 @@ pub async fn get_demographics_for_export(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_demographic_report(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
 ) -> Result<DemographicReport, ComhairleError> {
     // 1. Get total participants (unchanged)
@@ -298,9 +308,10 @@ pub async fn get_demographic_report(
         FROM user_participation up
         WHERE up.workflow_id = $1
     "#;
+    let mut conn = db.acquire().await?;
     let total_participants: i64 = sqlx::query_scalar(total_query)
         .bind(workflow_id)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     // 2. Get dynamically grouped counts for ALL string-based demographics
@@ -334,7 +345,7 @@ pub async fn get_demographic_report(
 
     let flat_rows: Vec<FlatDemographicRow> = sqlx::query_as(dynamic_report_query)
         .bind(workflow_id)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     // 3. Transform the flat rows into a nested HashMap for the UI
@@ -395,12 +406,12 @@ mod tests {
     use crate::routes::auth::SignupRequest;
 
     async fn get_demographic(
-        pool: &PgPool,
+        db: impl crate::DbSource,
         question_slug: String,
         user_id: Uuid,
     ) -> Result<Option<DemographicsResponse>, Box<dyn Error>> {
         let record = get_demographics_responses(
-            pool,
+            db,
             DemographicsResponsesFilterOptions {
                 question_slug: Some(question_slug),
                 user_id: Some(user_id),
@@ -416,13 +427,13 @@ mod tests {
     }
 
     async fn update_demographic(
-        pool: &PgPool,
+        db: impl crate::DbSource,
         question_slug: String,
         user_id: Uuid,
         value: Option<String>,
     ) -> Result<(), Box<dyn Error>> {
         crate::models::demographics::update_demographics_response(
-            pool,
+            db,
             question_slug,
             user_id,
             crate::models::demographics::PartialDemographicsResponse { value },
@@ -432,7 +443,7 @@ mod tests {
     }
 
     async fn add_default_demographics_to_conversation(
-        pool: &PgPool,
+        db: impl crate::DbSource,
         conversation_id: Uuid,
     ) -> Result<(), Box<dyn Error>> {
         use crate::models::demographics::{
@@ -440,9 +451,10 @@ mod tests {
         };
 
         let default_questions = vec!["age", "ethnicity", "gender", "zipcode", "political_party"];
+        let mut conn = db.acquire().await?;
         for question_slug in default_questions {
             let _ = create_conversation_demographics(
-                pool,
+                &mut *conn,
                 CreateConversationDemographics {
                     conversation_id,
                     question_slug: question_slug.to_string(),
@@ -456,13 +468,13 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_user_profile(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "test_user".to_string(),
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -512,13 +524,13 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_profile_by_user_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "test_user".to_string(),
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -549,13 +561,13 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_profile(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "test_user".to_string(),
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -636,13 +648,13 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_enforce_one_profile_per_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "test_user".to_string(),
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -675,13 +687,13 @@ mod tests {
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "test_user".to_string(),
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -864,13 +876,13 @@ mod tests {
 
         // Create users with different demographics
         let user1 = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "user1".to_string(),
                 password: "pw1".to_string(),
                 email: "user1@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -889,13 +901,13 @@ mod tests {
         .await?;
 
         let user2 = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "user2".to_string(),
                 password: "pw2".to_string(),
                 email: "user2@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -914,13 +926,13 @@ mod tests {
         .await?;
 
         let user3 = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "user3".to_string(),
                 password: "pw3".to_string(),
                 email: "user3@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -1062,13 +1074,13 @@ mod tests {
 
         // Create consented user
         let consented_user = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "consented".to_string(),
                 password: "pw".to_string(),
                 email: "consented@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -1088,13 +1100,13 @@ mod tests {
 
         // Create non-consented user
         let non_consented_user = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "non_consented".to_string(),
                 password: "pw".to_string(),
                 email: "non_consented@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -1188,13 +1200,13 @@ mod tests {
 
         // Create user with null demographics
         let user = crate::models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "user".to_string(),
                 password: "pw".to_string(),
                 email: "user@example.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 

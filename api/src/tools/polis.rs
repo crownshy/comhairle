@@ -2004,7 +2004,7 @@ mod tests {
 
     async fn setup_polis_aux(
         app: &Router,
-        pool: &PgPool,
+        pool: impl crate::DbSource,
         session: &mut UserSession,
         themes: Vec<String>,
     ) -> Result<PolisStatementAux, Box<dyn Error>> {
@@ -2334,7 +2334,7 @@ mod tests {
 
     /// Insert a pending aux row using `tid` as both zid and polis_statement_id.
     async fn insert_pending_aux(
-        pool: &PgPool,
+        pool: impl crate::DbSource,
         owner_id: Uuid,
         workflow_step_id: Uuid,
         tid: i32,

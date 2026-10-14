@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -62,16 +62,26 @@ impl Invite {
     }
 
     #[instrument(err(Debug), skip(db))]
-    pub async fn accept(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
+    pub async fn accept(
+        &self,
+        db: impl crate::DbSource,
+        user: &User,
+    ) -> Result<Invite, ComhairleError> {
+        let mut conn = db.acquire().await?;
         let new_status = if self.status == InviteStatus::Open {
             InviteStatus::Open
         } else {
             InviteStatus::Accepted
         };
 
-        invite_response::create(db, &user.id, &self.id, invite_response::Response::Accept)
-            .await
-            .map_err(|_| ComhairleError::InviteResponseAlreadyCreated)?;
+        invite_response::create(
+            &mut *conn,
+            &user.id,
+            &self.id,
+            invite_response::Response::Accept,
+        )
+        .await
+        .map_err(|_| ComhairleError::InviteResponseAlreadyCreated)?;
 
         let (sql, values) = Query::update()
             .table(InviteIden::Table)
@@ -84,14 +94,19 @@ impl Invite {
             .build_sqlx(PostgresQueryBuilder);
 
         let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
-            .fetch_one(db)
+            .fetch_one(&mut *conn)
             .await?;
 
         Ok(invite)
     }
 
     #[instrument(err(Debug), skip(db))]
-    pub async fn reject(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
+    pub async fn reject(
+        &self,
+        db: impl crate::DbSource,
+        user: &User,
+    ) -> Result<Invite, ComhairleError> {
+        let mut conn = db.acquire().await?;
         let new_status = if self.status == InviteStatus::Pending {
             InviteStatus::Rejected
         } else {
@@ -106,11 +121,16 @@ impl Invite {
             .build_sqlx(PostgresQueryBuilder);
 
         let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
-            .fetch_one(db)
+            .fetch_one(&mut *conn)
             .await?;
 
-        invite_response::create(db, &user.id, &invite.id, invite_response::Response::Reject)
-            .await?;
+        invite_response::create(
+            &mut *conn,
+            &user.id,
+            &invite.id,
+            invite_response::Response::Reject,
+        )
+        .await?;
         Ok(invite)
     }
 
@@ -215,9 +235,10 @@ pub enum LoginBehaviour {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
 ) -> Result<Vec<Invite>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let query = Query::select()
         .from(InviteIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -227,13 +248,17 @@ pub async fn list_for_conversation(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
     let invites = sqlx::query_as_with::<_, Invite, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
     Ok(invites)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn list_for_event(db: &PgPool, event_id: &Uuid) -> Result<Vec<Invite>, ComhairleError> {
+pub async fn list_for_event(
+    db: impl crate::DbSource,
+    event_id: &Uuid,
+) -> Result<Vec<Invite>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let query = Query::select()
         .from(InviteIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -243,22 +268,26 @@ pub async fn list_for_event(db: &PgPool, event_id: &Uuid) -> Result<Vec<Invite>,
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
     let invites = sqlx::query_as_with::<_, Invite, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(invites)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, invite_id: &Uuid) -> Result<Invite, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    invite_id: &Uuid,
+) -> Result<Invite, ComhairleError> {
     let (sql, values) = Query::select()
         .from(InviteIden::Table)
         .columns(DEFAULT_COLUMNS)
         .and_where(Expr::col(InviteIden::Id).eq(*invite_id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Invite")?;
 
@@ -267,10 +296,11 @@ pub async fn get_by_id(db: &PgPool, invite_id: &Uuid) -> Result<Invite, Comhairl
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     partial_invite: PartialInvite,
 ) -> Result<Invite, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let mut query = Query::update();
     query.table(InviteIden::Table);
 
@@ -284,7 +314,7 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Invite")?;
 
@@ -292,7 +322,8 @@ pub async fn update(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Invite, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Invite, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::delete()
         .from_table(InviteIden::Table)
         .and_where(Expr::col(InviteIden::Id).eq(id.to_owned()))
@@ -300,7 +331,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Invite, ComhairleError> {
         .build_sqlx(PostgresQueryBuilder);
 
     let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Invite")?;
 
@@ -309,7 +340,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Invite, ComhairleError> {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     create_invite: CreateInviteDTO,
     conversation_id: &Uuid,
     user_id: Option<Uuid>,
@@ -343,6 +374,7 @@ pub async fn create(
         values.push(user_id.into());
     }
 
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::insert()
         .into_table(InviteIden::Table)
         .columns(columns)
@@ -352,7 +384,7 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_as_with::<_, Invite, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(ComhairleError::FailedToCreateInvite)
 }
@@ -366,9 +398,10 @@ pub struct DailyResponseStats {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_stats_for_invite(
-    db: &PgPool,
+    db: impl crate::DbSource,
     invite_id: &Uuid,
 ) -> Result<Vec<DailyResponseStats>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as::<_, DailyResponseStats>(
         r#"
         SELECT date_trunc('day', created_at) as day,
@@ -381,7 +414,7 @@ pub async fn get_stats_for_invite(
     "#,
     )
     .bind(invite_id)
-    .fetch_all(db)
+    .fetch_all(&mut *conn)
     .await
     .map_err(ComhairleError::InviteStatsAggregationError)?;
 
@@ -451,10 +484,10 @@ mod tests {
     }
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_correct_stats_for_invite(db: PgPool) -> Result<(), Box<dyn Error>> {
-        let user1 = users::create_user(&Faker.fake(), &db).await?;
-        let user2 = users::create_user(&Faker.fake(), &db).await?;
-        let user3 = users::create_user(&Faker.fake(), &db).await?;
-        let user4 = users::create_user(&Faker.fake(), &db).await?;
+        let user1 = users::create_user(&db, &Faker.fake()).await?;
+        let user2 = users::create_user(&db, &Faker.fake()).await?;
+        let user3 = users::create_user(&db, &Faker.fake()).await?;
+        let user4 = users::create_user(&db, &Faker.fake()).await?;
 
         let bot_service = MockComhairleBotService::base();
         let bot_service: Arc<dyn ComhairleBotService> = Arc::new(bot_service);
@@ -537,8 +570,8 @@ mod tests {
     async fn open_invite_should_remain_open_when_rejected(
         db: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let user1 = users::create_user(&Faker.fake(), &db).await?;
-        let user2 = users::create_user(&Faker.fake(), &db).await?;
+        let user1 = users::create_user(&db, &Faker.fake()).await?;
+        let user2 = users::create_user(&db, &Faker.fake()).await?;
 
         let bot_service = MockComhairleBotService::base();
         let bot_service: Arc<dyn ComhairleBotService> = Arc::new(bot_service);
@@ -615,8 +648,8 @@ mod tests {
     async fn pending_invite_should_be_marked_rejected_when_rejected(
         db: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let user1 = users::create_user(&Faker.fake(), &db).await?;
-        let user2 = users::create_user(&Faker.fake(), &db).await?;
+        let user1 = users::create_user(&db, &Faker.fake()).await?;
+        let user2 = users::create_user(&db, &Faker.fake()).await?;
 
         let bot_service = MockComhairleBotService::base();
         let bot_service: Arc<dyn ComhairleBotService> = Arc::new(bot_service);
@@ -691,10 +724,10 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_invites_for_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let user1 = users::create_user(&Faker.fake(), &pool).await?;
-        let user2 = users::create_user(&Faker.fake(), &pool).await?;
-        let user3 = users::create_user(&Faker.fake(), &pool).await?;
-        let user4 = users::create_user(&Faker.fake(), &pool).await?;
+        let user1 = users::create_user(&pool, &Faker.fake()).await?;
+        let user2 = users::create_user(&pool, &Faker.fake()).await?;
+        let user3 = users::create_user(&pool, &Faker.fake()).await?;
+        let user4 = users::create_user(&pool, &Faker.fake()).await?;
 
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;

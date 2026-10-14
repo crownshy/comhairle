@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::ComhairleState;
+use crate::DbTransaction;
 use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::models::users::UserIden;
 use crate::tools::ToolConfigSanitize;
@@ -13,7 +14,7 @@ use sea_query::{JoinType, PostgresQueryBuilder};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
@@ -338,15 +339,19 @@ impl CreateWorkflowStep {
 
 /// Get a workflow_step by ID (original struct, not localized)
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<WorkflowStep, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(WorkflowStepIden::Table)
         .and_where(Expr::col(WorkflowStepIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let workflow_step = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Workflow Step")?;
 
@@ -356,7 +361,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, Comhairle
 /// Get a workflow_step by ID (localized)
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localised_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     locale: &str,
 ) -> Result<LocalizedWorkflowStep, ComhairleError> {
@@ -369,8 +374,9 @@ pub async fn get_localised_by_id(
     let (sql, values) = LocalizedWorkflowStep::query_to_localisation(select_query, locale)
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let workflow_step = sqlx::query_as_with::<_, LocalizedWorkflowStep, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Workflow Step")?;
 
@@ -421,7 +427,7 @@ pub async fn delete(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     workflow_id: &Uuid,
     update: &PartialWorkflowStep,
@@ -478,7 +484,10 @@ pub async fn update(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn list(db: &PgPool, workflow_id: &Uuid) -> Result<Vec<WorkflowStep>, ComhairleError> {
+pub async fn list(
+    db: impl crate::DbSource,
+    workflow_id: &Uuid,
+) -> Result<Vec<WorkflowStep>, ComhairleError> {
     let query = Query::select()
         .from(WorkflowStepIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -488,8 +497,9 @@ pub async fn list(db: &PgPool, workflow_id: &Uuid) -> Result<Vec<WorkflowStep>, 
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let workflow_steps = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(workflow_steps)
@@ -497,7 +507,7 @@ pub async fn list(db: &PgPool, workflow_id: &Uuid) -> Result<Vec<WorkflowStep>, 
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_localized(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
     locale: &str,
 ) -> Result<Vec<LocalizedWorkflowStep>, ComhairleError> {
@@ -516,8 +526,9 @@ pub async fn list_localized(
     let (sql, values) = LocalizedWorkflowStep::query_to_localisation(query, locale)
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let workflow_steps = sqlx::query_as_with::<_, LocalizedWorkflowStep, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(workflow_steps)
@@ -533,7 +544,7 @@ pub struct LocalizedWorkflowStepWithProgress {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_localized_with_progress(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
     locale: &str,
     user_id: &Uuid,
@@ -567,21 +578,26 @@ pub async fn list_localized_with_progress(
     let (sql, values) = LocalizedWorkflowStep::query_to_localisation(query, locale)
         .build_sqlx(PostgresQueryBuilder);
 
-    let workflow_steps = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let workflow_steps = sqlx::query_as_with(&sql, values)
+        .fetch_all(&mut *conn)
+        .await?;
 
     Ok(workflow_steps)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_with_translations(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
     locale: &str,
 ) -> Result<Vec<WorkflowStepWithTranslations>, ComhairleError> {
-    let workflow_steps = list(db, workflow_id).await?;
+    let mut conn = db.acquire().await?;
+    let workflow_steps = list(&mut *conn, workflow_id).await?;
     let mut steps_with_translations = Vec::new();
     for step in workflow_steps {
-        let step_with_trans = WorkflowStepWithTranslations::from_original(db, step, locale).await?;
+        let step_with_trans =
+            WorkflowStepWithTranslations::from_original(&mut *conn, step, locale).await?;
         steps_with_translations.push(step_with_trans);
     }
     Ok(steps_with_translations)
@@ -694,7 +710,10 @@ pub async fn create(
 /// Used by the seal to tell "finished every step" apart from "there are no steps", which
 /// otherwise look identical to `get_current_active_step_for_user`.
 #[instrument(err(Debug), skip(db))]
-pub async fn count_for_workflow(db: &PgPool, workflow_id: &Uuid) -> Result<i64, ComhairleError> {
+pub async fn count_for_workflow(
+    db: impl crate::DbSource,
+    workflow_id: &Uuid,
+) -> Result<i64, ComhairleError> {
     let (sql, values) = Query::select()
         .expr(Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id)).count())
         .from(WorkflowStepIden::Table)
@@ -703,14 +722,17 @@ pub async fn count_for_workflow(db: &PgPool, workflow_id: &Uuid) -> Result<i64, 
         )
         .build_sqlx(PostgresQueryBuilder);
 
-    let (count,): (i64,) = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let (count,): (i64,) = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *conn)
+        .await?;
 
     Ok(count)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_current_active_step_for_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<Option<WorkflowStep>, ComhairleError> {
@@ -738,8 +760,9 @@ pub async fn get_current_active_step_for_user(
         .limit(1)
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await?;
 
     Ok(result)
@@ -747,7 +770,7 @@ pub async fn get_current_active_step_for_user(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_current_active_step_for_user_localised(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<Option<LocalizedWorkflowStep>, ComhairleError> {
@@ -778,8 +801,9 @@ pub async fn get_current_active_step_for_user_localised(
     let (sql, values) =
         LocalizedWorkflowStep::query_to_localisation(query, "en").build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as_with::<_, LocalizedWorkflowStep, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await?;
 
     Ok(result)
@@ -801,6 +825,7 @@ mod tests {
     };
 
     use super::*;
+    use sqlx::PgPool;
     use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
@@ -972,13 +997,13 @@ mod tests {
             .await?;
 
         let user = models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "backfill_user".to_string(),
                 password: "test_pw".to_string(),
                 avatar_url: None,
                 email: "backfill_email".to_string(),
             },
-            &pool,
         )
         .await?;
         workflow::register_user(&pool, &workflow.id, &user).await?;
@@ -1043,13 +1068,13 @@ mod tests {
         let first_step: WorkflowStepDto = serde_json::from_value(steps.first().unwrap().clone())?;
         let second_step: WorkflowStepDto = serde_json::from_value(steps.get(1).unwrap().clone())?;
         let user = models::users::create_user(
+            &pool,
             &SignupRequest {
                 username: "test_user".to_string(),
                 password: "test_pw".to_string(),
                 avatar_url: None,
                 email: "test_email".to_string(),
             },
-            &pool,
         )
         .await?;
         workflow::register_user(&pool, &workflow.id, &user).await?;

@@ -11,7 +11,6 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -99,7 +98,7 @@ pub async fn get(
 /// - the target user cannot be found or created (propagated from
 ///   [`get_or_create_user_by_email`] or [`users::get_user_by_email`]).
 async fn resolve_event_attendee(
-    db: &PgPool,
+    db: impl crate::DbSource,
     owner_id: Uuid,
     signup_mode: &SignupMode,
     opt_user: Option<User>,
@@ -128,7 +127,7 @@ async fn resolve_event_attendee(
         return Err(ComhairleError::UserIsNotConversationOwner);
     }
 
-    users::get_user_by_email(&email, db).await
+    users::get_user_by_email(db, &email).await
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
@@ -189,7 +188,7 @@ pub async fn create(
     if let Some(ref email) = user.email
         && &event_attendance.role == "participant"
     {
-        let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
+        let event_owner = users::get_user_by_id(&state.db, &conversation.owner_id).await?;
 
         event
             .schedule_event_reminders(
@@ -227,7 +226,7 @@ async fn create_facilitator(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<CreateFacilitatorRequest>,
 ) -> Result<(StatusCode, Json<EventAttendanceDto>), ComhairleError> {
-    let user = users::get_user_by_email(&payload.email, &state.db).await?;
+    let user = users::get_user_by_email(&state.db, &payload.email).await?;
 
     let create_event_attendance = CreateEventAttendance {
         user_id: user.id,
@@ -441,13 +440,13 @@ mod tests {
         let (_, logged_in_user, _) = session.current_user(&app).await?;
 
         let user = users::create_user(
+            &pool,
             &SignupRequest {
                 email: "test-user-abc@foo.com".to_string(),
                 username: "test_user".to_string(),
                 password: "asdQWE)(*UIOOPOI".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 

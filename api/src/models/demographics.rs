@@ -23,7 +23,6 @@ use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use sqlx::prelude::FromRow;
 use sqlx::{Decode, Postgres, Type};
 use tracing::instrument;
@@ -466,10 +465,11 @@ impl DemographicsResponsesFilterOptions {
 /// Get all associations between conversations and demographics questions, with optional filters for conversation ID and question slug.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_conversation_demographics(
-    db: &PgPool,
+    db: impl crate::DbSource,
     filters: ConversationDemographicsFilterOptions,
     page_options: PageOptions,
 ) -> Result<PaginatedResults<ConversationDemographics>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let mut query = sea_query::Query::select()
         .columns(CONVERSATION_DEMOGRAPHICS_COLUMNS)
         .from(ConversationDemographicsIden::Table)
@@ -477,8 +477,9 @@ pub async fn get_conversation_demographics(
 
     query = filters.apply(query);
 
-    let fetched: PaginatedResults<ConversationDemographics> =
-        page_options.fetch_paginated_results(db, query).await?;
+    let fetched: PaginatedResults<ConversationDemographics> = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(fetched)
 }
@@ -486,9 +487,10 @@ pub async fn get_conversation_demographics(
 /// Create a new association between a conversation and a demographics question.
 #[instrument(err(Debug), skip(db))]
 pub async fn create_conversation_demographics(
-    db: &PgPool,
+    db: impl crate::DbSource,
     new_conversation_demographics: CreateConversationDemographics,
 ) -> Result<ConversationDemographics, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = sea_query::Query::insert()
         .into_table(ConversationDemographicsIden::Table)
         .columns(CreateConversationDemographics::columns())
@@ -497,7 +499,7 @@ pub async fn create_conversation_demographics(
         .build_sqlx(PostgresQueryBuilder);
 
     let created = sqlx::query_as_with::<_, ConversationDemographics, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(created)
@@ -506,10 +508,11 @@ pub async fn create_conversation_demographics(
 /// Remove an association between a conversation and a demographics question.
 #[instrument(err(Debug), skip(db))]
 pub async fn delete_conversation_demographics(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     question_slug: String,
 ) -> Result<Option<ConversationDemographics>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = sea_query::Query::delete()
         .from_table(ConversationDemographicsIden::Table)
         .and_where(Expr::col(ConversationDemographicsIden::ConversationId).eq(conversation_id))
@@ -518,7 +521,7 @@ pub async fn delete_conversation_demographics(
         .build_sqlx(PostgresQueryBuilder);
 
     let deleted = sqlx::query_as_with::<_, ConversationDemographics, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await
         .resolve_db_err("conversation_demographics")?;
 
@@ -532,9 +535,10 @@ pub async fn delete_conversation_demographics(
 /// Get a single demographics question by its slug.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_demographics_question_by_slug(
-    db: &PgPool,
+    db: impl crate::DbSource,
     slug: &str,
 ) -> Result<DemographicsQuestion, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = sea_query::Query::select()
         .columns(DEMOGRAPHICS_QUESTION_COLUMNS)
         .from(DemographicsQuestionIden::Table)
@@ -542,7 +546,7 @@ pub async fn get_demographics_question_by_slug(
         .build_sqlx(PostgresQueryBuilder);
 
     let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("demographics_question")?;
 
@@ -552,7 +556,7 @@ pub async fn get_demographics_question_by_slug(
 /// Get a demographics questions with optional filters.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_demographics_questions(
-    db: &PgPool,
+    db: impl crate::DbSource,
     filters: DemographicsQuestionsFilterOptions,
     page_options: PageOptions,
 ) -> Result<PaginatedResults<DemographicsQuestion>, ComhairleError> {
@@ -563,8 +567,10 @@ pub async fn get_demographics_questions(
 
     query = filters.apply(query);
 
-    let questions: PaginatedResults<DemographicsQuestion> =
-        page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let questions: PaginatedResults<DemographicsQuestion> = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(questions)
 }
@@ -572,7 +578,7 @@ pub async fn get_demographics_questions(
 /// Create a new demographics question.
 #[instrument(err(Debug), skip(db))]
 pub async fn create_demographics_question(
-    db: &PgPool,
+    db: impl crate::DbSource,
     new_demographics_question: CreateDemographicsQuestion,
 ) -> Result<DemographicsQuestion, ComhairleError> {
     let (sql, values) = sea_query::Query::insert()
@@ -582,8 +588,9 @@ pub async fn create_demographics_question(
         .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_QUESTION_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("demographics_question")?;
 
@@ -593,14 +600,15 @@ pub async fn create_demographics_question(
 /// Update a demographics question.
 #[instrument(err(Debug), skip(db))]
 pub async fn update_demographics_question(
-    db: &PgPool,
+    db: impl crate::DbSource,
     slug: String,
     updated_demographics_question: PartialDemographicsQuestion,
 ) -> Result<DemographicsQuestion, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let update_values = updated_demographics_question.to_values();
 
     if update_values.is_empty() {
-        return get_demographics_question_by_slug(db, &slug).await;
+        return get_demographics_question_by_slug(&mut *conn, &slug).await;
     }
 
     let (sql, values) = sea_query::Query::update()
@@ -611,7 +619,7 @@ pub async fn update_demographics_question(
         .build_sqlx(PostgresQueryBuilder);
 
     let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("demographics_question")?;
 
@@ -621,9 +629,10 @@ pub async fn update_demographics_question(
 /// Delete a demographics question.
 #[instrument(err(Debug), skip(db))]
 pub async fn delete_demographics_question(
-    db: &PgPool,
+    db: impl crate::DbSource,
     slug: String,
 ) -> Result<Option<DemographicsQuestion>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = sea_query::Query::delete()
         .from_table(DemographicsQuestionIden::Table)
         .and_where(Expr::col(DemographicsQuestionIden::Slug).eq(slug))
@@ -631,7 +640,7 @@ pub async fn delete_demographics_question(
         .build_sqlx(PostgresQueryBuilder);
 
     let deleted_question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await
         .resolve_db_err("demographics_question")?;
 
@@ -645,10 +654,11 @@ pub async fn delete_demographics_question(
 /// Get responses with optional filters.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_demographics_responses(
-    db: &PgPool,
+    db: impl crate::DbSource,
     filters: DemographicsResponsesFilterOptions,
     page_options: PageOptions,
 ) -> Result<PaginatedResults<DemographicsResponse>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let mut query = sea_query::Query::select();
 
     query = query
@@ -662,18 +672,20 @@ pub async fn get_demographics_responses(
 
     query = filters.apply(query);
 
-    let responses: PaginatedResults<DemographicsResponse> =
-        page_options.fetch_paginated_results(db, query).await?;
+    let responses: PaginatedResults<DemographicsResponse> = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(responses)
 }
 
 async fn validate_response_value(
-    db: &PgPool,
+    db: impl crate::DbSource,
     question_slug: &str,
     value: &str,
 ) -> Result<(), ComhairleError> {
-    let question = get_demographics_question_by_slug(db, question_slug).await?;
+    let mut conn = db.acquire().await?;
+    let question = get_demographics_question_by_slug(&mut *conn, question_slug).await?;
 
     if let Some(bucket_config) = &question.bucket_config
         && !bucket_config.0.accepts_value(value)
@@ -689,11 +701,12 @@ async fn validate_response_value(
 /// Add a new response for a specific demographics question and user.
 #[instrument(err(Debug), skip(db))]
 pub async fn create_demographics_response(
-    db: &PgPool,
+    db: impl crate::DbSource,
     new_demographics_response: CreateDemographicsResponse,
 ) -> Result<DemographicsResponse, ComhairleError> {
+    let mut conn = db.acquire().await?;
     validate_response_value(
-        db,
+        &mut *conn,
         &new_demographics_response.question_slug,
         &new_demographics_response.value,
     )
@@ -707,7 +720,7 @@ pub async fn create_demographics_response(
         .build_sqlx(PostgresQueryBuilder);
 
     let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("demographics_response")?;
 
@@ -717,13 +730,14 @@ pub async fn create_demographics_response(
 /// Update a response for a specific demographics question and user.
 #[instrument(err(Debug), skip(db))]
 pub async fn update_demographics_response(
-    db: &PgPool,
+    db: impl crate::DbSource,
     question_slug: String,
     user_id: Uuid,
     updated_demographics_response: PartialDemographicsResponse,
 ) -> Result<DemographicsResponse, ComhairleError> {
+    let mut conn = db.acquire().await?;
     if let Some(value) = &updated_demographics_response.value {
-        validate_response_value(db, &question_slug, value).await?;
+        validate_response_value(&mut *conn, &question_slug, value).await?;
     }
 
     let update_values = updated_demographics_response.to_values();
@@ -737,7 +751,7 @@ pub async fn update_demographics_response(
             .build_sqlx(PostgresQueryBuilder);
 
         let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, query_values)
-            .fetch_one(db)
+            .fetch_one(&mut *conn)
             .await
             .resolve_db_err("demographics_response")?;
 
@@ -753,7 +767,7 @@ pub async fn update_demographics_response(
         .build_sqlx(PostgresQueryBuilder);
 
     let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("demographics_response")?;
 
@@ -763,10 +777,11 @@ pub async fn update_demographics_response(
 /// Delete a response for a specific demographics question and user.
 #[instrument(err(Debug), skip(db))]
 pub async fn delete_demographics_response(
-    db: &PgPool,
+    db: impl crate::DbSource,
     question_slug: String,
     user_id: Uuid,
 ) -> Result<Option<DemographicsResponse>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = sea_query::Query::delete()
         .from_table(DemographicsResponseIden::Table)
         .and_where(Expr::col(DemographicsResponseIden::QuestionSlug).eq(question_slug))
@@ -775,7 +790,7 @@ pub async fn delete_demographics_response(
         .build_sqlx(PostgresQueryBuilder);
 
     let deleted = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await
         .resolve_db_err("demographics_response")?;
 
@@ -784,6 +799,8 @@ pub async fn delete_demographics_response(
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::test_helpers::UserSession;
 

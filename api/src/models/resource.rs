@@ -6,7 +6,6 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
@@ -174,7 +173,7 @@ pub struct ResourceUploadResponse {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create_resource(
-    db: &PgPool,
+    db: impl crate::DbSource,
     new_resource: CreateResource,
     owner_id: Uuid,
 ) -> Result<Resource, ComhairleError> {
@@ -200,8 +199,9 @@ pub async fn create_resource(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let resource = sqlx::query_as_with::<_, Resource, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|e| ComhairleError::FailedToCreateResource {
             resource_type: "Resource".into(),
@@ -212,15 +212,16 @@ pub async fn create_resource(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get(db: &PgPool, id: Uuid) -> Result<Resource, ComhairleError> {
+pub async fn get(db: impl crate::DbSource, id: Uuid) -> Result<Resource, ComhairleError> {
     let (sql, values) = sea_query::Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ResourceIden::Table)
         .and_where(Expr::col(ResourceIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let resource = sqlx::query_as_with::<_, Resource, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_| ComhairleError::NoResourceFoundForId(id.to_owned()))?;
     Ok(resource)

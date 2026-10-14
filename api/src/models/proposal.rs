@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -51,12 +51,13 @@ pub struct CreateProposal {
 /// Creates a proposal and its ordered sections, returning both.
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     new_proposal: &CreateProposal,
     locale: &str,
 ) -> Result<(Proposal, Vec<ProposalSection>), ComhairleError> {
-    let title = new_translation(db, locale, &new_proposal.title, TextFormat::Plain).await?;
+    let mut conn = db.acquire().await?;
+    let title = new_translation(&mut *conn, locale, &new_proposal.title, TextFormat::Plain).await?;
 
     let (sql, values) = Query::insert()
         .into_table(ProposalIden::Table)
@@ -65,12 +66,12 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let proposal: Proposal = query_as_with(&sql, values).fetch_one(db).await?;
+    let proposal: Proposal = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     let mut sections = Vec::with_capacity(new_proposal.sections.len());
     for (index, body) in new_proposal.sections.iter().enumerate() {
         let section =
-            proposal_section::create(db, &proposal.id, index as i32, body, locale).await?;
+            proposal_section::create(&mut *conn, &proposal.id, index as i32, body, locale).await?;
         sections.push(section);
     }
 
@@ -79,7 +80,7 @@ pub async fn create(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_localized(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     locale: &str,
 ) -> Result<Vec<LocalizedProposal>, ComhairleError> {
@@ -100,13 +101,17 @@ pub async fn list_localized(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let proposals = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let proposals = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(proposals)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn list(db: &PgPool, workflow_step_id: &Uuid) -> Result<Vec<Proposal>, ComhairleError> {
+pub async fn list(
+    db: impl crate::DbSource,
+    workflow_step_id: &Uuid,
+) -> Result<Vec<Proposal>, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ProposalIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -114,28 +119,30 @@ pub async fn list(db: &PgPool, workflow_step_id: &Uuid) -> Result<Vec<Proposal>,
         .order_by(ProposalIden::CreatedAt, sea_query::Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
-    let proposals = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let proposals = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(proposals)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_with_translations(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     locale: &str,
 ) -> Result<Vec<ProposalWithTranslations>, ComhairleError> {
-    let proposals = list(db, workflow_step_id).await?;
+    let mut conn = db.acquire().await?;
+    let proposals = list(&mut *conn, workflow_step_id).await?;
     let mut out = Vec::with_capacity(proposals.len());
     for proposal in proposals {
-        out.push(ProposalWithTranslations::from_original(db, proposal, locale).await?);
+        out.push(ProposalWithTranslations::from_original(&mut *conn, proposal, locale).await?);
     }
     Ok(out)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     locale: &str,
 ) -> Result<LocalizedProposal, ComhairleError> {
@@ -149,8 +156,9 @@ pub async fn get_localized_by_id(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let proposal = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Proposal")?;
 
@@ -160,15 +168,16 @@ pub async fn get_localized_by_id(
 /// Get a proposal by ID (original struct, not localized). Used by the sealed gate on
 /// proposal responses to find the step, and from it the workflow, the seal is evaluated for.
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<Proposal, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (ProposalIden::Table, col)))
         .from(ProposalIden::Table)
         .and_where(Expr::col((ProposalIden::Table, ProposalIden::Id)).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let proposal = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Proposal")?;
 
@@ -176,14 +185,15 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleErro
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Proposal, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ProposalIden::Table)
         .and_where(Expr::col(ProposalIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let proposal = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let proposal = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(proposal)
 }
@@ -191,6 +201,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> 
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use sqlx::PgPool;
 
     use crate::{
         models::model_test_helpers::{
