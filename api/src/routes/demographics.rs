@@ -264,7 +264,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .security_requirement("JWT")
                     .response::<201, Json<ConversationDemographics>>()
             }))
-            .api_route("/{conversation_id}/{question_slug}/", delete_with(delete_conversation_demographics, |op| {
+            .api_route("/{conversation_id}/{question_slug}", delete_with(delete_conversation_demographics, |op| {
                 op.id("DeleteConversationDemographicsByQuestion")
                     .tag("Demographics")
                     .summary("Delete conversation demographics by question")

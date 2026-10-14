@@ -5465,7 +5465,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "delete",
-    path: "/demographics/conversations_questions/:conversation_id/:question_slug/",
+    path: "/demographics/conversations_questions/:conversation_id/:question_slug",
     alias: "DeleteConversationDemographicsByQuestion",
     description: `Delete demographics responses for a specific conversation and question`,
     requestFormat: "json",
