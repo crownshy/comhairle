@@ -541,22 +541,15 @@
 				{#await data.streamedChatInstructions}
 					<Skeleton class="h-9 w-full" />
 				{:then chatInstructions}
-					{#if chatInstructions.err !== null}
-						{notifications.addFlash({
-							message: 'Could not load chat instructions, please try again',
-							priority: 'ERROR'
-						})}
-					{:else}
-						<Input
-							name="target_reading_age"
-							disabled={!canEdit}
-							type="number"
-							defaultValue={chatInstructions.ok.targetReadingAge ?? 9}
-							min="5"
-							max="18"
-							oninput={updateChatInstructions}
-						/>
-					{/if}
+					<Input
+						name="target_reading_age"
+						disabled={!canEdit}
+						type="number"
+						defaultValue={chatInstructions.ok?.targetReadingAge ?? 9}
+						min="5"
+						max="18"
+						oninput={updateChatInstructions}
+					/>
 				{/await}
 			</div>
 		</div>
