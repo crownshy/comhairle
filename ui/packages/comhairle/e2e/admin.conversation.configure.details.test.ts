@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { eventually, test } from './utils/testing';
-import { exists, testWithRefresh } from './utils';
+import { sleep, testWithRefresh } from './utils';
 import { login } from './utils/auth';
 import { TEST_CONVERSATION_TITLE } from './utils/constants';
 import Conversation from './utils/navigation/Conversation';
@@ -41,19 +41,22 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// 	await page.getByRole('button', { name: 'Remove' }).first().click();
 	// });
 
+	await sleep(1.5);
+	await page.reload();
+
 	await testWithRefresh(page, async () => {
 		await Title.expect();
 		await ShortDescription.expect();
 		await Description.expect();
 
 		const header = page.getByRole('heading', {
-			description: Title.currentValue,
+			description: Title.currentValue(),
 			exact: true
 		});
-		await eventually(async () => expect(await exists(header)).toBe(true));
+		await eventually(() => expect(header).toBeVisible());
 
-		const conversation = page.getByRole('link', { name: Title.currentValue });
-		await eventually(async () => expect(await exists(conversation)).toBe(true));
+		const conversation = page.getByRole('link', { name: Title.currentValue() });
+		await eventually(() => expect(conversation).toBeVisible());
 
 		// Translation stuff
 		// await expect(

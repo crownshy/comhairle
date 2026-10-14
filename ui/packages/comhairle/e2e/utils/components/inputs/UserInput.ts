@@ -1,7 +1,7 @@
 import { generateValue } from '../..';
 
 type UserInputReturn = {
-	currentValue: string;
+	currentValue: () => string;
 	write: (value?: string) => Promise<void>;
 	expect: () => Promise<void>;
 };
@@ -21,7 +21,7 @@ const UserInput = async ({
 	let currentValue: string = '';
 
 	return {
-		get currentValue() {
+		currentValue() {
 			return currentValue;
 		},
 		async write(value = generateValue()) {

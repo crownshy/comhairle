@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 test('Configure/Moderation-Policy page', async ({ page }) => {
 	const Info = page.getByText('This conversation uses the');
 
-	expect(await exists(Info)).toBe(true);
+	await eventually(() => expect(Info).toBeVisible());
 
 	const AddReason = page.getByRole('button', { name: 'Add reason' });
 	await AddReason.click();
@@ -26,9 +26,7 @@ test('Configure/Moderation-Policy page', async ({ page }) => {
 	const NewDescription = await Textbox('What counts under this reason', { page }, { index: 5 });
 	await NewDescription.write();
 
-	await eventually(async () => {
-		await expect(page.getByText('Saved')).toBeVisible();
-	});
+	await eventually(() => expect(page.getByText('Saved')).toBeVisible());
 
 	await testWithRefresh(page, async () => {
 		await NewReason.expect();
@@ -52,5 +50,8 @@ test('Configure/Moderation-Policy page', async ({ page }) => {
 	const ResetToDefault = page.getByRole('button', { name: 'Reset to default' });
 	await ResetToDefault.click();
 
-	expect(await exists(Info)).toBe(true);
+	await eventually(async () => {
+		await expect(Info).toBeVisible();
+		await expect(page.getByText('Saved')).toBeVisible();
+	});
 });

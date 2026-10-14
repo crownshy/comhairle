@@ -30,10 +30,12 @@ test('Configure/glossary page', async ({ page }) => {
 	await page.getByRole('button', { name: 'Remove term' }).nth(1).click();
 	await page.getByRole('textbox', { name: 'Search terms' }).click();
 
-	const incorrectSearchTerm = GlossaryEditorTerm.currentValue + 'a';
+	const incorrectSearchTerm = GlossaryEditorTerm.currentValue() + 'a';
 	await page.getByRole('textbox', { name: 'Search terms' }).fill(incorrectSearchTerm);
 	await expect(page.getByText(`No terms match "${incorrectSearchTerm}"`)).toBeVisible();
 	await page.getByRole('textbox', { name: 'Search terms' }).click();
-	await page.getByRole('textbox', { name: 'Search terms' }).fill(GlossaryEditorTerm.currentValue);
+	await page
+		.getByRole('textbox', { name: 'Search terms' })
+		.fill(GlossaryEditorTerm.currentValue());
 	await expect(GlossaryEditorTerm.locator()).toBeVisible();
 });
