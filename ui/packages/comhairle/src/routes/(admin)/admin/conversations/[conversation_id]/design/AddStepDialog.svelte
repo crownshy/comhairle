@@ -56,6 +56,7 @@
 		}
 
 		if (!created.ok) return;
+		await invalidate(key('admin/conversation/workflow'));
 		await invalidate(key('admin/conversation/design/workflow'));
 		notifications.send({ priority: 'INFO', message: 'Step added' });
 		newStepHighlight.flag(created.ok.id);
