@@ -20,6 +20,8 @@ pub mod websockets;
 pub mod wiki_poll_service;
 pub mod worker_service;
 
+pub mod sensemakar_service;
+
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
     Extension, Router,

@@ -349,6 +349,7 @@ pub(crate) unsafe fn create_dummy_state() -> ComhairleState {
                 websocket_service: None,
                 whitelisted_domains: None,
                 worker_service: None,
+                sensemaker_model: None,
             },
             mailer: Arc::new(DummyMailer),
             websockets: Arc::new(DummyWebSocketService),

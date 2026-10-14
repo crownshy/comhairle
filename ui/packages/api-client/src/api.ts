@@ -666,6 +666,41 @@ export const ModerateStatementAuxBatchResponse = z
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
 >;
+export const RequestSummaryRequest = z
+  .object({
+    additional_instructions: z.union([z.string(), z.null()]).optional(),
+    context: z.union([z.string(), z.null()]).optional(),
+    reading_age_target: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type RequestSummaryRequest = z.infer<typeof RequestSummaryRequest>;
+export const RequestSummaryResponse = z
+  .object({ job_id: z.string().uuid() })
+  .passthrough();
+export type RequestSummaryResponse = z.infer<typeof RequestSummaryResponse>;
+export const WikiPollConversationSummary = z
+  .object({
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    job_id: z.union([z.string(), z.null()]).optional(),
+    poll_data: z.unknown(),
+    result: z.unknown(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type WikiPollConversationSummary = z.infer<
+  typeof WikiPollConversationSummary
+>;
+export const PaginatedResults_for_WikiPollConversationSummary = z
+  .object({
+    records: z.array(WikiPollConversationSummary),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type PaginatedResults_for_WikiPollConversationSummary = z.infer<
+  typeof PaginatedResults_for_WikiPollConversationSummary
+>;
 export const SplitStatementRequest = z
   .object({ replacements: z.array(z.string()) })
   .passthrough();
@@ -3493,6 +3528,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
+  RequestSummaryRequest,
+  RequestSummaryResponse,
+  WikiPollConversationSummary,
+  PaginatedResults_for_WikiPollConversationSummary,
   SplitStatementRequest,
   SplitStatementResponse,
   FormField,
@@ -6908,6 +6947,61 @@ Use a raw HTTP request and process the response body incrementally.
     description: `Clears requires_validation without changing the translation&#x27;s content, for when an admin reviews a machine translation and finds it&#x27;s already correct.`,
     requestFormat: "json",
     response: PolisStatementTranslation,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/summary",
+    alias: "PolisRequestSummary",
+    description: `Fetches the current Polis report data for a workflow step and queues a background job that generates a group/consensus/ disagreement summary with the sensemaking worker. Returns the id of the job used to track progress (GET /jobs/{job_id}).`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: RequestSummaryRequest,
+      },
+    ],
+    response: z.object({ job_id: z.string().uuid() }).passthrough(),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/summary/history",
+    alias: "PolisListSummaries",
+    description: `Returns past wiki_poll_conversation_summary rows for the given workflow step, newest first, paginated.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PaginatedResults_for_WikiPollConversationSummary,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/summary/latest",
+    alias: "PolisGetLatestSummary",
+    description: `Returns the most recently generated wiki_poll_conversation_summary row for the given workflow step, or 404 if none exists yet.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: WikiPollConversationSummary,
   },
   {
     method: "get",

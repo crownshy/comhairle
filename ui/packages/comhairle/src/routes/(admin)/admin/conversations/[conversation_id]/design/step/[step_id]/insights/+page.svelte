@@ -30,9 +30,11 @@
 		workflowStepId={step.id}
 		reportData={data.polis.reportData ?? null}
 		statementAux={data.polis.statementAux ?? []}
+		summary={data.polis.summary ?? null}
 	>
 		{#snippet actions()}
 			<Button
+				class="w-full"
 				href={roomDisplayUrl}
 				target="_blank"
 				rel="noopener"
