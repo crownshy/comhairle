@@ -58,12 +58,13 @@ impl RateLimitConfig {
 pub fn create_rate_limiter(
     config: RateLimitConfig,
 ) -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body> {
-    // Convert per_minute to per_second for governor
-    let per_second = config.per_minute as f64 / 60.0;
-    let seconds = (1.0 / per_second).ceil() as u64;
+    // Convert per_minute to per_millisecond for governor
+    // Use ms over seconds to account for more lenient rate limits (above 60
+    // minute) which result in a refill period of less than one second
+    let per_ms = 60_000 / config.per_minute as u64;
 
     let governor_conf = GovernorConfigBuilder::default()
-        .per_second(seconds)
+        .per_millisecond(per_ms)
         .burst_size(config.burst_size)
         .use_headers() // Add rate limit info to response headers
         .key_extractor(SmartIpKeyExtractor)
@@ -116,6 +117,14 @@ pub fn lenient_rate_limiter() -> GovernorLayer<SmartIpKeyExtractor, StateInforma
 mod tests {
     use super::*;
 
+    use axum::{
+        Router,
+        http::{Request, StatusCode},
+        routing::get,
+    };
+    use std::time::Duration;
+    use tower::ServiceExt;
+
     #[test]
     fn test_auth_strict_config() {
         let config = RateLimitConfig::auth_strict();
@@ -135,6 +144,90 @@ mod tests {
         let config = RateLimitConfig::custom(50, 10);
         assert_eq!(config.per_minute, 50);
         assert_eq!(config.burst_size, 10);
+    }
+
+    /// Dummy app where different rate limits can be applied
+    fn rate_limited_app(
+        layer: GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body>,
+    ) -> Router {
+        Router::new()
+            .route("/", get(|| async { "ok" }))
+            .layer(layer)
+    }
+
+    async fn status_for_hit(app: &Router) -> StatusCode {
+        let request = Request::builder()
+            .header("X-Forwarded-For", "10.0.0.1")
+            .body(Body::empty())
+            .unwrap();
+
+        app.clone().oneshot(request).await.unwrap().status()
+    }
+
+    /// Sends requests until one is rejected and returns how many got through
+    async fn successes_until_429(app: &Router, max: u32) -> u32 {
+        for allowed in 0..=max {
+            if status_for_hit(app).await == StatusCode::TOO_MANY_REQUESTS {
+                return allowed;
+            }
+        }
+        panic!("limiter let more than {max} request through");
+    }
+
+    /// Empties the bucket, waits then returns how many requests were replenished
+    /// in that time
+    async fn replenished_after(config: RateLimitConfig, wait: Duration) -> u32 {
+        let burst = config.burst_size;
+        let app = rate_limited_app(create_rate_limiter(config));
+
+        assert_eq!(
+            successes_until_429(&app, burst).await,
+            burst,
+            "the full burst should be allowed up front"
+        );
+
+        tokio::time::sleep(wait).await;
+        successes_until_429(&app, burst).await
+    }
+
+    /// 300/min (lenient) is one request every 200ms (refill period). The wait sits halfway between
+    /// refills so timer jitter cannot affect the count.
+    #[tokio::test]
+    async fn test_lenient_replenished_at_300_per_minute() {
+        let replenished =
+            replenished_after(RateLimitConfig::lenient(), Duration::from_millis(1100)).await;
+
+        // 1100ms / 200ms -> 5 successful refills
+        assert_eq!(
+            replenished, 5,
+            "300/min should replenish 5 requests in 1.1s, got {replenished}"
+        );
+    }
+
+    /// 100/min (standard) is one request every 600ms (refill period)
+    #[tokio::test]
+    async fn test_standard_replenishes_at_100_per_minute() {
+        let replenished =
+            replenished_after(RateLimitConfig::standard(), Duration::from_millis(1500)).await;
+
+        // 1500ms / 600ms -> 2 successful refills
+        assert_eq!(
+            replenished, 2,
+            "100/min should replenish 2 requests in 1.5s, got {replenished}"
+        );
+    }
+
+    /// 5/min (auth) is one request every 12s (refill period), so nothing comes
+    /// back within a second.
+    #[tokio::test]
+    async fn test_auth_strict_does_not_replish_within_second() {
+        let replenished =
+            replenished_after(RateLimitConfig::auth_strict(), Duration::from_millis(1100)).await;
+
+        assert_eq!(
+            replenished, 0,
+            "5/min should replenish nothing in 1.1s, got {replenished}"
+        );
     }
 }
 
