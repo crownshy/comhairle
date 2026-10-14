@@ -1,56 +1,33 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import type { LoadEvent } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-import type { ChatInstructionsDto } from '@crownshy/api-client/api';
 import { key } from '$lib/utils/invalidationKey';
+import { HttpStatus } from '$lib/utils/constants';
+import { resolve } from '$app/paths';
 
-export const load: PageLoad = async ({ depends, params, parent }: LoadEvent) => {
+export const load: PageLoad = async ({ depends, parent, params }) => {
 	depends(key('admin/knowledge-base/documents'));
-	depends('knowledge-base:documents');
-
-	const { conversation_id } = params;
-	if (!conversation_id) {
-		return;
-	}
 
 	const { api } = await parent();
+	const { conversation_id } = params;
 
-	const docsResponse = await tryCatchAsync(() =>
-		api.ListDocuments({
-			params: { conversation_id }
-		})
-	);
-
-	if (docsResponse.err !== null) {
-		console.error(docsResponse.err);
-		return;
-	}
-
-	const chatResponse = await tryCatchAsync(() =>
-		api.GetChat({
-			params: { conversation_id }
-		})
-	);
-
-	if (chatResponse.err !== null) {
-		console.error(chatResponse.err);
-		return;
-	}
-
-	let chatInstructions: ChatInstructionsDto | null = null;
-	const chatInstructionsResponse = await tryCatchAsync(() =>
-		api.GetConversationChatInstructions({ params: { conversation_id } })
-	);
-
-	if (chatInstructionsResponse.err !== null) {
-		console.error(chatResponse.err);
-	} else {
-		chatInstructions = chatInstructionsResponse.ok as ChatInstructionsDto;
+	if (!conversation_id) {
+		redirect(HttpStatus.Found, resolve('/(admin)/admin/conversations'));
 	}
 
 	return {
-		documents: docsResponse.ok,
-		chat: chatResponse.ok,
-		chatInstructions: chatInstructions
+		streamedDocuments: tryCatchAsync(() =>
+			api.ListDocuments({
+				params: { conversation_id }
+			})
+		),
+		streamedChat: tryCatchAsync(() =>
+			api.GetChat({
+				params: { conversation_id }
+			})
+		),
+		streamedChatInstructions: tryCatchAsync(() =>
+			api.GetConversationChatInstructions({ params: { conversation_id } })
+		)
 	};
 };
