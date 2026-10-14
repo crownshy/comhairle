@@ -98,7 +98,7 @@ async fn upsert_for_conversation(
     Ok((StatusCode::OK, Json(instructions.into())))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -125,7 +125,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<ChatInstructionsDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

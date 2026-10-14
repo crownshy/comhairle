@@ -380,7 +380,7 @@ async fn save_assignments(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/{resource_type}/roles",
@@ -544,7 +544,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 authorize::<PermissionTargetResource>,
             )),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

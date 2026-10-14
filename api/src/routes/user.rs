@@ -429,7 +429,7 @@ pub async fn upgrade_account(
     Ok((StatusCode::OK, Json(user)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/actions/{resource_type}/{resource_id}",
@@ -513,7 +513,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

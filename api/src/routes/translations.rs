@@ -308,7 +308,7 @@ async fn delete_text_translation(
     Ok((StatusCode::OK, Json(deleted_translation)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         // TextContent routes
         .api_route(
@@ -425,7 +425,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             })
                 .route_layer(from_fn_with_state(PermissionRequirement::<SystemResource>::new(system::Action::Translate), authorize::<SystemResource>))
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
