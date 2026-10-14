@@ -18,18 +18,18 @@ test.beforeEach(async ({ page }) => {
 // FIX: Figure out why the test is failing when run at "full-speed" without the "--debug" flag
 test('Design/configure page', async ({ page, cleanup }) => {
 	const Name = await Textbox('Name', { page, cleanup }, { resetTo: 'New Learn step' });
-	const tiptap = Tiptap(0, { page, cleanup });
+	const Description = Tiptap(0, { page, cleanup });
 	const RevisitableStep = await Switch('Revisitable step', { page, cleanup });
 	const RequiredStep = await Switch('Required step', { page, cleanup });
 
 	await Name.write();
-	await tiptap.write();
+	await Description.write();
 	await RevisitableStep.toggle();
 	await RequiredStep.toggle();
 
 	await testWithRefresh(page, async () => {
 		await Name.expect();
-		await tiptap.expect();
+		await Description.expect();
 		await RevisitableStep.expect();
 		await RequiredStep.expect();
 	});

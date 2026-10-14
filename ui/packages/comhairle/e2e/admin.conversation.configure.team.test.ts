@@ -3,6 +3,7 @@ import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
 import { eventually, test } from './utils/testing';
 import { exists } from './utils';
+import { Textbox } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -10,34 +11,30 @@ test.beforeEach(async ({ page }) => {
 	await Conversation.openTab(page, 'Configure', 'Team');
 });
 
-test('Configure/team page', async ({ page }) => {
-	const EmailTextbox = page.getByRole('textbox', { name: 'Grant a user "content editor' });
+test('Configure/team page', async ({ page, cleanup }) => {
+	const EmailTextbox = await Textbox('Grant a user "content editor', { page, cleanup });
 	const EmailTextboxLabel = page.getByText('Grant a user "content editor');
 	const Submit = page.getByRole('button', { name: 'Submit' });
 
-	const ERROR_INPUT = 'test@crown-shy';
-	await EmailTextbox.click();
-	await EmailTextbox.fill(ERROR_INPUT);
+	// Error input
+	await EmailTextbox.write('test@crown-shy');
 	await Submit.click();
+	await eventually(() => expect(EmailTextboxLabel).toHaveAttribute('data-fs-error'));
 
-	await expect(EmailTextboxLabel).toHaveAttribute('data-fs-error');
-
-	const ERROR_USER = 'test@crown-shy.com';
-	await EmailTextbox.click();
-	await EmailTextbox.fill(ERROR_USER);
+	// Error user
+	await EmailTextbox.write('test@crown-shy.com');
 	await Submit.click();
-
-	await expect(EmailTextboxLabel).not.toHaveAttribute('data-fs-error');
-	await expect(page.getByText('Something went wrong granting').first()).toBeVisible();
-
-	const NEW_USER = 'admin@crown-shy.com';
-	await EmailTextbox.click();
-	await EmailTextbox.fill(NEW_USER);
-	await Submit.click();
-
 	await eventually(async () => {
-		expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(true);
+		await expect(EmailTextboxLabel).not.toHaveAttribute('data-fs-error');
+		await expect(page.getByText('Something went wrong granting').first()).toBeVisible();
 	});
+
+	// Valid user
+	await EmailTextbox.write('admin@crown-shy.com');
+	await Submit.click();
+	await eventually(async () =>
+		expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(true)
+	);
 
 	const RevokePermission = page.getByRole('button', { name: 'Revoke permission' });
 	await RevokePermission.click();
