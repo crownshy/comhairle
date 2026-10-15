@@ -1,21 +1,38 @@
+import { error, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
-import { filterConversations, statusFilterFromUrl } from './conversationFilters';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { HttpStatus } from '$lib/utils/constants';
+import { calcOffset, calcPageCount, getPage, setPage } from '$lib/pagination';
+import { conversationListQueries, searchFromUrl, statusFilterFromUrl } from './conversationFilters';
 
-// Filters the lists the admin layout already loads for the sidebar, so a chip costs no request.
+const PAGE_SIZE = 10;
+
 export const load: PageLoad = async ({ parent, url, depends }) => {
 	depends(key('admin/conversations'));
-	const { ownedConversations, permittedConversations } = await parent();
+	const { api, user } = await parent();
 	const filter = statusFilterFromUrl(url);
-	const sharedRecords = permittedConversations?.records ?? [];
+	const search = searchFromUrl(url);
+	const page = getPage(url);
 
-	return {
-		filter,
-		conversations: filterConversations(
-			ownedConversations?.records ?? [],
-			sharedRecords,
-			filter
-		),
-		sharedConversationIds: new Set(sharedRecords.map((conversation) => conversation.id))
-	};
+	const result = await tryCatchAsync(() =>
+		api.GetPermittedConversations({
+			queries: {
+				...conversationListQueries(filter, user?.id),
+				keyword: search.trim() || undefined,
+				limit: PAGE_SIZE,
+				offset: calcOffset({ page, pageSize: PAGE_SIZE })
+			}
+		})
+	);
+	if (result.err !== null) error(HttpStatus.BadGateway, 'Could not load your conversations');
+
+	const conversations = result.ok;
+	const lastPage = calcPageCount({ pageSize: PAGE_SIZE, total: conversations.total });
+	if (page > lastPage) {
+		const lastPageUrl = setPage(url, lastPage);
+		redirect(HttpStatus.TemporaryRedirect, `${lastPageUrl.pathname}${lastPageUrl.search}`);
+	}
+
+	return { filter, search, pageSize: PAGE_SIZE, conversations };
 };
