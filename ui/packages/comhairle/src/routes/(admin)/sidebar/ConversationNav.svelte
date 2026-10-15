@@ -8,19 +8,23 @@
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from '$lib/components/ui/sidebar/constants';
 	import { useSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
 	import { EXPAND_WIDTH } from '$lib/components/sidebarWidth.js';
-	import type { UserDto } from '@crownshy/api-client/api';
-	import type { StageConversation } from './conversationStages';
+	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
+	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
+	import type { ConversationWithTranslations, UserDto } from '@crownshy/api-client/api';
+	import ConversationHeading from './ConversationHeading.svelte';
 	import ConversationSection from './ConversationSection.svelte';
 	import UserMenu from './UserMenu.svelte';
 
 	type Props = {
-		conversation: StageConversation;
+		conversation: ConversationWithTranslations;
 		stepCount: number;
 		user: UserDto;
 		path: string;
 	};
 
 	let { conversation, stepCount, user, path }: Props = $props();
+	let launchModalOpen = $state(false);
+	let endModalOpen = $state(false);
 
 	const sidebar = useSidebar();
 	const sidebarWidth = useSidebarWidth();
@@ -77,9 +81,19 @@
 	</SideBar.Header>
 
 	<SideBar.Content
-		class="flex flex-col gap-4 overflow-x-hidden overflow-y-auto pt-2 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
+		class="flex flex-col gap-6 overflow-x-hidden overflow-y-auto pt-2 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
 	>
-		<ConversationSection {conversation} {stepCount} {path} />
+		<ConversationHeading
+			{conversation}
+			onLaunch={() => (launchModalOpen = true)}
+			onToggleComplete={() => (endModalOpen = true)}
+		/>
+		<ConversationSection
+			{conversation}
+			{stepCount}
+			{path}
+			onLaunch={() => (launchModalOpen = true)}
+		/>
 	</SideBar.Content>
 
 	<SideBar.Footer class="border-sidebar-foreground/20 border-t">
@@ -87,3 +101,10 @@
 	</SideBar.Footer>
 	<SidebarResizeHandle />
 </SideBar.Root>
+
+<LaunchConversationModal
+	conversation_id={conversation.id}
+	bind:open={launchModalOpen}
+	hideTrigger
+/>
+<EndConversationModal {conversation} bind:open={endModalOpen} hideTrigger />

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import AdminNav from '$lib/components/AdminNav.svelte';
 	import ConversationNav from './sidebar/ConversationNav.svelte';
-	import type { StageConversation } from './sidebar/conversationStages';
+	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
 	import SidebarFloatingTriggers from '$lib/components/SidebarFloatingTriggers.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import { setSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
@@ -17,7 +17,7 @@
 	let userOrganizations = $derived(data.userOrganizations);
 	let userRoles = $derived(data.userRoles);
 	// Set by the conversation layout. Its presence switches the sidebar to that conversation.
-	let conversation = $derived(page.data.conversation as StageConversation | undefined);
+	let conversation = $derived(page.data.conversation as ConversationWithTranslations | undefined);
 	let stepCount = $derived((page.data.workflowSteps as unknown[] | undefined)?.length ?? 0);
 
 	if (!data.user) {
