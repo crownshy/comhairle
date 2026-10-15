@@ -109,12 +109,56 @@ to clean up stale entries.
 
 ## Response Headers
 
-When rate limiting is active, responses include the following headers:
+Only the auth rate limiter adds `x-ratelimit-*` headers to successful responses.
+Every limiter adds `retry-after` when it rejects a request.
 
-- `x-ratelimit-limit`: Maximum requests allowed in the current window
-- `x-ratelimit-remaining`: Requests remaining in the current window
-- `x-ratelimit-after`: Seconds until the API becomes available (after rate limit exceeded)
-- `x-ratelimit-whitelisted`: Indicates if the request method is whitelisted
+### Auth rate limiter (`auth_rate_limiter()`)
+
+Built with `.use_headers()` (`StateInformationMiddleware`).
+
+On every response from a route behind it:
+
+- `x-ratelimit-limit`: the burst size, the most requests allowed back to back.
+- `x-ratelimit-remaining`: how many of those requests the client has left.
+
+When it rejects a request (`429`), the response also includes:
+
+- `retry-after` and `x-ratelimit-after`: whole seconds until the next request is
+  allowed.
+- `x-ratelimit-remaining`: `0`.
+
+### Standard and lenient rate limiters
+
+Built without `.use_headers()` (`NoOpMiddleware`).
+
+- Allowed requests pass through with **no** rate limit headers.
+- Rejected requests (`429`) include only `retry-after` and `x-ratelimit-after`.
+
+### Why only the auth rate limiter adds headers
+
+Routes can sit behind more than one limiter. The lenient limiter wraps the whole
+API in `build_router_and_spec`, so every auth route is behind both the global
+limiter and the auth limiter.
+
+When two limiters both add headers, the outer one runs last on the way out and
+**overwrites** the inner one's `x-ratelimit-limit` and `x-ratelimit-remaining`.
+If the global limiter added headers, auth responses would report the global
+allowance instead of the auth one. Even a `429` caused by the auth limiter would
+say something like `x-ratelimit-limit: 50, x-ratelimit-remaining: 47`.
+
+Keeping headers on the auth limiter only avoids that:
+
+- The numbers on auth routes always describe the auth limiter, the one that
+  matters there. It allows only 3 attempts in a burst, so a client can use
+  `x-ratelimit-remaining` to tell the user how many attempts they have left.
+- The standard and lenient allowances (20 and 50 back to back) are large enough
+  that clients have no use for a running count. On those routes, `retry-after`
+  on a `429` is all a client needs.
+
+`retry-after` is never overwritten. A limiter that allows a request adds nothing
+to a rejection made by another one, so `retry-after` always comes from the
+limiter that rejected the request. Clients should rely on `retry-after`, not on
+`x-ratelimit-remaining`, to know when to retry.
 
 ## Rate Limit Exceeded
 
