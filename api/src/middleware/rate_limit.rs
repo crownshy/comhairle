@@ -69,6 +69,7 @@ pub type LimitLayer = GovernorLayer<SmartIpKeyExtractor, StateInformationMiddlew
 /// `build_app` creates one instance per app when
 /// `ComhairleConfig::enable_rate_limiting` is set, and passes it to the routers as
 /// `Option<&RateLimitLayers>` (`None` when rate limiting is off).
+#[derive(Clone)]
 pub struct RateLimitLayers {
     standard: Arc<LimitConfig>,
     auth_strict: Arc<LimitConfig>,
@@ -120,6 +121,18 @@ impl RateLimitLayers {
         for config in [&self.standard, &self.auth_strict, &self.lenient] {
             config.limiter().retain_recent();
         }
+    }
+
+    /// Spawns a separate background task to clean up stale entries.
+    /// See [tower-governor docs](https://deepwiki.com/benwis/tower-governor/4.1-axum-integration)
+    pub fn spawn_cleanup(&self, duration: tokio::time::Duration) {
+        let limiters = self.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(duration).await;
+                limiters.retain_recent();
+            }
+        });
     }
 }
 

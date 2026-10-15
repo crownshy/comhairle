@@ -313,6 +313,9 @@ pub async fn build_app(
         .allow_origin(allowed_origins);
 
     let rate_limiters = state.config.enable_rate_limiting.then(RateLimitLayers::new);
+    if let Some(ref limiters) = rate_limiters {
+        limiters.spawn_cleanup(tokio::time::Duration::from_secs(60));
+    }
 
     let (router, api) = build_router_and_spec(rate_limiters).await;
 
