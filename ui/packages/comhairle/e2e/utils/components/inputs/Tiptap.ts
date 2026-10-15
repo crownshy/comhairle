@@ -1,17 +1,16 @@
 import { expect } from '@playwright/test';
 import type { Page } from '../../types';
 import type { Refs } from '../types';
-import { generateValue } from '../..';
+import { generateValue, find } from '../..';
 
 // Rich text editor "Tiptap"
-
-const getTiptap = async (page: Page, index: number = 0) => {
-	const locator = page.locator('.tiptap.ProseMirror').nth(index);
-	if ((await locator.count()) > 0) {
+async function getTiptap(page: Page, index: number = 0) {
+	const locator = find(page.locator('.tiptap.ProseMirror').nth(index));
+	if ((await (await locator).count()) > 0) {
 		return locator;
 	}
 	return page.locator('.tiptap').nth(index);
-};
+}
 
 function Tiptap(index: number, refs: Refs) {
 	let value: string | undefined;

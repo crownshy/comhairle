@@ -1,18 +1,17 @@
 import { expect } from '@playwright/test';
 import type { Refs } from './types';
 import { eventually } from '../testing';
+import { find } from '..';
 
 async function Switch(name: string, refs: Refs) {
-	const locator = () => refs.page.getByRole('switch', { name });
+	const locator = () => find(refs.page.getByRole('switch', { name }));
 
-	const isSwitchOn = (): Promise<boolean> =>
-		locator()
-			.getAttribute('data-state')
-			.then((state) => state === 'checked');
+	const isSwitchOn = async (): Promise<boolean> =>
+		(await locator()).getAttribute('data-state').then((state) => state === 'checked');
 
 	const startsOn = await (async () => {
 		await eventually(async () => {
-			await locator().isVisible();
+			await (await locator()).isVisible();
 		});
 		return isSwitchOn();
 	})();
@@ -20,7 +19,7 @@ async function Switch(name: string, refs: Refs) {
 	let isOn = startsOn;
 
 	const toggle = async () => {
-		await locator().click();
+		await (await locator()).click();
 		isOn = !isOn;
 	};
 

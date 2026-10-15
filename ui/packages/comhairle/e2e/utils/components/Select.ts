@@ -1,13 +1,13 @@
 import { expect } from '@playwright/test';
 import type { Refs } from './types';
-import { exists } from '..';
+import { exists, find } from '..';
 
 function Select<const T extends string[]>(inputs: T, refs: Refs) {
 	const originallySelected: T[number] = inputs[0];
 	let selected: T[number] = inputs[0];
 
 	async function getSelect() {
-		const locator = refs.page.getByRole('button', { name: selected });
+		const locator = await find(refs.page.getByRole('button', { name: selected }));
 		if (!(await exists(locator))) {
 			throw new Error(`Could not find locator: ${selected}`);
 		}
@@ -15,7 +15,7 @@ function Select<const T extends string[]>(inputs: T, refs: Refs) {
 	}
 
 	async function getMenuItem(option: T[number]) {
-		const locator = refs.page.getByRole('menuitem', { name: option });
+		const locator = await find(refs.page.getByRole('menuitem', { name: option }));
 		if (!(await exists(locator))) {
 			throw new Error(`Could not find locator: ${option}`);
 		}

@@ -113,7 +113,7 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 						listItem.name = newName;
 
 						await NewNameTextbox.write(newName);
-						await NewNameTextbox.locator().press('Enter');
+						await (await NewNameTextbox.locator()).press('Enter');
 						await sleep(1);
 					},
 					delete: async () => {

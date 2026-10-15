@@ -3,7 +3,7 @@ import { Calendar, Combobox, Textbox, TimeRangePicker } from '../components';
 import type { Page } from '../types';
 import { eventually } from '../testing';
 
-const TEST_EVENT_NAME = 'Playwright Event';
+export const TEST_EVENT_NAME = 'Playwright Event';
 
 type EventTabs =
 	| 'Details'
