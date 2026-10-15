@@ -1,15 +1,23 @@
 <script lang="ts">
-	import { Home } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
+	import type { PageProps } from './$types';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+	import { Home } from 'lucide-svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
-	import type { PageProps } from './$types';
-	import { CONVERSATION_STATUS_FILTER_LABELS } from './conversationFilters';
+	import { page } from '$app/state';
+	import { Pager } from '$lib/pagination';
 	import StatusFilterChips from './StatusFilterChips.svelte';
+	import ConversationSearch from './ConversationSearch.svelte';
+	import { CONVERSATION_STATUS_FILTER_LABELS } from './conversationFilters';
 
 	let { data }: PageProps = $props();
+	let filteredNoun = $derived(
+		data.filter === 'all'
+			? 'conversations'
+			: `${CONVERSATION_STATUS_FILTER_LABELS[data.filter].toLowerCase()} conversations`
+	);
 </script>
 
 <svelte:head>
@@ -41,24 +49,35 @@
 			{/if}
 		</div>
 		<div class="flex w-full flex-col gap-11 overflow-y-auto">
-			<StatusFilterChips active={data.filter} />
+			<div
+				class="flex flex-col gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between @4xl:pr-6"
+			>
+				<StatusFilterChips active={data.filter} />
+				<ConversationSearch />
+			</div>
 
 			<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
-				{#each data.conversations as conversation (conversation.id)}
+				{#each data.conversations.records as conversation (conversation.id)}
 					<ConversationCard
 						{conversation}
-						isShared={data.sharedConversationIds.has(conversation.id)}
+						isShared={conversation.ownerId !== data.userId}
 					/>
 				{:else}
 					<p class="text-muted-foreground text-base">
-						{#if data.filter === 'all'}
+						{#if data.search.trim()}
+							No {filteredNoun} match "{data.search.trim()}"
+						{:else if data.filter === 'all'}
 							You don't have any conversations yet.
 						{:else}
-							No {CONVERSATION_STATUS_FILTER_LABELS[data.filter].toLowerCase()} conversations.
+							No {filteredNoun}.
 						{/if}
 					</p>
 				{/each}
 			</div>
+
+			{#if data.conversations.total > data.pageSize}
+				<Pager pageSize={data.pageSize} count={data.conversations.total} url={page.url} />
+			{/if}
 		</div>
 	</div>
 </div>

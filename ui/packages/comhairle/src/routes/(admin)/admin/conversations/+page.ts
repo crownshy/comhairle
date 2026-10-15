@@ -1,21 +1,34 @@
 import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
-import { filterConversations, statusFilterFromUrl } from './conversationFilters';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { calcOffset, getPage } from '$lib/pagination';
+import { conversationListQueries, searchFromUrl, statusFilterFromUrl } from './conversationFilters';
 
-// Filters the lists the admin layout already loads for the sidebar, so a chip costs no request.
+const PAGE_SIZE = 10;
+
 export const load: PageLoad = async ({ parent, url, depends }) => {
 	depends(key('admin/conversations'));
-	const { ownedConversations, permittedConversations } = await parent();
+	const { api, user } = await parent();
 	const filter = statusFilterFromUrl(url);
-	const sharedRecords = permittedConversations?.records ?? [];
+	const search = searchFromUrl(url);
+	const userId = user?.id ?? '';
+
+	const result = await tryCatchAsync(() =>
+		api.GetPermittedConversations({
+			queries: {
+				...conversationListQueries(filter, userId),
+				keyword: search.trim() || undefined,
+				limit: PAGE_SIZE,
+				offset: calcOffset({ page: getPage(url), pageSize: PAGE_SIZE })
+			}
+		})
+	);
 
 	return {
 		filter,
-		conversations: filterConversations(
-			ownedConversations?.records ?? [],
-			sharedRecords,
-			filter
-		),
-		sharedConversationIds: new Set(sharedRecords.map((conversation) => conversation.id))
+		search,
+		userId,
+		pageSize: PAGE_SIZE,
+		conversations: result.err === null ? result.ok : { records: [], total: 0 }
 	};
 };

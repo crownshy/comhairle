@@ -11,7 +11,7 @@
 
 	const pageNumber = $derived(getPage(url));
 	const pageCount = $derived(calcPageCount({ pageSize, total: count }));
-	const linkBtnCls = buttonVariants({ variant: 'outline-solid', size: 'sm' });
+	const linkBtnCls = buttonVariants({ variant: 'outline', size: 'sm' });
 </script>
 
 <nav class="flex flex-col items-center" aria-label="pagination">
@@ -33,7 +33,7 @@
 				</a>
 			{/if}
 		</li>
-		<li><span class="text-xs">{m.page_x_of_y({ x: pageNumber, y: pageCount })}</span></li>
+		<li><span class="text-base">{m.page_x_of_y({ x: pageNumber, y: pageCount })}</span></li>
 		<li>
 			{#if pageCount > pageNumber}
 				<a

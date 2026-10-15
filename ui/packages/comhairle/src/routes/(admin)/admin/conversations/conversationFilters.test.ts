@@ -1,63 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { filterConversations, statusFilterFromUrl, statusFilterHref } from './conversationFilters';
+import {
+	conversationListQueries,
+	searchFromUrl,
+	searchHref,
+	statusFilterFromUrl,
+	statusFilterHref
+} from './conversationFilters';
 
-const conversation = (id: string, isLive: boolean, isComplete: boolean) => ({
-	id,
-	isLive,
-	isComplete
-});
-
-const ownedLive = conversation('owned-live', true, false);
-const ownedDraft = conversation('owned-draft', false, false);
-const ownedCompleted = conversation('owned-completed', true, true);
-const sharedDraft = conversation('shared-draft', false, false);
-const sharedLive = conversation('shared-live', true, false);
-const sharedCompleted = conversation('shared-completed', false, true);
-
-const owned = [ownedLive, ownedDraft, ownedCompleted];
-const shared = [sharedDraft, sharedLive, sharedCompleted];
-
-const ids = (conversations: { id: string }[]) => conversations.map(({ id }) => id);
-
-describe('filterConversations', () => {
-	it('shows owned and shared together under All', () => {
-		expect(ids(filterConversations(owned, shared, 'all'))).toEqual([
-			'owned-live',
-			'owned-draft',
-			'owned-completed',
-			'shared-draft',
-			'shared-live',
-			'shared-completed'
-		]);
-	});
-
-	it('includes shared conversations in the status chips', () => {
-		expect(ids(filterConversations(owned, shared, 'live'))).toEqual([
-			'owned-live',
-			'shared-live'
-		]);
-		expect(ids(filterConversations(owned, shared, 'draft'))).toEqual([
-			'owned-draft',
-			'shared-draft'
-		]);
-		expect(ids(filterConversations(owned, shared, 'completed'))).toEqual([
-			'owned-completed',
-			'shared-completed'
-		]);
-	});
-
-	it('shows only conversations shared with the user under Shared', () => {
-		expect(ids(filterConversations(owned, shared, 'shared'))).toEqual([
-			'shared-draft',
-			'shared-live',
-			'shared-completed'
-		]);
-	});
-});
+const at = (search: string) => new URL(`https://example.com/admin/conversations${search}`);
 
 describe('statusFilterFromUrl', () => {
-	const at = (search: string) => new URL(`https://example.com/admin/conversations${search}`);
-
 	it.each(['live', 'draft', 'completed', 'shared'] as const)('reads ?status=%s', (filter) => {
 		expect(statusFilterFromUrl(at(`?status=${filter}`))).toBe(filter);
 	});
@@ -68,13 +20,56 @@ describe('statusFilterFromUrl', () => {
 });
 
 describe('statusFilterHref', () => {
-	const url = new URL('https://example.com/admin/conversations?status=live&q=wind');
+	const url = at('?status=live&q=wind&page=3');
 
-	it('swaps the status and keeps the rest of the query', () => {
+	it('swaps the status, keeps the search and goes back to the first page', () => {
 		expect(statusFilterHref(url, 'draft')).toBe('/admin/conversations?status=draft&q=wind');
 	});
 
 	it('drops status for All so it keeps one URL', () => {
 		expect(statusFilterHref(url, 'all')).toBe('/admin/conversations?q=wind');
+	});
+});
+
+describe('search in the URL', () => {
+	it('reads ?q= and defaults to empty', () => {
+		expect(searchFromUrl(at('?q=wind'))).toBe('wind');
+		expect(searchFromUrl(at(''))).toBe('');
+	});
+
+	it('keeps the chip and goes back to the first page', () => {
+		expect(searchHref(at('?status=live&page=2'), 'wind')).toBe(
+			'/admin/conversations?status=live&q=wind'
+		);
+	});
+
+	it('drops q for a blank search', () => {
+		expect(searchHref(at('?status=live&q=wind'), '  ')).toBe(
+			'/admin/conversations?status=live'
+		);
+	});
+});
+
+describe('conversationListQueries', () => {
+	const userId = 'user-1';
+
+	it('asks for everything under All', () => {
+		expect(conversationListQueries('all', userId)).toEqual({});
+	});
+
+	it('keeps completed conversations out of Live and Draft', () => {
+		expect(conversationListQueries('live', userId)).toEqual({
+			is_live: true,
+			is_complete: false
+		});
+		expect(conversationListQueries('draft', userId)).toEqual({
+			is_live: false,
+			is_complete: false
+		});
+		expect(conversationListQueries('completed', userId)).toEqual({ is_complete: true });
+	});
+
+	it('leaves out your own conversations under Shared', () => {
+		expect(conversationListQueries('shared', userId)).toEqual({ exclude_owner_id: userId });
 	});
 });
