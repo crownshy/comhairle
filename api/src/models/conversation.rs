@@ -6,7 +6,6 @@ use super::{
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
-use crate::ComhairleState;
 use crate::bot_service::{
     ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
     DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT, Variable,
@@ -17,6 +16,10 @@ use crate::models::permissions::{
     ResourcePermissionIden, conversation as conversation_permissions, roles_for_action,
 };
 use crate::models::{self, SqlxResultExt};
+use crate::{
+    ComhairleState,
+    models::workflow::{self},
+};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -408,12 +411,31 @@ impl ConversationOrderOptions {
     }
 }
 
-#[instrument(err(Debug), skip(db, bot_service))]
+#[instrument(err(Debug), skip(state, bot_service))]
 pub async fn delete(
-    db: &PgPool,
+    state: &Arc<ComhairleState>,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
     id: &Uuid,
 ) -> Result<Conversation, ComhairleError> {
+    // default_workflow_id references workflow without ON DELETE, so it must be
+    // cleared before the workflows can be removed.
+    let (clear_sql, clear_values) = Query::update()
+        .table(ConversationIden::Table)
+        .value(ConversationIden::DefaultWorkflowId, Option::<Uuid>::None)
+        .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&clear_sql, clear_values)
+        .execute(&state.db)
+        .await
+        .resolve_db_err("Conversation")?;
+
+    let workflows = workflow::list_for_conversation(&state.db, *id).await?;
+
+    for workflow in &workflows {
+        workflow::delete(state, &workflow.id).await?;
+    }
+
     let (sql, values) = Query::delete()
         .from_table(ConversationIden::Table)
         .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
@@ -421,7 +443,7 @@ pub async fn delete(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&state.db)
         .await
         .resolve_db_err("Conversation")?;
 

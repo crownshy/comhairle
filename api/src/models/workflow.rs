@@ -7,7 +7,7 @@ use fake::Dummy;
 
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Expr, Order, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{Cond, Expr, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
@@ -17,6 +17,8 @@ use uuid::Uuid;
 use crate::{ComhairleState, error::ComhairleError};
 
 use super::{
+    SqlxResultExt,
+    event::EventIden,
     user_conversation_preferences,
     user_participation::{self, UserParticipation, UserParticipationIden},
     user_progress::{self, UserProgressIden},
@@ -219,9 +221,14 @@ pub async fn register_user(
     Ok(user_participation)
 }
 
-// TODO ensure this deletes all workflow steps on deletion
-#[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
+#[instrument(err(Debug), skip(state))]
+pub async fn delete(state: &Arc<ComhairleState>, id: &Uuid) -> Result<Workflow, ComhairleError> {
+    let workflow_steps = workflow_step::list(&state.db, id).await?;
+
+    for step in workflow_steps {
+        workflow_step::delete(state, &step.id).await?;
+    }
+
     let (sql, values) = Query::delete()
         .from_table(WorkflowIden::Table)
         .and_where(Expr::col(WorkflowIden::Id).eq(id.to_owned()))
@@ -229,9 +236,9 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> 
         .build_sqlx(PostgresQueryBuilder);
 
     let workflow = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&state.db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Workflow")?;
 
     Ok(workflow)
 }
@@ -260,6 +267,36 @@ pub async fn update(
         .await?;
 
     Ok(workflow)
+}
+
+/// Lists every workflow belonging to a conversation, including workflows attached only to
+/// one of its events (those have no `conversation_id`).
+#[instrument(err(Debug), skip(db))]
+pub async fn list_for_conversation(
+    db: &PgPool,
+    conversation_id: Uuid,
+) -> Result<Vec<Workflow>, ComhairleError> {
+    let event_ids = Query::select()
+        .column(EventIden::Id)
+        .from(EventIden::Table)
+        .and_where(Expr::col(EventIden::ConversationId).eq(conversation_id))
+        .to_owned();
+
+    let (sql, values) = Query::select()
+        .from(WorkflowIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .cond_where(
+            Cond::any()
+                .add(Expr::col(WorkflowIden::ConversationId).eq(conversation_id))
+                .add(Expr::col(WorkflowIden::EventId).in_subquery(event_ids)),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let workflows = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    Ok(workflows)
 }
 
 /// Retrieves a list of workflows for a conversation or an event.
