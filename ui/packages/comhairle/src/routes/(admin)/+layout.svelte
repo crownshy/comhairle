@@ -1,5 +1,6 @@
 <script lang="ts">
-	import AdminNav from '$lib/components/AdminNav.svelte';
+	import AdminNav from './sidebar/AdminNav.svelte';
+	import type { StageConversation } from './sidebar/conversationStages';
 	import SidebarFloatingTriggers from '$lib/components/SidebarFloatingTriggers.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import { setSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
@@ -11,7 +12,10 @@
 
 	let { children, data }: LayoutProps = $props();
 	let latestConversations = $derived(data.latestConversations);
-	let userOrganizations = $derived(data.userOrganizations);
+	let organizations = $derived(data.userOrganizations?.organizations ?? []);
+	// Set by the conversation layout. Its presence switches the sidebar to that conversation.
+	let conversation = $derived(page.data.conversation as StageConversation | undefined);
+	let stepCount = $derived((page.data.workflowSteps as unknown[] | undefined)?.length ?? 0);
 	let userRoles = $derived(data.userRoles);
 
 	if (!data.user) {
@@ -38,10 +42,9 @@
 	<AdminNav
 		user={data.user}
 		latestConversations={latestConversations ?? []}
-		userOrganizations={userOrganizations ?? {
-			organizations: [],
-			canCreateOrganization: false
-		}}
+		{organizations}
+		{conversation}
+		{stepCount}
 		{userRoles}
 		path={page.url.pathname}
 	/>
