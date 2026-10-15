@@ -568,7 +568,8 @@ pub async fn list_by_organization_id(
         .from(UserIden::Table)
         .and_where(Expr::cust_with_values(
             "id IN (SELECT user_id FROM user_group_member JOIN organization
-            ON organization.user_group_id = user_group_member.group_id WHERE organization.id = $1)",
+            ON organization.user_group_id = user_group_member.group_id
+            OR organization.admin_group_id = user_group_member.group_id WHERE organization.id = $1)",
             [*organization_id],
         ))
         .build_sqlx(PostgresQueryBuilder);

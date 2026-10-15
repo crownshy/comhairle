@@ -2964,13 +2964,13 @@ export const UpdateOrganizationBody = z
   .partial()
   .passthrough();
 export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
-export const OrganizationTeamRole = z.enum(["member", "admin"]);
-export type OrganizationTeamRole = z.infer<typeof OrganizationTeamRole>;
+export const OrganizationGroup = z.enum(["members", "admins"]);
+export type OrganizationGroup = z.infer<typeof OrganizationGroup>;
 export const OrganizationTeamUserDto = z
   .object({
     email: z.union([z.string(), z.null()]).optional(),
+    groups: z.array(OrganizationGroup),
     id: z.string().uuid(),
-    role: OrganizationTeamRole,
     username: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
@@ -2985,7 +2985,7 @@ export const UpsertOrganizationUserBody = z
   .object({
     allow_create_user: z.union([z.boolean(), z.null()]).optional(),
     email: z.string(),
-    role: z.union([OrganizationTeamRole, z.null()]).optional(),
+    group: z.union([OrganizationGroup, z.null()]).optional(),
   })
   .passthrough();
 export type UpsertOrganizationUserBody = z.infer<
@@ -3000,12 +3000,6 @@ export const UpsertOrganizationUserResponseDto = z
   .passthrough();
 export type UpsertOrganizationUserResponseDto = z.infer<
   typeof UpsertOrganizationUserResponseDto
->;
-export const UpdateOrganizationMemberRoleBody = z
-  .object({ role: OrganizationTeamRole })
-  .passthrough();
-export type UpdateOrganizationMemberRoleBody = z.infer<
-  typeof UpdateOrganizationMemberRoleBody
 >;
 export const RegionType = z.enum(["custom", "official"]);
 export type RegionType = z.infer<typeof RegionType>;
@@ -3805,12 +3799,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateOrganization,
   OrganizationDto,
   UpdateOrganizationBody,
-  OrganizationTeamRole,
+  OrganizationGroup,
   OrganizationTeamUserDto,
   OrganizationTeamResponseDto,
   UpsertOrganizationUserBody,
   UpsertOrganizationUserResponseDto,
-  UpdateOrganizationMemberRoleBody,
   RegionType,
   LocalizedRegionDto,
   PaginatedResults_for_LocalizedRegionDto,
@@ -6048,10 +6041,60 @@ curl -X POST \
     response: OrganizationDto,
   },
   {
+    method: "put",
+    path: "/organizations/:organization_id/groups/:group/members/:user_id",
+    alias: "AddOrganizationGroupMember",
+    description: `Adds an existing user to the organization&#x27;s members or admins group. Joining the admins group also joins the members group`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "group",
+        type: "Path",
+        schema: z.enum(["members", "admins"]),
+      },
+      {
+        name: "organization_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "user_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "delete",
+    path: "/organizations/:organization_id/groups/:group/members/:user_id",
+    alias: "RemoveOrganizationGroupMember",
+    description: `Removes a user from the organization&#x27;s admins group, or from the whole organization when the members group is given`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "group",
+        type: "Path",
+        schema: z.enum(["members", "admins"]),
+      },
+      {
+        name: "organization_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "user_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
     method: "post",
     path: "/organizations/:organization_id/members",
     alias: "AddOrganizationMember",
-    description: `Adds a member by email and bootstraps an account when needed`,
+    description: `Adds a user by email to the members or admins group and bootstraps an account when needed`,
     requestFormat: "json",
     parameters: [
       {
@@ -6069,31 +6112,6 @@ curl -X POST \
     description: `Removes a user&#x27;s organization membership`,
     requestFormat: "json",
     parameters: [
-      {
-        name: "organization_id",
-        type: "Path",
-        schema: z.string().uuid(),
-      },
-      {
-        name: "user_id",
-        type: "Path",
-        schema: z.string().uuid(),
-      },
-    ],
-    response: z.void(),
-  },
-  {
-    method: "put",
-    path: "/organizations/:organization_id/members/:user_id/role",
-    alias: "UpdateOrganizationMemberRole",
-    description: `Updates organization member role between member and admin`,
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: UpdateOrganizationMemberRoleBody,
-      },
       {
         name: "organization_id",
         type: "Path",
@@ -6134,7 +6152,7 @@ curl -X POST \
     method: "get",
     path: "/organizations/:organization_id/team",
     alias: "GetOrganizationTeam",
-    description: `Returns members and administrators for an organization`,
+    description: `Returns the users in the organization members and admins groups`,
     requestFormat: "json",
     response: OrganizationTeamResponseDto,
   },

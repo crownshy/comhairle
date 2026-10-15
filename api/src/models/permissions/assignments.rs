@@ -173,7 +173,7 @@ async fn snapshot(
              array_agg(DISTINCT permission.role_name ORDER BY permission.role_name) AS roles
              FROM {table} permission JOIN user_group ON user_group.id = permission.group_id
              JOIN user_group_member membership ON membership.group_id = user_group.id
-             LEFT JOIN organization ON organization.user_group_id = user_group.id
+             LEFT JOIN organization ON user_group.id IN (organization.user_group_id, organization.admin_group_id)
                WHERE membership.user_id = $1 {resource_filter}
                GROUP BY user_group.id, user_group.name, organization.id"
            );

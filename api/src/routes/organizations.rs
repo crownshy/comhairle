@@ -18,12 +18,10 @@ use crate::models::organization::{
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{
-    PermissionResource, PermissionRole, SystemResource,
-    organization::{Action, Role},
-    system,
+    PermissionResource, SystemResource, organization::Action, system,
 };
 use crate::models::translations;
-use crate::models::user_group;
+use crate::models::user_group::{self, OrganizationGroup};
 use crate::models::users;
 use crate::routes::auth::{
     EmailLinkClaims, RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin,
@@ -97,22 +95,17 @@ struct OrganizationMemberPath {
 }
 
 #[derive(Debug, serde::Deserialize, JsonSchema)]
-struct UpsertOrganizationUserBody {
-    email: String,
-    role: Option<OrganizationTeamRole>,
-    allow_create_user: Option<bool>,
-}
-
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, JsonSchema, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-enum OrganizationTeamRole {
-    Member,
-    Admin,
+struct OrganizationGroupMemberPath {
+    organization_id: Uuid,
+    group: OrganizationGroup,
+    user_id: Uuid,
 }
 
 #[derive(Debug, serde::Deserialize, JsonSchema)]
-struct UpdateOrganizationMemberRoleBody {
-    role: OrganizationTeamRole,
+struct UpsertOrganizationUserBody {
+    email: String,
+    group: Option<OrganizationGroup>,
+    allow_create_user: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, JsonSchema)]
@@ -121,7 +114,7 @@ struct OrganizationTeamUserDto {
     id: Uuid,
     username: Option<String>,
     email: Option<String>,
-    role: OrganizationTeamRole,
+    groups: Vec<OrganizationGroup>,
 }
 
 #[derive(Debug, serde::Deserialize, JsonSchema)]
@@ -150,27 +143,10 @@ struct OrganizationTeamResponseDto {
     members: Vec<OrganizationTeamUserDto>,
 }
 
-async fn set_member_admin_role(
-    state: &Arc<ComhairleState>,
-    organization_id: Uuid,
-    user_id: Uuid,
-    granted_by: Uuid,
-    role: OrganizationTeamRole,
-) -> Result<(), ComhairleError> {
-    user_group::set_organization_member(
-        state,
-        organization_id,
-        user_id,
-        granted_by,
-        role == OrganizationTeamRole::Admin,
-    )
-    .await
-}
-
-fn role_label(role: OrganizationTeamRole) -> &'static str {
-    match role {
-        OrganizationTeamRole::Member => "member",
-        OrganizationTeamRole::Admin => "administrator",
+fn group_label(group: OrganizationGroup) -> &'static str {
+    match group {
+        OrganizationGroup::Members => "member",
+        OrganizationGroup::Admins => "administrator",
     }
 }
 
@@ -178,7 +154,7 @@ fn notify_team_addition(
     state: &Arc<ComhairleState>,
     recipient_email: &str,
     organization_name: &str,
-    role: OrganizationTeamRole,
+    group: OrganizationGroup,
 ) {
     let subject = "You were added to an organization on Comhairle";
     let admin_sign_in_link = format!("{}/auth/login?backTo=/admin", state.config.domain);
@@ -190,7 +166,7 @@ fn notify_team_addition(
         context! {
             subject,
             organization_name,
-            role_label => role_label(role),
+            role_label => group_label(group),
             admin_sign_in_link,
         },
         None,
@@ -268,25 +244,22 @@ async fn get_team(
     State(state): State<Arc<ComhairleState>>,
     Path(organization_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<OrganizationTeamResponseDto>), ComhairleError> {
-    let mut members = Vec::new();
-    for member in users::list_by_organization_id(&organization_id, &state.db).await? {
-        let administrator = crate::models::permissions::has_resource_permission(
-            &state,
-            Role::Admin.triplet(&organization_id)?,
-            &member.id,
-        )
-        .await?;
-        members.push(OrganizationTeamUserDto {
-            role: if administrator {
-                OrganizationTeamRole::Admin
-            } else {
-                OrganizationTeamRole::Member
-            },
+    let members = user_group::organization_team(&state.db, organization_id)
+        .await?
+        .into_iter()
+        .map(|member| OrganizationTeamUserDto {
             id: member.id,
             username: member.username,
             email: member.email,
-        });
-    }
+            groups: [
+                (member.is_member, OrganizationGroup::Members),
+                (member.is_admin, OrganizationGroup::Admins),
+            ]
+            .into_iter()
+            .filter_map(|(belongs, group)| belongs.then_some(group))
+            .collect(),
+        })
+        .collect();
 
     Ok((
         StatusCode::OK,
@@ -304,10 +277,11 @@ async fn add_member(
     let allow_create_user = payload.allow_create_user.unwrap_or(false);
     let (resolved_user, created_account, mut emailed) =
         resolve_or_create_user_by_email(&state, &payload.email, allow_create_user).await?;
-    let role = payload.role.unwrap_or(OrganizationTeamRole::Member);
+    let group = payload.group.unwrap_or(OrganizationGroup::Members);
 
     let updated_user = resolved_user;
-    set_member_admin_role(&state, organization_id, updated_user.id, user.id, role).await?;
+    user_group::add_organization_member(&state, organization_id, group, updated_user.id, user.id)
+        .await?;
     if created_account {
         let token = generate_jwt()
             .user(&updated_user)
@@ -333,8 +307,12 @@ async fn add_member(
 
     if let Some(email) = updated_user.email.as_deref() {
         let organization = organization::get_by_id(&state.db, &organization_id).await?;
-        notify_team_addition(&state, email, &organization.name, role);
+        notify_team_addition(&state, email, &organization.name, group);
     }
+
+    let groups =
+        user_group::organization_groups_of_user(&state.db, organization_id, updated_user.id)
+            .await?;
 
     Ok((
         StatusCode::OK,
@@ -343,7 +321,7 @@ async fn add_member(
                 id: updated_user.id,
                 username: updated_user.username,
                 email: updated_user.email,
-                role,
+                groups,
             },
             created_account,
             emailed,
@@ -352,22 +330,32 @@ async fn add_member(
 }
 
 #[instrument(err(Debug), skip(state))]
-async fn update_member_role(
+async fn add_group_member(
     State(state): State<Arc<ComhairleState>>,
-    Path(OrganizationMemberPath {
+    Path(OrganizationGroupMemberPath {
         organization_id,
+        group,
         user_id,
-    }): Path<OrganizationMemberPath>,
+    }): Path<OrganizationGroupMemberPath>,
     RequiredUser(user): RequiredUser,
-    Json(payload): Json<UpdateOrganizationMemberRoleBody>,
 ) -> Result<StatusCode, ComhairleError> {
-    if !user_group::is_organization_member(&state.db, organization_id, user_id).await? {
-        return Err(ComhairleError::BadRequest(
-            "User is not a member of this organization".to_string(),
-        ));
-    }
+    user_group::add_organization_member(&state, organization_id, group, user_id, user.id).await?;
 
-    set_member_admin_role(&state, organization_id, user_id, user.id, payload.role).await?;
+    Ok(StatusCode::OK)
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn remove_group_member(
+    State(state): State<Arc<ComhairleState>>,
+    Path(OrganizationGroupMemberPath {
+        organization_id,
+        group,
+        user_id,
+    }): Path<OrganizationGroupMemberPath>,
+    RequiredUser(user): RequiredUser,
+) -> Result<StatusCode, ComhairleError> {
+    user_group::remove_organization_member(&state, organization_id, group, user_id, user.id)
+        .await?;
 
     Ok(StatusCode::OK)
 }
@@ -381,7 +369,14 @@ async fn remove_member(
     }): Path<OrganizationMemberPath>,
     RequiredUser(user): RequiredUser,
 ) -> Result<StatusCode, ComhairleError> {
-    user_group::remove_organization_member(&state, organization_id, user_id, user.id).await?;
+    user_group::remove_organization_member(
+        &state,
+        organization_id,
+        OrganizationGroup::Members,
+        user_id,
+        user.id,
+    )
+    .await?;
 
     Ok(StatusCode::OK)
 }
@@ -549,7 +544,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("GetOrganizationTeam")
                     .tag("Organizations")
                     .summary("Get organization team")
-                    .description("Returns members and administrators for an organization")
+                    .description("Returns the users in the organization members and admins groups")
                     .security_requirement("JWT")
                     .response::<200, Json<OrganizationTeamResponseDto>>()
                     })
@@ -561,7 +556,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("AddOrganizationMember")
                     .tag("Organizations")
                     .summary("Add organization member")
-                    .description("Adds a member by email and bootstraps an account when needed")
+                    .description("Adds a user by email to the members or admins group and bootstraps an account when needed")
                     .security_requirement("JWT")
                     .response::<200, Json<UpsertOrganizationUserResponseDto>>()
                     })
@@ -580,16 +575,28 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .route_layer(from_fn_with_state(requirement(OrganizationAction::RemoveMember), permission_middleware::<OrganizationResource>)),
         )
         .api_route(
-            "/{organization_id}/members/{user_id}/role",
-            put_with(update_member_role, |op| {
-                op.id("UpdateOrganizationMemberRole")
+            "/{organization_id}/groups/{group}/members/{user_id}",
+            put_with(add_group_member, |op| {
+                op.id("AddOrganizationGroupMember")
                     .tag("Organizations")
-                    .summary("Update organization member role")
-                    .description("Updates organization member role between member and admin")
+                    .summary("Add a user to an organization group")
+                    .description("Adds an existing user to the organization's members or admins group. Joining the admins group also joins the members group")
                     .security_requirement("JWT")
                     .response::<200, ()>()
                     })
-                    .route_layer(from_fn_with_state(requirement(OrganizationAction::GrantPermission), permission_middleware::<OrganizationResource>)),
+                    .route_layer(from_fn_with_state(requirement(OrganizationAction::AddMember), permission_middleware::<OrganizationResource>)),
+        )
+        .api_route(
+            "/{organization_id}/groups/{group}/members/{user_id}",
+            delete_with(remove_group_member, |op| {
+                op.id("RemoveOrganizationGroupMember")
+                    .tag("Organizations")
+                    .summary("Remove a user from an organization group")
+                    .description("Removes a user from the organization's admins group, or from the whole organization when the members group is given")
+                    .security_requirement("JWT")
+                    .response::<200, ()>()
+                    })
+                    .route_layer(from_fn_with_state(requirement(OrganizationAction::RemoveMember), permission_middleware::<OrganizationResource>)),
         )
         .api_route(
             "/",
@@ -885,6 +892,139 @@ mod tests {
             "incorrect error message"
         );
 
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn administrators_manage_the_members_and_admins_groups(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::model_test_helpers::get_random_user_id;
+        use crate::test_helpers::UserSession;
+        use axum::body::Body;
+
+        let (app, mut creator) = setup_default_app_and_session(&pool).await?;
+        let organization_id =
+            crate::models::model_test_helpers::get_random_organization_id(&app, &mut creator)
+                .await?;
+        let group_url = |group: &str, user_id: Uuid| {
+            format!("/organizations/{organization_id}/groups/{group}/members/{user_id}")
+        };
+        let team_url = format!("/organizations/{organization_id}/team");
+        let organization_url = format!("/organizations/{organization_id}");
+
+        let mut colleague = UserSession::new_guest();
+        let colleague_id = get_random_user_id(&app, &mut colleague).await?;
+        let mut newcomer = UserSession::new_guest();
+        let newcomer_id = get_random_user_id(&app, &mut newcomer).await?;
+
+        for session in [&mut colleague, &mut newcomer] {
+            let (status, _, _) = session.get(&app, &organization_url).await?;
+            assert_eq!(status, StatusCode::FORBIDDEN);
+        }
+
+        let (status, _, _) = colleague
+            .put(&app, &group_url("members", newcomer_id), Body::empty())
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = creator
+            .put(&app, &group_url("members", colleague_id), Body::empty())
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = colleague.get(&app, &organization_url).await?;
+        assert_eq!(status, StatusCode::OK, "members can view the organization");
+        let (status, _, _) = colleague.get(&app, &team_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "members cannot see the team");
+        let (status, _, _) = colleague
+            .put(&app, &group_url("members", newcomer_id), Body::empty())
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "members cannot manage groups"
+        );
+
+        let (status, _, _) = creator
+            .put(&app, &group_url("admins", colleague_id), Body::empty())
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let (_, team, _) = creator.get(&app, &team_url).await?;
+        let colleague_groups = team["members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|member| member["id"] == json!(colleague_id))
+            .map(|member| member["groups"].clone());
+        assert_eq!(colleague_groups, Some(json!(["members", "admins"])));
+
+        let (status, _, _) = colleague
+            .put(&app, &group_url("members", newcomer_id), Body::empty())
+            .await?;
+        assert_eq!(status, StatusCode::OK, "administrators can add users");
+        let (status, _, _) = newcomer.get(&app, &organization_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = newcomer.get(&app, &team_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = colleague
+            .delete(&app, &group_url("admins", colleague_id))
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "cannot change own groups");
+
+        let (status, _, _) = creator
+            .delete(&app, &group_url("admins", colleague_id))
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = colleague.get(&app, &organization_url).await?;
+        assert_eq!(status, StatusCode::OK, "demoted admins stay members");
+        let (status, _, _) = colleague.get(&app, &team_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = creator
+            .delete(&app, &group_url("members", newcomer_id))
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = newcomer.get(&app, &organization_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        let (_, team, _) = creator.get(&app, &team_url).await?;
+        assert!(
+            team["members"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|member| member["id"] != json!(newcomer_id))
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn removing_a_member_from_the_members_group_also_removes_admin_rights(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::model_test_helpers::get_random_user_id;
+        use crate::test_helpers::UserSession;
+        use axum::body::Body;
+
+        let (app, mut creator) = setup_default_app_and_session(&pool).await?;
+        let organization_id =
+            crate::models::model_test_helpers::get_random_organization_id(&app, &mut creator)
+                .await?;
+        let mut colleague = UserSession::new_guest();
+        let colleague_id = get_random_user_id(&app, &mut colleague).await?;
+        let url = |group: &str| {
+            format!("/organizations/{organization_id}/groups/{group}/members/{colleague_id}")
+        };
+        let (status, _, _) = creator.put(&app, &url("admins"), Body::empty()).await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _, _) = creator.delete(&app, &url("members")).await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = colleague
+            .get(&app, &format!("/organizations/{organization_id}/team"))
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
         Ok(())
     }
 }

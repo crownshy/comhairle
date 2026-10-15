@@ -115,15 +115,18 @@ A set of users to which roles can be assigned collectively. A user may belong to
 _Avoid_: Organization (the entity that owns and manages its membership group), team (a possible future concept), opinion group (a Polis-derived cluster).
 
 **Organization membership group**:
-The single User group owned and managed by an Organization that determines its membership. Each Organization has exactly one Organization membership group for now.
+The User group owned by an Organization that holds all of its people (`Organization.user_group_id`). It is granted the Organization Member role, which allows viewing the Organization only. Each Organization has exactly one.
+
+**Organization administrator group**:
+The User group owned by an Organization that holds its administrators (`Organization.admin_group_id`). It is granted the Organization Administrator role. Each Organization has exactly one. Members of this group are always also members of the Organization membership group.
 
 **Organization Administrator**:
-A user with an Organization Administrator role on one Organization, including authority to update or delete it, manage membership, and promote other members to Administrator or demote them to Member. Membership changes do not require resource-owner approval, but adding Users to a group holding the Super Administrator role requires Super Administrator authority.
-An Organization Administrator may not change their own Organization membership or Administrator role, including removing their inherited Administrator authority through group-grant changes; an existing Organization must retain at least one Administrator.
+A user in an Organization's administrator group, with authority to update or delete the Organization and to add Users to or remove Users from its two groups (ACL-like). Adding a User to the administrator group also adds them to the membership group; removing them from the administrator group demotes them and keeps them a member; removing them from the membership group removes them from the Organization entirely. Membership changes do not require resource-owner approval, but adding Users to a group holding the Super Administrator role requires Super Administrator authority.
+An Organization Administrator may not change their own group memberships, including removing their inherited Administrator authority through group-grant changes; an existing Organization must retain at least one Administrator.
 _Avoid_: Org owner, org contact, organization user.
 
 **Organization Member**:
-A user who belongs to an Organization's Organization membership group; membership alone does not authorize permission changes, and a user may belong to multiple Organizations. Revoking a direct Administrator assignment preserves membership and does not change inherited roles.
+A user who belongs to an Organization's Organization membership group; membership alone does not authorize permission changes, and a user may belong to multiple Organizations. Members can view the Organization through the Organization Member role granted to the membership group.
 _Avoid_: Organization admin (unless they also hold Organization Administrator assignment).
 
 **Primary host organization**:

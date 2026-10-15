@@ -5,8 +5,12 @@
 Replace the shared resource-permissions table with separate User and User group
 assignment tables for each resource type: Conversation, Organization, and System.
 This produces six assignment tables for the current resource types. Organization
-grants target the Organization's membership group, rather than the Organization
-as a separate assignment recipient.
+grants target the Organization's two groups, rather than the Organization
+as a separate assignment recipient: the administrator group holds
+`organization_admin` and the membership group holds `organization_member`
+(view only). Administrators are always also members. Users are added to and
+removed from either group by anyone with Organization administrator authority.
+See [ADR-0052](adr/0052-organizations-have-member-and-administrator-groups.md).
 
 Each resource type has its own model module at
 `api/src/models/permissions/<resource_type>.rs`, defining its roles, actions, and
@@ -41,8 +45,9 @@ See [ADR-0046](adr/0046-organization-administrator-continuity-is-database-enforc
 
 ## Organization creation
 
-Create the Organization, its membership group, initial administrator memberships,
-and initial Administrator assignments in one database transaction. Creation must
+Create the Organization, its membership and administrator groups, the group role
+grants, and the initial administrator's memberships in both groups in one database
+transaction. Creation must
 not commit an Organization without an Administrator; assignment or membership
 failure rolls back creation. Validate administrator continuity against the final
 transaction state, allowing the required records to be created together.
@@ -54,8 +59,8 @@ behavior in the Organization creation ADR.
 
 ## Organization membership removal
 
-Removing a User from an Organization removes their membership in its membership
-group and revokes all direct role assignments to that User on that Organization
+Removing a User from an Organization's membership group removes them from the
+administrator group too, and revokes all direct role assignments to that User on that Organization
 in one database transaction. If authorization or an administrator-continuity
 constraint rejects the operation, neither membership nor grants are changed.
 

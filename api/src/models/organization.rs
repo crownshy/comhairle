@@ -30,6 +30,8 @@ pub struct Organization {
     pub id: Uuid,
     #[partially(omit)]
     pub user_group_id: Uuid,
+    #[partially(omit)]
+    pub admin_group_id: Uuid,
     pub name: String,
     #[partially(omit)]
     pub description: TextContentId,
@@ -79,7 +81,7 @@ impl std::fmt::Display for OrganizationType {
     }
 }
 
-const DEFAULT_COLUMNS: [OrganizationIden; 12] = [
+const DEFAULT_COLUMNS: [OrganizationIden; 13] = [
     OrganizationIden::Id,
     OrganizationIden::Name,
     OrganizationIden::Description,
@@ -92,6 +94,7 @@ const DEFAULT_COLUMNS: [OrganizationIden; 12] = [
     OrganizationIden::CreatedAt,
     OrganizationIden::UpdatedAt,
     OrganizationIden::UserGroupId,
+    OrganizationIden::AdminGroupId,
 ];
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
@@ -181,14 +184,12 @@ pub async fn create_with_administrator(
     let organization: Organization = sqlx::query_as_with(&sql, values)
         .fetch_one(&mut *transaction)
         .await?;
-    sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $2)")
+    sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $3), ($2, $3)")
         .bind(organization.user_group_id)
+        .bind(organization.admin_group_id)
         .bind(administrator_id)
         .execute(&mut *transaction)
         .await?;
-    sqlx::query("INSERT INTO organization_user_permissions (user_id, resource_id, role_name, granted_by, grant_reason)
-                 VALUES ($1, $2, 'organization_admin', $1, 'Organization creation')")
-        .bind(administrator_id).bind(organization.id).execute(&mut *transaction).await?;
     transaction.commit().await?;
 
     Ok(organization)
@@ -487,10 +488,18 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let organization = sqlx::query_as_with(&sql, values)
+    let organization: Organization = sqlx::query_as_with(&sql, values)
         .fetch_one(&mut *tx)
         .await
         .resolve_db_err("Organization")?;
+
+    sqlx::query("DELETE FROM user_group WHERE id = ANY($1)")
+        .bind(vec![
+            organization.user_group_id,
+            organization.admin_group_id,
+        ])
+        .execute(&mut *tx)
+        .await?;
 
     tx.commit().await?;
 
