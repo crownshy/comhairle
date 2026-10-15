@@ -454,6 +454,81 @@ impl PermissionResource for ConversationResource {
     }
 }
 
+// -- WORKFLOW STEP CONVERSATION RESOURCE -- //
+
+/// A struct representing the path parameters for a resource keyed by
+/// `workflow_step_id` rather than `conversation_id` (tool adaptor routes,
+/// e.g. `api/src/tools/heyform.rs`).
+#[derive(Deserialize)]
+struct WorkflowStepResourcePath {
+    workflow_step_id: Uuid,
+}
+
+/// Like [`ConversationResource`], but for tool-adaptor routes that are only
+/// keyed by `workflow_step_id` in the path. Resolves the owning conversation
+/// via `workflow_step -> workflow -> conversation` so those routes can still
+/// be gated by a conversation-scoped permission action.
+#[derive(Debug, OperationIo)]
+pub struct WorkflowStepConversationResource {
+    pub conversation_id: Uuid,
+    pub owner_id: Uuid,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for WorkflowStepConversationResource {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(path) = Path::<WorkflowStepResourcePath>::from_request_parts(parts, state)
+            .await
+            .map_err(|_| {
+                ComhairleError::ResourceNotFound("Path must contain a workflow_step_id".to_string())
+            })?;
+
+        let step = models::workflow_step::get_by_id(&state.db, &path.workflow_step_id).await?;
+        let workflow = models::workflow::get_by_id(&state.db, &step.workflow_id).await?;
+        let conversation_id = workflow.conversation_id.ok_or_else(|| {
+            ComhairleError::ResourceNotFound("Workflow has no conversation".to_string())
+        })?;
+        let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+
+        Ok(WorkflowStepConversationResource {
+            conversation_id: conversation.id,
+            owner_id: conversation.owner_id,
+        })
+    }
+}
+
+impl PermissionResource for WorkflowStepConversationResource {
+    type Action = conversation::Action;
+
+    fn resource_id(&self) -> Uuid {
+        self.conversation_id
+    }
+
+    fn owner_id(&self) -> Option<Uuid> {
+        Some(self.owner_id)
+    }
+
+    async fn can_perform_action(
+        &self,
+        state: &Arc<ComhairleState>,
+        action: Self::Action,
+        user_id: &Uuid,
+    ) -> Result<bool, ComhairleError> {
+        can_perform_action(
+            state,
+            &self.conversation_id,
+            action,
+            user_id,
+            Some(&self.owner_id),
+        )
+        .await
+    }
+}
+
 // ----------------------- //
 // * PERMISSION HANDLING * //
 // ----------------------- //
