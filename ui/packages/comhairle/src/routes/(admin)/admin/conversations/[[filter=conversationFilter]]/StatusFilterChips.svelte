@@ -5,8 +5,10 @@
 	import * as Select from '$lib/components/ui/select';
 	import { cn } from '$lib/utils';
 	import {
+		conversationStatusFilterLabels,
 		conversationStatusFilters,
-		statusFilterLabels,
+		filterToSegment,
+		isConversationStatusFilter,
 		type ConversationStatusFilter
 	} from '$lib/utils/conversationFilters';
 
@@ -15,11 +17,7 @@
 	const listRoute = '/(admin)/admin/conversations/[[filter=conversationFilter]]';
 
 	function routeParams(filter: ConversationStatusFilter) {
-		return { filter: filter === 'all' ? undefined : filter };
-	}
-
-	function isStatusFilter(value: string): value is ConversationStatusFilter {
-		return conversationStatusFilters.some((filter) => filter === value);
+		return { filter: filterToSegment(filter) };
 	}
 </script>
 
@@ -37,7 +35,7 @@
 					size="lg"
 					class={cn('px-4 text-base', !isActive && 'bg-card text-foreground')}
 				>
-					{statusFilterLabels[filter]}
+					{conversationStatusFilterLabels[filter]}
 				</Button>
 			</li>
 		{/each}
@@ -49,16 +47,20 @@
 		type="single"
 		value={active}
 		onValueChange={(value) => {
-			if (isStatusFilter(value))
+			if (isConversationStatusFilter(value))
 				goto(resolve(listRoute, routeParams(value)), { noScroll: true });
 		}}
 	>
 		<Select.Trigger aria-label="Filter conversations" class="bg-card h-10 w-full text-base">
-			{statusFilterLabels[active]}
+			{conversationStatusFilterLabels[active]}
 		</Select.Trigger>
 		<Select.Content class="w-(--bits-select-anchor-width)">
 			{#each conversationStatusFilters as filter (filter)}
-				<Select.Item value={filter} label={statusFilterLabels[filter]} class="text-base" />
+				<Select.Item
+					value={filter}
+					label={conversationStatusFilterLabels[filter]}
+					class="text-base"
+				/>
 			{/each}
 		</Select.Content>
 	</Select.Root>
