@@ -117,7 +117,9 @@
 	</SideBar.Content>
 
 	<SideBar.Footer class="border-sidebar-border gap-3 border-t">
-		<WorkspaceLinks path={props.path} {isSiteAdmin} {isSuperAdmin} />
+		{#if !props.conversation}
+			<WorkspaceLinks path={props.path} {isSiteAdmin} {isSuperAdmin} />
+		{/if}
 		<UserMenu user={props.user} />
 	</SideBar.Footer>
 	<SidebarResizeHandle />

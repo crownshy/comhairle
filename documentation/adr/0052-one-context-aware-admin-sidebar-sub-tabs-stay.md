@@ -1,6 +1,6 @@
 # One context-aware admin sidebar; section sub-tabs stay
 
-The admin sidebar is a single column that changes with where you are. In the workspace it shows the latest conversations and workspace links. Inside a conversation it shows that conversation's sections grouped by Conversation Stage (Set up, Launch, Engage, Results), with Engage and Results locked until launch for the reasons in ADR-0001. The workspace links stay at the bottom in both modes. This replaces the main conversation tab strip, so the sidebar picks the section and the existing sub-tab strips (Configure, step editor, events, invites) pick within it.
+The admin sidebar is a single column that changes with where you are. In the workspace it shows the latest conversations and workspace links. Inside a conversation it shows that conversation's sections grouped by Conversation Stage (Set up, Launch, Engage, Results), with Engage and Results locked until launch for the reasons in ADR-0001. Workspace links only show in the workspace. Inside a conversation the back link covers them, so the bottom holds just the user menu. This replaces the main conversation tab strip, so the sidebar picks the section and the existing sub-tab strips (Configure, step editor, events, invites) pick within it.
 
 ## Considered options
 
