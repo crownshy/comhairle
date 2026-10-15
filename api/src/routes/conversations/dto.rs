@@ -132,6 +132,7 @@ pub struct LocalizedConversationDto {
     pub show_thankyou_page_feedback_button: bool,
     pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
+    pub owner_id: Uuid,
 }
 
 impl From<Conversation> for ConversationDto {
@@ -203,6 +204,7 @@ impl FromWithMedia<LocalizedConversation> for LocalizedConversationDto {
             show_thankyou_page_feedback_button: c.show_thankyou_page_feedback_button,
             allow_revisit_after_finishing: c.allow_revisit_after_finishing,
             metadata: c.metadata,
+            owner_id: c.owner_id,
         }
     }
 }

@@ -174,6 +174,7 @@ export const LocalizedConversationDto = z
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
     metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
+    ownerId: z.string().uuid(),
     primaryLocale: z.string(),
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
@@ -4046,6 +4047,11 @@ const endpoints = makeApi([
         schema: created_after,
       },
       {
+        name: "exclude_owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
         name: "is_complete",
         type: "Query",
         schema: is_complete,
@@ -7587,6 +7593,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
         schema: created_after,
       },
       {
+        name: "exclude_owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
         name: "is_complete",
         type: "Query",
         schema: is_complete,
@@ -7648,6 +7659,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
       {
         name: "created_before",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "exclude_owner_id",
         type: "Query",
         schema: created_after,
       },

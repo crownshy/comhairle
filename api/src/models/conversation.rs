@@ -253,6 +253,8 @@ pub struct ConversationFilterOptions {
     is_complete: Option<bool>,
     is_invite_only: Option<bool>,
     owner_id: Option<Uuid>,
+    /// Lets the admin list show conversations shared with you without the ones you own.
+    exclude_owner_id: Option<Uuid>,
     organization_id: Option<Uuid>,
     created_before: Option<DateTime<Utc>>,
     created_after: Option<DateTime<Utc>>,
@@ -295,6 +297,13 @@ impl ConversationFilterOptions {
                 .and_where(
                     Expr::col((ConversationIden::Table, ConversationIden::OwnerId))
                         .eq(value.to_string()),
+                )
+                .to_owned();
+        }
+        if let Some(value) = &self.exclude_owner_id {
+            query = query
+                .and_where(
+                    Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).ne(*value),
                 )
                 .to_owned();
         }
@@ -1398,6 +1407,42 @@ mod tests {
         assert_eq!(
             results_owner.total, 1,
             "incorrect permitted conversation total for owner"
+        );
+
+        let results_owner_excluding_own = list_for_permitted_user(
+            &state.db,
+            session.id.unwrap(),
+            false,
+            page_options.clone(),
+            ConversationOrderOptions::default(),
+            ConversationFilterOptions {
+                exclude_owner_id: session.id,
+                ..Default::default()
+            },
+            Some("en".to_string()),
+        )
+        .await?;
+        assert_eq!(
+            results_owner_excluding_own.total, 0,
+            "excluding the owner should drop their own conversation"
+        );
+
+        let results_user_a_excluding_own = list_for_permitted_user(
+            &state.db,
+            user_a.id,
+            false,
+            page_options.clone(),
+            ConversationOrderOptions::default(),
+            ConversationFilterOptions {
+                exclude_owner_id: Some(user_a.id),
+                ..Default::default()
+            },
+            Some("en".to_string()),
+        )
+        .await?;
+        assert_eq!(
+            results_user_a_excluding_own.total, 1,
+            "a conversation shared with user_a should stay when excluding user_a's own"
         );
         assert_eq!(
             results_user_b_b.total, 0,
