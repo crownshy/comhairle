@@ -6,21 +6,12 @@
 	import { Home } from 'lucide-svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
-	import { page } from '$app/state';
 	import StatusFilterChips from './StatusFilterChips.svelte';
-	import {
-		filterConversations,
-		parseStatusFilter,
-		statusFilterLabels
-	} from './conversationFilters';
+	import { statusFilterLabels } from '$lib/utils/conversationFilters';
 
 	let props: PageProps = $props();
-	let ownedConversations = $derived(props.data.ownedConversations?.records ?? []);
-	let permittedConversations = $derived(props.data.permittedConversations?.records ?? []);
-	let statusFilter = $derived(parseStatusFilter(page.url.searchParams.get('status')));
-	let visibleConversations = $derived(
-		filterConversations(ownedConversations, permittedConversations, statusFilter)
-	);
+	let statusFilter = $derived(props.data.filter);
+	let visibleConversations = $derived(props.data.conversations);
 </script>
 
 <svelte:head>
@@ -50,7 +41,7 @@
 		{/if}
 	</div>
 	<div class="flex w-full flex-col gap-11 overflow-y-auto">
-		<StatusFilterChips url={page.url} active={statusFilter} />
+		<StatusFilterChips active={statusFilter} />
 
 		{#if visibleConversations.length > 0}
 			<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterConversations, parseStatusFilter, statusFilterHref } from './conversationFilters';
+import { filterConversations, isConversationFilterSegment } from './conversationFilters';
 
 const conversation = (id: string, isLive: boolean, isComplete: boolean) => ({
 	id,
@@ -49,25 +49,12 @@ describe('filterConversations', () => {
 	});
 });
 
-describe('parseStatusFilter', () => {
-	it.each(['live', 'draft', 'completed', 'shared'] as const)('accepts %s', (value) => {
-		expect(parseStatusFilter(value)).toBe(value);
+describe('isConversationFilterSegment', () => {
+	it.each(['live', 'draft', 'completed', 'shared'])('accepts %s', (value) => {
+		expect(isConversationFilterSegment(value)).toBe(true);
 	});
 
-	it.each([null, '', 'banana', 'LIVE'])('falls back to all for %j', (value) => {
-		expect(parseStatusFilter(value)).toBe('all');
-	});
-});
-
-describe('statusFilterHref', () => {
-	it('sets the status and keeps other params', () => {
-		const url = new URL('https://example.test/admin?q=wind');
-		expect(statusFilterHref(url, 'live')).toBe('/admin?q=wind&status=live');
-	});
-
-	it('drops the status param for All', () => {
-		expect(statusFilterHref(new URL('https://example.test/admin?status=live'), 'all')).toBe(
-			'/admin'
-		);
+	it.each(['all', '', 'banana', 'LIVE'])('rejects %j so All keeps one URL', (value) => {
+		expect(isConversationFilterSegment(value)).toBe(false);
 	});
 });

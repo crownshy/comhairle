@@ -1,9 +1,6 @@
+import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ parent }) => {
-	const parentData = await parent();
-	const ownedConversations = parentData?.ownedConversations ?? { records: [] };
-	const permittedConversations = parentData?.permittedConversations ?? { records: [] };
-
-	return { ownedConversations, permittedConversations };
+export const load: PageLoad = () => {
+	redirect(307, '/admin/conversations');
 };

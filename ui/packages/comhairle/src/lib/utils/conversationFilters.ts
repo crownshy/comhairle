@@ -1,8 +1,11 @@
 import type { ConversationDto } from '@crownshy/api-client/api';
-import { conversationStatus, conversationStatusLabels } from '$lib/utils/conversationStatus';
+import { conversationStatus, conversationStatusLabels } from './conversationStatus';
 
 export const conversationStatusFilters = ['all', 'live', 'draft', 'completed', 'shared'] as const;
 export type ConversationStatusFilter = (typeof conversationStatusFilters)[number];
+
+/** The filters that get their own URL segment; All is the bare list route. */
+export type ConversationFilterSegment = Exclude<ConversationStatusFilter, 'all'>;
 
 export const statusFilterLabels: Record<ConversationStatusFilter, string> = {
 	all: 'All',
@@ -10,16 +13,8 @@ export const statusFilterLabels: Record<ConversationStatusFilter, string> = {
 	shared: 'Shared'
 };
 
-export function parseStatusFilter(value: string | null): ConversationStatusFilter {
-	return conversationStatusFilters.find((filter) => filter === value) ?? 'all';
-}
-
-export function statusFilterHref(url: URL, filter: ConversationStatusFilter): string {
-	const params = new URLSearchParams(url.searchParams);
-	if (filter === 'all') params.delete('status');
-	else params.set('status', filter);
-	const query = params.toString();
-	return query ? `${url.pathname}?${query}` : url.pathname;
+export function isConversationFilterSegment(value: string): value is ConversationFilterSegment {
+	return value !== 'all' && conversationStatusFilters.some((filter) => filter === value);
 }
 
 type ListedConversation = Pick<ConversationDto, 'id' | 'isLive' | 'isComplete'>;
