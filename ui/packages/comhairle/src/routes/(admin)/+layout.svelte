@@ -1,5 +1,7 @@
 <script lang="ts">
 	import AdminNav from '$lib/components/AdminNav.svelte';
+	import ConversationNav from './sidebar/ConversationNav.svelte';
+	import type { StageConversation } from './sidebar/conversationStages';
 	import SidebarFloatingTriggers from '$lib/components/SidebarFloatingTriggers.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import { setSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
@@ -14,6 +16,9 @@
 	let permittedConversations = $derived(data.permittedConversations);
 	let userOrganizations = $derived(data.userOrganizations);
 	let userRoles = $derived(data.userRoles);
+	// Set by the conversation layout. Its presence switches the sidebar to that conversation.
+	let conversation = $derived(page.data.conversation as StageConversation | undefined);
+	let stepCount = $derived((page.data.workflowSteps as unknown[] | undefined)?.length ?? 0);
 
 	if (!data.user) {
 		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
@@ -36,17 +41,21 @@
 	style="--sidebar-width: {sidebarWidthPx}px;"
 	data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
 >
-	<AdminNav
-		user={data.user}
-		ownedConversations={ownedConversations?.records ?? []}
-		permittedConversations={permittedConversations?.records ?? []}
-		userOrganizations={userOrganizations ?? {
-			organizations: [],
-			canCreateOrganization: false
-		}}
-		{userRoles}
-		path={page.url.pathname}
-	/>
+	{#if conversation}
+		<ConversationNav {conversation} {stepCount} user={data.user} path={page.url.pathname} />
+	{:else}
+		<AdminNav
+			user={data.user}
+			ownedConversations={ownedConversations?.records ?? []}
+			permittedConversations={permittedConversations?.records ?? []}
+			userOrganizations={userOrganizations ?? {
+				organizations: [],
+				canCreateOrganization: false
+			}}
+			{userRoles}
+			path={page.url.pathname}
+		/>
+	{/if}
 	<SideBar.Inset class="min-h-0 min-w-0">
 		<SidebarFloatingTriggers />
 		<main class="bg-muted flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
