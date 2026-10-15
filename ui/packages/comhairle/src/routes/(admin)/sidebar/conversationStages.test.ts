@@ -16,7 +16,7 @@ function section(conversation: StageConversation, path: string, canAdmin = true)
 }
 
 describe('conversationStages', () => {
-	it('groups the sections by stage, with Launch as an empty milestone', () => {
+	it('groups the sections by stage, with Launch and Close as milestones', () => {
 		const grouped = stages(draft).map((stage) => [
 			stage.id,
 			stage.sections.map((link) => link.name)
@@ -25,24 +25,28 @@ describe('conversationStages', () => {
 		expect(grouped).toEqual([
 			['set-up', ['Configure', 'Process design', 'Learning Assistant', 'Events']],
 			['launch', []],
-			['engage', ['Recruit', 'Notify']],
-			['results', ['Monitor', 'Report']]
+			['engage', ['Recruit', 'Notify', 'Monitor']],
+			['close', []],
+			['results', ['Report']]
 		]);
 	});
 
-	it('locks Engage and Results before launch', () => {
+	it('locks Engage, Close and Results before launch', () => {
 		expect(stages(draft).map((stage) => stage.state)).toEqual([
 			'current',
 			'current',
 			'locked',
+			'locked',
 			'locked'
 		]);
+		expect(stages(draft)[3].link?.lock).toBe('until-launch');
+		expect(stages(draft)[1].link?.href).toBe('/admin/conversations/c1/launch');
 		expect(section(draft, 'invites')?.lock).toBe('until-launch');
 		expect(section(draft, 'configure')?.lock).toBeNull();
 	});
 
 	it('marks Set up and Launched done once live', () => {
-		const [setUp, launch, engage, results] = stages(live);
+		const [setUp, launch, engage, , results] = stages(live);
 
 		expect(launch.label).toBe('Launched');
 		expect([setUp.state, launch.state, engage.state, results.state]).toEqual([
@@ -54,8 +58,26 @@ describe('conversationStages', () => {
 		expect(section(live, 'invites')?.lock).toBeNull();
 	});
 
-	it('marks Engage done once the conversation closes', () => {
+	it('opens Close once live and marks it done once the conversation closes', () => {
+		expect(stages(live)[3].state).toBe('current');
+		expect(stages(live)[3].link?.lock).toBeNull();
 		expect(stages(closed)[2].state).toBe('done');
+		expect(stages(closed)[3]).toMatchObject({ label: 'Closed', state: 'done' });
+	});
+
+	it('adds Moderate to Engage only when there is a Polis step', () => {
+		const engage = (hasPolisStep: boolean) =>
+			conversationStages({
+				conversation: live,
+				pathname: '/admin',
+				canAdmin: true,
+				hasPolisStep
+			})
+				.find((stage) => stage.id === 'engage')
+				?.sections.map((link) => link.name);
+
+		expect(engage(false)).toEqual(['Recruit', 'Notify', 'Monitor']);
+		expect(engage(true)).toEqual(['Recruit', 'Notify', 'Moderate', 'Monitor']);
 	});
 
 	it('locks Notify for people without Admin while leaving Monitor open', () => {

@@ -9,13 +9,29 @@
 	import { page } from '$app/state';
 	import { loginRedirectServer } from '$lib/urls';
 	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
+	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
 
 	let { children, data }: LayoutProps = $props();
 	let latestConversations = $derived(data.latestConversations);
 	let organizations = $derived(data.userOrganizations?.organizations ?? []);
 	// Set by the conversation layout. Its presence switches the sidebar to that conversation.
 	let conversation = $derived(page.data.conversation as StageConversation | undefined);
-	let stepCount = $derived((page.data.workflowSteps as unknown[] | undefined)?.length ?? 0);
+	// Same rule as the conversation header: primary-locale translation, falling back to the raw title.
+	let conversationTitle = $derived.by(() => {
+		const c = page.data.conversation as ConversationWithTranslations | undefined;
+		if (!c) return '';
+		return getTextInLocale(c.translations?.title, c.primaryLocale ?? 'en', c.title) || c.title;
+	});
+	type StepTool = { toolConfig?: { type?: string }; previewToolConfig?: { type?: string } };
+	let workflowSteps = $derived((page.data.workflowSteps as StepTool[] | undefined) ?? []);
+	let stepCount = $derived(workflowSteps.length);
+	// Moderation is for Polis steps, whether they are live or still in preview.
+	let hasPolisStep = $derived(
+		workflowSteps.some(
+			(step) => step.toolConfig?.type === 'polis' || step.previewToolConfig?.type === 'polis'
+		)
+	);
 	let userRoles = $derived(data.userRoles);
 
 	if (!data.user) {
@@ -44,7 +60,9 @@
 		latestConversations={latestConversations ?? []}
 		{organizations}
 		{conversation}
+		{conversationTitle}
 		{stepCount}
+		{hasPolisStep}
 		{userRoles}
 		path={page.url.pathname}
 	/>

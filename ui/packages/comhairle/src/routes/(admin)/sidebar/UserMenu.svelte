@@ -5,7 +5,7 @@
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { ChevronsUpDown, Home, Info, LogOut, Settings } from 'lucide-svelte';
+	import { ChevronsUpDown, ExternalLink, Globe, House, LayoutGrid, LogOut } from 'lucide-svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { UserDto } from '@crownshy/api-client/api';
 	import { userInitials } from '$lib/utils';
@@ -65,22 +65,34 @@
 			>
 				<DropdownMenu.Item>
 					{#snippet child({ props })}
-						<a {...props} href={resolve('/settings')}>
-							<Settings class="size-4" /> Settings
+						<a {...props} href={resolve('/admin')}>
+							<House class="size-4" /> Back to workspace
 						</a>
 					{/snippet}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					{#snippet child({ props })}
-						<a {...props} href={resolve('/')}>
-							<Home class="size-4" /> Back to home
+						<a {...props} href={resolve('/admin/conversations')}>
+							<LayoutGrid class="size-4" /> Conversations
 						</a>
 					{/snippet}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					{#snippet child({ props })}
-						<a {...props} href={resolve('/about')}>
-							<Info class="size-4" /> About Comhairle
+						<!-- External site, so resolve() doesn't apply. -->
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+						<a
+							{...props}
+							href="https://comhairle.scot"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							<Globe class="size-4" /> comhairle.scot
+							<ExternalLink
+								class="text-muted-foreground ml-auto size-3.5"
+								aria-hidden="true"
+							/>
+							<span class="sr-only">(opens in a new tab)</span>
 						</a>
 					{/snippet}
 				</DropdownMenu.Item>

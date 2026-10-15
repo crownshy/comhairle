@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import * as SideBar from '$lib/components/ui/sidebar';
-	import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-svelte';
+	import { PanelLeftClose, PanelLeftOpen } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import SidebarResizeHandle from '$lib/components/SidebarResizeHandle.svelte';
@@ -28,7 +27,9 @@
 		organizations: UserOrganizationAccess[];
 		/** The conversation being edited, which switches the sidebar to its stages. */
 		conversation: StageConversation | undefined;
+		conversationTitle: string;
 		stepCount: number;
+		hasPolisStep: boolean;
 		user: UserDto;
 		userRoles: readonly UserRoles[] | undefined;
 		path: string;
@@ -51,17 +52,18 @@
 
 <SideBar.Root collapsible="icon">
 	<SideBar.Header
-		class="flex flex-row items-center justify-between gap-2 py-6 pr-3 pl-4 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3"
+		class="flex flex-row justify-between gap-2 py-6 pr-3 pl-4 {props.conversation
+			? 'items-start'
+			: 'items-center'} group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3"
 	>
 		<div class="flex min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
 			{#if props.conversation}
-				<a
-					href={resolve('/admin/conversations')}
-					class="text-sidebar-foreground/80 hover:text-sidebar-foreground flex items-center gap-2 text-base"
+				<p
+					class="text-sidebar-foreground line-clamp-2 text-lg leading-7 font-semibold"
+					title={props.conversationTitle}
 				>
-					<ArrowLeft class="size-4" />
-					Conversations
-				</a>
+					{props.conversationTitle}
+				</p>
 			{:else if props.organizations.length > 0}
 				<OrganizationSwitcher organizations={props.organizations} />
 			{:else}
@@ -88,18 +90,6 @@
 			<PanelLeftOpen class="size-4" />
 			<span class="sr-only">Expand sidebar</span>
 		</Button>
-		{#if props.conversation}
-			<Button
-				variant="ghost"
-				size="icon"
-				href={resolve('/admin/conversations')}
-				class="text-sidebar-foreground/70 hover:text-sidebar mx-auto hidden size-7 group-data-[collapsible=icon]:flex"
-				title="Back to conversations"
-			>
-				<ArrowLeft class="size-4" />
-				<span class="sr-only">Back to conversations</span>
-			</Button>
-		{/if}
 	</SideBar.Header>
 
 	<SideBar.Content
@@ -109,6 +99,7 @@
 			<ConversationSection
 				conversation={props.conversation}
 				stepCount={props.stepCount}
+				hasPolisStep={props.hasPolisStep}
 				path={props.path}
 			/>
 		{:else}
