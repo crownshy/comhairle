@@ -1,9 +1,7 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { Button } from '$lib/components/ui/button';
 	import { Building2, Plus } from 'lucide-svelte';
-	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
 
 	let props: PageProps = $props();
@@ -18,16 +16,6 @@
 <div
 	class="bg-muted flex w-full flex-col justify-between gap-11 border-b-black px-4 py-6 sm:px-8 md:px-16 md:py-8"
 >
-	<Breadcrumb.Root>
-		<Breadcrumb.List>
-			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/admin">{m.workspace()}</Breadcrumb.Link>
-			</Breadcrumb.Item>
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>Organisations</Breadcrumb.Item>
-		</Breadcrumb.List>
-	</Breadcrumb.Root>
-
 	<div class="mb-10 flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
 		<div class="flex items-center gap-2">
 			<Building2 class="size-7 sm:size-9" />
