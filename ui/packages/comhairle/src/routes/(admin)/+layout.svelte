@@ -10,8 +10,7 @@
 	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
 
 	let { children, data }: LayoutProps = $props();
-	let ownedConversations = $derived(data.ownedConversations);
-	let permittedConversations = $derived(data.permittedConversations);
+	let latestConversations = $derived(data.latestConversations);
 	let userOrganizations = $derived(data.userOrganizations);
 	let userRoles = $derived(data.userRoles);
 
@@ -38,8 +37,7 @@
 >
 	<AdminNav
 		user={data.user}
-		ownedConversations={ownedConversations?.records ?? []}
-		permittedConversations={permittedConversations?.records ?? []}
+		latestConversations={latestConversations ?? []}
 		userOrganizations={userOrganizations ?? {
 			organizations: [],
 			canCreateOrganization: false

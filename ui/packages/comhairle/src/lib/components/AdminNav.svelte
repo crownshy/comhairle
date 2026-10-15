@@ -16,7 +16,6 @@
 		Map,
 		PanelLeftClose,
 		PanelLeftOpen,
-		Plus,
 		Shield
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
@@ -38,8 +37,7 @@
 	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
-		ownedConversations: LocalizedConversationDto[];
-		permittedConversations: LocalizedConversationDto[];
+		latestConversations: LocalizedConversationDto[];
 		userOrganizations: {
 			organizations: UserOrganizationsResponse['organizations'];
 			canCreateOrganization: boolean;
@@ -60,8 +58,7 @@
 	let props: Props = $props();
 	let path = $derived<string>(props.path);
 	let user = $derived(props.user);
-	let ownedConversations = $derived(props.ownedConversations);
-	let permittedConversations = $derived(props.permittedConversations);
+	let latestConversations = $derived(props.latestConversations);
 	let isSuperAdmin = $derived(hasSuperAdminRole(props.userRoles));
 	let isSiteAdmin = $derived(hasSiteAdminRole(props.userRoles));
 	let user_initials = $derived(userInitials(user?.username ?? ''));
@@ -101,7 +98,7 @@
 	</SideBar.Header>
 
 	<SideBar.Content
-		class="overflow-hidden pt-4 pl-4 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
+		class="overflow-x-hidden overflow-y-auto pt-4 pl-4 group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
 	>
 		<!-- Platform section -->
 		<SideBar.Group>
@@ -113,7 +110,7 @@
 					<SideBar.MenuItem>
 						<SideBar.MenuButton>
 							{#snippet child({ props: btnProps })}
-								<a {...btnProps} href="/">
+								<a {...btnProps} href={resolve('/')}>
 									<Home class="size-4" />
 									Home
 								</a>
@@ -123,7 +120,7 @@
 					<SideBar.MenuItem>
 						<SideBar.MenuButton>
 							{#snippet child({ props: btnProps })}
-								<a {...btnProps} href="/admin/">
+								<a {...btnProps} href={resolve('/admin')}>
 									<LayoutDashboard class="size-4" />
 									{m.workspace()}
 								</a>
@@ -133,7 +130,7 @@
 					<SideBar.MenuItem>
 						<SideBar.MenuButton>
 							{#snippet child({ props: btnProps })}
-								<a {...btnProps} href="/admin/organizations">
+								<a {...btnProps} href={resolve('/admin/organizations')}>
 									<Building2 class="size-4" />
 									Organisations
 								</a>
@@ -141,7 +138,7 @@
 						</SideBar.MenuButton>
 					</SideBar.MenuItem>
 					{#if isSuperAdmin}
-						{@const href = '/admin/regions'}
+						{@const href = resolve('/admin/regions')}
 						<SideBar.MenuItem>
 							<SideBar.MenuButton isActive={path.startsWith(href)}>
 								{#snippet child({ props: btnProps })}
@@ -180,7 +177,10 @@
 						<SideBar.MenuItem>
 							<SideBar.MenuButton>
 								{#snippet child({ props: btnProps })}
-									<a {...btnProps} href="/admin/email-template-configs">
+									<a
+										{...btnProps}
+										href={resolve('/admin/email-template-configs')}
+									>
 										<Mail class="size-4" />
 										Emails
 									</a>
@@ -190,7 +190,7 @@
 						<SideBar.MenuItem>
 							<SideBar.MenuButton>
 								{#snippet child({ props: btnProps })}
-									<a {...btnProps} href="/admin/media-library">
+									<a {...btnProps} href={resolve('/admin/media-library')}>
 										<Images class="size-4" />
 										Media library
 									</a>
@@ -207,7 +207,7 @@
 			<SideBar.GroupContent class="min-h-0 flex-1">
 				<ScrollArea.Root class="h-full" type="hover">
 					<SideBar.Menu class="items-center gap-0.5">
-						{#each ownedConversations ?? [] as conversation (conversation.id)}
+						{#each latestConversations as conversation (conversation.id)}
 							{@const active = isConversationActive(conversation.id)}
 							<SideBar.MenuItem>
 								<SideBar.MenuButton
@@ -218,7 +218,12 @@
 									{#snippet child({ props: btnProps })}
 										<a
 											{...btnProps}
-											href={`/admin/conversations/${conversation.id}/configure`}
+											href={resolve(
+												'/(admin)/admin/conversations/[conversation_id]/configure',
+												{
+													conversation_id: conversation.id
+												}
+											)}
 											aria-label={conversation.title}
 										>
 											<span
@@ -237,127 +242,73 @@
 			</SideBar.GroupContent>
 		</SideBar.Group>
 
-		<!-- Owned Conversations section -->
-		<SideBar.Group
-			class="flex min-h-0 flex-1 flex-col pr-1 group-data-[collapsible=icon]:hidden"
-		>
+		<!-- Latest conversations section -->
+		<SideBar.Group class="pr-4 group-data-[collapsible=icon]:hidden">
 			<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">
-				Owned Conversations
+				Latest
 			</SideBar.GroupLabel>
 
-			<SideBar.GroupContent class="min-h-0 flex-1">
-				<ScrollArea.Root class="h-full pr-3" type="always">
-					{#if ownedConversations}
-						<SideBar.Menu>
-							{#each ownedConversations as conversation (conversation.id)}
-								{@const active = isConversationActive(conversation.id)}
-								<SideBar.MenuItem>
-									<SideBar.MenuButton
-										class="text-sidebar-foreground/80 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground h-8 w-full overflow-hidden rounded-lg p-2 data-[active=true]:font-semibold"
-										isActive={active}
+			<SideBar.GroupContent>
+				<SideBar.Menu>
+					{#each latestConversations as conversation (conversation.id)}
+						{@const active = isConversationActive(conversation.id)}
+						<SideBar.MenuItem>
+							<SideBar.MenuButton
+								class="text-sidebar-foreground/80 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground h-8 w-full overflow-hidden rounded-lg p-2 data-[active=true]:font-semibold"
+								isActive={active}
+							>
+								{#snippet child({ props: btnProps })}
+									<a
+										{...btnProps}
+										href={resolve(
+											'/(admin)/admin/conversations/[conversation_id]/configure',
+											{
+												conversation_id: conversation.id
+											}
+										)}
+										class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center rounded-lg px-2 py-1.5 {active
+											? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+											: ''}"
 									>
-										{#snippet child({ props: btnProps })}
-											<a
-												{...btnProps}
-												href={`/admin/conversations/${conversation.id}/configure`}
-												class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center rounded-lg px-2 py-1.5 {active
-													? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
-													: ''}"
-											>
-												{#if conversation.title.length > 29}
-													<Tooltip.Root>
-														<Tooltip.Trigger>
-															{#snippet child({ props: tipProps })}
-																<span
-																	{...tipProps}
-																	class="flex-1 truncate text-left text-sm leading-4 font-medium"
-																>
-																	{conversation.title}
-																</span>
-															{/snippet}
-														</Tooltip.Trigger>
-														<Tooltip.Content side="right">
+										{#if conversation.title.length > 29}
+											<Tooltip.Root>
+												<Tooltip.Trigger>
+													{#snippet child({ props: tipProps })}
+														<span
+															{...tipProps}
+															class="flex-1 truncate text-left text-sm leading-4 font-medium"
+														>
 															{conversation.title}
-														</Tooltip.Content>
-													</Tooltip.Root>
-												{:else}
-													<span
-														class="flex-1 truncate text-left text-sm leading-4 font-medium"
-													>
-														{conversation.title}
-													</span>
-												{/if}
-											</a>
-										{/snippet}
-									</SideBar.MenuButton>
-								</SideBar.MenuItem>
-							{/each}
-						</SideBar.Menu>
-					{/if}
-				</ScrollArea.Root>
+														</span>
+													{/snippet}
+												</Tooltip.Trigger>
+												<Tooltip.Content side="right">
+													{conversation.title}
+												</Tooltip.Content>
+											</Tooltip.Root>
+										{:else}
+											<span
+												class="flex-1 truncate text-left text-sm leading-4 font-medium"
+											>
+												{conversation.title}
+											</span>
+										{/if}
+									</a>
+								{/snippet}
+							</SideBar.MenuButton>
+						</SideBar.MenuItem>
+					{/each}
+					<SideBar.MenuItem>
+						<a
+							href={resolve('/admin/conversations')}
+							class="text-sidebar-secondary hover:text-sidebar-foreground flex px-4 py-1.5 text-sm font-medium"
+						>
+							See more
+						</a>
+					</SideBar.MenuItem>
+				</SideBar.Menu>
 			</SideBar.GroupContent>
 		</SideBar.Group>
-
-		{#if permittedConversations.length > 0}
-			<!-- Permitted Conversations section -->
-			<SideBar.Group
-				class="flex min-h-0 flex-1 flex-col pr-1 group-data-[collapsible=icon]:hidden"
-			>
-				<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">
-					Permitted Conversations
-				</SideBar.GroupLabel>
-
-				<SideBar.GroupContent class="min-h-0 flex-1">
-					<ScrollArea.Root class="h-full pr-3" type="always">
-						<SideBar.Menu>
-							{#each permittedConversations as conversation (conversation.id)}
-								{@const active = isConversationActive(conversation.id)}
-								<SideBar.MenuItem>
-									<SideBar.MenuButton
-										class="text-sidebar-foreground/80 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground h-8 w-full overflow-hidden rounded-lg p-2 data-[active=true]:font-semibold"
-										isActive={active}
-									>
-										{#snippet child({ props: btnProps })}
-											<a
-												{...btnProps}
-												href={`/admin/conversations/${conversation.id}/configure`}
-												class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center rounded-lg px-2 py-1.5 {active
-													? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
-													: ''}"
-											>
-												{#if conversation.title.length > 29}
-													<Tooltip.Root>
-														<Tooltip.Trigger>
-															{#snippet child({ props: tipProps })}
-																<span
-																	{...tipProps}
-																	class="flex-1 truncate text-left text-sm leading-4 font-medium"
-																>
-																	{conversation.title}
-																</span>
-															{/snippet}
-														</Tooltip.Trigger>
-														<Tooltip.Content side="right">
-															{conversation.title}
-														</Tooltip.Content>
-													</Tooltip.Root>
-												{:else}
-													<span
-														class="flex-1 truncate text-left text-sm leading-4 font-medium"
-													>
-														{conversation.title}
-													</span>
-												{/if}
-											</a>
-										{/snippet}
-									</SideBar.MenuButton>
-								</SideBar.MenuItem>
-							{/each}
-						</SideBar.Menu>
-					</ScrollArea.Root>
-				</SideBar.GroupContent>
-			</SideBar.Group>
-		{/if}
 	</SideBar.Content>
 
 	{#if permissions.can('system', 'conversation_create')}
@@ -394,7 +345,7 @@
 			<SideBar.MenuItem>
 				<SideBar.MenuButton>
 					{#snippet child({ props: btnProps })}
-						<a {...btnProps} href="/settings">
+						<a {...btnProps} href={resolve('/settings')}>
 							<Settings class="size-4" />
 							Settings
 						</a>
@@ -404,7 +355,7 @@
 			<SideBar.MenuItem>
 				<SideBar.MenuButton>
 					{#snippet child({ props: btnProps })}
-						<a {...btnProps} href="/about">
+						<a {...btnProps} href={resolve('/about')}>
 							<Info class="size-4" />
 							About Comhairle
 						</a>
