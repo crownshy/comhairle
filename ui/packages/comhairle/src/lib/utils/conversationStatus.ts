@@ -8,9 +8,20 @@ export const CONVERSATION_STATUS_LABELS: Record<ConversationStatus, string> = {
 	completed: 'Completed'
 };
 
+// A finished conversation usually keeps `isLive`, so completed wins over live.
+// The function and the API filters below must agree on that rule.
 export function conversationStatus(
 	conversation: Pick<ConversationDto, 'isLive' | 'isComplete'>
 ): ConversationStatus {
 	if (conversation.isComplete) return 'completed';
 	return conversation.isLive ? 'live' : 'draft';
 }
+
+export const CONVERSATION_STATUS_QUERIES: Record<
+	ConversationStatus,
+	{ is_live?: boolean; is_complete: boolean }
+> = {
+	live: { is_live: true, is_complete: false },
+	draft: { is_live: false, is_complete: false },
+	completed: { is_complete: true }
+};

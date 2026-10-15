@@ -1,4 +1,7 @@
-import { CONVERSATION_STATUS_LABELS } from '$lib/utils/conversationStatus';
+import {
+	CONVERSATION_STATUS_LABELS,
+	CONVERSATION_STATUS_QUERIES
+} from '$lib/utils/conversationStatus';
 
 export const CONVERSATION_STATUS_FILTERS = ['all', 'live', 'draft', 'completed', 'shared'] as const;
 export type ConversationStatusFilter = (typeof CONVERSATION_STATUS_FILTERS)[number];
@@ -18,29 +21,27 @@ export function statusFilterFromUrl(url: URL): ConversationStatusFilter {
 	return value && isConversationStatusFilter(value) ? value : 'all';
 }
 
-/**
- * Keeps the search, drops the page number (the new chip may have fewer pages),
- * and drops `status` for All so it has one URL.
- */
-export function statusFilterHref(url: URL, filter: ConversationStatusFilter): string {
+/** Changing a filter changes the results, so it always goes back to the first page. */
+function listHref(url: URL, name: 'status' | 'q', value: string | undefined): string {
 	const target = new URL(url);
 	target.searchParams.delete('page');
-	if (filter === 'all') target.searchParams.delete('status');
-	else target.searchParams.set('status', filter);
+	if (value) target.searchParams.set(name, value);
+	else target.searchParams.delete(name);
 	return `${target.pathname}${target.search}`;
+}
+
+/** Keeps the search, and drops `status` for All so it has one URL. */
+export function statusFilterHref(url: URL, filter: ConversationStatusFilter): string {
+	return listHref(url, 'status', filter === 'all' ? undefined : filter);
 }
 
 export function searchFromUrl(url: URL): string {
 	return url.searchParams.get('q') ?? '';
 }
 
-/** Keeps the chip and drops the page number, since the results change. */
+/** Keeps the chip. */
 export function searchHref(url: URL, search: string): string {
-	const target = new URL(url);
-	target.searchParams.delete('page');
-	if (search.trim()) target.searchParams.set('q', search);
-	else target.searchParams.delete('q');
-	return `${target.pathname}${target.search}`;
+	return listHref(url, 'q', search.trim() ? search : undefined);
 }
 
 type ConversationListQueries = {
@@ -51,22 +52,18 @@ type ConversationListQueries = {
 
 /**
  * Query params for `/user/permitted_conversations`, which returns the conversations you own
- * as well as the ones shared with you. Completed wins over live, matching `conversationStatus`.
+ * as well as the ones shared with you.
  */
 export function conversationListQueries(
 	filter: ConversationStatusFilter,
-	userId: string
+	userId: string | undefined
 ): ConversationListQueries {
 	switch (filter) {
 		case 'all':
 			return {};
-		case 'live':
-			return { is_live: true, is_complete: false };
-		case 'draft':
-			return { is_live: false, is_complete: false };
-		case 'completed':
-			return { is_complete: true };
 		case 'shared':
 			return { exclude_owner_id: userId };
+		default:
+			return CONVERSATION_STATUS_QUERIES[filter];
 	}
 }

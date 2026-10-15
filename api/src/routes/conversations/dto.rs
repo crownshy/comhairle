@@ -132,7 +132,16 @@ pub struct LocalizedConversationDto {
     pub show_thankyou_page_feedback_button: bool,
     pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
-    pub owner_id: Uuid,
+}
+
+/// A conversation from the signed-in user's permitted list. `is_shared` is true when
+/// someone else owns it, so the owner id never has to leave the server.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PermittedConversationDto {
+    #[serde(flatten)]
+    pub conversation: LocalizedConversationDto,
+    pub is_shared: bool,
 }
 
 impl From<Conversation> for ConversationDto {
@@ -204,7 +213,6 @@ impl FromWithMedia<LocalizedConversation> for LocalizedConversationDto {
             show_thankyou_page_feedback_button: c.show_thankyou_page_feedback_button,
             allow_revisit_after_finishing: c.allow_revisit_after_finishing,
             metadata: c.metadata,
-            owner_id: c.owner_id,
         }
     }
 }

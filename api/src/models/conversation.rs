@@ -1408,6 +1408,10 @@ mod tests {
             results_owner.total, 1,
             "incorrect permitted conversation total for owner"
         );
+        assert_eq!(
+            results_user_b_b.total, 0,
+            "incorrect permitted conversation total for user_b"
+        );
 
         let results_owner_excluding_own = list_for_permitted_user(
             &state.db,
@@ -1443,10 +1447,6 @@ mod tests {
         assert_eq!(
             results_user_a_excluding_own.total, 1,
             "a conversation shared with user_a should stay when excluding user_a's own"
-        );
-        assert_eq!(
-            results_user_b_b.total, 0,
-            "incorrect permitted conversation total for user_b"
         );
 
         Ok(())

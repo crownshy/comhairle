@@ -1,16 +1,16 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { Home } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
-	import type { PageProps } from './$types';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
-	import { Home } from 'lucide-svelte';
+	import { Pager } from '$lib/pagination';
 	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
-	import { page } from '$app/state';
-	import { Pager } from '$lib/pagination';
-	import StatusFilterChips from './StatusFilterChips.svelte';
-	import ConversationSearch from './ConversationSearch.svelte';
 	import { CONVERSATION_STATUS_FILTER_LABELS } from './conversationFilters';
+	import type { PageProps } from './$types';
+	import ConversationSearch from './ConversationSearch.svelte';
+	import StatusFilterChips from './StatusFilterChips.svelte';
 
 	let { data }: PageProps = $props();
 	let filteredNoun = $derived(
@@ -58,10 +58,7 @@
 
 			<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
 				{#each data.conversations.records as conversation (conversation.id)}
-					<ConversationCard
-						{conversation}
-						isShared={conversation.ownerId !== data.userId}
-					/>
+					<ConversationCard {conversation} isShared={conversation.isShared} />
 				{:else}
 					<p class="text-muted-foreground text-base">
 						{#if data.search.trim()}

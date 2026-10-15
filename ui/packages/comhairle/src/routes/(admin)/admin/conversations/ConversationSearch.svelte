@@ -15,8 +15,11 @@
 	}, 250);
 
 	// Our own debounced goto already matches the box; other navigations (back, a link) may not.
+	// A chip clicked mid-typing carries the old search, so apply what was typed instead.
 	afterNavigate(({ type }) => {
-		if (type !== 'goto') value = searchFromUrl(page.url);
+		if (type === 'goto') return;
+		if (updateUrl.pending) updateUrl.runScheduledNow();
+		else value = searchFromUrl(page.url);
 	});
 </script>
 

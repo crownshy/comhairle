@@ -174,7 +174,6 @@ export const LocalizedConversationDto = z
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
     metadata: z.unknown(),
     organizationId: z.union([z.string(), z.null()]).optional(),
-    ownerId: z.string().uuid(),
     primaryLocale: z.string(),
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
@@ -204,6 +203,49 @@ export const PaginatedResults_for_LocalizedConversationDto = z
   .passthrough();
 export type PaginatedResults_for_LocalizedConversationDto = z.infer<
   typeof PaginatedResults_for_LocalizedConversationDto
+>;
+export const PermittedConversationDto = z
+  .object({
+    allowRevisitAfterFinishing: z.boolean(),
+    callToAction: z.union([z.string(), z.null()]).optional(),
+    chatBotId: z.union([z.string(), z.null()]).optional(),
+    description: z.string(),
+    enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    imageUrl: z.string(),
+    isComplete: z.boolean(),
+    isInviteOnly: z.boolean(),
+    isLive: z.boolean(),
+    isPublic: z.boolean(),
+    isShared: z.boolean(),
+    knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
+    shortDescription: z.string(),
+    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
+    showThankyouPageFeedbackButton: z.boolean(),
+    slug: z.union([z.string(), z.null()]).optional(),
+    supportedLanguages: z.array(z.string()),
+    tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
+    title: z.string(),
+    videoUrl: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type PermittedConversationDto = z.infer<typeof PermittedConversationDto>;
+export const PaginatedResults_for_PermittedConversationDto = z
+  .object({
+    records: z.array(PermittedConversationDto),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type PaginatedResults_for_PermittedConversationDto = z.infer<
+  typeof PaginatedResults_for_PermittedConversationDto
 >;
 export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
 export type OrganizationType = z.infer<typeof OrganizationType>;
@@ -3474,6 +3516,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   is_complete,
   limit,
   PaginatedResults_for_LocalizedConversationDto,
+  PermittedConversationDto,
+  PaginatedResults_for_PermittedConversationDto,
   OrganizationType,
   LocalizedOrganizationDto,
   UserOrganizationAccess,
@@ -7713,7 +7757,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
         schema: limit,
       },
     ],
-    response: PaginatedResults_for_LocalizedConversationDto,
+    response: PaginatedResults_for_PermittedConversationDto,
   },
   {
     method: "get",

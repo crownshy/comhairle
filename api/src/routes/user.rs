@@ -32,7 +32,8 @@ use crate::{
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{
-        conversations::dto::LocalizedConversationDto, organizations::dto::LocalizedOrganizationDto,
+        conversations::dto::{LocalizedConversationDto, PermittedConversationDto},
+        organizations::dto::LocalizedOrganizationDto,
         user::dto::UserDto,
     },
 };
@@ -87,7 +88,7 @@ pub async fn get_user_permitted_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
+) -> Result<(StatusCode, Json<PaginatedResults<PermittedConversationDto>>), ComhairleError> {
     let is_super_admin =
         has_resource_permission(&state, system::Role::SuperAdmin.system_triplet()?, &user.id)
             .await?;
@@ -113,14 +114,20 @@ pub async fn get_user_permitted_conversations(
     )
     .await?;
 
-    let results_with_media: PaginatedResults<LocalizedConversationDto> =
-        FromWithMedia::from_with_media(
-            results,
-            &media,
-            &state.config.default_conversation_image_url,
-        );
+    let fallback_image = &state.config.default_conversation_image_url;
+    let permitted = PaginatedResults {
+        total: results.total,
+        records: results
+            .records
+            .into_iter()
+            .map(|conversation| PermittedConversationDto {
+                is_shared: conversation.owner_id != user.id,
+                conversation: FromWithMedia::from_with_media(conversation, &media, fallback_image),
+            })
+            .collect(),
+    };
 
-    Ok((StatusCode::OK, Json(results_with_media)))
+    Ok((StatusCode::OK, Json(permitted)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq)]
@@ -473,7 +480,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("User")
                     .description("Gets a list of the conversations a user is permitted access to")
                     .security_requirement("JWT")
-                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
+                    .response::<200, Json<PaginatedResults<PermittedConversationDto>>>()
             }),
         )
         .api_route(
