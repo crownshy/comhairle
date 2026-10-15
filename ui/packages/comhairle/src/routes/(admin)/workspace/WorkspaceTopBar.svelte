@@ -6,6 +6,7 @@
 	import type { UserDto } from '@crownshy/api-client/api';
 	import { userInitials } from '$lib/utils';
 	import { m } from '$lib/paraglide/messages';
+	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import UserMenuItems from '../account/UserMenuItems.svelte';
 	import { workspaceCrumbs } from './workspaceLinks';
 
@@ -21,27 +22,40 @@
 	<div
 		class="px-gutter mx-auto flex w-full max-w-336 items-center justify-between gap-4 sm:pr-8 lg:pr-16"
 	>
-		<Breadcrumb.Root>
-			<Breadcrumb.List class="text-base">
-				<Breadcrumb.Item>
-					{#if crumbs.length === 0}
-						<Breadcrumb.Page>{m.workspace()}</Breadcrumb.Page>
-					{:else}
-						<Breadcrumb.Link href={resolve('/admin')}>{m.workspace()}</Breadcrumb.Link>
-					{/if}
-				</Breadcrumb.Item>
-				{#each crumbs as crumb (crumb.label)}
-					<Breadcrumb.Separator />
+		<div class="flex min-w-0 items-center gap-4">
+			<div class="flex shrink-0 items-center gap-2">
+				<ComhairleLogo href={resolve('/admin')} logoSize="sm" color="text-primary" />
+				<span
+					class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-sm font-semibold"
+				>
+					Admin
+				</span>
+			</div>
+			<span class="bg-border hidden h-6 w-px sm:block" aria-hidden="true"></span>
+			<Breadcrumb.Root class="hidden min-w-0 sm:block">
+				<Breadcrumb.List class="text-base">
 					<Breadcrumb.Item>
-						{#if crumb.href}
-							<Breadcrumb.Link href={crumb.href}>{crumb.label}</Breadcrumb.Link>
+						{#if crumbs.length === 0}
+							<Breadcrumb.Page>{m.workspace()}</Breadcrumb.Page>
 						{:else}
-							<Breadcrumb.Page>{crumb.label}</Breadcrumb.Page>
+							<Breadcrumb.Link href={resolve('/admin')}
+								>{m.workspace()}</Breadcrumb.Link
+							>
 						{/if}
 					</Breadcrumb.Item>
-				{/each}
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
+					{#each crumbs as crumb (crumb.label)}
+						<Breadcrumb.Separator />
+						<Breadcrumb.Item>
+							{#if crumb.href}
+								<Breadcrumb.Link href={crumb.href}>{crumb.label}</Breadcrumb.Link>
+							{:else}
+								<Breadcrumb.Page>{crumb.label}</Breadcrumb.Page>
+							{/if}
+						</Breadcrumb.Item>
+					{/each}
+				</Breadcrumb.List>
+			</Breadcrumb.Root>
+		</div>
 
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
