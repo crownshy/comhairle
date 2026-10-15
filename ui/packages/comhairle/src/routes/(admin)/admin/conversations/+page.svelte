@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Home } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
@@ -7,7 +8,7 @@
 	import { Pager } from '$lib/pagination';
 	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
-	import { CONVERSATION_STATUS_FILTER_LABELS } from './conversationFilters';
+	import { CONVERSATION_STATUS_FILTER_LABELS, isPageTurn } from './conversationFilters';
 	import type { PageProps } from './$types';
 	import ConversationSearch from './ConversationSearch.svelte';
 	import StatusFilterChips from './StatusFilterChips.svelte';
@@ -18,13 +19,23 @@
 			? 'conversations'
 			: `${CONVERSATION_STATUS_FILTER_LABELS[data.filter].toLowerCase()} conversations`
 	);
+
+	let pageTop: HTMLElement | undefined = $state();
+
+	// The admin layout scrolls inside <main>, which SvelteKit's own scroll reset doesn't reach.
+	afterNavigate(({ from, to }) => {
+		if (from && to && isPageTurn(from.url, to.url)) pageTop?.scrollIntoView({ block: 'start' });
+	});
 </script>
 
 <svelte:head>
 	<title>Admin Dashboard - Comhairle</title>
 </svelte:head>
 
-<div class="bg-muted pt-page-top px-gutter flex w-full pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+<div
+	bind:this={pageTop}
+	class="bg-muted pt-page-top px-gutter flex w-full pb-8 sm:pr-8 sm:pb-12 lg:pr-16"
+>
 	<div class="@container flex w-full max-w-300 flex-col gap-11">
 		<Breadcrumb.Root>
 			<Breadcrumb.List>

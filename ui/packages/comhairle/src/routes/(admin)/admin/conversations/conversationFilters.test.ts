@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	conversationListQueries,
+	isPageTurn,
 	searchFromUrl,
 	searchHref,
 	statusFilterFromUrl,
@@ -71,5 +72,20 @@ describe('conversationListQueries', () => {
 
 	it('leaves out your own conversations under Shared', () => {
 		expect(conversationListQueries('shared', userId)).toEqual({ exclude_owner_id: userId });
+	});
+});
+
+describe('isPageTurn', () => {
+	it('is true when only the page changes', () => {
+		expect(isPageTurn(at('?status=live&q=wind'), at('?status=live&q=wind&page=2'))).toBe(true);
+	});
+
+	it('is false when the chip or search changes too', () => {
+		expect(isPageTurn(at('?page=2'), at('?status=live'))).toBe(false);
+		expect(isPageTurn(at('?q=wind&page=2'), at('?q=winds'))).toBe(false);
+	});
+
+	it('is false when the page stays the same', () => {
+		expect(isPageTurn(at('?q=wind'), at('?q=winds'))).toBe(false);
 	});
 });

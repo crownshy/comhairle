@@ -1,3 +1,4 @@
+import { getPage } from '$lib/pagination';
 import {
 	CONVERSATION_STATUS_LABELS,
 	CONVERSATION_STATUS_QUERIES
@@ -42,6 +43,15 @@ export function searchFromUrl(url: URL): string {
 /** Keeps the chip. */
 export function searchHref(url: URL, search: string): string {
 	return listHref(url, 'q', search.trim() ? search : undefined);
+}
+
+/** True when only the page number moved, so the list should start again from the top. */
+export function isPageTurn(from: URL, to: URL): boolean {
+	return (
+		getPage(from) !== getPage(to) &&
+		statusFilterFromUrl(from) === statusFilterFromUrl(to) &&
+		searchFromUrl(from) === searchFromUrl(to)
+	);
 }
 
 type ConversationListQueries = {
