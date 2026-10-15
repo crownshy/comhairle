@@ -1,117 +1,84 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ArrowRight } from 'lucide-svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
-	import { Badge } from '$lib/components/ui/badge';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { permissions } from '$lib/permissions.svelte';
 	import { hasSiteAdminRole, hasSuperAdminRole } from '$lib/utils/permissions';
-	import {
-		conversationStatus,
-		CONVERSATION_STATUS_BADGE_VARIANTS,
-		CONVERSATION_STATUS_LABELS
-	} from '$lib/utils/conversationStatus';
+	import type { ConversationStatusFilter } from './conversations/conversationFilters';
+	import CountTile from '../workspace/CountTile.svelte';
+	import HandbookCard from '../workspace/HandbookCard.svelte';
+	import LiveConversationsCard from '../workspace/LiveConversationsCard.svelte';
+	import PickUpCard from '../workspace/PickUpCard.svelte';
+	import RecentDraftsCard from '../workspace/RecentDraftsCard.svelte';
+	import WorkspaceTile from '../workspace/WorkspaceTile.svelte';
 	import { workspaceLinks } from '../workspace/workspaceLinks';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	let links = $derived(
+	// The handbook has its own card, so it isn't repeated as a tile.
+	let workspaceTiles = $derived(
 		workspaceLinks({
 			isSiteAdmin: hasSiteAdminRole(data.userRoles),
 			isSuperAdmin: hasSuperAdminRole(data.userRoles)
-		})
+		}).filter((link) => link.label !== 'Handbook')
 	);
+
+	const listHref = (status: ConversationStatusFilter) =>
+		`${resolve('/admin/conversations')}?status=${status}`;
+
+	function greeting(hour = new Date().getHours()): string {
+		if (hour < 12) return 'Good morning';
+		if (hour < 18) return 'Good afternoon';
+		return 'Good evening';
+	}
 </script>
 
 <svelte:head>
 	<title>Workspace - Comhairle Admin</title>
 </svelte:head>
 
-<!-- Workspace hrefs come from workspaceLinks, which only builds /admin section paths. -->
-<!-- eslint-disable svelte/no-navigation-without-resolve -->
-<div class="pt-page-top px-gutter flex w-full pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-	<div class="flex w-full max-w-300 flex-col gap-12">
-		<div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-			<h1 class="text-2xl sm:text-4xl">Workspace</h1>
+<Tooltip.Provider>
+	<div class="pt-page-top px-gutter flex w-full flex-col gap-6 pb-12 sm:pr-8 lg:pr-16">
+		<div class="flex items-end justify-between gap-4">
+			<div class="flex flex-col gap-1">
+				<p class="text-muted-foreground text-base">
+					{greeting()}{data.user?.username ? `, ${data.user.username}` : ''}
+				</p>
+				<h1 class="text-3xl font-semibold">Workspace</h1>
+			</div>
 			{#if permissions.can('system', 'conversation_create')}
-				<NewConversationButton class="w-full sm:w-auto" />
+				<NewConversationButton />
 			{/if}
 		</div>
 
-		<section class="flex flex-col gap-4" aria-labelledby="latest-conversations">
-			<div class="flex items-center justify-between gap-4">
-				<h2 id="latest-conversations" class="text-xl font-semibold">
-					Latest conversations
-				</h2>
-				<a
-					href={resolve('/admin/conversations')}
-					class="text-primary flex items-center gap-1 text-base hover:underline"
-				>
-					See all
-					<ArrowRight class="size-4" />
-				</a>
+		{#if data.pickUp}
+			<PickUpCard conversation={data.pickUp} />
+		{/if}
+
+		<div class="grid auto-rows-[minmax(8rem,auto)] gap-4 md:grid-cols-4">
+			<div class="md:col-span-2 md:row-span-2">
+				<LiveConversationsCard
+					conversations={data.live?.records ?? []}
+					total={data.live?.total ?? 0}
+					seeAllHref={listHref('live')}
+				/>
 			</div>
-
-			{#if data.latestConversations === null}
-				<p class="text-muted-foreground text-base">
-					Your conversations could not be loaded.
-				</p>
-			{:else if data.latestConversations.length === 0}
-				<p class="text-muted-foreground text-base">No conversations yet.</p>
-			{:else}
-				<ul
-					class="bg-card border-border divide-border flex flex-col divide-y rounded-lg border"
-				>
-					{#each data.latestConversations as conversation (conversation.id)}
-						{@const status = conversationStatus(conversation)}
-						<li>
-							<a
-								href={resolve(
-									'/(admin)/admin/conversations/[conversation_id]/configure',
-									{
-										conversation_id: conversation.id
-									}
-								)}
-								class="hover:bg-muted flex items-center gap-3 px-4 py-3 text-base"
-							>
-								<span class="flex-1 truncate font-medium">{conversation.title}</span
-								>
-								{#if conversation.isShared}
-									<Badge variant="outline" class="text-sm">Shared</Badge>
-								{/if}
-								<Badge
-									variant={CONVERSATION_STATUS_BADGE_VARIANTS[status]}
-									class="text-sm"
-								>
-									{CONVERSATION_STATUS_LABELS[status]}
-								</Badge>
-							</a>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
-
-		<section class="flex flex-col gap-4" aria-labelledby="workspace-links">
-			<h2 id="workspace-links" class="text-xl font-semibold">Manage</h2>
-			<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{#each links as link (link.href)}
-					<li>
-						<a
-							href={link.href}
-							class="bg-card border-border hover:border-primary flex h-full items-start gap-3 rounded-lg border p-4"
-						>
-							<link.icon class="text-primary mt-0.5 size-5 shrink-0" />
-							<span class="flex flex-col gap-1">
-								<span class="text-base font-semibold">{link.label}</span>
-								<span class="text-muted-foreground text-base"
-									>{link.description}</span
-								>
-							</span>
-						</a>
-					</li>
-				{/each}
-			</ul>
-		</section>
+			<CountTile label="Drafts" count={data.drafts?.total ?? null} href={listHref('draft')} />
+			<CountTile label="Completed" count={data.completedCount} href={listHref('completed')} />
+			<div class="md:col-span-2">
+				<RecentDraftsCard
+					conversations={data.drafts?.records ?? []}
+					seeAllHref={listHref('draft')}
+				/>
+			</div>
+			<div class="md:col-span-2 md:row-span-2">
+				<HandbookCard />
+			</div>
+			<CountTile label="Shared with you" count={data.sharedCount} href={listHref('shared')} />
+			{#each workspaceTiles as link (link.href)}
+				<WorkspaceTile {link} />
+			{/each}
+		</div>
 	</div>
-</div>
+</Tooltip.Provider>
