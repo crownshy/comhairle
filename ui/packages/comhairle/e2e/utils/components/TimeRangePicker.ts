@@ -1,14 +1,21 @@
+import { find } from '..';
 import type { Refs } from './types';
 
 type Time = `${number}${number}:${number}${number} AM` | `${number}${number}:${number}${number} PM`;
 
+const EMPTY = '--:-- AM to--:-- AM';
+const FILLED = /:[\d-]{2} (AM|PM) to[\d-]{2}:[\d-]{2} (AM|PM)/gm;
+
 function TimeRangePicker(refs: Refs) {
-	let text = '––:–– AM to––:–– AM';
+	let text: string | undefined;
 
-	const locator = () => refs.page.getByText(text);
+	const locator = () =>
+		text !== undefined
+			? find(refs.page.getByText(text))
+			: find(refs.page.getByText(EMPTY).or(refs.page.getByText(FILLED)));
 
-	const focus = () =>
-		locator().click({
+	const focus = async () =>
+		(await locator()).click({
 			// Click to the left-center of the input so it targets the first subinput
 			position: {
 				x: 10,

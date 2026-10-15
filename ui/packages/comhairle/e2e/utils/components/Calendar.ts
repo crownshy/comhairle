@@ -1,7 +1,8 @@
+import { find } from '..';
 import type { Refs } from './types';
 
 function Calendar(name: string, refs: Refs) {
-	const open = () => refs.page.getByRole('button', { name }).click();
+	const open = async () => (await find(refs.page.getByRole('button', { name }))).click();
 
 	async function pickTomorrow(timeZone: string) {
 		await open();
@@ -15,7 +16,7 @@ function Calendar(name: string, refs: Refs) {
 
 		// If we've crossed a month boundary go to the next month
 		if (month !== currentMonth) {
-			await refs.page.getByRole('button', { name: 'Next' }).click();
+			await (await find(refs.page.getByRole('button', { name: 'Next' }))).click();
 		}
 
 		let name = new Intl.DateTimeFormat('en-US', {
@@ -26,7 +27,7 @@ function Calendar(name: string, refs: Refs) {
 		}).format(date);
 		// Remove the year and add a "," to match the button name
 		name = name.replace(/\s\d{4}$/, ',');
-		await refs.page.getByRole('button', { name }).click();
+		await (await find(refs.page.getByRole('button', { name }))).click();
 
 		await refs.page.locator('body').press('Escape');
 	}

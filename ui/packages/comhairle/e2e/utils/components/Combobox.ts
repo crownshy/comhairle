@@ -1,12 +1,13 @@
 import type { Refs } from './types';
 import { eventually } from '../testing';
 import { expect } from '@playwright/test';
+import { find } from '..';
 
 function Combobox(initialName: string, refs: Refs) {
 	let name = initialName;
 
 	async function open() {
-		await refs.page.getByText(name).click();
+		await (await find(refs.page.getByText(name))).click();
 	}
 
 	async function search(searchTerm: string) {
@@ -18,7 +19,7 @@ function Combobox(initialName: string, refs: Refs) {
 	async function select(option: string) {
 		await open();
 
-		await refs.page.getByRole('option', { name }).click();
+		await (await find(refs.page.getByRole('option', { name }))).click();
 
 		// Wait for dialog to close
 		await eventually(() =>
