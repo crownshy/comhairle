@@ -7,7 +7,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
 	import StatusFilterChips from './StatusFilterChips.svelte';
-	import { statusFilterLabels } from '$lib/utils/conversationFilters';
+	import { conversationStatusFilterLabels } from '$lib/utils/conversationFilters';
 
 	let props: PageProps = $props();
 	let statusFilter = $derived(props.data.filter);
@@ -18,7 +18,6 @@
 	<title>Admin Dashboard - Comhairle</title>
 </svelte:head>
 
-<!-- Same gutter and column width as the conversation edit pages. -->
 <div class="bg-muted pt-page-top px-gutter flex w-full pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
 	<div class="@container flex w-full max-w-300 flex-col gap-11">
 		<Breadcrumb.Root>
@@ -49,14 +48,17 @@
 			{#if visibleConversations.length > 0}
 				<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
 					{#each visibleConversations as conversation (conversation.id)}
-						<ConversationCard {conversation} />
+						<ConversationCard
+							{conversation}
+							isShared={props.data.sharedConversationIds.has(conversation.id)}
+						/>
 					{/each}
 				</div>
 			{:else if statusFilter === 'all'}
 				<p class="text-muted-foreground text-base">You don't have any conversations yet.</p>
 			{:else}
 				<p class="text-muted-foreground text-base">
-					No {statusFilterLabels[statusFilter].toLowerCase()} conversations.
+					No {conversationStatusFilterLabels[statusFilter].toLowerCase()} conversations.
 				</p>
 			{/if}
 		</div>

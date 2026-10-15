@@ -12,11 +12,13 @@
 	let {
 		conversation,
 		variant = 'admin',
-		organizationName
+		organizationName,
+		isShared = false
 	}: {
 		conversation: ConversationDto | LocalizedConversationDto;
 		variant?: 'admin' | 'public';
 		organizationName?: string;
+		isShared?: boolean;
 	} = $props();
 
 	const statusBadgeVariants: Record<ConversationStatus, BadgeVariant> = {
@@ -98,9 +100,14 @@
 			<!-- Text content -->
 			<div class="flex w-full flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
 				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
-					<Badge variant={statusBadgeVariants[status]} class="h-7 text-sm">
-						{conversationStatusLabels[status]}
-					</Badge>
+					<div class="flex flex-wrap gap-2">
+						<Badge variant={statusBadgeVariants[status]} class="h-7 text-sm">
+							{conversationStatusLabels[status]}
+						</Badge>
+						{#if isShared}
+							<Badge variant="outline" class="h-7 text-sm">Shared</Badge>
+						{/if}
+					</div>
 
 					<h2
 						class="text-foreground self-stretch text-xl leading-7 font-semibold transition-colors duration-300 group-hover:text-[var(--color-brand)] lg:text-2xl"
