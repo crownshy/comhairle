@@ -1,23 +1,26 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
 	import { cn } from '$lib/utils';
 	import {
 		conversationStatusFilterLabels,
 		conversationStatusFilters,
-		filterToSegment,
 		isConversationStatusFilter,
+		statusFilterHref,
 		type ConversationStatusFilter
 	} from '$lib/utils/conversationFilters';
 
-	let { active }: { active: ConversationStatusFilter } = $props();
+	type Props = { active: ConversationStatusFilter };
 
-	const listRoute = '/(admin)/admin/conversations/[[filter=conversationFilter]]';
+	let { active }: Props = $props();
 
-	function routeParams(filter: ConversationStatusFilter) {
-		return { filter: filterToSegment(filter) };
+	function selectFilter(value: string) {
+		if (!isConversationStatusFilter(value)) return;
+		// statusFilterHref only swaps the query on the current page's URL.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		goto(statusFilterHref(page.url, value), { noScroll: true });
 	}
 </script>
 
@@ -28,7 +31,7 @@
 			{@const isActive = filter === active}
 			<li>
 				<Button
-					href={resolve(listRoute, routeParams(filter))}
+					href={statusFilterHref(page.url, filter)}
 					data-sveltekit-noscroll
 					aria-current={isActive ? 'page' : undefined}
 					variant={isActive ? 'default' : 'ghost'}
@@ -43,14 +46,7 @@
 </nav>
 
 <div class="@lg:hidden">
-	<Select.Root
-		type="single"
-		value={active}
-		onValueChange={(value) => {
-			if (isConversationStatusFilter(value))
-				goto(resolve(listRoute, routeParams(value)), { noScroll: true });
-		}}
-	>
+	<Select.Root type="single" value={active} onValueChange={selectFilter}>
 		<Select.Trigger aria-label="Filter conversations" class="bg-card h-10 w-full text-base">
 			{conversationStatusFilterLabels[active]}
 		</Select.Trigger>

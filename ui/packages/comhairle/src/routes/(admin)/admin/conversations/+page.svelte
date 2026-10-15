@@ -9,9 +9,7 @@
 	import StatusFilterChips from './StatusFilterChips.svelte';
 	import { conversationStatusFilterLabels } from '$lib/utils/conversationFilters';
 
-	let props: PageProps = $props();
-	let statusFilter = $derived(props.data.filter);
-	let visibleConversations = $derived(props.data.conversations);
+	let { data }: PageProps = $props();
 </script>
 
 <svelte:head>
@@ -43,24 +41,24 @@
 			{/if}
 		</div>
 		<div class="flex w-full flex-col gap-11 overflow-y-auto">
-			<StatusFilterChips active={statusFilter} />
+			<StatusFilterChips active={data.filter} />
 
-			{#if visibleConversations.length > 0}
-				<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
-					{#each visibleConversations as conversation (conversation.id)}
-						<ConversationCard
-							{conversation}
-							isShared={props.data.sharedConversationIds.has(conversation.id)}
-						/>
-					{/each}
-				</div>
-			{:else if statusFilter === 'all'}
-				<p class="text-muted-foreground text-base">You don't have any conversations yet.</p>
-			{:else}
-				<p class="text-muted-foreground text-base">
-					No {conversationStatusFilterLabels[statusFilter].toLowerCase()} conversations.
-				</p>
-			{/if}
+			<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
+				{#each data.conversations as conversation (conversation.id)}
+					<ConversationCard
+						{conversation}
+						isShared={data.sharedConversationIds.has(conversation.id)}
+					/>
+				{:else}
+					<p class="text-muted-foreground text-base">
+						{#if data.filter === 'all'}
+							You don't have any conversations yet.
+						{:else}
+							No {conversationStatusFilterLabels[data.filter].toLowerCase()} conversations.
+						{/if}
+					</p>
+				{/each}
+			</div>
 		</div>
 	</div>
 </div>

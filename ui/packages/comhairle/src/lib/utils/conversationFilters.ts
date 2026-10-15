@@ -4,9 +4,6 @@ import { conversationStatus, conversationStatusLabels } from './conversationStat
 export const conversationStatusFilters = ['all', 'live', 'draft', 'completed', 'shared'] as const;
 export type ConversationStatusFilter = (typeof conversationStatusFilters)[number];
 
-/** The filters that get their own URL segment; All is the bare list route. */
-export type ConversationFilterSegment = Exclude<ConversationStatusFilter, 'all'>;
-
 export const conversationStatusFilterLabels: Record<ConversationStatusFilter, string> = {
 	all: 'All',
 	...conversationStatusLabels,
@@ -17,18 +14,17 @@ export function isConversationStatusFilter(value: string): value is Conversation
 	return conversationStatusFilters.some((filter) => filter === value);
 }
 
-export function isConversationFilterSegment(value: string): value is ConversationFilterSegment {
-	return value !== 'all' && isConversationStatusFilter(value);
+export function statusFilterFromUrl(url: URL): ConversationStatusFilter {
+	const value = url.searchParams.get('status');
+	return value && isConversationStatusFilter(value) ? value : 'all';
 }
 
-export function filterToSegment(
-	filter: ConversationStatusFilter
-): ConversationFilterSegment | undefined {
-	return filter === 'all' ? undefined : filter;
-}
-
-export function filterFromSegment(segment: string | undefined): ConversationStatusFilter {
-	return segment && isConversationFilterSegment(segment) ? segment : 'all';
+/** Keeps the rest of the query string; All drops `status` so it has one URL. */
+export function statusFilterHref(url: URL, filter: ConversationStatusFilter): string {
+	const target = new URL(url);
+	if (filter === 'all') target.searchParams.delete('status');
+	else target.searchParams.set('status', filter);
+	return `${target.pathname}${target.search}`;
 }
 
 type ListedConversation = Pick<ConversationDto, 'id' | 'isLive' | 'isComplete'>;
@@ -39,7 +35,7 @@ export function filterConversations<T extends ListedConversation>(
 	filter: ConversationStatusFilter
 ): T[] {
 	if (filter === 'shared') return shared;
-	const all = [...owned, ...shared];
+	const all = owned.concat(shared);
 	if (filter === 'all') return all;
 	return all.filter((conversation) => conversationStatus(conversation) === filter);
 }

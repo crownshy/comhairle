@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	filterConversations,
-	filterFromSegment,
-	filterToSegment,
-	isConversationFilterSegment
-} from './conversationFilters';
+import { filterConversations, statusFilterFromUrl, statusFilterHref } from './conversationFilters';
 
 const conversation = (id: string, isLive: boolean, isComplete: boolean) => ({
 	id,
@@ -60,27 +55,26 @@ describe('filterConversations', () => {
 	});
 });
 
-describe('isConversationFilterSegment', () => {
-	it.each(['live', 'draft', 'completed', 'shared'])('accepts %s', (value) => {
-		expect(isConversationFilterSegment(value)).toBe(true);
+describe('statusFilterFromUrl', () => {
+	const at = (search: string) => new URL(`https://example.com/admin/conversations${search}`);
+
+	it.each(['live', 'draft', 'completed', 'shared'] as const)('reads ?status=%s', (filter) => {
+		expect(statusFilterFromUrl(at(`?status=${filter}`))).toBe(filter);
 	});
 
-	it.each(['all', '', 'banana', 'LIVE'])('rejects %j so All keeps one URL', (value) => {
-		expect(isConversationFilterSegment(value)).toBe(false);
+	it.each(['', '?status=banana', '?status=LIVE'])('falls back to All for %j', (search) => {
+		expect(statusFilterFromUrl(at(search))).toBe('all');
 	});
 });
 
-describe('filter segments', () => {
-	it('gives All the bare list route', () => {
-		expect(filterToSegment('all')).toBeUndefined();
-		expect(filterFromSegment(undefined)).toBe('all');
+describe('statusFilterHref', () => {
+	const url = new URL('https://example.com/admin/conversations?status=live&q=wind');
+
+	it('swaps the status and keeps the rest of the query', () => {
+		expect(statusFilterHref(url, 'draft')).toBe('/admin/conversations?status=draft&q=wind');
 	});
 
-	it.each(['live', 'draft', 'completed', 'shared'] as const)('round-trips %s', (filter) => {
-		expect(filterFromSegment(filterToSegment(filter))).toBe(filter);
-	});
-
-	it('falls back to All for an unknown segment', () => {
-		expect(filterFromSegment('banana')).toBe('all');
+	it('drops status for All so it keeps one URL', () => {
+		expect(statusFilterHref(url, 'all')).toBe('/admin/conversations?q=wind');
 	});
 });
