@@ -4,7 +4,7 @@ use comhairle::error::ComhairleError;
 /// Generates the OpenAPI spec without connecting to a live database or instantiating real services.
 pub async fn generate_api_spec() -> Result<OpenApi, ComhairleError> {
     // Rate limit layers do not change the spec, so they are left off
-    let (_, api_spec) = comhairle::build_router_and_spec(false).await;
+    let (_, api_spec) = comhairle::build_router_and_spec(None).await;
 
     let json = serde_json::to_string_pretty(&api_spec)?;
     tokio::fs::write("open-api-spec.json", json.as_bytes()).await?;

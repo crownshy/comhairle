@@ -11,14 +11,59 @@ This module provides IP-based rate limiting for the Comhairle API using tower_go
 
 ## Usage
 
-### Apply to Routes
+Limiters are created once per app in `middleware::rate_limit::RateLimitLayers`
+and applied to individual routes or routers.
 
-The rate limiter is currently applied to all auth routes in `lib.rs`:
+### Why one instance of each limiter
+
+Each limiter keeps its own per-IP bucket. A new set of buckets is created every
+time a `tower_governor` config is built, so **two limiters for the same purpose
+count separately**. If `/auth/login` and `/other_router/something_auth` each
+had their own strict limiter, a client blocked on one could carry on at the other
+with a fresh allowance.
+
+To prevent this, every limit it built exactly once, in `RateLimitLayers::new()`.
+The config builder is private to `rate_limit.rs`, so routers can't create limiters
+of their own; they can only get layers from `RateLimitLayers`.
+
+### Apply to Router
 
 ```rust
-let auth_router = routes::auth::router(state.clone())
+use tower::util::option_layer;
+
+use crate::middleware::rate_limit::RateLimitLayers;
+
+let rate_limiters = state.config.enable_rate_limiting
+    .then(|| RateLimitLayers::new());
+
+...
+
+// Wrap in `option_layer` to the route works with rate limiting on or off.
+let auth_router = routes::auth::router()
     .await
-    .layer(middleware::rate_limit::auth_rate_limiter());
+    .layer(option_layer(rate_limiters.auth_rate_limiter()));
+```
+
+### Apply to routes
+
+Take `Option<&RateLimitLayers>` in your router function, call the accessor for the
+limit you want, and wrap it in `option_layer` so the route works with rate
+limiting on or off:
+
+```rust
+use tower::util::option_layer;
+
+use crate::middleware::rate_limit::RateLimitLayers;
+
+pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
+    let standard_limit =
+        option_layer(rate_limiters.map(|limiters| limiters.standard_rate_limiter()));
+
+    ApiRouter::new().api_route(
+        "/",
+        post_with(create, |op| op.id("CreateResource")).layer(standard_limit),
+    )
+}
 ```
 
 ### Available Rate Limiters
@@ -48,12 +93,19 @@ You can also create custom rate limits:
 ```rust
 use crate::middleware::rate_limit::{create_rate_limiter, RateLimitConfig};
 
-let custom_limiter = create_rate_limiter(RateLimitConfig::custom(30, 10));
+let custom_limiter = create_custom_rate_limiter(RateLimitConfig::custom(30, 10));
 
 let router = ApiRouter::new()
     .route("/custom", get(handler))
     .layer(custom_limiter);
 ```
+
+## Cleaning up idle entries
+
+Each limiter stores an entry for every IP it has seen. `RateLimitLayers::retain_recent`
+drops entries whose buckets have fully replenished. Those entries behave exactly
+like new ones, so dropping them never changes a limit. It can be run periodically
+to clean up stale entries.
 
 ## Response Headers
 
