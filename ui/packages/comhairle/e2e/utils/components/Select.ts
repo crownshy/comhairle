@@ -32,7 +32,7 @@ function Select<const T extends string[]>(inputs: T, refs: Refs) {
 		selected = option;
 	}
 
-	refs.cleanup(async () => {
+	refs.cleanup?.(async () => {
 		await pick(originallySelected);
 	});
 

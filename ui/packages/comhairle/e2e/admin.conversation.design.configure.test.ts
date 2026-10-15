@@ -1,7 +1,7 @@
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
 import { test } from './utils/testing';
-import { Switches, Textboxes, Tiptap } from './utils/components';
+import { Switch, Textbox, Tiptap } from './utils/components';
 import { sleep, testWithRefresh } from './utils';
 import Design from './utils/navigation/Design';
 
@@ -17,25 +17,21 @@ test.beforeEach(async ({ page }) => {
 
 // FIX: Figure out why the test is failing when run at "full-speed" without the "--debug" flag
 test('Design/configure page', async ({ page, cleanup }) => {
-	const textboxes = Textboxes.new([['name', 'Name']], { page, cleanup });
-	const tiptap = Tiptap({ page, cleanup });
-	const switches = await Switches(
-		[
-			['revisitable_step', 'Revisitable step'],
-			['required_step', 'Required step']
-		],
-		{ page, cleanup }
-	);
+	const Name = await Textbox('Name', { page, cleanup }, { resetTo: 'New Learn step' });
+	const Description = Tiptap(0, { page, cleanup });
+	const RevisitableStep = await Switch('Revisitable step', { page, cleanup });
+	const RequiredStep = await Switch('Required step', { page, cleanup });
 
-	await textboxes.write('name', 'New Learn step');
-	await tiptap.write();
-	await switches.toggle('revisitable_step');
-	await switches.toggle('required_step');
+	await Name.write();
+	await Description.write();
+	await RevisitableStep.toggle();
+	await RequiredStep.toggle();
 
 	await testWithRefresh(page, async () => {
-		await textboxes.expect();
-		await tiptap.expect();
-		await switches.expect();
+		await Name.expect();
+		await Description.expect();
+		await RevisitableStep.expect();
+		await RequiredStep.expect();
 	});
 
 	cleanup(async () => {

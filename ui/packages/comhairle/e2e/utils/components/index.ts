@@ -1,7 +1,7 @@
-import Switches from './Switches';
-import Textboxes from './inputs/Textboxes';
+import Switch from './Switch';
+import Textbox from './inputs/Textbox';
 import Tiptap from './inputs/Tiptap';
-import CollapsibleRichFields from './inputs/CollapsibleRichFields';
+import CollapsibleRichField from './inputs/CollapsibleRichField';
 import DraggableList from './DraggableList';
 
-export { Switches, Textboxes, Tiptap, CollapsibleRichFields, DraggableList };
+export { Switch, Textbox, Tiptap, CollapsibleRichField, DraggableList };
