@@ -2,7 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { Home, Info, LogOut, Settings } from 'lucide-svelte';
+	import { Home, Info, LogOut, Moon, Settings, Sun } from 'lucide-svelte';
+	import { themeStore } from '$lib/stores/theme.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { key } from '$lib/utils/invalidationKey';
@@ -40,6 +41,13 @@
 			<Info class="size-4" /> About Comhairle
 		</a>
 	{/snippet}
+</DropdownMenu.Item>
+<DropdownMenu.Item closeOnSelect={false} onclick={() => themeStore.toggleMode()}>
+	{#if themeStore.isDark}
+		<Sun class="size-4" /> Light mode
+	{:else}
+		<Moon class="size-4" /> Dark mode
+	{/if}
 </DropdownMenu.Item>
 <DropdownMenu.Separator />
 <DropdownMenu.Item onclick={signOut}>

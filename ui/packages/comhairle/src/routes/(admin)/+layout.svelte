@@ -50,7 +50,9 @@
 	<div class="flex h-svh flex-col">
 		<WorkspaceTopBar user={data.user} path={page.url.pathname} />
 		<main class="bg-muted flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
-			{@render children()}
+			<div class="mx-auto flex w-full max-w-336 grow flex-col">
+				{@render children()}
+			</div>
 		</main>
 	</div>
 {/if}
