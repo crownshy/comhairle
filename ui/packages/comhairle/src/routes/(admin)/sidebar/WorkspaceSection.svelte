@@ -9,6 +9,8 @@
 	type Props = { latestConversations: LocalizedConversationDto[]; path: string };
 	let { latestConversations, path }: Props = $props();
 
+	const conversationsHref = resolve('/admin/conversations');
+
 	function isOpen(conversationId: string): boolean {
 		return path.startsWith(`/admin/conversations/${conversationId}`);
 	}
@@ -25,7 +27,7 @@
 
 <SideBar.Group class="px-0 group-data-[collapsible=icon]:hidden">
 	<SideBar.GroupLabel class="text-sidebar-secondary text-sm font-medium"
-		>Latest</SideBar.GroupLabel
+		>Latest Conversations</SideBar.GroupLabel
 	>
 	<SideBar.GroupContent>
 		<SideBar.Menu class="pr-3">
@@ -59,14 +61,17 @@
 					</SideBar.MenuButton>
 				</SideBar.MenuItem>
 			{/each}
-			<SideBar.MenuItem>
-				<a
-					href={resolve('/admin/conversations')}
-					class="text-sidebar-secondary hover:text-sidebar-foreground flex px-2 py-1.5 text-base"
-				>
-					See more
-				</a>
-			</SideBar.MenuItem>
+			<!-- On the list itself every conversation is already on screen. -->
+			{#if path !== conversationsHref}
+				<SideBar.MenuItem>
+					<a
+						href={conversationsHref}
+						class="text-sidebar-secondary hover:text-sidebar-foreground flex px-2 py-1.5 text-base"
+					>
+						See all
+					</a>
+				</SideBar.MenuItem>
+			{/if}
 		</SideBar.Menu>
 	</SideBar.GroupContent>
 </SideBar.Group>
