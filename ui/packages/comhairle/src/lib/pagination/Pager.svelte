@@ -1,8 +1,10 @@
 <script lang="ts">
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import { navigating } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import * as Pagination from '$lib/components/ui/pagination';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { m } from '$lib/paraglide/messages';
 	import { getPage, setPage, calcPageCount, pageItems } from './utils';
 
@@ -14,6 +16,18 @@
 	const pageCount = $derived(calcPageCount({ pageSize, total: count }));
 	const items = $derived(pageItems({ current: pageNumber, pageCount }));
 	const hrefFor = (page: number) => setPage(url, page).toString();
+
+	const loadingPage = $derived.by(() => {
+		const target = navigating.to?.url;
+		if (!target || target.pathname !== url.pathname) return undefined;
+		const targetPage = getPage(target);
+		return targetPage === pageNumber ? undefined : targetPage;
+	});
+
+	// Previous and a page number can point at the same page, so only the one clicked spins.
+	let clicked: 'previous' | 'next' | number | undefined = $state();
+	const isLoading = (control: 'previous' | 'next' | number, targetPage: number) =>
+		clicked === control && loadingPage === targetPage;
 </script>
 
 <!-- bits-ui's Pagination renders buttons, so the shadcn layout is used with plain links instead
@@ -27,8 +41,9 @@
 				variant="ghost"
 				class="text-base"
 				aria-label={m.previous()}
+				onclick={() => (clicked = 'previous')}
 			>
-				<ChevronLeft />
+				{#if isLoading('previous', pageNumber - 1)}<Spinner />{:else}<ChevronLeft />{/if}
 				<span class="hidden sm:inline">{m.previous()}</span>
 			</Button>
 		</Pagination.Item>
@@ -43,8 +58,9 @@
 						class="text-base"
 						aria-current={item.page === pageNumber ? 'page' : undefined}
 						aria-label={m.page_x_of_y({ x: item.page, y: pageCount })}
+						onclick={() => (clicked = item.page)}
 					>
-						{item.page}
+						{#if isLoading(item.page, item.page)}<Spinner />{:else}{item.page}{/if}
 					</Button>
 				{:else}
 					<Pagination.Ellipsis class="text-muted-foreground" />
@@ -63,9 +79,10 @@
 				variant="ghost"
 				class="text-base"
 				aria-label={m.next()}
+				onclick={() => (clicked = 'next')}
 			>
 				<span class="hidden sm:inline">{m.next()}</span>
-				<ChevronRight />
+				{#if isLoading('next', pageNumber + 1)}<Spinner />{:else}<ChevronRight />{/if}
 			</Button>
 		</Pagination.Item>
 	</Pagination.Content>
