@@ -12,7 +12,12 @@ _Avoid_: Topic (used loosely in the UI/design), consultation
 The ordered sequence of Steps a Conversation routes participants through. Every Conversation has exactly one active Workflow.
 
 **Step**:
-A single stage in a Workflow, backed by one engagement tool (learn/onboarding, survey, Pol.is poll, prioritisation, etc.).
+A single position in a Workflow, backed by one engagement tool (learn/onboarding, survey, Pol.is poll, prioritisation, etc.).
+_Avoid_: stage (that word belongs to [[#conversation-stage]])
+
+**Conversation Stage**:
+Where a Conversation is in its admin lifecycle: **Set up**, **Launch**, **Engage**, **Results**. Groups the admin sections of a Conversation; Engage and Results stay locked until launch. Unrelated to Workflow Steps, and Results is not the per-Step Insights.
+_Avoid_: phase, step, Insight/Insights (for the last stage), Learn (for the last stage)
 
 **Design board**:
 The primary editing surface of a Conversation's Workflow, on the `…/design` route. A horizontal, left-to-right sequence of Step cards with a persistent left **Tool palette**. Historically labelled "Manage"; the tab is now labelled **Design**.
