@@ -2,6 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { HttpStatus } from '$lib/utils/constants';
 import { calcOffset, calcPageCount, getPage, setPage } from '$lib/pagination';
 import { conversationListQueries, searchFromUrl, statusFilterFromUrl } from './conversationFilters';
 
@@ -24,13 +25,13 @@ export const load: PageLoad = async ({ parent, url, depends }) => {
 			}
 		})
 	);
-	if (result.err !== null) error(502, 'Could not load your conversations');
+	if (result.err !== null) error(HttpStatus.BadGateway, 'Could not load your conversations');
 
 	const conversations = result.ok;
 	const lastPage = calcPageCount({ pageSize: PAGE_SIZE, total: conversations.total });
 	if (page > lastPage) {
 		const lastPageUrl = setPage(url, lastPage);
-		redirect(307, `${lastPageUrl.pathname}${lastPageUrl.search}`);
+		redirect(HttpStatus.TemporaryRedirect, `${lastPageUrl.pathname}${lastPageUrl.search}`);
 	}
 
 	return { filter, search, pageSize: PAGE_SIZE, conversations };
