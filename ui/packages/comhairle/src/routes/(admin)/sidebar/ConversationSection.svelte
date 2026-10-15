@@ -1,8 +1,13 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { copy } from 'svelte-copy';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { Check, Lock, Rocket } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { ArrowUpRight, Check, Copy, Eye, Lock, Rocket } from 'lucide-svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { notifications } from '$lib/notifications.svelte';
 	import {
 		conversationStages,
 		sectionLockLabels,
@@ -10,12 +15,32 @@
 		type StageConversation
 	} from './conversationStages';
 
-	type Props = { conversation: StageConversation; stepCount: number; path: string };
-	let { conversation, stepCount, path }: Props = $props();
+	type Props = {
+		conversation: StageConversation;
+		stepCount: number;
+		path: string;
+		onLaunch: () => void;
+	};
+	let { conversation, stepCount, path, onLaunch }: Props = $props();
 
 	let canAdmin = $derived(permissions.can('conversation', 'conversation_admin', conversation.id));
+	let canLaunch = $derived(
+		permissions.can('conversation', 'conversation_launch', conversation.id)
+	);
+	let previewHref = $derived(
+		resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+			conversation_id: conversation.id,
+			preview: 'preview'
+		})
+	);
+	let liveHref = $derived(
+		resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+			conversation_id: conversation.id
+		})
+	);
 	let stages = $derived(conversationStages({ conversation, pathname: path, canAdmin }));
 	let sections = $derived(stages.flatMap((stage) => stage.sections));
+	let lastSetUpSection = $derived(stages.find((stage) => stage.id === 'set-up')?.sections.at(-1));
 
 	const markerClass: Record<ConversationStage['state'], string> = {
 		done: 'bg-primary text-primary-foreground',
@@ -55,10 +80,41 @@
 				</span>
 			</div>
 
-			{#if stage.id === 'launch' && stage.state !== 'done'}
-				<p class="text-sidebar-foreground/70 pl-10 text-sm">
-					Use Launch conversation in the header when setup is ready.
-				</p>
+			{#if stage.id === 'launch'}
+				<div class="pl-10">
+					{#if stage.state === 'done'}
+						<div class="flex items-center gap-1">
+							<a
+								href={liveHref}
+								target="_blank"
+								class="text-sidebar-foreground/80 hover:text-sidebar-foreground flex min-w-0 flex-1 items-center gap-2 text-base"
+							>
+								<span class="truncate">Live conversation</span>
+								<ArrowUpRight class="size-4 shrink-0" />
+							</a>
+							<button
+								type="button"
+								use:copy={{
+									text: `${page.url.origin}${liveHref}`,
+									onCopy: () =>
+										notifications.send({
+											priority: 'INFO',
+											message: 'Link copied'
+										})
+								}}
+								class="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-foreground/10 flex size-8 shrink-0 items-center justify-center rounded-lg"
+								title="Copy live conversation link"
+							>
+								<Copy class="size-4" />
+								<span class="sr-only">Copy live conversation link</span>
+							</button>
+						</div>
+					{:else}
+						<Button size="sm" disabled={!canLaunch} onclick={onLaunch}>
+							Launch conversation
+						</Button>
+					{/if}
+				</div>
 			{/if}
 
 			{#if stage.sections.length > 0}
@@ -119,6 +175,19 @@
 							{/if}
 						</li>
 					{/each}
+					{#if stage.id === 'set-up'}
+						<li>
+							<a
+								href={previewHref}
+								target="_blank"
+								class="text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground flex h-10 items-center gap-2 rounded-lg px-2 text-base"
+							>
+								<Eye class="size-4 shrink-0" />
+								<span class="flex-1 truncate">Preview</span>
+								<ArrowUpRight class="size-4 shrink-0" />
+							</a>
+						</li>
+					{/if}
 				</ul>
 			{/if}
 		</li>
@@ -126,6 +195,19 @@
 </ol>
 
 <!-- Collapsed: one icon per section, in the same order. -->
+{#snippet previewIcon()}
+	<SideBar.MenuItem>
+		<SideBar.MenuButton tooltipContent="Preview">
+			{#snippet child({ props })}
+				<a {...props} href={previewHref} target="_blank">
+					<Eye />
+					<span class="sr-only">Preview</span>
+				</a>
+			{/snippet}
+		</SideBar.MenuButton>
+	</SideBar.MenuItem>
+{/snippet}
+
 <SideBar.Menu class="hidden items-center group-data-[collapsible=icon]:flex">
 	{#each sections as link (link.path)}
 		<SideBar.MenuItem>
@@ -144,5 +226,8 @@
 				{/snippet}
 			</SideBar.MenuButton>
 		</SideBar.MenuItem>
+		{#if link === lastSetUpSection}
+			{@render previewIcon()}
+		{/if}
 	{/each}
 </SideBar.Menu>
