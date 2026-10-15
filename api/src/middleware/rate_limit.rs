@@ -1,5 +1,5 @@
 use axum::body::Body;
-use governor::middleware::StateInformationMiddleware;
+use governor::middleware::{NoOpMiddleware, StateInformationMiddleware};
 use std::sync::Arc;
 use tower_governor::{
     GovernorLayer,
@@ -54,8 +54,7 @@ impl RateLimitConfig {
     }
 }
 
-pub type LimitConfig = GovernorConfig<SmartIpKeyExtractor, StateInformationMiddleware>;
-pub type LimitLayer = GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body>;
+pub type LimitLayer<M> = GovernorLayer<SmartIpKeyExtractor, M, Body>;
 
 /// The single set of rate limiters shared by the whole API.
 ///
@@ -71,9 +70,9 @@ pub type LimitLayer = GovernorLayer<SmartIpKeyExtractor, StateInformationMiddlew
 /// `Option<&RateLimitLayers>` (`None` when rate limiting is off).
 #[derive(Clone)]
 pub struct RateLimitLayers {
-    standard: Arc<LimitConfig>,
-    auth_strict: Arc<LimitConfig>,
-    lenient: Arc<LimitConfig>,
+    standard: Arc<GovernorConfig<SmartIpKeyExtractor, NoOpMiddleware>>,
+    auth_strict: Arc<GovernorConfig<SmartIpKeyExtractor, StateInformationMiddleware>>,
+    lenient: Arc<GovernorConfig<SmartIpKeyExtractor, NoOpMiddleware>>,
 }
 
 impl RateLimitLayers {
@@ -83,7 +82,9 @@ impl RateLimitLayers {
     pub fn new() -> Self {
         Self {
             standard: Arc::new(build_governor_config(RateLimitConfig::standard())),
-            auth_strict: Arc::new(build_governor_config(RateLimitConfig::auth_strict())),
+            auth_strict: Arc::new(build_governor_config_with_headers(
+                RateLimitConfig::auth_strict(),
+            )),
             lenient: Arc::new(build_governor_config(RateLimitConfig::lenient())),
         }
     }
@@ -92,7 +93,7 @@ impl RateLimitLayers {
     /// - 100 requests per minute per IP
     /// - Burst capacity of 20 requests
     /// - Suitable for most CRUD operations
-    pub fn standard_rate_limiter(&self) -> LimitLayer {
+    pub fn standard_rate_limiter(&self) -> LimitLayer<NoOpMiddleware> {
         GovernorLayer::new(Arc::clone(&self.standard))
     }
 
@@ -100,7 +101,9 @@ impl RateLimitLayers {
     /// - 5 requests per minute per IP
     /// - Burst capacity of 3 requests
     /// - Suitable for login, signup, password reset, etc.
-    pub fn auth_rate_limiter(&self) -> LimitLayer {
+    ///
+    /// This is the only rate limiter that adds `x-ratelimit-*` headers to responses.
+    pub fn auth_rate_limiter(&self) -> LimitLayer<StateInformationMiddleware> {
         GovernorLayer::new(Arc::clone(&self.auth_strict))
     }
 
@@ -108,7 +111,7 @@ impl RateLimitLayers {
     /// - 300 requests per minute per IP
     /// - Burst capacity of 50 requests
     /// - Suitable for read-heavy operations
-    pub fn lenient_rate_limiter(&self) -> LimitLayer {
+    pub fn lenient_rate_limiter(&self) -> LimitLayer<NoOpMiddleware> {
         GovernorLayer::new(Arc::clone(&self.lenient))
     }
 
@@ -118,9 +121,9 @@ impl RateLimitLayers {
     /// limit. Without it, each limiter keeps an entry for every IP it has seen, for
     /// the life of the process. `build_app` runs it on an interval.
     pub fn retain_recent(&self) {
-        for config in [&self.standard, &self.auth_strict, &self.lenient] {
-            config.limiter().retain_recent();
-        }
+        self.standard.limiter().retain_recent();
+        self.auth_strict.limiter().retain_recent();
+        self.standard.limiter().retain_recent();
     }
 
     /// Spawns a separate background task to clean up stale entries.
@@ -136,9 +139,9 @@ impl RateLimitLayers {
     }
 }
 
-fn build_governor_config(
-    config: RateLimitConfig,
-) -> GovernorConfig<SmartIpKeyExtractor, StateInformationMiddleware> {
+fn governor_builder(
+    config: &RateLimitConfig,
+) -> GovernorConfigBuilder<SmartIpKeyExtractor, NoOpMiddleware> {
     // Convert per_minute to per_millisecond for governor
     // Use ms over seconds to account for more lenient rate limits (above 60
     // minute) which result in a refill period of less than one second
@@ -147,8 +150,22 @@ fn build_governor_config(
     GovernorConfigBuilder::default()
         .per_millisecond(per_ms)
         .burst_size(config.burst_size)
-        .use_headers() // Add rate limit info to response headers
         .key_extractor(SmartIpKeyExtractor)
+}
+
+fn build_governor_config(
+    config: RateLimitConfig,
+) -> GovernorConfig<SmartIpKeyExtractor, NoOpMiddleware> {
+    governor_builder(&config)
+        .finish()
+        .expect("Failed to create rate limiter configuration")
+}
+
+fn build_governor_config_with_headers(
+    config: RateLimitConfig,
+) -> GovernorConfig<SmartIpKeyExtractor, StateInformationMiddleware> {
+    governor_builder(&config)
+        .use_headers()
         .finish()
         .expect("Failed to create rate limiter configuration")
 }
@@ -161,7 +178,7 @@ fn build_governor_config(
 #[allow(dead_code, reason = "For possible future use")]
 pub fn create_custom_rate_limiter(
     config: RateLimitConfig,
-) -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body> {
+) -> GovernorLayer<SmartIpKeyExtractor, NoOpMiddleware, Body> {
     let governor_conf = build_governor_config(config);
 
     GovernorLayer::new(Arc::new(governor_conf))
@@ -200,13 +217,6 @@ mod tests {
         assert_eq!(config.burst_size, 10);
     }
 
-    /// Dummy app where different rate limits can be applied
-    fn rate_limited_app(layer: LimitLayer) -> Router {
-        Router::new()
-            .route("/", get(|| async { "ok" }))
-            .layer(layer)
-    }
-
     async fn status_for_hit(app: &Router) -> StatusCode {
         let request = Request::builder()
             .header("X-Forwarded-For", "10.0.0.1")
@@ -228,10 +238,7 @@ mod tests {
 
     /// Empties the bucket, waits then returns how many requests were replenished
     /// in that time
-    async fn replenished_after(layer: LimitLayer, wait: Duration) -> u32 {
-        let burst = config.burst_size;
-        let app = rate_limited_app(layer);
-
+    async fn replenished_after(app: Router, burst: u32, wait: Duration) -> u32 {
         assert_eq!(
             successes_until_429(&app, burst).await,
             burst,
@@ -247,8 +254,16 @@ mod tests {
     #[tokio::test]
     async fn test_lenient_replenished_at_300_per_minute() {
         let limiters = RateLimitLayers::new();
-        let replenished =
-            replenished_after(limiters.lenient_rate_limiter(), Duration::from_millis(1100)).await;
+        let router = Router::new()
+            .route("/", get(|| async { "ok" }))
+            .layer(limiters.lenient_rate_limiter());
+
+        let replenished = replenished_after(
+            router,
+            RateLimitConfig::lenient().burst_size,
+            Duration::from_millis(1100),
+        )
+        .await;
 
         // 1100ms / 200ms -> 5 successful refills
         assert_eq!(
@@ -261,8 +276,13 @@ mod tests {
     #[tokio::test]
     async fn test_standard_replenishes_at_100_per_minute() {
         let limiters = RateLimitLayers::new();
+        let router = Router::new()
+            .route("/", get(|| async { "ok" }))
+            .layer(limiters.standard_rate_limiter());
+
         let replenished = replenished_after(
-            limiters.standard_rate_limiter(),
+            router,
+            RateLimitConfig::standard().burst_size,
             Duration::from_millis(1500),
         )
         .await;
@@ -279,8 +299,16 @@ mod tests {
     #[tokio::test]
     async fn test_auth_strict_does_not_replish_within_second() {
         let limiters = RateLimitLayers::new();
-        let replenished =
-            replenished_after(limiters.auth_rate_limiter(), Duration::from_millis(1100)).await;
+        let router = Router::new()
+            .route("/", get(|| async { "ok" }))
+            .layer(limiters.auth_rate_limiter());
+
+        let replenished = replenished_after(
+            router,
+            RateLimitConfig::auth_strict().burst_size,
+            Duration::from_millis(1100),
+        )
+        .await;
 
         assert_eq!(
             replenished, 0,

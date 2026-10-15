@@ -40,7 +40,7 @@ pub use routes::auth::hash_pw;
 use sqlx_postgres::PgPool;
 use std::sync::Arc;
 use tokio::fs;
-use tower::Layer;
+use tower::{Layer, util::option_layer};
 use tower_http::cors::CorsLayer;
 use tower_http::normalize_path::{NormalizePath, NormalizePathLayer};
 use translation_service::TranslationService;
@@ -256,7 +256,11 @@ pub async fn build_router_and_spec(
         .nest("/permissions", routes::permissions::router())
         .nest_api_service("/docs", docs_routes())
         .nest("/demographics", routes::demographics::router())
-        .finish_api_with(&mut api, api_docs);
+        .finish_api_with(&mut api, api_docs)
+        // Place before metrics route so metrics isn't rate limited
+        .layer(option_layer(
+            rate_limiters.map(|l| l.lenient_rate_limiter()),
+        ));
 
     #[cfg(not(test))]
     let router = router
