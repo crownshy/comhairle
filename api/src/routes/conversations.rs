@@ -328,7 +328,7 @@ async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
+    let conversation = conversation::delete(&state, &state.bot_service, &id).await?;
     let conversation: ConversationDto = conversation.into();
 
     Ok((StatusCode::OK, Json(conversation)))
@@ -1960,6 +1960,90 @@ mod tests {
 
         Ok(())
     }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_be_able_to_delete_conversation_with_event_workflow(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_create_knowledge_base()
+            .once()
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::CREATED,
+                        ComhairleKnowledgeBase {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service.expect_create_chat().once().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::CREATED,
+                    ComhairleChat {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_delete_knowledge_base()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_delete_chat()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        session.signup(&app).await?;
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : false,
+                    "is_live" : false,
+                    "is_invite_only" : false,
+                    "slug" : "event_workflow_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation_id = conversation.get("id").unwrap().as_str().unwrap().to_owned();
+
+        let (_, event, _) = session.create_random_event(&app, &conversation_id).await?;
+        let event_id = event.get("id").unwrap().as_str().unwrap().to_owned();
+        let (status, _, _) = session
+            .create_random_event_workflow(&app, &conversation_id, &event_id)
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "Should create event workflow");
+
+        let (status, _, _) = session.delete_conversation(&app, &conversation_id).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "Should delete conversation with an event workflow attached"
+        );
+
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn conversation_slugs_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;

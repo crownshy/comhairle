@@ -374,7 +374,10 @@ mod tests {
         .execute(&pool)
         .await?;
 
-        crate::models::workflow::delete(&pool, &workflow_id).await?;
+        sqlx::query("DELETE FROM workflow WHERE id = $1")
+            .bind(workflow_id)
+            .execute(&pool)
+            .await?;
 
         let result = get_by_id(&pool, &target.id).await;
         assert!(
