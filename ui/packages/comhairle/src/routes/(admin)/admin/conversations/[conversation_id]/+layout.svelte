@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
+	import { resolve } from '$app/paths';
 	import TabContent from './TabContent.svelte';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -7,7 +8,6 @@
 	import { ArrowUpRight, MoreHorizontal, Eye, ExternalLink, Check, CircleX } from 'lucide-svelte';
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
-	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
@@ -145,7 +145,10 @@
 			<DropdownMenu.Content align="end" class="w-56">
 				<DropdownMenu.Item>
 					<a
-						href={`/conversations/${conversation.id}/preview`}
+						href={resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+							conversation_id: conversation.id,
+							preview: 'preview'
+						})}
 						target="_blank"
 						class="flex w-full items-center gap-2"
 					>
@@ -156,7 +159,9 @@
 				{#if conversation.isLive}
 					<DropdownMenu.Item>
 						<a
-							href={`/conversations/${conversation.id}`}
+							href={resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+								conversation_id: conversation.id
+							})}
 							class="flex w-full items-center gap-2"
 						>
 							<ExternalLink class="size-4" />
@@ -199,7 +204,10 @@
 	<!-- Desktop actions -->
 	<div class="hidden shrink-0 items-center gap-4 md:flex">
 		<Button
-			href={`/conversations/${conversation.id}/preview`}
+			href={resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+				conversation_id: conversation.id,
+				preview: 'preview'
+			})}
 			target="_blank"
 			variant="secondary"
 			class="bg-primary/20 text-foreground hover:bg-primary/30 inline-flex h-10 rounded-full px-4 text-sm"
@@ -232,7 +240,9 @@
 				<DropdownMenu.Content align="end" class="w-56">
 					<DropdownMenu.Item>
 						<a
-							href={`/conversations/${conversation.id}`}
+							href={resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+								conversation_id: conversation.id
+							})}
 							class="flex w-full items-center gap-2"
 						>
 							<ExternalLink class="size-4" />
@@ -281,12 +291,9 @@
 	hideTrigger
 />
 
-<!-- Rows 2–4: section tabs + injected sub-strips. shrink-0 so these fixed headers keep
-	 their height inside the viewport-capped `main` (otherwise flexbox compresses them). -->
+<!-- Section sub-strips. The sidebar picks the section (ADR-0052). shrink-0 keeps their
+	 height inside the viewport-capped `main`. -->
 <div class="flex shrink-0 flex-col">
-	<!-- Row 2: section tabs -->
-	<ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
-
 	<!-- Row 3+ : section sub-strips, all server-rendered here from loaded data / static lists
 		 (keyed off the pathname), never injected from a child `$effect`. Once a switch has run long
 		 enough to warrant the skeleton we ignore them and show the destination's reserved one. -->
