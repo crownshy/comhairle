@@ -34,7 +34,7 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
+use crate::middleware::rate_limit::RateLimitLayers;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
     ActorId, GrantRoleRequest, PermissionRole, grant_role, has_resource_permission,
@@ -1134,12 +1134,12 @@ async fn issue_refresh_token<'a>(
 }
 
 /// Function to set up the auth routes
-pub async fn router(enable_rate_limiting: bool) -> ApiRouter<Arc<ComhairleState>> {
+pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
     // One strict per-IP bucket, shared by every route that takes or issues
     // credentials, so rotating between login and signup does not buy extra
     // attempts. Session reads (`current_user`, `logout`) stay off it: they run
     // on every page render, and limiting them signs people out at random.
-    let credential_limit = option_layer(auth_rate_limiter_if_enabled(enable_rate_limiting));
+    let credential_limit = option_layer(rate_limiters.map(|limiters| limiters.auth_rate_limiter()));
 
     ApiRouter::new()
         .api_route(

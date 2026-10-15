@@ -47,13 +47,13 @@ use translation_service::TranslationService;
 use websockets::WebSocketService;
 use websockets::handlers::video_call::VideoCallMessageHandler;
 
-use crate::bulk_storage_service::BulkStorageService;
 use crate::categorization_service::CategorizationService;
 use crate::redis_connection::RedisConnection;
 use crate::routes::workflows::WorkflowRouterContext;
 use crate::transcription_service::Transcriber;
 use crate::wiki_poll_service::WikiPollService;
 use crate::worker_service::WorkerService;
+use crate::{bulk_storage_service::BulkStorageService, middleware::rate_limit::RateLimitLayers};
 
 pub type App = NormalizePath<Router<()>>;
 
@@ -149,7 +149,7 @@ async fn health_check() -> &'static str {
 /// Constructs the ApiRouter and extracts the OpenAPI spec.
 /// Note that sub-routers like `routes::auth::router` are async and must be `.await`ed.
 pub async fn build_router_and_spec(
-    enable_rate_limit: bool,
+    rate_limiters: Option<RateLimitLayers>,
 ) -> (Router<Arc<ComhairleState>>, OpenApi) {
     aide::generate::on_error(|error| {
         tracing::error!("{error}");
@@ -164,7 +164,7 @@ pub async fn build_router_and_spec(
     // Rate limiting is applied per route inside the auth router: the strict
     // limiter belongs on the credential endpoints, not on session reads.
     // Added `.await` here to resolve the opaque Future issue
-    let auth_router = routes::auth::router(enable_rate_limit).await;
+    let auth_router = routes::auth::router(rate_limiters.as_ref()).await;
 
     let router = ApiRouter::new()
         .route("/health", axum::routing::get(health_check))
@@ -197,7 +197,10 @@ pub async fn build_router_and_spec(
                             routes::recruitment_targets::router(),
                         ),
                 )
-                .nest("/{conversation_id}/invite", routes::invites::router())
+                .nest(
+                    "/{conversation_id}/invite",
+                    routes::invites::router(rate_limiters.as_ref()),
+                )
                 .nest(
                     "/{conversation_id}/report",
                     routes::reports::router()
@@ -223,7 +226,7 @@ pub async fn build_router_and_spec(
                     routes::events::router()
                         .nest(
                             "/{event_id}/attendances",
-                            routes::event_attendances::router(),
+                            routes::event_attendances::router(rate_limiters.as_ref()),
                         )
                         .nest(
                             "/{event_id}/workflows",
@@ -309,7 +312,9 @@ pub async fn build_app(
         ])
         .allow_origin(allowed_origins);
 
-    let (router, api) = build_router_and_spec(state.config.enable_rate_limiting).await;
+    let rate_limiters = state.config.enable_rate_limiting.then(RateLimitLayers::new);
+
+    let (router, api) = build_router_and_spec(rate_limiters).await;
 
     if export_spec {
         let json = serde_json::to_string_pretty(&api)?;
