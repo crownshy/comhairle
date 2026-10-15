@@ -4,9 +4,7 @@
 	import { Home } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { Pager } from '$lib/pagination';
-	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
 	import { CONVERSATION_STATUS_FILTER_LABELS, isPageTurn } from './conversationFilters';
 	import type { PageProps } from './$types';
@@ -37,16 +35,6 @@
 	class="bg-muted pt-page-top px-gutter flex w-full pb-8 sm:pr-8 sm:pb-12 lg:pr-16"
 >
 	<div class="@container flex w-full max-w-300 flex-col gap-11">
-		<Breadcrumb.Root>
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/admin">{m.workspace()}</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>Conversations</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
-
 		<!-- The right padding matches the card padding so the button lines up with the card images. -->
 		<div
 			class="mb-10 flex flex-col items-start gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between @4xl:pr-6"

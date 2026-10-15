@@ -1,31 +1,15 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { ChevronsUpDown, Home, Info, LogOut, Settings } from 'lucide-svelte';
-	import { apiClient } from '@crownshy/api-client/client';
+	import { ChevronsUpDown } from 'lucide-svelte';
 	import type { UserDto } from '@crownshy/api-client/api';
 	import { userInitials } from '$lib/utils';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import { key } from '$lib/utils/invalidationKey';
-	import { notifications } from '$lib/notifications.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import UserMenuItems from '../account/UserMenuItems.svelte';
 
 	let { user }: { user: UserDto } = $props();
 	const sidebar = useSidebar();
-
-	async function signOut() {
-		const logout = await tryCatchAsync(async () => {
-			await apiClient.LogoutUser(undefined);
-			await goto(resolve('/'), { invalidate: [key('user')] });
-		});
-		if (logout.err) {
-			notifications.send({ priority: 'ERROR', message: m.logout_failed() });
-		}
-	}
 </script>
 
 <SideBar.Menu>
@@ -63,31 +47,7 @@
 				align="end"
 				class="w-56"
 			>
-				<DropdownMenu.Item>
-					{#snippet child({ props })}
-						<a {...props} href={resolve('/settings')}>
-							<Settings class="size-4" /> Settings
-						</a>
-					{/snippet}
-				</DropdownMenu.Item>
-				<DropdownMenu.Item>
-					{#snippet child({ props })}
-						<a {...props} href={resolve('/')}>
-							<Home class="size-4" /> Back to home
-						</a>
-					{/snippet}
-				</DropdownMenu.Item>
-				<DropdownMenu.Item>
-					{#snippet child({ props })}
-						<a {...props} href={resolve('/about')}>
-							<Info class="size-4" /> About Comhairle
-						</a>
-					{/snippet}
-				</DropdownMenu.Item>
-				<DropdownMenu.Separator />
-				<DropdownMenu.Item onclick={signOut}>
-					<LogOut class="size-4" /> Sign out
-				</DropdownMenu.Item>
+				<UserMenuItems />
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 	</SideBar.MenuItem>

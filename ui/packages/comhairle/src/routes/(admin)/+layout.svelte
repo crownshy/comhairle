@@ -1,6 +1,6 @@
 <script lang="ts">
-	import AdminNav from '$lib/components/AdminNav.svelte';
 	import ConversationNav from './sidebar/ConversationNav.svelte';
+	import WorkspaceTopBar from './workspace/WorkspaceTopBar.svelte';
 	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
 	import SidebarFloatingTriggers from '$lib/components/SidebarFloatingTriggers.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
@@ -12,11 +12,7 @@
 	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
 
 	let { children, data }: LayoutProps = $props();
-	let ownedConversations = $derived(data.ownedConversations);
-	let permittedConversations = $derived(data.permittedConversations);
-	let userOrganizations = $derived(data.userOrganizations);
-	let userRoles = $derived(data.userRoles);
-	// Set by the conversation layout. Its presence switches the sidebar to that conversation.
+	// Set by the conversation layout. Only conversation pages have a sidebar (ADR-0052).
 	let conversation = $derived(page.data.conversation as ConversationWithTranslations | undefined);
 	let stepCount = $derived((page.data.workflowSteps as unknown[] | undefined)?.length ?? 0);
 
@@ -36,33 +32,30 @@
 	});
 </script>
 
-<SideBar.Provider
-	class="h-svh"
-	style="--sidebar-width: {sidebarWidthPx}px;"
-	data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
->
-	{#if conversation}
+{#if conversation}
+	<SideBar.Provider
+		class="h-svh"
+		style="--sidebar-width: {sidebarWidthPx}px;"
+		data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
+	>
 		<ConversationNav {conversation} {stepCount} user={data.user} path={page.url.pathname} />
-	{:else}
-		<AdminNav
-			user={data.user}
-			ownedConversations={ownedConversations?.records ?? []}
-			permittedConversations={permittedConversations?.records ?? []}
-			userOrganizations={userOrganizations ?? {
-				organizations: [],
-				canCreateOrganization: false
-			}}
-			{userRoles}
-			path={page.url.pathname}
-		/>
-	{/if}
-	<SideBar.Inset class="min-h-0 min-w-0">
-		<SidebarFloatingTriggers />
+		<SideBar.Inset class="min-h-0 min-w-0">
+			<SidebarFloatingTriggers />
+			<main class="bg-muted flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
+				{@render children()}
+			</main>
+		</SideBar.Inset>
+	</SideBar.Provider>
+{:else}
+	<div class="flex h-svh flex-col">
+		<WorkspaceTopBar user={data.user} path={page.url.pathname} />
 		<main class="bg-muted flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
-			{@render children()}
+			<div class="mx-auto flex w-full max-w-336 grow flex-col">
+				{@render children()}
+			</div>
 		</main>
-	</SideBar.Inset>
-</SideBar.Provider>
+	</div>
+{/if}
 
 <AutosaveLeaveGuard />
 

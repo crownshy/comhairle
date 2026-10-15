@@ -16,7 +16,7 @@ export type SidebarWidthProps = {
 };
 
 /**
- * Reactive sidebar-width state shared with `SidebarResizeHandle` and `AdminNav`.
+ * Reactive sidebar-width state shared with `SidebarResizeHandle` and `ConversationNav`.
  *
  * The width itself lives in the layout (so SSR and the live value are one reactive
  * expression seeded from load data, with no hydration mismatch). This class only

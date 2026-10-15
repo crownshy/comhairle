@@ -19,7 +19,7 @@
 	// Pictures of real buttons, not interactive. Keep them in step with:
 	// - accept/reject/split: lib/tools/polis/polis-moderation/StatementModerationRow.svelte
 	//   (shown in their hover state so they read as buttons)
-	// - collapse/expand: lib/components/AdminNav.svelte (on the sidebar's own background)
+	// - collapse/expand: routes/(admin)/sidebar/ConversationNav.svelte (on the sidebar's own background)
 	// - actions: a step's actions menu trigger (MoreVertical) in
 	//   routes/(admin)/admin/conversations/[conversation_id]/design/+page.svelte, in its hover state
 	// - login/signup: the submit buttons in routes/(public)/auth/login and auth/signup,

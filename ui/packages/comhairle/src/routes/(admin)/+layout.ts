@@ -5,32 +5,9 @@ import { key } from '$lib/utils/invalidationKey';
 
 export const load: LayoutLoad = async ({ parent, data, depends }) => {
 	depends(key('admin/organizations'));
-	depends(key('admin/conversations'));
 	const { api, isSuperAdmin } = await parent();
 
 	try {
-		const ownedConversations = await api
-			.GetOwnedConversations()
-			.catch(() => ({ records: [], total: 0 }));
-
-		const ownedConversationIds = new Set(
-			ownedConversations.records.map((conversation) => conversation.id)
-		);
-
-		const permittedConversations = await api
-			.GetPermittedConversations()
-			.catch(() => ({ records: [], total: 0 }));
-
-		const nonOwnedPermittedConversationRecords = permittedConversations.records.filter(
-			(conversation) => !ownedConversationIds.has(conversation.id)
-		);
-
-		const nonOwnedPermittedConversations = {
-			...permittedConversations,
-			records: nonOwnedPermittedConversationRecords,
-			total: nonOwnedPermittedConversationRecords.length
-		};
-
 		const userOrganizations = await api.GetUserOrganizations().catch(() => ({
 			organizations: [],
 			canCreateOrganization: false
@@ -39,8 +16,6 @@ export const load: LayoutLoad = async ({ parent, data, depends }) => {
 		// Forward the server-read sidebar width so the component's `data` carries it:
 		// with a universal load present, SvelteKit does not auto-merge server data.
 		return {
-			ownedConversations,
-			permittedConversations: nonOwnedPermittedConversations,
 			userOrganizations,
 			isSuperAdmin,
 			sidebarWidth: data.sidebarWidth
