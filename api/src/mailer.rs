@@ -573,7 +573,7 @@ impl ComhairleMailer for Mailer {
         locale: &str,
     ) -> Result<(), ComhairleError> {
         let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
-        let recipient = users::get_user_by_id(&recipient_id, &state.db).await?;
+        let recipient = users::get_user_by_id(&state.db, &recipient_id).await?;
 
         let event_path = format!(
             "/conversations/{}/events/{}/live",

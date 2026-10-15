@@ -59,14 +59,14 @@ pub async fn process_document_handler(
     let bot_service = state
         .required_bot_service()
         .map_err(|_| WorkerServiceError::NoBotServiceConfigured)
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
     let bot_service_config = state
         .config
         .bot_service
         .as_ref()
         .ok_or(WorkerServiceError::NoBotServiceConfigured)
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
 
     info!(
@@ -78,7 +78,7 @@ pub async fn process_document_handler(
         models::conversation::get_localised_by_id(&state.db, &job.conversation_id, "en")
             .await
             .map_err(|e| WorkerServiceError::DbError(e.to_string()))
-            .ok_or_record_failure(&job.job_id, &state.db)
+            .ok_or_record_failure(&state.db, &job.job_id)
             .await?;
 
     let knowledge_base_id = conversation
@@ -89,7 +89,7 @@ pub async fn process_document_handler(
                 conversation.id
             ))
         })
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
 
     let chat_bot_id = conversation
@@ -100,7 +100,7 @@ pub async fn process_document_handler(
                 conversation.id
             ))
         })
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
 
     let max_attempts = 360; // 1 hour
@@ -119,7 +119,7 @@ pub async fn process_document_handler(
             .get_document(&job.document_id, &knowledge_base_id)
             .await
             .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
-            .ok_or_record_failure(&job.job_id, &state.db)
+            .ok_or_record_failure(&state.db, &job.job_id)
             .await?;
 
         let update_job = UpdateJob {
@@ -152,7 +152,7 @@ pub async fn process_document_handler(
             let _ = job::update(&state.db, &job.job_id, update_job)
                 .await
                 .map_err(|e| WorkerServiceError::DbError(e.to_string()))
-                .ok_or_record_failure(&job.job_id, &state.db)
+                .ok_or_record_failure(&state.db, &job.job_id)
                 .await?;
 
             return Err(WorkerServiceError::JobFailure(message.to_string()));
@@ -165,7 +165,7 @@ pub async fn process_document_handler(
         .get_chat(&chat_bot_id)
         .await
         .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
 
     if !chat.knowledge_base_ids.contains(&knowledge_base_id) {
@@ -187,7 +187,7 @@ pub async fn process_document_handler(
             .update_chat(&chat_bot_id, update_params)
             .await
             .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
-            .ok_or_record_failure(&job.job_id, &state.db)
+            .ok_or_record_failure(&state.db, &job.job_id)
             .await?;
 
         info!(

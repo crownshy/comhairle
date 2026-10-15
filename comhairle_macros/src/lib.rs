@@ -410,22 +410,23 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         impl #with_translations_struct_name {
             /// Creates a new instance from the original struct and loads all translations
             pub async fn from_original(
-                db: &sqlx::PgPool,
+                db: impl crate::DbSource,
                 original: #struct_name,
                 locale: &str,
             ) -> Result<Self, crate::error::ComhairleError> {
                 use crate::models::translations::{get_text_content_by_id, get_text_translations_by_content_id, get_text_translation_by_content_and_locale};
 
+                let mut conn = db.acquire().await?;
                 Ok(Self {
                     #(
                         #text_content_fields: {
                             // Get the translated text for this locale, fallback to primary locale if needed
-                            match get_text_translation_by_content_and_locale(db, &original.#text_content_fields, locale).await {
+                            match get_text_translation_by_content_and_locale(&mut *conn, &original.#text_content_fields, locale).await {
                                 Ok(translation) => translation.content,
                                 Err(_) => {
                                     // Try to get the text content to access primary locale
-                                    let text_content = get_text_content_by_id(db, &original.#text_content_fields).await?;
-                                    match get_text_translation_by_content_and_locale(db, &original.#text_content_fields, &text_content.primary_locale).await {
+                                    let text_content = get_text_content_by_id(&mut *conn, &original.#text_content_fields).await?;
+                                    match get_text_translation_by_content_and_locale(&mut *conn, &original.#text_content_fields, &text_content.primary_locale).await {
                                         Ok(translation) => translation.content,
                                         Err(_) => String::new(), // Fallback to empty string if no translation found
                                     }
@@ -437,12 +438,12 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                         #optional_text_content_fields: {
                             if let Some(field) = &original.#optional_text_content_fields {
                                 // Get the translated text for this locale, fallback to primary locale if needed
-                                match get_text_translation_by_content_and_locale(db, &field, locale).await {
+                                match get_text_translation_by_content_and_locale(&mut *conn, &field, locale).await {
                                     Ok(translation) => Some(translation.content),
                                     Err(_) => {
                                         // Try to get the text content to access primary locale
-                                        let text_content = get_text_content_by_id(db, &field).await?;
-                                        match get_text_translation_by_content_and_locale(db, &field, &text_content.primary_locale).await {
+                                        let text_content = get_text_content_by_id(&mut *conn, &field).await?;
+                                        match get_text_translation_by_content_and_locale(&mut *conn, &field, &text_content.primary_locale).await {
                                             Ok(translation) => Some(translation.content),
                                             Err(_) => Some(String::new()), // Fallback to empty string if no translation found
                                         }
@@ -461,11 +462,11 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                         #(
                             #text_content_fields: {
                                 // Get the TextContent for this field
-                                let text_content = get_text_content_by_id(db, &original.#text_content_fields).await?.into();
+                                let text_content = get_text_content_by_id(&mut *conn, &original.#text_content_fields).await?.into();
 
                                 // Get all translations for this content
                                 let text_translations =
-                                    (get_text_translations_by_content_id(db, &original.#text_content_fields).await?).into_iter().map(Into::into).collect();
+                                    (get_text_translations_by_content_id(&mut *conn, &original.#text_content_fields).await?).into_iter().map(Into::into).collect();
 
                                 // Create Translation struct for this field
                                 Translation {
@@ -478,11 +479,11 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                             #optional_text_content_fields: {
                                 if let Some(field) = &original.#optional_text_content_fields {
                                     // Get the TextContent for this field
-                                    let text_content = get_text_content_by_id(db, &field).await?.into();
+                                    let text_content = get_text_content_by_id(&mut *conn, &field).await?.into();
 
                                     // Get all translations for this content
                                     let text_translations =
-                                        (get_text_translations_by_content_id(db, &field).await?).into_iter().map(Into::into).collect();
+                                        (get_text_translations_by_content_id(&mut *conn, &field).await?).into_iter().map(Into::into).collect();
 
                                     // Create Translation struct for this field
                                     Some(Translation {

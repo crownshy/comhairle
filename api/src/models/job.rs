@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -80,10 +80,14 @@ impl CreateJob {
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn create(db: &PgPool, create_job: CreateJob) -> Result<Job, ComhairleError> {
+pub async fn create(
+    db: impl crate::DbSource,
+    create_job: CreateJob,
+) -> Result<Job, ComhairleError> {
     let columns = create_job.columns();
     let values = create_job.values();
 
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::insert()
         .into_table(JobIden::Table)
         .columns(columns)
@@ -92,7 +96,7 @@ pub async fn create(db: &PgPool, create_job: CreateJob) -> Result<Job, Comhairle
         .build_sqlx(PostgresQueryBuilder);
 
     let job = sqlx::query_as_with::<_, Job, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(job)
@@ -140,7 +144,11 @@ impl UpdateJob {
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn update(db: &PgPool, id: &Uuid, update_job: UpdateJob) -> Result<Job, ComhairleError> {
+pub async fn update(
+    db: impl crate::DbSource,
+    id: &Uuid,
+    update_job: UpdateJob,
+) -> Result<Job, ComhairleError> {
     let values = update_job.to_values();
 
     if values.is_empty() {
@@ -154,8 +162,9 @@ pub async fn update(db: &PgPool, id: &Uuid, update_job: UpdateJob) -> Result<Job
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let job = sqlx::query_as_with::<_, Job, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(job)
@@ -163,7 +172,11 @@ pub async fn update(db: &PgPool, id: &Uuid, update_job: UpdateJob) -> Result<Job
 
 /// Convenience method to mark job as completed with custom completion_message
 #[instrument(err(Debug), skip(db))]
-pub async fn complete(db: &PgPool, id: Uuid, message: &str) -> Result<Job, ComhairleError> {
+pub async fn complete(
+    db: impl crate::DbSource,
+    id: Uuid,
+    message: &str,
+) -> Result<Job, ComhairleError> {
     let (sql, values) = Query::update()
         .table(JobIden::Table)
         .values([
@@ -175,21 +188,23 @@ pub async fn complete(db: &PgPool, id: Uuid, message: &str) -> Result<Job, Comha
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let job = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let job = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(job)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Job, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(JobIden::Table)
         .and_where(Expr::col(JobIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let job = sqlx::query_as_with::<_, Job, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Job")?;
 
@@ -197,15 +212,16 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_id_id(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
+pub async fn get_id_id(db: impl crate::DbSource, id: &Uuid) -> Result<Job, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(JobIden::Table)
         .and_where(Expr::col(JobIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let job = sqlx::query_as_with::<_, Job, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Job")?;
 
@@ -288,7 +304,7 @@ impl JobFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     order_options: JobOrderOptions,
     filter_options: JobFilterOptions,
@@ -308,6 +324,8 @@ pub async fn list(
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use super::*;
 
     use std::error::Error;

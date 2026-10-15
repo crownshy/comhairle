@@ -209,7 +209,7 @@ async fn resolve_or_create_user_by_email(
         ));
     }
 
-    match users::get_user_by_email(&trimmed, &state.db).await {
+    match users::get_user_by_email(&state.db, &trimmed).await {
         Ok(user) => Ok((user, false, false)),
         Err(ComhairleError::NoUserFoundForEmail(_)) => {
             if !allow_create_user {
@@ -269,7 +269,7 @@ async fn get_team(
     Path(organization_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<OrganizationTeamResponseDto>), ComhairleError> {
     let mut members = Vec::new();
-    for member in users::list_by_organization_id(&organization_id, &state.db).await? {
+    for member in users::list_by_organization_id(&state.db, &organization_id).await? {
         let administrator = crate::models::permissions::has_resource_permission(
             &state,
             Role::Admin.triplet(&organization_id)?,

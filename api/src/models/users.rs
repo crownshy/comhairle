@@ -20,7 +20,7 @@ use sea_query::{
 };
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
@@ -177,7 +177,10 @@ const DEFAULT_COLUMNS: [UserIden; 13] = [
 
 /// Create a user from a signup request
 #[instrument(err(Debug), skip(db))]
-pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
+pub async fn create_user(
+    db: impl crate::DbSource,
+    user: &SignupRequest,
+) -> Result<User, ComhairleError> {
     let password = hash_pw(&user.password)?;
     let (sql, values) = Query::insert()
         .into_table(UserIden::Table)
@@ -199,8 +202,9 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await;
 
     // Check to see if the either a unique username or email has been
@@ -223,8 +227,9 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
 
 /// Create an guest user
 #[instrument(err(Debug), skip(db))]
-pub async fn create_guest_user(db: &PgPool) -> Result<User, ComhairleError> {
+pub async fn create_guest_user(db: impl crate::DbSource) -> Result<User, ComhairleError> {
     let mut retries = 5; // Retry up to 5 times to generate a unique username
+    let mut conn = db.acquire().await?;
     while retries > 0 {
         let sudo_random_code = gen_id();
 
@@ -236,7 +241,7 @@ pub async fn create_guest_user(db: &PgPool) -> Result<User, ComhairleError> {
             .build_sqlx(PostgresQueryBuilder);
 
         let user = sqlx::query_as_with::<_, User, _>(&sql, values)
-            .fetch_one(db)
+            .fetch_one(&mut *conn)
             .await;
 
         match user {
@@ -259,7 +264,10 @@ pub async fn create_guest_user(db: &PgPool) -> Result<User, ComhairleError> {
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
+pub async fn create_otp_user(
+    db: impl crate::DbSource,
+    user: &OtpSignupRequest,
+) -> Result<User, ComhairleError> {
     let username = user
         .username
         .as_deref()
@@ -280,8 +288,9 @@ pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<Use
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await;
 
     match user_result {
@@ -304,27 +313,28 @@ pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<Use
 /// none found
 #[instrument(err(Debug), skip(db))]
 pub async fn get_or_create_user_by_email(
-    db: &PgPool,
+    db: impl crate::DbSource,
     email: &str,
     client_ip: &str,
     user_agent: Option<&str>,
 ) -> Result<User, ComhairleError> {
-    if let Ok(existing) = get_user_by_email(email, db).await {
+    let mut conn = db.acquire().await?;
+    if let Ok(existing) = get_user_by_email(&mut *conn, email).await {
         return Ok(existing);
     }
 
     let new_user = create_otp_user(
+        &mut *conn,
         &OtpSignupRequest {
             email: email.to_string(),
             username: None,
         },
-        db,
     )
     .await?;
 
     // Best-effort: record the signup IP and browser signature for the
     // freshly created account.
-    if let Err(error) = set_signup_metadata(&new_user.id, client_ip, user_agent, db).await {
+    if let Err(error) = set_signup_metadata(&mut *conn, &new_user.id, client_ip, user_agent).await {
         warn!(
             "Failed to record signup metadata for user {}: {error}",
             new_user.id
@@ -370,7 +380,7 @@ pub async fn create_organization_admin_user(
         email: email.to_string(),
     };
 
-    let user = create_user(&signup_request, &state.db).await?;
+    let user = create_user(&state.db, &signup_request).await?;
 
     // Grant the user the admin role so that they can use the admin interface
     let _ = grant_role(
@@ -395,10 +405,10 @@ pub async fn create_organization_admin_user(
 /// leaves the column NULL.
 #[instrument(err(Debug), skip(db))]
 pub async fn set_signup_metadata(
+    db: impl crate::DbSource,
     user_id: &Uuid,
     ip: &str,
     user_agent: Option<&str>,
-    db: &PgPool,
 ) -> Result<(), ComhairleError> {
     let (sql, values) = Query::update()
         .table(UserIden::Table)
@@ -407,21 +417,23 @@ pub async fn set_signup_metadata(
         .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
-    sqlx::query_with(&sql, values).execute(db).await?;
+    let mut conn = db.acquire().await?;
+    sqlx::query_with(&sql, values).execute(&mut *conn).await?;
     Ok(())
 }
 
 /// Return a user by ID
 #[instrument(err(Debug), skip(db))]
-pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleError> {
+pub async fn get_user_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let user = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_| ComhairleError::NoUserFoundForId(id.to_owned()))?;
     Ok(user)
@@ -429,15 +441,19 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
 
 /// Return a user by email
 #[instrument(err(Debug), skip(db))]
-pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, ComhairleError> {
+pub async fn get_user_by_email(
+    db: impl crate::DbSource,
+    email: &str,
+) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Email).ilike(email))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let user = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_| ComhairleError::NoUserFoundForEmail(email.to_owned()))?;
     Ok(user)
@@ -445,11 +461,11 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_user_resource_roles(
+    db: impl crate::DbSource,
     resource_kind: Resource,
     resource_id: &Uuid,
     resource_roles: &[Role],
     user_id: &Uuid,
-    db: &PgPool,
 ) -> Result<Vec<UserResourceRole>, ComhairleError> {
     let (sql, values) = Query::select()
         .columns([
@@ -472,22 +488,23 @@ pub async fn get_user_resource_roles(
         .and_where(Expr::col(UserResourceRoleIden::UserId).eq(user_id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with::<_, UserResourceRole, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await
         .map_err(ComhairleError::DatabaseError)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn user_has_resource_role(
+    db: impl crate::DbSource,
     resource_kind: Resource,
     resource_id: &Uuid,
     resource_roles: &[Role],
     user_id: &Uuid,
-    db: &PgPool,
 ) -> Result<bool, ComhairleError> {
     let result =
-        get_user_resource_roles(resource_kind, resource_id, resource_roles, user_id, db).await?;
+        get_user_resource_roles(db, resource_kind, resource_id, resource_roles, user_id).await?;
 
     if result.is_empty() {
         return Ok(false);
@@ -497,11 +514,11 @@ pub async fn user_has_resource_role(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn add_user_resource_role(
+    db: impl crate::DbSource,
     resource_kind: Resource,
     resource_id: &Uuid,
     resource_role: Role,
     user_id: &Uuid,
-    db: &PgPool,
 ) -> Result<(), ComhairleError> {
     let (sql, values) = Query::insert()
         .columns([
@@ -520,13 +537,17 @@ pub async fn add_user_resource_role(
         .build_sqlx(PostgresQueryBuilder);
     // TODO IF NOT EXISTS
 
-    sqlx::query_with(&sql, values).execute(db).await?;
+    let mut conn = db.acquire().await?;
+    sqlx::query_with(&sql, values).execute(&mut *conn).await?;
     Ok(())
 }
 
 /// Return a guest user by guest_code
 #[instrument(err(Debug), skip(db))]
-pub async fn get_guest_user_by_code(guest_code: &str, db: &PgPool) -> Result<User, ComhairleError> {
+pub async fn get_guest_user_by_code(
+    db: impl crate::DbSource,
+    guest_code: &str,
+) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
@@ -534,8 +555,9 @@ pub async fn get_guest_user_by_code(guest_code: &str, db: &PgPool) -> Result<Use
         .and_where(Expr::col(UserIden::AuthType).eq(UserAuthType::Guest))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_| ComhairleError::NoUserFound)
 }
@@ -543,7 +565,10 @@ pub async fn get_guest_user_by_code(guest_code: &str, db: &PgPool) -> Result<Use
 /// Return a non-guest user by username. Guest users do not have unique constraint
 /// on usernames so should be selected by `guest_code`.
 #[instrument(err(Debug), skip(db))]
-pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, ComhairleError> {
+pub async fn get_user_by_username(
+    db: impl crate::DbSource,
+    username: &str,
+) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
@@ -551,8 +576,9 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .and_where(Expr::col(UserIden::AuthType).not().eq(UserAuthType::Guest))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_| ComhairleError::NoUserFound)
 }
@@ -560,8 +586,8 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
 /// Return all users associated with an organization.
 #[instrument(err(Debug), skip(db))]
 pub async fn list_by_organization_id(
+    db: impl crate::DbSource,
     organization_id: &Uuid,
-    db: &PgPool,
 ) -> Result<Vec<User>, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -573,8 +599,9 @@ pub async fn list_by_organization_id(
         ))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await
         .map_err(ComhairleError::DatabaseError)
 }
@@ -582,9 +609,9 @@ pub async fn list_by_organization_id(
 /// Set or clear the organization membership for a user.
 #[instrument(err(Debug), skip(db))]
 pub async fn set_user_organization_id(
+    db: impl crate::DbSource,
     user_id: &Uuid,
     organization_id: Option<Uuid>,
-    db: &PgPool,
 ) -> Result<User, ComhairleError> {
     let (sql, values) = Query::update()
         .table(UserIden::Table)
@@ -593,8 +620,9 @@ pub async fn set_user_organization_id(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(ComhairleError::DatabaseError)
 }
@@ -617,9 +645,9 @@ pub struct UpgradeAccountRequest {
 /// Update user details (username and/or password)
 #[instrument(err(Debug), skip(db))]
 pub async fn update_user(
+    db: impl crate::DbSource,
     user_id: &Uuid,
     update_request: &UpdateUserRequest,
-    db: &PgPool,
 ) -> Result<User, ComhairleError> {
     let mut query = Query::update();
     query.table(UserIden::Table);
@@ -649,7 +677,7 @@ pub async fn update_user(
     }
 
     if !has_updates {
-        return get_user_by_id(user_id, db).await;
+        return get_user_by_id(db, user_id).await;
     }
 
     let (sql, values) = query
@@ -657,8 +685,9 @@ pub async fn update_user(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let user = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(user)
@@ -667,12 +696,13 @@ pub async fn update_user(
 /// Upgrade an anonymous account to email/password account
 #[instrument(err(Debug), skip(db))]
 pub async fn upgrade_account(
+    db: impl crate::DbSource,
     user_id: &Uuid,
     upgrade_request: &UpgradeAccountRequest,
-    db: &PgPool,
 ) -> Result<User, ComhairleError> {
+    let mut conn = db.acquire().await?;
     // First verify the user exists and is an anonymous account
-    let current_user = get_user_by_id(user_id, db).await?;
+    let current_user = get_user_by_id(&mut *conn, user_id).await?;
 
     if current_user.auth_type != UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
@@ -694,7 +724,7 @@ pub async fn upgrade_account(
         .build_sqlx(PostgresQueryBuilder);
 
     let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await;
 
     match user_result {
@@ -767,7 +797,7 @@ impl UserOrderOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     filter_options: UserFilterOptions,
     order_options: UserOrderOptions,
@@ -803,11 +833,11 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_create_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = create_otp_user(
+            &pool,
             &OtpSignupRequest {
                 email: "test_otp@test.com".to_string(),
                 username: None,
             },
-            &pool,
         )
         .await?;
 
@@ -824,13 +854,13 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_record_and_hide_signup_ip(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = create_user(
+            &pool,
             &SignupRequest {
                 username: "ip_user".to_string(),
                 password: "test_pw".to_string(),
                 email: "ip_user@test.com".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -841,14 +871,14 @@ mod tests {
         );
 
         set_signup_metadata(
+            &pool,
             &user.id,
             "203.0.113.7",
             Some("Mozilla/5.0 (Test) Firefox/152.0"),
-            &pool,
         )
         .await?;
 
-        let stored = get_user_by_id(&user.id, &pool).await?;
+        let stored = get_user_by_id(&pool, &user.id).await?;
         assert_eq!(
             stored.signup_ip.as_deref(),
             Some("203.0.113.7"),
@@ -911,86 +941,86 @@ mod tests {
         session.signup(&app).await?;
 
         add_user_resource_role(
+            &pool,
             Resource::Conversation,
             &conversation_id,
             Role::Contributor,
             &session.id.unwrap(),
-            &pool,
         )
         .await?;
 
         assert!(
             user_has_resource_role(
+                &pool,
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Contributor],
                 &session.id.unwrap(),
-                &pool.clone(),
             )
             .await?,
             "true when user has role",
         );
         assert!(
             !user_has_resource_role(
+                &pool,
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Contributor],
                 &Uuid::parse_str("5FDFC2CE-C7F5-43DB-AA1F-0A8698E76D2E").unwrap(),
-                &pool.clone(),
             )
             .await?,
             "false when no user with that ID",
         );
         assert!(
             !user_has_resource_role(
+                &pool,
                 Resource::Conversation,
                 &Uuid::parse_str("5FDFC2CE-C7F5-43DB-AA1F-0A8698E76D2E").unwrap(),
                 &[Role::Contributor],
                 &session.id.unwrap(),
-                &pool.clone(),
             )
             .await?,
             "false when no conversation with that ID",
         );
         assert!(
             !user_has_resource_role(
+                &pool,
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Owner],
                 &session.id.unwrap(),
-                &pool.clone(),
             )
             .await?,
             "false when wrong role kind",
         );
         assert!(
             user_has_resource_role(
+                &pool,
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Owner, Role::Contributor],
                 &session.id.unwrap(),
-                &pool.clone(),
             )
             .await?,
             "true when user could be multiple roles and has one",
         );
 
         add_user_resource_role(
+            &pool,
             Resource::Conversation,
             &conversation_id,
             Role::Translator,
             &session.id.unwrap(),
-            &pool,
         )
         .await?;
 
         assert!(
             user_has_resource_role(
+                &pool,
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Translator],
                 &session.id.unwrap(),
-                &pool.clone(),
             )
             .await?,
             "true when user has multiple roles and one is required",
@@ -1006,13 +1036,13 @@ mod tests {
         let organization: OrganizationDto = serde_json::from_value(response)?;
 
         let user = create_user(
+            &pool,
             &SignupRequest {
                 username: "test_user".to_string(),
                 password: "test_pw".to_string(),
                 email: "test_email".to_string(),
                 avatar_url: None,
             },
-            &pool,
         )
         .await?;
 
@@ -1022,12 +1052,12 @@ mod tests {
         );
 
         let updated_user = update_user(
+            &pool,
             &user.id,
             &UpdateUserRequest {
                 organization_id: Some(organization.id),
                 ..Default::default()
             },
-            &pool,
         )
         .await?;
 

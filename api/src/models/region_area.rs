@@ -1,3 +1,4 @@
+use crate::DbTransaction;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
@@ -5,7 +6,7 @@ use sea_query::extension::postgres::PgExpr;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, ReturningClause, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -181,10 +182,11 @@ fn returning_columns_with_null_geometry() -> ReturningClause {
 
 #[instrument(err(Debug), skip_all)]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     create_request: CreateRegionArea,
 ) -> Result<RegionArea, ComhairleError> {
-    let mut areas = create_many(db, vec![create_request]).await?;
+    let mut conn = db.acquire().await?;
+    let mut areas = create_many(&mut *conn, vec![create_request]).await?;
     areas.pop().ok_or_else(|| {
         ComhairleError::Conflict("A region area with this name and boundary already exists.".into())
     })
@@ -192,7 +194,7 @@ pub async fn create(
 
 #[instrument(err(Debug), skip_all)]
 pub async fn create_many(
-    db: &PgPool,
+    db: impl crate::DbSource,
     mut create_requests: Vec<CreateRegionArea>,
 ) -> Result<Vec<RegionArea>, ComhairleError> {
     if create_requests.is_empty() {
@@ -245,14 +247,15 @@ pub async fn create_many(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<RegionArea, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let area = sqlx::query_as::<_, RegionArea>(&format!(
         "SELECT {SELECT_COLUMNS_SQL}
          FROM region_area
          WHERE id = $1"
     ))
     .bind(id)
-    .fetch_one(db)
+    .fetch_one(&mut *conn)
     .await
     .resolve_db_err("Region Area")?;
 
@@ -260,12 +263,14 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleEr
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn list(db: &PgPool) -> Result<PaginatedResults<RegionArea>, ComhairleError> {
+pub async fn list(
+    db: impl crate::DbSource,
+) -> Result<PaginatedResults<RegionArea>, ComhairleError> {
     list_with_geometry(db, RegionAreaListOptions::default(), PageOptions::default()).await
 }
 
 pub async fn list_with_geometry(
-    db: &PgPool,
+    db: impl crate::DbSource,
     options: RegionAreaListOptions,
     page_options: PageOptions,
 ) -> Result<PaginatedResults<RegionArea>, ComhairleError> {
@@ -321,12 +326,12 @@ pub async fn list_with_geometry(
 
     if let Some(viewport) = viewport {
         query.and_where(Expr::cust_with_values(
-            "bbox_min_lng <= $1 AND bbox_max_lng >= $2 AND bbox_min_lat <= $3 AND bbox_max_lat >= $4",
-            [
-                viewport.max_lng,
-                viewport.min_lng,
-                viewport.max_lat,
-                viewport.min_lat,
+        "bbox_min_lng <= $1 AND bbox_max_lng >= $2 AND bbox_min_lat <= $3 AND bbox_max_lat >= $4",
+        [
+            viewport.max_lng,
+            viewport.min_lng,
+            viewport.max_lat,
+            viewport.min_lat,
             ],
         ));
 
@@ -339,13 +344,14 @@ pub async fn list_with_geometry(
                     viewport.max_lng,
                     viewport.max_lat,
                     ratio,
-                ],
-            ));
+                    ],
+                ));
         }
     }
 
+    let mut conn = db.acquire().await?;
     let results = page_options
-        .fetch_paginated_results(db, query)
+        .fetch_paginated_results(&mut *conn, query)
         .await
         .map_err(ComhairleError::DatabaseError)?;
 
@@ -354,12 +360,10 @@ pub async fn list_with_geometry(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update_request: &PartialRegionArea,
 ) -> Result<RegionArea, ComhairleError> {
-    let mut tx = db.begin().await?;
-
     let mut query = Query::update()
         .table(RegionAreaIden::Table)
         .and_where(Expr::col(RegionAreaIden::Id).eq(*id))
@@ -397,9 +401,10 @@ pub async fn update(
     }
 
     if !has_updates {
-        tx.rollback().await?;
         return get_by_id(db, id).await;
     }
+
+    let mut tx = db.begin().await?;
 
     query = query
         .value(RegionAreaIden::UpdatedAt, Utc::now())
@@ -441,10 +446,11 @@ impl AreaLocation {
 }
 
 pub async fn intersecting(
-    db: &PgPool,
+    db: impl crate::DbSource,
     location: &AreaLocation,
 ) -> Result<Vec<RegionArea>, ComhairleError> {
     location.validate()?;
+    let mut conn = db.acquire().await?;
     let areas = sqlx::query_as::<_, RegionArea>(&format!(
         "SELECT {SELECT_COLUMNS_SQL}
          FROM region_area
@@ -453,21 +459,22 @@ pub async fn intersecting(
     ))
     .bind(location.longitude)
     .bind(location.latitude)
-    .fetch_all(db)
+    .fetch_all(&mut *conn)
     .await?;
     Ok(areas)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<RegionArea, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RegionAreaIden::Table)
         .and_where(Expr::col(RegionAreaIden::Id).eq(*id))
         .returning(returning_columns())
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let area = sqlx::query_as_with::<_, RegionArea, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Region Area")?;
 
@@ -495,6 +502,7 @@ fn geometry_error(error: sqlx::Error) -> ComhairleError {
 mod tests {
     use super::*;
     use serde_json::json;
+    use sqlx::PgPool;
 
     #[test]
     fn rejects_invalid_area_locations() {

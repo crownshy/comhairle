@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -193,9 +193,10 @@ pub struct CreateAudioRecording {
 /// Create a new audio recording in the database.
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     create_recording: &CreateAudioRecording,
 ) -> Result<AudioRecording, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::insert()
         .into_table(RawAudioRecordingIden::Table)
         .columns([
@@ -219,7 +220,7 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     match sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
     {
         Ok(recording) => Ok(recording.into()),
@@ -238,7 +239,11 @@ pub async fn create(
 
 /// Get an audio recording by ID
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, recording_id: &Uuid) -> Result<AudioRecording, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    recording_id: &Uuid,
+) -> Result<AudioRecording, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(RawAudioRecordingIden::Table)
@@ -246,7 +251,7 @@ pub async fn get_by_id(db: &PgPool, recording_id: &Uuid) -> Result<AudioRecordin
         .build_sqlx(PostgresQueryBuilder);
 
     let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await?
         .ok_or(ComhairleError::ResourceNotFound(
             "Audio recording not found".to_string(),
@@ -261,10 +266,11 @@ pub async fn get_by_id(db: &PgPool, recording_id: &Uuid) -> Result<AudioRecordin
 /// exists for the given event.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_id_and_event(
-    db: &PgPool,
+    db: impl crate::DbSource,
     recording_id: &Uuid,
     event_id: &Uuid,
 ) -> Result<AudioRecording, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(RawAudioRecordingIden::Table)
@@ -273,7 +279,7 @@ pub async fn get_by_id_and_event(
         .build_sqlx(PostgresQueryBuilder);
 
     let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await?
         .ok_or(ComhairleError::ResourceNotFound(
             "Audio recording not found".to_string(),
@@ -285,9 +291,10 @@ pub async fn get_by_id_and_event(
 /// List all recordings for an event, oldest first.
 #[instrument(err(Debug), skip(db))]
 pub async fn list_by_event(
-    db: &PgPool,
+    db: impl crate::DbSource,
     event_id: &Uuid,
 ) -> Result<Vec<AudioRecording>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(RawAudioRecordingIden::Table)
@@ -296,7 +303,7 @@ pub async fn list_by_event(
         .build_sqlx(PostgresQueryBuilder);
 
     let recordings = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(recordings.into_iter().map(Into::into).collect())
@@ -308,10 +315,11 @@ pub async fn list_by_event(
 /// exists for the given event.
 #[instrument(err(Debug), skip(db))]
 pub async fn delete(
-    db: &PgPool,
+    db: impl crate::DbSource,
     recording_id: &Uuid,
     event_id: &Uuid,
 ) -> Result<AudioRecording, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::delete()
         .from_table(RawAudioRecordingIden::Table)
         .and_where(Expr::col(RawAudioRecordingIden::Id).eq(*recording_id))
@@ -320,7 +328,7 @@ pub async fn delete(
         .build_sqlx(PostgresQueryBuilder);
 
     let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await?
         .ok_or(ComhairleError::ResourceNotFound(
             "Audio recording not found".to_string(),
@@ -332,10 +340,11 @@ pub async fn delete(
 /// Update the status of an audio recording
 #[instrument(err(Debug), skip(db))]
 pub async fn update_status(
-    db: &PgPool,
+    db: impl crate::DbSource,
     recording_id: &Uuid,
     status: AudioRecordingStatus,
 ) -> Result<AudioRecording, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::update()
         .table(RawAudioRecordingIden::Table)
         .value(RawAudioRecordingIden::Status, status.to_string())
@@ -345,7 +354,7 @@ pub async fn update_status(
         .build_sqlx(PostgresQueryBuilder);
 
     let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(recording.into())
@@ -353,6 +362,8 @@ pub async fn update_status(
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use super::*;
 
     use std::sync::Arc;
@@ -377,9 +388,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_create_audio_recording(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_create_audio_recording(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
@@ -409,7 +418,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_create_duplicate_name_for_event_conflicts(
-        pool: sqlx::PgPool,
+        pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
@@ -459,7 +468,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_get_by_id(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_get_by_id(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
@@ -488,9 +497,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_get_by_id_and_event(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_get_by_id_and_event(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
@@ -526,7 +533,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_list_by_event(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_list_by_event(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
@@ -574,7 +581,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_update_status(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_update_status(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
@@ -604,9 +611,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_delete_scopes_to_event(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_delete_scopes_to_event(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
@@ -649,9 +654,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_get_by_id_not_found(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_get_by_id_not_found(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);

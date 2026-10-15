@@ -1,9 +1,10 @@
+use crate::DbTransaction;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, JoinType, LockType, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -64,7 +65,7 @@ impl CreateEventAttendance {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     new_event_attendance: &CreateEventAttendance,
 ) -> Result<EventAttendance, ComhairleError> {
     let mut tx = db.begin().await?;
@@ -154,7 +155,7 @@ impl UpdateEventAttendance {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update_event_attendance: &UpdateEventAttendance,
 ) -> Result<EventAttendance, ComhairleError> {
@@ -171,8 +172,9 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(event_attendance)
@@ -230,7 +232,7 @@ impl EventAttendanceFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     event_id: Uuid,
     page_options: PageOptions,
     filter_options: EventAttendanceFilterOptions,
@@ -263,7 +265,7 @@ pub async fn list(
 /// pre-assigned breakout plan.
 #[instrument(err(Debug), skip(db))]
 pub async fn list_all_for_event(
-    db: &PgPool,
+    db: impl crate::DbSource,
     event_id: &Uuid,
 ) -> Result<Vec<EventAttendanceEtx>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -281,15 +283,19 @@ pub async fn list_all_for_event(
         )
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let attendances = sqlx::query_as_with::<_, EventAttendanceEtx, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(attendances)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<EventAttendance, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventAttendanceIden::Table, col)))
         .from(EventAttendanceIden::Table)
@@ -298,8 +304,9 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhai
         )
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Event Attendance")?;
 
@@ -308,7 +315,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhai
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_event_and_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     event_id: &Uuid,
     user_id: &Uuid,
 ) -> Result<EventAttendance, ComhairleError> {
@@ -325,8 +332,9 @@ pub async fn get_by_event_and_user(
         )
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Event Attendance")?;
 
@@ -334,15 +342,19 @@ pub async fn get_by_event_and_user(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<EventAttendance, ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<EventAttendance, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(EventAttendanceIden::Table)
         .and_where(Expr::col(EventAttendanceIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(event_attendance)
@@ -350,6 +362,8 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhairle
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use crate::models::{
         event::{self, CreateEvent, SignupMode},
         model_test_helpers::{

@@ -1,10 +1,11 @@
+use crate::DbTransaction;
 use chrono::{DateTime, Duration, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -139,7 +140,7 @@ where
 
 #[instrument(err(Debug))]
 pub async fn revoke_for_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     revoked_reason: &str,
 ) -> Result<Vec<RefreshToken>, ComhairleError> {
@@ -154,8 +155,9 @@ pub async fn revoke_for_user(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let tokens = query_as_with(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await
         .resolve_db_err("Refresh Token")?;
 
@@ -218,7 +220,7 @@ impl std::fmt::Display for RefreshFailure {
 /// * `RefreshFailure::Expired` - The token has expired.
 #[instrument(err(Debug))]
 pub async fn rotate(
-    db: &PgPool,
+    db: impl crate::DbSource,
     old_token_id: Uuid,
     user_id: Uuid,
     ip_addr: &ClientIp,

@@ -9,12 +9,14 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::DbTransaction;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, LockType, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgConnection, PgPool, prelude::FromRow, query_as_with};
+use sqlx::{PgConnection, prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -220,7 +222,7 @@ async fn insert_reason(
 
 #[instrument(err(Debug), skip(db))]
 async fn list_reasons(
-    db: &PgPool,
+    db: impl crate::DbSource,
     policy_ids: &[Uuid],
 ) -> Result<Vec<ModerationPolicyReason>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -233,14 +235,15 @@ async fn list_reasons(
         .order_by(ModerationPolicyReasonIden::Position, Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
-    let reasons = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let reasons = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(reasons)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     payload: &CreateModerationPolicy,
 ) -> Result<ModerationPolicyWithReasons, ComhairleError> {
@@ -279,14 +282,16 @@ pub async fn create(
         insert_reason(&mut tx, policy.id, position as i32, reason).await?;
     }
 
+    let result = get_by_id(&mut *tx, conversation_id, policy.id).await?;
+
     tx.commit().await?;
 
-    get_by_id(db, conversation_id, policy.id).await
+    Ok(result)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     id: Uuid,
 ) -> Result<ModerationPolicyWithReasons, ComhairleError> {
@@ -297,18 +302,19 @@ pub async fn get_by_id(
         .and_where(Expr::col(ModerationPolicyIden::ConversationId).eq(conversation_id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let policy: ModerationPolicy = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Moderation Policy")?;
-    let reasons = list_reasons(db, &[policy.id]).await?;
+    let reasons = list_reasons(&mut *conn, &[policy.id]).await?;
 
     Ok(ModerationPolicyWithReasons { policy, reasons })
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
 ) -> Result<Vec<ModerationPolicyWithReasons>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -318,14 +324,15 @@ pub async fn list_for_conversation(
         .order_by(ModerationPolicyIden::CreatedAt, Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
-    let policies: Vec<ModerationPolicy> = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let policies: Vec<ModerationPolicy> = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
     if policies.is_empty() {
         return Ok(vec![]);
     }
 
     let policy_ids: Vec<Uuid> = policies.iter().map(|policy| policy.id).collect();
     let mut reasons_by_policy: HashMap<Uuid, Vec<ModerationPolicyReason>> = HashMap::new();
-    for reason in list_reasons(db, &policy_ids).await? {
+    for reason in list_reasons(&mut *conn, &policy_ids).await? {
         reasons_by_policy
             .entry(reason.moderation_policy_id)
             .or_default()
@@ -345,7 +352,7 @@ pub async fn list_for_conversation(
 /// updated in place, so their ids stay stable across saves.
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     id: Uuid,
     payload: &UpdateModerationPolicy,
@@ -426,22 +433,25 @@ pub async fn update(
         }
     }
 
+    let result = get_by_id(&mut *tx, conversation_id, id).await?;
+
     tx.commit().await?;
 
-    get_by_id(db, conversation_id, id).await
+    Ok(result)
 }
 
 /// Counts workflow steps whose preview or live tool config points at the policy. The id
 /// lives inside the tool config jsonb, so no foreign key guards it.
-#[instrument(err(Debug), skip(tx))]
-async fn count_steps_using(tx: &mut PgConnection, id: Uuid) -> Result<i64, ComhairleError> {
+#[instrument(err(Debug), skip(db))]
+async fn count_steps_using(db: impl crate::DbSource, id: Uuid) -> Result<i64, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let count = sqlx::query_scalar(
         "SELECT COUNT(*) FROM workflow_step
             WHERE preview_tool_config ->> 'moderation_policy_id' = $1
                OR tool_config ->> 'moderation_policy_id' = $1",
     )
     .bind(id.to_string())
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut *conn)
     .await?;
 
     Ok(count)
@@ -453,7 +463,11 @@ async fn count_steps_using(tx: &mut PgConnection, id: Uuid) -> Result<i64, Comha
 /// row ([`lock_for_step`]), so either the save waits and then finds the policy gone, or this
 /// waits for the save and then counts its step.
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, conversation_id: Uuid, id: Uuid) -> Result<(), ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    conversation_id: Uuid,
+    id: Uuid,
+) -> Result<(), ComhairleError> {
     let mut tx = db.begin().await?;
 
     // Scoped to the conversation before counting, so another conversation's policy is a 404
@@ -526,6 +540,8 @@ pub async fn lock_for_step(
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use super::*;
 
     use std::error::Error;

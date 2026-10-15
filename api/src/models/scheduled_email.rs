@@ -6,7 +6,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, 
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    Decode, Encode, PgPool, Postgres,
+    Decode, Encode, Postgres,
     encode::IsNull,
     prelude::{FromRow, Type},
     query_as_with,
@@ -153,7 +153,7 @@ const DEFAULT_COLUMNS: [ScheduledEmailIden; 7] = [
 impl ScheduledEmail {
     /// Convenience method for updating the status of a scheduled_email as sent
     /// once email is sent.
-    pub async fn sent(&self, db: &PgPool) -> Result<Self, ComhairleError> {
+    pub async fn sent(&self, db: impl crate::DbSource) -> Result<Self, ComhairleError> {
         let (sql, values) = Query::update()
             .table(ScheduledEmailIden::Table)
             .value(ScheduledEmailIden::Status, EmailStatus::Sent.to_string())
@@ -161,14 +161,15 @@ impl ScheduledEmail {
             .returning(Query::returning().columns(DEFAULT_COLUMNS))
             .build_sqlx(PostgresQueryBuilder);
 
-        let scheduled_email = query_as_with(&sql, values).fetch_one(db).await?;
+        let mut conn = db.acquire().await?;
+        let scheduled_email = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
         Ok(scheduled_email)
     }
 
     /// Convenience method for updating the status of a scheduled_email as failed
     /// if an error occurs when sending.
-    pub async fn failed(&self, db: &PgPool) -> Result<Self, ComhairleError> {
+    pub async fn failed(&self, db: impl crate::DbSource) -> Result<Self, ComhairleError> {
         let (sql, values) = Query::update()
             .table(ScheduledEmailIden::Table)
             .value(ScheduledEmailIden::Status, EmailStatus::Failed.to_string())
@@ -176,7 +177,8 @@ impl ScheduledEmail {
             .returning(Query::returning().columns(DEFAULT_COLUMNS))
             .build_sqlx(PostgresQueryBuilder);
 
-        let scheduled_email = query_as_with(&sql, values).fetch_one(db).await?;
+        let mut conn = db.acquire().await?;
+        let scheduled_email = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
         Ok(scheduled_email)
     }
@@ -191,7 +193,7 @@ pub struct CreateScheduledEmail {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     email: CreateScheduledEmail,
 ) -> Result<ScheduledEmail, ComhairleError> {
     let mut columns = vec![ScheduledEmailIden::UserEmail, ScheduledEmailIden::SendAt];
@@ -208,7 +210,8 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let scheduled_email = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let scheduled_email = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(scheduled_email)
 }
@@ -232,7 +235,7 @@ impl UpdateScheduledEmail {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     update_email: UpdateScheduledEmail,
 ) -> Result<ScheduledEmail, ComhairleError> {
@@ -249,21 +252,26 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let email = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let email = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(email)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: Uuid,
+) -> Result<ScheduledEmail, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ScheduledEmailIden::Table)
         .columns(DEFAULT_COLUMNS)
         .and_where(Expr::col(ScheduledEmailIden::Id).eq(id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let email = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Scheduled Email")?;
 
@@ -321,7 +329,7 @@ impl ScheduledEmailOrderOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     filter_options: ScheduledEmailFilterOptions,
     order_options: ScheduledEmailOrderOptions,
@@ -334,14 +342,17 @@ pub async fn list(
     let query = filter_options.apply(query);
     let query = order_options.apply(query);
 
-    let emails = page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let emails = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(emails)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_upcoming_scheduled_emails(
-    db: &PgPool,
+    db: impl crate::DbSource,
     upcoming_duration: chrono::Duration,
 ) -> Result<Vec<ScheduledEmail>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -356,20 +367,22 @@ pub async fn list_upcoming_scheduled_emails(
         .and_where(Expr::col(ScheduledEmailIden::SendAt).lte(Utc::now() + upcoming_duration))
         .build_sqlx(PostgresQueryBuilder);
 
-    let scheduled_emails = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let scheduled_emails = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(scheduled_emails)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: Uuid) -> Result<ScheduledEmail, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ScheduledEmailIden::Table)
         .and_where(Expr::col(ScheduledEmailIden::Id).eq(id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let email = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let email = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(email)
 }
@@ -377,6 +390,8 @@ pub async fn delete(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, ComhairleEr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use sqlx::PgPool;
 
     use std::error::Error;
 

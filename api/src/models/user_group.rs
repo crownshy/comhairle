@@ -28,12 +28,13 @@ pub fn membership_cache_key(user_id: Uuid) -> String {
 }
 
 pub async fn organization_group(
-    db: &sqlx::PgPool,
+    db: impl crate::DbSource,
     organization_id: Uuid,
 ) -> Result<Uuid, ComhairleError> {
+    let mut conn = db.acquire().await?;
     sqlx::query_scalar("SELECT user_group_id FROM organization WHERE id = $1")
         .bind(organization_id)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(ComhairleError::DatabaseError)
 }
@@ -81,13 +82,19 @@ pub async fn invalidate_memberships(state: &Arc<ComhairleState>, user_id: Uuid) 
 }
 
 pub async fn is_organization_member(
-    db: &sqlx::PgPool,
+    db: impl crate::DbSource,
     organization_id: Uuid,
     user_id: Uuid,
 ) -> Result<bool, ComhairleError> {
-    Ok(sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM user_group_member JOIN organization
-        ON organization.user_group_id = user_group_member.group_id WHERE organization.id = $1 AND user_id = $2)")
-        .bind(organization_id).bind(user_id).fetch_one(db).await?)
+    let mut conn = db.acquire().await?;
+    Ok(
+        sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM user_group_member JOIN organization ON organization.user_group_id = user_group_member.group_id WHERE organization.id = $1 AND user_id = $2)"
+        )
+            .bind(organization_id)
+            .bind(user_id)
+            .fetch_one(&mut *conn).await?
+    )
 }
 
 pub async fn set_organization_member(

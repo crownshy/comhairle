@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -159,11 +159,12 @@ impl CreateBotServiceUserSessionWithSessionId {
 /// * bot service request fails
 #[instrument(err(Debug), skip(bot_service))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     bot_service: &Arc<dyn ComhairleBotService>,
     config: &ComhairleConfig,
     session: &CreateBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let bot_service_config = config
         .bot_service
         .as_ref()
@@ -181,7 +182,7 @@ pub async fn create(
             };
             // TODO: need to make this default to the local of the conversation
             let conversation =
-                conversation::get_localised_by_id(db, &conversation_id, "en").await?;
+                conversation::get_localised_by_id(&mut *conn, &conversation_id, "en").await?;
 
             let create_chat_session = CreateChatSessionRequest {
                 name: conversation.title.clone(),
@@ -207,7 +208,7 @@ pub async fn create(
                 }
             };
 
-            let workflow_step = workflow_step::get_by_id(db, &workflow_step_id).await?;
+            let workflow_step = workflow_step::get_by_id(&mut *conn, &workflow_step_id).await?;
 
             // TODO: think a bit harder here about if this is in preview mode or not
             let _tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config)
@@ -237,7 +238,7 @@ pub async fn create(
                 }
             };
 
-            let workflow_step = workflow_step::get_by_id(db, &workflow_step_id).await?;
+            let workflow_step = workflow_step::get_by_id(&mut *conn, &workflow_step_id).await?;
 
             // TODO: think a bit harder here about if this is in preview mode or not
             let _tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config)
@@ -278,7 +279,7 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let bot_session_result = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(bot_session_result)
@@ -298,10 +299,11 @@ pub async fn create(
 /// `ComhairleError` if not found.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_conversation_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     conversation_id: Uuid,
 ) -> Result<BotServiceUserSession, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .from(BotServiceUserSessionIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -322,7 +324,7 @@ pub async fn get_by_conversation_id(
         .build_sqlx(PostgresQueryBuilder);
 
     let bot_session = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|e| match e {
             sqlx::Error::RowNotFound => ComhairleError::NoBotUserSession,
@@ -346,10 +348,11 @@ pub async fn get_by_conversation_id(
 /// `ComhairleError` if not found.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_workflow_step_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     workflow_step_id: Uuid,
 ) -> Result<BotServiceUserSession, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .from(BotServiceUserSessionIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -370,7 +373,7 @@ pub async fn get_by_workflow_step_id(
         .build_sqlx(PostgresQueryBuilder);
 
     let bot_session = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|e| match e {
             sqlx::Error::RowNotFound => ComhairleError::NoBotUserSession,
@@ -383,10 +386,11 @@ pub async fn get_by_workflow_step_id(
 /// Lists bot sessions by workflow step id and context.
 #[instrument(err(Debug), skip(db))]
 pub async fn list_by_workflow_step_id_and_context(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     context: BotServiceSessionContext,
 ) -> Result<Vec<BotServiceUserSession>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .from(BotServiceUserSessionIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -407,7 +411,7 @@ pub async fn list_by_workflow_step_id_and_context(
         .build_sqlx(PostgresQueryBuilder);
 
     let sessions = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(sessions)
@@ -415,17 +419,19 @@ pub async fn list_by_workflow_step_id_and_context(
 
 /// Deletes bot sessions by local table id.
 #[instrument(err(Debug), skip(db))]
-pub async fn delete_by_ids(db: &PgPool, ids: &[Uuid]) -> Result<u64, ComhairleError> {
+pub async fn delete_by_ids(db: impl crate::DbSource, ids: &[Uuid]) -> Result<u64, ComhairleError> {
     if ids.is_empty() {
         return Ok(0);
     }
+
+    let mut conn = db.acquire().await?;
 
     let (sql, values) = Query::delete()
         .from_table(BotServiceUserSessionIden::Table)
         .and_where(Expr::col(BotServiceUserSessionIden::Id).is_in(ids.iter().copied()))
         .build_sqlx(PostgresQueryBuilder);
 
-    let result = sqlx::query_with(&sql, values).execute(db).await?;
+    let result = sqlx::query_with(&sql, values).execute(&mut *conn).await?;
 
     Ok(result.rows_affected())
 }

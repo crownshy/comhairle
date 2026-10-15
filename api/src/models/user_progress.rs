@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgConnection, PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -78,7 +78,7 @@ const DEFAULT_COLUMNS: [(UserProgressIden, UserProgressIden); 8] = [
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_step_id: &Uuid,
     status: ProgressStatus,
@@ -99,8 +99,9 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as_with::<_, UserProgress, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(result)
@@ -114,7 +115,7 @@ pub async fn create(
 /// against a connection acquired from a pool.
 #[instrument(err(Debug), skip(db))]
 pub async fn create_for_workflow_participants(
-    db: &mut PgConnection,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<(), ComhairleError> {
@@ -136,7 +137,8 @@ pub async fn create_for_workflow_participants(
         .select_from(select)?
         .build_sqlx(PostgresQueryBuilder);
 
-    sqlx::query_with(&sql, values).execute(db).await?;
+    let mut conn = db.acquire().await?;
+    sqlx::query_with(&sql, values).execute(&mut *conn).await?;
 
     Ok(())
 }
@@ -186,7 +188,7 @@ impl UpdateUserProgress {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_step_id: &Uuid,
     update_progress: &UpdateUserProgress,
@@ -205,8 +207,9 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as_with::<_, UserProgress, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(result)
@@ -216,7 +219,7 @@ pub async fn update(
 /// after they registered leaves them with no row, hence the `Option`.
 #[instrument(err(Debug), skip(db))]
 pub async fn get(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_step_id: &Uuid,
 ) -> Result<Option<UserProgress>, ComhairleError> {
@@ -232,8 +235,9 @@ pub async fn get(
         )
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as_with::<_, UserProgress, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await?;
 
     Ok(result)
@@ -241,7 +245,7 @@ pub async fn get(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_user_on_workflow(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<Vec<UserProgress>, ComhairleError> {
@@ -264,8 +268,9 @@ pub async fn list_for_user_on_workflow(
         .to_owned()
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as_with::<_, UserProgress, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await;
 
     match result {
@@ -290,10 +295,11 @@ pub async fn list_for_user_on_workflow(
 /// meaningful thing to seal on.
 #[instrument(err(Debug), skip(db))]
 pub async fn has_finished(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<bool, ComhairleError> {
+    let mut conn = db.acquire().await?;
     // Deliberately the same predicate `/next` uses to decide whether to send a participant to
     // the thank-you page (`get_current_active_step_for_user` returning nothing). Sealing on a
     // separately-written rule would let the two drift, and then a participant could be shown
@@ -301,12 +307,13 @@ pub async fn has_finished(
     //
     // That helper left-joins progress, so a step with no progress row at all (one added after
     // the participant registered) correctly reads as unfinished rather than as absent.
-    if super::workflow_step::count_for_workflow(db, workflow_id).await? == 0 {
+    if super::workflow_step::count_for_workflow(&mut *conn, workflow_id).await? == 0 {
         return Ok(false);
     }
 
     let next_step =
-        super::workflow_step::get_current_active_step_for_user(db, user_id, workflow_id).await?;
+        super::workflow_step::get_current_active_step_for_user(&mut *conn, user_id, workflow_id)
+            .await?;
 
     Ok(next_step.is_none())
 }
@@ -324,21 +331,22 @@ pub async fn has_finished(
 /// conversation and there is nothing to read.
 #[instrument(err(Debug), skip(db))]
 pub async fn is_sealed(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<bool, ComhairleError> {
-    let workflow = super::workflow::get_by_id(db, workflow_id).await?;
+    let mut conn = db.acquire().await?;
+    let workflow = super::workflow::get_by_id(&mut *conn, workflow_id).await?;
     let Some(conversation_id) = workflow.conversation_id else {
         return Ok(false);
     };
 
-    let conversation = super::conversation::get_by_id(db, &conversation_id).await?;
+    let conversation = super::conversation::get_by_id(&mut *conn, &conversation_id).await?;
     if conversation.allow_revisit_after_finishing {
         return Ok(false);
     }
 
-    has_finished(db, user_id, workflow_id).await
+    has_finished(&mut *conn, user_id, workflow_id).await
 }
 
 #[cfg(test)]
@@ -356,6 +364,8 @@ mod tests {
     use crate::models::conversation::{self, PartialConversation};
     use crate::models::users::User;
     use axum::Router;
+    use sqlx::PgPool;
+
     use std::error::Error;
 
     /// A conversation with one workflow of `step_count` steps and one participant. The app and
@@ -394,9 +404,9 @@ mod tests {
 
         /// Turn off `allow_revisit_after_finishing`, the only configuration under which
         /// finishing seals anyone.
-        async fn disallow_revisits(&self, pool: &PgPool) -> Result<(), Box<dyn Error>> {
+        async fn disallow_revisits(&self, db: impl crate::DbSource) -> Result<(), Box<dyn Error>> {
             conversation::update(
-                pool,
+                db,
                 &self.conversation_id,
                 &PartialConversation {
                     allow_revisit_after_finishing: Some(false),
@@ -419,7 +429,7 @@ mod tests {
             .await
         }
 
-        async fn is_sealed(&self, pool: &PgPool) -> Result<bool, Box<dyn Error>> {
+        async fn is_sealed(&self, pool: impl crate::DbSource) -> Result<bool, Box<dyn Error>> {
             Ok(is_sealed(pool, &self.user.id, &self.workflow.id).await?)
         }
     }

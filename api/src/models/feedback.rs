@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -43,11 +43,12 @@ pub struct CreateFeedbackDTO {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     update_request: PartialFeedback,
     feedback_id: &Uuid,
     user_id: &Uuid,
 ) -> Result<Feedback, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::update()
         .table(FeedbackIden::Table)
         .values(vec![(FeedbackIden::Content, update_request.content.into())])
@@ -57,18 +58,19 @@ pub async fn update(
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_e| ComhairleError::FailedToUpdateFeedback)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     create_request: CreateFeedbackDTO,
     conversation_id: &Uuid,
     user_id: &Uuid,
 ) -> Result<Feedback, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::insert()
         .into_table(FeedbackIden::Table)
         .columns(vec![
@@ -86,16 +88,17 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_as_with::<_, Feedback, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_e| ComhairleError::FailedToCreateFeedback)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
 ) -> Result<Vec<Feedback>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(FeedbackIden::Table)
@@ -103,7 +106,7 @@ pub async fn list_for_conversation(
         .build_sqlx(PostgresQueryBuilder);
 
     let feedback = sqlx::query_as_with::<_, Feedback, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await
         .resolve_db_err("Feedback")?;
 
@@ -112,10 +115,11 @@ pub async fn list_for_conversation(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_user_on_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     conversation_id: &Uuid,
 ) -> Result<Vec<Feedback>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(FeedbackIden::Table)
@@ -124,7 +128,7 @@ pub async fn list_for_user_on_conversation(
         .build_sqlx(PostgresQueryBuilder);
 
     let feedback = sqlx::query_as_with::<_, Feedback, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await
         .resolve_db_err("Feedback")?;
 

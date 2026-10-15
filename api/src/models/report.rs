@@ -6,7 +6,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    Decode, Encode, PgPool, Postgres,
+    Decode, Encode, Postgres,
     encode::IsNull,
     prelude::{FromRow, Type},
 };
@@ -46,19 +46,20 @@ pub struct FullReportDto {
 
 impl FullReportDto {
     pub async fn from_report(
-        db: &PgPool,
+        db: impl crate::DbSource,
         report: ReportView,
     ) -> Result<FullReportDto, ComhairleError> {
         let (report_id, conversation_id) = match &report {
             ReportView::WithTranslations(report) => (report.id, report.conversation_id),
             ReportView::Localized(report) => (report.id, report.conversation_id),
         };
-        let feedback = feedback::list_for_conversation(db, &conversation_id)
+        let mut conn = db.acquire().await?;
+        let feedback = feedback::list_for_conversation(&mut *conn, &conversation_id)
             .await?
             .into_iter()
             .map(Into::into)
             .collect();
-        let impacts = report_impact::get_for_report(db, &report_id)
+        let impacts = report_impact::get_for_report(&mut *conn, &report_id)
             .await?
             .into_iter()
             .map(Into::into)
@@ -166,15 +167,16 @@ impl PartialReport {
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<Report, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: Uuid) -> Result<Report, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ReportIden::Table)
         .and_where(Expr::col(ReportIden::Id).eq(id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let conversation = sqlx::query_as_with::<_, Report, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Report")?;
 
@@ -183,7 +185,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<Report, ComhairleError> 
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     update: PartialReport,
 ) -> Result<Report, ComhairleError> {
@@ -195,20 +197,22 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with::<_, Report, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_| ComhairleError::FailedToUpdateReport)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create_for_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     locale: &str,
 ) -> Result<Report, ComhairleError> {
-    let workflows = workflow::list(db, conversation_id, None).await?;
-    let workflow_steps = workflow_step::list(db, &workflows[0].id).await?;
+    let mut conn = db.acquire().await?;
+    let workflows = workflow::list(&mut *conn, conversation_id, None).await?;
+    let workflow_steps = workflow_step::list(&mut *conn, &workflows[0].id).await?;
 
     let section_configs: Result<Vec<ReportSectionConfig>, ComhairleError> = workflow_steps
         .iter()
@@ -257,14 +261,14 @@ pub async fn create_for_conversation(
     ];
 
     let summary = new_translation(
-        db,
+        &mut *conn,
         locale,
         "Summary to be filled out by facilitator",
         TextFormat::Rich,
     )
     .await?;
     let body = new_translation(
-        db,
+        &mut *conn,
         locale,
         "Body to be filled out by facilitator",
         TextFormat::Rich,
@@ -285,7 +289,7 @@ pub async fn create_for_conversation(
         .build_sqlx(PostgresQueryBuilder);
 
     let report = sqlx::query_as_with::<_, Report, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|e| ComhairleError::FailedToCreateResource {
             resource_type: "Report".into(),
@@ -297,7 +301,7 @@ pub async fn create_for_conversation(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_for_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
 ) -> Result<Report, ComhairleError> {
     let (sql, values) = Query::select()
@@ -306,8 +310,9 @@ pub async fn get_for_conversation(
         .and_where(Expr::col(ReportIden::ConversationId).eq(conversation_id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let report = sqlx::query_as_with::<_, Report, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Report")?;
 
@@ -316,7 +321,7 @@ pub async fn get_for_conversation(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localized_for_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: Uuid,
     locale: &str,
 ) -> Result<LocalizedReport, ComhairleError> {
@@ -329,8 +334,9 @@ pub async fn get_localized_for_conversation(
     let (sql, values) =
         LocalizedReport::query_to_localisation(query, locale).build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let report = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Report")?;
 

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::DbTransaction;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{
@@ -8,7 +10,7 @@ use sea_query::{
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use sqlx::{PgPool, query_as_with};
+use sqlx::query_as_with;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -123,7 +125,7 @@ impl CreatePolisStatementAux {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     create_aux: &CreatePolisStatementAux,
 ) -> Result<PolisStatementAux, ComhairleError> {
@@ -140,7 +142,8 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(aux)
 }
@@ -199,7 +202,7 @@ impl CreateDerivedStatement {
 /// plain row, we enrich it with its lineage rather than conflicting.
 #[instrument(err(Debug), skip(db))]
 pub async fn record_split(
-    db: &PgPool,
+    db: impl crate::DbSource,
     original_id: Uuid,
     derived: &[CreateDerivedStatement],
     reason: &str,
@@ -280,7 +283,7 @@ pub struct UpsertFromPolis {
 /// state polis doesn't know about) by virtue of being absent from `update_columns`.
 #[instrument(err(Debug), skip(db))]
 pub async fn upsert_from_polis(
-    db: &PgPool,
+    db: impl crate::DbSource,
     record: &UpsertFromPolis,
 ) -> Result<PolisStatementAux, ComhairleError> {
     let columns = [
@@ -327,7 +330,8 @@ pub async fn upsert_from_polis(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(aux)
 }
@@ -379,7 +383,7 @@ impl UpdatePolisStatementAux {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     update_aux: &UpdatePolisStatementAux,
 ) -> Result<PolisStatementAux, ComhairleError> {
@@ -392,21 +396,26 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(aux)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<PolisStatementAux, ComhairleError> {
     let (sql, values) = Query::select()
         .from(PolisStatementAuxIden::Table)
         .columns(DEFAULT_COLUMNS)
         .and_where(Expr::col(PolisStatementAuxIden::Id).eq(*id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let aux = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Polis Statement Aux")?;
 
@@ -419,7 +428,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, Comh
 /// landed). Used to resolve a live Polis `tid` to its stored auxiliary data.
 #[instrument(err(Debug))]
 pub async fn get_by_conversation_and_statement(
-    db: &PgPool,
+    db: impl crate::DbSource,
     polis_conversation_id: &str,
     polis_statement_id: i32,
 ) -> Result<Option<PolisStatementAux>, ComhairleError> {
@@ -430,7 +439,10 @@ pub async fn get_by_conversation_and_statement(
         .and_where(Expr::col(PolisStatementAuxIden::PolisStatementId).eq(polis_statement_id))
         .build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_optional(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values)
+        .fetch_optional(&mut *conn)
+        .await?;
 
     Ok(aux)
 }
@@ -441,7 +453,7 @@ pub async fn get_by_conversation_and_statement(
 /// been forwarded to Polis. An empty id slice is a no-op.
 #[instrument(err(Debug), skip(db))]
 pub async fn update_many(
-    db: &PgPool,
+    db: impl crate::DbSource,
     ids: &[Uuid],
     update_aux: &UpdatePolisStatementAux,
 ) -> Result<Vec<PolisStatementAux>, ComhairleError> {
@@ -456,7 +468,8 @@ pub async fn update_many(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(aux)
 }
@@ -483,7 +496,7 @@ fn moderation_values(
 /// and `moderation_reason` together (see [`moderation_values`]).
 #[instrument(err(Debug), skip(db))]
 pub async fn moderate(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     status: ModerationStatus,
     reason: Option<&str>,
@@ -495,7 +508,8 @@ pub async fn moderate(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(aux)
 }
@@ -504,7 +518,7 @@ pub async fn moderate(
 /// updated rows (see [`moderation_values`]). An empty id slice is a no-op.
 #[instrument(err(Debug), skip(db))]
 pub async fn moderate_many(
-    db: &PgPool,
+    db: impl crate::DbSource,
     ids: &[Uuid],
     status: ModerationStatus,
     reason: Option<&str>,
@@ -520,7 +534,8 @@ pub async fn moderate_many(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(aux)
 }
@@ -577,11 +592,12 @@ impl PolisStatementAuxFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn check_is_commentor(
-    db: &PgPool,
+    db: impl crate::DbSource,
     aux_id: &Uuid,
     user_id: &Uuid,
 ) -> Result<(), ComhairleError> {
-    let aux = get_by_id(db, aux_id).await?;
+    let mut conn = db.acquire().await?;
+    let aux = get_by_id(&mut *conn, aux_id).await?;
 
     if aux.user_id != Some(*user_id) {
         return Err(ComhairleError::UserNotAuthorized);
@@ -630,7 +646,7 @@ pub async fn check_can_perform_any(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: Option<Uuid>,
     polis_conversation_id: Option<String>,
     filter_options: PolisStatementAuxFilterOptions,
@@ -667,7 +683,8 @@ pub async fn list(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(aux)
 }
@@ -680,7 +697,7 @@ pub struct ThemeStatistic {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn theme_stats(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: Option<Uuid>,
     polis_conversation_id: Option<String>,
 ) -> Result<Vec<ThemeStatistic>, ComhairleError> {
@@ -701,9 +718,10 @@ pub async fn theme_stats(
 
     builder.push(" GROUP BY theme ORDER BY count DESC");
 
+    let mut conn = db.acquire().await?;
     let stats = builder
         .build_query_as::<ThemeStatistic>()
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(stats)
@@ -711,10 +729,11 @@ pub async fn theme_stats(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn add_theme(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     theme: &str,
 ) -> Result<PolisStatementAux, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let aux = sqlx::query_as::<_, PolisStatementAux>(
         "UPDATE polis_statement_aux \
          SET themes = CASE WHEN $2 = ANY(themes) THEN themes ELSE array_append(themes, $2) END, \
@@ -724,7 +743,7 @@ pub async fn add_theme(
     )
     .bind(id)
     .bind(theme)
-    .fetch_one(db)
+    .fetch_one(&mut *conn)
     .await
     .resolve_db_err("Polis Statement Aux")?;
 
@@ -733,10 +752,11 @@ pub async fn add_theme(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn remove_theme(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     theme: &str,
 ) -> Result<PolisStatementAux, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let aux = sqlx::query_as::<_, PolisStatementAux>(
         "UPDATE polis_statement_aux \
          SET themes = array_remove(themes, $2), updated_at = NOW() \
@@ -745,7 +765,7 @@ pub async fn remove_theme(
     )
     .bind(id)
     .bind(theme)
-    .fetch_one(db)
+    .fetch_one(&mut *conn)
     .await
     .resolve_db_err("Polis Statement Aux")?;
 
@@ -753,14 +773,18 @@ pub async fn remove_theme(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    id: Uuid,
+) -> Result<PolisStatementAux, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(PolisStatementAuxIden::Table)
         .and_where(Expr::col(PolisStatementAuxIden::Id).eq(id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let aux = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(aux)
 }

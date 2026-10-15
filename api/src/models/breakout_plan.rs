@@ -5,10 +5,10 @@
 //! `FOR UPDATE` lock on the event row, serialising read-modify-write the same way
 //! the capacity check in `event_attendance::create` does.
 
+use crate::DbTransaction;
 use rand::seq::SliceRandom;
 use sea_query::{Expr, LockType, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
-use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -29,21 +29,30 @@ fn is_moderator_role(role: &str) -> bool {
 
 /// Reads the current plan for an event (no lock).
 #[instrument(err(Debug), skip(db))]
-pub async fn get(db: &PgPool, event_id: &Uuid) -> Result<BreakoutPlan, ComhairleError> {
-    let event = event::get_by_id(db, event_id).await?;
+pub async fn get(
+    db: impl crate::DbSource,
+    event_id: &Uuid,
+) -> Result<BreakoutPlan, ComhairleError> {
+    let mut conn = db.acquire().await?;
+    let event = event::get_by_id(&mut *conn, event_id).await?;
     Ok(event.breakout_plan)
 }
 
 /// Overwrites the plan for an event.
 #[instrument(err(Debug), skip(db))]
-pub async fn save(db: &PgPool, event_id: &Uuid, plan: &BreakoutPlan) -> Result<(), ComhairleError> {
+pub async fn save(
+    db: impl crate::DbSource,
+    event_id: &Uuid,
+    plan: &BreakoutPlan,
+) -> Result<(), ComhairleError> {
+    let mut conn = db.acquire().await?;
     let (sql, values) = Query::update()
         .table(EventIden::Table)
         .values([(EventIden::BreakoutPlan, plan.into())])
         .and_where(Expr::col(EventIden::Id).eq(*event_id))
         .build_sqlx(PostgresQueryBuilder);
 
-    sqlx::query_with(&sql, values).execute(db).await?;
+    sqlx::query_with(&sql, values).execute(&mut *conn).await?;
     Ok(())
 }
 
@@ -56,8 +65,12 @@ pub async fn save(db: &PgPool, event_id: &Uuid, plan: &BreakoutPlan) -> Result<(
 ///   are shuffled and distributed into the emptiest room under the size limit.
 /// - Invites that already correspond to an attendee are skipped (no duplicate seat).
 #[instrument(err(Debug), skip(db))]
-pub async fn seed_for_event(db: &PgPool, event_id: &Uuid) -> Result<BreakoutPlan, ComhairleError> {
-    let event = event::get_by_id(db, event_id).await?;
+pub async fn seed_for_event(
+    db: impl crate::DbSource,
+    event_id: &Uuid,
+) -> Result<BreakoutPlan, ComhairleError> {
+    let mut conn = db.acquire().await?;
+    let event = event::get_by_id(&mut *conn, event_id).await?;
     let max_per_room = event
         .agenda
         .breakout_max_per_room()
@@ -65,8 +78,8 @@ pub async fn seed_for_event(db: &PgPool, event_id: &Uuid) -> Result<BreakoutPlan
         .unwrap_or(DEFAULT_MAX_PER_ROOM)
         .max(1);
 
-    let attendances = event_attendance::list_all_for_event(db, event_id).await?;
-    let invites = invites::list_for_event(db, event_id).await?;
+    let attendances = event_attendance::list_all_for_event(&mut *conn, event_id).await?;
+    let invites = invites::list_for_event(&mut *conn, event_id).await?;
 
     // Split attendees into moderators and everyone else.
     let mut moderators: Vec<Uuid> = vec![];
@@ -165,15 +178,16 @@ pub async fn seed_for_event(db: &PgPool, event_id: &Uuid) -> Result<BreakoutPlan
 /// slotted into the emptiest room. Runs under a `FOR UPDATE` lock on the event.
 #[instrument(err(Debug), skip(db))]
 pub async fn ensure_user_slotted(
-    db: &PgPool,
+    db: impl crate::DbSource,
     event_id: &Uuid,
     user_id: &Uuid,
     is_moderator: bool,
     invite_id: Option<Uuid>,
     email: Option<&str>,
 ) -> Result<(), ComhairleError> {
+    let mut tx = db.begin().await?;
     // Room size is derived from the agenda and does not change during sign-up.
-    let event = event::get_by_id(db, event_id).await?;
+    let event = event::get_by_id(&mut *tx, event_id).await?;
     let max_per_room = event
         .agenda
         .breakout_max_per_room()
@@ -185,15 +199,13 @@ pub async fn ensure_user_slotted(
     // accepting), fall back to matching a reserved email placeholder.
     let invite_id = match (invite_id, email) {
         (Some(id), _) => Some(id),
-        (None, Some(email)) => invites::list_for_event(db, event_id)
+        (None, Some(email)) => invites::list_for_event(&mut *tx, event_id)
             .await?
             .into_iter()
             .find(|i| matches!(&i.invite_type, invites::InviteType::Email(e) if e.eq_ignore_ascii_case(email)))
             .map(|i| i.id),
         (None, None) => None,
     };
-
-    let mut tx = db.begin().await?;
 
     let (sql, values) = Query::select()
         .column(EventIden::BreakoutPlan)

@@ -1,6 +1,5 @@
 use chrono::Utc;
 use hyper::StatusCode;
-use sqlx::PgPool;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -124,11 +123,15 @@ pub trait RecordWorkerError<T> {
     /// Returns the original error converted into [`WorkerServiceError`] if
     /// `self` is [`Err`] or [`WorkerService::DbError`] if updating the job
     /// record itself fails.
-    async fn ok_or_record_failure(self, job_id: &Uuid, db: &PgPool) -> Result<T>;
+    async fn ok_or_record_failure(self, db: impl crate::DbSource, job_id: &Uuid) -> Result<T>;
 }
 
 impl<T> RecordWorkerError<T> for Result<T> {
-    async fn ok_or_record_failure(self, job_id: &Uuid, db: &PgPool) -> Result<T> {
+    async fn ok_or_record_failure(self, db: impl crate::DbSource, job_id: &Uuid) -> Result<T> {
+        let mut conn = db
+            .acquire()
+            .await
+            .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
         match self {
             Ok(v) => Ok(v),
             Err(e) => {
@@ -139,7 +142,7 @@ impl<T> RecordWorkerError<T> for Result<T> {
                     ..Default::default()
                 };
 
-                let _ = job::update(db, job_id, update_job)
+                let _ = job::update(&mut *conn, job_id, update_job)
                     .await
                     .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 

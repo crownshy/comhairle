@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -229,7 +229,7 @@ impl CreateNotification {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     notification: &CreateNotification,
 ) -> Result<Notification, ComhairleError> {
     let columns = notification.columns();
@@ -243,23 +243,28 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let notification = sqlx::query_as_with::<_, Notification, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(notification)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleError> {
+pub async fn get_by_id(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<Notification, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(NotificationIden::Table)
         .and_where(Expr::col(NotificationIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let notification = sqlx::query_as_with::<_, Notification, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Notification")?;
 
@@ -268,7 +273,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Notification, Comhairle
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     update: &PartialNotification,
 ) -> Result<Notification, ComhairleError> {
@@ -285,23 +290,25 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let notification = sqlx::query_as_with::<_, Notification, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(notification)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Notification, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(NotificationIden::Table)
         .and_where(Expr::col(NotificationIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let notification = sqlx::query_as_with::<_, Notification, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Notification")?;
 
@@ -310,7 +317,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Notification, ComhairleErr
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     order_options: NotificationOrderOptions,
     filter_options: NotificationFilterOptions,
@@ -323,7 +330,10 @@ pub async fn list(
     let query = filter_options.apply(query);
     let query = order_options.apply(query);
 
-    let notifications = page_options.fetch_paginated_results(db, query).await?;
+    let mut conn = db.acquire().await?;
+    let notifications = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(notifications)
 }

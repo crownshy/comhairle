@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -60,7 +60,7 @@ impl PartialReportImpact {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     update_request: PartialReportImpact,
     impact_id: &Uuid,
     user_id: &Uuid,
@@ -75,15 +75,16 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(ComhairleError::FailedToUpdateImpact)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     create_request: CreateImpactDTO,
     report_id: &Uuid,
     user_id: &Uuid,
@@ -108,15 +109,16 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .map_err(|_e| ComhairleError::FailedToCreateImpact)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_for_report(
-    db: &PgPool,
+    db: impl crate::DbSource,
     report_id: &Uuid,
 ) -> Result<Vec<ReportImpact>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -125,8 +127,9 @@ pub async fn get_for_report(
         .and_where(Expr::col(ReportImpactIden::ReportId).eq(report_id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_as_with::<_, ReportImpact, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await
         .resolve_db_err("Report Impact")
 }

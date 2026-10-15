@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -44,13 +44,14 @@ const DEFAULT_COLUMNS: [ProposalSectionIden; 6] = [
 /// Creates a new section for a proposal, storing `body` as translatable rich content.
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     proposal_id: &Uuid,
     position: i32,
     body: &str,
     locale: &str,
 ) -> Result<ProposalSection, ComhairleError> {
-    let content = new_translation(db, locale, body, TextFormat::Rich).await?;
+    let mut conn = db.acquire().await?;
+    let content = new_translation(&mut *conn, locale, body, TextFormat::Rich).await?;
 
     let (sql, values) = Query::insert()
         .into_table(ProposalSectionIden::Table)
@@ -63,15 +64,19 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let section = query_as_with(&sql, values).fetch_one(db).await?;
+    let section = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(section)
 }
 
 /// Returns the next `position` value for a proposal (max existing + 1, or 0).
 #[instrument(err(Debug), skip(db))]
-pub async fn next_position(db: &PgPool, proposal_id: &Uuid) -> Result<i32, ComhairleError> {
-    let sections = list(db, proposal_id).await?;
+pub async fn next_position(
+    db: impl crate::DbSource,
+    proposal_id: &Uuid,
+) -> Result<i32, ComhairleError> {
+    let mut conn = db.acquire().await?;
+    let sections = list(&mut *conn, proposal_id).await?;
     Ok(sections
         .iter()
         .map(|s| s.position)
@@ -81,7 +86,10 @@ pub async fn next_position(db: &PgPool, proposal_id: &Uuid) -> Result<i32, Comha
 
 /// Lists the raw sections for a proposal, ordered by `position`.
 #[instrument(err(Debug), skip(db))]
-pub async fn list(db: &PgPool, proposal_id: &Uuid) -> Result<Vec<ProposalSection>, ComhairleError> {
+pub async fn list(
+    db: impl crate::DbSource,
+    proposal_id: &Uuid,
+) -> Result<Vec<ProposalSection>, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ProposalSectionIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -89,7 +97,8 @@ pub async fn list(db: &PgPool, proposal_id: &Uuid) -> Result<Vec<ProposalSection
         .order_by(ProposalSectionIden::Position, sea_query::Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
-    let sections = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let sections = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(sections)
 }
@@ -97,7 +106,7 @@ pub async fn list(db: &PgPool, proposal_id: &Uuid) -> Result<Vec<ProposalSection
 /// Lists sections for a proposal with `body` resolved to the requested locale.
 #[instrument(err(Debug), skip(db))]
 pub async fn list_localized(
-    db: &PgPool,
+    db: impl crate::DbSource,
     proposal_id: &Uuid,
     locale: &str,
 ) -> Result<Vec<LocalizedProposalSection>, ComhairleError> {
@@ -118,7 +127,8 @@ pub async fn list_localized(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let sections = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let sections = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(sections)
 }
@@ -126,29 +136,36 @@ pub async fn list_localized(
 /// Lists sections for a proposal together with their full translation metadata.
 #[instrument(err(Debug), skip(db))]
 pub async fn list_with_translations(
-    db: &PgPool,
+    db: impl crate::DbSource,
     proposal_id: &Uuid,
     locale: &str,
 ) -> Result<Vec<ProposalSectionWithTranslations>, ComhairleError> {
-    let sections = list(db, proposal_id).await?;
+    let mut conn = db.acquire().await?;
+    let sections = list(&mut *conn, proposal_id).await?;
     let mut out = Vec::with_capacity(sections.len());
     for section in sections {
-        out.push(ProposalSectionWithTranslations::from_original(db, section, locale).await?);
+        out.push(
+            ProposalSectionWithTranslations::from_original(&mut *conn, section, locale).await?,
+        );
     }
     Ok(out)
 }
 
 /// Deletes a single section.
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ProposalSection, ComhairleError> {
+pub async fn delete(
+    db: impl crate::DbSource,
+    id: &Uuid,
+) -> Result<ProposalSection, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ProposalSectionIden::Table)
         .and_where(Expr::col(ProposalSectionIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let section = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("ProposalSection")?;
 

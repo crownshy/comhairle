@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -30,7 +30,7 @@ const DEFAULT_COLUMNS: [UserParticipationIden; 5] = [
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<UserParticipation, ComhairleError> {
@@ -45,8 +45,9 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as_with::<_, UserParticipation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await;
 
     match result {
@@ -66,7 +67,7 @@ pub async fn create(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<Option<UserParticipation>, ComhairleError> {
@@ -77,15 +78,16 @@ pub async fn get(
         .and_where(Expr::col(UserParticipationIden::WorkflowId).eq(workflow_id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let result = sqlx::query_as_with::<_, UserParticipation, _>(&sql, values)
-        .fetch_optional(db)
+        .fetch_optional(&mut *conn)
         .await?;
     Ok(result)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn delete(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     workflow_id: &Uuid,
 ) -> Result<UserParticipation, ComhairleError> {
@@ -96,8 +98,9 @@ pub async fn delete(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let user_participation = sqlx::query_as_with::<_, UserParticipation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("User Participation")?;
 
@@ -106,7 +109,7 @@ pub async fn delete(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn check_user_participating(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_id: &Uuid,
     user_id: &Uuid,
 ) -> Result<(), ComhairleError> {
@@ -125,8 +128,9 @@ pub async fn check_user_participating(
         )
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     sqlx::query_with(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await
         .resolve_db_err("User Participation")?;
 
@@ -135,7 +139,7 @@ pub async fn check_user_participating(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_participant_user_ids_for_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
 ) -> Result<Vec<Uuid>, ComhairleError> {
     use crate::models::workflow::WorkflowIden;
@@ -158,7 +162,10 @@ pub async fn get_participant_user_ids_for_conversation(
         .distinct()
         .build_sqlx(PostgresQueryBuilder);
 
-    let user_ids: Vec<(Uuid,)> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let user_ids: Vec<(Uuid,)> = sqlx::query_as_with(&sql, values)
+        .fetch_all(&mut *conn)
+        .await?;
 
     Ok(user_ids.into_iter().map(|(id,)| id).collect())
 }

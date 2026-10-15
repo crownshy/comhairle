@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, UnionType, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -85,7 +85,7 @@ impl CreateUserConversationPreferences {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create_with_defaults(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     conversation_id: &Uuid,
 ) -> Result<UserConversationPreferences, ComhairleError> {
@@ -105,7 +105,7 @@ pub async fn create_with_defaults(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     preferences: &CreateUserConversationPreferences,
 ) -> Result<UserConversationPreferences, ComhairleError> {
     let columns = preferences.columns();
@@ -119,8 +119,9 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let preferences = sqlx::query_as_with::<_, UserConversationPreferences, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(preferences)
@@ -128,7 +129,7 @@ pub async fn create(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_user_and_conversation(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     conversation_id: &Uuid,
 ) -> Result<UserConversationPreferences, ComhairleError> {
@@ -142,8 +143,9 @@ pub async fn get_by_user_and_conversation(
         )
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let preferences = sqlx::query_as_with::<_, UserConversationPreferences, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("User Conversation Preferences")?;
 
@@ -152,7 +154,7 @@ pub async fn get_by_user_and_conversation(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_user(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
 ) -> Result<Vec<UserConversationPreferences>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -161,8 +163,9 @@ pub async fn get_by_user(
         .and_where(Expr::col(UserConversationPreferencesIden::UserId).eq(user_id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let preferences = sqlx::query_as_with::<_, UserConversationPreferences, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(preferences)
@@ -170,7 +173,7 @@ pub async fn get_by_user(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     conversation_id: &Uuid,
     receive_updates_by_notification: Option<bool>,
@@ -224,8 +227,9 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let preferences = sqlx::query_as_with::<_, UserConversationPreferences, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(preferences)
@@ -233,7 +237,7 @@ pub async fn update(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn delete(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     conversation_id: &Uuid,
 ) -> Result<UserConversationPreferences, ComhairleError> {
@@ -247,8 +251,9 @@ pub async fn delete(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let preferences = sqlx::query_as_with::<_, UserConversationPreferences, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("User Conversation Preferences")?;
 
@@ -257,7 +262,7 @@ pub async fn delete(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_opted_in_broadcast_emails(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
 ) -> Result<Vec<String>, ComhairleError> {
     let mut logged_in = Query::select()
@@ -295,14 +300,17 @@ pub async fn get_opted_in_broadcast_emails(
         .union(UnionType::Distinct, anonymous)
         .build_sqlx(PostgresQueryBuilder);
 
-    let rows: Vec<(String,)> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let rows: Vec<(String,)> = sqlx::query_as_with(&sql, values)
+        .fetch_all(&mut *conn)
+        .await?;
 
     Ok(rows.into_iter().map(|(email,)| email).collect())
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_contacts_for_export(
-    db: &PgPool,
+    db: impl crate::DbSource,
     conversation_id: &Uuid,
 ) -> Result<Vec<ExportedContact>, ComhairleError> {
     // Query for authenticated users who opted in to email updates
@@ -339,10 +347,11 @@ pub async fn get_contacts_for_export(
         authenticated_query, anonymous_query
     );
 
+    let mut conn = db.acquire().await?;
     let contacts = sqlx::query_as::<_, ExportedContact>(&combined_query)
         .bind(conversation_id)
         .bind(conversation_id)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     Ok(contacts)

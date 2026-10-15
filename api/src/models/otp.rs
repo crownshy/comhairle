@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -71,12 +71,13 @@ const DEFAULT_COLUMNS: [OtpIden; 8] = [
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     redirect_url: Option<String>,
     custom_expiry: Option<DateTime<Utc>>,
 ) -> Result<Otp, ComhairleError> {
-    let user = users::get_user_by_id(user_id, db).await?;
+    let mut conn = db.acquire().await?;
+    let user = users::get_user_by_id(&mut *conn, user_id).await?;
 
     if user.auth_type == UserAuthType::Guest {
         return Err(ComhairleError::WrongUserType);
@@ -92,7 +93,7 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let _ = sqlx::query_as_with::<_, Otp, _>(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await?;
 
     let random_code = gen_id();
@@ -113,21 +114,24 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let otp = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let otp = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *conn)
+        .await?;
 
     Ok(otp)
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Otp, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<Otp, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(OtpIden::Table)
         .and_where(Expr::col(OtpIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let otp = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("One Time Passcode")?;
 
@@ -136,7 +140,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Otp, ComhairleError> {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn accept(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: &Uuid,
     code: &str,
     now: DateTime<Utc>,
@@ -151,8 +155,9 @@ pub async fn accept(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let otp = sqlx::query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("One Time Passcode")?;
 
@@ -161,6 +166,8 @@ pub async fn accept(
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use super::*;
 
     use crate::routes::auth::OtpSignupRequest;
@@ -170,11 +177,11 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_otp_for_user_with_expiry(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
+            &pool,
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
                 username: None,
             },
-            &pool,
         )
         .await?;
 
@@ -199,11 +206,11 @@ mod tests {
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
+            &pool,
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
                 username: None,
             },
-            &pool,
         )
         .await?;
 
@@ -236,11 +243,11 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_otp_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
+            &pool,
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
                 username: None,
             },
-            &pool,
         )
         .await?;
 
@@ -256,11 +263,11 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_otp_by_user_code(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
+            &pool,
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
                 username: None,
             },
-            &pool,
         )
         .await?;
 
@@ -279,11 +286,11 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_error_for_expired_otps(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
+            &pool,
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
                 username: None,
             },
-            &pool,
         )
         .await?;
 
@@ -313,11 +320,11 @@ mod tests {
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
+            &pool,
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
                 username: None,
             },
-            &pool,
         )
         .await?;
 

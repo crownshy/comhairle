@@ -43,7 +43,7 @@ pub async fn wiki_poll_summary_handler(
         .sensemaker_model
         .as_ref()
         .ok_or(WorkerServiceError::NoSensemakerModelConfigured)
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
 
     let model_config = match model_cfg.provider {
@@ -53,13 +53,13 @@ pub async fn wiki_poll_summary_handler(
                     .base_url
                     .clone()
                     .ok_or(WorkerServiceError::NoSensemakerModelConfigured)
-                    .ok_or_record_failure(&job.job_id, &state.db)
+                    .ok_or_record_failure(&state.db, &job.job_id)
                     .await?,
                 api_key: model_cfg
                     .api_key
                     .clone()
                     .ok_or(WorkerServiceError::NoSensemakerModelConfigured)
-                    .ok_or_record_failure(&job.job_id, &state.db)
+                    .ok_or_record_failure(&state.db, &job.job_id)
                     .await?,
                 model: model_cfg.model.clone(),
             }
@@ -80,7 +80,7 @@ pub async fn wiki_poll_summary_handler(
 
     let poll_data_value = serde_json::to_value(&job.poll_data)
         .map_err(WorkerServiceError::SerdeJsonError)
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
 
     info!(
@@ -92,12 +92,12 @@ pub async fn wiki_poll_summary_handler(
         .run_with_model(&job.poll_data, model)
         .await
         .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
 
     let result_value = serde_json::to_value(&result)
         .map_err(WorkerServiceError::SerdeJsonError)
-        .ok_or_record_failure(&job.job_id, &state.db)
+        .ok_or_record_failure(&state.db, &job.job_id)
         .await?;
 
     models::wikipoll_conversation_summary::create(
@@ -111,7 +111,7 @@ pub async fn wiki_poll_summary_handler(
     )
     .await
     .map_err(|e| WorkerServiceError::DbError(e.to_string()))
-    .ok_or_record_failure(&job.job_id, &state.db)
+    .ok_or_record_failure(&state.db, &job.job_id)
     .await?;
 
     job::complete(&state.db, job.job_id, "Polis summary generated")

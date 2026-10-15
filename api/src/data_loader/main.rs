@@ -9,13 +9,12 @@ use comhairle::models::workflow_step::{WorkflowStep, WorkflowStepIden};
 use sea_query::{PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::Deserialize;
-use sqlx::PgPool;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use tracing::info;
 
-use comhairle::db::{run_migrations, setup_db};
+use comhairle::db::{DbSource, run_migrations, setup_db};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -29,7 +28,8 @@ struct Args {
     pub drop_db: Option<bool>,
 }
 
-async fn empty_db(pool: &PgPool) -> Result<(), Box<dyn Error>> {
+async fn empty_db(db: impl DbSource) -> Result<(), Box<dyn Error>> {
+    let mut conn = db.acquire().await?;
     // Disconnect any active connections to the target database (Postgres-specific)
     for table in [
         "user_participation",
@@ -40,7 +40,7 @@ async fn empty_db(pool: &PgPool) -> Result<(), Box<dyn Error>> {
         "comhairle_user",
     ] {
         let query = format!("DELETE FROM {table}");
-        sqlx::query(&query).bind(table).execute(pool).await?;
+        sqlx::query(&query).bind(table).execute(&mut *conn).await?;
     }
 
     Ok(())

@@ -1,3 +1,4 @@
+use crate::DbTransaction;
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -5,7 +6,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -113,16 +114,23 @@ impl CreateRegion {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     new_region: &CreateRegion,
     locale: &str,
 ) -> Result<Region, ComhairleError> {
     let mut columns = new_region.columns();
     let mut values = new_region.values();
 
-    let name_translation = new_translation(db, locale, &new_region.name, TextFormat::Plain).await?;
-    let description_translation =
-        new_translation(db, locale, &new_region.description, TextFormat::Plain).await?;
+    let mut conn = db.acquire().await?;
+    let name_translation =
+        new_translation(&mut *conn, locale, &new_region.name, TextFormat::Plain).await?;
+    let description_translation = new_translation(
+        &mut *conn,
+        locale,
+        &new_region.description,
+        TextFormat::Plain,
+    )
+    .await?;
 
     columns.push(RegionIden::Name);
     values.push(name_translation.id.into());
@@ -137,14 +145,14 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let region = query_as_with(&sql, values).fetch_one(db).await?;
+    let region = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(region)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn set_area_links(
-    db: &PgPool,
+    db: impl crate::DbSource,
     region_id: &Uuid,
     area_ids: &[Uuid],
 ) -> Result<(), ComhairleError> {
@@ -173,7 +181,11 @@ pub async fn set_area_links(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn list_area_ids(db: &PgPool, region_id: &Uuid) -> Result<Vec<Uuid>, ComhairleError> {
+pub async fn list_area_ids(
+    db: impl crate::DbSource,
+    region_id: &Uuid,
+) -> Result<Vec<Uuid>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let area_ids = sqlx::query_scalar::<_, Uuid>(
         "SELECT region_area_id
             FROM region_region_area
@@ -181,7 +193,7 @@ pub async fn list_area_ids(db: &PgPool, region_id: &Uuid) -> Result<Vec<Uuid>, C
             ORDER BY region_area_id",
     )
     .bind(region_id)
-    .fetch_all(db)
+    .fetch_all(&mut *conn)
     .await?;
 
     Ok(area_ids)
@@ -189,10 +201,11 @@ pub async fn list_area_ids(db: &PgPool, region_id: &Uuid) -> Result<Vec<Uuid>, C
 
 #[instrument(err(Debug), skip(db))]
 pub async fn add_area_link(
-    db: &PgPool,
+    db: impl crate::DbSource,
     region_id: &Uuid,
     area_id: &Uuid,
 ) -> Result<(), ComhairleError> {
+    let mut conn = db.acquire().await?;
     sqlx::query(
         "INSERT INTO region_region_area (region_id, region_area_id)
             VALUES ($1, $2)
@@ -200,7 +213,7 @@ pub async fn add_area_link(
     )
     .bind(region_id)
     .bind(area_id)
-    .execute(db)
+    .execute(&mut *conn)
     .await?;
 
     Ok(())
@@ -208,14 +221,15 @@ pub async fn add_area_link(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn remove_area_link(
-    db: &PgPool,
+    db: impl crate::DbSource,
     region_id: &Uuid,
     area_id: &Uuid,
 ) -> Result<(), ComhairleError> {
+    let mut conn = db.acquire().await?;
     sqlx::query("DELETE FROM region_region_area WHERE region_id = $1 AND region_area_id = $2")
         .bind(region_id)
         .bind(area_id)
-        .execute(db)
+        .execute(&mut *conn)
         .await?;
 
     Ok(())
@@ -240,7 +254,7 @@ impl PartialRegion {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     update_region: &PartialRegion,
 ) -> Result<Region, ComhairleError> {
@@ -257,7 +271,8 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let region = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let region = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(region)
 }
@@ -265,7 +280,7 @@ pub async fn update(
 /// Get the metadata for a region by its ID.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_metadata(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
 ) -> Result<Option<serde_json::Value>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -274,7 +289,8 @@ pub async fn get_metadata(
         .and_where(Expr::col(RegionIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
-    let (metadata,) = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let (metadata,) = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(metadata)
 }
@@ -283,7 +299,7 @@ pub async fn get_metadata(
 /// the top level. Existing keys are overwritten by the patch, keys not present
 /// in the patch are left untouched.
 pub async fn patch_metadata(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     patch: serde_json::Value,
 ) -> Result<Region, ComhairleError> {
@@ -293,6 +309,7 @@ pub async fn patch_metadata(
         ));
     }
 
+    let mut conn = db.acquire().await?;
     let region = sqlx::query_as::<_, Region>(
         "UPDATE region
             SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
@@ -302,7 +319,7 @@ pub async fn patch_metadata(
     )
     .bind(patch)
     .bind(id)
-    .fetch_one(db)
+    .fetch_one(&mut *conn)
     .await
     .resolve_db_err("Region")?;
 
@@ -366,12 +383,13 @@ impl RegionFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     page_options: PageOptions,
     filter_options: RegionFilterOptions,
     order_options: RegionOrderOptions,
     locale: &str,
 ) -> Result<PaginatedResults<LocalizedRegion>, ComhairleError> {
+    let mut conn = db.acquire().await?;
     let query = Query::select()
         .from(RegionIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (RegionIden::Table, col)))
@@ -381,14 +399,16 @@ pub async fn list(
 
     let query = filter_options.apply(query);
     let query = order_options.apply_to_localized(query);
-    let regions = page_options.fetch_paginated_results(db, query).await?;
+    let regions = page_options
+        .fetch_paginated_results(&mut *conn, query)
+        .await?;
 
     Ok(regions)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_localized_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
     locale: &str,
 ) -> Result<LocalizedRegion, ComhairleError> {
@@ -402,8 +422,9 @@ pub async fn get_localized_by_id(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let region = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Region")?;
 
@@ -411,15 +432,16 @@ pub async fn get_localized_by_id(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
+pub async fn get_by_id(db: impl crate::DbSource, id: &Uuid) -> Result<Region, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(RegionIden::Table)
         .and_where(Expr::col(RegionIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let region = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Region")?;
 
@@ -427,15 +449,16 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError>
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
+pub async fn delete(db: impl crate::DbSource, id: &Uuid) -> Result<Region, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(RegionIden::Table)
         .and_where(Expr::col(RegionIden::Id).eq(id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let region = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Region")?;
 
@@ -445,6 +468,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use sqlx::PgPool;
 
     use crate::{
         models::{

@@ -11,7 +11,6 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -86,7 +85,7 @@ impl PermissionUserFilter for Query<ListPermissionsByActionQuery> {
 /// * Returns [`ComhairleError::BadRequest`] if more than one of user_id, organization_id or user_email are provided.
 /// * Returns [`ComhairleError::NoUserFoundForEmail`] if no user found for a given user_email.
 async fn resolve_actor(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Option<Uuid>,
     organization_id: Option<Uuid>,
     user_email: Option<String>,
@@ -98,7 +97,7 @@ async fn resolve_actor(
             crate::models::user_group::organization_group(db, oid).await?,
         ))),
         (None, None, Some(u_email)) => {
-            let user = users::get_user_by_email(&u_email, db).await?;
+            let user = users::get_user_by_email(db, &u_email).await?;
 
             Ok(Some(ActorId::User(user.id)))
         }
@@ -148,7 +147,7 @@ async fn grant(
 
     match actor_id {
         ActorId::User(uid) => {
-            let user = users::get_user_by_id(&uid, &state.db).await?;
+            let user = users::get_user_by_id(&state.db, &uid).await?;
 
             if let Some(email) = user.email {
                 state

@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
@@ -44,7 +44,7 @@ const DEFAULT_COLUMNS: [PolisStatementTranslationIden; 8] = [
 /// validation.
 #[instrument(err(Debug), skip(db))]
 pub async fn upsert(
-    db: &PgPool,
+    db: impl crate::DbSource,
     polis_statement_aux_id: Uuid,
     locale: &str,
     content: &str,
@@ -89,7 +89,8 @@ pub async fn upsert(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let translation = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let translation = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(translation)
 }
@@ -97,7 +98,7 @@ pub async fn upsert(
 /// List all stored translations for a statement.
 #[instrument(err(Debug))]
 pub async fn list_by_statement_aux_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     polis_statement_aux_id: &Uuid,
 ) -> Result<Vec<PolisStatementTranslation>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -109,7 +110,8 @@ pub async fn list_by_statement_aux_id(
         )
         .build_sqlx(PostgresQueryBuilder);
 
-    let translations = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let translations = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(translations)
 }
@@ -117,7 +119,7 @@ pub async fn list_by_statement_aux_id(
 /// Fetch a single translation by id.
 #[instrument(err(Debug))]
 pub async fn get_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: &Uuid,
 ) -> Result<PolisStatementTranslation, ComhairleError> {
     let (sql, values) = Query::select()
@@ -126,7 +128,10 @@ pub async fn get_by_id(
         .and_where(Expr::col(PolisStatementTranslationIden::Id).eq(*id))
         .build_sqlx(PostgresQueryBuilder);
 
-    let translation = query_as_with(&sql, values).fetch_optional(db).await?;
+    let mut conn = db.acquire().await?;
+    let translation = query_as_with(&sql, values)
+        .fetch_optional(&mut *conn)
+        .await?;
 
     translation
         .ok_or_else(|| ComhairleError::ResourceNotFound("No translation found with this id".into()))
@@ -136,7 +141,10 @@ pub async fn get_by_id(
 /// `ai_generated` flag: an admin read the machine translation and confirmed it's
 /// correct as-is.
 #[instrument(err(Debug), skip(db))]
-pub async fn verify(db: &PgPool, id: Uuid) -> Result<PolisStatementTranslation, ComhairleError> {
+pub async fn verify(
+    db: impl crate::DbSource,
+    id: Uuid,
+) -> Result<PolisStatementTranslation, ComhairleError> {
     let (sql, values) = Query::update()
         .table(PolisStatementTranslationIden::Table)
         .values([(
@@ -151,7 +159,10 @@ pub async fn verify(db: &PgPool, id: Uuid) -> Result<PolisStatementTranslation, 
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let translation = query_as_with(&sql, values).fetch_optional(db).await?;
+    let mut conn = db.acquire().await?;
+    let translation = query_as_with(&sql, values)
+        .fetch_optional(&mut *conn)
+        .await?;
 
     translation
         .ok_or_else(|| ComhairleError::ResourceNotFound("No translation found with this id".into()))
@@ -162,7 +173,7 @@ pub async fn verify(db: &PgPool, id: Uuid) -> Result<PolisStatementTranslation, 
 /// machine-translation output, and a human has just reviewed it.
 #[instrument(err(Debug), skip(db))]
 pub async fn update_content(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     content: &str,
 ) -> Result<PolisStatementTranslation, ComhairleError> {
@@ -184,7 +195,10 @@ pub async fn update_content(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let translation = query_as_with(&sql, values).fetch_optional(db).await?;
+    let mut conn = db.acquire().await?;
+    let translation = query_as_with(&sql, values)
+        .fetch_optional(&mut *conn)
+        .await?;
 
     translation
         .ok_or_else(|| ComhairleError::ResourceNotFound("No translation found with this id".into()))
@@ -199,7 +213,7 @@ pub async fn update_content(
 /// intended to be spawned as a background task off the submission request.
 #[instrument(err(Debug), skip(db, translator, statement_text))]
 pub async fn generate_for_statement(
-    db: &PgPool,
+    db: impl crate::DbSource,
     translator: &Arc<dyn TranslationService>,
     polis_statement_aux_id: Uuid,
     statement_text: &str,
@@ -207,7 +221,7 @@ pub async fn generate_for_statement(
     supported_languages: &[String],
 ) -> Result<Vec<PolisStatementTranslation>, ComhairleError> {
     let mut out = vec![];
-
+    let mut conn = db.acquire().await?;
     for locale in supported_languages
         .iter()
         .filter(|locale| locale.as_str() != source_locale)
@@ -227,7 +241,15 @@ pub async fn generate_for_statement(
             }
         };
 
-        let row = upsert(db, polis_statement_aux_id, locale, &translated, true, true).await?;
+        let row = upsert(
+            &mut *conn,
+            polis_statement_aux_id,
+            locale,
+            &translated,
+            true,
+            true,
+        )
+        .await?;
         out.push(row);
     }
 
@@ -251,8 +273,8 @@ mod tests {
 
     use super::*;
 
-    async fn seed_aux(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(pool).await?;
+    async fn seed_aux(db: &PgPool) -> Result<Uuid, Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(db).await?;
 
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let conversation_id: String = extract("id", &conversation);
@@ -283,7 +305,7 @@ mod tests {
         let workflow_step_id = Uuid::parse_str(&workflow_step_id)?;
 
         let aux = polis_statement_aux::upsert_from_polis(
-            pool,
+            db,
             &UpsertFromPolis {
                 workflow_step_id,
                 user_id: None,

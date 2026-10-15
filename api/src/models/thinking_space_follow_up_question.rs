@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::{prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -58,7 +58,7 @@ impl CreateFollowUpQuestions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     create_follow_ups: &CreateFollowUpQuestions,
 ) -> Result<ThinkingSpaceFollowUpQuestion, ComhairleError> {
@@ -75,7 +75,8 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let follow_ups = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let follow_ups = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(follow_ups)
 }
@@ -87,7 +88,7 @@ pub struct UpdateFollowUpQuestions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn update(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
     update_follow_ups: &UpdateFollowUpQuestions,
 ) -> Result<ThinkingSpaceFollowUpQuestion, ComhairleError> {
@@ -103,14 +104,15 @@ pub async fn update(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let follow_ups = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let follow_ups = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(follow_ups)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
 ) -> Result<ThinkingSpaceFollowUpQuestion, ComhairleError> {
     let (sql, values) = Query::select()
@@ -119,8 +121,9 @@ pub async fn get_by_id(
         .and_where(Expr::col(ThinkingSpaceFollowUpQuestionIden::Id).eq(id))
         .build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let follow_ups = query_as_with(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await
         .resolve_db_err("Thinking Space Follow Up Questions")?;
 
@@ -164,7 +167,7 @@ impl ThinkingSpaceFollowUpQuestionFilterOptions {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     workflow_step_id: &Uuid,
     filter_options: ThinkingSpaceFollowUpQuestionFilterOptions,
 ) -> Result<Vec<ThinkingSpaceFollowUpQuestion>, ComhairleError> {
@@ -184,14 +187,15 @@ pub async fn list(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let follow_ups = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let follow_ups = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(follow_ups)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn delete(
-    db: &PgPool,
+    db: impl crate::DbSource,
     id: Uuid,
 ) -> Result<ThinkingSpaceFollowUpQuestion, ComhairleError> {
     let (sql, values) = Query::delete()
@@ -200,7 +204,8 @@ pub async fn delete(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let follow_ups = query_as_with(&sql, values).fetch_one(db).await?;
+    let mut conn = db.acquire().await?;
+    let follow_ups = query_as_with(&sql, values).fetch_one(&mut *conn).await?;
 
     Ok(follow_ups)
 }
@@ -222,6 +227,7 @@ mod tests {
     };
 
     use serde_json::json;
+    use sqlx::PgPool;
     use std::error::Error;
 
     async fn create_thinking_space_resources(

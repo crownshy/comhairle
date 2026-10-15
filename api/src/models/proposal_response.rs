@@ -4,7 +4,7 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    Decode, Encode, PgPool, Postgres,
+    Decode, Encode, Postgres,
     encode::IsNull,
     prelude::{FromRow, Type},
     query_as, query_as_with,
@@ -117,7 +117,7 @@ pub struct CreateResponse {
 /// instead of stacking duplicate rows.
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
-    db: &PgPool,
+    db: impl crate::DbSource,
     proposal_id: &Uuid,
     user_id: &Uuid,
     create_response: &CreateResponse,
@@ -135,11 +135,12 @@ pub async fn create(
         RETURNING id, proposal_id, user_id, response, created_at, updated_at
     "#;
 
+    let mut conn = db.acquire().await?;
     let response = query_as::<_, ProposalResponse>(sql)
         .bind(proposal_id)
         .bind(user_id)
         .bind(question_responses)
-        .fetch_one(db)
+        .fetch_one(&mut *conn)
         .await?;
 
     Ok(response)
@@ -153,7 +154,7 @@ pub struct ProposalResponseOrderOptions;
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list(
-    db: &PgPool,
+    db: impl crate::DbSource,
     proposal_id: &Uuid,
     filter_options: ProposalResponseFilterOptions,
     order_options: ProposalResponseOrderOptions,
@@ -168,13 +169,16 @@ pub async fn list(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let responses = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let responses = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(responses)
 }
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use crate::{
         models::{
             model_test_helpers::{

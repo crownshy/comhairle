@@ -27,7 +27,7 @@ use sea_query::{
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use sqlx::{PgPool, query_as_with};
+use sqlx::query_as_with;
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 use tracing::instrument;
@@ -1165,7 +1165,7 @@ pub struct OrganizationWithPermissionDto {
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_users_with_permission(
-    db: &PgPool,
+    db: impl crate::DbSource,
     resource_type: &str,
     resource_id: Uuid,
     role_name: Option<&str>,
@@ -1204,14 +1204,15 @@ pub async fn list_users_with_permission(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let users_with_permission = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let users_with_permission = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(users_with_permission)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_organizations_with_permission(
-    db: &PgPool,
+    db: impl crate::DbSource,
     resource_type: &str,
     resource_id: Uuid,
     role_name: Option<&str>,
@@ -1256,14 +1257,15 @@ pub async fn list_organizations_with_permission(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
-    let organizations_with_permission = query_as_with(&sql, values).fetch_all(db).await?;
+    let mut conn = db.acquire().await?;
+    let organizations_with_permission = query_as_with(&sql, values).fetch_all(&mut *conn).await?;
 
     Ok(organizations_with_permission)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_permissions_by_action(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
     action: &str,
 ) -> Result<Vec<ResourcePermission>, ComhairleError> {
@@ -1287,8 +1289,9 @@ pub async fn list_permissions_by_action(
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
+    let mut conn = db.acquire().await?;
     let permissions = query_as_with(&sql, values)
-        .fetch_all(db)
+        .fetch_all(&mut *conn)
         .await
         .map_err(ComhairleError::DatabaseError)?;
 
@@ -1297,7 +1300,7 @@ pub async fn list_permissions_by_action(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn list_user_permissions(
-    db: &PgPool,
+    db: impl crate::DbSource,
     user_id: Uuid,
 ) -> Result<Vec<ResourcePermission>, ComhairleError> {
     let query = permission_select(None)?
@@ -1307,7 +1310,8 @@ pub async fn list_user_permissions(
         ))
         .to_owned();
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-    Ok(query_as_with(&sql, values).fetch_all(db).await?)
+    let mut conn = db.acquire().await?;
+    Ok(query_as_with(&sql, values).fetch_all(&mut *conn).await?)
 }
 
 pub fn roles_for_action<A: PermissionAction>(action: A) -> Vec<String> {
@@ -1319,12 +1323,27 @@ pub fn roles_for_action<A: PermissionAction>(action: A) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    async fn create_legacy_permission_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
+    use super::*;
+    use crate::error::ComhairleError;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_organization_id, get_random_user_id,
+        setup_default_app_and_session,
+    };
+    use crate::redis_connection::{MockRedis, RedisConnection};
+    use crate::test_helpers::{TEST_RESOURCE_TYPE, TEST_ROLE_NAME, TestRole, test_state};
+
+    use sea_query::DeleteStatement;
+    use sqlx::PgPool;
+
+    const OTHER_ROLE_NAME: &str = "other_role";
+
+    async fn create_legacy_permission_schema(db: impl crate::DbSource) -> Result<(), sqlx::Error> {
+        let mut conn = db.acquire().await?;
         for migration in crate::SQLX_MIGRATOR
             .iter()
             .filter(|migration| migration.version < 20261001120000)
         {
-            sqlx::raw_sql(&migration.sql).execute(pool).await?;
+            sqlx::raw_sql(&migration.sql).execute(&mut *conn).await?;
         }
         Ok(())
     }
@@ -1601,14 +1620,6 @@ mod tests {
         assert_ne!(first?.is_ok(), second?.is_ok());
         Ok(())
     }
-    use super::*;
-    use crate::error::ComhairleError;
-    use crate::models::model_test_helpers::{
-        get_random_conversation_id, get_random_organization_id, get_random_user_id,
-        setup_default_app_and_session,
-    };
-    use crate::redis_connection::{MockRedis, RedisConnection};
-    use crate::test_helpers::{TEST_RESOURCE_TYPE, TEST_ROLE_NAME, TestRole, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn admin_portal_roles_include_direct_and_current_inherited_assignments(
@@ -1625,7 +1636,7 @@ mod tests {
         let user_id = get_random_user_id(&app, &mut session).await?;
         let group_id = models::user_group::organization_group(&pool, organization_id).await?;
         let state = Arc::new(test_state().db(pool).call()?);
-        let user = models::users::get_user_by_id(&user_id, &state.db).await?;
+        let user = models::users::get_user_by_id(&state.db, &user_id).await?;
         let (_, Json(roles)) =
             get_user_roles(State(state.clone()), RequiredUser(user.clone())).await?;
         assert!(roles.is_empty());
@@ -1699,11 +1710,6 @@ mod tests {
         );
         Ok(())
     }
-
-    use sea_query::DeleteStatement;
-    use sqlx::PgPool;
-
-    const OTHER_ROLE_NAME: &str = "other_role";
 
     #[test]
     fn policy_discovery_uses_typed_roles() {
