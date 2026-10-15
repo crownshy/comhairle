@@ -1,13 +1,13 @@
 <script lang="ts">
+	import { Home } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
-	import type { PageProps } from './$types';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
-	import { Home } from 'lucide-svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
+	import type { PageProps } from './$types';
+	import { CONVERSATION_STATUS_FILTER_LABELS } from './conversationFilters';
 	import StatusFilterChips from './StatusFilterChips.svelte';
-	import { conversationStatusFilterLabels } from '$lib/utils/conversationFilters';
 
 	let { data }: PageProps = $props();
 </script>
@@ -54,7 +54,7 @@
 						{#if data.filter === 'all'}
 							You don't have any conversations yet.
 						{:else}
-							No {conversationStatusFilterLabels[data.filter].toLowerCase()} conversations.
+							No {CONVERSATION_STATUS_FILTER_LABELS[data.filter].toLowerCase()} conversations.
 						{/if}
 					</p>
 				{/each}

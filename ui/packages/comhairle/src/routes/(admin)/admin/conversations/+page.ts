@@ -1,6 +1,6 @@
 import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
-import { filterConversations, statusFilterFromUrl } from '$lib/utils/conversationFilters';
+import { filterConversations, statusFilterFromUrl } from './conversationFilters';
 
 // Filters the lists the admin layout already loads for the sidebar, so a chip costs no request.
 export const load: PageLoad = async ({ parent, url, depends }) => {

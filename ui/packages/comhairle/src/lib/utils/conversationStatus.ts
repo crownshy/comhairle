@@ -2,7 +2,7 @@ import type { ConversationDto } from '@crownshy/api-client/api';
 
 export type ConversationStatus = 'live' | 'draft' | 'completed';
 
-export const conversationStatusLabels: Record<ConversationStatus, string> = {
+export const CONVERSATION_STATUS_LABELS: Record<ConversationStatus, string> = {
 	live: 'Live',
 	draft: 'Draft',
 	completed: 'Completed'

@@ -5,12 +5,12 @@
 	import * as Select from '$lib/components/ui/select';
 	import { cn } from '$lib/utils';
 	import {
-		conversationStatusFilterLabels,
-		conversationStatusFilters,
+		CONVERSATION_STATUS_FILTER_LABELS,
+		CONVERSATION_STATUS_FILTERS,
 		isConversationStatusFilter,
 		statusFilterHref,
 		type ConversationStatusFilter
-	} from '$lib/utils/conversationFilters';
+	} from './conversationFilters';
 
 	type Props = { active: ConversationStatusFilter };
 
@@ -27,7 +27,7 @@
 <!-- Chips wrap awkwardly in a narrow column, so below @lg they collapse into a dropdown. -->
 <nav aria-label="Filter conversations" class="hidden @lg:block">
 	<ul class="flex flex-wrap gap-2">
-		{#each conversationStatusFilters as filter (filter)}
+		{#each CONVERSATION_STATUS_FILTERS as filter (filter)}
 			{@const isActive = filter === active}
 			<li>
 				<Button
@@ -38,7 +38,7 @@
 					size="lg"
 					class={cn('px-4 text-base', !isActive && 'bg-card text-foreground')}
 				>
-					{conversationStatusFilterLabels[filter]}
+					{CONVERSATION_STATUS_FILTER_LABELS[filter]}
 				</Button>
 			</li>
 		{/each}
@@ -48,13 +48,13 @@
 <div class="@lg:hidden">
 	<Select.Root type="single" value={active} onValueChange={selectFilter}>
 		<Select.Trigger aria-label="Filter conversations" class="bg-card h-10 w-full text-base">
-			{conversationStatusFilterLabels[active]}
+			{CONVERSATION_STATUS_FILTER_LABELS[active]}
 		</Select.Trigger>
 		<Select.Content class="w-(--bits-select-anchor-width)">
-			{#each conversationStatusFilters as filter (filter)}
+			{#each CONVERSATION_STATUS_FILTERS as filter (filter)}
 				<Select.Item
 					value={filter}
-					label={conversationStatusFilterLabels[filter]}
+					label={CONVERSATION_STATUS_FILTER_LABELS[filter]}
 					class="text-base"
 				/>
 			{/each}

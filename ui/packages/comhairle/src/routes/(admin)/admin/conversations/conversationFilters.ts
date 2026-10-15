@@ -1,17 +1,17 @@
 import type { ConversationDto } from '@crownshy/api-client/api';
-import { conversationStatus, conversationStatusLabels } from './conversationStatus';
+import { conversationStatus, CONVERSATION_STATUS_LABELS } from '$lib/utils/conversationStatus';
 
-export const conversationStatusFilters = ['all', 'live', 'draft', 'completed', 'shared'] as const;
-export type ConversationStatusFilter = (typeof conversationStatusFilters)[number];
+export const CONVERSATION_STATUS_FILTERS = ['all', 'live', 'draft', 'completed', 'shared'] as const;
+export type ConversationStatusFilter = (typeof CONVERSATION_STATUS_FILTERS)[number];
 
-export const conversationStatusFilterLabels: Record<ConversationStatusFilter, string> = {
+export const CONVERSATION_STATUS_FILTER_LABELS: Record<ConversationStatusFilter, string> = {
 	all: 'All',
-	...conversationStatusLabels,
+	...CONVERSATION_STATUS_LABELS,
 	shared: 'Shared'
 };
 
 export function isConversationStatusFilter(value: string): value is ConversationStatusFilter {
-	return conversationStatusFilters.some((filter) => filter === value);
+	return CONVERSATION_STATUS_FILTERS.some((filter) => filter === value);
 }
 
 export function statusFilterFromUrl(url: URL): ConversationStatusFilter {

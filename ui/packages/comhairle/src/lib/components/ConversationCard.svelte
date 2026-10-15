@@ -4,24 +4,21 @@
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
 	import {
 		conversationStatus,
-		conversationStatusLabels,
+		CONVERSATION_STATUS_LABELS,
 		type ConversationStatus
 	} from '$lib/utils/conversationStatus';
 	import { ArrowRight, MessageSquareText } from 'lucide-svelte';
 
-	let {
-		conversation,
-		variant = 'admin',
-		organizationName,
-		isShared = false
-	}: {
+	type Props = {
 		conversation: ConversationDto | LocalizedConversationDto;
 		variant?: 'admin' | 'public';
 		organizationName?: string;
 		isShared?: boolean;
-	} = $props();
+	};
 
-	const statusBadgeVariants: Record<ConversationStatus, BadgeVariant> = {
+	let { conversation, variant = 'admin', organizationName, isShared = false }: Props = $props();
+
+	const STATUS_BADGE_VARIANTS: Record<ConversationStatus, BadgeVariant> = {
 		live: 'default',
 		draft: 'draft',
 		completed: 'secondary'
@@ -101,8 +98,8 @@
 			<div class="flex w-full flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
 				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
 					<div class="flex flex-wrap gap-2">
-						<Badge variant={statusBadgeVariants[status]} class="h-7 text-sm">
-							{conversationStatusLabels[status]}
+						<Badge variant={STATUS_BADGE_VARIANTS[status]} class="h-7 text-sm">
+							{CONVERSATION_STATUS_LABELS[status]}
 						</Badge>
 						{#if isShared}
 							<Badge variant="outline" class="h-7 text-sm">Shared</Badge>
