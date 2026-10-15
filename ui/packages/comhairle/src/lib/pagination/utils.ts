@@ -1,6 +1,6 @@
 export const getPage = (url: URL): number => {
-	const page = Number(url.searchParams.get('page'));
-	if (!page || Number.isNaN(page)) return 1;
+	const page = Math.floor(Number(url.searchParams.get('page')));
+	if (!Number.isFinite(page) || page < 1) return 1;
 	return page;
 };
 export const setPage = (_url: URL, v: number): URL => {

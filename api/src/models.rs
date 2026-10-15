@@ -73,7 +73,7 @@ pub trait SqlxResultExt<T> {
     ///   [`ComhairleError::Conflict`] (HTTP 409), since the request is
     ///   well-formed but conflicts with the current state of the database
     ///   (e.g. referencing a row that doesn't exist, or duplicating a
-    ///   unique value).
+    ///   unique value). The message names the violated constraint.
     /// - All other database errors fall through to
     ///   [`ComhairleError::DatabaseError`], preserving the original
     ///   `sqlx::Error` for logging/debugging.
@@ -100,14 +100,40 @@ impl<T> SqlxResultExt<T> for Result<T, sqlx::Error> {
         self.map_err(|e| match e {
             sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound(resource.into()),
             sqlx::Error::Database(ref db_err) => match db_err.kind() {
-                ErrorKind::ForeignKeyViolation | ErrorKind::UniqueViolation => {
-                    ComhairleError::Conflict(format!(
-                        "{resource} conflicts with an existing record"
-                    ))
-                }
+                ErrorKind::ForeignKeyViolation => ComhairleError::Conflict(
+                    constraint_violation_message(db_err.as_ref(), resource, foreign_key_operation),
+                ),
+                ErrorKind::UniqueViolation => ComhairleError::Conflict(
+                    constraint_violation_message(db_err.as_ref(), resource, |_| "insert or update"),
+                ),
                 _ => ComhairleError::DatabaseError(e),
             },
             _ => ComhairleError::DatabaseError(e),
         })
+    }
+}
+
+/// Postgres reports foreign key violations as either "insert or update on table ..."
+/// (a referencing row was written) or "update or delete on table ..." (a referenced
+/// row was removed), so the wording is taken from the database message.
+fn foreign_key_operation(message: &str) -> &'static str {
+    if message.starts_with("insert or update") {
+        "insert or update"
+    } else {
+        "update or delete"
+    }
+}
+
+fn constraint_violation_message(
+    db_err: &dyn sqlx::error::DatabaseError,
+    resource: &str,
+    operation: impl FnOnce(&str) -> &'static str,
+) -> String {
+    match db_err.constraint() {
+        Some(constraint) => format!(
+            "Constraint `{constraint}`, on resource `{resource}`, violated by proposed {}",
+            operation(db_err.message())
+        ),
+        None => format!("{resource} conflicts with an existing record"),
     }
 }

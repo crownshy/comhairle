@@ -282,7 +282,7 @@ async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
 ) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
-    let workflow = workflow::delete(&state.db, &workflow_id).await?.into();
+    let workflow = workflow::delete(&state, &workflow_id).await?.into();
     Ok((StatusCode::OK, Json(workflow)))
 }
 

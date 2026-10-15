@@ -13,10 +13,24 @@ describe('pagination', () => {
 		expect(getPage(url)).toEqual(7);
 	});
 
+	it('getPage falls back to page 1 for zero, negative and non-numeric pages', () => {
+		for (const page of ['0', '-3', 'abc', 'Infinity']) {
+			const url = new URL(`https://example.org/conversations?page=${page}`);
+			expect(getPage(url)).toEqual(1);
+		}
+	});
+
+	it('getPage rounds fractional pages down', () => {
+		const url = new URL('https://example.org/conversations?page=2.5');
+		expect(getPage(url)).toEqual(2);
+	});
+
 	it('setPage sets page number in URL', () => {
 		const oldUrl = new URL('https://example.org/conversations?page=7&sort=title%2Bdesc');
 		const url = setPage(oldUrl, 8);
-		expect(url.toString()).toEqual('https://example.org/conversations?page=8&sort=title%2Bdesc');
+		expect(url.toString()).toEqual(
+			'https://example.org/conversations?page=8&sort=title%2Bdesc'
+		);
 	});
 
 	it('setPage unsets the page search param on 1', () => {

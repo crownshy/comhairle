@@ -18,9 +18,12 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
-	import { invalidate } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import { Image } from '@lucide/svelte';
+	import { Image, Trash2 } from '@lucide/svelte';
+	import { Button, LoadingButton } from '$lib/components/ui/button';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { addToCache } from '$lib/components/Media/MediaLibraryDialog.svelte';
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
@@ -34,6 +37,11 @@
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversation.id)
 	);
+	const canDelete = $derived(
+		permissions.can('conversation', 'conversation_delete', conversation.id)
+	);
+	const deleteLoader = useLoading();
+	let deleteDialogOpen = $state(false);
 
 	let primaryLocale = $derived<Locale>(
 		(data.conversation.primaryLocale as Locale) ?? DEFAULT_LOCALE
@@ -217,6 +225,27 @@
 		await invalidate(key('admin/conversation'));
 	}
 	//#EndRegion Translations
+
+	async function deleteConversation() {
+		if (!canDelete) return;
+
+		await deleteLoader.run(async () => {
+			const result = await tryCatchAsync(() =>
+				apiClient.DeleteConversation(undefined, {
+					params: { conversation_id: conversation.id }
+				})
+			);
+			deleteDialogOpen = false;
+
+			if (result.err !== null) {
+				notifications.send({ message: 'Failed to delete conversation', priority: 'ERROR' });
+				return;
+			}
+
+			notifications.send({ message: 'Conversation deleted', priority: 'INFO' });
+			await goto('/admin', { invalidate: [key('admin/conversations')] });
+		});
+	}
 </script>
 
 <PageHeader title="Details" description="Title, description, language and banner." />
@@ -384,4 +413,51 @@
 			</div>
 		</div>
 	</div>
+
+	{#if canDelete}
+		<div class="border-destructive/30 my-6 flex flex-col gap-4 rounded-lg border p-6">
+			<div class="flex flex-col gap-1">
+				<span class="text-destructive text-lg font-semibold">Danger zone</span>
+				<p class="text-muted-foreground text-sm">
+					Deleting this conversation permanently removes it and all of its related
+					content. This action cannot be undone.
+				</p>
+			</div>
+			<div>
+				<Button
+					variant="destructive"
+					disabled={deleteLoader.loading}
+					onclick={() => (deleteDialogOpen = true)}
+				>
+					<Trash2 class="mr-2 h-4 w-4" />
+					Delete conversation
+				</Button>
+			</div>
+		</div>
+	{/if}
 </div>
+
+<AlertDialog.Root bind:open={deleteDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Delete “{conversation.title}”?</AlertDialog.Title>
+			<AlertDialog.Description>
+				This permanently removes the conversation and all of its related content. This
+				action cannot be undone.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer class="flex-col-reverse sm:flex-row">
+			<AlertDialog.Cancel class="w-full sm:w-auto" disabled={deleteLoader.loading}>
+				Cancel
+			</AlertDialog.Cancel>
+			<LoadingButton
+				variant="destructive"
+				class="w-full sm:w-auto"
+				loading={deleteLoader.loading}
+				onclick={deleteConversation}
+			>
+				Delete conversation
+			</LoadingButton>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

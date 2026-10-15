@@ -134,6 +134,16 @@ pub struct LocalizedConversationDto {
     pub metadata: serde_json::Value,
 }
 
+/// A conversation from the signed-in user's permitted list. `is_shared` is true when
+/// someone else owns it, so the owner id never has to leave the server.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PermittedConversationDto {
+    #[serde(flatten)]
+    pub conversation: LocalizedConversationDto,
+    pub is_shared: bool,
+}
+
 impl From<Conversation> for ConversationDto {
     fn from(c: Conversation) -> Self {
         Self {
