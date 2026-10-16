@@ -39,7 +39,7 @@ async function add({ page, event, from, withTests }: AddParams) {
 	const Capacity = await Textbox('Capacity', { page }, { overrideRole: 'spinbutton' });
 	const DefaultTimezone = Combobox('Europe/London', { page });
 	const Date = Calendar('Event date', { page });
-	const Time = TimeRangePicker({ page });
+	const Time = TimeRangePicker(undefined, { page });
 	// const Facilitators = await Textbox('Facilitators', { page });
 	const SaveChanges = page.getByRole('button', { name: 'Save changes' });
 
