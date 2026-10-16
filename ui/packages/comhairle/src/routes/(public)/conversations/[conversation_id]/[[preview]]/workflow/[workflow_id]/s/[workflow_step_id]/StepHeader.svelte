@@ -6,8 +6,6 @@
 	import { STEP_COLUMN_CLASS } from './styles';
 
 	interface StepHeaderProps {
-		currentStepNumber: number;
-		totalSteps: number;
 		title: string;
 		description?: string;
 		estimatedMinutes?: number;
@@ -16,8 +14,6 @@
 	}
 
 	let {
-		currentStepNumber,
-		totalSteps,
 		title,
 		description,
 		estimatedMinutes,
@@ -26,12 +22,8 @@
 	}: StepHeaderProps = $props();
 </script>
 
-<!-- "Step N of M" stays visible because the progress bar is aria-hidden. -->
 <div class={cn(STEP_COLUMN_CLASS, 'flex flex-col items-center pt-3 pb-2')}>
-	<p class="text-primary text-center text-sm leading-5 font-semibold">
-		{m.step_x_of_y({ current: currentStepNumber, total: totalSteps })}
-	</p>
-	<p class="text-foreground mt-1 text-center text-xl leading-6 font-semibold md:text-2xl">
+	<p class="text-foreground text-center text-xl leading-6 font-semibold md:text-2xl">
 		{title}
 		{#if estimatedMinutes}
 			<span class="text-foreground text-base font-medium md:text-lg md:font-semibold">
