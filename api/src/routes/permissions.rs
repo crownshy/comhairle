@@ -8,7 +8,7 @@ use axum::middleware::{from_fn, from_fn_with_state};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use tracing::{instrument, warn};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::ComhairleState;
@@ -145,23 +145,6 @@ async fn grant(
         },
     )
     .await?;
-
-    match actor_id {
-        ActorId::User(uid) => {
-            let user = users::get_user_by_id(&uid, &state.db).await?;
-
-            // The role is already granted, so a failed notification shouldn't fail the request.
-            if let Some(email) = user.email
-                && let Err(error) =
-                    state
-                        .mailer
-                        .send_permission_notification_email(&email, &permission, "granted")
-            {
-                warn!("Granted {permission:?} but could not email {email}: {error}");
-            }
-        }
-        ActorId::Group(_) => {}
-    }
 
     Ok((StatusCode::CREATED, Json(permission)))
 }

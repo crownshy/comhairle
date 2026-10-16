@@ -22,7 +22,6 @@ use crate::models::email_template_config::{
     SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
-use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
 use crate::models::{conversation, organization, otp};
 use crate::routes::auth::{OtpClaims, generate_jwt};
@@ -123,13 +122,6 @@ pub trait ComhairleMailer: Send + Sync {
         html_body: &str,
     ) -> Result<(), ComhairleError>;
 
-    fn send_permission_notification_email(
-        &self,
-        email: &str,
-        permission: &ResourcePermission,
-        action: &str,
-    ) -> Result<(), ComhairleError>;
-
     fn preview_email(
         &self,
         template: &str,
@@ -208,9 +200,6 @@ impl MockComhairleMailer {
             .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_conversation_broadcast_email()
-            .returning(|_, _, _| Ok(()));
-        mailer
-            .expect_send_permission_notification_email()
             .returning(|_, _, _| Ok(()));
         mailer
             .expect_preview_email()
@@ -728,26 +717,6 @@ impl ComhairleMailer for Mailer {
             subject,
             "conversation_broadcast.html",
             context! { subject, body => html_body },
-            None,
-        )
-    }
-
-    fn send_permission_notification_email(
-        &self,
-        email: &str,
-        permission: &ResourcePermission,
-        action: &str,
-    ) -> Result<(), ComhairleError> {
-        self.send_email(
-            email,
-            "Your Comhairle permissions have changed",
-            "resource_permission_notification.html",
-            context! {
-                role => permission.role_name,
-                resource_type => permission.resource_type,
-                resource_id => permission.resource_id,
-                action,
-            },
             None,
         )
     }
