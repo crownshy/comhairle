@@ -24,8 +24,7 @@
 
 	import type { PageProps } from './$types';
 
-	// Prototype of the redesigned Monitor tab. All numbers come from ./sampleMonitorData.ts;
-	// links point at the real sibling tabs. See README.md in this folder for the handoff notes.
+	// Prototype: all numbers come from ./sampleMonitorData.ts. See README.md for handoff notes.
 	let { data }: PageProps = $props();
 
 	const MONITOR_TABS = [
@@ -40,13 +39,11 @@
 		return MONITOR_TABS.some((tab) => tab.value === value);
 	}
 
-	// The active tab is local state, read once from `?tab=` so a refresh or a shared link
-	// opens the same view. Switching only rewrites the URL (see writeSearchParam): a full
-	// navigation would re-run the layout's data loading and make quick clicks get lost.
+	// The active tab is local state, read once from `?tab=`. Switching only rewrites the URL
+	// (shallow routing): a full navigation would re-run the layout's load and drop quick clicks.
 	const initialTab = page.url.searchParams.get('tab');
 	let activeTab = $state<MonitorTab>(isMonitorTab(initialTab) ? initialTab : 'glance');
 
-	/** Updates the address bar without a SvelteKit navigation (shallow routing). */
 	function writeSearchParam(key: string, value: string) {
 		const url = new URL(window.location.href);
 		url.searchParams.set(key, value);
@@ -70,7 +67,6 @@
 
 	// The Recruitment hint opens Demographic analysis on the demographic it names.
 	let representationTab = $state(sample.SAMPLE_REPRESENTATION[0]?.name ?? '');
-	/** Scrolls to a card on the page and moves focus to it. */
 	function scrollToCard(id: string) {
 		const card = document.getElementById(id);
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -88,7 +84,7 @@
 			step.reached - step.finished > worst.reached - worst.finished ? step : worst
 		)
 	);
-	// TODO(backend): load and save the target with the conversation. Here it lives in page state.
+	// TODO(backend): load and save the target with the conversation (page state only for now).
 	let target = $state(sample.SAMPLE_TARGET);
 	let targetPace = $derived([
 		sample.SAMPLE_TARGET_PACE[0],
@@ -124,9 +120,11 @@
 				<Tabs.Trigger value={tab.value} class="px-4 text-base">{tab.label}</Tabs.Trigger>
 			{/each}
 		</Tabs.List>
+		<!-- TODO(backend): time of the last data refresh. -->
+		<span class="text-muted-foreground text-sm">Updated 2 minutes ago</span>
 	</div>
 
-	<!-- At a glance: verdict and the three questions -->
+	<!-- At a glance -->
 	<Tabs.Content value="glance" class="flex flex-col gap-12">
 		<section aria-label="Overview" class="flex flex-col gap-6">
 			<FirstVisitHint tourHref="/admin/info/tools" />
@@ -232,7 +230,7 @@
 		/>
 	</Tabs.Content>
 
-	<!-- Pulse: what's happening right now -->
+	<!-- Live pulse -->
 	<Tabs.Content value="pulse" class="flex flex-col gap-6">
 		<ActionHint>
 			Most people who stop leave at <strong>{worstStep.name}</strong>:
@@ -278,7 +276,7 @@
 		/>
 	</Tabs.Content>
 
-	<!-- Journey: where people get stuck -->
+	<!-- Journey -->
 	<Tabs.Content value="journey" class="flex flex-col gap-6">
 		<ActionHint tone="info">
 			{worstStep.inactiveThreeDays} people started <strong>{worstStep.name}</strong> but
@@ -295,7 +293,7 @@
 		/>
 	</Tabs.Content>
 
-	<!-- Recruitment: who is joining, from where, and whether they reflect the population -->
+	<!-- Recruitment -->
 	<Tabs.Content value="recruitment" class="flex flex-col gap-12">
 		<section aria-labelledby="recruitment-heading" class="flex flex-col gap-6">
 			<RepresentationHint

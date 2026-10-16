@@ -99,7 +99,6 @@
 		</Card.Description>
 	</Card.Header>
 	<Card.Content class="flex flex-col gap-6">
-		<!-- Selected person's journey, at the top so it reads as the card's focus. -->
 		{#if selected}
 			<div class="bg-muted/50 rounded-2xl p-5">
 				<JourneyDetail
@@ -191,7 +190,7 @@
 							{:else if result.face === 'sad'}
 								<Frown class="size-5 shrink-0 text-red-800" aria-hidden="true" />
 							{:else}
-								<!-- Live marker: this person is active right now. Same slot as the faces. -->
+								<!-- Live marker, in the same slot as the faces. -->
 								<span
 									class="relative flex size-5 shrink-0 items-center justify-center"
 									aria-hidden="true"

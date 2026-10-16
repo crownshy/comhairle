@@ -101,7 +101,6 @@
 			]}
 		>
 			{#snippet belowMarks()}
-				<!-- Fill under the running total so the joined amount reads as a solid share. -->
 				<Area seriesKey="joined" line={false} fillOpacity={1} class="fill-accent" />
 			{/snippet}
 		</LineChart>

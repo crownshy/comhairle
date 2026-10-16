@@ -33,17 +33,10 @@
 		{ label: 'Completed', value: completed, note: 'Completed every step' }
 	]);
 
-	/** Share of the previous stage that carried on, shown on the arrows. */
-	let rates = $derived([
-		`${percentOf(joined, recruited)}% joined`,
-		`${percentOf(completed, joined)}% completed`
-	]);
+	let rates = $derived([`${percentOf(joined, recruited)}%`, `${percentOf(completed, joined)}%`]);
 </script>
 
-<!--
-	The At a glance headline: Recruited → Joined → Completed on the brand surface, with the
-	share that carried on at each arrow. Completed is the white card so the outcome stands out.
--->
+<!-- Recruited → Joined → Completed, with the share that carried on at each arrow. -->
 <section
 	aria-labelledby="participation-flow-heading"
 	class="bg-primary text-primary-foreground flex flex-col gap-5 rounded-3xl px-7 pt-6 pb-7"
@@ -89,8 +82,7 @@
 				>
 					<ArrowRight class="hidden size-8 md:block" aria-hidden="true" />
 					<ArrowDown class="size-5 md:hidden" aria-hidden="true" />
-					<span
-						class="bg-card text-primary rounded-full px-2.5 py-0.5 text-sm font-semibold"
+					<span class=" text-card rounded-full px-2.5 py-0.5 text-sm font-semibold"
 						>{rates[index]}</span
 					>
 				</li>

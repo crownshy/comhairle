@@ -65,21 +65,17 @@
 		})
 	);
 
-	/** Which key item is hovered or focused: an action kind, or 'planned'. */
+	/** Key items are an action kind or 'planned'. Hover previews; click keeps it open. */
 	let hoveredKey = $state<string | null>(null);
-	/** Which key item was clicked: its actions stay listed inside the card. */
 	let selectedKey = $state<string | null>(null);
-	/** Hovering previews a key item in the same panel; otherwise the clicked one shows. */
 	let shownKey = $derived(hoveredKey ?? selectedKey);
 
-	/** The actions a key item stands for, shown in a card under the key. */
 	function actionsForKey(key: string): ActivityLogEntry[] {
 		return key === 'planned'
 			? sortedActions.filter((action) => action.scheduled)
 			: sortedActions.filter((action) => action.kind === key);
 	}
 
-	/** Kinds that appear on the chart, for the key underneath. */
 	let kindsShown = $derived([...new Set(sortedActions.map((action) => action.kind))]);
 
 	/** The tooltip can pass a series label instead of a date, so accept anything. */
@@ -90,11 +86,7 @@
 	}
 </script>
 
-<!--
-	Running totals of joined and completed against an even pace to the target, with each
-	logged recruitment action marked. The key under the chart lists those actions:
-	hover previews them in the panel below it, click keeps them open.
--->
+<!-- Running totals against an even pace to the target, with each logged action marked. -->
 <Card.Root>
 	<Card.Header>
 		<Card.Title>Signups and completions over time</Card.Title>
@@ -198,7 +190,6 @@
 			{/each}
 		</ul>
 
-		<!-- Actions for the hovered or clicked key item. -->
 		<div id="key-details" aria-live="polite">
 			{#if shownKey}
 				{@const keyActions = actionsForKey(shownKey)}

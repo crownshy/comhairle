@@ -3,9 +3,7 @@
 	import { Info, TriangleAlert } from 'lucide-svelte';
 
 	type Props = {
-		/** The one-sentence message. */
 		children: Snippet;
-		/** Buttons or links on the right, e.g. "View now". */
 		actions?: Snippet;
 		/** warning: orange, something needs attention. info: blue, a suggestion or tip. */
 		tone?: 'warning' | 'info';

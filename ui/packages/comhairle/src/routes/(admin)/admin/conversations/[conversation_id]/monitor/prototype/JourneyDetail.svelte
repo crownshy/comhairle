@@ -41,7 +41,6 @@
 		return `${visit.startedAt}–${addMinutes(visit.startedAt, visit.minutes)}`;
 	}
 
-	/** Steps they reached, in order. */
 	let reached = $derived(
 		journey.visits
 			.map((visit, index) => ({ visit, index, step: steps[index] }))
@@ -49,11 +48,7 @@
 	);
 </script>
 
-<!--
-	One person's journey, drawn as a larger copy of their bar in the list below (same
-	colours, same order, widths proportional to time), with when each step started and
-	how long it took written under its segment.
--->
+<!-- One person's day: their bar from the list, enlarged, with start time and duration per step. -->
 <section aria-label="{journey.code}'s journey" class="flex flex-col gap-4">
 	<header class="flex flex-wrap items-start justify-between gap-3">
 		<div class="flex flex-col gap-1">
@@ -120,8 +115,6 @@
 		</nav>
 	</header>
 
-	<!-- The bar on the same time scale as the list below, with each segment's details under it.
-		 The faint track behind shows the rest of the scale. -->
 	<div class="relative">
 		<div class="bg-card absolute inset-x-0 top-0 h-8 rounded-lg" aria-hidden="true"></div>
 		<ol
