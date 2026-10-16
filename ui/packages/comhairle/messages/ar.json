@@ -386,5 +386,6 @@
 	"polis_vote_one_more_to_continue": "صوّت على رأي واحد آخر للمتابعة.",
 	"polis_vote_more_to_continue": "صوّت على {count} آراء أخرى للمتابعة.",
 	"polis_finish_voting": "انتهيت من التصويت",
-	"polis_finish_voting_hint": "أنهِ هذه الخطوة وانتقل إلى التالية"
+	"polis_finish_voting_hint": "أنهِ هذه الخطوة وانتقل إلى التالية",
+	"step_menu_about_heading": "حول هذه المحادثة"
 }

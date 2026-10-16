@@ -1,12 +1,28 @@
 <script lang="ts">
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import { ChevronDown, Check, Lock, Moon, Sun } from 'lucide-svelte';
+	import {
+		ChevronDown,
+		ChevronRight,
+		Check,
+		CircleHelp,
+		ShieldCheck,
+		Languages,
+		Lock,
+		Moon,
+		Sun
+	} from 'lucide-svelte';
+	import { tick } from 'svelte';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
 	import { m } from '$lib/paraglide/messages';
 	import { HEADER_PILL_CLASS } from './styles';
+	import { getLocale, locales, type Locale } from '$lib/paraglide/runtime';
+	import { getLanguageName } from '$lib/config/languages';
+	import { switchLocale } from '$lib/utils/locale';
+	import { useSupportDrawer, type SupportTab } from '$lib/components/supportDrawerContext.svelte';
 	import type { StepItem, StepStatus } from './stepItems';
 
 	type Props = {
@@ -48,6 +64,16 @@
 		'group data-[state=open]:bg-primary/10 min-w-0 justify-end'
 	);
 
+	// Opened in a new tab so reading them doesn't take the participant out of their step. The
+	// privacy policy is the conversation's own, so it lives in Find out more instead.
+	const LEGAL_LINKS = [
+		{ href: '/rights/tos', label: m.terms_of_service },
+		{ href: '/rights/cookies', label: m.cookies_settings }
+	];
+
+	const SHEET_ROW_CLASS =
+		'hover:bg-muted active:bg-muted text-foreground flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left text-base transition-colors';
+
 	const isMobile = new IsMobile();
 
 	let open = $state(false);
@@ -58,6 +84,27 @@
 
 	let themeLabel = $derived(themeStore.isDark ? m.theme_light_mode() : m.theme_dark_mode());
 	let ThemeIcon = $derived(themeStore.isDark ? Sun : Moon);
+
+	const currentLocale = getLocale();
+	let languageListOpen = $state(false);
+	let pendingLocale = $state<Locale | null>(null);
+	let shownLocale = $derived(pendingLocale ?? currentLocale);
+
+	// Switching reloads the whole page, so show the spinner first and let it paint.
+	async function chooseLanguage(locale: Locale) {
+		if (locale === currentLocale || pendingLocale) return;
+		pendingLocale = locale;
+		await tick();
+		await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+		switchLocale(locale);
+	}
+
+	const supportDrawer = useSupportDrawer();
+
+	function openSupport(tab: SupportTab) {
+		open = false;
+		supportDrawer.openOn(tab);
+	}
 
 	function ariaCurrent(step: StepItem) {
 		return step === viewedStep ? 'step' : undefined;
@@ -95,6 +142,27 @@
 			<Lock class="text-muted-foreground ml-auto size-4 shrink-0" />
 		{/if}
 	</span>
+{/snippet}
+
+{#snippet languageRowInner()}
+	<Languages class="text-muted-foreground size-5 shrink-0" />
+	<span>{m.language()}</span>
+	<span class="text-muted-foreground ml-auto flex items-center gap-2">
+		{#if pendingLocale}
+			<Spinner class="size-4" />
+		{/if}
+		{getLanguageName(shownLocale, 'native')}
+	</span>
+{/snippet}
+
+{#snippet faqRowInner()}
+	<CircleHelp class="text-muted-foreground size-5 shrink-0" />
+	{m.faq()}
+{/snippet}
+
+{#snippet privacyRowInner()}
+	<ShieldCheck class="text-muted-foreground size-5 shrink-0" />
+	{m.privacy_policy()}
 {/snippet}
 
 {#snippet themeRowInner()}
@@ -141,14 +209,81 @@
 					{/if}
 				{/each}
 
-				<div class="border-border mt-2 border-t pt-2 pb-2">
+				<div class="border-border mt-2 border-t pt-2">
+					<p class="text-foreground px-3 pt-2 pb-1 text-base font-semibold">
+						{m.step_menu_about_heading()}
+					</p>
 					<button
 						type="button"
-						class="hover:bg-muted active:bg-muted text-foreground flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left text-base transition-colors"
+						class={SHEET_ROW_CLASS}
+						onclick={() => openSupport('faqs')}
+					>
+						{@render faqRowInner()}
+					</button>
+					<button
+						type="button"
+						class={SHEET_ROW_CLASS}
+						onclick={() => openSupport('privacyPolicy')}
+					>
+						{@render privacyRowInner()}
+					</button>
+				</div>
+
+				<div class="border-border mt-2 border-t pt-2">
+					<button
+						type="button"
+						class={SHEET_ROW_CLASS}
 						onclick={() => themeStore.toggleMode()}
 					>
 						{@render themeRowInner()}
 					</button>
+					<button
+						type="button"
+						class={SHEET_ROW_CLASS}
+						aria-expanded={languageListOpen}
+						onclick={() => (languageListOpen = !languageListOpen)}
+					>
+						{@render languageRowInner()}
+						<ChevronRight
+							class={cn(
+								'text-muted-foreground size-5 shrink-0 transition-transform',
+								languageListOpen && 'rotate-90'
+							)}
+						/>
+					</button>
+					{#if languageListOpen}
+						<div class="pl-8">
+							{#each locales as locale (locale)}
+								<button
+									type="button"
+									class={SHEET_ROW_CLASS}
+									aria-current={locale === shownLocale ? 'true' : undefined}
+									disabled={pendingLocale !== null}
+									onclick={() => chooseLanguage(locale)}
+								>
+									{getLanguageName(locale, 'native')}
+									{#if locale === pendingLocale}
+										<Spinner class="text-primary ml-auto size-5 shrink-0" />
+									{:else if locale === shownLocale}
+										<Check class="text-primary ml-auto size-5 shrink-0" />
+									{/if}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				<div class="border-border mt-2 border-t pt-2 pb-2">
+					{#each LEGAL_LINKS as link (link.href)}
+						<a
+							href={link.href}
+							target="_blank"
+							rel="noopener"
+							class={cn(SHEET_ROW_CLASS, 'text-muted-foreground min-h-12')}
+						>
+							{link.label()}
+						</a>
+					{/each}
 				</div>
 			</div>
 		</Drawer.Content>
@@ -202,6 +337,25 @@
 			</DropdownMenu.Group>
 
 			<DropdownMenu.Separator />
+			<DropdownMenu.Group>
+				<DropdownMenu.GroupHeading class="text-sm">
+					{m.step_menu_about_heading()}
+				</DropdownMenu.GroupHeading>
+				<DropdownMenu.Item
+					class="cursor-pointer py-2.5 text-base"
+					onSelect={() => openSupport('faqs')}
+				>
+					{@render faqRowInner()}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item
+					class="cursor-pointer py-2.5 text-base"
+					onSelect={() => openSupport('privacyPolicy')}
+				>
+					{@render privacyRowInner()}
+				</DropdownMenu.Item>
+			</DropdownMenu.Group>
+
+			<DropdownMenu.Separator />
 			<!-- Stays open so you can see the new mode and switch back. -->
 			<DropdownMenu.Item
 				class="cursor-pointer py-2.5 text-base"
@@ -212,6 +366,42 @@
 			>
 				{@render themeRowInner()}
 			</DropdownMenu.Item>
+			<DropdownMenu.Sub>
+				<DropdownMenu.SubTrigger class="cursor-pointer gap-2 py-2.5 text-base">
+					{@render languageRowInner()}
+				</DropdownMenu.SubTrigger>
+				<DropdownMenu.SubContent class="w-56 p-2">
+					<DropdownMenu.RadioGroup
+						value={shownLocale}
+						onValueChange={(value) => chooseLanguage(value as Locale)}
+					>
+						{#each locales as locale (locale)}
+							<DropdownMenu.RadioItem
+								value={locale}
+								closeOnSelect={false}
+								disabled={pendingLocale !== null && locale !== pendingLocale}
+								class="cursor-pointer py-2.5 text-base"
+							>
+								{getLanguageName(locale, 'native')}
+								{#if locale === pendingLocale}
+									<Spinner class="ml-auto size-4" />
+								{/if}
+							</DropdownMenu.RadioItem>
+						{/each}
+					</DropdownMenu.RadioGroup>
+				</DropdownMenu.SubContent>
+			</DropdownMenu.Sub>
+
+			<DropdownMenu.Separator />
+			{#each LEGAL_LINKS as link (link.href)}
+				<DropdownMenu.Item class="text-muted-foreground cursor-pointer py-2 text-base">
+					{#snippet child({ props })}
+						<a {...props} href={link.href} target="_blank" rel="noopener">
+							{link.label()}
+						</a>
+					{/snippet}
+				</DropdownMenu.Item>
+			{/each}
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
 {/if}

@@ -385,5 +385,6 @@
 	"polis_vote_one_more_to_continue": "再对 1 条意见投票即可继续。",
 	"polis_vote_more_to_continue": "再对 {count} 条意见投票即可继续。",
 	"polis_finish_voting": "我投完了",
-	"polis_finish_voting_hint": "完成此步骤并继续"
+	"polis_finish_voting_hint": "完成此步骤并继续",
+	"step_menu_about_heading": "关于此对话"
 }

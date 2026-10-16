@@ -1,13 +1,10 @@
 <script lang="ts">
+	import { logOut } from '$lib/utils/logout';
 	import { Button } from './ui/button';
 	import UserAvatar from './UserAvatar.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { UserDto } from '@crownshy/api-client/api';
 	import { LoginButtons } from '$lib/profile';
-	import { apiClient } from '@crownshy/api-client/client';
-	import { notifications } from '$lib/notifications.svelte';
-	import { goto } from '$app/navigation';
-	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = {
 		user: UserDto;
@@ -15,20 +12,6 @@
 
 	let props: Props = $props();
 	let user = props.user;
-
-	async function attemptLogout() {
-		try {
-			await apiClient.LogoutUser(undefined);
-
-			await goto('/', { invalidate: [key('user')] });
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				priority: 'ERROR',
-				message: 'An error occurred when attempting to logout '
-			});
-		}
-	}
 </script>
 
 <div class="flex w-full flex-col items-center gap-4">
@@ -39,7 +22,7 @@
 				method="POST"
 				onsubmit={(e) => {
 					e.preventDefault();
-					attemptLogout();
+					logOut();
 				}}
 			>
 				<Button type="submit" variant="outline" class="text-gray-700 hover:text-black">

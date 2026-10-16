@@ -396,5 +396,6 @@
 	"polis_vote_one_more_to_continue": "برای ادامه به ۱ دیدگاه دیگر رأی دهید.",
 	"polis_vote_more_to_continue": "برای ادامه به {count} دیدگاه دیگر رأی دهید.",
 	"polis_finish_voting": "رأی‌دادنم تمام شد",
-	"polis_finish_voting_hint": "این مرحله را تمام کنید و به مرحلهٔ بعد بروید"
+	"polis_finish_voting_hint": "این مرحله را تمام کنید و به مرحلهٔ بعد بروید",
+	"step_menu_about_heading": "دربارهٔ این گفت‌وگو"
 }
