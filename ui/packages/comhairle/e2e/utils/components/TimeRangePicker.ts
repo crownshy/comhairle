@@ -1,6 +1,8 @@
-import { find } from '..';
+import { find, sleep } from '..';
 import type { Refs } from './types';
 
+// TODO: Come back and some point and fix
+// Giving up for now as this input is impossible to do tests with consistently
 type Time = `${number}${number}:${number}${number} AM` | `${number}${number}:${number}${number} PM`;
 type Range = {
 	start: Time;
@@ -46,11 +48,13 @@ function TimeRangePicker(range: Range | undefined, refs: Refs) {
 
 		for (const key of toKeyPresses(start)) {
 			await body.press(key);
+			await sleep(0.1);
 		}
 		await body.press('Tab');
 
 		for (const key of toKeyPresses(end)) {
 			await body.press(key);
+			await sleep(0.1);
 		}
 		await body.press('Tab');
 
