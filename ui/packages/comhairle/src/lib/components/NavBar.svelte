@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { logOut } from '$lib/utils/logout';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { ProfileMenu } from '$lib/profile';
@@ -26,13 +27,7 @@
 	import { userInitials } from '$lib/utils';
 	import { Separator } from '$lib/components/ui/separator';
 	import { notificationService } from '$lib/services/notifications.svelte';
-	import { apiClient } from '@crownshy/api-client/client';
-	import { notifications } from '$lib/notifications.svelte';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { key } from '$lib/utils/invalidationKey';
 	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	let links = [
 		{
@@ -67,16 +62,6 @@
 	let hasSupportDrawer = $derived(page.data.hasSupportDrawer === true);
 
 	const linkIcons = [Home, Info, MessageSquare, Shield];
-
-	async function attemptLogout() {
-		const logout = await tryCatchAsync(async () => {
-			await apiClient.LogoutUser(undefined);
-			await goto(resolve('/'), { invalidate: [key('user')] });
-		});
-		if (logout.err) {
-			notifications.send({ priority: 'ERROR', message: m.logout_failed() });
-		}
-	}
 </script>
 
 <nav
@@ -251,7 +236,7 @@
 									method="POST"
 									onsubmit={(e) => {
 										e.preventDefault();
-										attemptLogout();
+										logOut();
 									}}
 									class="px-0"
 								>
