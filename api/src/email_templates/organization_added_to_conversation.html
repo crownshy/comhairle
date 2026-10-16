@@ -1,0 +1,10 @@
+{% extends "email_layout.html" %}
+{% block content %}
+<p>Hello!</p>
+
+<p>{{ organization_name }} has accepted the invitation to "{{ conversation_title }}" and now has access to it.</p>
+
+<p>Roles given: {{ roles | join(", ") }}.</p>
+
+<p><a href="{{ conversation_link }}">Open the conversation</a></p>
+{% endblock %}

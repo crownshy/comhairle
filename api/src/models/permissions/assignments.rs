@@ -9,6 +9,7 @@ use uuid::Uuid;
 use super::{self as permissions, ActorId, ResourceType};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::models::organization_invitation;
 use crate::models::user_group::{self, OrganizationGroup};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
@@ -40,6 +41,9 @@ pub struct Snapshot {
     pub version: i64,
     pub roles: Vec<String>,
     pub inherited: Vec<InheritedRoles>,
+    /// Set when the roles were not granted but proposed to this contact email instead.
+    #[serde(default)]
+    pub invitation_sent_to: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -190,6 +194,7 @@ async fn snapshot(
         version,
         roles,
         inherited,
+        invitation_sent_to: None,
     })
 }
 
@@ -251,6 +256,36 @@ pub async fn save(
         return Err(ComhairleError::Conflict(
             "Assignments changed. Reload before saving".into(),
         ));
+    }
+    if resource_type == ResourceType::Conversation
+        && let Recipient::Group(group_id) = recipient
+        && current.roles.is_empty()
+        && !request.roles.is_empty()
+        && let Some(organization) =
+            organization_invitation::contactable_organization(&mut transaction, group_id).await?
+    {
+        let invitation_id = organization_invitation::propose(
+            &mut transaction,
+            resource_id,
+            organization.id,
+            &request.roles,
+            &request.grant_reason,
+            caller_id,
+        )
+        .await?;
+        transaction.commit().await?;
+        organization_invitation::send_invitation(
+            state,
+            invitation_id,
+            &organization,
+            resource_id,
+            caller_id,
+        )
+        .await;
+        return Ok(Snapshot {
+            invitation_sent_to: Some(organization.contact_email),
+            ..current
+        });
     }
     if resource_type == ResourceType::Organization {
         match recipient {

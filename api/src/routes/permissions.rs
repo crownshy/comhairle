@@ -22,7 +22,7 @@ use crate::models::permissions::{
     PermissionTargetResource, PermissionTriplet, RevokeRoleRequest, SystemResource,
     UserWithPermissionDto, grant_role, list_permissions, revoke_role, system,
 };
-use crate::models::users;
+use crate::models::{pending_role_assignment, users};
 use crate::routes::auth::RequiredUser;
 
 /// Represents the resource type and ID for a permission operation.
@@ -362,8 +362,86 @@ async fn save_assignments(
     ))
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+struct ResourcePath {
+    resource_type: permissions::ResourceType,
+    resource_id: Uuid,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct EmailLookupRequest {
+    emails: Vec<String>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+struct InvitedEmails {
+    emails: Vec<String>,
+}
+
+#[instrument(err(Debug), skip(state, request))]
+async fn lookup_emails(
+    State(state): State<Arc<ComhairleState>>,
+    Path(_path): Path<ResourcePath>,
+    Json(request): Json<EmailLookupRequest>,
+) -> Result<Json<pending_role_assignment::EmailLookup>, ComhairleError> {
+    Ok(Json(
+        pending_role_assignment::lookup_emails(&state, &request.emails).await?,
+    ))
+}
+
+#[instrument(err(Debug), skip(state, request))]
+async fn invite_to_assign(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(caller): RequiredUser,
+    Path(path): Path<ResourcePath>,
+    Json(request): Json<pending_role_assignment::InviteRequest>,
+) -> Result<Json<InvitedEmails>, ComhairleError> {
+    Ok(Json(InvitedEmails {
+        emails: pending_role_assignment::invite(
+            &state,
+            caller.id,
+            path.resource_type,
+            path.resource_id,
+            request,
+        )
+        .await?,
+    }))
+}
+
 pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
+        .api_route(
+            "/{resource_type}/{resource_id}/email-lookup",
+            post_with(lookup_emails, |operation| {
+                operation
+                    .id("LookupAssignmentEmails")
+                    .tag("Permissions")
+                    .summary("Split emails into registered and unregistered addresses")
+                    .security_requirement("JWT")
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<PermissionTargetResource>::new(
+                    PermissionManagementAction::Grant,
+                ),
+                authorize::<PermissionTargetResource>,
+            )),
+        )
+        .api_route(
+            "/{resource_type}/{resource_id}/invitations",
+            post_with(invite_to_assign, |operation| {
+                operation
+                    .id("InviteToAssignRoles")
+                    .tag("Permissions")
+                    .summary("Invite emails without an account and propose roles for them")
+                    .security_requirement("JWT")
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<PermissionTargetResource>::new(
+                    PermissionManagementAction::Grant,
+                ),
+                authorize::<PermissionTargetResource>,
+            )),
+        )
         .api_route(
             "/{resource_type}/roles",
             get_with(catalogue, |operation| {

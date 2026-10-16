@@ -191,3 +191,14 @@ export function roleCounts(roles: string[], recipients: Pick<RoleRecipient, 'rol
 		count: recipients.filter((recipient) => recipient.roles.includes(role)).length
 	}));
 }
+
+export function parseEmails(input: string): string[] {
+	return Array.from(
+		new Set(
+			input
+				.split(/[\s,;]+/)
+				.map((email) => email.trim().toLowerCase())
+				.filter((email) => email.length > 0)
+		)
+	);
+}
