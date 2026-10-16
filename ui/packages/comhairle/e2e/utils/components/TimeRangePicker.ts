@@ -2,16 +2,24 @@ import { find } from '..';
 import type { Refs } from './types';
 
 type Time = `${number}${number}:${number}${number} AM` | `${number}${number}:${number}${number} PM`;
+type Range = {
+	start: Time;
+	end: Time;
+};
 
 const EMPTY = '––:–– AM to––:–– AM';
 const FILLED = /:[\d–]{2}[\s]+(AM|PM)[\s]+to[\d–]{2}:[\d–]{2}[\s]+(AM|PM)/;
 
-function TimeRangePicker(refs: Refs) {
-	let text: string | undefined;
+// For some reason the label seems to truncate the first two numbers, so slice(2)
+const timeToLabel = (start: Time, end: Time) => `${start} to${end}`.slice(2);
+
+function TimeRangePicker(range: Range | undefined, refs: Refs) {
+	let label: string | undefined =
+		range !== undefined ? timeToLabel(range.start, range.end) : undefined;
 
 	const locator = () =>
-		text !== undefined
-			? find(refs.page.getByText(text))
+		label !== undefined
+			? find(refs.page.getByText(label))
 			: find(refs.page.getByText(EMPTY).or(refs.page.getByText(FILLED)));
 
 	const focus = async () =>
@@ -46,12 +54,25 @@ function TimeRangePicker(refs: Refs) {
 		}
 		await body.press('Tab');
 
-		// For some reason the label seems to truncate the first two numbers, so slice(2)
-		text = `${start} to${end}`.slice(2);
+		label = timeToLabel(start, end);
 	}
 
+	async function expected() {
+		if (!label) {
+			return;
+		}
+		await find(refs.page.getByText(label));
+	}
+
+	refs.cleanup?.(async () => {
+		if (range) {
+			await fill(range.start, range.end);
+		}
+	});
+
 	return {
-		fill
+		fill,
+		expect: expected
 	};
 }
 
