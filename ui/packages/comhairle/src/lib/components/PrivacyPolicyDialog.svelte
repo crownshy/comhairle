@@ -9,11 +9,18 @@
 		conversation: LocalizedConversationDto;
 		open: boolean;
 		onAccept: () => void;
+		onDismiss?: () => void;
 		/** Parsed documents, so source-document badges in the short privacy policy resolve + download. */
 		availableDocuments?: ComhairleDocument[];
 	};
 
-	let { conversation, open = $bindable(), onAccept, availableDocuments = [] }: Props = $props();
+	let {
+		conversation,
+		open = $bindable(),
+		onAccept,
+		onDismiss,
+		availableDocuments = []
+	}: Props = $props();
 
 	function handleAccept() {
 		open = false;
@@ -21,7 +28,8 @@
 	}
 </script>
 
-<Dialog.Root bind:open>
+<!-- onOpenChange only fires for the participant closing it, not for handleAccept. -->
+<Dialog.Root bind:open onOpenChange={(isOpen) => !isOpen && onDismiss?.()}>
 	<Dialog.Content
 		showCloseButton={false}
 		class="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-lg"
@@ -33,6 +41,7 @@
 				<br />
 				<br />
 				To read the full privacy policy for this conversation
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
 				<a
 					href={`/conversations/${conversation.id}${conversation.isLive ? '' : '/preview'}/privacy`}
 					target="_blank"
