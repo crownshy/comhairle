@@ -51,5 +51,6 @@ test('Events/Details page', async ({ page, cleanup }) => {
 		await SignupMode.expect();
 	});
 
-	await expect(page.getByRole('heading', { name: Name.value() })).toBeVisible();
+	await eventually(() => expect(page.getByRole('heading', { name: Name.value() })).toBeVisible());
+	await eventually(() => expect(page.getByRole('link', { name: Name.value() })).toBeVisible());
 });
